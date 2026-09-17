@@ -159,6 +159,38 @@ recording, not the contents. If a project wants every sample in a fresh
 container, that is the project's script; proctor's job is to call it at the
 right level and note in the manifest that it did.
 
+## Cheap local inference is a resource, not a compromise
+
+We test heavily on qwen-coder, not because any customer uses it but because
+two Strix Halo boxes in the house run it for the cost of electricity, and it
+is currently the best speed-to-smarts trade at that price. The rough exchange
+rate, from experience: a run that takes about twenty minutes at full GPU on a
+128 GB Strix takes about five minutes on GPT-5 or Sonnet and costs one to two
+dollars. Local is slow and free; hosted is fast and metered. Proctor should
+treat the two as different resources and let an experiment use each for what
+it is good at:
+
+- **Shakedown runs.** Before spending money, run the whole experiment once on
+  local to prove the eval definition, the grader, the fixtures and the
+  archive path all work. A shakedown is a first-class thing, not a manual
+  habit, and it should be the default before any arm that costs money.
+- **A floor arm.** Weaver's harness matrix always carried a local model as the
+  floor control, so every result was a gradient rather than a single number.
+  Proctor should make that a one-line addition to any experiment.
+- **Large N where it is free.** Statistical power comes from cases, and local
+  inference lets deterministic evals run at an N that hosted models would not
+  justify. The nightly judged pass in `learnings/ci-distribution.md` can be
+  local for the subject and hosted only for the judge.
+- **Throughput, not cost, is the local constraint.** Two boxes means two lanes;
+  a big model needs a box to itself, and switching models is a blocking
+  operation. The experiment manager should schedule local arms per box and
+  avoid interleaving models on one box.
+
+What local is not for: the judge. The judge should be stronger than, and
+outside the family of, every arm it grades (`learnings/prior-art.md` §3), and
+that will usually mean a hosted model. The judge's cost is small because it
+reads a window, not the run.
+
 ## Nice to have: an eval sidecar with a clear boundary
 
 Ideally a project under test gets something analogous to its `test/`
