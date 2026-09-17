@@ -191,6 +191,48 @@ outside the family of, every arm it grades (`learnings/prior-art.md` §3), and
 that will usually mean a hosted model. The judge's cost is small because it
 reads a window, not the run.
 
+## A typical experiment, concretely
+
+The shape proctor has to serve first is the one that runs at work today.
+Three fixtures, each a test repository where the agent is asked to make a code
+change. Three arms:
+
+| arm | harness | model | samples per fixture | runs | wall time | cost |
+|---|---|---|---|---|---|---|
+| floor | nb | qwen-coder, local | 3 | 9 | about three hours | electricity |
+| codex | Codex CLI | GPT-5, OpenAI API | 1 | 3 | minutes | metered |
+| claude | Claude Code | Sonnet 5, Anthropic API | 1 | 3 | minutes | metered |
+
+Fifteen runs. The floor arm is the measured one; the hosted arms are spot
+checks. That is a sensible use of the resources in the previous section, and
+proctor should make it the default shape rather than something assembled by
+hand. Three things follow.
+
+**The report must say what this design can and cannot show.** A hosted arm at
+one sample per fixture has no interval; it is three observations. The floor
+arm at three samples per fixture is nine observations and a Wilson interval on
+it is wide. A pass-rate comparison between qwen and Sonnet on this design
+cannot detect anything smaller than a landslide, and the report should print
+that sentence rather than a verdict glyph. What the design does support is
+per-fixture reading: did each arm solve each fixture, with the transcript one
+fetch away. The case-by-arm matrix from `learnings/prior-art.md` §5 is the
+headline table for this shape, not the arm-by-rate table.
+
+**The fixtures are the cases, and they are repositories.** A case here is not
+a prompt row; it is a checkout, possibly with a container and fake services
+around it, that gets mutated by the run and must be reset per sample. This is
+the environment stance above in its most concrete form: the reset is the
+project's script, proctor calls it at the sample level and records it.
+Grading is mostly deterministic (does the project build, do its tests pass,
+does the diff touch what it should) before any judge reads anything.
+
+**Real harness or nb costume is an open question, per arm.** nb can wear the
+`codex` and `claude-code` costumes, and weaver ran the real CLIs instead. The
+costume gives one program file and one transcript format for every arm; the
+real CLI gives fidelity and a different log for each. The manifest should
+record which was used, and the report should not compare a costume arm to a
+real-CLI arm without saying so.
+
 ## Nice to have: an eval sidecar with a clear boundary
 
 Ideally a project under test gets something analogous to its `test/`
