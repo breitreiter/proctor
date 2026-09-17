@@ -142,14 +142,33 @@ Two consequences:
 Legibility rules for the site are the same as for a report: tables, intervals,
 fixed vocabulary, templated sentences. No model writes any of it.
 
+**The site is a prebuilt app plus data files.** Proctor ships
+one static front-end bundle, built once in proctor's own repo and versioned
+with it. A consumer's report site is that bundle plus a `data/` directory of
+JSON: the index of experiments, and per experiment the manifest, the results
+table and the derived statistics. The browser loads the JSON and does all the
+rendering, sorting, filtering and cross-experiment views client-side. This is
+architecturally ugly and it works: some well-known dashboard products send
+hundreds of thousands of records to the browser and let it render them, and
+that choice spared them a great deal of backend engineering. Our data is far
+smaller than that. Two consequences:
+
+- The derived tier that gets committed is exactly the JSON the site reads, so
+  "rebuild the site" means "copy the bundle next to the data". There is no
+  generation step in the consumer's CI beyond writing JSON, and no external
+  site generator.
+- Proctor still renders markdown deterministically for the CI step summary
+  and for the pull request. Both renderers read the same JSON, so the
+  numbers cannot disagree.
+
 **No design system of our own.** The site uses a component library that
 ships an opinionated design out of the box, with the micro-interactions
 already done. A default that looks like every other app built on that
 library is fine; it is better than hand-rolled CSS, and nobody is coming to
 the site for its looks. MUI is the familiar reference for what "complete"
-means here, but it is React, and a React app means a JavaScript build for a
-site that .NET otherwise generates statically. The choice is open in
-`todo.md`.
+means here. Since the bundle is built once in proctor's repo, a React app
+costs nothing in a consumer's CI, so React libraries are back on the table.
+The choice is open in `todo.md`.
 
 ## The test environment is not our problem
 

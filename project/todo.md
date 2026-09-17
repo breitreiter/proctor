@@ -18,31 +18,28 @@ existing consumer already uses. The in-process path gives a typed `RunResult`
 and no quoting or stream-deadlock problems, but couples proctor's build to nb's.
 Pick one before the experiment manager grows a second code path.
 
-## Static site generation: pick the shape before the report skeleton hardens
+## Define the JSON the site reads before the report skeleton hardens
 
-The brief now requires reports to be a per-repo static site. Decide early
-whether the site is rendered by proctor directly (a small .NET templating
-step, no external tool) or whether proctor emits markdown and a conventional
-generator builds it. The former keeps the consumer's CI to one tool; the
-latter is more familiar but adds a dependency and a second config file.
-Either way the index page and the per-experiment page need to exist before
-the report skeleton in `learnings/prior-art.md` §5 is implemented, or the
-skeleton gets built as a single file and then rebuilt.
+Resolved the generation question: the site is a prebuilt bundle plus `data/`
+JSON (brief, "The site is a prebuilt app plus data files"). What remains is
+the data contract: the index file, the per-experiment files, and where the
+derived statistics live (computed by proctor in .NET and written as JSON, so
+the browser never does statistics and the markdown summary reads the same
+numbers). Settle that schema before implementing the report skeleton in
+`learnings/prior-art.md` §5, since both renderers depend on it.
 
 ## Pick the component library for the report site
 
 The brief wants an opinionated library with complete components and
-micro-interactions, and no design system of our own. The constraint that
-narrows it is the generation path: if proctor renders the site from .NET, a
-library that works from static HTML with no bundler is much simpler than a
-React one. That favours a web-components library loaded from a CDN or vendored
-as files: Web Awesome (formerly Shoelace) is the mature one, Material Web is
-Google's own web-components take on Material if the MUI look is wanted without
-React, and Fluent UI has a web-components build. MUI itself stays on the list
-only if the site becomes a React app, which also reopens the "proctor renders
-or an external generator renders" question above. Tables are the whole
-product, so judge candidates on their table, tabs, tooltip and details
-components before anything else.
+micro-interactions, and no design system of our own. The bundle is built once
+in proctor's repo, so a React app costs a consumer nothing, and MUI is a real
+candidate: its DataGrid does client-side sort, filter and virtualised
+rendering of large tables, which is the client-side load the brief now
+expects. Alternatives with the same completeness: Mantine (less "Firebase
+clone"), Ant Design (table-centric). Web-components libraries such as Web
+Awesome remain an option if the bundle should stay framework-free. Tables are
+the whole product, so judge candidates on their data table first, then tabs,
+tooltip and details.
 
 ## Candidates for nb, not proctor
 
