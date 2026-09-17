@@ -142,6 +142,15 @@ Two consequences:
 Legibility rules for the site are the same as for a report: tables, intervals,
 fixed vocabulary, templated sentences. No model writes any of it.
 
+**No design system of our own.** The site uses a component library that
+ships an opinionated design out of the box, with the micro-interactions
+already done. A default that looks like every other app built on that
+library is fine; it is better than hand-rolled CSS, and nobody is coming to
+the site for its looks. MUI is the familiar reference for what "complete"
+means here, but it is React, and a React app means a JavaScript build for a
+site that .NET otherwise generates statically. The choice is open in
+`todo.md`.
+
 ## The test environment is not our problem
 
 Real test environments are complex: API fakes, fake web servers, podman or
