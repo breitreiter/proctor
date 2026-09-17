@@ -191,6 +191,23 @@ outside the family of, every arm it grades (`learnings/prior-art.md` §3), and
 that will usually mean a hosted model. The judge's cost is small because it
 reads a window, not the run.
 
+**The judge's home is the Cloudflare Workers AI subscription.** It is a flat
+monthly fee already being paid, it serves Kimi K2 and GLM, and neither is in
+the family of any arm we run or any harness a customer uses. That is the
+profile the judge literature asks for, and it is what weaver chose in July.
+Calibrate it against human labels before trusting it; the oracle bench is a
+small version of that exercise already run against GLM.
+
+## Who the customers are, and what that fixes
+
+Roughly sixty percent of customers are on Claude Code, twenty on Codex, and
+twenty spread across Grok, Copilot and other tails. So the default experiment
+is the one in the next section: Claude Code with Sonnet as the primary arm,
+Codex with GPT-5 as the secondary, qwen-coder on nb as the floor. nb has
+costumes for the first two and none for the tail, and building one per tail
+vendor is not worth it. A report says which harnesses were tested and does not
+imply coverage of the rest.
+
 ## A typical experiment, concretely
 
 The shape proctor has to serve first is the one that runs at work today.
