@@ -1,0 +1,15 @@
+# Raw run tier: transcripts, stderr, config snapshots (may carry API keys).
+# Archived to object storage via `proctor archive`; see project/learnings/where-runs-live.md
+runs/
+**/runs/
+
+# .NET
+bin/
+obj/
+*.user
+.idea/
+.vs/
+
+# Local config with keys
+appsettings.json
+!appsettings.example.json
