@@ -17,3 +17,4 @@ that did.
 | [test-framework-patterns.md](test-framework-patterns.md) | What xUnit, pytest, JUnit, snapshot testers and flaky-test conventions lend an eval runner: ids, fixtures, three outcomes, record-review-approve. And the one mismatch none of them can paper over. |
 | [ci-distribution.md](ci-distribution.md) | How other repos pull proctor and nb into GitHub Actions: nuget.org tool packages pinned in a manifest, a thin composite action, report-don't-gate. And what nb needs first. |
 | [where-runs-live.md](where-runs-live.md) | Commit the definitions and the report, archive transcripts to a bucket in the on-disk layout, never LFS. The `archive` and `fetch` verbs. |
+| [name-collisions.md](name-collisions.md) | The name "proctor" checked against evals, o11y and package registries on 2026-09-17. Kept. Bare `Proctor` is taken on nuget.org, PyPI and npm; publish as `Dreamlands.Proctor` if ever. |

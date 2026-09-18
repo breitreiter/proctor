@@ -37,6 +37,12 @@ proctor's brief cares about:
   real dedup keys on input hashes, which is exactly wrong for runs that are
   supposed to differ.
 
+Langfuse, checked afterwards as the one open-source trace-centric tool
+(`prior-art/frameworks.md` §9), confirms the first three from code rather than
+docs: averages only, reasoning confined to a free-text comment, repeats per
+item collapsed in the compare view. Its one transferable habit is enforcing
+the label vocabulary at write time via a score config.
+
 Everything else below is borrowed.
 
 ## 1. Experiment definition on disk
@@ -160,6 +166,15 @@ unusually consistent. The concrete rules, with the source in `prior-art/judges.m
 The pattern both in-house harnesses converged on independently is the same
 one: deterministic gate first, `needs-judge` as a third state, judge returns
 booleans only, the pass bar is code. That is confirmed, not overturned.
+
+A later pass, `prior-art/promptfoo-checks.md`, read promptfoo's assertion
+catalogue as a demand signal for what the deterministic gate should be able
+to say without a script. Its finding: the layout plan's grading section is
+right about the judge and wrong at the bottom rung, because every check is a
+script and the checks people write daily are one-line declarations over a
+known field. It lists the built-ins nb's transcript makes cheap, the scalar
+metrics to decompose into booleans, the similarity metrics to reject, and a
+small-classifier middle rung to defer.
 
 **What proctor takes.** All of the above as the grader contract. The trailer
 answers most questions with no model at all; a judge is a per-dimension binary

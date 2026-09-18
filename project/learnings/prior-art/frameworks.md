@@ -1,7 +1,8 @@
 # LLM / agent eval frameworks: survey for proctor
 
 Research date: 2026-09-17. Scope: Inspect (UK AISI), promptfoo, OpenAI Evals, Braintrust,
-LangSmith, DeepEval, lm-evaluation-harness, HELM. Depth on Inspect and promptfoo.
+LangSmith, DeepEval, lm-evaluation-harness, HELM; Langfuse added later the same day, narrowly
+(§9). Depth on Inspect and promptfoo.
 
 Framing for proctor: nb emits one JSONL transcript per run; proctor defines arms, runs them N
 times, grades, and emits deterministic tables. Each section answers the six questions
@@ -435,6 +436,169 @@ declarative description of the report. Bad fit: single-request instances; heavy 
 
 ---
 
+## 9. Langfuse
+
+Added 2026-09-17, after the promptfoo checks pass. Read against
+`github.com/langfuse/langfuse` at commit `6e9f8ebdff15` (main, 2026-09-17) plus
+docs. Paths are repo-relative. Langfuse is observability-first; only the score
+model, dataset-run comparison and LLM-as-judge evaluator were reviewed, because
+it is the one open-source trace-centric tool whose data model can be read
+rather than inferred from docs (contrast §4 Braintrust and §5 LangSmith).
+
+Docs: https://langfuse.com/docs/evaluation/evaluation-methods/custom-scores ,
+https://langfuse.com/docs/evaluation/experiments/compare-experiments ,
+https://langfuse.com/docs/evaluation/evaluation-methods/llm-as-a-judge
+
+### 9.1 Score model
+
+Scores are not in Postgres/Prisma any more; the Prisma schema has `ScoreConfig`
+but no `Score` model. Scores live in a ClickHouse `ReplacingMergeTree`
+(`packages/shared/clickhouse/migrations/canonical/0003_scores.up.sql`, later
+ALTERs 0008/0010/0012/0014/0017/0030/0034).
+
+Fields on a score (ClickHouse columns): `id`, `timestamp`, `project_id`,
+`environment`, `trace_id` (Nullable since 0014), `session_id`, `dataset_run_id`,
+`observation_id`, `name`, `value Float64`, `string_value`, `long_string_value`
+(0034, for CORRECTION), `data_type`, `source`, `comment Nullable(String)`,
+`metadata Map(String,String)`, `author_user_id`, `config_id`, `queue_id`,
+`execution_trace_id` (0030, links an EVAL score to the judge's own trace),
+`created_at/updated_at`, `is_deleted`.
+
+- Data types: `NUMERIC | CATEGORICAL | BOOLEAN | TEXT | CORRECTION`
+  (`packages/shared/src/domain/scores.ts` `ScoreDataTypeArray`). BOOLEAN is
+  stored as value 0/1 with `string_value` "True"/"False"; CATEGORICAL stores the
+  label in `string_value` and `value` = the config's numeric mapping for that
+  label, or 0 if no config; TEXT is 1-500 chars in `string_value`, value 0
+  (`packages/shared/src/server/ingestion/validateAndInflateScore.ts`
+  `inflateScoreBody`). Configs have `ScoreConfigDataType =
+  CATEGORICAL|NUMERIC|BOOLEAN|TEXT` (`packages/shared/prisma/schema.prisma`
+  ~L512) with `minValue`, `maxValue`, `categories Json` = `[{label, value}]`
+  (`packages/shared/src/domain/score-configs.ts`); boolean configs must be
+  exactly `[{True,1},{False,0}]`; labels and values must be unique.
+- Enforcement is at write time, in the worker, for both `POST
+  /api/public/scores` and `POST /api/public/ingestion` ("Central choke point"
+  comment in `validateAndInflateScore.ts`). With `configId`: the config must
+  exist and not be archived, `name` is overridden from the config, `dataType`
+  must match, numeric values are range-checked, categorical values must equal
+  one of the config labels, else `InvalidRequestError`
+  (`packages/shared/src/features/scores/interfaces/ingestion/validation.ts`
+  `ScorePropsAgainstConfig`). Without `configId`: only shape validation
+  (`ScoreBodyWithoutConfig`; dataType inferred number->NUMERIC,
+  string->CATEGORICAL), so an unconfigured categorical score accepts any
+  string. Annotation-source scores must carry a `configId`
+  (`ANNOTATION_SCORE_REQUIRES_CONFIG_ID_MESSAGE`).
+- `comment` is free text (`z.string().nullish()` in
+  `packages/shared/src/features/scores/interfaces/shared.ts`); `metadata` is a
+  free JSON map. No structured evidence field.
+- Target: exactly one of `traceId` (optionally with `observationId`),
+  `sessionId`, or `datasetRunId` (`packages/shared/src/utils/scores.ts`
+  `applyScoreValidation`). So a score can point at a span/observation; it can
+  also sit on a whole dataset run (used by SDK `run_evaluators`).
+- `source`: `API | EVAL | ANNOTATION`; the public API only accepts
+  `API`/`ANNOTATION`, `EVAL` is reserved for the internal judge
+  (`domain/scores.ts` `PublicApiCreateScoreSourceDomain`). Default `API`.
+
+### 9.2 Dataset run comparison
+
+- Alignment: run items are ClickHouse rows keyed `(project_id, dataset_id,
+  dataset_run_id, id)` with `dataset_item_id`, `trace_id`, `observation_id`
+  (`0024_dataset_run_items.up.sql`; no Prisma model). The compare view aligns
+  strictly by `dataset_item_id`: `datasetItemsWithRunData`
+  (`web/src/features/datasets/server/dataset-router.ts` ~1946) returns one row
+  per dataset item with `runData: Record<runId, EnrichedDatasetRunItem>` built
+  in `web/src/features/datasets/server/service.ts`
+  `enrichAndMapToDatasetItemId`. No configurable comparison key (contrast
+  Braintrust).
+- Aggregates: per run, `count(DISTINCT ... dataset_item_id)`, avg latency, avg
+  cost, total cost, and per score name `avg(value)` for NUMERIC/BOOLEAN or
+  label counts for CATEGORICAL
+  (`packages/shared/src/server/repositories/dataset-run-items.ts` `scoresCte`
+  ~L336 and `dataset_run_metrics` ~L440). Compare charts reuse these run-level
+  averages (`web/src/features/datasets/hooks/useDatasetRunCompareChartData.ts`).
+  No standard error, CI, stddev, or significance test anywhere in this path;
+  the docs page says only "The average alone does not tell you whether the
+  candidate is safe to release" and points to case-by-case review.
+- Paired difference: a per-cell delta against a user-chosen baseline run
+  (`?baseline=` query param, `DatasetRunAggregateColumnHelpers.tsx`
+  `BaselineToggle`). `web/src/features/datasets/lib/calculateBaselineDiff.ts`
+  gives `absoluteDifference` + direction for numeric (from `average`), and a
+  from/to label move for categorical; it returns null for aggregates that hold
+  more than one value (`if (!current.id || !baseline.id) return null`), i.e.
+  the diff exists only when each side has exactly one score of that name.
+  Latency/cost diffs likewise (`useResourceMetricsDiff`). No summing of paired
+  differences, no counts of improved/regressed in the header found in code
+  (docs describe "score, cost, and latency differences" only).
+- Repeated trials: `run_experiment` has no repetitions parameter (SDK docs list
+  `name, run_name, description, data, task, evaluators, run_evaluators,
+  max_concurrency, metadata`). Nothing prevents a second run item for the same
+  item in the same run at the storage layer, but the compare view collapses
+  them: `result.get(datasetItemId)[datasetRunId] = enrichedItem` in
+  `service.ts` is last-write-wins, so only one trial per item per run is shown,
+  and the run-level `count(DISTINCT dataset_item_id)` hides the duplicate.
+  Multiple scores of the same name on one trace are averaged
+  (`web/src/features/scores/lib/aggregateScores.ts`, `average =
+  sum/values.length`) and the comment/id are dropped when `values.length > 1`.
+  UI behaviour not verified by running it; conclusions are from code only.
+
+### 9.3 LLM-as-judge evaluator
+
+- Template (`EvalTemplate`, `packages/shared/prisma/schema.prisma` ~L980):
+  `name`, `version`, `prompt` (or `promptMessages` with system/user/assistant
+  roles), `type LLM_AS_JUDGE | CODE`, `model`, `provider`, `modelParams`, `vars
+  String[]`, `outputDefinition` (column `output_schema`), optional `sourceCode`
+  for code evaluators. A `JobConfiguration` binds a template to a target with
+  `scoreName`, `filter`, `targetObject` (trace / dataset / observation / event /
+  experiment), `variableMapping`, `sampling` (0..1), `delay` ms, `timeScope
+  NEW|EXISTING`.
+- Variable mapping: `{templateVariable, langfuseObject, objectName?,
+  selectedColumnId, jsonSelector?}` where `langfuseObject` is `trace | span |
+  generation | event | agent | tool | chain | retriever | evaluator | embedding
+  | guardrail | dataset_item` and the selectable columns are only `input |
+  output | metadata` (trace/observations) or `input | expected_output |
+  metadata` (dataset item) (`packages/shared/src/features/evals/types.ts`
+  `variableMapping`, `availableTraceEvalVariables`). Observation variables are
+  resolved by name and "We only take the first match and ignore duplicate
+  generation-names in a trace" (`worker/src/features/evaluation/evalService.ts`
+  `extractVariablesFromTracingData`). Values are stringified and substituted
+  with `compileTemplateString` (`packages/shared/src/utils/prompts.ts`
+  `compileEvalPrompt`).
+- What the judge sees: only the mapped variables, never the whole trace or the
+  tool-call timeline. For observation-level evals the row is a single
+  `ObservationForEval`
+  (`packages/shared/src/features/evals/observationForEval.ts`) which does carry
+  `tool_calls`, `tool_call_names`, `tool_definitions`, but still one
+  observation; docs confirm it "will not automatically include data from child
+  observations".
+- Output constraint: `outputDefinition` is `{dataType:
+  NUMERIC|BOOLEAN|CATEGORICAL, reasoning: {description}, score: {description,
+  minValue?, maxValue? | categories: string[] (>=2, unique),
+  shouldAllowMultipleMatches}}`
+  (`packages/shared/src/features/evals/outputDefinition.ts`). It is compiled to
+  a zod schema `{reasoning: string, score: number|boolean|z.enum(categories)|
+  array-of-enum}` and passed as structured output to the provider
+  (`worker/src/features/evaluation/evalExecutionDeps.ts` ~L255, model-facing
+  fields `scoreExplanation`, `score`), then re-validated with
+  `validateEvalOutputResult`. The result is written as a score with
+  `value`/`stringValue` = score and `comment` = reasoning, `source = EVAL`
+  (`evalService.ts` `toNormalizedScores`); categorical multi-match yields one
+  score row per label.
+- Evidence quoting: none. No field, prompt rule, or post-check asks the judge
+  to quote the transcript or verifies a quote (grep for quote/evidence/citation
+  in `packages/shared/src/features/evals` and `worker/src/features/evaluation`
+  returns nothing). The only linkage is `execution_trace_id`, which lets a
+  human open the judge's own trace.
+
+### Verdict for proctor
+
+Nothing changes the cross-cutting conclusions below: no paired CI, no verified
+evidence quotes, no model-written reports; reasoning is confined to the
+per-score `comment`. Bad fit: scores are rows in ClickHouse behind a web app,
+not files beside code; the judge sees three mapped string fields, not a
+transcript; comparison is per-item deltas with no aggregate uncertainty;
+repeats per item are not a concept. The reusable ideas are the small ones:
+config-enforced label sets at write time, `source` on every score, and the
+judge's own trace id stored on the score it produced.
+
 ## Cross-cutting observations
 
 ### What "extract before scoring" looks like
@@ -456,6 +620,7 @@ declarative description of the report. Bad fit: single-request instances; heavy 
 | DeepEval | no | no | no | no |
 | lm-eval | stderr per metric, bootstrap | no | n/a | no |
 | HELM | stddev only | no | trials averaged | no |
+| Langfuse | no (avg only) | no | no repeats; same-name scores averaged, duplicate run items collapsed | per-item delta vs chosen baseline, single-score cells only |
 
 Nobody ships a paired difference with a CI across arms out of the box, even though every
 comparison UI aligns rows by case. That gap is where proctor can be strictly better.
@@ -496,6 +661,16 @@ per-sample `reason`/`explanation` field.
    failures.
 9. HELM's stat names qualified by split/perturbation: tables that mix perturbed and clean
    instances mislead.
+10. Langfuse's find-then-create dedup across three concurrent producers doubled judge spend and
+    wrote duplicate EVAL scores; fixed by deriving the job id from the dedup key so the primary
+    key rejects the loser (langfuse/langfuse#16492, closed 2026-08-26; earlier variant #13823).
+11. Langfuse `run_experiment` with `max_concurrency > 1` raced on run creation and silently
+    dropped N-1 run items while traces looked fine (#13829, closed 2026-07-29). Run creation
+    must be idempotent before items fan out.
+12. Langfuse trace-level triggers fired the judge before the observation-level link existed,
+    "prematurely creat[ing] a score at the trace level" (comment in `evalService.ts` ~L710);
+    now skipped plus a default 10 s `delay`. Grading before the transcript is complete is a
+    real failure mode.
 
 ### Bad fit for whole-agent transcripts
 - Flattening the conversation to a string before assertions (promptfoo simulated-user, most
@@ -506,4 +681,5 @@ per-sample `reason`/`explanation` field.
 - Frameworks that want to own the agent loop (Inspect solvers) when the transcript already exists.
 - Probability-weighted judge scores (DeepEval G-Eval) needing logprobs.
 - Hosted-only run stores (Braintrust, LangSmith, Confident AI) when the requirement is
-  deterministic tables checked in beside code.
+  deterministic tables checked in beside code. Langfuse is self-hostable but the store is
+  still ClickHouse behind a web app, so the same objection applies.
