@@ -113,28 +113,12 @@ public class StatsTests
         Assert.Equal(2.5, Stats.Summarise([1, 2, 3, 4])!.Median);
     }
 
-    static ResultRow Row(string arm, string @case, int sample, bool? pass, string status = "completed", string exit = "ok", long tokens = 100) =>
-        new(RunId: $"{arm}{@case}{sample}", Arm: arm, Case: @case, Sample: sample, Status: status, StatusReason: pass is null ? "hook failed" : null,
-            ExitReason: status == "completed" ? exit : null, Usage: status == "completed" ? new UsageRow(80, 20, tokens, false) : null,
-            ToolCalls: 1, DeniedCalls: 0, DurationMs: 1000 + sample,
-            Checks: pass is null ? null : new() { ["exit_ok"] = exit == "ok" ? "pass" : "fail", ["builds"] = pass == true ? "pass" : "fail" },
-            Pass: pass, Reasons: null);
+    static ResultRow Row(string arm, string @case, int sample, bool? pass, string status = "completed", string exit = "ok") =>
+        WorkedExperiment.Row(arm, @case, sample, pass, status, exit, reason: "hook failed");
 
-    static Eval TwoArmEval(int samples)
-    {
-        using var repo = new TestRepo();
-        repo.CopyEval("smoke");
-        repo.EditJson("smoke/eval.json", e =>
-        {
-            e["arms"]![0]!["id"] = "floor"; e["arms"]![0]!["samples"] = samples;
-            e["arms"]![1]!["id"] = "b"; e["arms"]![1]!["samples"] = samples;
-            e["grading"]!["checks"] = System.Text.Json.Nodes.JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}, \"builds\": {\"script\": \"checks/answer-nonempty.sh\"}}");
-            e["grading"]!["pass"] = System.Text.Json.Nodes.JsonNode.Parse("[\"exit_ok\", \"builds\"]");
-        });
-        return repo.LoadEval("smoke");
-    }
+    static Eval TwoArmEval(int samples) => WorkedExperiment.Eval(samples);
 
-    static Experiment Exp(Eval eval) => new("20260917-1432-smoke-k7px", eval.Id, eval.Hash, new(), eval.Cases.Select(c => c.Id!).ToList(), eval.PlannedCells, "", "", "", new(), null, new("nb", null));
+    static Experiment Exp(Eval eval) => WorkedExperiment.Experiment(eval);
 
     [Fact]
     public void Compute_TheWorkedExperimentShape()

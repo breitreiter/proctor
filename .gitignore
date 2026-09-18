@@ -19,3 +19,6 @@ appsettings.json
 
 # Reports are derived data written by `proctor report`; the smoke eval's are not worth committing
 reports/
+
+# Snapshot tests: the received rendering awaiting review (see Proctor.Tests/ReportTests.cs)
+*.received

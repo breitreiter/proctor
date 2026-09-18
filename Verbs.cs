@@ -63,5 +63,23 @@ static class Verbs
             ?? throw new ProctorException($"eval '{experiment.Eval}' no longer loads:\n" + string.Join("\n", problems));
         return (experiment, eval);
     }
-    public static int Report(string root, string experimentId) => throw new ProctorException("not yet");
+    public static int Report(string root, string experimentId)
+    {
+        var (experiment, eval) = LoadExperiment(root, experimentId);
+        var outDir = Layout.ReportData(root, experimentId);
+        Directory.CreateDirectory(outDir);
+
+        var rows = Results.Collect(root, experiment, eval);
+        Results.Write(Path.Combine(outDir, Layout.ResultsFile), rows);
+        var stats = Stats.Compute(experiment, eval, rows);
+        Runner.WriteJson(Path.Combine(outDir, Layout.StatsFile), stats);
+        File.Copy(Path.Combine(Layout.Experiment(root, experimentId), Layout.ExperimentFile), Path.Combine(outDir, Layout.ExperimentFile), overwrite: true);
+        File.WriteAllText(Path.Combine(outDir, Layout.ReportHtmlFile), Proctor.Report.Html(stats, rows, experiment));
+        File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Proctor.Report.Markdown(stats, rows, experiment));
+
+        Console.WriteLine($"{Path.GetRelativePath(root, outDir)}/: {Layout.ResultsFile} ({rows.Count} rows), {Layout.StatsFile}, {Layout.ReportHtmlFile}, {Layout.SummaryFile}");
+        var ungraded = rows.Count(r => r.Status == CellStatus.Completed && r.Checks is null);
+        if (ungraded > 0) Console.WriteLine($"note: {ungraded} completed cell{(ungraded == 1 ? " has" : "s have")} no checks.json; run `proctor grade {experimentId}` first for them to count");
+        return 0;
+    }
 }

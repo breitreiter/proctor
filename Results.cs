@@ -9,6 +9,7 @@ record ResultRow(
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons)
 {
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool Analysed => Pass is not null;
 }
 
