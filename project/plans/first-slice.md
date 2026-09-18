@@ -2,7 +2,7 @@
 type: plan
 title: The first slice — run, grade, one report
 created: 2026-09-17
-status: draft
+status: steps 1–7 built and tested 2026-09-17; step 8 (the acceptance run on imp) pending
 ---
 
 # The first slice — run, grade, one report
@@ -231,6 +231,32 @@ person and a GPU.
   implemented.
 - **Cost is omitted, not estimated.** Until nb's trailer carries it, the
   report has no cost column rather than a guessed one.
+
+## Decisions taken while building (2026-09-17)
+
+- **One interval method at any sample count.** Each case is scored as its
+  mean over its analysed samples and `n` is the case count. Per-arm rates
+  take a Wilson interval; paired differences take Newcombe's paired method 10
+  with his continuity-corrected phi from the 2x2 case table, which with
+  several samples is the expected table from the case means. This is exactly
+  the textbook method at one sample and never collapses to zero width; the
+  CLT-on-case-means alternative does at `n = 3` whenever the cases agree.
+- **The MDE uses an assumed per-case paired-difference sd of 0.5**, stated in
+  the methods note. At 3 cases that is 81 points, not the 63 the sketch above
+  copied from `n = 5`.
+- **Durations are wall time of the cell, hooks included.** nb's trailer
+  carries no `duration_ms`. Revisit when it does.
+- **`{{work}}`, not `{{fixture}}`**, names the checkout directory, and
+  proctor never deletes it: script checks such as `builds` need it at grade
+  time, which may be long after teardown. A teardown hook may clean up.
+- **`"@expect"`** is how a check in `eval.json` takes its value from the
+  case's `expect` block.
+- **Scripts get the cell in the environment**, not arguments, so a hook and
+  a check are written the same way. The list is in `CLAUDE.md`.
+- **`answer_json` is the last json fence** in the answer: nb emits no
+  `assistant_json` event today.
+- **The HTML has no script at all.** Row highlighting from the matrix is CSS
+  `:target`.
 
 ## Open questions
 
