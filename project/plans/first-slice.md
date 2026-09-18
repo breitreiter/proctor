@@ -258,6 +258,24 @@ person and a GPU.
 - **The HTML has no script at all.** Row highlighting from the matrix is CSS
   `:target`.
 
+## Step 8 as built (2026-09-17)
+
+`evals/code-change/` is the acceptance eval: one `floor` arm, qwen-coder on
+imp through nb, three samples, three cases against fixtures checked in under
+`fixtures/` (small .NET projects with tests; `ledger` ships with the bug its
+case asks to fix). Cases pin a fixture by `path`; the reset hook also accepts
+`git` + `rev`. `acceptance/<case>/` holds tests the `tests-pass` check copies
+into the checkout, so a solution has to meet the task's named interface, not
+just keep the old tests green. `reference/shakedown.sh` proves the hooks and
+checks with reference solutions and without a model; `--unsolved` shows the
+checks failing for the right reasons. To run it for real:
+
+```bash
+export MINROUTER_KEY=...          # the minrouter key on imp; evals/nb.json reads it
+proctor run code-change           # the arm hook swaps imp to qcoder first
+proctor grade <id> && proctor report <id>
+```
+
 ## Open questions
 
 - **The `{{prompt}}` and `{{case}}` template vocabulary.** The layout plan

@@ -1,6 +1,6 @@
 {
   "nb": {
     "path": "../../nb/bin/Debug/net10.0/nb",
-    "config": "nb-mock.json"
+    "config": "nb.json"
   }
 }

@@ -1,0 +1,26 @@
+# code-change: one agent, one repository, one requested change.
+provider {{provider}}
+harness {{harness}}
+approval default deny
+approval bash dotnet *
+approval bash cd * && dotnet *
+approval bash git *
+approval bash ls *
+approval bash cat *
+approval bash find *
+approval bash grep *
+approval bash rg *
+approval bash head *
+approval bash tail *
+approval bash wc *
+loop 3
+budget tool_calls 60
+budget wall_ms 1800000
+system You are a software engineer working in the repository at {{work}}, which is your \
+current directory. It is a small .NET project with tests. Make the change described \
+below, keep the existing tests passing, and add or update tests where the change \
+warrants it. Use the file tools to read and edit; use bash for `dotnet build` and \
+`dotnet test`. Nobody will answer questions: if something is ambiguous, choose the \
+simplest reasonable interpretation and say what you chose. Finish with a short summary \
+of what you changed and the test result.
+run {{prompt}}

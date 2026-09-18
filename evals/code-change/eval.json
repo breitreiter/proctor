@@ -1,0 +1,23 @@
+{
+  "id": "code-change",
+  "tags": ["deterministic"],
+  "arms": [
+    { "id": "floor", "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3 }
+  ],
+  "hooks": {
+    "arm":    { "setup": "hooks/ensure-model.sh" },
+    "sample": { "setup": "hooks/reset-fixture.sh", "teardown": "hooks/collect-diff.sh" }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok":       { "exit_reason": "ok" },
+      "no_denials":    { "denied_calls": { "max": 0 } },
+      "not_nudged":    { "loop_nudged": false },
+      "under_budget":  { "max_tool_calls": 60, "max_duration_ms": 1800000 },
+      "builds":        { "script": "checks/builds.sh" },
+      "tests-pass":    { "script": "checks/tests-pass.sh" },
+      "diff-in-scope": { "files_touched": "@expect" }
+    },
+    "pass": ["exit_ok", "builds", "tests-pass"]
+  }
+}

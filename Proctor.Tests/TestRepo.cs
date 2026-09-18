@@ -30,7 +30,7 @@ sealed class TestRepo : IDisposable
         Environment.GetEnvironmentVariable("NB_PATH")
         ?? Path.GetFullPath(Path.Combine(SourceRoot, "..", "nb", "bin", "Debug", "net10.0", "nb"));
 
-    public static string NbMockConfig => Path.Combine(SourceRoot, "evals", "nb-mock.json");
+    public static string NbMockConfig => Path.Combine(SourceRoot, "evals", "nb.json");
 
     /// <summary>Copy an eval from this repository's evals/ into the temp root, with a proctor.json pointing at nb.</summary>
     public string CopyEval(string evalId)
