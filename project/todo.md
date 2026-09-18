@@ -43,21 +43,23 @@ tooltip and details.
 
 ## Candidates for nb, not proctor
 
-Two things the research pass surfaced that pass the "makes sense without
-proctor" test and so belong in nb: the `result` trailer carrying a content
-hash of the program and the nb version, so provenance survives without proctor
-capturing it; and a directive for a deterministic sampling seed on providers
-that accept one. Neither is urgent. Both are additive.
+All six are filed in nb's own tracker as of 2026-09-17, untracked there until
+reviewed. Each is additive; none changes behaviour for a program that does
+not name the new thing or for anyone building from source.
 
-Two more from the promptfoo checks pass are now filed in nb's own tracker,
-unstaged as of 2026-09-17: `nb/bugs/Feature_Injected_Reminders_Carry_A_Source_Tag.md`
-(the doom-loop and todo reminders carry `source: "loop"` / `"todo"` on their
-user event, so `loop_nudged` counts events instead of matching prose) and
-`nb/bugs/Feature_Trailer_Carries_Cost_When_The_Entry_Declares_A_Price.md`
-(optional per-entry prices, `cost` in USD on the trailer, omitted when
-unpriced, inherits `estimated`).
-
-Two more from the CI pass (`learnings/ci-distribution.md`): a `PackAsTool`
-target that carries `providers/` into the tool package, and a release workflow
-that publishes to nuget.org. nb currently cuts no releases at all, so a
-consumer has to clone and build it.
+- `Feature_Injected_Reminders_Carry_A_Source_Tag.md`: loop and todo reminders
+  carry `source` on their user event, so `loop_nudged` counts events.
+- `Feature_Trailer_Carries_Cost_When_The_Entry_Declares_A_Price.md`: optional
+  per-entry prices, `cost` in USD on the trailer, inherits `estimated`.
+- `Feature_Trailer_Carries_Program_Hash_And_Nb_Version.md`: always-on
+  `program_sha256` over the resolved events and `nb_version`. Found that
+  neither csproj sets a version today.
+- `Feature_Sample_Seed_Directive_For_Providers_That_Accept_One.md`:
+  `sample seed <n>` in the `budget` key/value shape, named to avoid the
+  existing `--seed <file>` flag; warns when the provider ignores it.
+- `Feature_PackAsTool_Carries_Providers_Into_The_Tool_Package.md`: the
+  provider copy targets are conditioned on a runtime identifier, so a RID-less
+  pack would ship no providers; relax that, add the tool metadata.
+- `Feature_Release_Workflow_Publishes_To_Nuget.md`: tag-triggered pack and
+  push plus per-RID archives on a GitHub Release. The README already points
+  at a releases page nothing fills.
