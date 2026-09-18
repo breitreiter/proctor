@@ -28,6 +28,17 @@ the browser never does statistics and the markdown summary reads the same
 numbers). Settle that schema before implementing the report skeleton in
 `learnings/prior-art.md` §5, since both renderers depend on it.
 
+## The first slice renders one self-contained HTML file
+
+Before the site, `proctor report` emits `reports/data/<id>/report.html`, a
+single file with inline CSS and script, plus `summary.md`. Both render from
+`stats.json` and `results.jsonl`. Keep the template plain: a .NET string
+template or a small templating package, no front-end toolchain. Its sections
+are the per-experiment page from `learnings/prior-art.md` §5. The point is
+to put a page in front of stakeholders in the first week and learn what they
+read first. The component-library choice below only matters once the site
+starts.
+
 ## Pick the component library for the report site
 
 The brief wants an opinionated library with complete components and
