@@ -49,6 +49,14 @@ hash of the program and the nb version, so provenance survives without proctor
 capturing it; and a directive for a deterministic sampling seed on providers
 that accept one. Neither is urgent. Both are additive.
 
+Two more from the promptfoo checks pass are now filed in nb's own tracker,
+unstaged as of 2026-09-17: `nb/bugs/Feature_Injected_Reminders_Carry_A_Source_Tag.md`
+(the doom-loop and todo reminders carry `source: "loop"` / `"todo"` on their
+user event, so `loop_nudged` counts events instead of matching prose) and
+`nb/bugs/Feature_Trailer_Carries_Cost_When_The_Entry_Declares_A_Price.md`
+(optional per-entry prices, `cost` in USD on the trailer, omitted when
+unpriced, inherits `estimated`).
+
 Two more from the CI pass (`learnings/ci-distribution.md`): a `PackAsTool`
 target that carries `providers/` into the tool package, and a release workflow
 that publishes to nuget.org. nb currently cuts no releases at all, so a
