@@ -26,8 +26,26 @@ static class Verbs
         return exit;
     }
 
-    public static int Run(string root, string evalId, string? nbPath) => throw new ProctorException("not yet");
-    public static int Resume(string root, string experimentId, string? nbPath) => throw new ProctorException("not yet");
+    public static int Run(string root, string evalId, string? nbPath)
+    {
+        var problems = new List<Problem>();
+        var config = Eval.LoadConfig(root, problems);
+        var eval = Eval.Load(root, evalId, problems);
+        if (eval is null || problems.Count > 0)
+        {
+            foreach (var p in problems) Console.Error.WriteLine(p);
+            return 1;
+        }
+        var id = Runner.Start(root, eval, config, nbPath, Environment.CommandLine, Console.Out);
+        Console.WriteLine($"experiment {id}");
+        return 0;
+    }
+
+    public static int Resume(string root, string experimentId, string? nbPath)
+    {
+        Runner.Resume(root, experimentId, nbPath, Console.Out);
+        return 0;
+    }
     public static int Grade(string root, string experimentId) => throw new ProctorException("not yet");
     public static int Report(string root, string experimentId) => throw new ProctorException("not yet");
 }

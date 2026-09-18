@@ -3,6 +3,6 @@
   "Harness": "nb",
   "ChatProviders": [
     { "Name": "Mock", "Response": "OK" },
-    { "Name": "MockB", "Response": "OK" }
+    { "Name": "MockB", "Provider": "Mock", "Response": "OK, from B" }
   ]
 }
