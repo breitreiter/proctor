@@ -1,0 +1,3 @@
+{"type":"user","turn":0,"text":"MOCK:nousage"}
+{"type":"assistant_text","turn":1,"text":"OK"}
+{"type":"result","turn":null,"exit_reason":"ok","usage":{"input":2262,"output":0,"total":2262,"estimated":true},"turns":1,"tool_calls":0,"provider":"Mock"}

@@ -1,0 +1,2 @@
+{"type":"user","turn":0,"text":"MOCK:throw"}
+{"type":"result","turn":null,"exit_reason":"provider_error","turns":0,"tool_calls":0,"provider":"Mock"}

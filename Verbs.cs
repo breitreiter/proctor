@@ -46,6 +46,22 @@ static class Verbs
         Runner.Resume(root, experimentId, nbPath, Console.Out);
         return 0;
     }
-    public static int Grade(string root, string experimentId) => throw new ProctorException("not yet");
+    public static int Grade(string root, string experimentId)
+    {
+        var (experiment, eval) = LoadExperiment(root, experimentId);
+        var grades = Proctor.Grade.Experiment(root, experiment, eval, Console.Out);
+        var graded = grades.Count(g => g.Checks is not null);
+        Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true)} pass");
+        return 0;
+    }
+
+    static (Experiment, Eval) LoadExperiment(string root, string experimentId)
+    {
+        var experiment = Runner.LoadExperiment(root, experimentId);
+        var problems = new List<Problem>();
+        var eval = Eval.Load(root, experiment.Eval, problems)
+            ?? throw new ProctorException($"eval '{experiment.Eval}' no longer loads:\n" + string.Join("\n", problems));
+        return (experiment, eval);
+    }
     public static int Report(string root, string experimentId) => throw new ProctorException("not yet");
 }

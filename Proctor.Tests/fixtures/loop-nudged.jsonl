@@ -1,0 +1,10 @@
+{"type":"user","turn":0,"text":"MOCK:loop=bash echo x"}
+{"type":"tool_call","turn":1,"id":"mock-loop","name":"bash","arguments":{"command":"echo x","description":"scripted by MockProvider"},"approved":"allow","approval_reason":"safe"}
+{"type":"tool_result","turn":1,"id":"mock-loop","output":"x\n\n[exit code: 0]"}
+{"type":"tool_call","turn":2,"id":"mock-loop","name":"bash","arguments":{"command":"echo x","description":"scripted by MockProvider"},"approved":"allow","approval_reason":"safe"}
+{"type":"tool_result","turn":2,"id":"mock-loop","output":"x\n\n[exit code: 0]"}
+{"type":"user","turn":3,"text":"<system_reminder>You appear to be stuck in a repetitive loop (2 similar tool-call sequences at the tail of this turn). You are not making progress. Options: (1) reconsider your approach, (2) try a different tool or different arguments, (3) stop and end the turn, stating plainly what is blocked and what you would need to proceed. No one is available to answer a question mid-run.</system_reminder>"}
+{"type":"tool_call","turn":4,"id":"mock-loop","name":"bash","arguments":{"command":"echo x","description":"scripted by MockProvider"},"approved":"allow","approval_reason":"safe"}
+{"type":"tool_result","turn":4,"id":"mock-loop","output":"x\n\n[exit code: 0]"}
+{"type":"assistant_text","turn":5,"text":"I've reached the maximum number of tool calls for this message. Let me provide a response with the information I have."}
+{"type":"result","turn":null,"exit_reason":"max_tool_calls","usage":{"input":40,"output":20,"total":60},"turns":4,"tool_calls":3,"provider":"Mock"}

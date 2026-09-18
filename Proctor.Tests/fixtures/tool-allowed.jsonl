@@ -1,0 +1,5 @@
+{"type":"user","turn":0,"text":"MOCK:tool=bash echo hi"}
+{"type":"tool_call","turn":1,"id":"mock-call-1","name":"bash","arguments":{"command":"echo hi","description":"scripted by MockProvider"},"approved":"allow","approval_reason":"safe"}
+{"type":"tool_result","turn":1,"id":"mock-call-1","output":"hi\n\n[exit code: 0]"}
+{"type":"assistant_text","turn":2,"text":"OK"}
+{"type":"result","turn":null,"exit_reason":"ok","usage":{"input":20,"output":10,"total":30},"turns":2,"tool_calls":1,"provider":"Mock"}

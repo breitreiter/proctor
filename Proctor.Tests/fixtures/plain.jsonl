@@ -1,0 +1,3 @@
+{"type":"user","turn":0,"text":"MOCK:response=The answer is forty-two."}
+{"type":"assistant_text","turn":1,"text":"The answer is forty-two."}
+{"type":"result","turn":null,"exit_reason":"ok","usage":{"input":10,"output":5,"total":15},"turns":1,"tool_calls":0,"provider":"Mock"}

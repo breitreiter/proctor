@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace Proctor;
 
@@ -20,9 +21,13 @@ record ToolCall(string Id, string Name, JsonObject? Arguments, string? Approved,
 
 record ToolResult(string Id, string Output, JsonObject? Result)
 {
+    /// <summary>A refusal, a tool that reported an error, or a command whose exit code was not 0.</summary>
     public bool IsError =>
         Output.StartsWith("Error:", StringComparison.Ordinal)
-        || (Result?["exit_code"] is JsonValue v && v.TryGetValue<int>(out var code) && code != 0);
+        || (Result?["exit_code"] is JsonValue v && v.TryGetValue<int>(out var code) && code != 0)
+        || (ExitCodeTrailer.Match(Output) is { Success: true } m && m.Groups[1].Value != "0");
+
+    static readonly Regex ExitCodeTrailer = new(@"\[exit code: (\d+)\]\s*$");
 }
 
 record UserTurn(string Text, string? Source)
@@ -67,6 +72,7 @@ sealed class Transcript
                     break;
                 case "assistant_text":
                     t.Answer = Text(ev);
+                    t.AnswerJson = LastJsonFence(t.Answer);   // nb emits no assistant_json event yet; the fence is the contract
                     break;
                 case "assistant_json":
                     t.AnswerJson = ev["value"]?.DeepClone();
@@ -114,6 +120,17 @@ sealed class Transcript
         return paths;
 
         static string StripPrefix(string p) => p.StartsWith("a/") || p.StartsWith("b/") ? p[2..] : p;
+    }
+
+    static readonly Regex JsonFence = new("```json[ \\t]*\\n(.*?)\\n[ \\t]*```", RegexOptions.Singleline);
+
+    /// <summary>The last ```json fence in the text, parsed; null when there is none or it does not parse.</summary>
+    public static JsonNode? LastJsonFence(string text)
+    {
+        var last = JsonFence.Matches(text).LastOrDefault();
+        if (last is null) return null;
+        try { return JsonNode.Parse(last.Groups[1].Value); }
+        catch (JsonException) { return null; }
     }
 
     private static string? Str(JsonObject o, string key) =>
