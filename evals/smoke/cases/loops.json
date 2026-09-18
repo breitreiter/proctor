@@ -1,0 +1,5 @@
+{
+  "id": "loops",
+  "prompt": "MOCK:loop=bash echo x",
+  "expect": { "answer_contains": "OK" }
+}

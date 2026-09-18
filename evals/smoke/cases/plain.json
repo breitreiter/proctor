@@ -1,0 +1,5 @@
+{
+  "id": "plain",
+  "prompt": "MOCK:response=hello world",
+  "expect": { "answer_contains": "hello" }
+}

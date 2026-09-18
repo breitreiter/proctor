@@ -13,3 +13,9 @@ obj/
 # Local config with keys
 appsettings.json
 !appsettings.example.json
+
+# Fixture checkouts made by sample setup hooks
+.proctor/
+
+# Reports are derived data written by `proctor report`; the smoke eval's are not worth committing
+reports/

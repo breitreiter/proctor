@@ -1,0 +1,8 @@
+{
+  "ActiveProvider": "Mock",
+  "Harness": "nb",
+  "ChatProviders": [
+    { "Name": "Mock", "Response": "OK" },
+    { "Name": "MockB", "Response": "OK" }
+  ]
+}

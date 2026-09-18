@@ -1,0 +1,24 @@
+{
+  "id": "smoke",
+  "tags": ["deterministic"],
+  "arms": [
+    { "id": "a", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 2 },
+    { "id": "b", "runner": "nb", "harness": "nb", "provider": "MockB", "model": "mock", "samples": 2 }
+  ],
+  "hooks": {
+    "arm":    { "setup": "hooks/arm-setup.sh" },
+    "sample": { "setup": "hooks/sample-setup.sh", "teardown": "hooks/sample-teardown.sh" }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok":       { "exit_reason": "ok" },
+      "no_denials":    { "denied_calls": { "max": 0 } },
+      "not_nudged":    { "loop_nudged": false },
+      "under_budget":  { "max_tool_calls": 3, "max_tokens": 100000 },
+      "says-expected": { "answer_contains": "@expect" },
+      "touches-note":  { "files_touched": { "paths": ["note.txt"], "mode": "at_least" } },
+      "answer-nonempty": { "script": "checks/answer-nonempty.sh" }
+    },
+    "pass": ["exit_ok", "says-expected"]
+  }
+}
