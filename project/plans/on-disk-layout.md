@@ -53,7 +53,7 @@ evals/
       fix-null-deref.json
       rename-module.json
     rubric.md                   judged criteria, if any; absent means deterministic only
-    checks/                     deterministic graders, one script per named check
+    checks/                     scripts for what the built-in checks cannot say
       builds.sh
       tests-pass.sh
       diff-in-scope.sh
@@ -77,7 +77,16 @@ evals/
     "sample": { "setup": "hooks/reset-fixture.sh", "teardown": "hooks/collect-diff.sh" }
   },
   "grading": {
-    "checks": ["builds", "tests-pass", "diff-in-scope"],
+    "checks": {
+      "exit_ok":      { "exit_reason": "ok" },
+      "no_denials":   { "denied_calls": { "max": 0 } },
+      "not_nudged":   { "loop_nudged": false },
+      "under_budget": { "max_tool_calls": 40, "max_duration_ms": 1800000 },
+      "builds":       { "script": "checks/builds.sh" },
+      "tests-pass":   { "script": "checks/tests-pass.sh" },
+      "diff-in-scope":{ "script": "checks/diff-in-scope.sh" }
+    },
+    "pass": ["exit_ok", "builds", "tests-pass"],
     "judge":  { "provider": "cf-glm", "criteria_from": "rubric.md", "window": "last-assistant+diff" }
   }
 }
@@ -97,9 +106,12 @@ Points to notice:
 - **Tags are registered.** `deterministic` and `judged` are built in and
   drive the PR-versus-nightly split. Unknown tags are an error, as with
   pytest's strict markers.
-- **Grading is declared, not discovered.** Checks are named scripts under
-  `checks/`. The judge is named by provider and reads a declared window, never
-  the whole transcript.
+- **Grading is declared, not discovered.** Checks are a named map. Most are
+  one-line built-ins over a field nb already emits (the vocabulary below);
+  scripts under `checks/` are for what the built-ins cannot say, which is the
+  repo-specific trio here. `pass` names the subset that constitutes success;
+  every other check is a guardrail rate in the report. The judge is named by
+  provider and reads a declared window, never the whole transcript.
 
 A case:
 
@@ -108,13 +120,86 @@ A case:
   "id": "add-retry-flag",
   "fixture": { "git": "https://github.com/org/fixture-a", "rev": "3f2c1e9" },
   "prompt": "Add a --retry <n> flag to the fetch command. Existing tests must pass.",
-  "expect": { "files_touched": ["src/fetch.cs", "tests/FetchTests.cs"] }
+  "expect": {
+    "files_touched": { "paths": ["src/fetch.cs", "tests/FetchTests.cs"], "mode": "at_least" },
+    "tools_used": ["bash"]
+  }
 }
 ```
+
+The `expect` block is where a case supplies values to the eval's built-in
+checks. `files_touched` has a mode, `at_least`, `exactly` or `at_most`, over
+the diff the teardown hook collected; without a mode the check would have no
+semantics, which was the state of this example before the promptfoo pass.
 
 The case id is the stable identity; it is a path segment in `runs/` and a
 column in every table. Renaming a case is a new case. The fixture is pinned
 to a revision so the case means the same thing next month.
+
+### The check vocabulary
+
+`learnings/prior-art/promptfoo-checks.md` read promptfoo's assertion
+catalogue as a demand signal and found the first draft of this plan had the
+right stance and the wrong bottom rung: every check was a script, and the
+checks people write daily are one-line declarations over a known field.
+nb's transcript already carries those fields typed, so built-ins are cheap.
+
+Built-ins read a named **window** of the transcript. The windows are fixed:
+
+| window | source in the JSONL |
+|---|---|
+| `answer` | last `assistant_text` |
+| `answer_json` | last `assistant_json` |
+| `trailer` | the `result` event |
+| `tool_calls` | every `tool_call`, with `approved`, `approval_reason`, typed `arguments` |
+| `tool_results` | every `tool_result` |
+| `oracle_turns` | `user` events with `source: oracle` |
+| `diff` | `diff.patch` in the cell, if the teardown hook wrote one |
+
+The built-ins, each binary, each negatable with a `not_` prefix, values
+supplied either in `eval.json` (same for every case) or in a case's `expect`
+block (per case):
+
+| check | window | shape |
+|---|---|---|
+| `exit_reason` | trailer | one of nb's exit reasons; `ok` is the implicit default check on every case |
+| `answer_contains`, `answer_regex`, `answer_equals` | answer | string or pattern |
+| `answer_json_schema` | answer_json | path to a schema file beside the case |
+| `answer_words` | answer | `{min, max}` |
+| `tools_used`, `tools_used_any` | tool_calls | list of tool names |
+| `tool_args` | tool_calls | `{name, args, mode: partial \| exact, ignore: [globs]}`; `partial` means expected is a subset of actual |
+| `tool_sequence` | tool_calls | `{names, mode: in_order \| exact}`; `in_order` allows gaps |
+| `denied_calls` | tool_calls | `{max}` over `approved == deny`; `approval_reason == no-match` is "reached outside its surface" |
+| `tool_errors` | tool_results | `{max}` |
+| `loop_nudged` | user events | boolean; needs nb to tag the nudge (see `todo.md`, candidates for nb); until then matches the reminder text |
+| `oracle_hit`, `oracle_misses`, `oracle_turns` | oracle_turns, trailer | keys, `{max}`, `{max}` |
+| `files_touched` | diff | `{paths, mode: at_least \| exactly \| at_most}` |
+| `max_tool_calls`, `max_tokens`, `max_duration_ms`, `max_cost` | trailer | number; cost needs a price on the provider entry until nb carries it on the trailer |
+
+**A script is a check too**, declared as `{ "script": "checks/name.sh" }`.
+It runs in the cell directory with the case's `expect` block in an
+environment variable, exits 0, 1 or 2 for pass, fail, needs-judge, and its
+first line of stdout is the reason. That is weaver's grader contract plus
+promptfoo's custom-assertion habit of returning a reason beside the verdict,
+so a matrix cell can show both without opening a log.
+
+**What is deliberately absent.** Scalar metrics that hide two booleans
+(`tool-call-f1` is `tools_used` plus `not_tools_used_any`); reference-text
+similarity (ROUGE, BLEU, embeddings), because our cases have no reference
+prose and overlap measures phrasing; pairwise or holistic judging; and score
+averaging with weights and thresholds, because a pass is a named subset of
+binary checks, not a weighted sum.
+
+**Deferred: a classifier rung.** Between built-ins and the judge there is
+room for a small fixed-weight classifier over the last assistant text, for
+the one question that is neither regex nor worth a judge call: did the
+closing message claim completion, ask, or report blocked. The oracle bench
+calls the wrong answer to that "done-on-waiting" and names it the dangerous
+number. It is deterministic for fixed inputs, cheap, and outside every arm's
+family. It is not in the first version, and when it arrives it is held to
+the judge's standard: label out, never a confidence; threshold in versioned
+code; validated against one to two hundred human-labelled runs with kappa
+reported; and a `needs-judge` fallback below the bar, not a replacement.
 
 ## The raw tier: `runs/`
 
@@ -144,7 +229,7 @@ runs/
             sample.setup.log
             sample.teardown.log
           diff.patch                        whatever the teardown hook chose to collect
-          checks.json                       deterministic grading, written by `proctor grade`
+          checks.json                       {name: {verdict, reason}}, written by `proctor grade` (below)
           verdicts/
             cf-glm.rubric-a1b2c3.json       judge phase, one file per judge and rubric version
         2/
@@ -179,6 +264,25 @@ produce a transcript, or a hook failed); a run that produced a transcript
 whose exit reason is `provider_error` is `completed`, because the transcript
 is the evidence and grading decides what it means. This distinction is what
 lets retries target infrastructure only.
+
+**`checks.json` is a map from check name to verdict and reason.** The four
+verdicts are `pass`, `fail`, `needs-judge` and `error`, where `error` means
+the check itself could not run and is reported as such rather than folded
+into `fail`. Every named check gets its own per-arm rate with an interval in
+the report; the checks listed in `grading.pass` combine into the headline
+pass, everything else is a guardrail column. That is weaver's `pass.jq` made
+data, and it is the report-versus-gate split from `learnings/ci-distribution.md`
+at the level of a single check.
+
+```json
+{
+  "exit_ok":       { "verdict": "pass", "reason": "exit_reason=ok" },
+  "no_denials":    { "verdict": "fail", "reason": "1 denied call: bash (no-match)" },
+  "builds":        { "verdict": "pass", "reason": "dotnet build: 0 errors" },
+  "tests-pass":    { "verdict": "fail", "reason": "2 of 41 tests failed" },
+  "diff-in-scope": { "verdict": "needs-judge", "reason": "touched 1 file outside expect.files_touched" }
+}
+```
 
 **Grading writes beside the evidence, never into it.** `checks.json` and
 `verdicts/*.json` are separate files, so a regrade with a new rubric adds a
@@ -280,6 +384,11 @@ re-run after any regrade.
   endpoint.** Keys cannot leak from a file that does not exist.
 - **Statistics are computed once, in .NET, into `stats.json`.** The markdown
   and the site render it; neither recomputes.
+- **Built-in checks over nb's fields, scripts only for the repo-specific
+  remainder.** The first draft made every check a script; the promptfoo pass
+  showed that reproduces the scaffolding problem one level down.
+- **A pass is a named subset of binary checks.** No weights, no thresholds,
+  no averaged scores.
 
 ## Open questions
 
