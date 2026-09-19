@@ -18,6 +18,18 @@ public class ChecksTests
     const string Diff = "diff --git a/src/fetch.cs b/src/fetch.cs\n--- a/src/fetch.cs\n+++ b/src/fetch.cs\n@@ -1 +1 @@\n-a\n+b\ndiff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-a\n+b\n";
 
     [Theory]
+    [InlineData(1_000_000L, 1_000_001L, "pass")]
+    [InlineData(1_000_000L, 999_999L, "fail")]
+    [InlineData(null, 1L, "error")]
+    public void MaxDurationUsesTheManifestWallTime(long? wallTime, long spec, string expected)
+    {
+        var dir = Directory.CreateTempSubdirectory("proctor-cell").FullName;
+        if (wallTime is not null) File.WriteAllText(Path.Combine(dir, Layout.ManifestFile), $"{{\"duration_ms\": {wallTime}}}");
+        var v = Checks.Evaluate(JsonNode.Parse($"{{\"max_duration_ms\": {spec}}}")!.AsObject(), Cell(cellDir: dir), Fixture("plain"));
+        Assert.True(expected == v.Result, $"{v.Result} ({v.Reason})");
+    }
+
+    [Theory]
     // check spec, fixture, expected verdict
     [InlineData("{\"exit_reason\": \"ok\"}", "plain", "pass")]
     [InlineData("{\"exit_reason\": \"ok\"}", "loop-nudged", "fail")]
@@ -53,7 +65,6 @@ public class ChecksTests
     [InlineData("{\"max_tokens\": 100}", "plain", "pass")]
     [InlineData("{\"max_tokens\": 10}", "plain", "fail")]
     [InlineData("{\"max_tokens\": 10}", "provider-error", "error")]
-    [InlineData("{\"max_duration_ms\": 1}", "plain", "error")]
     public void BuiltIns(string spec, string fixture, string expected)
     {
         var verdict = Eval(spec, Fixture(fixture));

@@ -56,8 +56,9 @@ One project, one executable, no library split. Every file is one concern:
   reduces to the textbook binary methods at one sample and never gives a
   zero-width interval.
 - **nb's trailer carries no `duration_ms`** (as of 2026-09-17), so durations
-  are the cell's wall time from the manifest, hooks included. It carries no
-  cost, so the report has no cost column rather than an estimate.
+  are the cell's wall time from the manifest, hooks included, both in the
+  report and in the `max_duration_ms` check. It carries no cost, so the
+  report has no cost column rather than an estimate.
 - **nb emits no `assistant_json` event**; the `answer_json` window is the last
   ` ```json ` fence in the last assistant message.
 - **Program templates.** Placeholders are `{{prompt}}`, `{{case}}`, `{{work}}`

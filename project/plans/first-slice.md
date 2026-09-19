@@ -2,7 +2,7 @@
 type: plan
 title: The first slice — run, grade, one report
 created: 2026-09-17
-status: steps 1–7 built and tested 2026-09-17; step 8 (the acceptance run on imp) pending
+status: steps 1–7 built and tested 2026-09-17; step 8 run on imp 2026-09-18 (experiment `20260919-0343-code-change-hpzr`)
 ---
 
 # The first slice — run, grade, one report
@@ -275,6 +275,22 @@ export MINROUTER_KEY=...          # the minrouter key on imp; evals/nb.json read
 proctor run code-change           # the arm hook swaps imp to qcoder first
 proctor grade <id> && proctor report <id>
 ```
+
+### The acceptance run (2026-09-18, evening local; the id is UTC)
+
+Experiment `20260919-0343-code-change-hpzr`: 9 of 9 cells completed, 9 pass,
+no denials, no loop nudges, every diff in scope. The whole run took 13
+minutes against the 3 hours budgeted: cells ran 32–162 s (median 61 s) and
+24k–266k tokens. qwen-coder never reached outside the bash allow-list.
+
+What the run found in proctor: `max_duration_ms` read the trailer's
+duration, which nb never sets, so `under_budget` was `error` on every cell
+while the report already used the manifest's wall time. The check now falls
+back to the same wall time (fixed and regraded the same night). Two things
+to weigh for the next slice: the floor is at the ceiling on these three
+cases, so they do not discriminate until a harder arm or harder cases
+arrive; and the 3-hour, 20-minutes-per-cell budgeting in memory was off by
+an order of magnitude for this model on tasks this size.
 
 ## Open questions
 

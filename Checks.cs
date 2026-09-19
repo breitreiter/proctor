@@ -102,12 +102,12 @@ static class Checks
             value = cell.Case.Expect?[name];
             if (value is null) return Verdict.Err($"{name}: case has no expect.{name}");
         }
-        var verdict = name == "script" ? RunScript(value!.GetValue<string>(), cell) : BuiltIn(name, value!, t);
+        var verdict = name == "script" ? RunScript(value!.GetValue<string>(), cell) : BuiltIn(name, value!, cell, t);
         if (!negated || verdict.Result is Verdict.Error or Verdict.NeedsJudge) return verdict;
         return new Verdict(verdict.Result == Verdict.Pass ? Verdict.Fail : Verdict.Pass, "not: " + verdict.Reason);
     }
 
-    private static Verdict BuiltIn(string name, JsonNode v, Transcript t)
+    private static Verdict BuiltIn(string name, JsonNode v, CellContext cell, Transcript t)
     {
         var trailer = t.Trailer;
         switch (name)
@@ -122,8 +122,12 @@ static class Checks
                 if (trailer?.Total is null) return Verdict.Err("no token usage on the trailer");
                 return Verdict.Of(trailer.Total <= v.GetValue<long>(), $"{trailer.Total} tokens{(trailer.Estimated ? " (estimated)" : "")} (max {v})");
             case "max_duration_ms":
-                if (trailer?.DurationMs is null) return Verdict.Err("no duration on the trailer");
-                return Verdict.Of(trailer.DurationMs <= v.GetValue<long>(), $"{trailer.DurationMs} ms (max {v})");
+            {
+                // nb's trailer carries no duration (2026-09); the cell's wall time from the manifest is the fallback, as in the report.
+                var (ms, source) = trailer?.DurationMs is { } d ? (d, "trailer") : (WallTime(cell), "wall time");
+                if (ms is null) return Verdict.Err("no duration on the trailer or in the manifest");
+                return Verdict.Of(ms <= v.GetValue<long>(), $"{ms} ms {source} (max {v})");
+            }
             case "denied_calls":
             {
                 var denied = t.ToolCalls.Where(c => c.Denied).ToList();
@@ -228,6 +232,13 @@ static class Checks
     }
 
     /// <summary>The script contract: runs in the cell, exit 0/1/2 = pass/fail/needs-judge, first stdout line is the reason.</summary>
+    private static long? WallTime(CellContext cell)
+    {
+        var file = Path.Combine(cell.CellDir, Layout.ManifestFile);
+        if (!File.Exists(file)) return null;
+        return JsonNode.Parse(File.ReadAllText(file))?["duration_ms"]?.GetValue<long>();
+    }
+
     private static Verdict RunScript(string script, CellContext cell)
     {
         var path = Path.GetFullPath(Path.Combine(cell.EvalDir, script));
