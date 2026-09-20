@@ -2,7 +2,7 @@
 type: plan
 title: Research line — Jev and System One models as proctor's judge
 created: 2026-09-20
-status: open; first reading pass done 2026-09-20, see ../learnings/jev-judges.md
+status: open; reading pass done 2026-09-20 (../learnings/jev-judges.md); measurement plan in jev-trial.md
 ---
 
 # Research line — Jev and System One models as proctor's judge

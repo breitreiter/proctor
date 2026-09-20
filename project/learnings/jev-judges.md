@@ -7,8 +7,9 @@ created: 2026-09-20
 # Jev as proctor's judge — first pass
 
 A reading pass on 2026-09-20 against the research line in
-`../plans/jev-judge-research.md`. Nothing has been run. Every number below
-came from a vendor page, a third-party repo README or a summary of one; treat
+`../plans/jev-judge-research.md`. Nothing had been run when this was written;
+the two routes were probed later the same day, see `../plans/jev-trial.md`.
+Every number below came from a vendor page, a third-party repo README or a summary of one; treat
 them as pointers to check, not as measurements we made. The ecosystem is four
 days old and the noise-to-signal ratio is what you would expect.
 
