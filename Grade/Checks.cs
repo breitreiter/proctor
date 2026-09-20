@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -231,7 +230,6 @@ static class Checks
         return i == wanted.Count;
     }
 
-    /// <summary>The script contract: runs in the cell, exit 0/1/2 = pass/fail/needs-judge, first stdout line is the reason.</summary>
     private static long? WallTime(CellContext cell)
     {
         var file = Path.Combine(cell.CellDir, Layout.ManifestFile);
@@ -239,37 +237,20 @@ static class Checks
         return JsonNode.Parse(File.ReadAllText(file))?["duration_ms"]?.GetValue<long>();
     }
 
+    /// <summary>The script contract: runs in the cell, exit 0/1/2 = pass/fail/needs-judge, first stdout line is the reason.</summary>
     private static Verdict RunScript(string script, CellContext cell)
     {
         var path = Path.GetFullPath(Path.Combine(cell.EvalDir, script));
-        var psi = new ProcessStartInfo(path)
+        var result = Subprocess.Run(path, [], cell.CellDir, cell.Environment());
+        if (!result.Started) return Verdict.Err($"could not run {script}: {result.Stderr}");
+        var firstLine = result.Stdout.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
+        return result.ExitCode switch
         {
-            WorkingDirectory = cell.CellDir,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
+            0 => new Verdict(Verdict.Pass, firstLine ?? "pass"),
+            1 => new Verdict(Verdict.Fail, firstLine ?? "fail"),
+            2 => new Verdict(Verdict.NeedsJudge, firstLine ?? "needs judge"),
+            var code => Verdict.Err(firstLine ?? $"{script} exited {code}: {result.FirstStderrLine}"),
         };
-        foreach (var (k, val) in cell.Environment()) psi.Environment[k] = val;
-        Process p;
-        try { p = Process.Start(psi) ?? throw new InvalidOperationException("no process"); }
-        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
-        {
-            return Verdict.Err($"could not run {script}: {e.Message}");
-        }
-        using (p)
-        {
-            var stdout = p.StandardOutput.ReadToEndAsync();
-            var stderr = p.StandardError.ReadToEndAsync();
-            p.WaitForExit();
-            var firstLine = stdout.Result.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
-            return p.ExitCode switch
-            {
-                0 => new Verdict(Verdict.Pass, firstLine ?? "pass"),
-                1 => new Verdict(Verdict.Fail, firstLine ?? "fail"),
-                2 => new Verdict(Verdict.NeedsJudge, firstLine ?? "needs judge"),
-                var code => Verdict.Err(firstLine ?? $"{script} exited {code}: {stderr.Result.Split('\n').FirstOrDefault(l => l.Length > 0)}"),
-            };
-        }
     }
 
     private static (string Name, bool Negated) Split(string key) =>
