@@ -19,24 +19,32 @@ with `dotnet build` in its repo; its Mock provider drives every test here).
 
 ## Structure
 
-One project, one executable, no library split. Every file is one concern:
+One project, one executable, no library split. The root holds the entry point
+and the project files; the source sits in one directory per pipeline stage,
+in the order the verbs run them. Every file is one concern:
 
 | file | holds |
 |---|---|
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
 | `Verbs.cs` | one method per verb: `list`, `run`, `resume`, `grade`, `report` |
-| `Layout.cs` | paths and file names, nothing else |
-| `Eval.cs` | `proctor.json`, `eval.json`, cases, the program template: records, loading, validation (`Problem` = file, field, message) |
-| `Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, resume |
-| `Subprocess.cs` | the one process helper: hooks, nb, script checks, git |
-| `Transcript.cs` | nb JSONL into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
-| `Checks.cs` | the built-in vocabulary and the script contract; `Glob` |
-| `Grade.cs` | checks over a cell into `checks.json`; the headline pass |
-| `Results.cs` | `results.jsonl` rows |
-| `Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json` |
-| `Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |
+| `Eval/Layout.cs` | paths and file names, nothing else |
+| `Eval/Eval.cs` | `proctor.json`, `eval.json`, cases, the program template: records, loading, validation (`Problem` = file, field, message) |
+| `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, resume |
+| `Run/Subprocess.cs` | the one process helper: hooks, nb, script checks, git |
+| `Grade/Transcript.cs` | nb JSONL into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
+| `Grade/Checks.cs` | the built-in vocabulary and the script contract; `Glob` |
+| `Grade/Grade.cs` | checks over a cell into `checks.json`; the headline pass |
+| `Report/Results.cs` | `results.jsonl` rows |
+| `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json` |
+| `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |
 | `evals/smoke/` | proctor's own eval: every case scripts nb's Mock provider |
-| `Proctor.Tests/` | xunit; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings |
+| `evals/code-change/` | the first real eval: three fixture repos, script checks, reference solutions |
+| `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings |
+| `project/` | the brief, the plans, the research notes and the loose ends |
+
+The directories are for reading, not for namespaces: everything is
+`namespace Proctor`. The data directories `evals/`, `runs/` and `reports/`
+are lowercase and excluded from compilation in `Proctor.csproj`.
 
 ## Conventions and gotchas
 
