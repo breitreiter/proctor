@@ -18,3 +18,4 @@ that did.
 | [ci-distribution.md](ci-distribution.md) | How other repos pull proctor and nb into GitHub Actions: nuget.org tool packages pinned in a manifest, a thin composite action, report-don't-gate. And what nb needs first. |
 | [where-runs-live.md](where-runs-live.md) | Commit the definitions and the report, archive transcripts to a bucket in the on-disk layout, never LFS. The `archive` and `fetch` verbs. |
 | [name-collisions.md](name-collisions.md) | The name "proctor" checked against evals, o11y and package registries on 2026-09-17. Kept. Bare `Proctor` is taken on nuget.org, PyPI and npm; publish as `Dreamlands.Proctor` if ever. |
+| [nb-coupling.md](nb-coupling.md) | How much of proctor is nb-shaped, measured: ~110 of 1,924 lines. What a modular harness or an nb-as-orchestrator would cost, why `program.nb` is the expensive part, and why an arm labelled `claude-code` is the real exposure. |
