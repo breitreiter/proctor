@@ -52,6 +52,27 @@ Awesome remain an option if the bundle should stay framework-free. Tables are
 the whole product, so judge candidates on their data table first, then tabs,
 tooltip and details.
 
+## CI for proctor
+
+`.github/workflows/test.yml`: build, then `dotnet test`. The runner tests
+spawn nb, so the workflow has to get an nb binary from somewhere: check out
+`breitreiter/nb` beside proctor and build it (what `TestRepo.NbPath` assumes
+today), or, once nb is on nuget.org as a tool, `dotnet tool install` it and
+point `NB_PATH` at the shim. The second is the one to keep; the first is
+fine until the nb package exists. The Mock provider is all the tests need,
+so no keys. `first-slice.md` "Steps 1 through 7 run in proctor's own CI" is
+the promise this pays.
+
+## Publish proctor as a dotnet tool
+
+`PackAsTool` on `Proctor.csproj` (`first-slice.md` says "later"; this is the
+reminder), a tag-triggered release workflow that packs and pushes, mirroring
+nb's `Feature_Release_Workflow_Publishes_To_Nuget.md`. Package id is
+`Dreamlands.Proctor`: bare `Proctor` is taken on nuget.org
+(`learnings/name-collisions.md`). Command name stays `proctor`. Do nb first,
+so a consumer's CI can install both with two lines and proctor's own CI can
+drop the sibling-checkout build.
+
 ## Candidates for nb, not proctor
 
 All six are filed in nb's own tracker as of 2026-09-17, untracked there until
