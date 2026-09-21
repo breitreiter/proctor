@@ -16,6 +16,7 @@ static class Layout
     public const string EvalFile = "eval.json";
     public const string ProgramTemplateFile = "program.nb";
     public const string CasesDir = "cases";
+    public const string BaselineFile = "baseline.json";
     public const string FixtureFile = "fixture.json";
 
     public const string ExperimentFile = "experiment.json";

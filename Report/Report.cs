@@ -33,7 +33,7 @@ static class Report
             <header>
             <h1>{E(stats.Eval)} <span class="id">{E(stats.Experiment)}</span></h1>
             <p class="summary">{E(SummarySentence(stats, exp))}</p>
-            <p class="summary">{E(stats.Mde.Sentence)}{(stats.Comparisons.Count > 0 ? " " + E(ComparisonSentence(stats)) : "")}</p>
+            <p class="summary">{E(stats.Mde.Sentence)}{(stats.Comparisons.Count > 0 ? " " + E(ComparisonSentence(stats)) : "")}{(stats.Baseline is null ? "" : " " + E(BaselineSentence(stats)))}</p>
             </header>
 
             """);
@@ -57,6 +57,26 @@ static class Report
             sb.Append("</tr>\n");
         }
         sb.Append("</tbody>\n</table>\n</section>\n\n");
+
+        // 2b. Against the baseline
+        if (stats.Baseline is { } bl)
+        {
+            sb.Append($"<section>\n<h2>Against baseline</h2>\n<p class=\"note\">{E(BaselineNote(bl))}</p>\n<table>\n<thead><tr><th>Arm</th><th class=\"num\">vs baseline [95% CI]</th><th class=\"num\">Won / lost / tied</th><th>Verdict</th></tr></thead>\n<tbody>\n");
+            foreach (var arm in arms)
+                sb.Append(bl.Arms.TryGetValue(arm, out var g)
+                    ? $"<tr><td class=\"id\">{E(arm)}</td><td class=\"num\">{E(DiffText(g.DiffPoints, g.Ci95))}</td><td class=\"num\">{g.Won} / {g.Lost} / {g.Tied} of {g.NPairs}</td><td class=\"{(g.Verdict == "regressed" ? "fail" : "pass")}\">{E(g.Verdict)}</td></tr>\n"
+                    : $"<tr><td class=\"id\">{E(arm)}</td><td class=\"num\">—</td><td class=\"num\">—</td><td>no shared cases</td></tr>\n");
+            sb.Append("</tbody>\n</table>\n<table>\n<thead><tr><th>Case</th><th class=\"num\">baseline</th>");
+            foreach (var arm in arms) sb.Append($"<th class=\"num\">{E(arm)}</th>");
+            sb.Append("</tr></thead>\n<tbody>\n");
+            foreach (var c in stats.Cases)
+            {
+                sb.Append($"<tr><td class=\"id\">{E(c)}</td><td class=\"num\">{E(BaselineScore(bl, c))}</td>");
+                foreach (var arm in arms) sb.Append($"<td class=\"num\">{E(bl.Arms.GetValueOrDefault(arm)?.Cases.GetValueOrDefault(c) is { } bc ? Pct(bc.Arm) : "—")}</td>");
+                sb.Append("</tr>\n");
+            }
+            sb.Append("</tbody>\n</table>\n</section>\n\n");
+        }
 
         // 3. Accounting
         sb.Append("<section>\n<h2>Accounting</h2>\n<table>\n<thead><tr><th>Arm</th><th class=\"num\">Planned</th><th class=\"num\">Attempted</th><th class=\"num\">Completed</th><th class=\"num\">Graded</th><th class=\"num\">Analysed</th></tr></thead>\n<tbody>\n");
@@ -184,6 +204,7 @@ static class Report
         var sb = new StringBuilder();
         sb.Append($"# {stats.Eval} — {stats.Experiment}\n\n{SummarySentence(stats, exp)}\n\n{stats.Mde.Sentence}");
         if (stats.Comparisons.Count > 0) sb.Append(' ').Append(ComparisonSentence(stats));
+        if (stats.Baseline is not null) sb.Append(' ').Append(BaselineSentence(stats));
         sb.Append("\n\n");
         if (UnequalLoss(stats) is { } warning) sb.Append($"> **Warning.** {warning}\n\n");
 
@@ -198,6 +219,18 @@ static class Report
             if (stats.Comparisons.Count > 0) cells.AddRange(cmp is null ? ["—", "reference"] : [DiffText(cmp), VerdictWord(cmp)]);
             return cells;
         })));
+
+        if (stats.Baseline is { } bl)
+        {
+            sb.Append($"\n## Against baseline\n\n{BaselineNote(bl)}\n\n");
+            sb.Append(Table(["Arm", "vs baseline [95% CI]", "Won / lost / tied", "Verdict"], arms.Select(arm =>
+                bl.Arms.TryGetValue(arm, out var g)
+                    ? new List<string> { $"`{arm}`", DiffText(g.DiffPoints, g.Ci95), $"{g.Won} / {g.Lost} / {g.Tied} of {g.NPairs}", g.Verdict }
+                    : new List<string> { $"`{arm}`", "—", "—", "no shared cases" })));
+            sb.Append('\n');
+            sb.Append(Table(["Case", "baseline", .. arms.Select(a => $"`{a}`")], stats.Cases.Select(c =>
+                (string[])[$"`{c}`", BaselineScore(bl, c), .. arms.Select(arm => bl.Arms.GetValueOrDefault(arm)?.Cases.GetValueOrDefault(c) is { } bc ? Pct(bc.Arm) : "—")])));
+        }
 
         sb.Append("\n## Accounting\n\n");
         sb.Append(Table(["Arm", "Planned", "Attempted", "Completed", "Graded", "Analysed"],
@@ -279,7 +312,17 @@ static class Report
         return RateText(r) + (extra.Any() ? $" · {string.Join(", ", extra)}" : "");
     }
 
-    static string DiffText(Comparison c) => $"{Signed(c.DiffPoints)} pts [{Signed(c.Ci95[0])}, {Signed(c.Ci95[1])}]";
+    static string DiffText(Comparison c) => DiffText(c.DiffPoints, c.Ci95);
+    static string DiffText(int points, int[] ci) => $"{Signed(points)} pts [{Signed(ci[0])}, {Signed(ci[1])}]";
+
+    static string BaselineSentence(StatsFile stats) =>
+        string.Join(" ", stats.Baseline!.Arms.Select(a => $"{a.Key} vs baseline: {DiffText(a.Value.DiffPoints, a.Value.Ci95)}, {a.Value.Verdict} at a tolerance of {stats.Baseline.TolerancePoints} points."));
+
+    static string BaselineNote(BaselineStats bl) =>
+        $"Baseline set {bl.Set}; scores {bl.Scores}. Verdict: the point estimate against a tolerance of {bl.TolerancePoints} point{(bl.TolerancePoints == 1 ? "" : "s")}; the interval is the same paired method as between arms.";
+
+    static string BaselineScore(BaselineStats bl, string c) =>
+        bl.Arms.Values.Select(a => a.Cases.GetValueOrDefault(c)).FirstOrDefault(x => x is not null) is { } bc ? Pct(bc.Baseline) : "—";
 
     static string VerdictWord(Comparison c) => c.Verdict switch
     {

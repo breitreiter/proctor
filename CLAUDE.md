@@ -26,10 +26,12 @@ in the order the verbs run them. Every file is one concern:
 | file | holds |
 |---|---|
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
-| `Verbs.cs` | one method per verb: `list`, `run`, `resume`, `grade`, `report` |
+| `Verbs.cs` | one method per verb: `list`, `run`, `resume`, `grade`, `report`, `baseline` |
 | `Eval/Layout.cs` | paths and file names, nothing else |
 | `Eval/Eval.cs` | `proctor.json`, `eval.json`, cases, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per case |
 | `Eval/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
+| `Eval/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
+| `Eval/Baseline.cs` | `evals/<eval>/baseline.json`: pinned cells per case; scores recomputed from the cells while they exist |
 | `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, resume |
 | `Run/Checkout.cs` | the work directory: materialise the fixture, collect the diff, restore both for a regrade |
 | `Run/Subprocess.cs` | the one process helper: hooks, nb, script checks, git |
@@ -75,6 +77,14 @@ The directories are for reading, not for namespaces: everything is
   by source, path and hash in `experiment.json` and every cell manifest;
   proctor never reads what is inside it. `resume` refuses a changed bundle
   as it refuses a changed eval.
+- **The baseline is a virtual arm in the statistics, not in the experiment.**
+  `report` resolves `baseline.json` to per-case scores (re-read from the
+  pinned cells' `checks.json` under the current `pass` and `validity`
+  lists when the experiment is still under `runs/`, else the pinned score)
+  and compares every arm to them with the same Newcombe pairing. The verdict
+  is `held`, `improved` or `regressed` on the point estimate against
+  `--tolerance`; `--fail-on regression` turns it into an exit code. The
+  baseline is not in the accounting or the matrix.
 - **Every number is computed once, in `Stats.cs`.** The renderers format; they
   never compute. If a number looks wrong, fix it in `stats.json` first.
 - **Each case is scored as its mean over its analysed samples**, so `n` in

@@ -16,7 +16,7 @@ public class ReportTests
     {
         var eval = WorkedExperiment.Eval();
         var rows = WorkedExperiment.Rows();
-        return (Stats.Compute(WorkedExperiment.Experiment(eval), eval, rows), rows, WorkedExperiment.Experiment(eval));
+        return (Stats.Compute(WorkedExperiment.Experiment(eval), eval, rows, WorkedExperiment.Guard()), rows, WorkedExperiment.Experiment(eval));
     }
 
     static void AssertSnapshot(string name, string actual)

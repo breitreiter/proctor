@@ -44,10 +44,21 @@ record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95,
 
 record Mde(int NPairs, int Points, int CasesFor10Points, string Sentence);
 
+/// <summary>The guard comparison: every arm against the eval's pinned baseline, with a tolerance on the point estimate.</summary>
+record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms);
+
+record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, BaselineCase> Cases);
+
+record BaselineCase(double Baseline, double Arm);
+
 record StatsFile(
     string Experiment, string Eval, int NCases, bool Paired,
     Dictionary<string, ArmStats> Arms, List<Comparison> Comparisons, Mde Mde, string Methods,
-    List<string> Cases, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks);
+    List<string> Cases, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
+    BaselineStats? Baseline = null);
+
+/// <summary>What the report knows about the baseline: the resolved per-case scores, where they came from, and the tolerance asked for.</summary>
+record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints);
 
 static class Stats
 {
@@ -55,7 +66,7 @@ static class Stats
     const double ZPower = 2.801582;      // z_0.975 + z_0.80, for MDE at 80% power
     const double AssumedSdOfPairedDifference = 0.5;
 
-    public static StatsFile Compute(Experiment experiment, Eval eval, List<ResultRow> rows)
+    public static StatsFile Compute(Experiment experiment, Eval eval, List<ResultRow> rows, GuardInput? guard = null)
     {
         var arms = eval.Arms.Select(a => a.Id!).ToList();
         var cases = eval.Cases.Select(c => c.Id!).ToList();
@@ -65,11 +76,28 @@ static class Stats
         var validity = eval.Grading.Validity ?? [];
         var armStats = arms.ToDictionary(a => a, a => ArmStats(byArm[a], cases, checks, validity));
 
+        var scores = arms.ToDictionary(a => a, a => CaseScores(byArm[a].Where(r => r.Analysed).ToList(), cases, r => r.Pass == true));
         var comparisons = new List<Comparison>();
         foreach (var other in arms.Skip(1))
         {
-            var c = Compare(other, arms[0], byArm[other], byArm[arms[0]], cases);
+            var c = Compare(other, arms[0], scores[other], scores[arms[0]], cases);
             if (c is not null) comparisons.Add(c);
+        }
+
+        BaselineStats? baseline = null;
+        if (guard is not null)
+        {
+            var against = new Dictionary<string, BaselineArm>();
+            foreach (var arm in arms)
+            {
+                var c = Compare(arm, "baseline", scores[arm], guard.Scores, cases);
+                if (c is null) continue;
+                var verdict = c.DiffPoints < -guard.TolerancePoints ? "regressed" : c.DiffPoints > guard.TolerancePoints ? "improved" : "held";
+                var perCase = cases.Where(x => scores[arm].ContainsKey(x) && guard.Scores.ContainsKey(x))
+                    .ToDictionary(x => x, x => new BaselineCase(Round3(guard.Scores[x]), Round3(scores[arm][x])));
+                against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, perCase);
+            }
+            baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against);
         }
 
         var nPairs = comparisons.Count > 0 ? comparisons.Min(c => c.NPairs) : cases.Count(c => byArm[arms[0]].Any(r => r.Case == c && r.Analysed));
@@ -82,9 +110,10 @@ static class Stats
             + "Per-arm rates: Wilson 95%. Paired differences: Newcombe 95% (Wilson square-and-add, phi from the per-case scores). "
             + $"MDE at 80% power assumes a per-case paired-difference sd of {AssumedSdOfPairedDifference}. "
             + "Durations are the cell's wall time including hooks; tokens are nb's trailer. "
-            + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown.";
+            + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
+            + (baseline is null ? "" : $" Against the baseline: the same paired difference; the verdict is the point estimate against a tolerance of {baseline.TolerancePoints} points, and the interval is shown so a small n cannot hide.");
 
-        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!, validity);
+        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!, validity, baseline);
     }
 
     static ArmStats ArmStats(List<ResultRow> rows, List<string> cases, List<string> checks, List<string> validity)
@@ -188,10 +217,8 @@ static class Stats
         return num / Math.Sqrt(margins);
     }
 
-    static Comparison? Compare(string arm, string vs, List<ResultRow> armRows, List<ResultRow> vsRows, List<string> cases)
+    static Comparison? Compare(string arm, string vs, Dictionary<string, double> a, Dictionary<string, double> b, List<string> cases)
     {
-        var a = CaseScores(armRows.Where(r => r.Analysed).ToList(), cases, r => r.Pass == true);
-        var b = CaseScores(vsRows.Where(r => r.Analysed).ToList(), cases, r => r.Pass == true);
         var shared = cases.Where(c => a.ContainsKey(c) && b.ContainsKey(c)).ToList();
         if (shared.Count == 0) return null;
         var sa = shared.Select(c => a[c]).ToArray();

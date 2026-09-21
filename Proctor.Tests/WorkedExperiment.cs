@@ -27,6 +27,10 @@ static class WorkedExperiment
         eval.Cases.Select(c => c.Id!).ToList(), eval.PlannedCells, "2026-09-17T14:32:00Z", "proctor run smoke", "imp",
         new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.0" }, new GitInfo("3f2c1e9a", Dirty: false), new ResolvedNb("/usr/local/bin/nb", null));
 
+    /// <summary>Last week's floor, pinned: loops was perfect, plain was perfect, uses-bash was one in three.</summary>
+    public static GuardInput Guard() =>
+        new("2026-09-14T09:12:00Z", "as pinned", new() { ["loops"] = 1.0, ["plain"] = 1.0, ["uses-bash"] = 0.333 }, TolerancePoints: 10);
+
     public static ResultRow Row(string arm, string @case, int sample, bool? pass, string status = "completed", string exit = "ok", long tokens = 57331, long durationMs = 1118000, string? reason = null, string? invalid = null) =>
         new(RunId: $"{arm[0]}{@case[0]}{sample}0000000000000", Arm: arm, Case: @case, Sample: sample, Status: status,
             StatusReason: pass is null && status != "completed" ? (reason ?? "sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed") : null,

@@ -10,15 +10,22 @@ static class Program
           resume <experiment> run the cells of an experiment that have not completed
           grade <experiment>  run the checks over every completed cell
           report <experiment> write results.jsonl, stats.json, report.html and summary.md
+          baseline <experiment> pin an arm's analysed cells as the eval's baseline, per case
 
         --root <dir>          the repository root holding evals/ (default: current directory)
         --nb <path>           the nb binary (default: evals/proctor.json nb.path, else PATH)
+        --arm <id>            baseline: which arm to pin (required with several arms)
+        --cases <a,b>         baseline: only these cases; the rest keep their pins
+        --tolerance <points>  report: how far below the baseline still counts as held (default 0)
+        --fail-on regression  report: exit 1 when any arm regressed against the baseline
         """;
 
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null;
+        string? nbPath = null, arm = null, failOn = null;
+        List<string>? cases = null;
+        var tolerance = 0;
         var positional = new List<string>();
         for (var i = 0; i < args.Length; i++)
         {
@@ -26,6 +33,10 @@ static class Program
             {
                 case "--root" when i + 1 < args.Length: root = Path.GetFullPath(args[++i]); break;
                 case "--nb" when i + 1 < args.Length: nbPath = args[++i]; break;
+                case "--arm" when i + 1 < args.Length: arm = args[++i]; break;
+                case "--cases" when i + 1 < args.Length: cases = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
+                case "--tolerance" when i + 1 < args.Length && int.TryParse(args[i + 1], out var t) && t >= 0: tolerance = t; i++; break;
+                case "--fail-on" when i + 1 < args.Length && args[i + 1] == "regression": failOn = args[++i]; break;
                 case "-h" or "--help": Console.WriteLine(Usage); return 0;
                 case var flag when flag.StartsWith("--"): Console.Error.WriteLine($"unknown flag {flag}"); Console.Error.WriteLine(Usage); return 1;
                 default: positional.Add(args[i]); break;
@@ -41,7 +52,8 @@ static class Program
                 ("run", [var eval]) => Verbs.Run(root, eval, nbPath),
                 ("resume", [var id]) => Verbs.Resume(root, id, nbPath),
                 ("grade", [var id]) => Verbs.Grade(root, id),
-                ("report", [var id]) => Verbs.Report(root, id),
+                ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn),
+                ("baseline", [var id]) => Verbs.Baseline(root, id, arm, cases),
                 _ => Fail(Usage),
             };
         }

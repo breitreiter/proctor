@@ -73,7 +73,20 @@ proctor run <eval>           # run every cell into runs/<id>/; prints the id
 proctor resume <id>          # rerun cells that did not complete
 proctor grade <id>           # checks over every completed cell -> checks.json
 proctor report <id>          # reports/data/<id>/{results.jsonl,stats.json,report.html,summary.md}
+proctor baseline <id> [--arm a] [--cases x,y]   # pin the arm's analysed cells as evals/<eval>/baseline.json
+proctor report <id> --tolerance 10 --fail-on regression   # guard mode: exit 1 if an arm fell further than that
 ```
+
+Two ways of working. In explore mode several arms run in one experiment and
+the report compares them to each other. In guard mode one arm runs against
+a baseline: pinned cells per case, committed with the eval, written by
+`proctor baseline` from an experiment you trust. The report then adds a
+section comparing every arm to the baseline with the same paired method,
+a verdict of held, improved or regressed on the point estimate against the
+tolerance, and the interval beside it so a small case count cannot hide.
+While the pinned experiment is still under `runs/`, its cells are re-read,
+so a regrade flows through; once it is archived the pinned scores stand,
+and the report says which.
 
 `report.html` is one file with no external assets; open it from `file://`
 or attach it to a message. `summary.md` has the same sections as plain tables.

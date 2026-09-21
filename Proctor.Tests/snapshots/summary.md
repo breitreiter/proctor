@@ -2,7 +2,7 @@
 
 Eval smoke, run 2026-09-17 on imp. 2 arms: floor (imp-qcoder / qwen-coder through nb, 3 samples per case); b (imp-glm / glm through nb, 3 samples per case). 3 cases, 18 cells planned, 16 analysed.
 
-With 3 paired cases this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 cases. b vs floor: +33 pts [−31, +75], no detectable difference (won 2, lost 0, tied 1 of 3).
+With 3 paired cases this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 cases. b vs floor: +33 pts [−31, +75], no detectable difference (won 2, lost 0, tied 1 of 3). floor vs baseline: −22 pts [−67, +39], regressed at a tolerance of 10 points. b vs baseline: +11 pts [−46, +63], improved at a tolerance of 10 points.
 
 > **Warning.** Arms lost runs unequally: floor analysed 7 of 9, b analysed 9 of 9. Rates are over the analysed cells; see Accounting for what was excluded and why.
 
@@ -12,6 +12,21 @@ With 3 paired cases this experiment can reliably detect a difference of about 81
 |---|---|---|---|---|
 | `floor` | 7 / 9 | 56% [15, 90] (4/7) | — | reference |
 | `b` | 9 / 9 | 89% [35, 99] (8/9) | +33 pts [−31, +75] | no detectable difference |
+
+## Against baseline
+
+Baseline set 2026-09-14T09:12:00Z; scores as pinned. Verdict: the point estimate against a tolerance of 10 points; the interval is the same paired method as between arms.
+
+| Arm | vs baseline [95% CI] | Won / lost / tied | Verdict |
+|---|---|---|---|
+| `floor` | −22 pts [−67, +39] | 0 / 2 / 1 of 3 | regressed |
+| `b` | +11 pts [−46, +63] | 1 / 0 / 2 of 3 | improved |
+
+| Case | baseline | `floor` | `b` |
+|---|---|---|---|
+| `loops` | 100% | 67% | 100% |
+| `plain` | 100% | 100% | 100% |
+| `uses-bash` | 33% | 0% | 67% |
 
 ## Accounting
 
@@ -93,4 +108,4 @@ Failures first.
 - command: `proctor run smoke`
 - created: `2026-09-17T14:32:00Z`
 
-Each case is scored as its mean over its analysed samples; n is the case count. Per-arm rates: Wilson 95%. Paired differences: Newcombe 95% (Wilson square-and-add, phi from the per-case scores). MDE at 80% power assumes a per-case paired-difference sd of 0.5. Durations are the cell's wall time including hooks; tokens are nb's trailer. No multiplicity adjustment; 1 comparison shown.
+Each case is scored as its mean over its analysed samples; n is the case count. Per-arm rates: Wilson 95%. Paired differences: Newcombe 95% (Wilson square-and-add, phi from the per-case scores). MDE at 80% power assumes a per-case paired-difference sd of 0.5. Durations are the cell's wall time including hooks; tokens are nb's trailer. No multiplicity adjustment; 1 comparison shown. Against the baseline: the same paired difference; the verdict is the point estimate against a tolerance of 10 points, and the interval is shown so a small n cannot hide.

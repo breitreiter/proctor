@@ -226,4 +226,33 @@ public class StatsTests
         Assert.Equal(0, stats.Arms["b"].Attempted);
         Assert.Empty(stats.Matrix["b"]["loops"]);
     }
+
+    [Fact]
+    public void Compute_AgainstBaseline_VerdictIsThePointEstimateAgainstTheTolerance()
+    {
+        var eval = TwoArmEval(samples: 1);
+        var rows = new List<ResultRow>
+        {
+            Row("floor", "loops", 1, true), Row("floor", "plain", 1, false), Row("floor", "uses-bash", 1, false),
+            Row("b", "loops", 1, true), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
+        };
+        var guard = new GuardInput("2026-09-21T16:40:12Z", "recomputed", new() { ["loops"] = 1.0, ["plain"] = 1.0, ["uses-bash"] = 0.0 }, TolerancePoints: 10);
+        var stats = Stats.Compute(Exp(eval), eval, rows, guard);
+        var bl = stats.Baseline!;
+        Assert.Equal(("2026-09-21T16:40:12Z", "recomputed", 10), (bl.Set, bl.Scores, bl.TolerancePoints));
+
+        var floor = bl.Arms["floor"];      // 1/3 against 2/3: −33 points, beyond the tolerance
+        Assert.Equal((3, -33, "regressed"), (floor.NPairs, floor.DiffPoints, floor.Verdict));
+        Assert.Equal((0, 1, 2), (floor.Won, floor.Lost, floor.Tied));
+        Assert.Equal(new BaselineCase(1.0, 0.0), floor.Cases["plain"]);
+        var b = bl.Arms["b"];              // 3/3 against 2/3: +33 points
+        Assert.Equal((33, "improved"), (b.DiffPoints, b.Verdict));
+        Assert.True(b.Ci95[0] < 0 && b.Ci95[1] > 0, "three cases cannot make the interval exclude zero");
+
+        // Inside the tolerance is held, whichever way it leans; the between-arm comparison is untouched.
+        var held = Stats.Compute(Exp(eval), eval, rows, guard with { TolerancePoints = 40 }).Baseline!;
+        Assert.All(held.Arms.Values, a => Assert.Equal("held", a.Verdict));
+        Assert.Equal(67, Assert.Single(stats.Comparisons).DiffPoints);
+        Assert.Contains("tolerance of 10 points", stats.Methods);
+    }
 }

@@ -64,7 +64,40 @@ static class Verbs
             ?? throw new ProctorException($"eval '{experiment.Eval}' no longer loads:\n" + string.Join("\n", problems));
         return (experiment, eval);
     }
-    public static int Report(string root, string experimentId)
+    /// <summary>Pin an arm's analysed cells as the eval's baseline, per case; cases the arm did not analyse keep their old pin.</summary>
+    public static int Baseline(string root, string experimentId, string? armId, List<string>? caseIds)
+    {
+        var (experiment, eval) = LoadExperiment(root, experimentId);
+        var arm = armId is null
+            ? eval.Arms.Count == 1 ? eval.Arms[0] : throw new ProctorException($"eval '{eval.Id}' has {eval.Arms.Count} arms; say which with --arm ({string.Join(", ", eval.Arms.Select(a => a.Id))})")
+            : eval.Arms.FirstOrDefault(a => a.Id == armId) ?? throw new ProctorException($"no arm '{armId}' in eval '{eval.Id}' ({string.Join(", ", eval.Arms.Select(a => a.Id))})");
+        foreach (var c in caseIds ?? [])
+            if (eval.Cases.All(x => x.Id != c)) throw new ProctorException($"no case '{c}' in eval '{eval.Id}'");
+
+        var rows = Results.Collect(root, experiment, eval).Where(r => r.Arm == arm.Id && r.Analysed).ToList();
+        var existing = Proctor.Baseline.Load(eval);
+        var pins = existing?.Cases.ToDictionary(k => k.Key, k => k.Value) ?? [];
+        var pinned = 0;
+        foreach (var c in eval.Cases.Where(c => caseIds is null || caseIds.Contains(c.Id!)))
+        {
+            var analysed = rows.Where(r => r.Case == c.Id).OrderBy(r => r.Sample).ToList();
+            if (analysed.Count == 0)
+            {
+                Console.WriteLine($"  {c.Id}  {(pins.ContainsKey(c.Id!) ? $"kept: {pins[c.Id!].Experiment}/{pins[c.Id!].Arm}" : "not pinned")}: arm {arm.Id} analysed no sample of it");
+                continue;
+            }
+            pins[c.Id!] = new BaselinePin(experiment.Id, arm.Id!, analysed.Select(r => r.Sample).ToList(),
+                experiment.BundleOf(arm.Id!)?.Hash, eval.FixtureOf(c)?.Hash, Math.Round(analysed.Average(r => r.Pass == true ? 1.0 : 0.0), 3));
+            pinned++;
+            Console.WriteLine($"  {c.Id}  pinned {experiment.Id}/{arm.Id} samples {string.Join(",", pins[c.Id!].Samples)}  score {pins[c.Id!].Score:0.###}");
+        }
+        var baseline = new Baseline(DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), Environment.CommandLine, experiment.EvalHash, pins);
+        baseline.Save(eval);
+        Console.WriteLine($"{Path.GetRelativePath(root, Proctor.Baseline.FileOf(eval))}: {pinned} case{(pinned == 1 ? "" : "s")} pinned, {pins.Count} in the baseline");
+        return 0;
+    }
+
+    public static int Report(string root, string experimentId, int tolerancePoints = 0, string? failOn = null)
     {
         var (experiment, eval) = LoadExperiment(root, experimentId);
         var outDir = Layout.ReportData(root, experimentId);
@@ -72,7 +105,13 @@ static class Verbs
 
         var rows = Results.Collect(root, experiment, eval);
         Results.Write(Path.Combine(outDir, Layout.ResultsFile), rows);
-        var stats = Stats.Compute(experiment, eval, rows);
+        GuardInput? guard = null;
+        if (Proctor.Baseline.Load(eval) is { } baseline)
+        {
+            var (scores, source) = baseline.Resolve(root, eval);
+            guard = new GuardInput(baseline.Set, source, scores, tolerancePoints);
+        }
+        var stats = Stats.Compute(experiment, eval, rows, guard);
         Runner.WriteJson(Path.Combine(outDir, Layout.StatsFile), stats);
         File.Copy(Path.Combine(Layout.Experiment(root, experimentId), Layout.ExperimentFile), Path.Combine(outDir, Layout.ExperimentFile), overwrite: true);
         File.WriteAllText(Path.Combine(outDir, Layout.ReportHtmlFile), Proctor.Report.Html(stats, rows, experiment));
@@ -81,6 +120,12 @@ static class Verbs
         Console.WriteLine($"{Path.GetRelativePath(root, outDir)}/: {Layout.ResultsFile} ({rows.Count} rows), {Layout.StatsFile}, {Layout.ReportHtmlFile}, {Layout.SummaryFile}");
         var ungraded = rows.Count(r => r.Status == CellStatus.Completed && r.Checks is null);
         if (ungraded > 0) Console.WriteLine($"note: {ungraded} completed cell{(ungraded == 1 ? " has" : "s have")} no checks.json; run `proctor grade {experimentId}` first for them to count");
+        if (stats.Baseline is { } bl)
+        {
+            foreach (var (arm, g) in bl.Arms) Console.WriteLine($"  {arm} vs baseline: {(g.DiffPoints >= 0 ? "+" : "")}{g.DiffPoints} pts [{g.Ci95[0]}, {g.Ci95[1]}], {g.Verdict}");
+            if (failOn == "regression" && bl.Arms.Values.Any(g => g.Verdict == "regressed")) return 1;
+        }
+        else if (failOn is not null) Console.WriteLine($"note: --fail-on {failOn} has nothing to fail on; the eval has no baseline (run `proctor baseline <experiment>`)");
         return 0;
     }
 }
