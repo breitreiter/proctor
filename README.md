@@ -28,6 +28,41 @@ relative to `evals/`:
 Without it, `nb` is taken from `PATH` and nb resolves its own config. `--nb
 <path>` overrides either.
 
+`nb.runner` names a script that runs nb for each cell instead of the binary,
+which is how an eval runs nb inside a container. The contract is the whole
+interface:
+
+| proctor gives the runner | the runner must |
+|---|---|
+| stdin: the resolved program | pass it to nb's stdin unchanged |
+| cwd: the work directory on the host | start nb with the checkout as its working directory, wherever that is inside |
+| the cell environment (`PROCTOR_*`), plus `PROCTOR_NB` (the host binary), `PROCTOR_NB_CONFIG`, `PROCTOR_WORK_MOUNT`, `PROCTOR_BUNDLE_MOUNT`, `PROCTOR_CONTAINER` and `NO_COLOR` | run nb where the checkout, the bundle and the config are at the paths those name |
+| nothing on argv | run `nb --output jsonl [--config <config>] -` |
+| stdout and stderr captured to the cell | put only nb's stdout on stdout |
+| | exit with nb's exit code |
+
+`PROCTOR_CONTAINER` is a name derived from the cell that proctor never uses,
+so hooks and the runner can agree on one container. `--runner <script>`
+overrides the config and `--runner none` runs bare; hooks see which in
+`PROCTOR_RUNNER`, empty on a bare run. The manifest records the script and
+its hash, and `resume` refuses a changed one.
+
+`nb.mounts` says where the runner will show nb the checkout and the bundle:
+
+```json
+{ "nb": { "runner": "runners/podman.sh", "mounts": { "work": "/work", "bundle": "/bundle" } } }
+```
+
+With a runner in effect, `{{work}}` and `{{bundle}}` in the program resolve
+to those paths, so the model is told where things are inside the container.
+Hooks and checks run on the host and keep `PROCTOR_WORK` and
+`PROCTOR_BUNDLE` as host paths; `PROCTOR_WORK_MOUNT` and
+`PROCTOR_BUNDLE_MOUNT` are the paths the model was told, which fall back to
+the host paths when nothing is mounted, so a check such as `stays-in-work`
+reads one variable either way. A bare run ignores the mounts, which is what
+makes `--runner none` a shakedown of the eval on the host. The plan and the
+worked example are in `project/plans/containerised-runs.md`.
+
 One eval is one directory, `evals/<id>/`:
 
 ```

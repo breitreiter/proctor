@@ -14,6 +14,7 @@ static class Program
 
         --root <dir>          the repository root holding evals/ (default: current directory)
         --nb <path>           the nb binary (default: evals/proctor.json nb.path, else PATH)
+        --runner <script>     the script that runs nb per cell (default: evals/proctor.json nb.runner); none runs nb bare
         --arm <id>            baseline: which arm to pin (required with several arms)
         --cases <a,b>         baseline: only these cases; the rest keep their pins
         --tolerance <points>  report: how far below the baseline still counts as held (default 0)
@@ -23,7 +24,7 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, arm = null, failOn = null;
+        string? nbPath = null, runner = null, arm = null, failOn = null;
         List<string>? cases = null;
         var tolerance = 0;
         var positional = new List<string>();
@@ -33,6 +34,7 @@ static class Program
             {
                 case "--root" when i + 1 < args.Length: root = Path.GetFullPath(args[++i]); break;
                 case "--nb" when i + 1 < args.Length: nbPath = args[++i]; break;
+                case "--runner" when i + 1 < args.Length: runner = args[++i]; break;
                 case "--arm" when i + 1 < args.Length: arm = args[++i]; break;
                 case "--cases" when i + 1 < args.Length: cases = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
                 case "--tolerance" when i + 1 < args.Length && int.TryParse(args[i + 1], out var t) && t >= 0: tolerance = t; i++; break;
@@ -49,8 +51,8 @@ static class Program
             return (positional[0], positional.Skip(1).ToList()) switch
             {
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault()),
-                ("run", [var eval]) => Verbs.Run(root, eval, nbPath),
-                ("resume", [var id]) => Verbs.Resume(root, id, nbPath),
+                ("run", [var eval]) => Verbs.Run(root, eval, nbPath, runner),
+                ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner),
                 ("grade", [var id]) => Verbs.Grade(root, id),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, arm, cases),

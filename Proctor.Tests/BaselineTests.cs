@@ -15,7 +15,7 @@ public class BaselineTests
         var problems = new List<Problem>();
         var config = Eval.LoadConfig(repo.Root, problems);
         var eval = repo.LoadEval("smoke");
-        var id = Runner.Start(repo.Root, eval, config, null, "test", TextWriter.Null);
+        var id = Runner.Start(repo.Root, eval, config, null, null, "test", TextWriter.Null);
         Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), eval, TextWriter.Null);
 
         // No baseline yet: the report has no baseline block and --fail-on has nothing to fail on.

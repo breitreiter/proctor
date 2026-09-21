@@ -26,7 +26,7 @@ static class Verbs
         return exit;
     }
 
-    public static int Run(string root, string evalId, string? nbPath)
+    public static int Run(string root, string evalId, string? nbPath, string? runner)
     {
         var problems = new List<Problem>();
         var config = Eval.LoadConfig(root, problems);
@@ -36,14 +36,14 @@ static class Verbs
             foreach (var p in problems) Console.Error.WriteLine(p);
             return 1;
         }
-        var id = Runner.Start(root, eval, config, nbPath, Environment.CommandLine, Console.Out);
+        var id = Runner.Start(root, eval, config, nbPath, runner, Environment.CommandLine, Console.Out);
         Console.WriteLine($"experiment {id}");
         return 0;
     }
 
-    public static int Resume(string root, string experimentId, string? nbPath)
+    public static int Resume(string root, string experimentId, string? nbPath, string? runner)
     {
-        Runner.Resume(root, experimentId, nbPath, Console.Out);
+        Runner.Resume(root, experimentId, nbPath, runner, Console.Out);
         return 0;
     }
     public static int Grade(string root, string experimentId)

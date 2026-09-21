@@ -10,7 +10,11 @@ namespace Proctor;
 // The definition tier: proctor.json, eval.json, the case files and the program template,
 // loaded into records and validated with a file and field on every problem.
 
-record NbConfig(string Path = "nb", string? Config = null);
+/// <summary>nb.path is the host binary; nb.runner, when set, is the script that runs nb for a cell instead (see the runner contract in the README).</summary>
+record NbConfig(string Path = "nb", string? Config = null, string? Runner = null, NbMounts? Mounts = null);
+
+/// <summary>Where the runner shows nb the checkout and the bundle: what {{work}} and {{bundle}} resolve to when a runner is in effect. Absent, the host paths.</summary>
+record NbMounts(string? Work = null, string? Bundle = null);
 
 /// <summary>evals/proctor.json. Everything optional; the defaults are the layout's defaults.</summary>
 record ProctorConfig(NbConfig? Nb)
@@ -108,6 +112,9 @@ sealed class Eval
         var file = Path.Combine(Layout.Evals(root), Layout.ProctorConfigFile);
         if (!File.Exists(file)) return new ProctorConfig(null);
         var config = ReadJson<ProctorConfig>(file, problems);
+        foreach (var (field, mount) in new[] { ("work", config?.Nb?.Mounts?.Work), ("bundle", config?.Nb?.Mounts?.Bundle) })
+            if (mount is not null && !Path.IsPathRooted(mount))
+                problems.Add(new Problem(Path.GetRelativePath(root, file), $"nb.mounts.{field}", "a mount is an absolute path inside the container"));
         return config ?? new ProctorConfig(null);
     }
 

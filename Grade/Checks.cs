@@ -20,6 +20,18 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
     public Fixture? Fixture { get; init; }
     /// <summary>The arm's resolved bundle directory, when the arm has one.</summary>
     public string? BundleDir { get; init; }
+    /// <summary>The runner script in effect, relative to evals/; empty on a bare run.</summary>
+    public string NbRunner { get; init; } = "";
+    /// <summary>Where the runner shows nb the checkout and the bundle; null when it shows them at the host paths.</summary>
+    public NbMounts? Mounts { get; init; }
+
+    /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
+    public string WorkMount => Mounts?.Work ?? WorkDir;
+    /// <summary>The path the model is told the bundle is at, when the arm has one.</summary>
+    public string? BundleMount => BundleDir is null ? null : Mounts?.Bundle ?? BundleDir;
+
+    /// <summary>A container name for this cell, derived from its coordinates. Proctor never uses it; hooks and runners that own a container agree on it through this.</summary>
+    public string Container => $"proctor-{Experiment}-{Arm}-{Case.Id}-{Sample}";
 
     public IDictionary<string, string> Environment() => new Dictionary<string, string>
     {
@@ -32,10 +44,14 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
         ["PROCTOR_SAMPLE"] = Sample.ToString(),
         ["PROCTOR_CELL"] = CellDir,
         ["PROCTOR_WORK"] = WorkDir,
+        ["PROCTOR_WORK_MOUNT"] = WorkMount,
+        ["PROCTOR_BUNDLE_MOUNT"] = BundleMount ?? "",
         ["PROCTOR_CASE_JSON"] = JsonSerializer.Serialize(Case, Eval.JsonOptions),
         ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(CellDir, Layout.TranscriptFile),
         ["PROCTOR_DIFF"] = Path.Combine(CellDir, Layout.DiffFile),
+        ["PROCTOR_RUNNER"] = NbRunner,
+        ["PROCTOR_CONTAINER"] = Container,
     };
 }
 

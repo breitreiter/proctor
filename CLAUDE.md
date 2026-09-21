@@ -93,6 +93,8 @@ The directories are for reading, not for namespaces: everything is
   table, built from the case means when there are several samples. This
   reduces to the textbook binary methods at one sample and never gives a
   zero-width interval.
+- **`versions.nb` is `nb --version` from the host binary**, the `+commit`
+  suffix stripped; `unknown` when it fails. It is read once per experiment.
 - **nb's trailer carries no `duration_ms`** (as of 2026-09-17), so durations
   are the cell's wall time from the manifest, hooks included, both in the
   report and in the `max_duration_ms` check. It carries no cost, so the
@@ -102,7 +104,10 @@ The directories are for reading, not for namespaces: everything is
 - **Program templates.** Placeholders are `{{prompt}}`, `{{case}}`, `{{work}}`
   (the fixture checkout), `{{bundle}}` (the arm's resolved bundle directory,
   empty without one), `{{provider}}`, `{{model}}`, `{{harness}}`, `{{arm}}`,
-  `{{sample}}`. A prompt's newlines become nb continuation lines (` \`), so a
+  `{{sample}}`. `{{work}}` and `{{bundle}}` are the paths the *model* will
+  see: `nb.mounts` replaces them when a runner is in effect (`CellContext`
+  `WorkMount`/`BundleMount`), and a bare run ignores the mounts so
+  `--runner none` stays a host shakedown. A prompt's newlines become nb continuation lines (` \`), so a
   multi-line prompt stays one directive. A prompt line that itself ends in a
   backslash cannot be expressed.
 - **Check values from the case.** A check field whose value is `"@expect"`
@@ -110,12 +115,26 @@ The directories are for reading, not for namespaces: everything is
 - **Hooks and script checks** run with `PROCTOR_EVAL_DIR`, `PROCTOR_FIXTURE`,
   `PROCTOR_BUNDLE`, `PROCTOR_EXPERIMENT`, `PROCTOR_ARM`, `PROCTOR_CASE`, `PROCTOR_SAMPLE`,
   `PROCTOR_CELL`, `PROCTOR_WORK`, `PROCTOR_CASE_JSON`, `PROCTOR_EXPECT` (the
-  merged block), `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`. Hooks run in the eval
+  merged block), `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`, `PROCTOR_RUNNER` (the
+  `nb.runner` script, empty on a bare run), `PROCTOR_CONTAINER` (a name
+  derived from the cell that proctor never uses), and `PROCTOR_WORK_MOUNT`
+  and `PROCTOR_BUNDLE_MOUNT` (the paths the model was told; the host paths
+  unless `nb.mounts` moved them). Hooks run in the eval
   directory; script checks run in the cell, an eval's resolved against the
   eval directory and a fixture's against the fixture directory. Scripts exit
   0/1/2 for pass/fail/needs-judge; anything else is `error`, never folded
   into fail. The sample order is: fixture checkout, setup hook, nb, teardown
-  hook, diff. `PROCTOR_WORK` is never deleted (`.proctor/` is gitignored).
+  hook, diff. Teardown runs whenever setup ran, even when setup failed, so
+  it must be idempotent. `PROCTOR_WORK` is never deleted (`.proctor/` is
+  gitignored).
+- **nb gets the program on stdin, bare or through a runner.** `RunNb` is one
+  code path: without `nb.runner` it starts `nb --output jsonl [--config] -`
+  itself with only `NO_COLOR` added to the environment; with one it starts
+  the script with nothing on argv and the cell environment plus
+  `PROCTOR_NB`, `PROCTOR_NB_CONFIG` and `NO_COLOR`, and the script starts nb
+  the same way. The bare path deliberately does not get the cell environment:
+  `PROCTOR_EXPECT` in the model's reach would leak the answer. A runner that
+  forwards its environment into the container wholesale would do the same.
 - **`resume` refuses a changed eval.** The eval hash in `experiment.json` must
   match; a changed eval is a new experiment.
 - **Validation says "not yet" rather than silently skipping**: `command` arms,

@@ -14,7 +14,7 @@ public class GradeTests
         var problems = new List<Problem>();
         var config = Eval.LoadConfig(repo.Root, problems);
         var eval = repo.LoadEval("smoke");
-        var id = Runner.Start(repo.Root, eval, config, null, "test", TextWriter.Null);
+        var id = Runner.Start(repo.Root, eval, config, null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
         File.WriteAllText(Path.Combine(Layout.Cell(expDir, "a", "uses-bash", 1), "status"), "failed\n");
 

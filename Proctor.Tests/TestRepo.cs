@@ -52,9 +52,17 @@ sealed class TestRepo : IDisposable
         CopyDirectory(Path.Combine(SourceRoot, "fixtures", id), Path.Combine(Root, "fixtures", id));
     }
 
-    public void WriteProctorConfig() =>
+    public void WriteProctorConfig(string? runner = null, object? mounts = null) =>
         File.WriteAllText(Path.Combine(Root, "evals", "proctor.json"),
-            JsonSerializer.Serialize(new { nb = new { path = NbPath, config = NbMockConfig } }));
+            JsonSerializer.Serialize(new { nb = new { path = NbPath, config = NbMockConfig, runner, mounts } }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
+
+    /// <summary>Write an executable script under evals/. Returns the full path.</summary>
+    public string WriteScript(string relativePath, string content)
+    {
+        var path = Write(relativePath, content);
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        return path;
+    }
 
     /// <summary>Write a file under evals/, creating directories. Returns the full path.</summary>
     public string Write(string relativePath, string content)
