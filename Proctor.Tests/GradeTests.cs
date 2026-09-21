@@ -60,4 +60,16 @@ public class GradeTests
         Assert.False(Grade.Pass(checks, ["a", "c"]));
         Assert.False(Grade.Pass(checks, ["a", "d"]));
     }
+
+    [Fact]
+    public void Invalid_IsTheFirstFailedValidityCheck_ErrorDoesNotInvalidate()
+    {
+        var checks = new Dictionary<string, Verdict>
+        {
+            ["a"] = new("pass", ""), ["b"] = new("fail", "read ../cases"), ["c"] = new("error", "script missing"), ["d"] = new("fail", "second"),
+        };
+        Assert.Null(Grade.Invalid(checks, null));
+        Assert.Null(Grade.Invalid(checks, ["a", "c"]));
+        Assert.Equal("b: read ../cases", Grade.Invalid(checks, ["a", "b", "d"]));
+    }
 }

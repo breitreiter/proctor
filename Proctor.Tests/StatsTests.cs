@@ -113,8 +113,8 @@ public class StatsTests
         Assert.Equal(2.5, Stats.Summarise([1, 2, 3, 4])!.Median);
     }
 
-    static ResultRow Row(string arm, string @case, int sample, bool? pass, string status = "completed", string exit = "ok") =>
-        WorkedExperiment.Row(arm, @case, sample, pass, status, exit, reason: "hook failed");
+    static ResultRow Row(string arm, string @case, int sample, bool? pass, string status = "completed", string exit = "ok", string? invalid = null) =>
+        WorkedExperiment.Row(arm, @case, sample, pass, status, exit, reason: "hook failed", invalid: invalid);
 
     static Eval TwoArmEval(int samples) => WorkedExperiment.Eval(samples);
 
@@ -189,6 +189,29 @@ public class StatsTests
         Assert.Equal(-50, cmp.DiffPoints);
         Assert.Equal((0, 1, 1), (cmp.Won, cmp.Lost, cmp.Tied));
         Assert.Equal(2, stats.Mde.NPairs);
+    }
+
+    [Fact]
+    public void Compute_InvalidSamplesAreExcluded_ValidityRateIsOverEveryGradedSample()
+    {
+        var eval = TwoArmEval(samples: 1);
+        var rows = new List<ResultRow>
+        {
+            Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, true, invalid: "no_denials: 1 denied call"),
+            Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
+        };
+        var stats = Stats.Compute(Exp(eval), eval, rows);
+        var f = stats.Arms["floor"];
+        Assert.Equal((3, 3, 3, 3, 2), (f.Planned, f.Attempted, f.Completed, f.Graded, f.Analysed));
+        var ex = Assert.Single(f.Excluded);
+        Assert.Equal(("floor/uses-bash/1", "invalid", "no_denials: 1 denied call"), (ex.Cell, ex.Status, ex.Reason));
+        Assert.Equal(2, f.Pass!.N);
+        Assert.Equal(["invalid"], stats.Matrix["floor"]["uses-bash"]);
+        Assert.Equal(["no_denials"], stats.ValidityChecks);
+        // The validity check is rated over all three graded samples; the pass checks over the two that count.
+        Assert.Equal((2, 3), (f.Checks["no_denials"].KCells, f.Checks["no_denials"].NCells));
+        Assert.Equal((2, 2), (f.Checks["builds"].KCells, f.Checks["builds"].NCells));
+        Assert.Equal(2, Assert.Single(stats.Comparisons).NPairs);
     }
 
     [Fact]

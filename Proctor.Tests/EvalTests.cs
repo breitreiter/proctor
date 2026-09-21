@@ -39,6 +39,8 @@ public class EvalTests
     [InlineData("hooks", "{\"case\": {\"setup\": \"hooks/arm-setup.sh\"}}", "smoke/eval.json", "hooks.case")]
     [InlineData("hooks", "{\"arm\": {\"setup\": \"hooks/missing.sh\"}}", "smoke/eval.json", "hooks.arm.setup")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"y\"]}", "smoke/eval.json", "grading.pass")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"], \"validity\": [\"y\"]}", "smoke/eval.json", "grading.validity")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"], \"validity\": [\"x\"]}", "smoke/eval.json", "grading.validity")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"bogus\": 1}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.bogus")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"oracle_hit\": [\"k\"]}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.oracle_hit")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"files_touched\": {\"paths\": []}}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.files_touched")]

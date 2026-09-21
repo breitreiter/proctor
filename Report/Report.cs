@@ -77,7 +77,7 @@ static class Report
         sb.Append("</section>\n\n");
 
         // 4. Matrix
-        sb.Append($"<section>\n<h2>Case by arm</h2>\n<p class=\"legend\"><span class=\"pass\">{Pass}</span> pass &nbsp; <span class=\"fail\">{Fail}</span> fail &nbsp; <span class=\"fail\">{NotAnalysed}</span> not analysed. One glyph per sample; hover for the reason, click for the run.</p>\n<table class=\"matrix\">\n<thead><tr><th>Case</th>");
+        sb.Append($"<section>\n<h2>Case by arm</h2>\n<p class=\"legend\"><span class=\"pass\">{Pass}</span> pass &nbsp; <span class=\"fail\">{Fail}</span> fail &nbsp; <span class=\"fail\">{NotAnalysed}</span> not analysed (failed, invalid or not graded). One glyph per sample; hover for the reason, click for the run.</p>\n<table class=\"matrix\">\n<thead><tr><th>Case</th>");
         foreach (var arm in arms) sb.Append($"<th>{E(arm)}</th>");
         sb.Append("</tr></thead>\n<tbody>\n");
         foreach (var c in stats.Cases)
@@ -100,7 +100,7 @@ static class Report
         sb.Append("</tr></thead>\n<tbody>\n");
         foreach (var check in CheckNames(stats))
         {
-            sb.Append($"<tr><td class=\"id\">{E(check)}</td><td>{(stats.PassChecks.Contains(check) ? "headline" : "guardrail")}</td>");
+            sb.Append($"<tr><td class=\"id\">{E(check)}</td><td>{Role(stats, check)}</td>");
             foreach (var arm in arms)
                 sb.Append($"<td class=\"num\">{E(CheckText(stats.Arms[arm].Checks.GetValueOrDefault(check)))}</td>");
             sb.Append("</tr>\n");
@@ -205,13 +205,13 @@ static class Report
         var excluded = arms.SelectMany(arm => stats.Arms[arm].Excluded).ToList();
         sb.Append(excluded.Count == 0 ? "\nNo cells were excluded.\n" : "\nExcluded cells, in the accounting and out of the rates:\n\n" + string.Join("", excluded.Select(ex => $"- `{ex.Cell}` {ex.Status}: {ex.Reason}\n")));
 
-        sb.Append($"\n## Case by arm\n\n{Pass} pass, {Fail} fail, {NotAnalysed} not analysed; one glyph per sample. Reasons are in the runs table.\n\n");
+        sb.Append($"\n## Case by arm\n\n{Pass} pass, {Fail} fail, {NotAnalysed} not analysed (failed, invalid or not graded); one glyph per sample. Reasons are in the runs table.\n\n");
         sb.Append(Table(["Case", .. arms.Select(a => $"`{a}`")], stats.Cases.Select(c =>
             (string[])[$"`{c}`", .. arms.Select(arm => string.Join(" ", rows.Where(r => r.Arm == arm && r.Case == c).OrderBy(r => r.Sample).Select(Glyph)))])));
 
         sb.Append("\n## Checks\n\n");
         sb.Append(Table(["Check", "Role", .. arms.Select(a => $"`{a}`")], CheckNames(stats).Select(check =>
-            (string[])[$"`{check}`", stats.PassChecks.Contains(check) ? "headline" : "guardrail", .. arms.Select(arm => CheckText(stats.Arms[arm].Checks.GetValueOrDefault(check)))])));
+            (string[])[$"`{check}`", Role(stats, check), .. arms.Select(arm => CheckText(stats.Arms[arm].Checks.GetValueOrDefault(check)))])));
 
         sb.Append("\n## Exit reasons\n\n");
         sb.Append(Table(["Exit reason", .. arms.Select(a => $"`{a}`")], ExitReasons(stats).Select(reason =>
@@ -295,19 +295,25 @@ static class Report
     }
 
     static IEnumerable<string> CheckNames(StatsFile stats) =>
-        stats.PassChecks.Concat(stats.Arms.Values.SelectMany(a => a.Checks.Keys)).Distinct();
+        stats.PassChecks.Concat(stats.ValidityChecks).Concat(stats.Arms.Values.SelectMany(a => a.Checks.Keys)).Distinct();
+
+    static string Role(StatsFile stats, string check) =>
+        stats.PassChecks.Contains(check) ? "headline" : stats.ValidityChecks.Contains(check) ? "validity" : "guardrail";
 
     static IEnumerable<string> ExitReasons(StatsFile stats) =>
         stats.Arms.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
 
     static IEnumerable<ResultRow> Ordered(List<ResultRow> rows) =>
-        rows.OrderBy(r => r.Pass switch { false => 0, null => 1, true => 2 }).ThenBy(r => r.Arm).ThenBy(r => r.Case).ThenBy(r => r.Sample);
+        rows.OrderBy(r => !r.Analysed ? 1 : r.Pass == true ? 2 : 0).ThenBy(r => r.Arm).ThenBy(r => r.Case).ThenBy(r => r.Sample);
 
-    static string Reason(ResultRow r) => r.StatusReason ?? (r.Reasons is null ? "" : string.Join("; ", r.Reasons.Select(k => $"{k.Key}: {k.Value}")));
+    static string Reason(ResultRow r) => r.Invalid is not null ? $"invalid, {r.Invalid}" : Detail(r);
+    static string Detail(ResultRow r) =>
+        r.StatusReason ?? r.Invalid ?? (r.Reasons is null ? "" : string.Join("; ", r.Reasons.Select(k => $"{k.Key}: {k.Value}")));
 
-    static string Glyph(ResultRow r) => r.Pass switch { true => Pass, false => Fail, null => NotAnalysed };
-    static string GlyphClass(ResultRow r) => r.Pass == true ? "pass" : "fail";
-    static string GlyphTitle(ResultRow r) => $"sample {r.Sample}: {(r.Pass switch { true => "pass", false => "fail", null => r.Status })}{(Reason(r).Length > 0 ? " — " + Reason(r) : "")} ({r.RunId})";
+    static string Outcome(ResultRow r) => r.Invalid is not null ? "invalid" : r.Pass switch { true => "pass", false => "fail", null => r.Status };
+    static string Glyph(ResultRow r) => !r.Analysed ? NotAnalysed : r.Pass == true ? Pass : Fail;
+    static string GlyphClass(ResultRow r) => r.Analysed && r.Pass == true ? "pass" : "fail";
+    static string GlyphTitle(ResultRow r) => $"sample {r.Sample}: {Outcome(r)}{(Detail(r).Length > 0 ? " — " + Detail(r) : "")} ({r.RunId})";
 
     static IEnumerable<(string, string)> ReproFacts(StatsFile stats, Experiment exp)
     {

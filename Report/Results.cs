@@ -7,10 +7,11 @@ record ResultRow(
     string RunId, string Arm, string Case, int Sample,
     string Status, string? StatusReason, string? ExitReason,
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
-    Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons)
+    Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null)
 {
+    /// <summary>Graded and counted: an invalid sample is graded but does not count.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool Analysed => Pass is not null;
+    public bool Analysed => Pass is not null && Invalid is null;
 }
 
 record UsageRow(long? Input, long? Output, long? Total, bool Estimated);
@@ -43,7 +44,8 @@ static class Results
                 DurationMs: manifest?.DurationMs,
                 Checks: checks?.ToDictionary(k => k.Key, k => k.Value.Result),
                 Pass: checks is null ? null : Grade.Pass(checks, eval.Grading.Pass!),
-                Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null));
+                Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
+                Invalid: checks is null ? null : Grade.Invalid(checks, eval.Grading.Validity)));
         }
         return rows;
     }

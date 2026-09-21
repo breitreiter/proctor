@@ -27,7 +27,7 @@ record HookPair(string? Setup, string? Teardown);
 
 record Hooks(HookPair? Run, HookPair? Arm, HookPair? Case, HookPair? Sample);
 
-record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass);
+record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<string>? Validity);
 
 record EvalDef(string? Id, List<string>? Tags, List<Arm>? Arms, Hooks? Hooks, Grading? Grading);
 
@@ -215,6 +215,11 @@ sealed class Eval
         if (def.Grading.Pass is null or { Count: 0 }) Add("grading.pass", "required: the checks whose conjunction is the headline pass");
         foreach (var name in def.Grading.Pass ?? [])
             if (!def.Grading.Checks.ContainsKey(name)) Add("grading.pass", $"'{name}' is not a declared check");
+        foreach (var name in def.Grading.Validity ?? [])
+        {
+            if (!def.Grading.Checks.ContainsKey(name)) Add("grading.validity", $"'{name}' is not a declared check");
+            else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the sample counts, not both");
+        }
     }
 
     private static string HashDefinition(string dir, EvalDef def)

@@ -36,16 +36,16 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <main>
 <header>
 <h1>smoke <span class="id">20260917-1432-smoke-k7px</span></h1>
-<p class="summary">Eval smoke, run 2026-09-17 on imp. 2 arms: floor (imp-qcoder / qwen-coder through nb, 3 samples per case); b (imp-glm / glm through nb, 3 samples per case). 3 cases, 18 cells planned, 17 analysed.</p>
+<p class="summary">Eval smoke, run 2026-09-17 on imp. 2 arms: floor (imp-qcoder / qwen-coder through nb, 3 samples per case); b (imp-glm / glm through nb, 3 samples per case). 3 cases, 18 cells planned, 16 analysed.</p>
 <p class="summary">With 3 paired cases this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 cases. b vs floor: +33 pts [−31, +75], no detectable difference (won 2, lost 0, tied 1 of 3).</p>
 </header>
-<p class="warning">Arms lost runs unequally: floor analysed 8 of 9, b analysed 9 of 9. Rates are over the analysed cells; see Accounting for what was excluded and why.</p>
+<p class="warning">Arms lost runs unequally: floor analysed 7 of 9, b analysed 9 of 9. Rates are over the analysed cells; see Accounting for what was excluded and why.</p>
 <section>
 <h2>Headline</h2>
 <table>
 <thead><tr><th>Arm</th><th class="num">Analysed / attempted</th><th class="num">Pass rate [95% CI] (cells)</th><th class="num">vs floor [95% CI]</th><th>Verdict</th></tr></thead>
 <tbody>
-<tr><td class="id">floor</td><td class="num">8 / 9</td><td class="num">56% [15, 90] (5/8)</td><td class="num">—</td><td>reference</td></tr>
+<tr><td class="id">floor</td><td class="num">7 / 9</td><td class="num">56% [15, 90] (4/7)</td><td class="num">—</td><td>reference</td></tr>
 <tr><td class="id">b</td><td class="num">9 / 9</td><td class="num">89% [35, 99] (8/9)</td><td class="num">+33 pts [−31, +75]</td><td>no detectable difference</td></tr>
 </tbody>
 </table>
@@ -56,24 +56,25 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <table>
 <thead><tr><th>Arm</th><th class="num">Planned</th><th class="num">Attempted</th><th class="num">Completed</th><th class="num">Graded</th><th class="num">Analysed</th></tr></thead>
 <tbody>
-<tr><td class="id">floor</td><td class="num">9</td><td class="num">9</td><td class="num">8</td><td class="num">8</td><td class="num">8</td></tr>
+<tr><td class="id">floor</td><td class="num">9</td><td class="num">9</td><td class="num">8</td><td class="num">8</td><td class="num">7</td></tr>
 <tr><td class="id">b</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td></tr>
 </tbody>
 </table>
 <p>Excluded cells, in the accounting and out of the rates:</p>
 <ul class="excluded">
+<li><span class="id">floor/plain/3</span> invalid: no_denials: 1 denied call: bash (no-match)</li>
 <li><span class="id">floor/uses-bash/2</span> failed: sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed</li>
 </ul>
 </section>
 
 <section>
 <h2>Case by arm</h2>
-<p class="legend"><span class="pass">●</span> pass &nbsp; <span class="fail">○</span> fail &nbsp; <span class="fail">×</span> not analysed. One glyph per sample; hover for the reason, click for the run.</p>
+<p class="legend"><span class="pass">●</span> pass &nbsp; <span class="fail">○</span> fail &nbsp; <span class="fail">×</span> not analysed (failed, invalid or not graded). One glyph per sample; hover for the reason, click for the run.</p>
 <table class="matrix">
 <thead><tr><th>Case</th><th>floor</th><th>b</th></tr></thead>
 <tbody>
 <tr><td class="id">loops</td><td class="glyphs"><a href="#run-fl10000000000000" class="pass" title="sample 1: pass (fl10000000000000)">●</a><a href="#run-fl20000000000000" class="pass" title="sample 2: pass (fl20000000000000)">●</a><a href="#run-fl30000000000000" class="fail" title="sample 3: fail — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></td><td class="glyphs"><a href="#run-bl10000000000000" class="pass" title="sample 1: pass (bl10000000000000)">●</a><a href="#run-bl20000000000000" class="pass" title="sample 2: pass (bl20000000000000)">●</a><a href="#run-bl30000000000000" class="pass" title="sample 3: pass (bl30000000000000)">●</a></td></tr>
-<tr><td class="id">plain</td><td class="glyphs"><a href="#run-fp10000000000000" class="pass" title="sample 1: pass (fp10000000000000)">●</a><a href="#run-fp20000000000000" class="pass" title="sample 2: pass (fp20000000000000)">●</a><a href="#run-fp30000000000000" class="pass" title="sample 3: pass (fp30000000000000)">●</a></td><td class="glyphs"><a href="#run-bp10000000000000" class="pass" title="sample 1: pass (bp10000000000000)">●</a><a href="#run-bp20000000000000" class="pass" title="sample 2: pass (bp20000000000000)">●</a><a href="#run-bp30000000000000" class="pass" title="sample 3: pass (bp30000000000000)">●</a></td></tr>
+<tr><td class="id">plain</td><td class="glyphs"><a href="#run-fp10000000000000" class="pass" title="sample 1: pass (fp10000000000000)">●</a><a href="#run-fp20000000000000" class="pass" title="sample 2: pass (fp20000000000000)">●</a><a href="#run-fp30000000000000" class="fail" title="sample 3: invalid — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></td><td class="glyphs"><a href="#run-bp10000000000000" class="pass" title="sample 1: pass (bp10000000000000)">●</a><a href="#run-bp20000000000000" class="pass" title="sample 2: pass (bp20000000000000)">●</a><a href="#run-bp30000000000000" class="pass" title="sample 3: pass (bp30000000000000)">●</a></td></tr>
 <tr><td class="id">uses-bash</td><td class="glyphs"><a href="#run-fu10000000000000" class="fail" title="sample 1: fail — builds: 2 of 41 tests failed (fu10000000000000)">○</a><a href="#run-fu20000000000000" class="fail" title="sample 2: failed — sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed (fu20000000000000)">×</a><a href="#run-fu30000000000000" class="fail" title="sample 3: fail — builds: 2 of 41 tests failed (fu30000000000000)">○</a></td><td class="glyphs"><a href="#run-bu10000000000000" class="pass" title="sample 1: pass (bu10000000000000)">●</a><a href="#run-bu20000000000000" class="fail" title="sample 2: fail — builds: 2 of 41 tests failed (bu20000000000000)">○</a><a href="#run-bu30000000000000" class="pass" title="sample 3: pass (bu30000000000000)">●</a></td></tr>
 </tbody>
 </table>
@@ -84,9 +85,9 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <table>
 <thead><tr><th>Check</th><th>Role</th><th class="num">floor</th><th class="num">b</th></tr></thead>
 <tbody>
-<tr><td class="id">exit_ok</td><td>headline</td><td class="num">89% [35, 99] (7/8)</td><td class="num">100% [44, 100] (9/9)</td></tr>
-<tr><td class="id">builds</td><td>headline</td><td class="num">56% [15, 90] (5/8)</td><td class="num">89% [35, 99] (8/9)</td></tr>
-<tr><td class="id">no_denials</td><td>guardrail</td><td class="num">100% [44, 100] (8/8)</td><td class="num">100% [44, 100] (9/9)</td></tr>
+<tr><td class="id">exit_ok</td><td>headline</td><td class="num">89% [35, 99] (6/7)</td><td class="num">100% [44, 100] (9/9)</td></tr>
+<tr><td class="id">builds</td><td>headline</td><td class="num">56% [15, 90] (4/7)</td><td class="num">89% [35, 99] (8/9)</td></tr>
+<tr><td class="id">no_denials</td><td>validity</td><td class="num">89% [35, 99] (7/8)</td><td class="num">100% [44, 100] (9/9)</td></tr>
 </tbody>
 </table>
 </section>
@@ -124,6 +125,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <tr id="run-fl30000000000000"><td class="id">floor</td><td class="id">loops</td><td class="num">3</td><td>completed</td><td class="id">max_tool_calls</td><td class="fail">○</td><td class="num">23.5</td><td class="num">47,200</td><td class="id">fl30000000000000</td><td>exit_ok: exit_reason=max_tool_calls</td></tr>
 <tr id="run-fu10000000000000"><td class="id">floor</td><td class="id">uses-bash</td><td class="num">1</td><td>completed</td><td class="id">ok</td><td class="fail">○</td><td class="num">13.5</td><td class="num">41,200</td><td class="id">fu10000000000000</td><td>builds: 2 of 41 tests failed</td></tr>
 <tr id="run-fu30000000000000"><td class="id">floor</td><td class="id">uses-bash</td><td class="num">3</td><td>completed</td><td class="id">ok</td><td class="fail">○</td><td class="num">16.9</td><td class="num">47,200</td><td class="id">fu30000000000000</td><td>builds: 2 of 41 tests failed</td></tr>
+<tr id="run-fp30000000000000"><td class="id">floor</td><td class="id">plain</td><td class="num">3</td><td>completed</td><td class="id">ok</td><td class="fail">×</td><td class="num">16.9</td><td class="num">67,200</td><td class="id">fp30000000000000</td><td>invalid, no_denials: 1 denied call: bash (no-match)</td></tr>
 <tr id="run-fu20000000000000"><td class="id">floor</td><td class="id">uses-bash</td><td class="num">2</td><td>failed</td><td class="id"></td><td class="fail">×</td><td class="num">15.2</td><td class="num"></td><td class="id">fu20000000000000</td><td>sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed</td></tr>
 <tr id="run-bl10000000000000"><td class="id">b</td><td class="id">loops</td><td class="num">1</td><td>completed</td><td class="id">ok</td><td class="pass">●</td><td class="num">16.5</td><td class="num">61,000</td><td class="id">bl10000000000000</td><td></td></tr>
 <tr id="run-bl20000000000000"><td class="id">b</td><td class="id">loops</td><td class="num">2</td><td>completed</td><td class="id">ok</td><td class="pass">●</td><td class="num">17.3</td><td class="num">63,000</td><td class="id">bl20000000000000</td><td></td></tr>
@@ -137,7 +139,6 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <tr id="run-fl20000000000000"><td class="id">floor</td><td class="id">loops</td><td class="num">2</td><td>completed</td><td class="id">ok</td><td class="pass">●</td><td class="num">21.9</td><td class="num">44,200</td><td class="id">fl20000000000000</td><td></td></tr>
 <tr id="run-fp10000000000000"><td class="id">floor</td><td class="id">plain</td><td class="num">1</td><td>completed</td><td class="id">ok</td><td class="pass">●</td><td class="num">13.5</td><td class="num">61,200</td><td class="id">fp10000000000000</td><td></td></tr>
 <tr id="run-fp20000000000000"><td class="id">floor</td><td class="id">plain</td><td class="num">2</td><td>completed</td><td class="id">ok</td><td class="pass">●</td><td class="num">15.2</td><td class="num">64,200</td><td class="id">fp20000000000000</td><td></td></tr>
-<tr id="run-fp30000000000000"><td class="id">floor</td><td class="id">plain</td><td class="num">3</td><td>completed</td><td class="id">ok</td><td class="pass">●</td><td class="num">16.9</td><td class="num">67,200</td><td class="id">fp30000000000000</td><td></td></tr>
 </tbody>
 </table>
 </section>

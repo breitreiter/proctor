@@ -51,7 +51,8 @@ static class Verbs
         var (experiment, eval) = LoadExperiment(root, experimentId);
         var grades = Proctor.Grade.Experiment(root, experiment, eval, Console.Out);
         var graded = grades.Count(g => g.Checks is not null);
-        Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true)} pass");
+        var invalid = grades.Count(g => g.Invalid is not null);
+        Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}");
         return 0;
     }
 

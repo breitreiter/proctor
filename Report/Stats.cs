@@ -47,7 +47,7 @@ record Mde(int NPairs, int Points, int CasesFor10Points, string Sentence);
 record StatsFile(
     string Experiment, string Eval, int NCases, bool Paired,
     Dictionary<string, ArmStats> Arms, List<Comparison> Comparisons, Mde Mde, string Methods,
-    List<string> Cases, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks);
+    List<string> Cases, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks);
 
 static class Stats
 {
@@ -62,7 +62,8 @@ static class Stats
         var checks = eval.Grading.Checks!.Keys.ToList();
         var byArm = arms.ToDictionary(a => a, a => rows.Where(r => r.Arm == a).ToList());
 
-        var armStats = arms.ToDictionary(a => a, a => ArmStats(byArm[a], eval.Arms.First(x => x.Id == a), cases, checks));
+        var validity = eval.Grading.Validity ?? [];
+        var armStats = arms.ToDictionary(a => a, a => ArmStats(byArm[a], cases, checks, validity));
 
         var comparisons = new List<Comparison>();
         foreach (var other in arms.Skip(1))
@@ -75,7 +76,7 @@ static class Stats
         var mde = Mde(nPairs);
 
         var matrix = arms.ToDictionary(a => a, a => cases.ToDictionary(c => c,
-            c => byArm[a].Where(r => r.Case == c).OrderBy(r => r.Sample).Select(r => r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
+            c => byArm[a].Where(r => r.Case == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
 
         var methods = "Each case is scored as its mean over its analysed samples; n is the case count. "
             + "Per-arm rates: Wilson 95%. Paired differences: Newcombe 95% (Wilson square-and-add, phi from the per-case scores). "
@@ -83,19 +84,23 @@ static class Stats
             + "Durations are the cell's wall time including hooks; tokens are nb's trailer. "
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown.";
 
-        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!);
+        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!, validity);
     }
 
-    static ArmStats ArmStats(List<ResultRow> rows, Arm arm, List<string> cases, List<string> checks)
+    static ArmStats ArmStats(List<ResultRow> rows, List<string> cases, List<string> checks, List<string> validity)
     {
         var analysed = rows.Where(r => r.Analysed).ToList();
         var excluded = rows.Where(r => r.Status != CellStatus.Pending && !r.Analysed)
-            .Select(r => new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", r.Status, r.StatusReason ?? "")).ToList();
+            .Select(r => r.Invalid is not null
+                ? new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", "invalid", r.Invalid)
+                : new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", r.Status, r.StatusReason ?? "")).ToList();
 
         var pass = CaseRate(analysed, cases, r => r.Pass == true);
         var checkRates = checks.ToDictionary(name => name, name =>
         {
-            var graded = analysed.Where(r => r.Checks!.ContainsKey(name)).ToList();
+            // A validity check's rate is over every graded sample: it says how many counted. Other checks are over the samples that count.
+            var pool = validity.Contains(name) ? rows.Where(r => r.Checks is not null) : analysed;
+            var graded = pool.Where(r => r.Checks!.ContainsKey(name)).ToList();
             var rate = CaseRate(graded, cases, r => r.Checks![name] == Verdict.Pass);
             return rate is null ? null : rate with
             {
