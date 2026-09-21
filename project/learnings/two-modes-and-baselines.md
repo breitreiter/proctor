@@ -129,9 +129,14 @@ shade to the agent — it was reachable, so it was read.
 Two things follow. Verify-don't-enforce is the affordable posture, and it is
 the one honest use of the transcript in a bench that otherwise grades final
 state: an anti-cheat check is a *validity* check, asking whether this sample
-counts, not a capability check contributing to the score. And our
-`PROCTOR_WORK` layout can walk into that same trap, since the cell directory
-sits above the work directory and holds the case JSON and the expect block.
+counts, not a capability check contributing to the score. And our layout
+can walk into that same trap. The cell is not above the work directory
+(cells sit under `runs/`, checkouts under `.proctor/work/`), but the
+repository root is, five levels up, and it holds the whole eval: the cases,
+the expect blocks and the check scripts. Worse, a fixture that is copied
+wholesale into the checkout carries anything stored beside it, which is the
+exact mistake they made. The fixture's own expectations and checker must
+live beside the checkout source, never inside it.
 
 ## What this changes for proctor
 
