@@ -2,7 +2,7 @@
 type: plan
 title: Fixtures, arm bundles and baselines — the two tiers that move at different rates
 created: 2026-09-21
-status: draft
+status: built 2026-09-21; see "As built" at the end
 ---
 
 # Fixtures, arm bundles and baselines
@@ -360,3 +360,35 @@ hashes the baseline records, but the file format does not depend on them.
 Generalising collected artifacts beyond `diff.patch` (script checks already
 read anything in the cell; a second built-in over a second artifact is the
 trigger). The `command` runner. The judge. The site.
+
+## As built (2026-09-21)
+
+Seven commits, one per step, each leaving the suite green and the
+code-change shakedown correct on both sides. What differs from the plan
+above:
+
+- **Acceptance tests became their own check.** The old `tests-pass`
+  copied the case's acceptance tests into the fixture's suite. Split by
+  ownership, `tests-pass` is the fixture's (does its suite still pass) and
+  `acceptance` is the eval's (do the case's tests pass), both in `pass`.
+  Unsolved, each case now fails in the check that owns the reason.
+- **The check kinds needed no accounting change.** A validity failure is
+  one more exclusion beside `failed`, with `invalid` as its status word in
+  the exclusions list and the matrix. A validity check's own rate is over
+  every graded sample, so it says how many counted.
+- **`stays-in-work` looks only at path-like arguments.** The first draft
+  scanned every argument and flagged `GET /summary` inside a file the
+  agent wrote. Content, edit strings and descriptions are prose; the check
+  reads the rest. Zero false positives on the 27 bench transcripts.
+- **Bundles are hashed with `.git` excluded and nothing else.** A bundle
+  in this repository is a directory of instructions, not a build tree; if
+  one ever carries build output the fixture's `exclude` list is the shape
+  to copy.
+- **The baseline's `resolve` word has three values**, not two: `recomputed`,
+  `as pinned`, and `partly recomputed` when some pinned experiments are
+  gone and some are not.
+
+The open questions stand. The next thing the guard report needs is not
+code: it is enough cases on the cheap local arm for a ten-point regression
+to be more than a smoke alarm, and the MDE sentence says how many.
+
