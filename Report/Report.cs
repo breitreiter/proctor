@@ -320,6 +320,7 @@ static class Report
         yield return ("proctor", exp.Versions.GetValueOrDefault("proctor", "unknown"));
         yield return ("nb", $"{exp.Versions.GetValueOrDefault("nb", "unknown")} at {exp.Nb.Path}");
         yield return ("eval hash", exp.EvalHash);
+        foreach (var (arm, bundle) in exp.Bundles ?? []) yield return ($"bundle {arm}", $"{bundle.Source} {bundle.Hash}");
         yield return ("repository", exp.Repo is null ? "not a git repository" : $"{exp.Repo.Commit}{(exp.Repo.Dirty ? " (dirty)" : "")}");
         yield return ("command", exp.CommandLine);
         yield return ("created", exp.Created);

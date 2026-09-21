@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -80,32 +78,7 @@ sealed record Fixture
     }
 
     /// <summary>Every file under the source tree, as (relative path, full path), sorted, minus the excluded directories.</summary>
-    public IEnumerable<(string Relative, string Full)> SourceFiles()
-    {
-        var sourceDir = SourceDir!;
-        var excluded = Excluded;
-        var files = new List<(string, string)>();
-        void Walk(string dir)
-        {
-            foreach (var sub in Directory.GetDirectories(dir))
-                if (!excluded.Contains(System.IO.Path.GetFileName(sub))) Walk(sub);
-            foreach (var file in Directory.GetFiles(dir))
-                files.Add((System.IO.Path.GetRelativePath(sourceDir, file).Replace('\\', '/'), file));
-        }
-        Walk(sourceDir);
-        return files.OrderBy(f => f.Item1, StringComparer.Ordinal);
-    }
+    public IEnumerable<(string Relative, string Full)> SourceFiles() => Tree.Files(SourceDir!, Excluded);
 
-    string ComputeHash()
-    {
-        if (Source.Git is not null) return $"git:{Source.Rev}";
-        using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var (relative, full) in SourceFiles())
-        {
-            sha.AppendData(Encoding.UTF8.GetBytes(relative + "\0"));
-            sha.AppendData(File.ReadAllBytes(full));
-            sha.AppendData("\0"u8);
-        }
-        return "sha256:" + Convert.ToHexStringLower(sha.GetHashAndReset());
-    }
+    string ComputeHash() => Source.Git is not null ? $"git:{Source.Rev}" : Tree.Hash(SourceDir!, Excluded);
 }

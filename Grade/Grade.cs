@@ -21,7 +21,7 @@ static class Grade
                 grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, null, null, null));
                 continue;
             }
-            var cell = Runner.Context(root, experiment.Id, eval, arm, c, sample);
+            var cell = Runner.Context(root, experiment, eval, arm, c, sample);
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree.
             if (cell.Fixture is not null && eval.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(cell.Fixture, cell.WorkDir, cellDir) is { } error)
                 log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  could not restore the checkout: {error}");

@@ -48,6 +48,13 @@ checks/*.sh      the fixture's own checks (builds, tests pass); merged into ever
 repo/            the checkout source; the only thing copied into the work directory
 ```
 
+An arm may name a `bundle`, the pinned version of whatever it puts under
+test: `{ "path": "bundles/x" }` under the repository root, or
+`{ "git": url, "rev": sha }`. Proctor hands its directory to the program
+template as `{{bundle}}` and to hooks and checks as `PROCTOR_BUNDLE`, and
+records its identity in every manifest; what is inside it is the eval's
+business. Two arms with two bundles compare them in one experiment.
+
 Proctor checks the fixture out into the work directory before each sample,
 commits it, and collects `diff.patch` afterwards. A check named in `pass`
 that the eval does not declare must come from every case's fixture. A check

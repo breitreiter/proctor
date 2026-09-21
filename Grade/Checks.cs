@@ -18,11 +18,14 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
     /// <summary>What the case expects, its fixture's defaults included; the case's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Case.Expect;
     public Fixture? Fixture { get; init; }
+    /// <summary>The arm's resolved bundle directory, when the arm has one.</summary>
+    public string? BundleDir { get; init; }
 
     public IDictionary<string, string> Environment() => new Dictionary<string, string>
     {
         ["PROCTOR_EVAL_DIR"] = EvalDir,
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
+        ["PROCTOR_BUNDLE"] = BundleDir ?? "",
         ["PROCTOR_EXPERIMENT"] = Experiment,
         ["PROCTOR_ARM"] = Arm,
         ["PROCTOR_CASE"] = Case.Id ?? "",

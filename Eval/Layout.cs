@@ -10,6 +10,7 @@ static class Layout
     public const string RunsDir = "runs";
     public const string ReportsDir = "reports";
     public const string WorkDir = ".proctor/work";
+    public const string BundlesDir = ".proctor/bundles";
 
     public const string ProctorConfigFile = "proctor.json";
     public const string EvalFile = "eval.json";
@@ -43,6 +44,7 @@ static class Layout
         Path.Combine(experimentDir, arm, @case, sample.ToString());
     public static string Work(string root, string experimentId, string arm, string @case, int sample) =>
         Path.Combine(root, WorkDir, experimentId, arm, @case, sample.ToString());
+    public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
     public static string ReportData(string root, string experimentId) =>
         Path.Combine(root, ReportsDir, "data", experimentId);
 

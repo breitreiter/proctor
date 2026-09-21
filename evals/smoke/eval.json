@@ -3,7 +3,7 @@
   "tags": ["deterministic"],
   "arms": [
     { "id": "a", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 2 },
-    { "id": "b", "runner": "nb", "harness": "nb", "provider": "MockB", "model": "mock", "samples": 2 }
+    { "id": "b", "runner": "nb", "harness": "nb", "provider": "MockB", "model": "mock", "samples": 2, "bundle": { "path": "bundles/smoke" } }
   ],
   "hooks": {
     "arm":    { "setup": "hooks/arm-setup.sh" },

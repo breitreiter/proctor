@@ -9,7 +9,14 @@ namespace Proctor;
 record Experiment(
     string Id, string Eval, string EvalHash, JsonObject EvalDef, List<string> Cases, int Planned,
     string Created, string CommandLine, string Host,
-    Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb);
+    Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
+    Dictionary<string, ResolvedBundle>? Bundles = null)
+{
+    public ResolvedBundle? BundleOf(string arm) => Bundles?.GetValueOrDefault(arm);
+}
+
+/// <summary>An arm's bundle as resolved for this experiment: where it was read from, the directory handed to the run, and its identity.</summary>
+record ResolvedBundle(string Source, string Path, string Hash);
 
 record GitInfo(string Commit, bool Dirty);
 
@@ -28,6 +35,7 @@ record Manifest
     public required string Provider { get; init; }
     public string? Model { get; init; }
     public FixtureRef? Fixture { get; init; }
+    public ResolvedBundle? Bundle { get; init; }
     public TranscriptRef Transcript { get; init; } = new("transcript.jsonl", "nb-jsonl");
     public string? Started { get; set; }
     public string? Ended { get; set; }
@@ -70,7 +78,8 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
             Cases: eval.Cases.Select(c => c.Id!).ToList(),
             Planned: eval.PlannedCells,
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
-            Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb);
+            Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
+            Bundles: ResolveBundles(root, eval));
         var dir = Layout.Experiment(root, id);
         Directory.CreateDirectory(dir);
         WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);
@@ -87,6 +96,9 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
             ?? throw new ProctorException($"eval '{experiment.Eval}' no longer loads:\n" + string.Join("\n", problems));
         if (eval.Hash != experiment.EvalHash)
             throw new ProctorException($"evals/{eval.Id} has changed since experiment {experimentId} was created ({eval.Hash} vs {experiment.EvalHash}); a changed eval is a new experiment");
+        foreach (var (arm, bundle) in ResolveBundles(root, eval))
+            if (experiment.BundleOf(arm)?.Hash != bundle.Hash)
+                throw new ProctorException($"the bundle of arm '{arm}' ({bundle.Source}) has changed since experiment {experimentId} was created ({bundle.Hash} vs {experiment.BundleOf(arm)?.Hash ?? "none"}); a changed bundle is a new experiment");
         if (nbOverride is not null) experiment = experiment with { Nb = experiment.Nb with { Path = Path.GetFullPath(nbOverride) } };
         new Runner(root, experiment, eval, log).RunPending();
     }
@@ -103,9 +115,41 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
         from arm in eval.Arms from c in eval.Cases from s in Enumerable.Range(1, arm.SamplesOrOne) select (arm, c, s);
 
     /// <summary>Everything a hook or check needs to know about a cell, for the runner and the grader alike.</summary>
-    public static CellContext Context(string root, string experimentId, Eval eval, Arm arm, CaseDef c, int sample) =>
-        new(eval.Dir, Layout.Cell(Layout.Experiment(root, experimentId), arm.Id!, c.Id!, sample), Layout.Work(root, experimentId, arm.Id!, c.Id!, sample), experimentId, arm.Id!, c, sample)
-        { Expect = eval.ExpectFor(c), Fixture = eval.FixtureOf(c) };
+    public static CellContext Context(string root, Experiment experiment, Eval eval, Arm arm, CaseDef c, int sample) =>
+        new(eval.Dir, Layout.Cell(Layout.Experiment(root, experiment.Id), arm.Id!, c.Id!, sample), Layout.Work(root, experiment.Id, arm.Id!, c.Id!, sample), experiment.Id, arm.Id!, c, sample)
+        { Expect = eval.ExpectFor(c), Fixture = eval.FixtureOf(c), BundleDir = experiment.BundleOf(arm.Id!)?.Path };
+
+    /// <summary>Each arm's bundle, once per experiment: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
+    public static Dictionary<string, ResolvedBundle> ResolveBundles(string root, Eval eval)
+    {
+        var bundles = new Dictionary<string, ResolvedBundle>();
+        foreach (var arm in eval.Arms.Where(a => a.Bundle is not null))
+        {
+            var source = arm.Bundle!;
+            if (source.Git is { } url)
+            {
+                var dir = Layout.GitBundle(root, source.Rev!);
+                if (!Directory.Exists(Path.Combine(dir, ".git")))
+                {
+                    if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+                    Directory.CreateDirectory(dir);
+                    foreach (var args in new[] { new[] { "clone", "-q", url, "." }, new[] { "checkout", "-q", source.Rev! } })
+                    {
+                        var result = Subprocess.Run("git", args, dir);
+                        if (!result.Started || result.ExitCode != 0)
+                            throw new ProctorException($"bundle of arm '{arm.Id}': git {args[0]} {url} failed: {(result.Started ? result.FirstStderrLine : result.Stderr)}");
+                    }
+                }
+                bundles[arm.Id!] = new ResolvedBundle(source.Describe(), dir, $"git:{source.Rev}");
+            }
+            else
+            {
+                var dir = Path.GetFullPath(Path.Combine(root, source.Path!));
+                bundles[arm.Id!] = new ResolvedBundle(source.Describe(), dir, Tree.Hash(dir, new HashSet<string> { ".git" }));
+            }
+        }
+        return bundles;
+    }
 
     public static string ReadStatus(string cellDir)
     {
@@ -124,7 +168,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
 
             var armDir = Layout.Arm(experimentDir, arm.Id!);
             Directory.CreateDirectory(Path.Combine(armDir, Layout.HooksDir));
-            var armEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_ARM"] = arm.Id!, ["PROCTOR_EVAL_DIR"] = eval.Dir };
+            var armEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_ARM"] = arm.Id!, ["PROCTOR_EVAL_DIR"] = eval.Dir, ["PROCTOR_BUNDLE"] = experiment.BundleOf(arm.Id!)?.Path ?? "" };
             var setup = RunHook(eval.Def.Hooks?.Arm?.Setup, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.setup.log"));
             if (setup is not null)
             {
@@ -142,12 +186,12 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
 
     void RunCell(Arm arm, CaseDef c, int sample)
     {
-        var cell = Context(root, experiment.Id, eval, arm, c, sample);
+        var cell = Context(root, experiment, eval, arm, c, sample);
         var (cellDir, workDir) = (cell.CellDir, cell.WorkDir);
         Directory.CreateDirectory(Path.Combine(cellDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
 
-        var program = ResolveProgram(eval.ProgramTemplate, arm, c, sample, workDir);
+        var program = ResolveProgram(eval.ProgramTemplate, arm, c, sample, workDir, cell.BundleDir);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? JsonSerializer.Deserialize<Manifest>(File.ReadAllText(manifestFile), Eval.JsonOptions)!
@@ -156,6 +200,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
                 RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Case = c.Id!, Sample = sample,
                 Runner = arm.Runner!, Harness = arm.Harness!, Provider = arm.Provider!, Model = arm.Model,
                 Fixture = cell.Fixture is null ? null : new FixtureRef(cell.Fixture.Id, cell.Fixture.Hash),
+                Bundle = experiment.BundleOf(arm.Id!),
                 Host = experiment.Host, Versions = experiment.Versions, EvalHash = eval.Hash, ProgramHash = Sha256(program),
             };
         manifest.Attempts++;
@@ -262,13 +307,14 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     }
 
     /// <summary>Fill the template. A prompt's newlines become nb continuation lines so the program stays one directive.</summary>
-    public static string ResolveProgram(string template, Arm arm, CaseDef c, int sample, string workDir)
+    public static string ResolveProgram(string template, Arm arm, CaseDef c, int sample, string workDir, string? bundleDir = null)
     {
         var values = new Dictionary<string, string>
         {
             ["prompt"] = c.Prompt!.Replace("\r\n", "\n").Replace("\n", " \\\n"),
             ["case"] = c.Id!,
             ["work"] = workDir,
+            ["bundle"] = bundleDir ?? "",
             ["provider"] = arm.Provider ?? "",
             ["model"] = arm.Model ?? "",
             ["harness"] = arm.Harness ?? "",

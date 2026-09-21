@@ -18,9 +18,15 @@ record ProctorConfig(NbConfig? Nb)
     public NbConfig NbOrDefault => Nb ?? new NbConfig();
 }
 
-record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command)
+record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null)
 {
     public int SamplesOrOne => Samples ?? 1;
+}
+
+/// <summary>The pinned version of what an arm puts under test: a directory in this repository, or a git revision. What is inside is the eval's business.</summary>
+record BundleSource(string? Path, string? Git, string? Rev)
+{
+    public string Describe() => Git is not null ? $"{Git}@{Rev}" : Path ?? "";
 }
 
 record HookPair(string? Setup, string? Teardown);
@@ -47,7 +53,7 @@ sealed class Eval
     public static readonly string[] RegisteredTags = ["deterministic", "judged"];
 
     /// <summary>Placeholders a program template may use; resolved per cell by the runner.</summary>
-    public static readonly string[] Placeholders = ["prompt", "case", "work", "provider", "model", "harness", "arm", "sample"];
+    public static readonly string[] Placeholders = ["prompt", "case", "work", "bundle", "provider", "model", "harness", "arm", "sample"];
 
     public required string Id { get; init; }
     public required string Dir { get; init; }
@@ -127,7 +133,7 @@ sealed class Eval
         foreach (var name in cases.Select(c => c.Fixture).Where(f => f is not null).Distinct())
             if (Fixture.Load(root, name!, problems) is { } fixture) fixtures[name!] = fixture;
 
-        ValidateDef(def, dir, rel(evalFile), evalId, cases, fixtures, problems);
+        ValidateDef(def, root, dir, rel(evalFile), evalId, cases, fixtures, problems);
 
         var templateFile = Path.Combine(dir, Layout.ProgramTemplateFile);
         var template = "";
@@ -184,7 +190,7 @@ sealed class Eval
         return cases;
     }
 
-    private static void ValidateDef(EvalDef def, string dir, string file, string evalId, List<CaseDef> cases, Dictionary<string, Fixture> fixtures, List<Problem> problems)
+    private static void ValidateDef(EvalDef def, string root, string dir, string file, string evalId, List<CaseDef> cases, Dictionary<string, Fixture> fixtures, List<Problem> problems)
     {
         void Add(string field, string message) => problems.Add(new Problem(file, field, message));
 
@@ -220,6 +226,14 @@ sealed class Eval
                     break;
             }
             if (arm.Samples is < 1) Add($"{f}.samples", "must be at least 1");
+            switch (arm.Bundle)
+            {
+                case null: break;
+                case { Path: not null, Git: not null }: Add($"{f}.bundle", "path or git, not both"); break;
+                case { Path: { } p } when !Directory.Exists(Path.Combine(root, p)): Add($"{f}.bundle.path", $"no such directory under the repository root: {p}"); break;
+                case { Git: not null, Rev: null or "" }: Add($"{f}.bundle.rev", "required with git: a bundle is pinned to a revision"); break;
+                case { Path: null, Git: null }: Add($"{f}.bundle", "expects {path} or {git, rev}"); break;
+            }
         }
 
         if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use arm or sample");

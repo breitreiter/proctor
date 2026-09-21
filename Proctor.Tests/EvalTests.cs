@@ -151,4 +151,17 @@ public class EvalTests
         repo.EditJson("../fixtures/note/fixture.json", f => { f.Remove("checks"); f["source"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/x\"}"); });
         Assert.Contains(repo.Problems("smoke"), p => p.File == Path.Combine("fixtures", "note", "fixture.json") && p.Field == "source.rev");
     }
+
+    [Fact]
+    public void Bundles_AreValidatedAgainstTheRepositoryRoot()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        repo.EditJson("smoke/eval.json", e => e["arms"]![1]!["bundle"]!["path"] = "bundles/nope");
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "arms[1].bundle.path");
+        repo.EditJson("smoke/eval.json", e => e["arms"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\"}"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "arms[1].bundle.rev");
+        repo.EditJson("smoke/eval.json", e => e["arms"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\", \"rev\": \"abc\"}"));
+        Assert.Empty(repo.Problems("smoke"));
+    }
 }

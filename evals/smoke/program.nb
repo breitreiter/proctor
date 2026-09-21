@@ -1,4 +1,5 @@
 # The smoke eval: every case scripts nb's Mock provider, so this runs without a model.
+# bundle: {{bundle}}
 provider {{provider}}
 harness {{harness}}
 loop 2

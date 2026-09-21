@@ -69,7 +69,12 @@ The directories are for reading, not for namespaces: everything is
   `repo/` is ever copied into the work directory, so the checker and the
   expectations are unreachable from inside it by construction. Proctor does
   the checkout (commit, then `diff.patch` after teardown) and restores
-  fixture plus diff for a regrade whose checkout is gone.
+  fixture plus diff for a regrade whose checkout is gone. An arm's `bundle`
+  (`{path}` under the repository root, or `{git, rev}` cloned under
+  `.proctor/bundles/<rev>`) is resolved once per experiment and recorded
+  by source, path and hash in `experiment.json` and every cell manifest;
+  proctor never reads what is inside it. `resume` refuses a changed bundle
+  as it refuses a changed eval.
 - **Every number is computed once, in `Stats.cs`.** The renderers format; they
   never compute. If a number looks wrong, fix it in `stats.json` first.
 - **Each case is scored as its mean over its analysed samples**, so `n` in
@@ -85,14 +90,15 @@ The directories are for reading, not for namespaces: everything is
 - **nb emits no `assistant_json` event**; the `answer_json` window is the last
   ` ```json ` fence in the last assistant message.
 - **Program templates.** Placeholders are `{{prompt}}`, `{{case}}`, `{{work}}`
-  (the fixture checkout), `{{provider}}`, `{{model}}`, `{{harness}}`, `{{arm}}`,
+  (the fixture checkout), `{{bundle}}` (the arm's resolved bundle directory,
+  empty without one), `{{provider}}`, `{{model}}`, `{{harness}}`, `{{arm}}`,
   `{{sample}}`. A prompt's newlines become nb continuation lines (` \`), so a
   multi-line prompt stays one directive. A prompt line that itself ends in a
   backslash cannot be expressed.
 - **Check values from the case.** A check field whose value is `"@expect"`
   reads `expect.<field>` from the case; a case without it yields `error`.
 - **Hooks and script checks** run with `PROCTOR_EVAL_DIR`, `PROCTOR_FIXTURE`,
-  `PROCTOR_EXPERIMENT`, `PROCTOR_ARM`, `PROCTOR_CASE`, `PROCTOR_SAMPLE`,
+  `PROCTOR_BUNDLE`, `PROCTOR_EXPERIMENT`, `PROCTOR_ARM`, `PROCTOR_CASE`, `PROCTOR_SAMPLE`,
   `PROCTOR_CELL`, `PROCTOR_WORK`, `PROCTOR_CASE_JSON`, `PROCTOR_EXPECT` (the
   merged block), `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`. Hooks run in the eval
   directory; script checks run in the cell, an eval's resolved against the

@@ -38,6 +38,9 @@ sealed class TestRepo : IDisposable
         CopyDirectory(Path.Combine(SourceRoot, "evals", evalId), Path.Combine(Root, "evals", evalId));
         foreach (var file in Directory.GetFiles(Path.Combine(Root, "evals", evalId, "cases"), "*.json"))
             if (JsonNode.Parse(File.ReadAllText(file))?["fixture"]?.GetValue<string>() is { } fixture) CopyFixture(fixture);
+        foreach (var arm in JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "evals", evalId, "eval.json")))?["arms"]?.AsArray() ?? [])
+            if (arm?["bundle"]?["path"]?.GetValue<string>() is { } bundle && !Directory.Exists(Path.Combine(Root, bundle)))
+                CopyDirectory(Path.Combine(SourceRoot, bundle), Path.Combine(Root, bundle));
         WriteProctorConfig();
         return Path.Combine(Root, "evals", evalId);
     }

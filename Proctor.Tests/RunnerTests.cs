@@ -246,4 +246,29 @@ public class RunnerTests
         // A second restore over a populated directory is a no-op.
         Assert.Null(Checkout.Restore(fixture, work, cell));
     }
+
+    [Fact]
+    public void Bundle_IsResolvedOncePerExperiment_RecordedPerCell_AndResumeRefusesWhenItChanged()
+    {
+        using var repo = new TestRepo();
+        var id = StartSmoke(repo, e => { foreach (var arm in e["arms"]!.AsArray()) arm!["samples"] = 1; });
+        var bundleDir = Path.Combine(repo.Root, "bundles", "smoke");
+
+        var experiment = ReadJson(Path.Combine(Layout.Experiment(repo.Root, id), "experiment.json"));
+        Assert.Null(experiment["bundles"]!["a"]);
+        Assert.Equal("bundles/smoke", experiment["bundles"]!["b"]!["source"]!.GetValue<string>());
+        Assert.Equal(bundleDir, experiment["bundles"]!["b"]!["path"]!.GetValue<string>());
+        Assert.StartsWith("sha256:", experiment["bundles"]!["b"]!["hash"]!.GetValue<string>());
+
+        var b = Cell(repo, id, "b", "plain", 1);
+        Assert.Equal(experiment["bundles"]!["b"]!["hash"]!.GetValue<string>(), ReadJson(Path.Combine(b, "manifest.json"))["bundle"]!["hash"]!.GetValue<string>());
+        Assert.Contains($"# bundle: {bundleDir}\n", File.ReadAllText(Path.Combine(b, "program.nb")));
+        var a = Cell(repo, id, "a", "plain", 1);
+        Assert.Null(ReadJson(Path.Combine(a, "manifest.json"))["bundle"]);
+        Assert.Contains("# bundle: \n", File.ReadAllText(Path.Combine(a, "program.nb")));
+
+        File.AppendAllText(Path.Combine(bundleDir, "README.md"), "edited\n");
+        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, TextWriter.Null));
+        Assert.Contains("bundle of arm 'b'", e.Message);
+    }
 }
