@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Stands in for a fixture checkout: put something in the work directory for the run to see.
+# The fixture is already checked out in $PROCTOR_WORK; a real eval would start its fakes here.
 set -euo pipefail
-echo "sample $PROCTOR_ARM/$PROCTOR_CASE/$PROCTOR_SAMPLE setup"
-printf 'original\n' > "$PROCTOR_WORK/note.txt"
+echo "sample $PROCTOR_ARM/$PROCTOR_CASE/$PROCTOR_SAMPLE setup; work has $(ls "$PROCTOR_WORK" | tr '\n' ' ')"

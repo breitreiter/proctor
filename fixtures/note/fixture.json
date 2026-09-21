@@ -1,0 +1,6 @@
+{
+  "id": "note",
+  "source": { "path": "repo" },
+  "stack": "none",
+  "expect": { "answer_contains": "OK" }
+}

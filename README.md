@@ -31,16 +31,32 @@ Without it, `nb` is taken from `PATH` and nb resolves its own config. `--nb
 One eval is one directory, `evals/<id>/`:
 
 ```
-eval.json        arms, samples, tags, hooks, grading
+eval.json        arms, samples, tags, hooks, grading (checks, pass, validity)
 program.nb       the nb program template; {{prompt}}, {{case}}, {{work}}, {{provider}}, {{model}}, {{harness}}, {{arm}}, {{sample}}
-cases/*.json     one case per file; the id is the file name
+cases/*.json     one case per file; the id is the file name; names a fixture and adds the goal
 checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason)
 hooks/*.sh       arm and sample setup/teardown
 ```
 
-`evals/smoke/` is a complete example that runs against nb's Mock provider.
-The check vocabulary and the shape of every file are in
-`project/plans/on-disk-layout.md`.
+A fixture is the repository a case is run against, with what "done" looks
+like in it. Fixtures are repo-level, `fixtures/<id>/`, and reused across
+evals:
+
+```
+fixture.json     id, source ({path} or {git, rev}), stack, default expect, checks
+checks/*.sh      the fixture's own checks (builds, tests pass); merged into every cell run on it
+repo/            the checkout source; the only thing copied into the work directory
+```
+
+Proctor checks the fixture out into the work directory before each sample,
+commits it, and collects `diff.patch` afterwards. A check named in `pass`
+that the eval does not declare must come from every case's fixture. A check
+named in `validity` decides whether a sample counts at all: a sample that
+fails one is excluded, not failed.
+
+`evals/smoke/` with `fixtures/note/` is a complete example that runs against
+nb's Mock provider. The check vocabulary and the shape of every file are in
+`project/plans/on-disk-layout.md` and `project/plans/fixtures-arms-baselines.md`.
 
 ## Use
 

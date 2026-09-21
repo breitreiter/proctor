@@ -21,8 +21,11 @@ static class Grade
                 grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, null, null, null));
                 continue;
             }
-            var cell = new CellContext(eval.Dir, cellDir, Layout.Work(root, experiment.Id, arm.Id!, c.Id!, sample), experiment.Id, arm.Id!, c, sample);
-            var checks = Cell(cell, eval.Grading, Transcript.Read(cellDir));
+            var cell = Runner.Context(root, experiment.Id, eval, arm, c, sample);
+            // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree.
+            if (cell.Fixture is not null && eval.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(cell.Fixture, cell.WorkDir, cellDir) is { } error)
+                log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  could not restore the checkout: {error}");
+            var checks = Cell(cell, eval, Transcript.Read(cellDir));
             var pass = Pass(checks, eval.Grading.Pass!);
             var invalid = Invalid(checks, eval.Grading.Validity);
             grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, checks, pass, invalid));
@@ -32,9 +35,9 @@ static class Grade
     }
 
     /// <summary>Grade one cell and write its checks.json. Returns the verdict map.</summary>
-    public static Dictionary<string, Verdict> Cell(CellContext cell, Grading grading, Transcript transcript)
+    public static Dictionary<string, Verdict> Cell(CellContext cell, Eval eval, Transcript transcript)
     {
-        var verdicts = grading.Checks!.ToDictionary(k => k.Key, k => Checks.Evaluate(k.Value, cell, transcript));
+        var verdicts = eval.ChecksFor(cell.Case).ToDictionary(k => k.Key, k => Checks.Evaluate(k.Value, cell, transcript));
         Runner.WriteJson(Path.Combine(cell.CellDir, Layout.ChecksFile), verdicts);
         return verdicts;
     }

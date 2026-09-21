@@ -1,5 +1,8 @@
 {
   "id": "plain",
+  "fixture": "note",
   "prompt": "MOCK:response=hello world",
-  "expect": { "answer_contains": "hello" }
+  "expect": {
+    "answer_contains": "hello"
+  }
 }

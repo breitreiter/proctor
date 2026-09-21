@@ -31,7 +31,10 @@ record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<
 
 record EvalDef(string? Id, List<string>? Tags, List<Arm>? Arms, Hooks? Hooks, Grading? Grading);
 
-record CaseDef(string? Id, JsonObject? Fixture, string? Prompt, JsonObject? Expect);
+record CaseDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect);
+
+/// <summary>A check as declared, with the directory its script path is relative to: the eval's or a fixture's.</summary>
+record CheckDef(JsonObject Spec, string Dir);
 
 record Problem(string File, string Field, string Message)
 {
@@ -50,6 +53,8 @@ sealed class Eval
     public required string Dir { get; init; }
     public required EvalDef Def { get; init; }
     public required List<CaseDef> Cases { get; init; }
+    /// <summary>The fixtures the cases name, by id.</summary>
+    public required Dictionary<string, Fixture> Fixtures { get; init; }
     public required string ProgramTemplate { get; init; }
     /// <summary>sha256 over every definition file, so a changed eval is a different eval in the manifest.</summary>
     public required string Hash { get; init; }
@@ -57,6 +62,30 @@ sealed class Eval
     public List<Arm> Arms => Def.Arms!;
     public Grading Grading => Def.Grading!;
     public int PlannedCells => Arms.Sum(a => a.SamplesOrOne) * Cases.Count;
+
+    public Fixture? FixtureOf(CaseDef c) => c.Fixture is null ? null : Fixtures[c.Fixture];
+
+    /// <summary>The checks that apply to a case: the eval's, then its fixture's.</summary>
+    public Dictionary<string, CheckDef> ChecksFor(CaseDef c)
+    {
+        var checks = Grading.Checks!.ToDictionary(k => k.Key, k => new CheckDef(k.Value, Dir));
+        foreach (var (name, spec) in FixtureOf(c)?.Checks ?? []) checks[name] = new CheckDef(spec, FixtureOf(c)!.Dir);
+        return checks;
+    }
+
+    /// <summary>Every check name any cell can carry, eval checks first, in declared order.</summary>
+    public List<string> CheckNames =>
+        Grading.Checks!.Keys.Concat(Cases.Select(FixtureOf).Where(f => f is not null).SelectMany(f => f!.Checks.Keys)).Distinct().ToList();
+
+    /// <summary>What the case expects: its fixture's defaults with the case's own block laid over them, key by key.</summary>
+    public JsonObject? ExpectFor(CaseDef c)
+    {
+        var fixture = FixtureOf(c)?.Def.Expect;
+        if (fixture is null) return c.Expect;
+        var merged = JsonNode.Parse(fixture.ToJsonString())!.AsObject();
+        foreach (var (key, value) in c.Expect ?? []) merged[key] = value?.DeepClone();
+        return merged;
+    }
 
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -92,9 +121,13 @@ sealed class Eval
         var def = ReadJson<EvalDef>(evalFile, problems);
         if (def is null) return null;
         var before = problems.Count;
-        ValidateDef(def, dir, rel(evalFile), evalId, problems);
 
         var cases = LoadCases(dir, rel, problems);
+        var fixtures = new Dictionary<string, Fixture>();
+        foreach (var name in cases.Select(c => c.Fixture).Where(f => f is not null).Distinct())
+            if (Fixture.Load(root, name!, problems) is { } fixture) fixtures[name!] = fixture;
+
+        ValidateDef(def, dir, rel(evalFile), evalId, cases, fixtures, problems);
 
         var templateFile = Path.Combine(dir, Layout.ProgramTemplateFile);
         var template = "";
@@ -116,8 +149,9 @@ sealed class Eval
             Dir = dir,
             Def = def,
             Cases = cases,
+            Fixtures = fixtures,
             ProgramTemplate = template,
-            Hash = HashDefinition(dir, def),
+            Hash = HashDefinition(root, dir, def, fixtures.Values),
         };
     }
 
@@ -141,6 +175,8 @@ sealed class Eval
                 problems.Add(new Problem(rel(file), "id", $"'{c.Id}' does not match the file name '{expectedId}'; the id is the file name"));
             if (string.IsNullOrWhiteSpace(c.Prompt))
                 problems.Add(new Problem(rel(file), "prompt", "required"));
+            if (c.Fixture is not null && !Regex.IsMatch(c.Fixture, "^[a-z0-9][a-z0-9-]*$"))
+                problems.Add(new Problem(rel(file), "fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens"));
             cases.Add(c);
         }
         if (cases.Count == 0)
@@ -148,7 +184,7 @@ sealed class Eval
         return cases;
     }
 
-    private static void ValidateDef(EvalDef def, string dir, string file, string evalId, List<Problem> problems)
+    private static void ValidateDef(EvalDef def, string dir, string file, string evalId, List<CaseDef> cases, Dictionary<string, Fixture> fixtures, List<Problem> problems)
     {
         void Add(string field, string message) => problems.Add(new Problem(file, field, message));
 
@@ -212,17 +248,34 @@ sealed class Eval
                 if (problem is not null) Add($"{f}.{key}", problem);
             }
         }
+        foreach (var fixture in fixtures.Values)
+            foreach (var name in fixture.Checks.Keys.Where(def.Grading.Checks.ContainsKey))
+                Add($"grading.checks.{name}", $"also declared by fixture '{fixture.Id}'; a check is the eval's or the fixture's, not both");
+
+        // A pass or validity check the eval does not declare must come from every case's fixture.
+        string? Undeclared(string name)
+        {
+            if (def.Grading.Checks.ContainsKey(name)) return null;
+            foreach (var c in cases)
+            {
+                var fixture = c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture);
+                if (fixture is null) return $"'{name}' is not a declared check, and case '{c.Id}' names no fixture that could declare it";
+                if (!fixture.Checks.ContainsKey(name)) return $"'{name}' is not a declared check, and fixture '{fixture.Id}' (case '{c.Id}') does not declare it";
+            }
+            return cases.Count == 0 ? $"'{name}' is not a declared check" : null;
+        }
         if (def.Grading.Pass is null or { Count: 0 }) Add("grading.pass", "required: the checks whose conjunction is the headline pass");
         foreach (var name in def.Grading.Pass ?? [])
-            if (!def.Grading.Checks.ContainsKey(name)) Add("grading.pass", $"'{name}' is not a declared check");
+            if (Undeclared(name) is { } why) Add("grading.pass", why);
         foreach (var name in def.Grading.Validity ?? [])
         {
-            if (!def.Grading.Checks.ContainsKey(name)) Add("grading.validity", $"'{name}' is not a declared check");
+            if (Undeclared(name) is { } why) Add("grading.validity", why);
             else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the sample counts, not both");
         }
     }
 
-    private static string HashDefinition(string dir, EvalDef def)
+    /// <summary>Every definition file: the eval's own, plus each named fixture's fixture.json and check scripts. Not the fixture's source tree; that is the fixture hash, recorded per cell.</summary>
+    private static string HashDefinition(string root, string dir, EvalDef def, IEnumerable<Fixture> fixtures)
     {
         var files = new List<string> { Path.Combine(dir, Layout.EvalFile), Path.Combine(dir, Layout.ProgramTemplateFile) };
         files.AddRange(Directory.GetFiles(Path.Combine(dir, Layout.CasesDir), "*.json"));
@@ -231,11 +284,12 @@ sealed class Eval
         foreach (var pair in new[] { def.Hooks?.Arm, def.Hooks?.Sample })
             foreach (var script in new[] { pair?.Setup, pair?.Teardown })
                 if (script is not null) files.Add(Path.Combine(dir, script));
+        foreach (var fixture in fixtures) files.AddRange(fixture.DefinitionFiles());
 
         using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var file in files.Distinct().Order(StringComparer.Ordinal))
+        foreach (var file in files.Select(Path.GetFullPath).Distinct().Order(StringComparer.Ordinal))
         {
-            sha.AppendData(Encoding.UTF8.GetBytes(Path.GetRelativePath(dir, file) + "\0"));
+            sha.AppendData(Encoding.UTF8.GetBytes(Path.GetRelativePath(root, file).Replace('\\', '/') + "\0"));
             sha.AppendData(File.ReadAllBytes(file));
             sha.AppendData("\0"u8);
         }

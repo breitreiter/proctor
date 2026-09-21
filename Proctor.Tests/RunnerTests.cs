@@ -201,4 +201,49 @@ public class RunnerTests
         var program = Runner.ResolveProgram("run {{prompt}}\n# {{case}} on {{arm}} sample {{sample}} in {{work}}\n", arm, c, 2, "/w");
         Assert.Equal("run Add a flag. \\\nKeep tests green. \\\n  Indented line.\n# x on floor sample 2 in /w\n", program);
     }
+
+    [Fact]
+    public void Fixture_IsCheckedOutBeforeTheRun_AndTheDiffCollectedAfter()
+    {
+        using var repo = new TestRepo();
+        var id = StartSmoke(repo, e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        var cell = Cell(repo, id, "a", "plain", 1);
+        var work = Layout.Work(repo.Root, id, "a", "plain", 1);
+
+        var manifest = ReadJson(Path.Combine(cell, "manifest.json"));
+        Assert.Equal("note", manifest["fixture"]!["id"]!.GetValue<string>());
+        Assert.StartsWith("sha256:", manifest["fixture"]!["hash"]!.GetValue<string>());
+
+        // The checkout is a git repository with the fixture committed; the teardown hook's edit is the diff.
+        Assert.True(Directory.Exists(Path.Combine(work, ".git")));
+        Assert.Equal("changed", File.ReadAllText(Path.Combine(work, "note.txt")).Trim());
+        var diff = File.ReadAllText(Path.Combine(cell, "diff.patch"));
+        Assert.Contains("diff --git a/note.txt b/note.txt", diff);
+        Assert.Contains("-original", diff);
+        Assert.Contains("+changed", diff);
+        Assert.Equal(["note.txt"], Transcript.Read(cell).TouchedPaths());
+    }
+
+    [Fact]
+    public void Checkout_RestoresTheFixturePlusTheDiff_WhenTheWorkDirectoryIsGone()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        var fixture = repo.LoadEval("smoke").Fixtures["note"];
+        var work = Path.Combine(repo.Root, ".proctor/work/x");
+        var cell = Path.Combine(repo.Root, "runs/x");
+        Directory.CreateDirectory(cell);
+
+        Assert.Null(Checkout.Materialise(fixture, work));
+        File.WriteAllText(Path.Combine(work, "note.txt"), "edited\n");
+        File.WriteAllText(Path.Combine(work, "new.txt"), "added\n");
+        Assert.Null(Checkout.CollectDiff(work, cell));
+        Directory.Delete(work, recursive: true);
+
+        Assert.Null(Checkout.Restore(fixture, work, cell));
+        Assert.Equal("edited", File.ReadAllText(Path.Combine(work, "note.txt")).Trim());
+        Assert.Equal("added", File.ReadAllText(Path.Combine(work, "new.txt")).Trim());
+        // A second restore over a populated directory is a no-op.
+        Assert.Null(Checkout.Restore(fixture, work, cell));
+    }
 }

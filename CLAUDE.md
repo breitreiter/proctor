@@ -28,8 +28,10 @@ in the order the verbs run them. Every file is one concern:
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
 | `Verbs.cs` | one method per verb: `list`, `run`, `resume`, `grade`, `report` |
 | `Eval/Layout.cs` | paths and file names, nothing else |
-| `Eval/Eval.cs` | `proctor.json`, `eval.json`, cases, the program template: records, loading, validation (`Problem` = file, field, message) |
+| `Eval/Eval.cs` | `proctor.json`, `eval.json`, cases, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per case |
+| `Eval/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
 | `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, resume |
+| `Run/Checkout.cs` | the work directory: materialise the fixture, collect the diff, restore both for a regrade |
 | `Run/Subprocess.cs` | the one process helper: hooks, nb, script checks, git |
 | `Grade/Transcript.cs` | nb JSONL into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
 | `Grade/Checks.cs` | the built-in vocabulary and the script contract; `Glob` |
@@ -38,13 +40,15 @@ in the order the verbs run them. Every file is one concern:
 | `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json` |
 | `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |
 | `evals/smoke/` | proctor's own eval: every case scripts nb's Mock provider |
-| `evals/code-change/` | the first real eval: three fixture repos, script checks, reference solutions |
+| `evals/code-change/` | the first real eval: three cases on three fixtures, acceptance tests, reference solutions |
+| `fixtures/` | the repositories cases run against, each with its own checks beside (never inside) its `repo/` |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings |
 | `project/` | the brief, the plans, the research notes and the loose ends |
 
 The directories are for reading, not for namespaces: everything is
-`namespace Proctor`. The data directories `evals/`, `runs/` and `reports/`
-are lowercase and excluded from compilation in `Proctor.csproj`.
+`namespace Proctor`. The data directories `evals/`, `fixtures/`, `bench/`,
+`runs/` and `reports/` are lowercase and excluded from compilation in
+`Proctor.csproj`.
 
 ## Conventions and gotchas
 
@@ -55,6 +59,17 @@ are lowercase and excluded from compilation in `Proctor.csproj`.
 - **Grading writes beside the evidence.** `checks.json` is the only file the
   grader adds to a cell. `report` reads it; a completed cell without one is
   reported as not analysed, and `report` says to run `grade`.
+- **A check is one of three kinds by where it is named.** In `grading.pass`
+  it is capability; in `grading.validity` it decides whether the sample
+  counts (a `fail` excludes the sample with its reason, `error` never does);
+  in neither it is a guardrail rate. A name in both lists is a problem.
+- **The fixture is the case's; what is under test is the arm's.** A case
+  names a fixture; the fixture's checks join the eval's for that cell (a
+  clash is a problem) and its default `expect` sits under the case's. Only
+  `repo/` is ever copied into the work directory, so the checker and the
+  expectations are unreachable from inside it by construction. Proctor does
+  the checkout (commit, then `diff.patch` after teardown) and restores
+  fixture plus diff for a regrade whose checkout is gone.
 - **Every number is computed once, in `Stats.cs`.** The renderers format; they
   never compute. If a number looks wrong, fix it in `stats.json` first.
 - **Each case is scored as its mean over its analysed samples**, so `n` in
@@ -76,13 +91,15 @@ are lowercase and excluded from compilation in `Proctor.csproj`.
   backslash cannot be expressed.
 - **Check values from the case.** A check field whose value is `"@expect"`
   reads `expect.<field>` from the case; a case without it yields `error`.
-- **Hooks and script checks** run with `PROCTOR_EVAL_DIR`, `PROCTOR_EXPERIMENT`,
-  `PROCTOR_ARM`, `PROCTOR_CASE`, `PROCTOR_SAMPLE`, `PROCTOR_CELL`,
-  `PROCTOR_WORK`, `PROCTOR_CASE_JSON`, `PROCTOR_EXPECT`, `PROCTOR_TRANSCRIPT`,
-  `PROCTOR_DIFF`. Hooks run in the eval directory; script checks run in the
-  cell. Scripts exit 0/1/2 for pass/fail/needs-judge; anything else is
-  `error`, never folded into fail. Proctor creates `PROCTOR_WORK` empty
-  before the sample setup hook and never deletes it (`.proctor/` is gitignored).
+- **Hooks and script checks** run with `PROCTOR_EVAL_DIR`, `PROCTOR_FIXTURE`,
+  `PROCTOR_EXPERIMENT`, `PROCTOR_ARM`, `PROCTOR_CASE`, `PROCTOR_SAMPLE`,
+  `PROCTOR_CELL`, `PROCTOR_WORK`, `PROCTOR_CASE_JSON`, `PROCTOR_EXPECT` (the
+  merged block), `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`. Hooks run in the eval
+  directory; script checks run in the cell, an eval's resolved against the
+  eval directory and a fixture's against the fixture directory. Scripts exit
+  0/1/2 for pass/fail/needs-judge; anything else is `error`, never folded
+  into fail. The sample order is: fixture checkout, setup hook, nb, teardown
+  hook, diff. `PROCTOR_WORK` is never deleted (`.proctor/` is gitignored).
 - **`resume` refuses a changed eval.** The eval hash in `experiment.json` must
   match; a changed eval is a new experiment.
 - **Validation says "not yet" rather than silently skipping**: `command` arms,

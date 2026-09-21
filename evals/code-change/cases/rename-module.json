@@ -1,8 +1,14 @@
 {
   "id": "rename-module",
-  "fixture": { "path": "fixtures/widgets" },
+  "fixture": "widgets",
   "prompt": "The widgets library still lives in the `Legacy.Widgets` namespace. Rename the namespace to `Acme.Widgets` everywhere: the source files under src/Widgets, the `RootNamespace` in Widgets.csproj, and the `using` directives in tests/Widgets.Tests. No type may remain in `Legacy.Widgets`, and no type names change.\n\n`dotnet test tests/Widgets.Tests` must pass afterwards.",
   "expect": {
-    "files_touched": { "paths": ["src/Widgets/**", "tests/Widgets.Tests/**"], "mode": "at_most" }
+    "files_touched": {
+      "paths": [
+        "src/Widgets/**",
+        "tests/Widgets.Tests/**"
+      ],
+      "mode": "at_most"
+    }
   }
 }

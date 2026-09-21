@@ -1,8 +1,15 @@
 {
   "id": "add-retry-flag",
-  "fixture": { "path": "fixtures/fetchcli" },
+  "fixture": "fetchcli",
   "prompt": "Add a `--retry <n>` flag to fetchcli.\n\n- `Options.Parse` gains an `int Retry` property, default 0, set by `--retry <n>`. A negative n is an error, like any other bad argument.\n- `Fetcher.RunAsync` retries the fetch up to `Retry` more times when the getter throws, so `--retry 2` means at most three attempts. The last exception propagates when every attempt fails.\n- Update the usage line in Program.cs and the README.\n\nExisting tests must keep passing. Add tests for the new behaviour in tests/FetchCli.Tests.",
   "expect": {
-    "files_touched": { "paths": ["src/FetchCli/**", "tests/FetchCli.Tests/**", "README.md"], "mode": "at_most" }
+    "files_touched": {
+      "paths": [
+        "src/FetchCli/**",
+        "tests/FetchCli.Tests/**",
+        "README.md"
+      ],
+      "mode": "at_most"
+    }
   }
 }

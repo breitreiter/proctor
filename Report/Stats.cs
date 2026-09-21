@@ -59,7 +59,7 @@ static class Stats
     {
         var arms = eval.Arms.Select(a => a.Id!).ToList();
         var cases = eval.Cases.Select(c => c.Id!).ToList();
-        var checks = eval.Grading.Checks!.Keys.ToList();
+        var checks = eval.CheckNames;
         var byArm = arms.ToDictionary(a => a, a => rows.Where(r => r.Arm == a).ToList());
 
         var validity = eval.Grading.Validity ?? [];

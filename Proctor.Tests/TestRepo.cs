@@ -36,8 +36,17 @@ sealed class TestRepo : IDisposable
     public string CopyEval(string evalId)
     {
         CopyDirectory(Path.Combine(SourceRoot, "evals", evalId), Path.Combine(Root, "evals", evalId));
+        foreach (var file in Directory.GetFiles(Path.Combine(Root, "evals", evalId, "cases"), "*.json"))
+            if (JsonNode.Parse(File.ReadAllText(file))?["fixture"]?.GetValue<string>() is { } fixture) CopyFixture(fixture);
         WriteProctorConfig();
         return Path.Combine(Root, "evals", evalId);
+    }
+
+    /// <summary>Copy a fixture from this repository's fixtures/ into the temp root.</summary>
+    public void CopyFixture(string id)
+    {
+        if (Directory.Exists(Path.Combine(Root, "fixtures", id))) return;
+        CopyDirectory(Path.Combine(SourceRoot, "fixtures", id), Path.Combine(Root, "fixtures", id));
     }
 
     public void WriteProctorConfig() =>

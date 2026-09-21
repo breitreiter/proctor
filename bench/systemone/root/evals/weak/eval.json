@@ -13,12 +13,6 @@
       "samples": 3
     }
   ],
-  "hooks": {
-    "sample": {
-      "setup": "hooks/reset-fixture.sh",
-      "teardown": "hooks/collect-diff.sh"
-    }
-  },
   "grading": {
     "checks": {
       "exit_ok": {
@@ -36,20 +30,18 @@
         "max_tool_calls": 60,
         "max_duration_ms": 1800000
       },
-      "builds": {
-        "script": "checks/builds.sh"
-      },
-      "tests-pass": {
-        "script": "checks/tests-pass.sh"
-      },
       "diff-in-scope": {
         "files_touched": "@expect"
+      },
+      "acceptance": {
+        "script": "checks/acceptance.sh"
       }
     },
     "pass": [
       "exit_ok",
       "builds",
-      "tests-pass"
+      "tests-pass",
+      "acceptance"
     ]
   }
 }

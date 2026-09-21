@@ -1,5 +1,5 @@
 {
   "id": "uses-bash",
-  "prompt": "MOCK:tool=bash echo hi",
-  "expect": { "answer_contains": "OK" }
+  "fixture": "note",
+  "prompt": "MOCK:tool=bash echo hi"
 }

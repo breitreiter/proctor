@@ -27,6 +27,7 @@ record Manifest
     public required string Harness { get; init; }
     public required string Provider { get; init; }
     public string? Model { get; init; }
+    public FixtureRef? Fixture { get; init; }
     public TranscriptRef Transcript { get; init; } = new("transcript.jsonl", "nb-jsonl");
     public string? Started { get; set; }
     public string? Ended { get; set; }
@@ -42,6 +43,9 @@ record Manifest
 }
 
 record TranscriptRef(string File, string Format);
+
+/// <summary>What a cell was run against: the fixture and the identity of its source tree.</summary>
+record FixtureRef(string Id, string Hash);
 
 static class CellStatus
 {
@@ -98,6 +102,11 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     public static IEnumerable<(Arm Arm, CaseDef Case, int Sample)> Cells(Eval eval) =>
         from arm in eval.Arms from c in eval.Cases from s in Enumerable.Range(1, arm.SamplesOrOne) select (arm, c, s);
 
+    /// <summary>Everything a hook or check needs to know about a cell, for the runner and the grader alike.</summary>
+    public static CellContext Context(string root, string experimentId, Eval eval, Arm arm, CaseDef c, int sample) =>
+        new(eval.Dir, Layout.Cell(Layout.Experiment(root, experimentId), arm.Id!, c.Id!, sample), Layout.Work(root, experimentId, arm.Id!, c.Id!, sample), experimentId, arm.Id!, c, sample)
+        { Expect = eval.ExpectFor(c), Fixture = eval.FixtureOf(c) };
+
     public static string ReadStatus(string cellDir)
     {
         var file = Path.Combine(cellDir, Layout.StatusFile);
@@ -133,11 +142,10 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
 
     void RunCell(Arm arm, CaseDef c, int sample)
     {
-        var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
-        var workDir = Layout.Work(root, experiment.Id, arm.Id!, c.Id!, sample);
+        var cell = Context(root, experiment.Id, eval, arm, c, sample);
+        var (cellDir, workDir) = (cell.CellDir, cell.WorkDir);
         Directory.CreateDirectory(Path.Combine(cellDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
-        var cell = new CellContext(eval.Dir, cellDir, workDir, experiment.Id, arm.Id!, c, sample);
 
         var program = ResolveProgram(eval.ProgramTemplate, arm, c, sample, workDir);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
@@ -147,6 +155,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
             {
                 RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Case = c.Id!, Sample = sample,
                 Runner = arm.Runner!, Harness = arm.Harness!, Provider = arm.Provider!, Model = arm.Model,
+                Fixture = cell.Fixture is null ? null : new FixtureRef(cell.Fixture.Id, cell.Fixture.Hash),
                 Host = experiment.Host, Versions = experiment.Versions, EvalHash = eval.Hash, ProgramHash = Sha256(program),
             };
         manifest.Attempts++;
@@ -159,13 +168,19 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
 
         var stopwatch = Stopwatch.StartNew();
         var env = cell.Environment();
-        var failure = RunHook(eval.Def.Hooks?.Sample?.Setup, env, Path.Combine(cellDir, Layout.HooksDir, "sample.setup.log")) is { } setupError
+        // The fixture is checked out first, then the setup hook, nb, the teardown hook, and the diff is collected.
+        var failure = cell.Fixture is not null && Checkout.Materialise(cell.Fixture, workDir) is { } checkoutError ? $"fixture checkout failed: {checkoutError}" : null;
+        failure ??= RunHook(eval.Def.Hooks?.Sample?.Setup, env, Path.Combine(cellDir, Layout.HooksDir, "sample.setup.log")) is { } setupError
             ? $"sample setup hook failed: {setupError}"
             : RunNb(cellDir, workDir, manifest);
-        // Teardown runs whenever setup ran, so a failed run still collects what it can.
-        if (failure is null || !failure.StartsWith("sample setup"))
+        // Teardown and the diff run whenever setup ran, so a failed run still collects what it can.
+        if (failure is null || !(failure.StartsWith("sample setup") || failure.StartsWith("fixture checkout")))
+        {
             if (RunHook(eval.Def.Hooks?.Sample?.Teardown, env, Path.Combine(cellDir, Layout.HooksDir, "sample.teardown.log")) is { } teardownError)
                 failure ??= $"sample teardown hook failed: {teardownError}";
+            if (cell.Fixture is not null && Checkout.CollectDiff(workDir, cellDir) is { } diffError)
+                failure ??= $"diff collection failed: {diffError}";
+        }
         stopwatch.Stop();
 
         manifest.Ended = Now();

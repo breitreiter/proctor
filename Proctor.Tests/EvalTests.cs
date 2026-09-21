@@ -102,4 +102,53 @@ public class EvalTests
 
         Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("cases/broken.json"));
     }
+
+    [Fact]
+    public void Fixtures_AreLoadedByName_AndTheirChecksAndExpectMergeIntoTheCase()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        var eval = repo.LoadEval("smoke");
+        var fixture = Assert.Single(eval.Fixtures).Value;
+        Assert.Equal("note", fixture.Id);
+        Assert.StartsWith("sha256:", fixture.Hash);
+
+        var loops = eval.Cases.Single(c => c.Id == "loops");
+        Assert.Null(loops.Expect);
+        Assert.Equal("OK", eval.ExpectFor(loops)!["answer_contains"]!.GetValue<string>());
+        var plain = eval.Cases.Single(c => c.Id == "plain");
+        Assert.Equal("hello", eval.ExpectFor(plain)!["answer_contains"]!.GetValue<string>());
+
+        // A fixture check joins the case's set, resolved against the fixture directory.
+        Directory.CreateDirectory(Path.Combine(repo.Root, "fixtures/note/checks"));
+        File.WriteAllText(Path.Combine(repo.Root, "fixtures/note/checks/ok.sh"), "#!/usr/bin/env bash\necho fine\n");
+        repo.EditJson("../fixtures/note/fixture.json", f => f["checks"] = System.Text.Json.Nodes.JsonNode.Parse("{\"fixture-ok\": {\"script\": \"checks/ok.sh\"}}"));
+        var before = eval.Hash;
+        eval = repo.LoadEval("smoke");
+        Assert.NotEqual(before, eval.Hash);
+        var checks = eval.ChecksFor(plain);
+        Assert.Equal(Path.Combine(repo.Root, "fixtures", "note"), checks["fixture-ok"].Dir);
+        Assert.Equal(eval.Dir, checks["exit_ok"].Dir);
+        Assert.Contains("fixture-ok", eval.CheckNames);
+    }
+
+    [Fact]
+    public void Fixtures_ProblemsNameTheFileAndField()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        repo.EditJson("smoke/cases/plain.json", c => c["fixture"] = "nope");
+        Assert.Contains(repo.Problems("smoke"), p => p.File == Path.Combine("fixtures", "nope") && p.Message.Contains("no such fixture"));
+
+        repo.EditJson("smoke/cases/plain.json", c => c["fixture"] = "note");
+        repo.EditJson("smoke/eval.json", e => e["grading"]!["pass"]!.AsArray().Add("builds"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.pass" && p.Message.Contains("fixture 'note'") && p.Message.Contains("does not declare"));
+
+        repo.EditJson("../fixtures/note/fixture.json", f => f["checks"] = System.Text.Json.Nodes.JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}}"));
+        repo.EditJson("smoke/eval.json", e => e["grading"]!["pass"]!.AsArray().RemoveAt(2));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.checks.exit_ok" && p.Message.Contains("also declared by fixture"));
+
+        repo.EditJson("../fixtures/note/fixture.json", f => { f.Remove("checks"); f["source"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/x\"}"); });
+        Assert.Contains(repo.Problems("smoke"), p => p.File == Path.Combine("fixtures", "note", "fixture.json") && p.Field == "source.rev");
+    }
 }

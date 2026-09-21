@@ -38,6 +38,11 @@ a reader should be able to guess where things are.
 
 ## The definition tier: `evals/`
 
+> Superseded in part by [fixtures-arms-baselines.md](fixtures-arms-baselines.md)
+> (2026-09-21): fixtures are repo-level under `fixtures/` and a case names
+> one; the sample hooks that reset the fixture and collected the diff are
+> proctor's; `grading.validity` is a third list beside `pass`.
+
 One eval is one behaviour under test, in its own directory. Cases are data
 beside it. This is the JUnit `@CsvFileSource` shape from the test-framework
 learnings, and the "one file, one thing" rule from lore.

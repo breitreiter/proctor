@@ -13,8 +13,8 @@
 
   <!-- The test project and the data directories sit under this root but are not compiled into the exe. -->
   <ItemGroup>
-    <Compile Remove="Proctor.Tests\**;bench\**;evals\**;runs\**;reports\**" />
-    <None Remove="Proctor.Tests\**;bench\**;evals\**;runs\**;reports\**" />
+    <Compile Remove="Proctor.Tests\**;bench\**;evals\**;fixtures\**;runs\**;reports\**" />
+    <None Remove="Proctor.Tests\**;bench\**;evals\**;fixtures\**;runs\**;reports\**" />
   </ItemGroup>
 
   <ItemGroup>

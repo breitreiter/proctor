@@ -15,9 +15,14 @@ record Verdict(string Result, string Reason)
 /// <summary>Everything the runner and the grader need to know about one cell, without the transcript.</summary>
 record CellContext(string EvalDir, string CellDir, string WorkDir, string Experiment, string Arm, CaseDef Case, int Sample)
 {
+    /// <summary>What the case expects, its fixture's defaults included; the case's own block when there is no fixture.</summary>
+    public JsonObject? Expect { get; init; } = Case.Expect;
+    public Fixture? Fixture { get; init; }
+
     public IDictionary<string, string> Environment() => new Dictionary<string, string>
     {
         ["PROCTOR_EVAL_DIR"] = EvalDir,
+        ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
         ["PROCTOR_EXPERIMENT"] = Experiment,
         ["PROCTOR_ARM"] = Arm,
         ["PROCTOR_CASE"] = Case.Id ?? "",
@@ -25,7 +30,7 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
         ["PROCTOR_CELL"] = CellDir,
         ["PROCTOR_WORK"] = WorkDir,
         ["PROCTOR_CASE_JSON"] = JsonSerializer.Serialize(Case, Eval.JsonOptions),
-        ["PROCTOR_EXPECT"] = Case.Expect?.ToJsonString() ?? "{}",
+        ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(CellDir, Layout.TranscriptFile),
         ["PROCTOR_DIFF"] = Path.Combine(CellDir, Layout.DiffFile),
     };
@@ -85,23 +90,26 @@ static class Checks
     }
 
     /// <summary>Evaluate a declared check over one cell. A spec with several fields is their conjunction.</summary>
-    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t)
+    public static Verdict Evaluate(CheckDef check, CellContext cell, Transcript t)
     {
-        var verdicts = spec.Select(field => EvaluateField(field.Key, field.Value, cell, t)).ToList();
+        var verdicts = check.Spec.Select(field => EvaluateField(field.Key, field.Value, check.Dir, cell, t)).ToList();
         if (verdicts.Count == 1) return verdicts[0];
         var worst = verdicts.MaxBy(v => v.Result switch { Verdict.Error => 3, Verdict.NeedsJudge => 2, Verdict.Fail => 1, _ => 0 })!;
         return worst with { Reason = string.Join("; ", verdicts.Select(v => v.Reason)) };
     }
 
-    private static Verdict EvaluateField(string key, JsonNode? value, CellContext cell, Transcript t)
+    /// <summary>An eval's check: its script path is relative to the eval directory.</summary>
+    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t) => Evaluate(new CheckDef(spec, cell.EvalDir), cell, t);
+
+    private static Verdict EvaluateField(string key, JsonNode? value, string scriptDir, CellContext cell, Transcript t)
     {
         var (name, negated) = Split(key);
         if (value is JsonValue jv && jv.TryGetValue<string>(out var s) && s == FromExpect)
         {
-            value = cell.Case.Expect?[name];
+            value = cell.Expect?[name];
             if (value is null) return Verdict.Err($"{name}: case has no expect.{name}");
         }
-        var verdict = name == "script" ? RunScript(value!.GetValue<string>(), cell) : BuiltIn(name, value!, cell, t);
+        var verdict = name == "script" ? RunScript(value!.GetValue<string>(), scriptDir, cell) : BuiltIn(name, value!, cell, t);
         if (!negated || verdict.Result is Verdict.Error or Verdict.NeedsJudge) return verdict;
         return new Verdict(verdict.Result == Verdict.Pass ? Verdict.Fail : Verdict.Pass, "not: " + verdict.Reason);
     }
@@ -238,9 +246,9 @@ static class Checks
     }
 
     /// <summary>The script contract: runs in the cell, exit 0/1/2 = pass/fail/needs-judge, first stdout line is the reason.</summary>
-    private static Verdict RunScript(string script, CellContext cell)
+    private static Verdict RunScript(string script, string scriptDir, CellContext cell)
     {
-        var path = Path.GetFullPath(Path.Combine(cell.EvalDir, script));
+        var path = Path.GetFullPath(Path.Combine(scriptDir, script));
         var result = Subprocess.Run(path, [], cell.CellDir, cell.Environment());
         if (!result.Started) return Verdict.Err($"could not run {script}: {result.Stderr}");
         var firstLine = result.Stdout.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);

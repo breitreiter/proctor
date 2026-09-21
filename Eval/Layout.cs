@@ -6,6 +6,7 @@ namespace Proctor;
 static class Layout
 {
     public const string EvalsDir = "evals";
+    public const string FixturesDir = "fixtures";
     public const string RunsDir = "runs";
     public const string ReportsDir = "reports";
     public const string WorkDir = ".proctor/work";
@@ -14,6 +15,7 @@ static class Layout
     public const string EvalFile = "eval.json";
     public const string ProgramTemplateFile = "program.nb";
     public const string CasesDir = "cases";
+    public const string FixtureFile = "fixture.json";
 
     public const string ExperimentFile = "experiment.json";
     public const string StatusCountsFile = "status.json";
@@ -34,6 +36,7 @@ static class Layout
 
     public static string Evals(string root) => Path.Combine(root, EvalsDir);
     public static string Eval(string root, string evalId) => Path.Combine(root, EvalsDir, evalId);
+    public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
     public static string Experiment(string root, string experimentId) => Path.Combine(root, RunsDir, experimentId);
     public static string Arm(string experimentDir, string arm) => Path.Combine(experimentDir, arm);
     public static string Cell(string experimentDir, string arm, string @case, int sample) =>
