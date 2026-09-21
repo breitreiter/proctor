@@ -1,0 +1,55 @@
+{
+  "id": "weak",
+  "tags": [
+    "deterministic"
+  ],
+  "arms": [
+    {
+      "id": "qchat",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "imp-qchat",
+      "model": "qwen3-30b-a3b-instruct",
+      "samples": 3
+    }
+  ],
+  "hooks": {
+    "sample": {
+      "setup": "hooks/reset-fixture.sh",
+      "teardown": "hooks/collect-diff.sh"
+    }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "no_denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "not_nudged": {
+        "loop_nudged": false
+      },
+      "under_budget": {
+        "max_tool_calls": 60,
+        "max_duration_ms": 1800000
+      },
+      "builds": {
+        "script": "checks/builds.sh"
+      },
+      "tests-pass": {
+        "script": "checks/tests-pass.sh"
+      },
+      "diff-in-scope": {
+        "files_touched": "@expect"
+      }
+    },
+    "pass": [
+      "exit_ok",
+      "builds",
+      "tests-pass"
+    ]
+  }
+}

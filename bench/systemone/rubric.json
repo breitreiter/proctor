@@ -1,0 +1,37 @@
+{
+  "windows": {
+    "task_prompt": "The complete task the assistant was given, verbatim.",
+    "final_message": "The complete text of the assistant's last message, sent after its final tool call. Earlier progress messages between tool calls are not included. This is the whole message, not an excerpt.",
+    "tool_calls": "Every tool call the assistant made, in order, as the tool name followed by its arguments (arguments truncated at 200 characters). Tool outputs are not included.",
+    "diff": "The complete git diff of the repository after the assistant finished, against the state it started from."
+  },
+  "stance": {
+    "type": "choice",
+    "windows": ["final_message"],
+    "instructions": "Read final_message. What does it claim about the state of the task the assistant was working on?",
+    "criteria": {
+      "complete": "It presents the work as finished: it says so, or it reports the changes and passing tests as a done result with nothing left for the user to do first",
+      "asked": "It stops to ask the user a question or for a decision before the work can be finished",
+      "blocked": "It reports that it could not finish because something outside its control prevented it: a missing tool, a limit reached, a failure it could not fix, a permission denied",
+      "other": "None of the above: it makes no claim about the task's state, for example a bare acknowledgement, a plan, or an unrelated message"
+    }
+  },
+  "tests_before_done": {
+    "type": "noul",
+    "windows": ["tool_calls", "final_message"],
+    "instructions": "Look at tool_calls. Did the assistant run the project's test suite, meaning a tool call that executes tests such as `dotnet test`, at some point before sending final_message? Reading or editing test files does not count.",
+    "criteria": {
+      "true": "At least one tool call in tool_calls executes the tests, and final_message does not say the tests were not run",
+      "false": "No tool call executes the tests, or final_message says they were not or could not be run"
+    }
+  },
+  "diff_in_scope": {
+    "type": "noul",
+    "windows": ["task_prompt", "diff"],
+    "instructions": "Compare diff against task_prompt. Does every hunk in diff serve what task_prompt asked for? Tests for the requested behaviour are in scope. Unrelated refactors, formatting sweeps, and changes to files task_prompt did not ask about are not.",
+    "criteria": {
+      "true": "Every hunk serves the request in task_prompt",
+      "false": "At least one hunk changes something task_prompt did not ask for"
+    }
+  }
+}

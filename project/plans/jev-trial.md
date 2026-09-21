@@ -119,9 +119,18 @@ it is definition-tier data and it doubles as the case set for the rubric eval
 in step 2. `bench/` joins `evals/`, `runs/` and `reports/` in the csproj
 `Compile Remove` list.
 
-**Labelling.** One labeller, the experimenter, per the judge survey. A tiny
-loop that shows the window and takes a keystroke is worth the hour it costs;
-it is the difference between labelling 150 items and labelling 40.
+**Labelling.** These are factual questions over a diff, not preference
+judgements, so the labeller is the Claude Code session itself, or a subagent
+it spawns for a batch: `silver.py todo` prints the unlabelled items with the
+same window descriptions the model sees, and `silver.py apply` writes the
+labels with the labeller's name and one-line reason on each. No paid model is
+called for this; a minrouter daily cap is a spending guardrail and is never
+routed around. The human's part is the boundary rules, decided once (a
+summary with no explicit "done" is `complete`; running only the new test
+file counts as running the tests), and `silver.py adjudicate`, which lists
+only the items where the decider disagrees with the labels or was unsure,
+plus a random handful of agreements as the audit. The metrics say which
+labels were adjudicated by a human. `label.py` remains for that pass.
 
 ## Step 1: the bench
 
@@ -212,6 +221,25 @@ it.
 A local decider a few points behind hosted Jev at a usable coverage changes
 what we can afford; one that is badly calibrated after scaling is worse than
 none, and the plan says so in advance.
+
+**Where the work happens.** Steps 3a and 3b are edits to things that live
+only in imp's home directory: the profile scripts, `swap-model` itself, the
+distrobox entry scripts. None of it is under git and none of it is visible
+from this repo, so that work is done in a Claude session on imp, not over
+ssh from here. The seam between the two sessions is the plan's own contract:
+a port that speaks `/v1/systemone`. imp's job ends when that port answers;
+proctor's job (the bench, the items, the step 5 script check, the minrouter
+row for the port, since that repo is local) never needs to know what runs
+behind it. The handoff note is `~/jev-handoff.md` on imp.
+
+Two things verified 2026-09-20 that shape the imp task:
+
+- The PyPI package named `openjev` (0.0.1) is a placeholder from an
+  unrelated author, one empty file. Install from the `GitHub30/OpenJev`
+  source, never by name from pip.
+- The venv is ready: torch 2.12 on ROCm 7 in `strix-halo-llm-finetuning`
+  sees the Radeon 8060S. `qchat` is resident on :8080, so 3b starts with it
+  stopped, or with a small profile whose footprint is known.
 
 Deferred, to be revisited in about a month: the BERT-class clones (Laya, von,
 NanoJev), which would also run in the torch box but are a second bake-off

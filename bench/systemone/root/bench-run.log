@@ -1,0 +1,63 @@
+== run weak Mon Sep 21 06:20:08 AM CDT 2026
+  qchat/add-retry-flag/1  completed  ok  88.6s
+  qchat/add-retry-flag/2  completed  approval_denied  196.9s
+  qchat/add-retry-flag/3  completed  tool_error_limit  9.0s
+  qchat/fix-null-deref/1  completed  ok  28.6s
+  qchat/fix-null-deref/2  completed  ok  26.1s
+  qchat/fix-null-deref/3  completed  ok  25.3s
+  qchat/rename-module/1  completed  ok  28.5s
+  qchat/rename-module/2  completed  ok  55.9s
+  qchat/rename-module/3  completed  ok  54.6s
+experiment 20260921-1120-weak-na42
+== run starved Mon Sep 21 06:28:42 AM CDT 2026
+  qchat/add-retry-flag/1  completed  max_tool_calls  29.2s
+  qchat/add-retry-flag/2  completed  max_tool_calls  37.3s
+  qchat/add-retry-flag/3  completed  max_tool_calls  23.8s
+  qchat/fix-null-deref/1  completed  ok  28.1s
+  qchat/fix-null-deref/2  completed  ok  25.8s
+  qchat/fix-null-deref/3  completed  ok  36.9s
+  qchat/rename-module/1  completed  max_tool_calls  29.3s
+  qchat/rename-module/2  completed  tool_error_limit  17.9s
+  qchat/rename-module/3  completed  max_tool_calls  14.2s
+  qcoder/add-retry-flag/1  completed  max_tool_calls  44.8s
+  qcoder/add-retry-flag/2  completed  max_tool_calls  37.4s
+  qcoder/add-retry-flag/3  completed  max_tool_calls  28.3s
+  qcoder/fix-null-deref/1  completed  ok  37.1s
+  qcoder/fix-null-deref/2  completed  max_tool_calls  46.7s
+  qcoder/fix-null-deref/3  completed  ok  35.2s
+  qcoder/rename-module/1  completed  max_tool_calls  23.7s
+  qcoder/rename-module/2  completed  max_tool_calls  26.2s
+  qcoder/rename-module/3  completed  max_tool_calls  34.3s
+experiment 20260921-1128-starved-epoc
+== grade /home/joseph/repos/proctor/bench/systemone/root/runs/20260921-1120-weak-na42/
+  qchat/add-retry-flag/1  pass  
+  qchat/add-retry-flag/2  fail  exit_ok=fail  no_denials=fail  under_budget=fail  builds=fail  tests-pass=fail
+  qchat/add-retry-flag/3  fail  exit_ok=fail
+  qchat/fix-null-deref/1  pass  no_denials=fail
+  qchat/fix-null-deref/2  pass  
+  qchat/fix-null-deref/3  pass  
+  qchat/rename-module/1  pass  
+  qchat/rename-module/2  pass  
+  qchat/rename-module/3  pass  
+graded 9 of 9 cells; 7 pass
+== grade /home/joseph/repos/proctor/bench/systemone/root/runs/20260921-1128-starved-epoc/
+  qchat/add-retry-flag/1  fail  exit_ok=fail  no_denials=fail  builds=fail  tests-pass=fail
+  qchat/add-retry-flag/2  fail  exit_ok=fail
+  qchat/add-retry-flag/3  fail  exit_ok=fail
+  qchat/fix-null-deref/1  pass  
+  qchat/fix-null-deref/2  pass  
+  qchat/fix-null-deref/3  pass  
+  qchat/rename-module/1  fail  exit_ok=fail  builds=fail  tests-pass=fail
+  qchat/rename-module/2  fail  exit_ok=fail
+  qchat/rename-module/3  fail  exit_ok=fail  builds=fail  tests-pass=fail
+  qcoder/add-retry-flag/1  fail  exit_ok=fail
+  qcoder/add-retry-flag/2  fail  exit_ok=fail
+  qcoder/add-retry-flag/3  fail  exit_ok=fail
+  qcoder/fix-null-deref/1  pass  
+  qcoder/fix-null-deref/2  fail  exit_ok=fail
+  qcoder/fix-null-deref/3  pass  
+  qcoder/rename-module/1  fail  exit_ok=fail
+  qcoder/rename-module/2  fail  exit_ok=fail
+  qcoder/rename-module/3  fail  exit_ok=fail
+graded 18 of 18 cells; 5 pass
+== done Mon Sep 21 06:39:27 AM CDT 2026

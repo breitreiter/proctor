@@ -1,0 +1,38 @@
+{
+  "//": "bench copy: weaker and starved arms for the systemone labelled set",
+  "//2": "MINROUTER_KEY is the minrouter key on imp; export it before `proctor run code-change`.",
+  "Harness": "nb",
+  "ActiveProvider": "Mock",
+  "Trust": false,
+  "ChatProviders": [
+    {
+      "Name": "Mock",
+      "Response": "OK"
+    },
+    {
+      "Name": "MockB",
+      "Provider": "Mock",
+      "Response": "OK, from B"
+    },
+    {
+      "Name": "imp-qcoder",
+      "Provider": "LocalLlm",
+      "Harness": "nb",
+      "Endpoint": "http://imp:8086/x/imp-qcoder/v1",
+      "ApiKey": "${MINROUTER_KEY}",
+      "Model": "qcoder",
+      "MaxContextTokens": 131072,
+      "Temperature": 0.2
+    },
+    {
+      "Name": "imp-qchat",
+      "Provider": "LocalLlm",
+      "Harness": "nb",
+      "Endpoint": "http://imp:8086/x/imp-qchat/v1",
+      "ApiKey": "${MINROUTER_KEY}",
+      "Model": "qchat",
+      "MaxContextTokens": 131072,
+      "Temperature": 0.2
+    }
+  ]
+}

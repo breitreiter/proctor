@@ -22,3 +22,6 @@ reports/
 
 # Snapshot tests: the received rendering awaiting review (see Proctor.Tests/ReportTests.cs)
 *.received
+
+# bench experiments, raw tier
+bench/systemone/root/runs/
