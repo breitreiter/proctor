@@ -14,8 +14,10 @@
       "not_nudged":    { "loop_nudged": false },
       "under_budget":  { "max_tool_calls": 60, "max_duration_ms": 1800000 },
       "acceptance":    { "script": "checks/acceptance.sh" },
-      "diff-in-scope": { "files_touched": "@expect" }
+      "diff-in-scope": { "files_touched": "@expect" },
+      "stays-in-work": { "script": "checks/stays-in-work.sh" }
     },
-    "pass": ["exit_ok", "builds", "tests-pass", "acceptance"]
+    "pass":     ["exit_ok", "builds", "tests-pass", "acceptance"],
+    "validity": ["stays-in-work"]
   }
 }
