@@ -367,7 +367,7 @@ it did prove:
   verdict is now never reused from the file, so the retry cost nothing
   but the calls.
 
-Loose end: the report's reproducibility rows read every verdict file, so
-after a `--judge` pass both judges are listed as having graded the check,
-and only the last plain `grade` says whose verdict `checks.json` holds.
-The row should say that, or the remap should write beside rather than over.
+Closed the same day: `--judge a=b` is now a comparison pass. It evaluates
+only the checks `a` grades, by `b`, into `b`'s files marked `applied:
+false`, prints both verdicts per cell and an agreement count, and never
+writes `checks.json`. The report's judge rows count applied files only.

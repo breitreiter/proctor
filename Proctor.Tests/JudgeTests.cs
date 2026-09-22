@@ -316,7 +316,7 @@ public class JudgeTests
         {
             e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; e["arms"]![0]!["model"] = "glm-4.7";
             e["grading"]!["checks"]!["stance"] = JsonNode.Parse("{\"decide\": {\"ask\": \"Does it claim completion?\", \"window\": \"answer\"}}");
-            e["grading"]!["checks"]!["sensible"] = JsonNode.Parse("{\"judge\": {\"ask\": \"Is the answer sensible?\", \"window\": \"prompt+answer\", \"samples\": 2}}");
+            e["grading"]!["checks"]!["sensible"] = JsonNode.Parse("{\"judge\": {\"ask\": \"Is the answer sensible?\", \"window\": \"prompt+answer\", \"samples\": 2, \"with\": \"glm\"}}");
             e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"sensible\"]");
         });
         repo.WriteProctorConfig(new { jev = new { kind = "systemone", endpoint = "http://judge.test/systemone", family = "typesafe" }, glm = new { kind = "chat", endpoint = "http://judge.test/v1", model = "glm", family = "glm" } });
@@ -345,6 +345,22 @@ public class JudgeTests
 
         var cell = Layout.Cell(Layout.Experiment(repo.Root, id), "a", "plain", 1);
         Assert.Equal(2, Directory.GetFiles(Path.Combine(cell, Layout.VerdictsDir)).Length);
+
+        // a comparison pass: k2 beside glm, checks.json untouched, k2's files not applied
+        repo.WriteProctorConfig(new { jev = new { kind = "systemone", endpoint = "http://judge.test/systemone" }, glm = new { kind = "chat", endpoint = "http://judge.test/v1", model = "glm" }, k2 = new { kind = "chat", endpoint = "http://judge.test/v1", model = "k2" } });
+        var k2 = new ScriptedChat(Answer("no", "OK"));
+        var compare = new JudgeClient { Defs = JudgeClient.From(Proctor.Eval.LoadConfig(repo.Root, problems), ["glm=k2"], false).Defs, Remap = new() { ["glm"] = "k2" }, Http = new HttpClient(http), ChatClient = (def, _) => def.Model == "k2" ? k2 : chat };
+        var compareLog = new StringWriter();
+        var compared = Proctor.Grade.Experiment(repo.Root, experiment, eval, compareLog, compare);
+        Assert.Equal(("pass", "yes 2/2 — \"OK\""), compared.Single(g => g.Case == "uses-bash").Checks!["sensible"].Deconstruct());
+        Assert.Equal("pass", Proctor.Grade.ReadChecks(Layout.Cell(Layout.Experiment(repo.Root, id), "a", "uses-bash", 1))!["sensible"].Result);
+        Assert.Contains("a/uses-bash/1  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2 — \"OK\")", compareLog.ToString());
+        Assert.Contains("2 of 3 verdicts agree; checks.json unchanged", compareLog.ToString());   // plain and loops error under both judges ("OK" is not in their answers); uses-bash disagrees
+        Assert.Equal(3, http.Calls);   // decides are not remapped, so not re-called
+        Assert.Equal(6, chat.Calls);
+        Assert.Equal(6, k2.Calls);
+        var k2File = Directory.GetFiles(Path.Combine(Layout.Cell(Layout.Experiment(repo.Root, id), "a", "uses-bash", 1), Layout.VerdictsDir), "sensible.k2.*").Single();
+        Assert.False(JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(k2File), Proctor.Eval.JsonOptions)!.Applied);
 
         var uses = Judge.Uses(repo.Root, experiment, eval);
         Assert.Equal(["glm", "jev"], uses.Select(u => u.Judge));

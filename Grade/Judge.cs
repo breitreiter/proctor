@@ -18,8 +18,9 @@ namespace Proctor;
 sealed class JudgeClient
 {
     public required Dictionary<string, JudgeDef> Defs { get; init; }
-    /// <summary>`--judge a=b`: a check naming a is graded by b, and the verdict file is b's.</summary>
+    /// <summary>`--judge a=b`: a check naming a is graded by b, into b's verdict file, beside a's and never into checks.json.</summary>
     public Dictionary<string, string> Remap { get; init; } = [];
+    public bool Comparing => Remap.Count > 0;
     /// <summary>Ignore verdict files and call again.</summary>
     public bool Rejudge { get; init; }
     public HttpClient Http { get; init; } = new() { Timeout = TimeSpan.FromMinutes(2) };
@@ -42,11 +43,19 @@ sealed class JudgeClient
     /// <summary>The judge a check is graded by: what it names (or the only one of its kind), through the remap.</summary>
     public (string Name, JudgeDef Def) Resolve(string kind, string? with, string check)
     {
-        var resolved = Judges.Resolve(Defs, kind, with, out var problem) ?? throw new ProctorException($"check '{check}': {problem}");
-        if (!Remap.TryGetValue(resolved.Name, out var to)) return resolved;
-        if (Defs[to].Kind != kind) throw new ProctorException($"--judge {resolved.Name}={to}: '{to}' is {Defs[to].Kind}; check '{check}' needs {kind}");
+        var declared = Declared(kind, with, check);
+        if (!Remap.TryGetValue(declared.Name, out var to)) return declared;
+        if (Defs[to].Kind != kind) throw new ProctorException($"--judge {declared.Name}={to}: '{to}' is {Defs[to].Kind}; check '{check}' needs {kind}");
         return (to, Defs[to]);
     }
+
+    /// <summary>The judge the eval declares for a check, remap aside.</summary>
+    public (string Name, JudgeDef Def) Declared(string kind, string? with, string check) =>
+        Judges.Resolve(Defs, kind, with, out var problem) ?? throw new ProctorException($"check '{check}': {problem}");
+
+    /// <summary>Whether a comparison pass touches this check: its declared judge is remapped.</summary>
+    public bool Remaps(string name, JsonObject spec, string check) =>
+        Remap.ContainsKey(Declared(Judge.KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), check).Name);
 
     static IChatClient OpenAiCompatible(JudgeDef def, string? key) =>
         new OpenAIClient(new ApiKeyCredential(key ?? "none"), new OpenAIClientOptions { Endpoint = new Uri(def.Endpoint!) })
@@ -58,10 +67,13 @@ record JudgeSample(string? Label, double? Probability, List<string>? Evidence, s
 
 record JudgeUsage(long? Input, long? Output);
 
-/// <summary>verdicts/&lt;check&gt;.&lt;judge&gt;.&lt;hash&gt;.json: the request as sent (key redacted), the responses as received, the samples as read, the verdict checks.json got.</summary>
+/// <summary>
+/// verdicts/&lt;check&gt;.&lt;judge&gt;.&lt;hash&gt;.json: the request as sent (key redacted), the responses as received, the samples as read,
+/// and the verdict. Applied says whether checks.json holds it: true from a plain grade, false from a `--judge` comparison pass.
+/// </summary>
 record VerdictFile(
     string Check, string Judge, string Kind, string? Model, string Endpoint, string PromptHash, string Window,
-    string Graded, long DurationMs, JsonNode Request, List<JsonNode> Responses, List<JudgeSample> Samples, JudgeUsage? Usage, Verdict Verdict);
+    string Graded, long DurationMs, JsonNode Request, List<JsonNode> Responses, List<JudgeSample> Samples, JudgeUsage? Usage, Verdict Verdict, bool Applied = true);
 
 /// <summary>A judge as the report names it: which checks it graded, through which endpoint and model.</summary>
 record JudgeUse(string Judge, string Kind, string? Model, string Endpoint, List<string> Checks);
@@ -304,13 +316,18 @@ static class Judge
 
     static string FileOf(Call call, string hash) => Path.Combine(call.VerdictsDir, $"{call.Check}.{call.Judge}.{hash}.json");
 
-    /// <summary>The verdict on file for this exact request, unless rejudging. An error is not a verdict: the next grade calls again.</summary>
+    /// <summary>
+    /// The verdict on file for this exact request, unless rejudging. An error is not a verdict: the next grade calls again.
+    /// A plain grade that reuses a comparison pass's file marks it applied, since checks.json now holds it.
+    /// </summary>
     static Verdict? Cached(Call call, string hash)
     {
         var file = FileOf(call, hash);
         if (call.Client.Rejudge || !File.Exists(file)) return null;
-        var verdict = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Eval.JsonOptions)?.Verdict;
-        return verdict?.Result == Verdict.Error ? null : verdict;
+        var on = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Eval.JsonOptions);
+        if (on is null || on.Verdict.Result == Verdict.Error) return null;
+        if (!on.Applied && !call.Client.Comparing) Runner.WriteJson(file, on with { Applied = true });
+        return on.Verdict;
     }
 
     static Verdict Save(Call call, string hash, JsonNode request, List<JsonNode> responses, List<JudgeSample> samples, JudgeUsage? usage, string? model, DateTime started, Verdict verdict)
@@ -318,12 +335,12 @@ static class Judge
         Directory.CreateDirectory(call.VerdictsDir);
         var file = new VerdictFile(call.Check, call.Judge, call.Def.Kind!, model, call.Def.Endpoint!, hash, call.Window,
             started.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), (long)(DateTime.UtcNow - started).TotalMilliseconds,
-            request, responses, samples, usage, verdict);
+            request, responses, samples, usage, verdict, Applied: !call.Client.Comparing);
         Runner.WriteJson(FileOf(call, hash), file);
         return verdict;
     }
 
-    /// <summary>The judges an experiment's cells were graded by, for the report's reproducibility section.</summary>
+    /// <summary>The judges whose verdicts the experiment's checks.json files hold, for the report's reproducibility section. A comparison pass's files are not counted.</summary>
     public static List<JudgeUse> Uses(string root, Experiment experiment, Eval eval)
     {
         var uses = new Dictionary<(string, string, string?, string), List<string>>();
@@ -336,7 +353,7 @@ static class Judge
                 VerdictFile? v;
                 try { v = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Eval.JsonOptions); }
                 catch (JsonException) { continue; }
-                if (v is null) continue;
+                if (v is null || !v.Applied) continue;
                 var checks = uses.GetValueOrDefault((v.Judge, v.Kind, v.Model, v.Endpoint)) ?? (uses[(v.Judge, v.Kind, v.Model, v.Endpoint)] = []);
                 if (!checks.Contains(v.Check)) checks.Add(v.Check);
             }

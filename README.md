@@ -204,7 +204,7 @@ proctor run <eval>           # run every cell into runs/<id>/; prints the id
 proctor resume <id>          # rerun cells that did not complete
 proctor grade <id>           # checks over every completed cell -> checks.json; model verdicts cached in verdicts/
 proctor grade <id> --rejudge # call the judges again instead of reusing the cells' verdict files
-proctor grade <id> --judge jev=jev-local   # grade checks that name one judge with another
+proctor grade <id> --judge glm=k2   # compare k2 against glm on the checks glm grades; checks.json is untouched
 proctor report <id>          # reports/data/<id>/{results.jsonl,stats.json,report.html,summary.md}
 proctor baseline <id> [--arm a] [--cases x,y]   # pin the arm's analysed cells as evals/<eval>/baseline.json
 proctor report <id> --tolerance 10 --fail-on regression   # guard mode: exit 1 if an arm fell further than that

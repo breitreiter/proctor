@@ -143,9 +143,14 @@ The directories are for reading, not for namespaces: everything is
   reuses nothing.
   The file keeps the request (key redacted), every response, each sample
   as read with why it was discarded, the reasoning, usage and the verdict.
-  Deterministic checks are always recomputed. `--judge a=b` grades checks
-  naming `a` with `b` and writes `b`'s file, which is how one experiment
-  is graded under two judges without touching the eval.
+  Deterministic checks are always recomputed. `--judge a=b` is a
+  comparison pass: only the checks whose declared judge is `a` are
+  evaluated, by `b`, into `b`'s files marked `applied: false`, and the log
+  prints both verdicts per cell; `checks.json` is never written. The
+  report's judge rows count applied files only, so it names the judge
+  whose verdicts the cells hold. Changing `with` in the eval and grading
+  plain is how `b` becomes the applied judge, and a plain grade that reuses
+  `b`'s file marks it applied.
 - **A judge's evidence is verified, its reasoning discarded.** Every quote
   must be a whitespace-normalised substring of the window; a sample with
   an unverifiable quote, no quote on a yes/no, or no JSON block is

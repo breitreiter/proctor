@@ -10,6 +10,7 @@ static class Grade
 
     public static List<CellGrade> Experiment(string root, Experiment experiment, Eval eval, TextWriter log, JudgeClient? judges = null)
     {
+        if (judges is { Comparing: true }) return Compare(root, experiment, eval, log, judges);
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var grades = new List<CellGrade>();
         if (judges is not null)
@@ -33,6 +34,44 @@ static class Grade
             grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, checks, pass, invalid));
             log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {(invalid is not null ? "invalid" : pass ? "pass" : "fail")}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}"))}");
         }
+        return grades;
+    }
+
+    /// <summary>
+    /// A `--judge a=b` pass: only the checks whose declared judge is remapped are evaluated, by b, into b's verdict files
+    /// beside a's; checks.json is read, compared against and never written. The grades returned are the ones on file.
+    /// </summary>
+    static List<CellGrade> Compare(string root, Experiment experiment, Eval eval, TextWriter log, JudgeClient judges)
+    {
+        var experimentDir = Layout.Experiment(root, experiment.Id);
+        var grades = new List<CellGrade>();
+        int compared = 0, agreed = 0;
+        foreach (var (arm, c, sample) in Runner.Cells(eval))
+        {
+            var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
+            var status = Runner.ReadStatus(cellDir);
+            var existing = status == CellStatus.Completed ? ReadChecks(cellDir) : null;
+            if (existing is null)
+            {
+                grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, null, null, null));
+                if (status == CellStatus.Completed) log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  no checks.json; run grade without --judge first");
+                continue;
+            }
+            var cell = Runner.Context(root, experiment, eval, arm, c, sample) with { Judges = judges };
+            var transcript = Transcript.Read(cellDir);
+            foreach (var (name, check) in eval.ChecksFor(c))
+            {
+                if (!Checks.ModelChecks(check.Spec).Any(m => judges.Remaps(m.Name, m.Spec, name))) continue;
+                var (from, to) = Checks.ModelChecks(check.Spec).Select(m => (judges.Declared(Judge.KindOf(m.Name), (m.Spec["with"] as JsonValue)?.GetValue<string>(), name).Name, judges.Resolve(Judge.KindOf(m.Name), (m.Spec["with"] as JsonValue)?.GetValue<string>(), name).Name)).First();
+                var other = Checks.Evaluate(check, cell, transcript, name);
+                var applied = existing.GetValueOrDefault(name);
+                compared++;
+                if (applied?.Result == other.Result) agreed++;
+                log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {name}: {from}={applied?.Result ?? "none"} ({applied?.Reason})  {to}={other.Result} ({other.Reason})");
+            }
+            grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, existing, Pass(existing, eval.Grading.Pass!), Invalid(existing, eval.Grading.Validity)));
+        }
+        log.WriteLine($"  {agreed} of {compared} verdicts agree; checks.json unchanged");
         return grades;
     }
 

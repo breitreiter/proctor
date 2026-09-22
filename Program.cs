@@ -18,7 +18,7 @@ static class Program
         --runner <script>     the script that runs nb per cell (default: the eval's nb.runner); none runs nb bare
         --arm <id>            baseline: which arm to pin (required with several arms)
         --cases <a,b>         baseline: only these cases; the rest keep their pins
-        --judge <a=b>         grade: grade checks that name judge a with judge b instead (repeatable)
+        --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the cells' verdict files
         --tolerance <points>  report: how far below the baseline still counts as held (default 0)
         --fail-on regression  report: exit 1 when any arm regressed against the baseline
