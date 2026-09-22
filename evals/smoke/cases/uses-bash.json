@@ -1,5 +1,6 @@
 {
   "id": "uses-bash",
+  "description": "The model runs one bash command and answers",
   "fixture": "note",
   "prompt": "MOCK:tool=bash echo hi"
 }

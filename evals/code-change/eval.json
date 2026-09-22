@@ -1,8 +1,9 @@
 {
   "id": "code-change",
+  "description": "Can the agent make a small, well-specified change to a .NET repository so that it builds, the tests pass and nothing outside the task is touched?",
   "labels": { "area": "coding/change", "stack": "dotnet" },
   "arms": [
-    { "id": "floor", "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3 }
+    { "id": "floor", "description": "the local floor", "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3 }
   ],
   "nb": {
     "runner": "../runners/container.sh",
@@ -18,9 +19,9 @@
       "no_denials":    { "denied_calls": { "max": 0 } },
       "not_nudged":    { "loop_nudged": false },
       "under_budget":  { "max_tool_calls": 60, "max_duration_ms": 1800000 },
-      "acceptance":    { "script": "checks/acceptance.sh" },
+      "acceptance":    { "script": "checks/acceptance.sh", "description": "the case's acceptance tests pass against the changed repository" },
       "diff-in-scope": { "files_touched": "@expect" },
-      "stays-in-work": { "script": "checks/stays-in-work.sh" }
+      "stays-in-work": { "script": "checks/stays-in-work.sh", "description": "no tool call reached outside the work directory" }
     },
     "pass":     ["exit_ok", "builds", "tests-pass", "acceptance"],
     "validity": ["stays-in-work"]

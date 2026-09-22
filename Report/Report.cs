@@ -12,7 +12,7 @@ static class Report
 
     // ---- HTML ----
 
-    public static string Html(StatsFile stats, List<ResultRow> rows, Experiment exp)
+    public static string Html(StatsFile stats, List<ResultRow> rows, Experiment exp, List<JudgeUse>? judges = null)
     {
         var arms = stats.Arms.Keys.ToList();
         var first = arms[0];
@@ -32,7 +32,7 @@ static class Report
             <main>
             <header>
             <h1>{E(stats.Eval)} <span class="id">{E(stats.Experiment)}</span></h1>
-            <p class="summary">{E(SummarySentence(stats, exp))}</p>
+            {(stats.Descriptions.Eval is { } about ? $"<p class=\"summary about\">{E(about)}</p>\n" : "")}<p class="summary">{E(SummarySentence(stats, exp))}</p>
             <p class="summary">{E(stats.Mde.Sentence)}{(stats.Comparisons.Count > 0 ? " " + E(ComparisonSentence(stats)) : "")}{(stats.Baseline is null ? "" : " " + E(BaselineSentence(stats)))}</p>
             </header>
 
@@ -40,6 +40,15 @@ static class Report
 
         if (UnequalLoss(stats) is { } warning)
             sb.Append($"<p class=\"warning\">{E(warning)}</p>\n");
+
+        // 1. Where it fell down: the checks that did not hold, in the author's words
+        sb.Append("<section>\n<h2>Where it fell down</h2>\n");
+        foreach (var (arm, lead, items) in Failures(stats))
+        {
+            sb.Append($"<p><span class=\"id\">{E(arm)}</span> {E(lead)}</p>\n");
+            if (items.Count > 0) sb.Append("<ul class=\"fell\">\n").Append(string.Join("", items.Select(i => $"<li>{E(i)}</li>\n"))).Append("</ul>\n");
+        }
+        sb.Append("</section>\n\n");
 
         // 2. Headline
         sb.Append("<section>\n<h2>Headline</h2>\n<table>\n<thead><tr><th>Arm</th><th class=\"num\">Analysed / attempted</th><th class=\"num\">Pass rate [95% CI] (cells)</th>");
@@ -97,12 +106,12 @@ static class Report
         sb.Append("</section>\n\n");
 
         // 4. Matrix
-        sb.Append($"<section>\n<h2>Case by arm</h2>\n<p class=\"legend\"><span class=\"pass\">{Pass}</span> pass &nbsp; <span class=\"fail\">{Fail}</span> fail &nbsp; <span class=\"fail\">{NotAnalysed}</span> not analysed (failed, invalid or not graded). One glyph per sample; hover for the reason, click for the run.</p>\n<table class=\"matrix\">\n<thead><tr><th>Case</th>");
+        sb.Append($"<section>\n<h2>Case by arm</h2>\n<p class=\"legend\"><span class=\"pass\">{Pass}</span> pass &nbsp; <span class=\"fail\">{Fail}</span> fail &nbsp; <span class=\"fail\">{NotAnalysed}</span> not analysed (failed, invalid or not graded). One glyph per sample; hover for the reason, click for the run.</p>\n<table class=\"matrix\">\n<thead><tr><th>Case</th><th>What it asks</th>");
         foreach (var arm in arms) sb.Append($"<th>{E(arm)}</th>");
         sb.Append("</tr></thead>\n<tbody>\n");
         foreach (var c in stats.Cases)
         {
-            sb.Append($"<tr><td class=\"id\">{E(c)}</td>");
+            sb.Append($"<tr><td class=\"id\">{E(c)}</td><td class=\"desc\">{E(CaseText(stats, c))}</td>");
             foreach (var arm in arms)
             {
                 sb.Append("<td class=\"glyphs\">");
@@ -115,12 +124,12 @@ static class Report
         sb.Append("</tbody>\n</table>\n</section>\n\n");
 
         // 5. Checks
-        sb.Append("<section>\n<h2>Checks</h2>\n<table>\n<thead><tr><th>Check</th><th>Role</th>");
+        sb.Append("<section>\n<h2>Checks</h2>\n<table>\n<thead><tr><th>Check</th><th>What it tests</th><th>Role</th>");
         foreach (var arm in arms) sb.Append($"<th class=\"num\">{E(arm)}</th>");
         sb.Append("</tr></thead>\n<tbody>\n");
         foreach (var check in CheckNames(stats))
         {
-            sb.Append($"<tr><td class=\"id\">{E(check)}</td><td>{Role(stats, check)}</td>");
+            sb.Append($"<tr><td class=\"id\">{E(check)}</td><td class=\"desc\">{E(CheckText(stats, check))}</td><td>{Role(stats, check)}</td>");
             foreach (var arm in arms)
                 sb.Append($"<td class=\"num\">{E(CheckText(stats.Arms[arm].Checks.GetValueOrDefault(check)))}</td>");
             sb.Append("</tr>\n");
@@ -161,7 +170,7 @@ static class Report
 
         // 9. Reproducibility
         sb.Append("<section>\n<h2>Reproducibility</h2>\n<dl>\n");
-        foreach (var (k, v) in ReproFacts(stats, exp))
+        foreach (var (k, v) in ReproFacts(stats, exp, judges))
             sb.Append($"<dt>{E(k)}</dt><dd class=\"id\">{E(v)}</dd>\n");
         sb.Append($"</dl>\n<p class=\"note\">{E(stats.Methods)}</p>\n</section>\n</main>\n</body>\n</html>\n");
         return sb.ToString();
@@ -177,6 +186,8 @@ static class Report
         h2 { font-size: 1.1rem; font-weight: 600; margin: 2.5rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--rule); }
         p { margin: .4rem 0; }
         .summary { max-width: 52rem; }
+        .about { font-size: 1.05rem; }
+        .desc { max-width: 28rem; }
         .warning { background: var(--band); border-left: 4px solid #d9a400; padding: .5rem .75rem; margin: 1rem 0; }
         .note, .legend { color: var(--muted); font-size: .9rem; }
         table { border-collapse: collapse; margin: .5rem 0; font-variant-numeric: tabular-nums; }
@@ -189,7 +200,7 @@ static class Report
         .glyphs a { text-decoration: none; letter-spacing: .2em; font-size: 1.25em; }
         .runs td { font-size: .9rem; }
         tr:target { background: var(--mark); }
-        ul.excluded { margin: .3rem 0 .3rem 1.2rem; padding: 0; }
+        ul.excluded, ul.fell { margin: .3rem 0 .6rem 1.2rem; padding: 0; max-width: 52rem; }
         dl { display: grid; grid-template-columns: max-content 1fr; gap: .2rem 1rem; }
         dt { color: var(--muted); }
         dd { margin: 0; overflow-wrap: anywhere; }
@@ -197,16 +208,19 @@ static class Report
 
     // ---- Markdown ----
 
-    public static string Markdown(StatsFile stats, List<ResultRow> rows, Experiment exp)
+    public static string Markdown(StatsFile stats, List<ResultRow> rows, Experiment exp, List<JudgeUse>? judges = null)
     {
         var arms = stats.Arms.Keys.ToList();
         var first = arms[0];
         var sb = new StringBuilder();
-        sb.Append($"# {stats.Eval} — {stats.Experiment}\n\n{SummarySentence(stats, exp)}\n\n{stats.Mde.Sentence}");
+        sb.Append($"# {stats.Eval} — {stats.Experiment}\n\n{(stats.Descriptions.Eval is { } about ? about + "\n\n" : "")}{SummarySentence(stats, exp)}\n\n{stats.Mde.Sentence}");
         if (stats.Comparisons.Count > 0) sb.Append(' ').Append(ComparisonSentence(stats));
         if (stats.Baseline is not null) sb.Append(' ').Append(BaselineSentence(stats));
         sb.Append("\n\n");
         if (UnequalLoss(stats) is { } warning) sb.Append($"> **Warning.** {warning}\n\n");
+        sb.Append("## Where it fell down\n\n");
+        foreach (var (arm, lead, items) in Failures(stats))
+            sb.Append($"`{arm}` {lead}\n\n").Append(string.Join("", items.Select(i => $"- {Md(i)}\n"))).Append(items.Count > 0 ? "\n" : "");
 
         sb.Append("## Headline\n\n");
         var head = new List<string> { "Arm", "Analysed / attempted", "Pass rate [95% CI] (cells)" };
@@ -239,12 +253,12 @@ static class Report
         sb.Append(excluded.Count == 0 ? "\nNo cells were excluded.\n" : "\nExcluded cells, in the accounting and out of the rates:\n\n" + string.Join("", excluded.Select(ex => $"- `{ex.Cell}` {ex.Status}: {ex.Reason}\n")));
 
         sb.Append($"\n## Case by arm\n\n{Pass} pass, {Fail} fail, {NotAnalysed} not analysed (failed, invalid or not graded); one glyph per sample. Reasons are in the runs table.\n\n");
-        sb.Append(Table(["Case", .. arms.Select(a => $"`{a}`")], stats.Cases.Select(c =>
-            (string[])[$"`{c}`", .. arms.Select(arm => string.Join(" ", rows.Where(r => r.Arm == arm && r.Case == c).OrderBy(r => r.Sample).Select(Glyph)))])));
+        sb.Append(Table(["Case", "What it asks", .. arms.Select(a => $"`{a}`")], stats.Cases.Select(c =>
+            (string[])[$"`{c}`", Md(CaseText(stats, c)), .. arms.Select(arm => string.Join(" ", rows.Where(r => r.Arm == arm && r.Case == c).OrderBy(r => r.Sample).Select(Glyph)))])));
 
         sb.Append("\n## Checks\n\n");
-        sb.Append(Table(["Check", "Role", .. arms.Select(a => $"`{a}`")], CheckNames(stats).Select(check =>
-            (string[])[$"`{check}`", Role(stats, check), .. arms.Select(arm => CheckText(stats.Arms[arm].Checks.GetValueOrDefault(check)))])));
+        sb.Append(Table(["Check", "What it tests", "Role", .. arms.Select(a => $"`{a}`")], CheckNames(stats).Select(check =>
+            (string[])[$"`{check}`", Md(CheckText(stats, check)), Role(stats, check), .. arms.Select(arm => CheckText(stats.Arms[arm].Checks.GetValueOrDefault(check)))])));
 
         sb.Append("\n## Exit reasons\n\n");
         sb.Append(Table(["Exit reason", .. arms.Select(a => $"`{a}`")], ExitReasons(stats).Select(reason =>
@@ -260,10 +274,10 @@ static class Report
 
         sb.Append("\n## Runs\n\nFailures first.\n\n");
         sb.Append(Table(["Arm", "Case", "Sample", "Status", "Exit", "Pass", "Duration", "Tokens", "Run", "Reason"], Ordered(rows).Select(r =>
-            new List<string> { $"`{r.Arm}`", $"`{r.Case}`", $"{r.Sample}", r.Status, r.ExitReason ?? "", Glyph(r), r.DurationMs is { } d ? Duration(d, unit) : "", r.Usage?.Total is { } t ? Tokens(t) : "", $"`{r.RunId}`", Reason(r).Replace("|", "\\|") })));
+            new List<string> { $"`{r.Arm}`", $"`{r.Case}`", $"{r.Sample}", r.Status, r.ExitReason ?? "", Glyph(r), r.DurationMs is { } d ? Duration(d, unit) : "", r.Usage?.Total is { } t ? Tokens(t) : "", $"`{r.RunId}`", Md(Reason(r)) })));
 
         sb.Append("\n## Reproducibility\n\n");
-        foreach (var (k, v) in ReproFacts(stats, exp)) sb.Append($"- {k}: `{v}`\n");
+        foreach (var (k, v) in ReproFacts(stats, exp, judges)) sb.Append($"- {k}: `{v}`\n");
         sb.Append($"\n{stats.Methods}\n");
         return sb.ToString();
     }
@@ -286,12 +300,31 @@ static class Report
         {
             var def = exp.EvalDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == id);
             var samples = def?["samples"]?.GetValue<int>() ?? 1;
-            return $"{id} ({def?["provider"]?.GetValue<string>() ?? "?"} / {def?["model"]?.GetValue<string>() ?? "?"} through {def?["harness"]?.GetValue<string>() ?? "?"}, {samples} sample{(samples == 1 ? "" : "s")} per case)";
+            var about = stats.Descriptions.Arms.TryGetValue(id, out var d) ? $"{d}: " : "";
+            return $"{id} ({about}{def?["provider"]?.GetValue<string>() ?? "?"} / {def?["model"]?.GetValue<string>() ?? "?"} through {def?["harness"]?.GetValue<string>() ?? "?"}, {samples} sample{(samples == 1 ? "" : "s")} per case)";
         }));
         var analysed = stats.Arms.Values.Sum(a => a.Analysed);
         var planned = stats.Arms.Values.Sum(a => a.Planned);
         return $"Eval {stats.Eval}, run {exp.Created[..10]} on {exp.Host}. {stats.Arms.Count} arm{(stats.Arms.Count == 1 ? "" : "s")}: {armText}. {stats.NCases} case{(stats.NCases == 1 ? "" : "s")}, {planned} cell{(planned == 1 ? "" : "s")} planned, {analysed} analysed.";
     }
+
+    /// <summary>Per arm, a lead sentence and one line per check that did not pass in an analysed cell: what it tests, how often it did not hold, and in which cases.</summary>
+    static IEnumerable<(string Arm, string Lead, List<string> Items)> Failures(StatsFile stats)
+    {
+        foreach (var (arm, a) in stats.Arms)
+        {
+            if (a.Analysed == 0) { yield return (arm, "no cell was analysed.", []); continue; }
+            if (a.Failures.Count == 0) { yield return (arm, $"every check held in all {a.Analysed} analysed cell{(a.Analysed == 1 ? "" : "s")}.", []); continue; }
+            var items = a.Failures.Select(f =>
+                $"{CheckText(stats, f.Check)} ({f.Check}, {Role(stats, f.Check)}) did not hold in {f.Cells} of {f.Of} cell{(f.Of == 1 ? "" : "s")}: "
+                + string.Join(", ", f.Cases.Select(c => c.Value == 1 ? c.Key : $"{c.Key} ×{c.Value}"))).ToList();
+            yield return (arm, $"fell short on {a.Failures.Count} check{(a.Failures.Count == 1 ? "" : "s")}:", items);
+        }
+    }
+
+    static string CheckText(StatsFile stats, string check) => stats.Descriptions.Checks.GetValueOrDefault(check, check);
+    static string CaseText(StatsFile stats, string c) => stats.Descriptions.Cases.GetValueOrDefault(c, c);
+    static string Md(string s) => s.Replace("|", "\\|");
 
     static string ComparisonSentence(StatsFile stats) =>
         string.Join(" ", stats.Comparisons.Select(c => $"{c.Arm} vs {c.Vs}: {DiffText(c)}, {VerdictWord(c)} (won {c.Won}, lost {c.Lost}, tied {c.Tied} of {c.NPairs})."));
@@ -358,10 +391,12 @@ static class Report
     static string GlyphClass(ResultRow r) => r.Analysed && r.Pass == true ? "pass" : "fail";
     static string GlyphTitle(ResultRow r) => $"sample {r.Sample}: {Outcome(r)}{(Detail(r).Length > 0 ? " — " + Detail(r) : "")} ({r.RunId})";
 
-    static IEnumerable<(string, string)> ReproFacts(StatsFile stats, Experiment exp)
+    static IEnumerable<(string, string)> ReproFacts(StatsFile stats, Experiment exp, List<JudgeUse>? judges)
     {
         yield return ("proctor", exp.Versions.GetValueOrDefault("proctor", "unknown"));
         yield return ("nb", $"{exp.Versions.GetValueOrDefault("nb", "unknown")} at {exp.Nb.Path}");
+        foreach (var j in judges ?? [])
+            yield return ($"judge {j.Judge}", $"{j.Kind}{(j.Model is null ? "" : " " + j.Model)} at {j.Endpoint}; graded {string.Join(", ", j.Checks)}");
         yield return ("eval hash", exp.EvalHash);
         foreach (var (arm, bundle) in exp.Bundles ?? []) yield return ($"bundle {arm}", $"{bundle.Source} {bundle.Hash}");
         yield return ("repository", exp.Repo is null ? "not a git repository" : $"{exp.Repo.Commit}{(exp.Repo.Dirty ? " (dirty)" : "")}");

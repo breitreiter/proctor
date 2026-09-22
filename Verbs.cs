@@ -7,6 +7,7 @@ static class Verbs
     public static int List(string root, string? evalId, List<string>? labelFilters = null)
     {
         var problems = new List<Problem>();
+        var config = Eval.LoadConfig(root, problems);
         var evalIds = evalId is not null ? [evalId] : Directory.Exists(Layout.Evals(root))
             ? Directory.GetDirectories(Layout.Evals(root)).Where(d => File.Exists(Path.Combine(d, Layout.EvalFile))).Select(d => Path.GetFileName(d)!).Order(StringComparer.Ordinal).ToArray()
             : [];
@@ -15,7 +16,7 @@ static class Verbs
         var exit = 0;
         foreach (var id in evalIds)
         {
-            var eval = Eval.Load(root, id, problems);
+            var eval = Eval.Load(root, id, problems, config.Judges ?? []);
             if (eval is null) { exit = 1; continue; }
             var labels = eval.AllLabels();
             if (labelFilters?.All(f => Labels.Matches(labels, f)) == false) continue;
@@ -34,7 +35,7 @@ static class Verbs
     {
         var problems = new List<Problem>();
         var config = Eval.LoadConfig(root, problems);
-        var eval = Eval.Load(root, evalId, problems);
+        var eval = Eval.Load(root, evalId, problems, config.Judges ?? []);
         if (eval is null || problems.Count > 0)
         {
             foreach (var p in problems) Console.Error.WriteLine(p);
@@ -50,10 +51,14 @@ static class Verbs
         Runner.Resume(root, experimentId, nbPath, runner, Console.Out);
         return 0;
     }
-    public static int Grade(string root, string experimentId)
+    public static int Grade(string root, string experimentId, List<string>? judgeRemaps = null, bool rejudge = false)
     {
         var (experiment, eval) = LoadExperiment(root, experimentId);
-        var grades = Proctor.Grade.Experiment(root, experiment, eval, Console.Out);
+        var problems = new List<Problem>();
+        var config = Eval.LoadConfig(root, problems);
+        if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
+        var judges = eval.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge) : null;
+        var grades = Proctor.Grade.Experiment(root, experiment, eval, Console.Out, judges);
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
         Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}");
@@ -118,8 +123,9 @@ static class Verbs
         var stats = Stats.Compute(experiment, eval, rows, guard);
         Runner.WriteJson(Path.Combine(outDir, Layout.StatsFile), stats);
         File.Copy(Path.Combine(Layout.Experiment(root, experimentId), Layout.ExperimentFile), Path.Combine(outDir, Layout.ExperimentFile), overwrite: true);
-        File.WriteAllText(Path.Combine(outDir, Layout.ReportHtmlFile), Proctor.Report.Html(stats, rows, experiment));
-        File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Proctor.Report.Markdown(stats, rows, experiment));
+        var judges = Judge.Uses(root, experiment, eval);
+        File.WriteAllText(Path.Combine(outDir, Layout.ReportHtmlFile), Proctor.Report.Html(stats, rows, experiment, judges));
+        File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Proctor.Report.Markdown(stats, rows, experiment, judges));
 
         Console.WriteLine($"{Path.GetRelativePath(root, outDir)}/: {Layout.ResultsFile} ({rows.Count} rows), {Layout.StatsFile}, {Layout.ReportHtmlFile}, {Layout.SummaryFile}");
         var ungraded = rows.Count(r => r.Status == CellStatus.Completed && r.Checks is null);

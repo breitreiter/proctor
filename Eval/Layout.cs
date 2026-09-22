@@ -31,6 +31,7 @@ static class Layout
     public const string StderrFile = "stderr.txt";
     public const string DiffFile = "diff.patch";
     public const string ChecksFile = "checks.json";
+    public const string VerdictsDir = "verdicts";
 
     public const string ResultsFile = "results.jsonl";
     public const string StatsFile = "stats.json";

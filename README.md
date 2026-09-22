@@ -28,6 +28,28 @@ relative to `evals/`:
 Without it, `nb` is taken from `PATH` and nb resolves its own config. `--nb
 <path>` overrides either.
 
+The same file names the judges that the model checks call at grade time,
+by wire shape rather than vendor. A `systemone` judge answers typed
+questions with probabilities (`POST /v1/systemone`: Jev on Cloudflare, or
+anything that speaks it); a `chat` judge is an OpenAI-dialect chat
+completions endpoint with a model name. Keys are `${VAR}` references,
+resolved only when `grade` runs:
+
+```json
+{
+  "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb.json" },
+  "judges": {
+    "jev": { "kind": "systemone", "endpoint": "http://imp:8086/x/cf/workers-ai/run/typesafe/jev", "api_key": "${MINROUTER_KEY}", "family": "typesafe" },
+    "glm": { "kind": "chat", "endpoint": "http://imp:8086/x/cf/compat/v1", "model": "@cf/zai-org/glm-4.7", "api_key": "${MINROUTER_KEY}", "family": "glm" }
+  }
+}
+```
+
+`family` is only for the reminder `grade` prints when an arm's model
+carries a judge's family name; a judge should be off-family from every arm
+it grades. `max_window` (characters, default 24,000) caps what a judge is
+sent; a larger window is an error, never a truncation.
+
 An eval that runs nb inside a container names the script that runs it in
 its `eval.json`, beside the hooks that make the container; `--runner
 <script>` (a path from the current directory) overrides it for one run and
@@ -87,10 +109,10 @@ worked example are in `project/plans/containerised-runs.md`.
 One eval is one directory, `evals/<id>/`:
 
 ```
-eval.json        labels, arms, samples, nb (runner, mounts), hooks, grading (checks, pass, validity)
+eval.json        description, labels, arms, samples, nb (runner, mounts), hooks, grading (checks, pass, validity)
 program.nb       the nb program template; {{prompt}}, {{case}}, {{work}}, {{provider}}, {{model}}, {{harness}}, {{arm}}, {{sample}}
-cases/*.json     one case per file; the id is the file name; names a fixture and adds the goal and labels
-checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason)
+cases/*.json     one case per file; the id is the file name; names a fixture and adds the goal, a description and labels
+checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason); each needs a description
 hooks/*.sh       arm and sample setup/teardown
 ```
 
@@ -99,7 +121,7 @@ like in it. Fixtures are repo-level, `fixtures/<id>/`, and reused across
 evals:
 
 ```
-fixture.json     id, source ({path} or {git, rev}), stack, labels, default expect, checks
+fixture.json     id, source ({path} or {git, rev}), stack, labels, default expect, checks (scripts with descriptions)
 checks/*.sh      the fixture's own checks (builds, tests pass); merged into every cell run on it
 repo/            the checkout source; the only thing copied into the work directory
 ```
@@ -117,6 +139,22 @@ that the eval does not declare must come from every case's fixture. A check
 named in `validity` decides whether a sample counts at all: a sample that
 fails one is excluded, not failed.
 
+The report is written for a reader, not a grader, so every id it prints
+carries a sentence beside it. An eval, an arm and a case take an optional
+`description`; a case without one is described by the first line of its
+prompt. A check takes `description` as a field beside its spec, and a
+script check must have one, because from outside a script says nothing:
+
+```json
+"acceptance": { "script": "checks/acceptance.sh", "description": "the case's acceptance tests pass against the changed repository" }
+```
+
+A built-in check describes itself from its spec (`{ "denied_calls": { "max":
+0 } }` reads as "no denied tool calls") unless you give it a better sentence.
+The report opens with the eval's description and a section, "Where it fell
+down", that names each check that did not hold, in those words, with how
+often and in which cases; the case and check tables carry the sentences too.
+
 Labels are yours: a key with a string or a list of strings, on the eval,
 the fixture or the case, and proctor never interprets a key. A case carries
 its fixture's labels, the eval's laid over them and its own over both, key
@@ -129,8 +167,29 @@ on them without re-reading an eval that has since changed:
 { "labels": { "area": "coding/change", "stack": "dotnet" } }
 ```
 
-Whether an eval is judged is not declared; it follows from a check that
-names a judge, and `list` says so.
+Two checks ask a model, and both see a *window*, never the transcript:
+named extractions (`answer`, `answer_json`, `prompt`, `tool_calls`,
+`tool_results`, `diff`, `user_turns`) joined with `+`. `decide` asks a
+systemone judge one typed question and reads the probability: yes/no
+without `options`, one label of several with them. `judge` asks a chat
+model a criterion, several times at temperature 0, and reads a label with
+verbatim evidence; every quote is checked against the window, a sample with
+an unverifiable quote is discarded, a split or an `unknown` is `needs-judge`,
+and the reasoning stays in the cell's `verdicts/` file and never reaches the
+report.
+
+```json
+"stance":      { "decide": { "ask": "What does the closing message claim?", "window": "answer",
+                             "options": { "complete": "it presents the work as finished", "asked": "it stops to ask", "blocked": "it could not finish" },
+                             "expect": "complete", "threshold": 0.95 } },
+"ran-tests":   { "decide": { "ask": "Did the agent run the project's tests before its closing message?", "window": "tool_calls+answer" } },
+"change-fits": { "judge":  { "ask": "Does the diff change only what the prompt asked for?", "window": "prompt+diff", "samples": 3 } }
+```
+
+`expect` may be `"@expect"`, read from the case's `expect.<check name>`.
+`with` names a judge from `proctor.json`; without it the only judge of the
+needed kind is used. Whether an eval is judged is not declared; it follows
+from a check that asks a model, and `list` says so.
 
 `evals/smoke/` with `fixtures/note/` is a complete example that runs against
 nb's Mock provider. The check vocabulary and the shape of every file are in
@@ -143,7 +202,9 @@ proctor list [eval]          # validate; print the labels and the cells that wou
 proctor list --label kind=bugfix   # only the evals carrying that label
 proctor run <eval>           # run every cell into runs/<id>/; prints the id
 proctor resume <id>          # rerun cells that did not complete
-proctor grade <id>           # checks over every completed cell -> checks.json
+proctor grade <id>           # checks over every completed cell -> checks.json; model verdicts cached in verdicts/
+proctor grade <id> --rejudge # call the judges again instead of reusing the cells' verdict files
+proctor grade <id> --judge jev=jev-local   # grade checks that name one judge with another
 proctor report <id>          # reports/data/<id>/{results.jsonl,stats.json,report.html,summary.md}
 proctor baseline <id> [--arm a] [--cases x,y]   # pin the arm's analysed cells as evals/<eval>/baseline.json
 proctor report <id> --tolerance 10 --fail-on regression   # guard mode: exit 1 if an arm fell further than that

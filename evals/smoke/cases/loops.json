@@ -1,5 +1,6 @@
 {
   "id": "loops",
+  "description": "The model repeats a bash command until nb nudges it out of the loop",
   "fixture": "note",
   "prompt": "MOCK:loop=bash echo x"
 }

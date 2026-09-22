@@ -34,8 +34,14 @@ record Exclusion(string Cell, string Status, string Reason);
 
 record ArmStats(
     int Planned, int Attempted, int Completed, int Graded, int Analysed, List<Exclusion> Excluded,
-    RateJson? Pass, Dictionary<string, RateJson> Checks, Dictionary<string, int> ExitReasons,
+    RateJson? Pass, Dictionary<string, RateJson> Checks, List<CheckFailure> Failures, Dictionary<string, int> ExitReasons,
     Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated);
+
+/// <summary>Where an arm fell down: a check that did not pass in some analysed cells, most often first, with the cases it happened in.</summary>
+record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Cases);
+
+/// <summary>What the ids mean, in the eval author's words (or derived from a built-in check), so the report can carry them.</summary>
+record Descriptions(string? Eval, Dictionary<string, string> Arms, Dictionary<string, string> Cases, Dictionary<string, string> Checks);
 
 /// <summary>What a rate looks like in stats.json: the rate and interval, with the case and cell counts behind it.</summary>
 record RateJson(double Rate, Interval Ci95, int N, int KCells, int NCells, int? Errors = null, int? NeedsJudge = null);
@@ -55,7 +61,7 @@ record StatsFile(
     string Experiment, string Eval, int NCases, bool Paired,
     Dictionary<string, ArmStats> Arms, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Cases, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
-    BaselineStats? Baseline = null);
+    Descriptions Descriptions, BaselineStats? Baseline = null);
 
 /// <summary>What the report knows about the baseline: the resolved per-case scores, where they came from, and the tolerance asked for.</summary>
 record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints);
@@ -113,7 +119,13 @@ static class Stats
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
             + (baseline is null ? "" : $" Against the baseline: the same paired difference; the verdict is the point estimate against a tolerance of {baseline.TolerancePoints} points, and the interval is shown so a small n cannot hide.");
 
-        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!, validity, baseline);
+        var descriptions = new Descriptions(
+            eval.Def.Description,
+            eval.Arms.Where(a => a.Description is not null).ToDictionary(a => a.Id!, a => a.Description!),
+            eval.Cases.ToDictionary(c => c.Id!, Eval.Describe),
+            eval.CheckDescriptions());
+
+        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!, validity, descriptions, baseline);
     }
 
     static ArmStats ArmStats(List<ResultRow> rows, List<string> cases, List<string> checks, List<string> validity)
@@ -138,6 +150,15 @@ static class Stats
             };
         }).Where(k => k.Value is not null).ToDictionary(k => k.Key, k => k.Value!);
 
+        // Where it fell down: over the analysed cells, every non-validity check that did not pass, most often first. A validity fail is an exclusion, listed there.
+        var failures = checks.Where(name => !validity.Contains(name))
+            .Select(name => (name, cells: analysed.Where(r => r.Checks!.TryGetValue(name, out var v) && v != Verdict.Pass).ToList()))
+            .Where(x => x.cells.Count > 0)
+            .OrderByDescending(x => x.cells.Count).ThenBy(x => checks.IndexOf(x.name))
+            .Select(x => new CheckFailure(x.name, x.cells.Count, analysed.Count(r => r.Checks!.ContainsKey(x.name)),
+                cases.Where(c => x.cells.Any(r => r.Case == c)).ToDictionary(c => c, c => x.cells.Count(r => r.Case == c))))
+            .ToList();
+
         var completed = rows.Where(r => r.Status == CellStatus.Completed).ToList();
         var exitReasons = completed.Where(r => r.ExitReason is not null).GroupBy(r => r.ExitReason!)
             .OrderByDescending(g => g.Count()).ThenBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count());
@@ -151,6 +172,7 @@ static class Stats
             Excluded: excluded,
             Pass: pass,
             Checks: checkRates,
+            Failures: failures,
             ExitReasons: exitReasons,
             DurationMs: Summarise(completed.Where(r => r.DurationMs is not null).Select(r => (double)r.DurationMs!)),
             TokensTotal: Summarise(completed.Where(r => r.Usage?.Total is not null).Select(r => (double)r.Usage!.Total!)),

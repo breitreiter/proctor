@@ -1,5 +1,6 @@
 {
   "id": "smoke",
+  "description": "Proctor's own shakedown: three scripted cases against nb's Mock provider, so the pipeline and the report can be tested without a model.",
   "arms": [
     { "id": "a", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 2 },
     { "id": "b", "runner": "nb", "harness": "nb", "provider": "MockB", "model": "mock", "samples": 2, "bundle": { "path": "bundles/smoke" } }
@@ -16,7 +17,7 @@
       "under_budget":  { "max_tool_calls": 3, "max_tokens": 100000 },
       "says-expected": { "answer_contains": "@expect" },
       "touches-note":  { "files_touched": { "paths": ["note.txt"], "mode": "at_least" } },
-      "answer-nonempty": { "script": "checks/answer-nonempty.sh" }
+      "answer-nonempty": { "script": "checks/answer-nonempty.sh", "description": "the last assistant message is not empty" }
     },
     "pass": ["exit_ok", "says-expected"]
   }

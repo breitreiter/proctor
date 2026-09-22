@@ -12,10 +12,12 @@ static class WorkedExperiment
         repo.CopyEval("smoke");
         repo.EditJson("smoke/eval.json", e =>
         {
+            e["description"] = "Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?";
+            e["arms"]![0]!["description"] = "the local floor";
             e["arms"]![0]!["id"] = "floor"; e["arms"]![0]!["samples"] = samples; e["arms"]![0]!["model"] = "qwen-coder"; e["arms"]![0]!["provider"] = "imp-qcoder";
             e["arms"]![1]!["id"] = "b"; e["arms"]![1]!["samples"] = samples; e["arms"]![1]!["model"] = "glm"; e["arms"]![1]!["provider"] = "imp-glm";
             if (!twoArms) e["arms"]!.AsArray().RemoveAt(1);
-            e["grading"]!["checks"] = JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}, \"builds\": {\"script\": \"checks/answer-nonempty.sh\"}, \"no_denials\": {\"denied_calls\": {\"max\": 0}}}");
+            e["grading"]!["checks"] = JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}, \"builds\": {\"script\": \"checks/answer-nonempty.sh\", \"description\": \"the repository builds after the change\"}, \"no_denials\": {\"denied_calls\": {\"max\": 0}}}");
             e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"builds\"]");
             e["grading"]!["validity"] = JsonNode.Parse("[\"no_denials\"]");
         });

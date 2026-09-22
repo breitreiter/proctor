@@ -1,10 +1,23 @@
 # smoke — 20260917-1432-smoke-k7px
 
-Eval smoke, run 2026-09-17 on imp. 2 arms: floor (imp-qcoder / qwen-coder through nb, 3 samples per case); b (imp-glm / glm through nb, 3 samples per case). 3 cases, 18 cells planned, 16 analysed.
+Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?
+
+Eval smoke, run 2026-09-17 on imp. 2 arms: floor (the local floor: imp-qcoder / qwen-coder through nb, 3 samples per case); b (imp-glm / glm through nb, 3 samples per case). 3 cases, 18 cells planned, 16 analysed.
 
 With 3 paired cases this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 cases. b vs floor: +33 pts [−31, +75], no detectable difference (won 2, lost 0, tied 1 of 3). floor vs baseline: −22 pts [−67, +39], regressed at a tolerance of 10 points. b vs baseline: +11 pts [−46, +63], improved at a tolerance of 10 points.
 
 > **Warning.** Arms lost runs unequally: floor analysed 7 of 9, b analysed 9 of 9. Rates are over the analysed cells; see Accounting for what was excluded and why.
+
+## Where it fell down
+
+`floor` fell short on 2 checks:
+
+- the repository builds after the change (builds, headline) did not hold in 3 of 7 cells: loops, uses-bash ×2
+- nb exits with 'ok' (exit_ok, headline) did not hold in 1 of 7 cells: loops
+
+`b` fell short on 1 check:
+
+- the repository builds after the change (builds, headline) did not hold in 1 of 9 cells: uses-bash
 
 ## Headline
 
@@ -44,19 +57,19 @@ Excluded cells, in the accounting and out of the rates:
 
 ● pass, ○ fail, × not analysed (failed, invalid or not graded); one glyph per sample. Reasons are in the runs table.
 
-| Case | `floor` | `b` |
-|---|---|---|
-| `loops` | ● ● ○ | ● ● ● |
-| `plain` | ● ● × | ● ● ● |
-| `uses-bash` | ○ × ○ | ● ○ ● |
+| Case | What it asks | `floor` | `b` |
+|---|---|---|---|
+| `loops` | The model repeats a bash command until nb nudges it out of the loop | ● ● ○ | ● ● ● |
+| `plain` | The model answers in one turn with no tools | ● ● × | ● ● ● |
+| `uses-bash` | The model runs one bash command and answers | ○ × ○ | ● ○ ● |
 
 ## Checks
 
-| Check | Role | `floor` | `b` |
-|---|---|---|---|
-| `exit_ok` | headline | 89% [35, 99] (6/7) | 100% [44, 100] (9/9) |
-| `builds` | headline | 56% [15, 90] (4/7) | 89% [35, 99] (8/9) |
-| `no_denials` | validity | 89% [35, 99] (7/8) | 100% [44, 100] (9/9) |
+| Check | What it tests | Role | `floor` | `b` |
+|---|---|---|---|---|
+| `exit_ok` | nb exits with 'ok' | headline | 89% [35, 99] (6/7) | 100% [44, 100] (9/9) |
+| `builds` | the repository builds after the change | headline | 56% [15, 90] (4/7) | 89% [35, 99] (8/9) |
+| `no_denials` | no denied tool calls | validity | 89% [35, 99] (7/8) | 100% [44, 100] (9/9) |
 
 ## Exit reasons
 

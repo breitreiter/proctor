@@ -8,10 +8,12 @@ static class Grade
 {
     public record CellGrade(string Arm, string Case, int Sample, string Status, Dictionary<string, Verdict>? Checks, bool? Pass, string? Invalid);
 
-    public static List<CellGrade> Experiment(string root, Experiment experiment, Eval eval, TextWriter log)
+    public static List<CellGrade> Experiment(string root, Experiment experiment, Eval eval, TextWriter log, JudgeClient? judges = null)
     {
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var grades = new List<CellGrade>();
+        if (judges is not null)
+            foreach (var note in Judge.SameFamilyNotes(eval, judges)) log.WriteLine($"  note: {note}");
         foreach (var (arm, c, sample) in Runner.Cells(eval))
         {
             var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
@@ -21,7 +23,7 @@ static class Grade
                 grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, null, null, null));
                 continue;
             }
-            var cell = Runner.Context(root, experiment, eval, arm, c, sample);
+            var cell = Runner.Context(root, experiment, eval, arm, c, sample) with { Judges = judges };
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree.
             if (cell.Fixture is not null && eval.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(cell.Fixture, cell.WorkDir, cellDir) is { } error)
                 log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  could not restore the checkout: {error}");
@@ -37,7 +39,7 @@ static class Grade
     /// <summary>Grade one cell and write its checks.json. Returns the verdict map.</summary>
     public static Dictionary<string, Verdict> Cell(CellContext cell, Eval eval, Transcript transcript)
     {
-        var verdicts = eval.ChecksFor(cell.Case).ToDictionary(k => k.Key, k => Checks.Evaluate(k.Value, cell, transcript));
+        var verdicts = eval.ChecksFor(cell.Case).ToDictionary(k => k.Key, k => Checks.Evaluate(k.Value, cell, transcript, k.Key));
         Runner.WriteJson(Path.Combine(cell.CellDir, Layout.ChecksFile), verdicts);
         return verdicts;
     }

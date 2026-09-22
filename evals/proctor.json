@@ -1,6 +1,23 @@
 {
+  "//": "nb: the host binary and its config. judges: the endpoints the model checks call at grade time, by wire shape, keys as ${VAR}; export MINROUTER_KEY before `proctor grade`.",
+  "//2": "glm's model id on Cloudflare's compat path is unconfirmed; check minrouter's catalogue before a judge check names it.",
   "nb": {
     "path": "../../nb/bin/Debug/net10.0/nb",
     "config": "nb.json"
+  },
+  "judges": {
+    "jev": {
+      "kind": "systemone",
+      "endpoint": "http://imp:8086/x/cf/workers-ai/run/typesafe/jev",
+      "api_key": "${MINROUTER_KEY}",
+      "family": "typesafe"
+    },
+    "glm": {
+      "kind": "chat",
+      "endpoint": "http://imp:8086/x/cf/compat/v1",
+      "model": "@cf/zai-org/glm-4.7",
+      "api_key": "${MINROUTER_KEY}",
+      "family": "glm"
+    }
   }
 }

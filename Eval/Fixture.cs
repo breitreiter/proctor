@@ -10,7 +10,7 @@ namespace Proctor;
 
 record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclude);
 
-record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null);
+record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null, string? Description = null);
 
 /// <summary>One fixture directory, loaded. Construct through <see cref="Load"/>.</summary>
 sealed record Fixture
@@ -68,9 +68,7 @@ sealed record Fixture
         {
             var f = $"checks.{name}";
             if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9_-]*$")) Add(f, "check names are lowercase letters, digits, hyphens and underscores");
-            if (spec is null or { Count: 0 }) { Add(f, "a check is an object with at least one field"); continue; }
-            foreach (var (key, value) in spec)
-                if (Proctor.Checks.ValidateSpec(key, value, dir) is { } problem) Add($"{f}.{key}", problem);
+            foreach (var (field, problem) in Proctor.Checks.ValidateCheck(spec, dir)) Add(field.Length == 0 ? f : $"{f}.{field}", problem);
         }
         if (problems.Count > before) return null;
 

@@ -14,6 +14,8 @@ h1 .id { font-weight: 400; color: var(--muted); }
 h2 { font-size: 1.1rem; font-weight: 600; margin: 2.5rem 0 .6rem; padding-top: .6rem; border-top: 1px solid var(--rule); }
 p { margin: .4rem 0; }
 .summary { max-width: 52rem; }
+.about { font-size: 1.05rem; }
+.desc { max-width: 28rem; }
 .warning { background: var(--band); border-left: 4px solid #d9a400; padding: .5rem .75rem; margin: 1rem 0; }
 .note, .legend { color: var(--muted); font-size: .9rem; }
 table { border-collapse: collapse; margin: .5rem 0; font-variant-numeric: tabular-nums; }
@@ -26,7 +28,7 @@ th { font-weight: 600; font-size: .85rem; color: var(--muted); }
 .glyphs a { text-decoration: none; letter-spacing: .2em; font-size: 1.25em; }
 .runs td { font-size: .9rem; }
 tr:target { background: var(--mark); }
-ul.excluded { margin: .3rem 0 .3rem 1.2rem; padding: 0; }
+ul.excluded, ul.fell { margin: .3rem 0 .6rem 1.2rem; padding: 0; max-width: 52rem; }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: .2rem 1rem; }
 dt { color: var(--muted); }
 dd { margin: 0; overflow-wrap: anywhere; }
@@ -36,10 +38,24 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <main>
 <header>
 <h1>smoke <span class="id">20260917-1432-smoke-k7px</span></h1>
-<p class="summary">Eval smoke, run 2026-09-17 on imp. 2 arms: floor (imp-qcoder / qwen-coder through nb, 3 samples per case); b (imp-glm / glm through nb, 3 samples per case). 3 cases, 18 cells planned, 16 analysed.</p>
+<p class="summary about">Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?</p>
+<p class="summary">Eval smoke, run 2026-09-17 on imp. 2 arms: floor (the local floor: imp-qcoder / qwen-coder through nb, 3 samples per case); b (imp-glm / glm through nb, 3 samples per case). 3 cases, 18 cells planned, 16 analysed.</p>
 <p class="summary">With 3 paired cases this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 cases. b vs floor: +33 pts [−31, +75], no detectable difference (won 2, lost 0, tied 1 of 3). floor vs baseline: −22 pts [−67, +39], regressed at a tolerance of 10 points. b vs baseline: +11 pts [−46, +63], improved at a tolerance of 10 points.</p>
 </header>
 <p class="warning">Arms lost runs unequally: floor analysed 7 of 9, b analysed 9 of 9. Rates are over the analysed cells; see Accounting for what was excluded and why.</p>
+<section>
+<h2>Where it fell down</h2>
+<p><span class="id">floor</span> fell short on 2 checks:</p>
+<ul class="fell">
+<li>the repository builds after the change (builds, headline) did not hold in 3 of 7 cells: loops, uses-bash &#215;2</li>
+<li>nb exits with &#39;ok&#39; (exit_ok, headline) did not hold in 1 of 7 cells: loops</li>
+</ul>
+<p><span class="id">b</span> fell short on 1 check:</p>
+<ul class="fell">
+<li>the repository builds after the change (builds, headline) did not hold in 1 of 9 cells: uses-bash</li>
+</ul>
+</section>
+
 <section>
 <h2>Headline</h2>
 <table>
@@ -91,11 +107,11 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <h2>Case by arm</h2>
 <p class="legend"><span class="pass">●</span> pass &nbsp; <span class="fail">○</span> fail &nbsp; <span class="fail">×</span> not analysed (failed, invalid or not graded). One glyph per sample; hover for the reason, click for the run.</p>
 <table class="matrix">
-<thead><tr><th>Case</th><th>floor</th><th>b</th></tr></thead>
+<thead><tr><th>Case</th><th>What it asks</th><th>floor</th><th>b</th></tr></thead>
 <tbody>
-<tr><td class="id">loops</td><td class="glyphs"><a href="#run-fl10000000000000" class="pass" title="sample 1: pass (fl10000000000000)">●</a><a href="#run-fl20000000000000" class="pass" title="sample 2: pass (fl20000000000000)">●</a><a href="#run-fl30000000000000" class="fail" title="sample 3: fail — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></td><td class="glyphs"><a href="#run-bl10000000000000" class="pass" title="sample 1: pass (bl10000000000000)">●</a><a href="#run-bl20000000000000" class="pass" title="sample 2: pass (bl20000000000000)">●</a><a href="#run-bl30000000000000" class="pass" title="sample 3: pass (bl30000000000000)">●</a></td></tr>
-<tr><td class="id">plain</td><td class="glyphs"><a href="#run-fp10000000000000" class="pass" title="sample 1: pass (fp10000000000000)">●</a><a href="#run-fp20000000000000" class="pass" title="sample 2: pass (fp20000000000000)">●</a><a href="#run-fp30000000000000" class="fail" title="sample 3: invalid — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></td><td class="glyphs"><a href="#run-bp10000000000000" class="pass" title="sample 1: pass (bp10000000000000)">●</a><a href="#run-bp20000000000000" class="pass" title="sample 2: pass (bp20000000000000)">●</a><a href="#run-bp30000000000000" class="pass" title="sample 3: pass (bp30000000000000)">●</a></td></tr>
-<tr><td class="id">uses-bash</td><td class="glyphs"><a href="#run-fu10000000000000" class="fail" title="sample 1: fail — builds: 2 of 41 tests failed (fu10000000000000)">○</a><a href="#run-fu20000000000000" class="fail" title="sample 2: failed — sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed (fu20000000000000)">×</a><a href="#run-fu30000000000000" class="fail" title="sample 3: fail — builds: 2 of 41 tests failed (fu30000000000000)">○</a></td><td class="glyphs"><a href="#run-bu10000000000000" class="pass" title="sample 1: pass (bu10000000000000)">●</a><a href="#run-bu20000000000000" class="fail" title="sample 2: fail — builds: 2 of 41 tests failed (bu20000000000000)">○</a><a href="#run-bu30000000000000" class="pass" title="sample 3: pass (bu30000000000000)">●</a></td></tr>
+<tr><td class="id">loops</td><td class="desc">The model repeats a bash command until nb nudges it out of the loop</td><td class="glyphs"><a href="#run-fl10000000000000" class="pass" title="sample 1: pass (fl10000000000000)">●</a><a href="#run-fl20000000000000" class="pass" title="sample 2: pass (fl20000000000000)">●</a><a href="#run-fl30000000000000" class="fail" title="sample 3: fail — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></td><td class="glyphs"><a href="#run-bl10000000000000" class="pass" title="sample 1: pass (bl10000000000000)">●</a><a href="#run-bl20000000000000" class="pass" title="sample 2: pass (bl20000000000000)">●</a><a href="#run-bl30000000000000" class="pass" title="sample 3: pass (bl30000000000000)">●</a></td></tr>
+<tr><td class="id">plain</td><td class="desc">The model answers in one turn with no tools</td><td class="glyphs"><a href="#run-fp10000000000000" class="pass" title="sample 1: pass (fp10000000000000)">●</a><a href="#run-fp20000000000000" class="pass" title="sample 2: pass (fp20000000000000)">●</a><a href="#run-fp30000000000000" class="fail" title="sample 3: invalid — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></td><td class="glyphs"><a href="#run-bp10000000000000" class="pass" title="sample 1: pass (bp10000000000000)">●</a><a href="#run-bp20000000000000" class="pass" title="sample 2: pass (bp20000000000000)">●</a><a href="#run-bp30000000000000" class="pass" title="sample 3: pass (bp30000000000000)">●</a></td></tr>
+<tr><td class="id">uses-bash</td><td class="desc">The model runs one bash command and answers</td><td class="glyphs"><a href="#run-fu10000000000000" class="fail" title="sample 1: fail — builds: 2 of 41 tests failed (fu10000000000000)">○</a><a href="#run-fu20000000000000" class="fail" title="sample 2: failed — sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed (fu20000000000000)">×</a><a href="#run-fu30000000000000" class="fail" title="sample 3: fail — builds: 2 of 41 tests failed (fu30000000000000)">○</a></td><td class="glyphs"><a href="#run-bu10000000000000" class="pass" title="sample 1: pass (bu10000000000000)">●</a><a href="#run-bu20000000000000" class="fail" title="sample 2: fail — builds: 2 of 41 tests failed (bu20000000000000)">○</a><a href="#run-bu30000000000000" class="pass" title="sample 3: pass (bu30000000000000)">●</a></td></tr>
 </tbody>
 </table>
 </section>
@@ -103,11 +119,11 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <section>
 <h2>Checks</h2>
 <table>
-<thead><tr><th>Check</th><th>Role</th><th class="num">floor</th><th class="num">b</th></tr></thead>
+<thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th class="num">floor</th><th class="num">b</th></tr></thead>
 <tbody>
-<tr><td class="id">exit_ok</td><td>headline</td><td class="num">89% [35, 99] (6/7)</td><td class="num">100% [44, 100] (9/9)</td></tr>
-<tr><td class="id">builds</td><td>headline</td><td class="num">56% [15, 90] (4/7)</td><td class="num">89% [35, 99] (8/9)</td></tr>
-<tr><td class="id">no_denials</td><td>validity</td><td class="num">89% [35, 99] (7/8)</td><td class="num">100% [44, 100] (9/9)</td></tr>
+<tr><td class="id">exit_ok</td><td class="desc">nb exits with &#39;ok&#39;</td><td>headline</td><td class="num">89% [35, 99] (6/7)</td><td class="num">100% [44, 100] (9/9)</td></tr>
+<tr><td class="id">builds</td><td class="desc">the repository builds after the change</td><td>headline</td><td class="num">56% [15, 90] (4/7)</td><td class="num">89% [35, 99] (8/9)</td></tr>
+<tr><td class="id">no_denials</td><td class="desc">no denied tool calls</td><td>validity</td><td class="num">89% [35, 99] (7/8)</td><td class="num">100% [44, 100] (9/9)</td></tr>
 </tbody>
 </table>
 </section>

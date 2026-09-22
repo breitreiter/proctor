@@ -22,6 +22,31 @@ public class EvalTests
     }
 
     [Fact]
+    public void CheckDescriptions_AreDeclaredForScripts_AndDerivedForBuiltIns()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        var described = repo.LoadEval("smoke").CheckDescriptions();
+        Assert.Equal("the last assistant message is not empty", described["answer-nonempty"]);
+        Assert.Equal("nb exits with 'ok'", described["exit_ok"]);
+        Assert.Equal("no denied tool calls", described["no_denials"]);
+        Assert.Equal("at most 3 tool calls and at most 100,000 tokens", described["under_budget"]);
+        Assert.Equal("answer contains is what the case expects", described["says-expected"]);
+        Assert.Equal("changes touch all of note.txt", described["touches-note"]);
+    }
+
+    [Fact]
+    public void FixtureScriptCheck_NeedsADescription()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        repo.EditJson("../fixtures/note/fixture.json", f => f["checks"] = JsonNode.Parse("{\"fixture-ok\": {\"script\": \"checks/ok.sh\"}}"));
+        Directory.CreateDirectory(Path.Combine(repo.Root, "fixtures", "note", "checks"));
+        File.WriteAllText(Path.Combine(repo.Root, "fixtures", "note", "checks", "ok.sh"), "#!/bin/sh\nexit 0\n");
+        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("fixture.json") && p.Field == "checks.fixture-ok.description");
+    }
+
+    [Fact]
     public void Hash_ChangesWhenACaseChanges()
     {
         using var repo = new TestRepo();
@@ -50,7 +75,11 @@ public class EvalTests
     [InlineData("grading", "{\"checks\": {\"x\": {\"oracle_hit\": [\"k\"]}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.oracle_hit")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"files_touched\": {\"paths\": []}}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.files_touched")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"script\": \"checks/nope.sh\"}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.script")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"not_script\": \"checks/answer-nonempty.sh\"}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.not_script")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"not_script\": \"checks/answer-nonempty.sh\", \"description\": \"d\"}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.not_script")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"script\": \"checks/answer-nonempty.sh\"}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.description")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\", \"description\": \" \"}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.description")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"description\": \"only words\"}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x")]
+    [InlineData("description", "\"\"", "smoke/eval.json", "description")]
     public void EvalJson_ProblemsNameFileAndField(string field, string json, string file, string expectedField)
     {
         using var repo = new TestRepo();
@@ -165,7 +194,7 @@ public class EvalTests
         // A fixture check joins the case's set, resolved against the fixture directory.
         Directory.CreateDirectory(Path.Combine(repo.Root, "fixtures/note/checks"));
         File.WriteAllText(Path.Combine(repo.Root, "fixtures/note/checks/ok.sh"), "#!/usr/bin/env bash\necho fine\n");
-        repo.EditJson("../fixtures/note/fixture.json", f => f["checks"] = System.Text.Json.Nodes.JsonNode.Parse("{\"fixture-ok\": {\"script\": \"checks/ok.sh\"}}"));
+        repo.EditJson("../fixtures/note/fixture.json", f => f["checks"] = System.Text.Json.Nodes.JsonNode.Parse("{\"fixture-ok\": {\"script\": \"checks/ok.sh\", \"description\": \"ok\"}}"));
         var before = eval.Hash;
         eval = repo.LoadEval("smoke");
         Assert.NotEqual(before, eval.Hash);

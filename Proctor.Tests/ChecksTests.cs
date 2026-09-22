@@ -89,6 +89,27 @@ public class ChecksTests
     public void FilesTouched_WithoutADiffIsAnError() =>
         Assert.Equal("error", Eval("{\"files_touched\": {\"paths\": [\"x\"], \"mode\": \"at_least\"}}", Fixture("plain")).Result);
 
+    [Theory]
+    [InlineData("{\"max_duration_ms\": 1800000}", "finishes within 30 min")]
+    [InlineData("{\"max_duration_ms\": 1500}", "finishes within 1500 ms")]
+    [InlineData("{\"not_exit_reason\": \"ok\"}", "not: nb exits with 'ok'")]
+    [InlineData("{\"files_touched\": \"@expect\"}", "the files changed are the ones the case expects")]
+    [InlineData("{\"files_touched\": {\"paths\": [\"src/**\", \"README.md\"], \"mode\": \"at_most\"}}", "changes stay within src/**, README.md")]
+    [InlineData("{\"tool_sequence\": {\"names\": [\"read\", \"bash\"], \"mode\": \"exact\"}}", "calls read, bash and nothing else")]
+    [InlineData("{\"answer_words\": {\"min\": 10, \"max\": 50}}", "the answer is 10 to 50 words")]
+    [InlineData("{\"loop_nudged\": false, \"tool_errors\": {\"max\": 2}}", "the loop nudge does not fire and at most 2 tool errors")]
+    [InlineData("{\"exit_reason\": \"ok\", \"description\": \"nb finished cleanly\"}", "nb finished cleanly")]
+    public void Describe_IsTheDeclaredSentence_OrDerivedFromTheSpec(string spec, string expected) =>
+        Assert.Equal(expected, Checks.Describe(JsonNode.Parse(spec)!.AsObject()));
+
+    [Fact]
+    public void Description_IsNotEvaluated()
+    {
+        var v = Eval("{\"exit_reason\": \"ok\", \"description\": \"nb finished cleanly\"}", Fixture("plain"));
+        Assert.Equal("pass", v.Result);
+        Assert.Equal("exit_reason=ok", v.Reason);
+    }
+
     [Fact]
     public void Negation_FlipsPassAndFail_ButNotError()
     {

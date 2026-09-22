@@ -3,7 +3,7 @@
   "source": { "path": "repo", "exclude": ["bin", "obj"] },
   "stack": "dotnet",
   "checks": {
-    "builds":     { "script": "checks/builds.sh" },
-    "tests-pass": { "script": "checks/tests-pass.sh" }
+    "builds":     { "script": "checks/builds.sh", "description": "the repository builds" },
+    "tests-pass": { "script": "checks/tests-pass.sh", "description": "the repository's own tests pass" }
   }
 }

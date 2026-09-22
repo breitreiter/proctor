@@ -1,5 +1,6 @@
 {
   "id": "plain",
+  "description": "The model answers in one turn with no tools",
   "fixture": "note",
   "prompt": "MOCK:response=hello world",
   "expect": {

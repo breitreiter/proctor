@@ -8,7 +8,7 @@ static class Program
           list [eval]         validate and print the cells that would run
           run <eval>          run every cell of an eval into a new experiment
           resume <experiment> run the cells of an experiment that have not completed
-          grade <experiment>  run the checks over every completed cell
+          grade <experiment>  run the checks over every completed cell; a model check's verdict is kept in the cell
           report <experiment> write results.jsonl, stats.json, report.html and summary.md
           baseline <experiment> pin an arm's analysed cells as the eval's baseline, per case
 
@@ -18,6 +18,8 @@ static class Program
         --runner <script>     the script that runs nb per cell (default: the eval's nb.runner); none runs nb bare
         --arm <id>            baseline: which arm to pin (required with several arms)
         --cases <a,b>         baseline: only these cases; the rest keep their pins
+        --judge <a=b>         grade: grade checks that name judge a with judge b instead (repeatable)
+        --rejudge             grade: call the judges again instead of reusing the cells' verdict files
         --tolerance <points>  report: how far below the baseline still counts as held (default 0)
         --fail-on regression  report: exit 1 when any arm regressed against the baseline
         """;
@@ -26,8 +28,9 @@ static class Program
     {
         var root = Directory.GetCurrentDirectory();
         string? nbPath = null, runner = null, arm = null, failOn = null;
-        List<string>? cases = null, labels = null;
+        List<string>? cases = null, labels = null, judges = null;
         var tolerance = 0;
+        var rejudge = false;
         var positional = new List<string>();
         for (var i = 0; i < args.Length; i++)
         {
@@ -38,6 +41,8 @@ static class Program
                 case "--runner" when i + 1 < args.Length: runner = args[++i]; break;
                 case "--arm" when i + 1 < args.Length: arm = args[++i]; break;
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
+                case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
+                case "--rejudge": rejudge = true; break;
                 case "--cases" when i + 1 < args.Length: cases = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
                 case "--tolerance" when i + 1 < args.Length && int.TryParse(args[i + 1], out var t) && t >= 0: tolerance = t; i++; break;
                 case "--fail-on" when i + 1 < args.Length && args[i + 1] == "regression": failOn = args[++i]; break;
@@ -55,7 +60,7 @@ static class Program
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels),
                 ("run", [var eval]) => Verbs.Run(root, eval, nbPath, runner),
                 ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner),
-                ("grade", [var id]) => Verbs.Grade(root, id),
+                ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, arm, cases),
                 _ => Fail(Usage),

@@ -27,6 +27,8 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
     public string? NbConfig { get; init; }
     /// <summary>Where the runner shows nb the checkout and the bundle; null when it shows them at the host paths.</summary>
     public NbMounts? Mounts { get; init; }
+    /// <summary>The judges a decide or judge check calls; set by grade, absent while running.</summary>
+    public JudgeClient? Judges { get; init; }
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
     public string WorkMount => Mounts?.Work ?? WorkDir;
@@ -64,12 +66,15 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
 static class Checks
 {
     public const string FromExpect = "@expect";
+    /// <summary>The one key in a check spec that is not a check: what the check tests, for the report's reader.</summary>
+    public const string Description = "description";
 
     static readonly string[] Known =
     [
         "exit_reason", "answer_contains", "answer_regex", "answer_equals", "answer_words",
         "tools_used", "tools_used_any", "tool_args", "tool_sequence", "denied_calls", "tool_errors",
         "loop_nudged", "files_touched", "max_tool_calls", "max_tokens", "max_duration_ms", "script",
+        Judge.Decide, Judge.JudgeCheck,
     ];
 
     static readonly Dictionary<string, string> NotYet = new()
@@ -79,7 +84,89 @@ static class Checks
         ["oracle_misses"] = "oracle checks wait for an eval that uses an oracle",
         ["oracle_turns"] = "oracle checks wait for an eval that uses an oracle",
         ["max_cost"] = "cost is omitted until nb's trailer carries it",
-        ["judge"] = "the judge waits for a case whose pass the checks cannot decide",
+    };
+
+    /// <summary>A check that calls a model: decide or judge, negated or not.</summary>
+    public static bool AsksAModel(JsonObject spec) => spec.Any(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck);
+
+    /// <summary>The model checks of a spec, for validating their judges against proctor.json.</summary>
+    public static IEnumerable<(string Name, JsonObject Spec)> ModelChecks(JsonObject spec) =>
+        spec.Where(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck && f.Value is JsonObject).Select(f => (Split(f.Key).Name, (JsonObject)f.Value!));
+
+    /// <summary>
+    /// Validate a whole check at load time: every field's shape, and that a script check says what it tests. A built-in
+    /// check describes itself (<see cref="Describe"/>); a script is a black box from outside, so its author must.
+    /// Yields (field, problem); an empty field is the check itself.
+    /// </summary>
+    public static IEnumerable<(string Field, string Problem)> ValidateCheck(JsonObject? spec, string evalDir)
+    {
+        var fields = spec?.Where(f => f.Key != Description).ToList() ?? [];
+        if (fields.Count == 0) { yield return ("", "a check is an object with at least one check field"); yield break; }
+        var description = spec![Description];
+        if (description is not null && (description is not JsonValue dv || !dv.TryGetValue<string>(out var text) || string.IsNullOrWhiteSpace(text)))
+            yield return (Description, "a description is a sentence, not an empty string");
+        if (description is null && spec.ContainsKey("script"))
+            yield return (Description, "required for a script check: say in a sentence what the script tests, for the report's reader");
+        foreach (var (key, value) in fields)
+            if (ValidateSpec(key, value, evalDir) is { } problem) yield return (key, problem);
+    }
+
+    /// <summary>What a check tests, for a reader: its description, else a sentence derived from its built-in fields.</summary>
+    public static string Describe(JsonObject spec)
+    {
+        if (spec[Description] is JsonValue d && d.TryGetValue<string>(out var text)) return text;
+        return string.Join(" and ", spec.Where(f => f.Key != Description).Select(f => DescribeField(f.Key, f.Value)));
+    }
+
+    private static string DescribeField(string key, JsonNode? v)
+    {
+        var (name, negated) = Split(key);
+        var fromCase = v is JsonValue jv && jv.TryGetValue<string>(out var s) && s == FromExpect;
+        string List(JsonNode? n) => string.Join(", ", n!.AsArray().Select(x => x!.GetValue<string>()));
+        string Max(string what) => v!["max"]!.GetValue<long>() == 0 ? $"no {what}" : $"at most {v["max"]} {what}";
+        var phrase = name switch
+        {
+            _ when fromCase && name == "files_touched" => "the files changed are the ones the case expects",
+            _ when fromCase => $"{name.Replace('_', ' ')} is what the case expects",
+            "exit_reason" => $"nb exits with '{v}'",
+            "max_tool_calls" => $"at most {v} tool calls",
+            "max_tokens" => $"at most {v!.GetValue<long>():N0} tokens",
+            "max_duration_ms" => $"finishes within {DescribeMs(v!.GetValue<long>())}",
+            "denied_calls" => Max("denied tool calls"),
+            "tool_errors" => Max("tool errors"),
+            "loop_nudged" => v!.GetValue<bool>() ? "the loop nudge fires" : "the loop nudge does not fire",
+            "answer_contains" => $"the answer contains '{v}'",
+            "answer_equals" => $"the answer is exactly '{v}'",
+            "answer_regex" => $"the answer matches /{v}/",
+            "answer_words" => (v!["min"], v["max"]) switch
+            {
+                ({ } min, { } max) => $"the answer is {min} to {max} words",
+                ({ } min, null) => $"the answer is at least {min} words",
+                (_, var max) => $"the answer is at most {max} words",
+            },
+            "tools_used" => $"uses {List(v)}",
+            "tools_used_any" => $"uses at least one of {List(v)}",
+            "tool_args" => $"calls {v!["name"]} with the expected arguments",
+            "tool_sequence" => $"calls {List(v!["names"])} {(v["mode"]?.GetValue<string>() == "exact" ? "and nothing else" : "in that order")}",
+            "files_touched" => v!["mode"]!.GetValue<string>() switch
+            {
+                "at_least" => $"changes touch all of {List(v["paths"])}",
+                "at_most" => $"changes stay within {List(v["paths"])}",
+                _ => $"changes touch exactly {List(v["paths"])}",
+            },
+            "script" => $"passes {v}",
+            Judge.Decide or Judge.JudgeCheck => Judge.Describe(name, v),
+            _ => name,
+        };
+        return negated ? $"not: {phrase}" : phrase;
+    }
+
+    private static string DescribeMs(long ms) => ms switch
+    {
+        >= 3_600_000 when ms % 3_600_000 == 0 => $"{ms / 3_600_000} h",
+        >= 60_000 when ms % 60_000 == 0 => $"{ms / 60_000} min",
+        >= 1_000 when ms % 1_000 == 0 => $"{ms / 1_000} s",
+        _ => $"{ms} ms",
     };
 
     /// <summary>Shape-check one field of a check spec at load time. Null when fine.</summary>
@@ -89,6 +176,7 @@ static class Checks
         if (NotYet.TryGetValue(name, out var why)) return $"not yet: {why}";
         if (!Known.Contains(name)) return $"unknown check; known: {string.Join(", ", Known)}";
         if (negated && name == "script") return "a script cannot be negated; make the script return the verdict you mean";
+        if (name is Judge.Decide or Judge.JudgeCheck) return negated ? "a model check cannot be negated; say what you expect with expect" : Judge.ValidateSpec(name, value);
         if (value is JsonValue v && v.TryGetValue<string>(out var s) && s == FromExpect)
             return name == "script" ? "a script path cannot come from the case" : null;
         return name switch
@@ -114,21 +202,22 @@ static class Checks
         static bool IsRegex(string p) { try { _ = new Regex(p); return true; } catch (ArgumentException) { return false; } }
     }
 
-    /// <summary>Evaluate a declared check over one cell. A spec with several fields is their conjunction.</summary>
-    public static Verdict Evaluate(CheckDef check, CellContext cell, Transcript t)
+    /// <summary>Evaluate a declared check over one cell. A spec with several fields is their conjunction. The name is what a model check's verdict file and @expect are keyed by.</summary>
+    public static Verdict Evaluate(CheckDef check, CellContext cell, Transcript t, string name = "check")
     {
-        var verdicts = check.Spec.Select(field => EvaluateField(field.Key, field.Value, check.Dir, cell, t)).ToList();
+        var verdicts = check.Spec.Where(f => f.Key != Description).Select(field => EvaluateField(field.Key, field.Value, check.Dir, name, cell, t)).ToList();
         if (verdicts.Count == 1) return verdicts[0];
         var worst = verdicts.MaxBy(v => v.Result switch { Verdict.Error => 3, Verdict.NeedsJudge => 2, Verdict.Fail => 1, _ => 0 })!;
         return worst with { Reason = string.Join("; ", verdicts.Select(v => v.Reason)) };
     }
 
     /// <summary>An eval's check: its script path is relative to the eval directory.</summary>
-    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t) => Evaluate(new CheckDef(spec, cell.EvalDir), cell, t);
+    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, cell.EvalDir), cell, t, name);
 
-    private static Verdict EvaluateField(string key, JsonNode? value, string scriptDir, CellContext cell, Transcript t)
+    private static Verdict EvaluateField(string key, JsonNode? value, string scriptDir, string check, CellContext cell, Transcript t)
     {
         var (name, negated) = Split(key);
+        if (name is Judge.Decide or Judge.JudgeCheck) return Judge.Evaluate(name, (JsonObject)value!, check, cell, t);
         if (value is JsonValue jv && jv.TryGetValue<string>(out var s) && s == FromExpect)
         {
             value = cell.Expect?[name];

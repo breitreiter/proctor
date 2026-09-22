@@ -88,9 +88,9 @@ evals/
       "no_denials":   { "denied_calls": { "max": 0 } },
       "not_nudged":   { "loop_nudged": false },
       "under_budget": { "max_tool_calls": 40, "max_duration_ms": 1800000 },
-      "builds":       { "script": "checks/builds.sh" },
-      "tests-pass":   { "script": "checks/tests-pass.sh" },
-      "diff-in-scope":{ "script": "checks/diff-in-scope.sh" }
+      "builds":       { "script": "checks/builds.sh", "description": "the repository builds" },
+      "tests-pass":   { "script": "checks/tests-pass.sh", "description": "the repository's own tests pass" },
+      "diff-in-scope":{ "script": "checks/diff-in-scope.sh", "description": "only the files the case names were changed" }
     },
     "pass": ["exit_ok", "builds", "tests-pass"],
     "judge":  { "provider": "cf-glm", "criteria_from": "rubric.md", "window": "last-assistant+diff" }
@@ -186,12 +186,24 @@ block (per case):
 | `files_touched` | diff | `{paths, mode: at_least \| exactly \| at_most}` |
 | `max_tool_calls`, `max_tokens`, `max_duration_ms`, `max_cost` | trailer | number; cost needs a price on the provider entry until nb carries it on the trailer |
 
-**A script is a check too**, declared as `{ "script": "checks/name.sh" }`.
-It runs in the cell directory with the case's `expect` block in an
+**A script is a check too**, declared as `{ "script": "checks/name.sh",
+"description": "..." }`. It runs in the cell directory with the case's `expect` block in an
 environment variable, exits 0, 1 or 2 for pass, fail, needs-judge, and its
 first line of stdout is the reason. That is weaver's grader contract plus
 promptfoo's custom-assertion habit of returning a reason beside the verdict,
 so a matrix cell can show both without opening a log.
+
+**Every check has a sentence** (2026-09-22, after the first real report read
+as a wall of ids). `description` is the one key in a check spec that is not
+a check. A built-in derives one from its fields when none is given; a script
+check must declare one, because from outside a script says nothing. The
+eval, an arm and a case take an optional `description` too, and a case
+falls back to the first line of its prompt. `stats.json` carries them in a
+`descriptions` block and the report opens with the eval's, then "Where it
+fell down": per arm, each check that did not hold in an analysed cell, in
+its own words, most often first, with the cases it happened in (the
+`failures` list on each arm's stats). The tables print the sentence beside
+the id. The narrative is the author's prose and the counts, never a model's.
 
 **What is deliberately absent.** Scalar metrics that hide two booleans
 (`tool-call-f1` is `tools_used` plus `not_tools_used_any`); reference-text

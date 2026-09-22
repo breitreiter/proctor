@@ -30,6 +30,7 @@ in the order the verbs run them. Every file is one concern:
 | `Eval/Layout.cs` | paths and file names, nothing else |
 | `Eval/Eval.cs` | `proctor.json` (the host binary and its config), `eval.json` (arms, the `nb` block with the runner and mounts, hooks, grading), cases, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per case |
 | `Eval/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
+| `Eval/Judges.cs` | `proctor.json`'s `judges` block: an endpoint per name by wire shape (`systemone`, `chat`), key resolution, which judge a check gets |
 | `Eval/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
 | `Eval/Baseline.cs` | `evals/<eval>/baseline.json`: pinned cells per case; scores recomputed from the cells while they exist |
 | `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, resume |
@@ -37,6 +38,8 @@ in the order the verbs run them. Every file is one concern:
 | `Run/Subprocess.cs` | the one process helper: hooks, nb, script checks, git |
 | `Grade/Transcript.cs` | nb JSONL into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
 | `Grade/Checks.cs` | the built-in vocabulary and the script contract; `Glob` |
+| `Grade/Window.cs` | what a model check sees: named extractions from the transcript, joined with `+`, compiled into labelled fences |
+| `Grade/Judge.cs` | `JudgeClient` (the transports), the `decide` check over systemone, the `judge` check over chat, the verdict file as cache, the report's judge provenance |
 | `Grade/Grade.cs` | checks over a cell into `checks.json`; the headline pass |
 | `Report/Results.cs` | `results.jsonl` rows |
 | `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json` |
@@ -85,6 +88,14 @@ The directories are for reading, not for namespaces: everything is
   is `held`, `improved` or `regressed` on the point estimate against
   `--tolerance`; `--fail-on regression` turns it into an exit code. The
   baseline is not in the accounting or the matrix.
+- **Every id in the report carries a sentence.** `description` is the one
+  key in a check spec that is not a check (`Checks.Description`); a script
+  check must declare one, a built-in derives one from its fields
+  (`Checks.Describe`). Eval, arm and case descriptions are optional; a case
+  falls back to the first prompt line (`Eval.Describe`). They travel in
+  `stats.json` as `descriptions`, with a per-arm `failures` list (each
+  non-validity check that did not pass in an analysed cell, most often first,
+  with its cases), which the "Where it fell down" section renders.
 - **Every number is computed once, in `Stats.cs`.** The renderers format; they
   never compute. If a number looks wrong, fix it in `stats.json` first.
 - **Each case is scored as its mean over its analysed samples**, so `n` in
@@ -110,8 +121,44 @@ The directories are for reading, not for namespaces: everything is
   `--runner none` stays a host shakedown. A prompt's newlines become nb continuation lines (` \`), so a
   multi-line prompt stays one directive. A prompt line that itself ends in a
   backslash cannot be expressed.
+- **The judge is proctor's own client, never nb.** `decide` posts to a
+  `systemone` endpoint (Jev on Cloudflare through minrouter today; the
+  wire format is the seam, not the vendor); `judge` goes through
+  Microsoft.Extensions.AI's `IChatClient` over an OpenAI-dialect endpoint,
+  so a provider change is a config line. Both are `Verdict`s like any
+  check. The question is the eval's (the check spec), the endpoint is the
+  machine's (`proctor.json` `judges`), and the key is resolved at grade
+  time only, so `list` and `run` need no key. `Eval.Load` resolves each
+  model check's judge when handed the config's judges; the test helper
+  passes none, and `grade` resolves again itself.
+- **A model check sees a window, never the transcript.** `Window.Known`
+  is the whole vocabulary; an empty part or a total over the judge's
+  `max_window` is `error` before any call, because a decider answers an
+  empty or cut state confidently. Arm id, model name and sample number are
+  in no window and no prompt.
+- **`verdicts/<check>.<judge>.<hash>.json` is the cache and the record.**
+  The hash covers the compiled request, the model, the threshold and the
+  expectation; `grade` reuses a file that exists and `--rejudge` does not.
+  The file keeps the request (key redacted), every response, each sample
+  as read with why it was discarded, the reasoning, usage and the verdict.
+  Deterministic checks are always recomputed. `--judge a=b` grades checks
+  naming `a` with `b` and writes `b`'s file, which is how one experiment
+  is graded under two judges without touching the eval.
+- **A judge's evidence is verified, its reasoning discarded.** Every quote
+  must be a whitespace-normalised substring of the window; a sample with
+  an unverifiable quote, no quote on a yes/no, or no JSON block is
+  discarded but stays in the file. Fewer than two usable samples (one when
+  `samples` is 1) is `error`; unanimous decides; a split or an `unknown`
+  is `needs-judge`. The reason string is `yes 3/3 — "first quote"`, so the
+  matrix tooltip shows evidence without opening the cell.
+- **Calibration is the bench's, not proctor's.** A threshold or a rubric
+  earns a place in `grading.pass` by the numbers in `project/plans/jev-trial.md`;
+  proctor records which judge, model and prompt hash graded a cell (the
+  report's reproducibility section) and carries no kappa.
 - **Check values from the case.** A check field whose value is `"@expect"`
   reads `expect.<field>` from the case; a case without it yields `error`.
+  A model check's `expect: "@expect"` reads `expect.<check name>` instead,
+  since the field name (`decide`) is shared.
 - **Hooks and script checks** run with `PROCTOR_EVAL_DIR`, `PROCTOR_FIXTURE`,
   `PROCTOR_BUNDLE`, `PROCTOR_EXPERIMENT`, `PROCTOR_ARM`, `PROCTOR_CASE`, `PROCTOR_SAMPLE`,
   `PROCTOR_CELL`, `PROCTOR_WORK`, `PROCTOR_CASE_JSON`, `PROCTOR_EXPECT` (the

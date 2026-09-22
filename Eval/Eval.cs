@@ -23,13 +23,13 @@ record EvalNb(string? Runner = null, NbMounts? Mounts = null);
 /// <summary>Where the runner shows nb the checkout and the bundle: what {{work}} and {{bundle}} resolve to when a runner is in effect. Absent, the host paths.</summary>
 record NbMounts(string? Work = null, string? Bundle = null);
 
-/// <summary>evals/proctor.json. Everything optional; the defaults are the layout's defaults.</summary>
-record ProctorConfig(NbConfig? Nb)
+/// <summary>evals/proctor.json. Everything optional; the defaults are the layout's defaults. The judges are the endpoints the grade-time checks call.</summary>
+record ProctorConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null)
 {
     public NbConfig NbOrDefault => Nb ?? new NbConfig();
 }
 
-record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null)
+record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null, string? Description = null)
 {
     public int SamplesOrOne => Samples ?? 1;
 }
@@ -47,9 +47,9 @@ record Hooks(HookPair? Run, HookPair? Arm, HookPair? Case, HookPair? Sample);
 record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<string>? Validity);
 
 /// <summary>Tags is what labels replaced; it is here so a leftover is a problem rather than silently ignored.</summary>
-record EvalDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, EvalNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null);
+record EvalDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, EvalNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null);
 
-record CaseDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null);
+record CaseDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null, string? Description = null);
 
 /// <summary>
 /// Consumer metadata: a key with one or more string values, on an eval, a fixture or a case. Proctor never
@@ -122,8 +122,8 @@ sealed class Eval
     public Grading Grading => Def.Grading!;
     public int PlannedCells => Arms.Sum(a => a.SamplesOrOne) * Cases.Count;
 
-    /// <summary>An eval is judged when any check a cell can carry names a judge; there is no marker to declare.</summary>
-    public bool Judged => Grading.Checks!.Values.Concat(Fixtures.Values.SelectMany(f => f.Checks.Values)).Any(spec => spec.ContainsKey("judge"));
+    /// <summary>An eval is judged when any check a cell can carry asks a model (decide or judge); there is no marker to declare.</summary>
+    public bool Judged => Grading.Checks!.Values.Concat(Fixtures.Values.SelectMany(f => f.Checks.Values)).Any(Checks.AsksAModel);
 
     /// <summary>A case's labels: its fixture's, the eval's laid over them, the case's own over both.</summary>
     public Dictionary<string, List<string>> LabelsFor(CaseDef c) => Labels.Merge(FixtureOf(c)?.Def.Labels, Def.Labels, c.Labels);
@@ -150,6 +150,18 @@ sealed class Eval
     /// <summary>Every check name any cell can carry, eval checks first, in declared order.</summary>
     public List<string> CheckNames =>
         Grading.Checks!.Keys.Concat(Cases.Select(FixtureOf).Where(f => f is not null).SelectMany(f => f!.Checks.Keys)).Distinct().ToList();
+
+    /// <summary>What every check the eval can carry tests, in plain words: the declared description, or the one derived from a built-in spec.</summary>
+    public Dictionary<string, string> CheckDescriptions()
+    {
+        var specs = Grading.Checks!.Select(k => (k.Key, k.Value)).Concat(Fixtures.Values.SelectMany(f => f.Checks.Select(k => (k.Key, k.Value))));
+        var described = new Dictionary<string, string>();
+        foreach (var (name, spec) in specs) described.TryAdd(name, Checks.Describe(spec));
+        return described;
+    }
+
+    /// <summary>What the case is about, for a reader: its description, else the first line of its prompt.</summary>
+    public static string Describe(CaseDef c) => c.Description ?? c.Prompt!.Split('\n')[0].Trim();
 
     /// <summary>What the case expects: its fixture's defaults with the case's own block laid over them, key by key.</summary>
     public JsonObject? ExpectFor(CaseDef c)
@@ -181,11 +193,15 @@ sealed class Eval
         foreach (var field in new[] { "runner", "mounts" })
             if (raw?[field] is not null)
                 problems.Add(new Problem(Path.GetRelativePath(root, file), $"nb.{field}", $"belongs in the eval: eval.json nb.{field}"));
+        Judges.Validate(config?.Judges, (field, message) => problems.Add(new Problem(Path.GetRelativePath(root, file), field, message)));
         return config ?? new ProctorConfig(null);
     }
 
-    /// <summary>Load and validate. Returns null when anything is wrong; every problem is in the list.</summary>
-    public static Eval? Load(string root, string evalId, List<Problem> problems)
+    /// <summary>
+    /// Load and validate. Returns null when anything is wrong; every problem is in the list. With the config's judges in
+    /// hand, every model check's judge is resolved too; without them (null), that is left to grade.
+    /// </summary>
+    public static Eval? Load(string root, string evalId, List<Problem> problems, Dictionary<string, JudgeDef>? judges = null)
     {
         var dir = Layout.Eval(root, evalId);
         var evalFile = Path.Combine(dir, Layout.EvalFile);
@@ -212,6 +228,16 @@ sealed class Eval
             if (Fixture.Load(root, name!, problems) is { } fixture) fixtures[name!] = fixture;
 
         ValidateDef(def, root, dir, rel(evalFile), evalId, cases, fixtures, problems);
+        if (judges is not null)
+        {
+            foreach (var (check, spec) in def.Grading?.Checks ?? [])
+                foreach (var (name, model) in Checks.ModelChecks(spec))
+                    if (Judge.ValidateUse(name, model, judges) is { } problem) problems.Add(new Problem(rel(evalFile), $"grading.checks.{check}.{name}.with", problem));
+            foreach (var fixture in fixtures.Values)
+                foreach (var (check, spec) in fixture.Checks)
+                    foreach (var (name, model) in Checks.ModelChecks(spec))
+                        if (Judge.ValidateUse(name, model, judges) is { } problem) problems.Add(new Problem(rel(Path.Combine(fixture.Dir, Layout.FixtureFile)), $"checks.{check}.{name}.with", problem));
+        }
 
         var templateFile = Path.Combine(dir, Layout.ProgramTemplateFile);
         var template = "";
@@ -259,6 +285,8 @@ sealed class Eval
                 problems.Add(new Problem(rel(file), "id", $"'{c.Id}' does not match the file name '{expectedId}'; the id is the file name"));
             if (string.IsNullOrWhiteSpace(c.Prompt))
                 problems.Add(new Problem(rel(file), "prompt", "required"));
+            if (c.Description is not null && string.IsNullOrWhiteSpace(c.Description))
+                problems.Add(new Problem(rel(file), "description", "a description is a sentence, not an empty string"));
             if (c.Fixture is not null && !Regex.IsMatch(c.Fixture, "^[a-z0-9][a-z0-9-]*$"))
                 problems.Add(new Problem(rel(file), "fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens"));
             Labels.Validate(c.Labels, (field, message) => problems.Add(new Problem(rel(file), field, message)));
@@ -276,6 +304,7 @@ sealed class Eval
         if (string.IsNullOrWhiteSpace(def.Id)) Add("id", "required");
         else if (def.Id != evalId) Add("id", $"'{def.Id}' does not match the directory name '{evalId}'");
 
+        if (def.Description is not null && string.IsNullOrWhiteSpace(def.Description)) Add("description", "a description is a sentence, not an empty string");
         if (def.Tags is not null) Add("tags", "removed: an eval's own metadata is labels, and whether it is judged follows from its checks");
         Labels.Validate(def.Labels, Add);
 
@@ -304,6 +333,7 @@ sealed class Eval
                     break;
             }
             if (arm.Samples is < 1) Add($"{f}.samples", "must be at least 1");
+            if (arm.Description is not null && string.IsNullOrWhiteSpace(arm.Description)) Add($"{f}.description", "a description is a sentence, not an empty string");
             switch (arm.Bundle)
             {
                 case null: break;
@@ -339,12 +369,7 @@ sealed class Eval
         {
             var f = $"grading.checks.{name}";
             if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9_-]*$")) Add(f, "check names are lowercase letters, digits, hyphens and underscores");
-            if (spec is null or { Count: 0 }) { Add(f, "a check is an object with at least one field"); continue; }
-            foreach (var (key, value) in spec)
-            {
-                var problem = Checks.ValidateSpec(key, value, dir);
-                if (problem is not null) Add($"{f}.{key}", problem);
-            }
+            foreach (var (field, problem) in Checks.ValidateCheck(spec, dir)) Add(field.Length == 0 ? f : $"{f}.{field}", problem);
         }
         foreach (var fixture in fixtures.Values)
             foreach (var name in fixture.Checks.Keys.Where(def.Grading.Checks.ContainsKey))
