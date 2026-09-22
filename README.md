@@ -29,28 +29,38 @@ Without it, `nb` is taken from `PATH` and nb resolves its own config. `--nb
 <path>` overrides either.
 
 `nb.runner` names a script that runs nb for each cell instead of the binary,
-which is how an eval runs nb inside a container. The contract is the whole
-interface:
+which is how an eval runs nb inside a container; `--runner <script>` (a path
+from the current directory) does the same for one run. The contract is the
+whole interface:
 
 | proctor gives the runner | the runner must |
 |---|---|
 | stdin: the resolved program | pass it to nb's stdin unchanged |
 | cwd: the work directory on the host | start nb with the checkout as its working directory, wherever that is inside |
-| the cell environment (`PROCTOR_*`), plus `PROCTOR_NB` (the host binary), `PROCTOR_NB_CONFIG`, `PROCTOR_WORK_MOUNT`, `PROCTOR_BUNDLE_MOUNT`, `PROCTOR_CONTAINER` and `NO_COLOR` | run nb where the checkout, the bundle and the config are at the paths those name |
+| the cell environment (`PROCTOR_*`, which includes `PROCTOR_NB`, the host binary, `PROCTOR_NB_CONFIG`, `PROCTOR_WORK_MOUNT`, `PROCTOR_BUNDLE_MOUNT` and `PROCTOR_CONTAINER`) and `NO_COLOR` | run nb where the checkout, the bundle and the config are at the paths those name |
 | nothing on argv | run `nb --output jsonl [--config <config>] -` |
 | stdout and stderr captured to the cell | put only nb's stdout on stdout |
 | | exit with nb's exit code |
 
 `PROCTOR_CONTAINER` is a name derived from the cell that proctor never uses,
-so hooks and the runner can agree on one container. `--runner <script>`
-overrides the config and `--runner none` runs bare; hooks see which in
-`PROCTOR_RUNNER`, empty on a bare run. The manifest records the script and
-its hash, and `resume` refuses a changed one.
+so hooks and the runner can agree on one container: the sample setup hook
+creates it, the runner execs into it, the sample teardown hook removes it.
+`--runner none` runs bare; hooks see which in `PROCTOR_RUNNER`, empty on a
+bare run, and skip the container. The manifest records the script and its
+hash, and `resume` refuses a changed one. The worked example is
+`evals/runners/container.sh` with the `code-change` eval's hooks and the
+`Containerfile` beside the runner, which puts nb's own image (`podman build
+-t nb .` in the nb repository) on the .NET SDK:
+
+```bash
+proctor run code-change                                    # bare: the shakedown, on this machine
+proctor run code-change --runner evals/runners/container.sh   # each cell in its own container
+```
 
 `nb.mounts` says where the runner will show nb the checkout and the bundle:
 
 ```json
-{ "nb": { "runner": "runners/podman.sh", "mounts": { "work": "/work", "bundle": "/bundle" } } }
+{ "nb": { "runner": "runners/container.sh", "mounts": { "work": "/work", "bundle": "/bundle" } } }
 ```
 
 With a runner in effect, `{{work}}` and `{{bundle}}` in the program resolve

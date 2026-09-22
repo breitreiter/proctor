@@ -129,7 +129,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     /// <summary>Everything a hook or check needs to know about a cell, for the runner and the grader alike.</summary>
     public static CellContext Context(string root, Experiment experiment, Eval eval, Arm arm, CaseDef c, int sample) =>
         new(eval.Dir, Layout.Cell(Layout.Experiment(root, experiment.Id), arm.Id!, c.Id!, sample), Layout.Work(root, experiment.Id, arm.Id!, c.Id!, sample), experiment.Id, arm.Id!, c, sample)
-        { Expect = eval.ExpectFor(c), Fixture = eval.FixtureOf(c), BundleDir = experiment.BundleOf(arm.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", Mounts = experiment.Nb.Mounts };
+        { Expect = eval.ExpectFor(c), Fixture = eval.FixtureOf(c), BundleDir = experiment.BundleOf(arm.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", NbPath = experiment.Nb.Path, NbConfig = experiment.Nb.Config, Mounts = experiment.Nb.Mounts };
 
     /// <summary>Each arm's bundle, once per experiment: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
     public static Dictionary<string, ResolvedBundle> ResolveBundles(string root, Eval eval)
@@ -261,7 +261,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
         args.Add("-");
         var env = nb.Runner is null
             ? new Dictionary<string, string> { ["NO_COLOR"] = "1" }
-            : new Dictionary<string, string>(cellEnv) { ["NO_COLOR"] = "1", ["PROCTOR_NB"] = nb.Path, ["PROCTOR_NB_CONFIG"] = nb.Config ?? "" };
+            : new Dictionary<string, string>(cellEnv) { ["NO_COLOR"] = "1" };
         var result = Subprocess.Run(nb.Runner?.Path ?? nb.Path, nb.Runner is null ? args : [], workDir, env,
             stdoutFile: Path.Combine(cellDir, Layout.TranscriptFile),
             stderrFile: Path.Combine(cellDir, Layout.StderrFile),

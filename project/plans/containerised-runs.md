@@ -2,7 +2,7 @@
 type: plan
 title: Containerised runs — one container per cell, nothing inside it but the checkout
 created: 2026-09-21
-status: in progress (sessions 1, 2 and 3 of 5 done); coordinated with nb (`../nb/plans/container-runs.md`)
+status: in progress (sessions 1 to 4 of 5 done); coordinated with nb (`../nb/plans/container-runs.md`)
 ---
 
 # Containerised runs

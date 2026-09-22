@@ -22,6 +22,9 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
     public string? BundleDir { get; init; }
     /// <summary>The runner script in effect, relative to evals/; empty on a bare run.</summary>
     public string NbRunner { get; init; } = "";
+    /// <summary>The host nb binary and its config, resolved: what a bare run starts, and what a hook mounts for a runner.</summary>
+    public string NbPath { get; init; } = "";
+    public string? NbConfig { get; init; }
     /// <summary>Where the runner shows nb the checkout and the bundle; null when it shows them at the host paths.</summary>
     public NbMounts? Mounts { get; init; }
 
@@ -51,6 +54,8 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(CellDir, Layout.TranscriptFile),
         ["PROCTOR_DIFF"] = Path.Combine(CellDir, Layout.DiffFile),
         ["PROCTOR_RUNNER"] = NbRunner,
+        ["PROCTOR_NB"] = NbPath,
+        ["PROCTOR_NB_CONFIG"] = NbConfig ?? "",
         ["PROCTOR_CONTAINER"] = Container,
     };
 }

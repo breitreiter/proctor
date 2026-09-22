@@ -95,10 +95,10 @@ The directories are for reading, not for namespaces: everything is
   zero-width interval.
 - **`versions.nb` is `nb --version` from the host binary**, the `+commit`
   suffix stripped; `unknown` when it fails. It is read once per experiment.
-- **nb's trailer carries no `duration_ms`** (as of 2026-09-17), so durations
-  are the cell's wall time from the manifest, hooks included, both in the
-  report and in the `max_duration_ms` check. It carries no cost, so the
-  report has no cost column rather than an estimate.
+- **nb's trailer carries `duration_ms` since nb 0.9** (nb f7df67f); the
+  `max_duration_ms` check reads it and falls back to the cell's wall time
+  from the manifest, hooks included, which is what the report shows. It
+  carries no cost, so the report has no cost column rather than an estimate.
 - **nb emits no `assistant_json` event**; the `answer_json` window is the last
   ` ```json ` fence in the last assistant message.
 - **Program templates.** Placeholders are `{{prompt}}`, `{{case}}`, `{{work}}`
@@ -116,9 +116,11 @@ The directories are for reading, not for namespaces: everything is
   `PROCTOR_BUNDLE`, `PROCTOR_EXPERIMENT`, `PROCTOR_ARM`, `PROCTOR_CASE`, `PROCTOR_SAMPLE`,
   `PROCTOR_CELL`, `PROCTOR_WORK`, `PROCTOR_CASE_JSON`, `PROCTOR_EXPECT` (the
   merged block), `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`, `PROCTOR_RUNNER` (the
-  `nb.runner` script, empty on a bare run), `PROCTOR_CONTAINER` (a name
-  derived from the cell that proctor never uses), and `PROCTOR_WORK_MOUNT`
-  and `PROCTOR_BUNDLE_MOUNT` (the paths the model was told; the host paths
+  `nb.runner` script, empty on a bare run), `PROCTOR_NB` and
+  `PROCTOR_NB_CONFIG` (the host binary and its resolved config, which a
+  hook mounts for the runner), `PROCTOR_CONTAINER` (a name derived from the
+  cell that proctor never uses), and `PROCTOR_WORK_MOUNT` and
+  `PROCTOR_BUNDLE_MOUNT` (the paths the model was told; the host paths
   unless `nb.mounts` moved them). Hooks run in the eval
   directory; script checks run in the cell, an eval's resolved against the
   eval directory and a fixture's against the fixture directory. Scripts exit
@@ -130,9 +132,8 @@ The directories are for reading, not for namespaces: everything is
 - **nb gets the program on stdin, bare or through a runner.** `RunNb` is one
   code path: without `nb.runner` it starts `nb --output jsonl [--config] -`
   itself with only `NO_COLOR` added to the environment; with one it starts
-  the script with nothing on argv and the cell environment plus
-  `PROCTOR_NB`, `PROCTOR_NB_CONFIG` and `NO_COLOR`, and the script starts nb
-  the same way. The bare path deliberately does not get the cell environment:
+  the script with nothing on argv and the cell environment plus `NO_COLOR`,
+  and the script starts nb the same way. The bare path deliberately does not get the cell environment:
   `PROCTOR_EXPECT` in the model's reach would leak the answer. A runner that
   forwards its environment into the container wholesale would do the same.
 - **`resume` refuses a changed eval.** The eval hash in `experiment.json` must

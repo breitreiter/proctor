@@ -5,7 +5,8 @@
     { "id": "floor", "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3 }
   ],
   "hooks": {
-    "arm": { "setup": "hooks/ensure-model.sh" }
+    "arm":    { "setup": "hooks/arm-setup.sh" },
+    "sample": { "setup": "hooks/sample-setup.sh", "teardown": "hooks/sample-teardown.sh" }
   },
   "grading": {
     "checks": {
