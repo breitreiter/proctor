@@ -2,7 +2,7 @@
 type: plan
 title: Containerised runs — one container per cell, nothing inside it but the checkout
 created: 2026-09-21
-status: in progress (sessions 1 and 2 of 5 done); coordinated with nb (`../nb/plans/container-runs.md`)
+status: in progress (sessions 1, 2 and 3 of 5 done); coordinated with nb (`../nb/plans/container-runs.md`)
 ---
 
 # Containerised runs
@@ -306,6 +306,19 @@ runbook is written last, from what the live run actually did.
    an include and an oracle sheet compiles to JSONL that runs identically
    under Mock, and `podman build` yields an image with `/opt/nb` and
    nothing `docs/distribution.md` says must not ship.
+
+   *Status 2026-09-21: done* (nb 96eb757, 19a8e38). Beyond the contract
+   above: `--compile` also folds in `--seed` and runs nb's directive-shape
+   check, so a program nb would refuse fails on the host, not in the
+   container. The image's final base is `runtime-deps:10.0`, so it runs on
+   its own for a smoke test as well as serving as a layer; its `ENV
+   DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` does not travel with `COPY
+   --from`, so the fixture Containerfile in step 4 sets it (the setup hook's
+   `-e` already does). Building the image found that `dotnet publish
+   nb.csproj` had never worked from a clean checkout; fixed in nb's publish
+   target, so step 4's image build needs no prior restore. Verified with
+   docker, not podman: this box has no podman, so step 4 is the first
+   podman build.
 4. **Proctor: the live example.** `evals/runners/podman.sh`, the sample
    setup and teardown hooks, the `Containerfile` for the .NET stack on nb's
    layer, the NuGet volume warmed and the image digest logged in the arm
