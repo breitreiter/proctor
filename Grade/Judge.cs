@@ -1,6 +1,5 @@
 using System.ClientModel;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -194,7 +193,8 @@ static class Judge
 
     static async Task<JsonNode> PostSystemOne(Call call, JsonObject request)
     {
-        using var message = new HttpRequestMessage(HttpMethod.Post, call.Def.Endpoint) { Content = JsonContent.Create(request) };
+        // A bare media type: Cloudflare's AI Gateway answers "Required value missing: input" to application/json; charset=utf-8.
+        using var message = new HttpRequestMessage(HttpMethod.Post, call.Def.Endpoint) { Content = new StringContent(request.ToJsonString(), new MediaTypeHeaderValue("application/json")) };
         if (call.Def.ResolvedKey(call.Judge) is { } key) message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
         using var response = await call.Client.Http.SendAsync(message);
         var body = await response.Content.ReadAsStringAsync();
@@ -304,11 +304,13 @@ static class Judge
 
     static string FileOf(Call call, string hash) => Path.Combine(call.VerdictsDir, $"{call.Check}.{call.Judge}.{hash}.json");
 
+    /// <summary>The verdict on file for this exact request, unless rejudging. An error is not a verdict: the next grade calls again.</summary>
     static Verdict? Cached(Call call, string hash)
     {
         var file = FileOf(call, hash);
         if (call.Client.Rejudge || !File.Exists(file)) return null;
-        return JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Eval.JsonOptions)?.Verdict;
+        var verdict = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Eval.JsonOptions)?.Verdict;
+        return verdict?.Result == Verdict.Error ? null : verdict;
     }
 
     static Verdict Save(Call call, string hash, JsonNode request, List<JsonNode> responses, List<JudgeSample> samples, JudgeUsage? usage, string? model, DateTime started, Verdict verdict)

@@ -215,6 +215,12 @@ public class JudgeTests
 
         Assert.Equal("pass", Eval(spec, Fixture("plain"), Client(http, rejudge: true), cellDir: dir, name: "done").Result);
         Assert.Equal(3, http.Calls);
+
+        // an error on file is retried, not reused
+        var down = new ScriptedHttp(HttpStatusCode.BadGateway, "gone");
+        Assert.Equal("error", Eval(spec.Replace("done?", "over?"), Fixture("plain"), Client(down), cellDir: dir, name: "done").Result);
+        Assert.Equal("error", Eval(spec.Replace("done?", "over?"), Fixture("plain"), Client(down), cellDir: dir, name: "done").Result);
+        Assert.Equal(2, down.Calls);
     }
 
     [Fact]

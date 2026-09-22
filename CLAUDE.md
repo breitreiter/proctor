@@ -138,7 +138,9 @@ The directories are for reading, not for namespaces: everything is
   in no window and no prompt.
 - **`verdicts/<check>.<judge>.<hash>.json` is the cache and the record.**
   The hash covers the compiled request, the model, the threshold and the
-  expectation; `grade` reuses a file that exists and `--rejudge` does not.
+  expectation; `grade` reuses a file that exists, unless its verdict is
+  `error` (an endpoint that did not answer is retried), and `--rejudge`
+  reuses nothing.
   The file keeps the request (key redacted), every response, each sample
   as read with why it was discarded, the reasoning, usage and the verdict.
   Deterministic checks are always recomputed. `--judge a=b` grades checks

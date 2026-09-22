@@ -2,7 +2,7 @@
 type: plan
 title: The judge — two model checks, one HTTP client, verdicts beside the evidence
 created: 2026-09-22
-status: steps 1–5 built 2026-09-22 (see "As built"); step 6 open; a trusted threshold or rubric still waits on jev-trial.md step 0
+status: built 2026-09-22, steps 1–6 (see "As built"); a trusted threshold or rubric still waits on jev-trial.md step 0
 ---
 
 # The judge
@@ -335,6 +335,39 @@ plan above:
   `Report.Html` and `Markdown` take the list as a fourth argument, and the
   snapshot is unchanged because the worked experiment has none.
 
-Step 6 remains: the three checks on code-change, graded against hosted Jev
-and a chat judge, then the two verdict sets compared. The GLM model id in
-`evals/proctor.json` is marked unconfirmed until that run.
+### Step 6: the worked example, run
+
+The three checks are on code-change as guardrails, not in `pass`, and
+`20260922-1308-code-change-x5jx` (nine cells, all passing on the
+deterministic checks) was graded three times: Jev for the two decides and
+GLM 5.2 for the judge, then `--judge glm=k2` for Kimi K2.6, then plain
+again, which restored GLM's verdicts from the files without a call.
+
+| check | judge | verdicts | note |
+|---|---|---|---|
+| `stance` | jev | 9 pass, all `complete p=1.00` | one call per cell, well under a second |
+| `ran-tests` | jev | 9 pass, `yes p=0.98`–`0.99` | |
+| `change-fits` | glm | 9 pass; 7 at 3/3, 2 at 2/3 | 4 of 27 samples discarded: GLM quoted `Legacy_Widgets` from a diff that says `Legacy.Widgets` |
+| `change-fits` | k2 | 9 pass; 7 at 3/3, 2 at 2/3 | 2 of 27 discarded, same reason; 20–130 s per cell, 1–7K output tokens of reasoning |
+
+Every cell is at the ceiling, as the deterministic checks already said, so
+this proves the plumbing and the evidence rule, not the judges. Two things
+it did prove:
+
+- **The verbatim rule catches real hallucination.** Six samples across
+  two chat judges quoted text that is not in the material, all on the
+  rename case, all substituting `_` for `.` in a namespace, and the cell
+  still resolved on the surviving samples. The first grading pass had one
+  cell where all three GLM samples did it, which is `error`; the retry
+  after the cache fix passed. At temperature 0 through the gateway, GLM's
+  answers differ between calls with an identical prompt.
+- **Cloudflare's AI Gateway rejects `application/json; charset=utf-8`**
+  with "Required value missing: input". The client sends the bare media
+  type. Found because every decide errored on the first pass; an error
+  verdict is now never reused from the file, so the retry cost nothing
+  but the calls.
+
+Loose end: the report's reproducibility rows read every verdict file, so
+after a `--judge` pass both judges are listed as having graded the check,
+and only the last plain `grade` says whose verdict `checks.json` holds.
+The row should say that, or the remap should write beside rather than over.
