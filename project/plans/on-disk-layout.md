@@ -228,6 +228,7 @@ runs/
           manifest.json                     random run id, coordinates, timing, versions
           status                            one word: pending | running | completed | failed | skipped
           program.nb                        the program exactly as run, placeholders resolved
+          program.jsonl                     what went down stdin: the program compiled on the host by `nb --compile`, includes inlined
           transcript.jsonl                  nb's output, untouched
           stderr.txt
           hooks/

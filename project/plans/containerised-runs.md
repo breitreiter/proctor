@@ -2,7 +2,7 @@
 type: plan
 title: Containerised runs — one container per cell, nothing inside it but the checkout
 created: 2026-09-21
-status: in progress (sessions 1 to 4 of 5 done); coordinated with nb (`../nb/plans/container-runs.md`)
+status: done (2026-09-22); coordinated with nb (`../nb/plans/container-runs.md`)
 ---
 
 # Containerised runs
@@ -326,6 +326,27 @@ runbook is written last, from what the live run actually did.
    bare baseline. Done when the guard report says held. This is where UID
    mapping, the package cache and reaching imp from inside the container
    get settled, so it is its own session.
+
+   *Status 2026-09-22: done* (proctor 3d2d56e). The runner is
+   `evals/runners/container.sh`, not `podman.sh`: this box has docker and
+   no podman, so every script picks the engine with `command -v podman`,
+   and the only line that differs is `--userns=keep-id` (podman only,
+   untested here). The container is entered by `--runner` on the command
+   line rather than `nb.runner` in `evals/proctor.json`, because that file
+   is shared with `smoke`, whose hooks make no container (open question
+   below). Hooks gained `PROCTOR_NB` and `PROCTOR_NB_CONFIG` so the setup
+   hook can mount the config the host binary was resolved with. The image
+   is identified in `arm.setup.log` by id (docker's legacy builder has no
+   digest for a local image), on nb's image id. imp is reached by
+   `--add-host` from `/etc/hosts`; the key alone crosses, by `-e`. The SDK
+   image already has a uid 1000, so `useradd -o`; the gid is a build arg
+   too, or the files come out as the caller's uid and a stranger's gid.
+   Nine cells in nine containers (`20260922-1150-code-change-6y0s`)
+   completed and passed; the bare run the same afternoon
+   (`20260922-1205-code-change-1itz`) is pinned as the baseline, and the
+   guard report says `held`. Container cells were no slower than bare (66 s
+   median against 75 s). `docker exec` buffers stdout, so the transcript
+   lands whole at the end of a cell; nothing in proctor reads it early.
 5. **nb and proctor: the runbook and the compile switch.**
    `docs/containers.md` written from step 4, not before it; proctor's
    stdin switching from source to `program.jsonl`; the README linking the
@@ -334,8 +355,31 @@ runbook is written last, from what the live run actually did.
    can go from a fresh checkout to a containerised run without reading
    either runner.
 
+   *Status 2026-09-22: done.* `RunCell` compiles after writing `program.nb`
+   and before the checkout: `nb --compile [--config]` on the host binary,
+   in the eval directory, the JSONL written as `program.jsonl` and piped to
+   bare nb and runner alike. `program_hash` is still the source's. A
+   program nb refuses (a missing include, an unknown harness) fails the
+   cell there, with nb's first stderr line, and no hook runs for it.
+   `docs/containers.md` in nb is written from session 4's run, with the
+   artefact inventory as a table; the README links it and says what bare
+   and container are each for.
+   Acceptance: `20260922-1231-code-change-5ksh`, nine cells in nine
+   containers with the compiled program on stdin, 9 of 9 completed and
+   passed, `held` against the bare baseline, no container left behind.
+
 ## Open questions
 
+- **Where `nb.runner` belongs.** It is in `evals/proctor.json`, which is
+  shared by every eval, and the runner only works with the hooks of an
+  eval that make its container, so setting it there breaks `smoke`. The
+  runner and the mounts are one unit with those hooks, which argues for
+  `eval.json`; against that, whether a run is bare or in a container is
+  the machine's choice as much as the eval's, which is what `--runner` on
+  the command line expresses. The lean is an `nb` block in `eval.json` as
+  the eval's default, overridden by the flag, with `proctor.json` keeping
+  only the host binary and its config. Not built: one eval with hooks is
+  not evidence, and the flag covers the case today.
 - **Per-fixture images.** The example picks the image from the fixture's
   `stack`, which `fixture.json` already declares. If that holds up, an
   `image` field on the fixture is the obvious next step; it is not in this

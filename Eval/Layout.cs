@@ -26,6 +26,7 @@ static class Layout
     public const string ManifestFile = "manifest.json";
     public const string StatusFile = "status";
     public const string ProgramFile = "program.nb";
+    public const string CompiledProgramFile = "program.jsonl";
     public const string TranscriptFile = "transcript.jsonl";
     public const string StderrFile = "stderr.txt";
     public const string DiffFile = "diff.patch";

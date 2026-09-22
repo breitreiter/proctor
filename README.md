@@ -35,7 +35,7 @@ whole interface:
 
 | proctor gives the runner | the runner must |
 |---|---|
-| stdin: the resolved program | pass it to nb's stdin unchanged |
+| stdin: the resolved program, compiled on the host by `nb --compile` so every `@file` include is inlined | pass it to nb's stdin unchanged |
 | cwd: the work directory on the host | start nb with the checkout as its working directory, wherever that is inside |
 | the cell environment (`PROCTOR_*`, which includes `PROCTOR_NB`, the host binary, `PROCTOR_NB_CONFIG`, `PROCTOR_WORK_MOUNT`, `PROCTOR_BUNDLE_MOUNT` and `PROCTOR_CONTAINER`) and `NO_COLOR` | run nb where the checkout, the bundle and the config are at the paths those name |
 | nothing on argv | run `nb --output jsonl [--config <config>] -` |
@@ -56,6 +56,15 @@ hash, and `resume` refuses a changed one. The worked example is
 proctor run code-change                                    # bare: the shakedown, on this machine
 proctor run code-change --runner evals/runners/container.sh   # each cell in its own container
 ```
+
+A bare run is for shaking down an eval: nb and the model's tools run on this
+machine as you. A container is for anything you would not run on your own
+machine, which is every real eval, since the model runs whatever it decides
+to. How to build the image, what to mount, who owns the files the model
+writes, and what nb leaves within its reach is nb's runbook,
+[`docs/containers.md`](../nb/docs/containers.md); the example above is that
+runbook applied. Each cell keeps `program.nb`, the source as resolved, and
+`program.jsonl`, what actually went down stdin.
 
 `nb.mounts` says where the runner will show nb the checkout and the bundle:
 

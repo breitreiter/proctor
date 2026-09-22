@@ -225,13 +225,18 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
 
         var stopwatch = Stopwatch.StartNew();
         var env = cell.Environment();
-        // The fixture is checked out first, then the setup hook, nb, the teardown hook, and the diff is collected.
-        var failure = cell.Fixture is not null && Checkout.Materialise(cell.Fixture, workDir) is { } checkoutError ? $"fixture checkout failed: {checkoutError}" : null;
-        failure ??= RunHook(eval.Def.Hooks?.Sample?.Setup, env, Path.Combine(cellDir, Layout.HooksDir, "sample.setup.log")) is { } setupError
-            ? $"sample setup hook failed: {setupError}"
-            : RunNb(cellDir, workDir, program, env, manifest);
+        // The program is compiled on the host first, then the fixture is checked out, then the setup hook, nb, the teardown hook, and the diff is collected.
+        var (compiled, compileError) = Compile(cellDir, program);
+        var failure = compileError is not null ? $"program compile failed: {compileError}"
+            : cell.Fixture is not null && Checkout.Materialise(cell.Fixture, workDir) is { } checkoutError ? $"fixture checkout failed: {checkoutError}"
+            : null;
+        var setupRan = failure is null;
+        if (setupRan)
+            failure = RunHook(eval.Def.Hooks?.Sample?.Setup, env, Path.Combine(cellDir, Layout.HooksDir, "sample.setup.log")) is { } setupError
+                ? $"sample setup hook failed: {setupError}"
+                : RunNb(cellDir, workDir, compiled!, env, manifest);
         // Teardown and the diff run whenever setup ran, even when setup failed: a container it half-made must not be left for the resumed cell.
-        if (failure is null || !failure.StartsWith("fixture checkout"))
+        if (setupRan)
         {
             if (RunHook(eval.Def.Hooks?.Sample?.Teardown, env, Path.Combine(cellDir, Layout.HooksDir, "sample.teardown.log")) is { } teardownError)
                 failure ??= $"sample teardown hook failed: {teardownError}";
@@ -249,7 +254,25 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     }
 
     /// <summary>
-    /// Run nb on the resolved program, which travels on stdin. Bare, that is nb itself with the argv the runner
+    /// `nb --compile` on the host binary, in the eval directory so `@file` includes resolve against the eval: the
+    /// JSONL that goes down stdin, with every include inlined, so nothing nb runs on names a file the runner would
+    /// have to carry. Written beside the source as program.jsonl. The program hash stays the source's. A program
+    /// nb refuses fails here, on the host, before a checkout or a container exists for it.
+    /// </summary>
+    (string? Compiled, string? Error) Compile(string cellDir, string program)
+    {
+        var nb = experiment.Nb;
+        var args = new List<string> { "--compile" };
+        if (nb.Config is not null) args.AddRange(["--config", nb.Config]);
+        var result = Subprocess.Run(nb.Path, args, eval.Dir, new Dictionary<string, string> { ["NO_COLOR"] = "1" }, stdin: program);
+        if (!result.Started) return (null, result.Stderr);
+        if (result.ExitCode != 0) return (null, $"nb --compile exited {result.ExitCode}: {result.FirstStderrLine}");
+        File.WriteAllText(Path.Combine(cellDir, Layout.CompiledProgramFile), result.Stdout);
+        return (result.Stdout, null);
+    }
+
+    /// <summary>
+    /// Run nb on the compiled program, which travels on stdin. Bare, that is nb itself with the argv the runner
     /// contract names; with a runner, it is the script with nothing on argv and the cell environment, which must
     /// start nb the same way wherever it runs. Null on success; otherwise why the cell is `failed` (infrastructure only).
     /// </summary>

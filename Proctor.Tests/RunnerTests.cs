@@ -51,7 +51,7 @@ public class RunnerTests
         // Cell level: every file the plan names, and nothing that belongs elsewhere.
         var cell = Cell(repo, id, "a", "plain", 1);
         Assert.Equal(
-            ["diff.patch", "hooks", "manifest.json", "program.nb", "status", "stderr.txt", "transcript.jsonl"],
+            ["diff.patch", "hooks", "manifest.json", "program.jsonl", "program.nb", "status", "stderr.txt", "transcript.jsonl"],
             Directory.GetFileSystemEntries(cell).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Equal(["sample.setup.log", "sample.teardown.log"],
             Directory.GetFiles(Path.Combine(cell, "hooks")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
@@ -77,6 +77,10 @@ public class RunnerTests
         Assert.Contains("provider Mock\n", program);
         Assert.Contains("run MOCK:response=hello world\n", program);
         Assert.DoesNotContain("{{", program);
+        // What went down stdin: the same program as JSONL, compiled on the host.
+        var compiled = File.ReadAllLines(Path.Combine(cell, "program.jsonl"));
+        Assert.All(compiled, line => Assert.StartsWith("{", line));
+        Assert.Contains(compiled, line => line.Contains("\"type\":\"run\"") && line.Contains("MOCK:response=hello world"));
 
         // nb's output untouched: the transcript ends in a result trailer.
         var trailer = Transcript.Read(cell).Trailer;
@@ -202,6 +206,53 @@ public class RunnerTests
     }
 
     [Fact]
+    public void Compile_InlinesIncludesOnTheHost_AndTheHashStaysTheSources()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        repo.Write("smoke/notes.md", "Never mention the sheet.\n");
+        var template = File.ReadAllText(Path.Combine(repo.Root, "evals/smoke/program.nb")).Replace("run {{prompt}}", "system @notes.md\nrun {{prompt}}");
+        repo.Write("smoke/program.nb", template);
+        repo.WriteProctorConfig();
+        var eval = repo.LoadEval("smoke");
+        var id = Runner.Start(repo.Root, eval, Eval.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
+
+        var cell = Cell(repo, id, "a", "plain", 1);
+        Assert.Equal("completed", Runner.ReadStatus(cell));
+        // The source keeps the include for reading; the compiled program carries its body and no path.
+        var source = File.ReadAllText(Path.Combine(cell, "program.nb"));
+        Assert.Contains("system @notes.md\n", source);
+        var compiled = File.ReadAllText(Path.Combine(cell, "program.jsonl"));
+        Assert.Contains("Never mention the sheet.", compiled);
+        Assert.DoesNotContain("notes.md", compiled);
+        var hash = "sha256:" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
+        Assert.Equal(hash, ReadJson(Path.Combine(cell, "manifest.json"))["program_hash"]!.GetValue<string>());
+        // And the model saw it: the transcript's system turn is the note.
+        Assert.Contains("Never mention the sheet.", File.ReadAllText(Path.Combine(cell, "transcript.jsonl")));
+    }
+
+    [Fact]
+    public void Compile_Failure_IsFailed_BeforeAnyHookRuns()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        var template = File.ReadAllText(Path.Combine(repo.Root, "evals/smoke/program.nb")).Replace("run {{prompt}}", "system @missing.md\nrun {{prompt}}");
+        repo.Write("smoke/program.nb", template);
+        repo.WriteProctorConfig();
+        var eval = repo.LoadEval("smoke");
+        var id = Runner.Start(repo.Root, eval, Eval.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
+
+        var cell = Cell(repo, id, "a", "plain", 1);
+        Assert.Equal("failed", Runner.ReadStatus(cell));
+        var reason = ReadJson(Path.Combine(cell, "manifest.json"))["status_reason"]!.GetValue<string>();
+        Assert.Equal("program compile failed: nb --compile exited 1: Error: @include not found: missing.md", reason);
+        Assert.False(File.Exists(Path.Combine(cell, "program.jsonl")));
+        Assert.False(File.Exists(Path.Combine(cell, "transcript.jsonl")));
+        Assert.False(File.Exists(Path.Combine(cell, "hooks", "sample.setup.log")), "nothing was set up for a program nb refused");
+        Assert.False(File.Exists(Path.Combine(cell, "hooks", "sample.teardown.log")));
+    }
+
+    [Fact]
     public void ResolveProgram_EscapesNewlinesAsContinuations()
     {
         var arm = new Arm("floor", "nb", "nb", "Mock", "m", 1, null);
@@ -293,7 +344,7 @@ public class RunnerTests
             var (a, b) = (Cell(bare, bareId, "a", c, 1), Cell(repo, id, "a", c, 1));
             Assert.Equal("completed", Runner.ReadStatus(b));
             // Identical but for the milliseconds nb measures.
-            foreach (var file in new[] { "transcript.jsonl", "program.nb", "diff.patch", "status" })
+            foreach (var file in new[] { "transcript.jsonl", "program.nb", "program.jsonl", "diff.patch", "status" })
                 Assert.Equal(Timeless(File.ReadAllText(Path.Combine(a, file))), Timeless(File.ReadAllText(Path.Combine(b, file))));
             Assert.Equal(Directory.GetFileSystemEntries(a).Select(Path.GetFileName).Order(), Directory.GetFileSystemEntries(b).Select(Path.GetFileName).Order());
         }

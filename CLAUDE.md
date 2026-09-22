@@ -129,7 +129,13 @@ The directories are for reading, not for namespaces: everything is
   hook, diff. Teardown runs whenever setup ran, even when setup failed, so
   it must be idempotent. `PROCTOR_WORK` is never deleted (`.proctor/` is
   gitignored).
-- **nb gets the program on stdin, bare or through a runner.** `RunNb` is one
+- **nb gets the program on stdin, compiled on the host, bare or through a
+  runner.** `RunCell` writes the resolved source as `program.nb`, then runs
+  `nb --compile` on the host binary in the eval directory (so `@file`
+  includes resolve against the eval) and writes the JSONL as
+  `program.jsonl`; that is what goes down stdin, so the container never
+  holds a path to a sheet. `program_hash` stays the source's. A program nb
+  refuses fails the cell before the checkout or any hook. `RunNb` is one
   code path: without `nb.runner` it starts `nb --output jsonl [--config] -`
   itself with only `NO_COLOR` added to the environment; with one it starts
   the script with nothing on argv and the cell environment plus `NO_COLOR`,
