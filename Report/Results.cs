@@ -8,11 +8,15 @@ record ResultRow(
     string Status, string? StatusReason, string? ExitReason,
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null,
-    Dictionary<string, List<string>>? Labels = null)
+    Dictionary<string, List<string>>? Labels = null, string? Undecided = null)
 {
-    /// <summary>Graded and counted: an invalid sample is graded but does not count.</summary>
+    /// <summary>Graded and counted: an invalid run is graded but does not count. A counted run may still be undecided (Pass null).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool Analysed => Pass is not null && Invalid is null;
+    public bool Analysed => Checks is not null && Invalid is null;
+
+    /// <summary>Counted and decided: the runs a pass rate is over.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Decided => Analysed && Pass is not null;
 }
 
 record UsageRow(long? Input, long? Output, long? Total, bool Estimated);
@@ -47,7 +51,8 @@ static class Results
                 Pass: checks is null ? null : Grade.Pass(checks, eval.Grading.Pass!),
                 Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
                 Invalid: checks is null ? null : Grade.Invalid(checks, eval.Grading.Validity),
-                Labels: eval.LabelsFor(c) is { Count: > 0 } labels ? labels : null));
+                Labels: eval.LabelsFor(c) is { Count: > 0 } labels ? labels : null,
+                Undecided: checks is null ? null : Grade.Undecided(checks, eval.Grading.Pass!)));
         }
         return rows;
     }

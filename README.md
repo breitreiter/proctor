@@ -151,9 +151,20 @@ script check must have one, because from outside a script says nothing:
 
 A built-in check describes itself from its spec (`{ "denied_calls": { "max":
 0 } }` reads as "no denied tool calls") unless you give it a better sentence.
-The report opens with the eval's description and a section, "Where it fell
-down", that names each check that did not hold, in those words, with how
-often and in which cases; the case and check tables carry the sentences too.
+
+The report is built for someone who was not there, and for someone who opens
+one every few months as much as every day: it defines arm, case, run and
+check before using them, and every section opens with a sentence saying what
+it is for. It starts with the eval's description, a short table of what ran
+and a one-line result, then Arms, Cases and Checks with their sentences, then
+Results (pass rates, the comparison between arms, the baseline), then
+Failures: per arm, each check that failed, in the author's words, with how
+often and on which cases. Everything after that is evidence: what ran and
+what was left out, results by case, check pass rates, cost, every run, and
+the method last. A run whose headline check could not decide (a script's
+exit 2, a split judge) is *undecided*: out of the pass rate on both sides,
+listed for review when there are a few, and flagged as a defect in the check
+when there are many.
 
 Labels are yours: a key with a string or a list of strings, on the eval,
 the fixture or the case, and proctor never interprets a key. A case carries

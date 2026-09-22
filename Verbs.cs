@@ -61,7 +61,8 @@ static class Verbs
         var grades = Proctor.Grade.Experiment(root, experiment, eval, Console.Out, judges);
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
-        Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}");
+        var undecided = grades.Count(g => g.Checks is not null && g.Invalid is null && g.Pass is null);
+        Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided > 0 ? $", {undecided} undecided" : "")}");
         return 0;
     }
 
@@ -83,7 +84,7 @@ static class Verbs
         foreach (var c in caseIds ?? [])
             if (eval.Cases.All(x => x.Id != c)) throw new ProctorException($"no case '{c}' in eval '{eval.Id}'");
 
-        var rows = Results.Collect(root, experiment, eval).Where(r => r.Arm == arm.Id && r.Analysed).ToList();
+        var rows = Results.Collect(root, experiment, eval).Where(r => r.Arm == arm.Id && r.Decided).ToList();
         var existing = Proctor.Baseline.Load(eval);
         var pins = existing?.Cases.ToDictionary(k => k.Key, k => k.Value) ?? [];
         var pinned = 0;

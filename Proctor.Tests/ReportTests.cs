@@ -73,9 +73,12 @@ public class ReportTests
         var md = Report.Markdown(stats, rows, exp);
         foreach (var arm in stats.Arms.Values)
         {
-            var rate = $"{Math.Round(100 * arm.Pass!.Rate):F0}% [{Math.Round(100 * arm.Pass.Ci95.Lo):F0}, {Math.Round(100 * arm.Pass.Ci95.Hi):F0}] ({arm.Pass.KCells}/{arm.Pass.NCells})";
-            Assert.Contains(rate, html);
-            Assert.Contains(rate, md);
+            var interval = $"{Math.Round(100 * arm.Pass!.Ci95.Lo):F0}% to {Math.Round(100 * arm.Pass.Ci95.Hi):F0}%";
+            var runs = $"{arm.Pass.KCells} / {arm.Pass.NCells}";
+            Assert.Contains(interval, html);
+            Assert.Contains(interval, md);
+            Assert.Contains(runs, html);
+            Assert.Contains(runs, md);
         }
         Assert.Contains(stats.Mde.Sentence, html);
         Assert.Contains(stats.Mde.Sentence, md);

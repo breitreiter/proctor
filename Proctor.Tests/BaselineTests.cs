@@ -41,7 +41,7 @@ public class BaselineTests
         Assert.Equal("recomputed", bl["scores"]!.GetValue<string>());
         Assert.Equal(0, bl["arms"]!["a"]!["diff_points"]!.GetValue<int>());
         Assert.Equal("held", bl["arms"]!["a"]!["verdict"]!.GetValue<string>());
-        Assert.Contains("Against baseline", File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md")));
+        Assert.Contains("Against the baseline", File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md")));
 
         // A baseline whose cells are gone stands as pinned; a higher pinned score is a regression at tolerance 0 and held at 40.
         repo.EditJson("smoke/baseline.json", b =>

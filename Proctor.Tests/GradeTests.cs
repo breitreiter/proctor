@@ -58,7 +58,10 @@ public class GradeTests
         Assert.True(Grade.Pass(checks, ["a"]));
         Assert.False(Grade.Pass(checks, ["a", "b"]));
         Assert.False(Grade.Pass(checks, ["a", "c"]));
-        Assert.False(Grade.Pass(checks, ["a", "d"]));
+        Assert.Null(Grade.Pass(checks, ["a", "d"]));            // undecided: nothing failed, one check needs a judge
+        Assert.False(Grade.Pass(checks, ["b", "d"]));           // a fail decides it, whatever else is undecided
+        Assert.Equal("d: ", Grade.Undecided(checks, ["a", "d"]));
+        Assert.Null(Grade.Undecided(checks, ["b", "d"]));
     }
 
     [Fact]

@@ -32,7 +32,7 @@ static class Grade
             var pass = Pass(checks, eval.Grading.Pass!);
             var invalid = Invalid(checks, eval.Grading.Validity);
             grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, checks, pass, invalid));
-            log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {(invalid is not null ? "invalid" : pass ? "pass" : "fail")}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}"))}");
+            log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => "undecided" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}"))}");
         }
         return grades;
     }
@@ -89,9 +89,23 @@ static class Grade
         return File.Exists(file) ? JsonSerializer.Deserialize<Dictionary<string, Verdict>>(File.ReadAllText(file), Eval.JsonOptions) : null;
     }
 
-    /// <summary>The headline pass: every check named in grading.pass passed. Anything else, including error, is not a pass.</summary>
-    public static bool Pass(Dictionary<string, Verdict> checks, List<string> passChecks) =>
-        passChecks.All(name => checks.TryGetValue(name, out var v) && v.Result == Verdict.Pass);
+    /// <summary>
+    /// The headline pass: true when every check named in grading.pass passed; false when any failed, errored or is missing;
+    /// null (undecided) when none failed but one could not decide. An undecided run is out of the pass rate on both sides:
+    /// a check that cannot decide is the check's weakness, not the arm's.
+    /// </summary>
+    public static bool? Pass(Dictionary<string, Verdict> checks, List<string> passChecks)
+    {
+        var results = passChecks.Select(name => checks.TryGetValue(name, out var v) ? v.Result : Verdict.Error).ToList();
+        if (results.Any(r => r is Verdict.Fail or Verdict.Error)) return false;
+        return results.Any(r => r == Verdict.NeedsJudge) ? null : true;
+    }
+
+    /// <summary>Why the run is undecided, or null: the first pass check that needs a judge, as "check: reason", when nothing failed.</summary>
+    public static string? Undecided(Dictionary<string, Verdict> checks, List<string> passChecks) =>
+        Pass(checks, passChecks) is null
+            ? passChecks.Where(name => checks.TryGetValue(name, out var v) && v.Result == Verdict.NeedsJudge).Select(name => $"{name}: {checks[name].Reason}").First()
+            : null;
 
     /// <summary>Why the sample does not count, or null: the first validity check that failed, as "check: reason". An error is not a fail.</summary>
     public static string? Invalid(Dictionary<string, Verdict> checks, List<string>? validityChecks) =>

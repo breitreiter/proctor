@@ -31,10 +31,10 @@ record Baseline(string Set, string Command, string EvalHash, Dictionary<string, 
             var verdicts = cells.Select(Grade.ReadChecks).ToList();
             if (verdicts.All(v => v is not null))
             {
-                var counted = verdicts.Where(v => Grade.Invalid(v!, eval.Grading.Validity) is null).ToList();
-                if (counted.Count > 0)
+                var decided = verdicts.Where(v => Grade.Invalid(v!, eval.Grading.Validity) is null && Grade.Pass(v!, eval.Grading.Pass!) is not null).ToList();
+                if (decided.Count > 0)
                 {
-                    scores[caseId] = counted.Average(v => Grade.Pass(v!, eval.Grading.Pass!) ? 1.0 : 0.0);
+                    scores[caseId] = decided.Average(v => Grade.Pass(v!, eval.Grading.Pass!) == true ? 1.0 : 0.0);
                     recomputed++;
                     continue;
                 }

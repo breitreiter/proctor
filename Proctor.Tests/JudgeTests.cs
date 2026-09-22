@@ -370,8 +370,8 @@ public class JudgeTests
         var rows = Results.Collect(repo.Root, experiment, eval);
         var stats = Stats.Compute(experiment, eval, rows);
         var html = Report.Html(stats, rows, experiment, uses);
-        Assert.Contains("<dt>judge jev</dt><dd class=\"id\">systemone jev-1.13.0 at http://judge.test/systemone; graded stance</dd>", html);
-        Assert.Contains("- judge glm: `chat glm at http://judge.test/v1; graded sensible`", Report.Markdown(stats, rows, experiment, uses));
+        Assert.Contains("<dt>judge jev</dt><dd><span class=\"id\">systemone jev-1.13.0 at http://judge.test/systemone; graded stance</span></dd>", html);
+        Assert.Contains("| judge glm | `chat glm at http://judge.test/v1; graded sensible` |", Report.Markdown(stats, rows, experiment, uses));
     }
 }
 

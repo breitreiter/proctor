@@ -33,9 +33,12 @@ record Summary(int N, double Median, double P90, double Mean, double Min, double
 record Exclusion(string Cell, string Status, string Reason);
 
 record ArmStats(
-    int Planned, int Attempted, int Completed, int Graded, int Analysed, List<Exclusion> Excluded,
+    int Planned, int Attempted, int Completed, int Graded, int Analysed, int Decided, List<Exclusion> Excluded, List<Exclusion> Undecided,
     RateJson? Pass, Dictionary<string, RateJson> Checks, List<CheckFailure> Failures, Dictionary<string, int> ExitReasons,
     Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated);
+
+/// <summary>A check that could not decide too many of the runs it applies to, across arms: the check needs rewriting before the experiment is conclusive.</summary>
+record UndecidedCheck(string Check, int Runs, int Of);
 
 /// <summary>Where an arm fell down: a check that did not pass in some analysed cells, most often first, with the cases it happened in.</summary>
 record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Cases);
@@ -61,7 +64,7 @@ record StatsFile(
     string Experiment, string Eval, int NCases, bool Paired,
     Dictionary<string, ArmStats> Arms, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Cases, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
-    Descriptions Descriptions, BaselineStats? Baseline = null);
+    Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null);
 
 /// <summary>What the report knows about the baseline: the resolved per-case scores, where they came from, and the tolerance asked for.</summary>
 record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints);
@@ -82,7 +85,7 @@ static class Stats
         var validity = eval.Grading.Validity ?? [];
         var armStats = arms.ToDictionary(a => a, a => ArmStats(byArm[a], cases, checks, validity));
 
-        var scores = arms.ToDictionary(a => a, a => CaseScores(byArm[a].Where(r => r.Analysed).ToList(), cases, r => r.Pass == true));
+        var scores = arms.ToDictionary(a => a, a => CaseScores(byArm[a].Where(r => r.Decided).ToList(), cases, r => r.Pass == true));
         var comparisons = new List<Comparison>();
         foreach (var other in arms.Skip(1))
         {
@@ -106,18 +109,25 @@ static class Stats
             baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against);
         }
 
-        var nPairs = comparisons.Count > 0 ? comparisons.Min(c => c.NPairs) : cases.Count(c => byArm[arms[0]].Any(r => r.Case == c && r.Analysed));
+        var nPairs = comparisons.Count > 0 ? comparisons.Min(c => c.NPairs) : cases.Count(c => byArm[arms[0]].Any(r => r.Case == c && r.Decided));
         var mde = Mde(nPairs);
 
         var matrix = arms.ToDictionary(a => a, a => cases.ToDictionary(c => c,
-            c => byArm[a].Where(r => r.Case == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
+            c => byArm[a].Where(r => r.Case == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
 
-        var methods = "Each case is scored as its mean over its analysed samples; n is the case count. "
-            + "Per-arm rates: Wilson 95%. Paired differences: Newcombe 95% (Wilson square-and-add, phi from the per-case scores). "
-            + $"MDE at 80% power assumes a per-case paired-difference sd of {AssumedSdOfPairedDifference}. "
-            + "Durations are the cell's wall time including hooks; tokens are nb's trailer. "
+        // A check undecided in more than a few of the runs it applies to is a defect in the check; the report says so above the numbers.
+        var undecidedChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
+        {
+            var counted = rows.Where(r => r.Analysed && r.Checks!.ContainsKey(name)).ToList();
+            return new UndecidedCheck(name, counted.Count(r => r.Checks![name] == Verdict.NeedsJudge), counted.Count);
+        }).Where(u => u.Runs > 5 || (u.Of > 0 && u.Runs > 0.05 * u.Of)).ToList();
+
+        var methods = "Each case is scored as its mean over its counted, decided runs, so n in every interval is the number of cases. "
+            + "Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-case scores). "
+            + $"The detectable difference assumes 80% power and a per-case paired-difference sd of {AssumedSdOfPairedDifference}. "
+            + "Durations are the run's wall time including hooks; tokens are what nb reported. "
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
-            + (baseline is null ? "" : $" Against the baseline: the same paired difference; the verdict is the point estimate against a tolerance of {baseline.TolerancePoints} points, and the interval is shown so a small n cannot hide.");
+            + (baseline is null ? "" : $" The baseline verdict is the point estimate against a tolerance of {baseline.TolerancePoints} points; the interval is shown so a small n cannot hide.");
 
         var descriptions = new Descriptions(
             eval.Def.Description,
@@ -125,7 +135,7 @@ static class Stats
             eval.Cases.ToDictionary(c => c.Id!, Eval.Describe),
             eval.CheckDescriptions());
 
-        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!, validity, descriptions, baseline);
+        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!, validity, descriptions, undecidedChecks, baseline);
     }
 
     static ArmStats ArmStats(List<ResultRow> rows, List<string> cases, List<string> checks, List<string> validity)
@@ -136,13 +146,17 @@ static class Stats
                 ? new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", "invalid", r.Invalid)
                 : new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", r.Status, r.StatusReason ?? "")).ToList();
 
-        var pass = CaseRate(analysed, cases, r => r.Pass == true);
+        var decided = analysed.Where(r => r.Decided).ToList();
+        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", "undecided", r.Undecided!)).ToList();
+        var pass = CaseRate(decided, cases, r => r.Pass == true);
         var checkRates = checks.ToDictionary(name => name, name =>
         {
-            // A validity check's rate is over every graded sample: it says how many counted. Other checks are over the samples that count.
+            // A validity check's rate is over every graded run: it says how many counted. Other checks are over the runs that count.
+            // A run the check could not decide is out of its denominator on both sides, and counted beside the rate.
             var pool = validity.Contains(name) ? rows.Where(r => r.Checks is not null) : analysed;
             var graded = pool.Where(r => r.Checks!.ContainsKey(name)).ToList();
-            var rate = CaseRate(graded, cases, r => r.Checks![name] == Verdict.Pass);
+            var decidedByCheck = graded.Where(r => r.Checks![name] != Verdict.NeedsJudge).ToList();
+            var rate = CaseRate(decidedByCheck, cases, r => r.Checks![name] == Verdict.Pass);
             return rate is null ? null : rate with
             {
                 Errors = graded.Count(r => r.Checks![name] == Verdict.Error),
@@ -150,12 +164,12 @@ static class Stats
             };
         }).Where(k => k.Value is not null).ToDictionary(k => k.Key, k => k.Value!);
 
-        // Where it fell down: over the analysed cells, every non-validity check that did not pass, most often first. A validity fail is an exclusion, listed there.
+        // Failures: over the counted runs, every non-validity check that failed or errored, most often first. A validity fail is an exclusion; an undecided check is listed apart.
         var failures = checks.Where(name => !validity.Contains(name))
-            .Select(name => (name, cells: analysed.Where(r => r.Checks!.TryGetValue(name, out var v) && v != Verdict.Pass).ToList()))
+            .Select(name => (name, cells: analysed.Where(r => r.Checks!.TryGetValue(name, out var v) && v is Verdict.Fail or Verdict.Error).ToList()))
             .Where(x => x.cells.Count > 0)
             .OrderByDescending(x => x.cells.Count).ThenBy(x => checks.IndexOf(x.name))
-            .Select(x => new CheckFailure(x.name, x.cells.Count, analysed.Count(r => r.Checks!.ContainsKey(x.name)),
+            .Select(x => new CheckFailure(x.name, x.cells.Count, analysed.Count(r => r.Checks!.TryGetValue(x.name, out var v) && v != Verdict.NeedsJudge),
                 cases.Where(c => x.cells.Any(r => r.Case == c)).ToDictionary(c => c, c => x.cells.Count(r => r.Case == c))))
             .ToList();
 
@@ -169,7 +183,9 @@ static class Stats
             Completed: completed.Count,
             Graded: rows.Count(r => r.Checks is not null),
             Analysed: analysed.Count,
+            Decided: decided.Count,
             Excluded: excluded,
+            Undecided: undecided,
             Pass: pass,
             Checks: checkRates,
             Failures: failures,

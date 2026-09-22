@@ -94,11 +94,25 @@ The directories are for reading, not for namespaces: everything is
   (`Checks.Describe`). Eval, arm and case descriptions are optional; a case
   falls back to the first prompt line (`Eval.Describe`). They travel in
   `stats.json` as `descriptions`, with a per-arm `failures` list (each
-  non-validity check that did not pass in an analysed cell, most often first,
-  with its cases), which the "Where it fell down" section renders.
+  non-validity check that failed or errored in a counted cell, most often
+  first, with its cases), which the Failures section renders.
+- **The report is one list of blocks rendered twice** (`Report.Blocks`, then
+  `RenderHtml` and `RenderMarkdown`), so the two renderings cannot drift in
+  wording; a cell may carry HTML for a link or hover. The structure and the
+  reader-facing vocabulary (arm, case, run, check; counted, decided; "95%
+  interval") are `project/plans/report-structure.md`. On disk a run is still
+  a cell and a sample; only the page says run.
+- **An undecided run is a third headline outcome.** `Grade.Pass` is `bool?`:
+  false when a pass check failed, errored or is missing; null when nothing
+  failed but a check is `needs-judge`. An undecided run is counted (it is
+  valid) but not decided: out of the pass rate on both sides, out of that
+  check's rate, listed under Failures when there are at most five, and a
+  warning band when a check is undecided in more than five runs or 5% of
+  the runs it applies to (`stats.json` `undecided_checks`). A check that
+  cannot decide is the check's weakness, not the arm's.
 - **Every number is computed once, in `Stats.cs`.** The renderers format; they
   never compute. If a number looks wrong, fix it in `stats.json` first.
-- **Each case is scored as its mean over its analysed samples**, so `n` in
+- **Each case is scored as its mean over its counted, decided samples**, so `n` in
   every interval is the case count. Per-arm rates: Wilson. Paired differences:
   Newcombe method 10 with his continuity-corrected phi from the 2x2 case
   table, built from the case means when there are several samples. This
