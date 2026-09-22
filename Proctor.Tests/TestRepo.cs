@@ -52,9 +52,19 @@ sealed class TestRepo : IDisposable
         CopyDirectory(Path.Combine(SourceRoot, "fixtures", id), Path.Combine(Root, "fixtures", id));
     }
 
-    public void WriteProctorConfig(string? runner = null, object? mounts = null) =>
+    public void WriteProctorConfig() =>
         File.WriteAllText(Path.Combine(Root, "evals", "proctor.json"),
-            JsonSerializer.Serialize(new { nb = new { path = NbPath, config = NbMockConfig, runner, mounts } }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
+            JsonSerializer.Serialize(new { nb = new { path = NbPath, config = NbMockConfig } }));
+
+    /// <summary>The eval's nb block: a runner named relative to evals/ (where the tests write them), rewritten relative to the eval directory as eval.json wants it.</summary>
+    public static void SetNb(JsonObject eval, string? runner, object? mounts)
+    {
+        if (runner is null && mounts is null) return;
+        var nb = new JsonObject();
+        if (runner is not null) nb["runner"] = "../" + runner;
+        if (mounts is not null) nb["mounts"] = JsonSerializer.SerializeToNode(mounts);
+        eval["nb"] = nb;
+    }
 
     /// <summary>Write an executable script under evals/. Returns the full path.</summary>
     public string WriteScript(string relativePath, string content)

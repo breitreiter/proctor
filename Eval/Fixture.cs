@@ -10,7 +10,7 @@ namespace Proctor;
 
 record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclude);
 
-record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks);
+record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null);
 
 /// <summary>One fixture directory, loaded. Construct through <see cref="Load"/>.</summary>
 sealed record Fixture
@@ -63,6 +63,7 @@ sealed record Fixture
             case { Git: not null, Rev: null or "" }: Add("source.rev", "required with git: a fixture is pinned to a revision"); break;
             case { Path: null, Git: null }: Add("source", "required: {path} or {git, rev}"); break;
         }
+        Labels.Validate(def.Labels, Add);
         foreach (var (name, spec) in def.Checks ?? [])
         {
             var f = $"checks.{name}";

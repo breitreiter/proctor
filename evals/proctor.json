@@ -1,7 +1,6 @@
 {
   "nb": {
     "path": "../../nb/bin/Debug/net10.0/nb",
-    "config": "nb.json",
-    "mounts": { "work": "/work", "bundle": "/bundle" }
+    "config": "nb.json"
   }
 }

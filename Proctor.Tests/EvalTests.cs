@@ -33,7 +33,12 @@ public class EvalTests
 
     [Theory]
     [InlineData("id", "\"wrong\"", "smoke/eval.json", "id")]
-    [InlineData("tags", "[\"nightly\"]", "smoke/eval.json", "tags")]
+    [InlineData("tags", "[\"deterministic\"]", "smoke/eval.json", "tags")]
+    [InlineData("labels", "{\"Area\": \"x\"}", "smoke/eval.json", "labels.Area")]
+    [InlineData("labels", "{\"area\": 1}", "smoke/eval.json", "labels.area")]
+    [InlineData("labels", "{\"area\": []}", "smoke/eval.json", "labels.area")]
+    [InlineData("labels", "{\"area\": [\"x\", \"\"]}", "smoke/eval.json", "labels.area")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"judge\": {}}}, \"pass\": [\"x\"]}", "smoke/eval.json", "grading.checks.x.judge")]
     [InlineData("arms", "[]", "smoke/eval.json", "arms")]
     [InlineData("hooks", "{\"run\": {\"setup\": \"hooks/arm-setup.sh\"}}", "smoke/eval.json", "hooks.run")]
     [InlineData("hooks", "{\"case\": {\"setup\": \"hooks/arm-setup.sh\"}}", "smoke/eval.json", "hooks.case")]
@@ -69,6 +74,44 @@ public class EvalTests
         repo.EditJson("smoke/eval.json", e => e["arms"]![1] = JsonNode.Parse(secondArm));
 
         Assert.Contains(repo.Problems("smoke"), p => p.Field == expectedField);
+    }
+
+    [Fact]
+    public void Labels_MergeFixtureThenEvalThenCase_AndReachEveryRow()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        var fixtureFile = Path.Combine(repo.Root, "fixtures", "note", "fixture.json");
+        var fixture = JsonNode.Parse(File.ReadAllText(fixtureFile))!.AsObject();
+        fixture["labels"] = JsonNode.Parse("{\"stack\": \"none\", \"area\": \"fixture\"}");
+        File.WriteAllText(fixtureFile, fixture.ToJsonString());
+        repo.EditJson("smoke/eval.json", e => e["labels"] = JsonNode.Parse("{\"area\": [\"eval/a\", \"eval/b\"], \"kind\": \"smoke\"}"));
+        repo.EditJson("smoke/cases/plain.json", c => c["labels"] = JsonNode.Parse("{\"kind\": \"plain\"}"));
+
+        var eval = repo.LoadEval("smoke");
+        Assert.False(eval.Judged);
+        var plain = eval.LabelsFor(eval.Cases.Single(c => c.Id == "plain"));
+        Assert.Equal(["none"], plain["stack"]);
+        Assert.Equal(["eval/a", "eval/b"], plain["area"]);
+        Assert.Equal(["plain"], plain["kind"]);
+        Assert.Equal(["smoke"], eval.LabelsFor(eval.Cases.Single(c => c.Id == "loops"))["kind"]);
+        Assert.Equal(["plain", "smoke"], eval.AllLabels()["kind"].Order());
+        Assert.Equal("area=eval/a,eval/b kind=plain stack=none", Labels.Format(plain));
+    }
+
+    [Theory]
+    [InlineData("kind", true)]
+    [InlineData("kind=plain", true)]
+    [InlineData("kind=pl*", true)]
+    [InlineData("area=eval/*", true)]
+    [InlineData("area=*", false)]
+    [InlineData("area=**", true)]
+    [InlineData("kind=smoke", false)]
+    [InlineData("owner", false)]
+    public void Labels_FilterByKeyOrValueGlob(string filter, bool expected)
+    {
+        var labels = new Dictionary<string, List<string>> { ["kind"] = ["plain"], ["area"] = ["eval/a"] };
+        Assert.Equal(expected, Labels.Matches(labels, filter));
     }
 
     [Fact]

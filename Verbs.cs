@@ -3,11 +3,12 @@ namespace Proctor;
 /// <summary>One method per verb. Each loads what it needs, prints, and returns the exit code.</summary>
 static class Verbs
 {
-    public static int List(string root, string? evalId)
+    /// <summary>Validate and print. A label filter keeps the evals whose labels, or whose cases' labels, match every filter.</summary>
+    public static int List(string root, string? evalId, List<string>? labelFilters = null)
     {
         var problems = new List<Problem>();
         var evalIds = evalId is not null ? [evalId] : Directory.Exists(Layout.Evals(root))
-            ? Directory.GetDirectories(Layout.Evals(root)).Select(Path.GetFileName).Where(d => d is not null).Select(d => d!).Order(StringComparer.Ordinal).ToArray()
+            ? Directory.GetDirectories(Layout.Evals(root)).Where(d => File.Exists(Path.Combine(d, Layout.EvalFile))).Select(d => Path.GetFileName(d)!).Order(StringComparer.Ordinal).ToArray()
             : [];
         if (evalIds.Length == 0) throw new ProctorException($"no evals under {Layout.Evals(root)}");
 
@@ -16,7 +17,10 @@ static class Verbs
         {
             var eval = Eval.Load(root, id, problems);
             if (eval is null) { exit = 1; continue; }
-            Console.WriteLine($"{eval.Id}  ({eval.PlannedCells} cells: {eval.Arms.Count} arm{(eval.Arms.Count == 1 ? "" : "s")} x {eval.Cases.Count} case{(eval.Cases.Count == 1 ? "" : "s")})");
+            var labels = eval.AllLabels();
+            if (labelFilters?.All(f => Labels.Matches(labels, f)) == false) continue;
+            Console.WriteLine($"{eval.Id}  ({eval.PlannedCells} cells: {eval.Arms.Count} arm{(eval.Arms.Count == 1 ? "" : "s")} x {eval.Cases.Count} case{(eval.Cases.Count == 1 ? "" : "s")}{(eval.Judged ? ", judged" : "")})");
+            if (labels.Count > 0) Console.WriteLine($"  labels: {Labels.Format(labels)}");
             foreach (var arm in eval.Arms)
                 foreach (var c in eval.Cases)
                     for (var s = 1; s <= arm.SamplesOrOne; s++)

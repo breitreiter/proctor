@@ -10,8 +10,15 @@ namespace Proctor;
 // The definition tier: proctor.json, eval.json, the case files and the program template,
 // loaded into records and validated with a file and field on every problem.
 
-/// <summary>nb.path is the host binary; nb.runner, when set, is the script that runs nb for a cell instead (see the runner contract in the README).</summary>
-record NbConfig(string Path = "nb", string? Config = null, string? Runner = null, NbMounts? Mounts = null);
+/// <summary>nb.path is the host binary and nb.config the config it runs with: the machine's side of running nb. How an eval runs it is the eval's (EvalNb).</summary>
+record NbConfig(string Path = "nb", string? Config = null);
+
+/// <summary>
+/// eval.json's nb block: the runner script that runs nb for a cell instead of the binary (see the runner contract in the
+/// README), relative to the eval directory like a hook, and where it shows nb the checkout and the bundle. It sits beside
+/// the hooks because it only works with the hooks that make its container; --runner overrides it for one run.
+/// </summary>
+record EvalNb(string? Runner = null, NbMounts? Mounts = null);
 
 /// <summary>Where the runner shows nb the checkout and the bundle: what {{work}} and {{bundle}} resolve to when a runner is in effect. Absent, the host paths.</summary>
 record NbMounts(string? Work = null, string? Bundle = null);
@@ -39,9 +46,53 @@ record Hooks(HookPair? Run, HookPair? Arm, HookPair? Case, HookPair? Sample);
 
 record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<string>? Validity);
 
-record EvalDef(string? Id, List<string>? Tags, List<Arm>? Arms, Hooks? Hooks, Grading? Grading);
+/// <summary>Tags is what labels replaced; it is here so a leftover is a problem rather than silently ignored.</summary>
+record EvalDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, EvalNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null);
 
-record CaseDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect);
+record CaseDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null);
+
+/// <summary>
+/// Consumer metadata: a key with one or more string values, on an eval, a fixture or a case. Proctor never
+/// interprets a key; it stores them, prints them, filters on them and records them on every result row.
+/// A tree is a value with slashes in it, matched by a glob.
+/// </summary>
+static class Labels
+{
+    public static void Validate(Dictionary<string, JsonNode?>? labels, Action<string, string> add)
+    {
+        foreach (var (key, value) in labels ?? [])
+        {
+            if (!Regex.IsMatch(key, "^[a-z0-9][a-z0-9_.-]*$")) { add($"labels.{key}", "label keys are lowercase letters, digits, dots, hyphens and underscores"); continue; }
+            var values = value is JsonArray a ? a.ToList() : [value];
+            if (values.Count == 0) add($"labels.{key}", "a label is a string or a non-empty list of strings");
+            foreach (var v in values)
+                if (v is not JsonValue jv || !jv.TryGetValue<string>(out var str) || str.Length == 0)
+                    add($"labels.{key}", "a label is a string or a non-empty list of strings");
+        }
+    }
+
+    /// <summary>Lay each set over the last, key by key: a later set's key replaces the earlier set's values for it.</summary>
+    public static Dictionary<string, List<string>> Merge(params Dictionary<string, JsonNode?>?[] sets)
+    {
+        var merged = new Dictionary<string, List<string>>();
+        foreach (var set in sets)
+            foreach (var (key, value) in set ?? [])
+                merged[key] = value is JsonArray a ? a.Select(v => v!.GetValue<string>()).ToList() : [value!.GetValue<string>()];
+        return merged;
+    }
+
+    /// <summary>A filter is `key`, any value, or `key=glob` over the values (`*` within a slash segment, `**` across).</summary>
+    public static bool Matches(Dictionary<string, List<string>> labels, string filter)
+    {
+        var eq = filter.IndexOf('=');
+        var key = eq < 0 ? filter : filter[..eq];
+        if (!labels.TryGetValue(key, out var values)) return false;
+        return eq < 0 || values.Any(v => Glob.IsMatch(filter[(eq + 1)..], v));
+    }
+
+    public static string Format(Dictionary<string, List<string>> labels) =>
+        string.Join(" ", labels.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => $"{k.Key}={string.Join(",", k.Value)}"));
+}
 
 /// <summary>A check as declared, with the directory its script path is relative to: the eval's or a fixture's.</summary>
 record CheckDef(JsonObject Spec, string Dir);
@@ -54,8 +105,6 @@ record Problem(string File, string Field, string Message)
 /// <summary>One eval directory, loaded. Construct through <see cref="Load"/>.</summary>
 sealed class Eval
 {
-    public static readonly string[] RegisteredTags = ["deterministic", "judged"];
-
     /// <summary>Placeholders a program template may use; resolved per cell by the runner.</summary>
     public static readonly string[] Placeholders = ["prompt", "case", "work", "bundle", "provider", "model", "harness", "arm", "sample"];
 
@@ -72,6 +121,21 @@ sealed class Eval
     public List<Arm> Arms => Def.Arms!;
     public Grading Grading => Def.Grading!;
     public int PlannedCells => Arms.Sum(a => a.SamplesOrOne) * Cases.Count;
+
+    /// <summary>An eval is judged when any check a cell can carry names a judge; there is no marker to declare.</summary>
+    public bool Judged => Grading.Checks!.Values.Concat(Fixtures.Values.SelectMany(f => f.Checks.Values)).Any(spec => spec.ContainsKey("judge"));
+
+    /// <summary>A case's labels: its fixture's, the eval's laid over them, the case's own over both.</summary>
+    public Dictionary<string, List<string>> LabelsFor(CaseDef c) => Labels.Merge(FixtureOf(c)?.Def.Labels, Def.Labels, c.Labels);
+
+    /// <summary>Every label any case of the eval carries, for finding the eval by one.</summary>
+    public Dictionary<string, List<string>> AllLabels()
+    {
+        var all = new Dictionary<string, List<string>>();
+        foreach (var (key, values) in Cases.SelectMany(c => LabelsFor(c)).Concat(Labels.Merge(Def.Labels)))
+            all[key] = (all.GetValueOrDefault(key) ?? []).Concat(values).Distinct().ToList();
+        return all;
+    }
 
     public Fixture? FixtureOf(CaseDef c) => c.Fixture is null ? null : Fixtures[c.Fixture];
 
@@ -112,9 +176,11 @@ sealed class Eval
         var file = Path.Combine(Layout.Evals(root), Layout.ProctorConfigFile);
         if (!File.Exists(file)) return new ProctorConfig(null);
         var config = ReadJson<ProctorConfig>(file, problems);
-        foreach (var (field, mount) in new[] { ("work", config?.Nb?.Mounts?.Work), ("bundle", config?.Nb?.Mounts?.Bundle) })
-            if (mount is not null && !Path.IsPathRooted(mount))
-                problems.Add(new Problem(Path.GetRelativePath(root, file), $"nb.mounts.{field}", "a mount is an absolute path inside the container"));
+        // The runner and its mounts moved to eval.json (they are the eval's, with its hooks); a leftover here would be silently ignored.
+        var raw = config is null ? null : JsonNode.Parse(File.ReadAllText(file), documentOptions: new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })?["nb"];
+        foreach (var field in new[] { "runner", "mounts" })
+            if (raw?[field] is not null)
+                problems.Add(new Problem(Path.GetRelativePath(root, file), $"nb.{field}", $"belongs in the eval: eval.json nb.{field}"));
         return config ?? new ProctorConfig(null);
     }
 
@@ -131,6 +197,11 @@ sealed class Eval
             return null;
         }
 
+        if (!File.Exists(evalFile))
+        {
+            problems.Add(new Problem(rel(evalFile), "", "missing eval.json"));
+            return null;
+        }
         var def = ReadJson<EvalDef>(evalFile, problems);
         if (def is null) return null;
         var before = problems.Count;
@@ -190,6 +261,7 @@ sealed class Eval
                 problems.Add(new Problem(rel(file), "prompt", "required"));
             if (c.Fixture is not null && !Regex.IsMatch(c.Fixture, "^[a-z0-9][a-z0-9-]*$"))
                 problems.Add(new Problem(rel(file), "fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens"));
+            Labels.Validate(c.Labels, (field, message) => problems.Add(new Problem(rel(file), field, message)));
             cases.Add(c);
         }
         if (cases.Count == 0)
@@ -204,9 +276,8 @@ sealed class Eval
         if (string.IsNullOrWhiteSpace(def.Id)) Add("id", "required");
         else if (def.Id != evalId) Add("id", $"'{def.Id}' does not match the directory name '{evalId}'");
 
-        foreach (var tag in def.Tags ?? [])
-            if (!RegisteredTags.Contains(tag))
-                Add("tags", $"unknown tag '{tag}'; registered: {string.Join(", ", RegisteredTags)}");
+        if (def.Tags is not null) Add("tags", "removed: an eval's own metadata is labels, and whether it is judged follows from its checks");
+        Labels.Validate(def.Labels, Add);
 
         if (def.Arms is null or { Count: 0 }) Add("arms", "at least one arm is required");
         var seen = new HashSet<string>();
@@ -252,6 +323,12 @@ sealed class Eval
                 if (script is not null && !File.Exists(Path.Combine(dir, script)))
                     Add($"hooks.{level}.{kind}", $"script not found: {script}");
         }
+
+        if (def.Nb?.Runner is { } runner && !File.Exists(Path.Combine(dir, runner)))
+            Add("nb.runner", $"script not found: {runner}");
+        foreach (var (field, mount) in new[] { ("work", def.Nb?.Mounts?.Work), ("bundle", def.Nb?.Mounts?.Bundle) })
+            if (mount is not null && !Path.IsPathRooted(mount))
+                Add($"nb.mounts.{field}", "a mount is an absolute path inside the container");
 
         if (def.Grading?.Checks is null or { Count: 0 })
         {

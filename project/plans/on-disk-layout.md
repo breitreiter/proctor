@@ -51,7 +51,7 @@ learnings, and the "one file, one thing" rule from lore.
 evals/
   proctor.json                  repo-level: archive location, default arms, tool versions
   code-change/                  one eval: "can the agent make this code change"
-    eval.json                   arms, samples, tags, hooks, grading
+    eval.json                   labels, arms, samples, nb (runner, mounts), hooks, grading
     program.nb                  the nb program template; {{case}} placeholders
     cases/
       add-retry-flag.json       one case: which fixture, what prompt, what "done" means
@@ -69,7 +69,7 @@ evals/
 ```json
 {
   "id": "code-change",
-  "tags": ["deterministic", "judged"],
+  "labels": { "area": "coding/change" },
   "arms": [
     { "id": "floor",  "runner": "nb",      "harness": "nb",          "provider": "imp-qcoder", "model": "qwen-coder", "samples": 3 },
     { "id": "codex",  "runner": "command", "harness": "codex",       "model": "gpt-5",   "samples": 1,
@@ -77,6 +77,7 @@ evals/
     { "id": "claude", "runner": "command", "harness": "claude-code", "model": "sonnet-5", "samples": 1,
       "command": "claude -p {{prompt}} --model sonnet --allowedTools 'Bash(*)'" }
   ],
+  "nb": { "runner": "../runners/container.sh", "mounts": { "work": "/work", "bundle": "/bundle" } },
   "hooks": {
     "arm":    { "setup": "hooks/start-fakes.sh", "teardown": "hooks/stop-fakes.sh" },
     "sample": { "setup": "hooks/reset-fixture.sh", "teardown": "hooks/collect-diff.sh" }
@@ -108,9 +109,13 @@ Points to notice:
   contract is the order (run, arm, case, sample; teardown in reverse) and the
   recording. The fixture reset lives in the sample-level setup because a case
   here is a repository that the run mutates.
-- **Tags are registered.** `deterministic` and `judged` are built in and
-  drive the PR-versus-nightly split. Unknown tags are an error, as with
-  pytest's strict markers.
+- **Labels are the consumer's, and there are no tags** (2026-09-22; this
+  replaced a registered `tags` list of `deterministic` and `judged`). A
+  label is a key with one or more string values on the eval, a fixture or a
+  case; proctor stores, prints, filters and records them on every result
+  row and never interprets a key. Whether an eval is judged follows from a
+  check naming a judge, so the PR-versus-nightly split is the consumer's to
+  express, as a label its pipeline filters on.
 - **Grading is declared, not discovered.** Checks are a named map. Most are
   one-line built-ins over a field nb already emits (the vocabulary below);
   scripts under `checks/` are for what the built-ins cannot say, which is the

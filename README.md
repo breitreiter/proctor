@@ -28,10 +28,10 @@ relative to `evals/`:
 Without it, `nb` is taken from `PATH` and nb resolves its own config. `--nb
 <path>` overrides either.
 
-`nb.runner` names a script that runs nb for each cell instead of the binary,
-which is how an eval runs nb inside a container; `--runner <script>` (a path
-from the current directory) does the same for one run. The contract is the
-whole interface:
+An eval that runs nb inside a container names the script that runs it in
+its `eval.json`, beside the hooks that make the container; `--runner
+<script>` (a path from the current directory) overrides it for one run and
+`--runner none` runs bare. The contract is the whole interface:
 
 | proctor gives the runner | the runner must |
 |---|---|
@@ -45,16 +45,16 @@ whole interface:
 `PROCTOR_CONTAINER` is a name derived from the cell that proctor never uses,
 so hooks and the runner can agree on one container: the sample setup hook
 creates it, the runner execs into it, the sample teardown hook removes it.
-`--runner none` runs bare; hooks see which in `PROCTOR_RUNNER`, empty on a
-bare run, and skip the container. The manifest records the script and its
-hash, and `resume` refuses a changed one. The worked example is
+Hooks see which is in effect in `PROCTOR_RUNNER`, empty on a bare run, and
+skip the container. The manifest records the script and its hash, and
+`resume` refuses a changed one. The worked example is
 `evals/runners/container.sh` with the `code-change` eval's hooks and the
 `Containerfile` beside the runner, which puts nb's own image (`podman build
 -t nb .` in the nb repository) on the .NET SDK:
 
 ```bash
-proctor run code-change                                    # bare: the shakedown, on this machine
-proctor run code-change --runner evals/runners/container.sh   # each cell in its own container
+proctor run code-change                 # each cell in its own container, as eval.json says
+proctor run code-change --runner none   # bare: the shakedown, on this machine
 ```
 
 A bare run is for shaking down an eval: nb and the model's tools run on this
@@ -66,10 +66,12 @@ writes, and what nb leaves within its reach is nb's runbook,
 runbook applied. Each cell keeps `program.nb`, the source as resolved, and
 `program.jsonl`, what actually went down stdin.
 
-`nb.mounts` says where the runner will show nb the checkout and the bundle:
+The eval's `nb` block names the runner, relative to the eval directory like
+a hook, and `mounts`, where the runner will show nb the checkout and the
+bundle:
 
 ```json
-{ "nb": { "runner": "runners/container.sh", "mounts": { "work": "/work", "bundle": "/bundle" } } }
+{ "nb": { "runner": "../runners/container.sh", "mounts": { "work": "/work", "bundle": "/bundle" } } }
 ```
 
 With a runner in effect, `{{work}}` and `{{bundle}}` in the program resolve
@@ -85,9 +87,9 @@ worked example are in `project/plans/containerised-runs.md`.
 One eval is one directory, `evals/<id>/`:
 
 ```
-eval.json        arms, samples, tags, hooks, grading (checks, pass, validity)
+eval.json        labels, arms, samples, nb (runner, mounts), hooks, grading (checks, pass, validity)
 program.nb       the nb program template; {{prompt}}, {{case}}, {{work}}, {{provider}}, {{model}}, {{harness}}, {{arm}}, {{sample}}
-cases/*.json     one case per file; the id is the file name; names a fixture and adds the goal
+cases/*.json     one case per file; the id is the file name; names a fixture and adds the goal and labels
 checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason)
 hooks/*.sh       arm and sample setup/teardown
 ```
@@ -97,7 +99,7 @@ like in it. Fixtures are repo-level, `fixtures/<id>/`, and reused across
 evals:
 
 ```
-fixture.json     id, source ({path} or {git, rev}), stack, default expect, checks
+fixture.json     id, source ({path} or {git, rev}), stack, labels, default expect, checks
 checks/*.sh      the fixture's own checks (builds, tests pass); merged into every cell run on it
 repo/            the checkout source; the only thing copied into the work directory
 ```
@@ -115,6 +117,21 @@ that the eval does not declare must come from every case's fixture. A check
 named in `validity` decides whether a sample counts at all: a sample that
 fails one is excluded, not failed.
 
+Labels are yours: a key with a string or a list of strings, on the eval,
+the fixture or the case, and proctor never interprets a key. A case carries
+its fixture's labels, the eval's laid over them and its own over both, key
+by key. They print with `list`, filter it (`--label kind`, `--label
+area=coding/*`, repeatable; `*` matches within a slash segment and `**`
+across), and sit on every row of `results.jsonl` so a later report can group
+on them without re-reading an eval that has since changed:
+
+```json
+{ "labels": { "area": "coding/change", "stack": "dotnet" } }
+```
+
+Whether an eval is judged is not declared; it follows from a check that
+names a judge, and `list` says so.
+
 `evals/smoke/` with `fixtures/note/` is a complete example that runs against
 nb's Mock provider. The check vocabulary and the shape of every file are in
 `project/plans/on-disk-layout.md` and `project/plans/fixtures-arms-baselines.md`.
@@ -122,7 +139,8 @@ nb's Mock provider. The check vocabulary and the shape of every file are in
 ## Use
 
 ```bash
-proctor list [eval]          # validate; print the cells that would run
+proctor list [eval]          # validate; print the labels and the cells that would run
+proctor list --label kind=bugfix   # only the evals carrying that label
 proctor run <eval>           # run every cell into runs/<id>/; prints the id
 proctor resume <id>          # rerun cells that did not complete
 proctor grade <id>           # checks over every completed cell -> checks.json

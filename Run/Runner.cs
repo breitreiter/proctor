@@ -76,7 +76,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     /// <summary>Create a new experiment directory from an eval and run it.</summary>
     public static string Start(string root, Eval eval, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
-        var nb = ResolveNb(root, config, nbOverride, runnerOverride);
+        var nb = ResolveNb(root, eval, config, nbOverride, runnerOverride);
         var id = Layout.NewExperimentId(eval.Id, DateTime.UtcNow);
         var experiment = new Experiment(
             Id: id, Eval: eval.Id, EvalHash: eval.Hash,
@@ -106,7 +106,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
         foreach (var (arm, bundle) in ResolveBundles(root, eval))
             if (experiment.BundleOf(arm)?.Hash != bundle.Hash)
                 throw new ProctorException($"the bundle of arm '{arm}' ({bundle.Source}) has changed since experiment {experimentId} was created ({bundle.Hash} vs {experiment.BundleOf(arm)?.Hash ?? "none"}); a changed bundle is a new experiment");
-        var runner = ResolveRunner(root, config, runnerOverride);
+        var runner = ResolveRunner(root, eval, runnerOverride);
         if ((runner?.Script, runner?.Hash) != (experiment.Nb.Runner?.Script, experiment.Nb.Runner?.Hash))
             throw new ProctorException($"the runner has changed since experiment {experimentId} was created ({Describe(runner)} vs {Describe(experiment.Nb.Runner)}); a changed runner is a new experiment");
         if (nbOverride is not null) experiment = experiment with { Nb = experiment.Nb with { Path = Path.GetFullPath(nbOverride) } };
@@ -367,7 +367,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
         return System.Text.RegularExpressions.Regex.Replace(template, @"\{\{\s*([^}]*?)\s*\}\}", m => values[m.Groups[1].Value]);
     }
 
-    static ResolvedNb ResolveNb(string root, ProctorConfig config, string? nbOverride, string? runnerOverride)
+    static ResolvedNb ResolveNb(string root, Eval eval, ProctorConfig config, string? nbOverride, string? runnerOverride)
     {
         var nb = config.NbOrDefault;
         var evalsDir = Layout.Evals(root);
@@ -378,18 +378,18 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
         if (!File.Exists(path)) throw new ProctorException($"nb not found at {path}");
         var configPath = nb.Config is null ? null : Path.GetFullPath(Path.Combine(evalsDir, nb.Config));
         if (configPath is not null && !File.Exists(configPath)) throw new ProctorException($"nb config not found at {configPath} (evals/proctor.json nb.config)");
-        var runner = ResolveRunner(root, config, runnerOverride);
-        return new ResolvedNb(path, configPath, runner, runner is null ? null : nb.Mounts);
+        var runner = ResolveRunner(root, eval, runnerOverride);
+        return new ResolvedNb(path, configPath, runner, runner is null ? null : eval.Def.Nb?.Mounts);
     }
 
-    /// <summary>The runner in effect: --runner over nb.runner; `--runner none` is a bare run. Recorded relative to evals/ when it lives there, else absolute, so a resume can compare it.</summary>
-    static ResolvedRunner? ResolveRunner(string root, ProctorConfig config, string? runnerOverride)
+    /// <summary>The runner in effect: --runner (from the current directory) over the eval's nb.runner (from the eval directory); `--runner none` is a bare run. Recorded relative to evals/ when it lives there, else absolute, so a resume can compare it.</summary>
+    static ResolvedRunner? ResolveRunner(string root, Eval eval, string? runnerOverride)
     {
         var evalsDir = Layout.Evals(root);
-        var script = runnerOverride ?? config.NbOrDefault.Runner;
+        var script = runnerOverride ?? eval.Def.Nb?.Runner;
         if (script is null || runnerOverride == "none") return null;
-        var path = Path.GetFullPath(Path.Combine(runnerOverride is null ? evalsDir : Directory.GetCurrentDirectory(), script));
-        if (!File.Exists(path)) throw new ProctorException($"runner not found at {path} ({(runnerOverride is null ? "evals/proctor.json nb.runner" : "--runner")})");
+        var path = Path.GetFullPath(Path.Combine(runnerOverride is null ? eval.Dir : Directory.GetCurrentDirectory(), script));
+        if (!File.Exists(path)) throw new ProctorException($"runner not found at {path} ({(runnerOverride is null ? $"evals/{eval.Id}/eval.json nb.runner" : "--runner")})");
         var relative = Path.GetRelativePath(evalsDir, path);
         return new ResolvedRunner(relative.StartsWith("..") ? path : relative, path, Sha256(File.ReadAllText(path)));
     }

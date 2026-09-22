@@ -1,8 +1,5 @@
 {
   "id": "starved",
-  "tags": [
-    "deterministic"
-  ],
   "arms": [
     {
       "id": "qchat",

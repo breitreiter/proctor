@@ -1,9 +1,13 @@
 {
   "id": "code-change",
-  "tags": ["deterministic"],
+  "labels": { "area": "coding/change", "stack": "dotnet" },
   "arms": [
     { "id": "floor", "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3 }
   ],
+  "nb": {
+    "runner": "../runners/container.sh",
+    "mounts": { "work": "/work", "bundle": "/bundle" }
+  },
   "hooks": {
     "arm":    { "setup": "hooks/arm-setup.sh" },
     "sample": { "setup": "hooks/sample-setup.sh", "teardown": "hooks/sample-teardown.sh" }

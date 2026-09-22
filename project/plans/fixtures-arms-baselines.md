@@ -115,7 +115,7 @@ that belong to the repository rather than to any one request.
 ```json
 {
   "id": "code-change",
-  "tags": ["deterministic"],
+  "labels": { "area": "coding/change" },
   "arms": [
     { "id": "floor", "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3 },
     { "id": "v3",    "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3,

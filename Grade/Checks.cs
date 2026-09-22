@@ -79,6 +79,7 @@ static class Checks
         ["oracle_misses"] = "oracle checks wait for an eval that uses an oracle",
         ["oracle_turns"] = "oracle checks wait for an eval that uses an oracle",
         ["max_cost"] = "cost is omitted until nb's trailer carries it",
+        ["judge"] = "the judge waits for a case whose pass the checks cannot decide",
     };
 
     /// <summary>Shape-check one field of a check spec at load time. Null when fine.</summary>

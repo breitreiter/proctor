@@ -376,10 +376,13 @@ runbook is written last, from what the live run actually did.
   runner and the mounts are one unit with those hooks, which argues for
   `eval.json`; against that, whether a run is bare or in a container is
   the machine's choice as much as the eval's, which is what `--runner` on
-  the command line expresses. The lean is an `nb` block in `eval.json` as
-  the eval's default, overridden by the flag, with `proctor.json` keeping
-  only the host binary and its config. Not built: one eval with hooks is
-  not evidence, and the flag covers the case today.
+  the command line expresses. *Settled 2026-09-22:* an `nb` block in
+  `eval.json` beside the hooks, `runner` relative to the eval directory as
+  a hook is and `mounts` with it; `proctor.json` keeps only the host
+  binary and its config, and reports a leftover `runner` or `mounts` as a
+  problem rather than ignoring it. `--runner` still overrides per run, so
+  `proctor run code-change` is the container and `--runner none` the
+  shakedown.
 - **Per-fixture images.** The example picks the image from the fixture's
   `stack`, which `fixture.json` already declares. If that holds up, an
   `image` field on the fixture is the obvious next step; it is not in this

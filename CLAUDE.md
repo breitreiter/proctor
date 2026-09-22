@@ -28,7 +28,7 @@ in the order the verbs run them. Every file is one concern:
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
 | `Verbs.cs` | one method per verb: `list`, `run`, `resume`, `grade`, `report`, `baseline` |
 | `Eval/Layout.cs` | paths and file names, nothing else |
-| `Eval/Eval.cs` | `proctor.json`, `eval.json`, cases, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per case |
+| `Eval/Eval.cs` | `proctor.json` (the host binary and its config), `eval.json` (arms, the `nb` block with the runner and mounts, hooks, grading), cases, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per case |
 | `Eval/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
 | `Eval/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
 | `Eval/Baseline.cs` | `evals/<eval>/baseline.json`: pinned cells per case; scores recomputed from the cells while they exist |
@@ -105,7 +105,7 @@ The directories are for reading, not for namespaces: everything is
   (the fixture checkout), `{{bundle}}` (the arm's resolved bundle directory,
   empty without one), `{{provider}}`, `{{model}}`, `{{harness}}`, `{{arm}}`,
   `{{sample}}`. `{{work}}` and `{{bundle}}` are the paths the *model* will
-  see: `nb.mounts` replaces them when a runner is in effect (`CellContext`
+  see: the eval's `nb.mounts` replaces them when a runner is in effect (`CellContext`
   `WorkMount`/`BundleMount`), and a bare run ignores the mounts so
   `--runner none` stays a host shakedown. A prompt's newlines become nb continuation lines (` \`), so a
   multi-line prompt stays one directive. A prompt line that itself ends in a
@@ -116,7 +116,7 @@ The directories are for reading, not for namespaces: everything is
   `PROCTOR_BUNDLE`, `PROCTOR_EXPERIMENT`, `PROCTOR_ARM`, `PROCTOR_CASE`, `PROCTOR_SAMPLE`,
   `PROCTOR_CELL`, `PROCTOR_WORK`, `PROCTOR_CASE_JSON`, `PROCTOR_EXPECT` (the
   merged block), `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`, `PROCTOR_RUNNER` (the
-  `nb.runner` script, empty on a bare run), `PROCTOR_NB` and
+  runner script in effect, empty on a bare run), `PROCTOR_NB` and
   `PROCTOR_NB_CONFIG` (the host binary and its resolved config, which a
   hook mounts for the runner), `PROCTOR_CONTAINER` (a name derived from the
   cell that proctor never uses), and `PROCTOR_WORK_MOUNT` and
@@ -136,12 +136,26 @@ The directories are for reading, not for namespaces: everything is
   `program.jsonl`; that is what goes down stdin, so the container never
   holds a path to a sheet. `program_hash` stays the source's. A program nb
   refuses fails the cell before the checkout or any hook. `RunNb` is one
-  code path: without `nb.runner` it starts `nb --output jsonl [--config] -`
+  code path: without a runner it starts `nb --output jsonl [--config] -`
   itself with only `NO_COLOR` added to the environment; with one it starts
   the script with nothing on argv and the cell environment plus `NO_COLOR`,
   and the script starts nb the same way. The bare path deliberately does not get the cell environment:
   `PROCTOR_EXPECT` in the model's reach would leak the answer. A runner that
   forwards its environment into the container wholesale would do the same.
+- **The runner is the eval's, the binary is the machine's.** `eval.json`'s
+  `nb` block (`runner`, relative to the eval directory like a hook, and
+  `mounts`) says how the eval runs nb, because the runner only works with
+  the hooks that make its container; `evals/proctor.json` says only where
+  the host binary and its config are. `--runner` overrides per run. A
+  `runner` or `mounts` left in `proctor.json` is reported as a problem, not
+  ignored.
+- **Labels are the consumer's; proctor has no tags.** `labels` on an eval,
+  a fixture or a case is a key with one or more string values that proctor
+  stores, prints, filters on (`list --label k[=glob]`) and records on every
+  `results.jsonl` row, never interprets. `Eval.LabelsFor` merges fixture,
+  then eval, then case, key by key. A `tags` field is reported as removed.
+  Whether an eval is judged is `Eval.Judged`, derived from a check naming a
+  `judge` (not yet a known check), not declared.
 - **`resume` refuses a changed eval.** The eval hash in `experiment.json` must
   match; a changed eval is a new experiment.
 - **Validation says "not yet" rather than silently skipping**: `command` arms,

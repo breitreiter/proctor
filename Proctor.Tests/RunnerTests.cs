@@ -10,8 +10,7 @@ public class RunnerTests
     static string StartSmoke(TestRepo repo, Action<JsonObject>? editEval = null, string? runner = null, string? runnerOverride = null, object? mounts = null)
     {
         repo.CopyEval("smoke");
-        if (editEval is not null) repo.EditJson("smoke/eval.json", editEval);
-        repo.WriteProctorConfig(runner, mounts);
+        repo.EditJson("smoke/eval.json", e => { editEval?.Invoke(e); TestRepo.SetNb(e, runner, mounts); });
         var problems = new List<Problem>();
         var config = Eval.LoadConfig(repo.Root, problems);
         var eval = repo.LoadEval("smoke");
@@ -446,11 +445,22 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         repo.CopyEval("smoke");
-        repo.WriteProctorConfig(mounts: new { work = "work" });
+        repo.EditJson("smoke/eval.json", e => TestRepo.SetNb(e, null, new { work = "work" }));
+        var problem = Assert.Single(repo.Problems("smoke"));
+        Assert.Equal("nb.mounts.work", problem.Field);
+    }
+
+    [Fact]
+    public void RunnerAndMounts_LeftInProctorJson_AreAProblem_NotIgnored()
+    {
+        using var repo = new TestRepo();
+        repo.CopyEval("smoke");
+        File.WriteAllText(Path.Combine(repo.Root, "evals", "proctor.json"),
+            $$"""{ "nb": { "path": "{{TestRepo.NbPath}}", "runner": "runners/x.sh", "mounts": { "work": "/work" } } }""");
         var problems = new List<Problem>();
         Eval.LoadConfig(repo.Root, problems);
-        var problem = Assert.Single(problems);
-        Assert.Equal("nb.mounts.work", problem.Field);
+        Assert.Equal(["nb.runner", "nb.mounts"], problems.Select(p => p.Field));
+        Assert.All(problems, p => Assert.Contains("eval.json", p.Message));
     }
 
     [Fact]
@@ -497,8 +507,14 @@ public class RunnerTests
     public void Runner_NotFound_IsAUserFacingFailure()
     {
         using var repo = new TestRepo();
-        var e = Assert.Throws<ProctorException>(() => StartSmoke(repo, OneArmOneSample, runner: "runners/missing.sh"));
+        repo.CopyEval("smoke");
+        repo.EditJson("smoke/eval.json", e => TestRepo.SetNb(e, "runners/missing.sh", null));
+        var problem = Assert.Single(repo.Problems("smoke"));
+        Assert.Equal("nb.runner", problem.Field);
+        Assert.Contains("script not found", problem.Message);
+        // And on the command line, where nothing validated it first.
+        var e = Assert.Throws<ProctorException>(() => StartSmoke(repo, OneArmOneSample, runnerOverride: "runners/missing.sh"));
         Assert.Contains("runner not found", e.Message);
-        Assert.Contains("nb.runner", e.Message);
+        Assert.Contains("--runner", e.Message);
     }
 }
