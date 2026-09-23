@@ -46,8 +46,8 @@ relative to `suites/`:
 { "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb-mock.json" } }
 ```
 
-Without it, `nb` is taken from `PATH` and nb resolves its own config. `--nb
-<path>` overrides either.
+Without it, `nb` is taken from `PATH` and nb resolves its own config.
+`--nb <path>` overrides either.
 
 The same file names the judges that the model checks call at grade time,
 by wire shape rather than vendor. A `systemone` judge answers typed
@@ -76,8 +76,8 @@ it grades. `max_window` (characters, default 24,000) caps what a judge is
 sent; a larger window is an error, never a truncation.
 
 A suite that runs nb inside a container names the script that runs it in
-its `suite.json`, beside the hooks that make the container; `--runner
-<script>` (a path from the current directory) overrides it for one run and
+its `suite.json`, beside the hooks that make the container;
+`--runner <script>` (a path from the current directory) overrides it for one run and
 `--runner none` runs bare. The contract is the whole interface:
 
 | proctor gives the runner | the runner must |
@@ -96,8 +96,8 @@ Hooks see which is in effect in `PROCTOR_RUNNER`, empty on a bare run, and
 skip the container. The manifest records the script and its hash, and
 `resume` refuses a changed one. The worked example is
 `suites/runners/container.sh` with the `code-change` suite's hooks and the
-`Containerfile` beside the runner, which puts nb's own image (`podman build
--t nb .` in the nb repository) on the .NET SDK:
+`Containerfile` beside the runner, which puts nb's own image
+(`podman build -t nb .` in the nb repository) on the .NET SDK:
 
 ```bash
 proctor run code-change                 # each cell in its own container, as suite.json says
@@ -192,8 +192,8 @@ script check must have one, because from outside a script says nothing:
 { "acceptance": { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" } }
 ```
 
-A built-in check describes itself from its spec (`{ "denied_calls": { "max":
-0 } }` reads as "no denied tool calls") unless you give it a better sentence.
+A built-in check describes itself from its spec
+(`{ "denied_calls": { "max": 0 } }` reads as "no denied tool calls") unless you give it a better sentence.
 
 The report is built for someone who was not there, and for someone who opens
 one every few months as much as every day: it defines arm, task, run and
@@ -221,8 +221,8 @@ flagged as a defect in the check when there are many.
 Labels are yours: a key with a string or a list of strings, on the suite,
 the fixture or the task, and proctor never interprets a key. A task carries
 its fixture's labels, the suite's laid over them and its own over both, key
-by key. They print with `list`, filter it (`--label kind`, `--label
-area=coding/*`, repeatable; `*` matches within a slash segment and `**`
+by key. They print with `list`, filter it (`--label kind`,
+`--label area=coding/*`, repeatable; `*` matches within a slash segment and `**`
 across), and sit on every row of `results.jsonl` so a later report can group
 on them without re-reading a suite that has since changed:
 
