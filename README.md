@@ -1,6 +1,6 @@
 # proctor
 
-Runs a suite's arms through [nb](../nb), grades the transcripts with declared
+Runs a suite's arms through [nb](https://github.com/breitreiter/nb), grades the transcripts with declared
 checks, computes the statistics once, and renders one self-contained HTML
 report plus a markdown twin.
 
@@ -109,7 +109,7 @@ machine as you. A container is for anything you would not run on your own
 machine, which is every real suite, since the model runs whatever it decides
 to. How to build the image, what to mount, who owns the files the model
 writes, and what nb leaves within its reach is nb's runbook,
-[`docs/containers.md`](../nb/docs/containers.md); the example above is that
+[`docs/containers.md`](https://github.com/breitreiter/nb/blob/HEAD/docs/containers.md); the example above is that
 runbook applied. Each cell keeps `program.nb`, the source as resolved, and
 `program.jsonl`, what actually went down stdin.
 
@@ -189,7 +189,7 @@ prompt. A check takes `description` as a field beside its spec, and a
 script check must have one, because from outside a script says nothing:
 
 ```json
-"acceptance": { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" }
+{ "acceptance": { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" } }
 ```
 
 A built-in check describes itself from its spec (`{ "denied_calls": { "max":
@@ -242,11 +242,13 @@ and the reasoning stays in the cell's `verdicts/` file and never reaches the
 report.
 
 ```json
-"stance":      { "decide": { "ask": "What does the closing message claim?", "window": "answer",
-                             "options": { "complete": "it presents the work as finished", "asked": "it stops to ask", "blocked": "it could not finish" },
-                             "expect": "complete", "threshold": 0.95 } },
-"ran-tests":   { "decide": { "ask": "Did the agent run the project's tests before its closing message?", "window": "tool_calls+answer" } },
-"change-fits": { "judge":  { "ask": "Does the diff change only what the prompt asked for?", "window": "prompt+diff", "samples": 3 } }
+{
+  "stance":      { "decide": { "ask": "What does the closing message claim?", "window": "answer",
+                               "options": { "complete": "it presents the work as finished", "asked": "it stops to ask", "blocked": "it could not finish" },
+                               "expect": "complete", "threshold": 0.95 } },
+  "ran-tests":   { "decide": { "ask": "Did the agent run the project's tests before its closing message?", "window": "tool_calls+answer" } },
+  "change-fits": { "judge":  { "ask": "Does the diff change only what the prompt asked for?", "window": "prompt+diff", "samples": 3 } }
+}
 ```
 
 `expect` may be `"@expect"`, read from the task's `expect.<check name>`;
@@ -259,7 +261,8 @@ from a check that asks a model, and `list` says so.
 
 `suites/smoke/` with `fixtures/note/` is a complete example that runs against
 nb's Mock provider. `suites/suite-authoring/` is the demo project: a suite
-that asks an agent to write suites, using most of what is described here. The check vocabulary and the shape of every file are in
+that asks an agent to write suites, using most of what is described here.
+The check vocabulary and the shape of every file are in
 `project/plans/on-disk-layout.md` and `project/plans/fixtures-arms-baselines.md`.
 
 ## Use
