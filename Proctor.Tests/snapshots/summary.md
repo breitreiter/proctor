@@ -1,15 +1,24 @@
-# smoke — 20260917-1432-smoke-k7px
+# smoke
+
+Thursday, 17 September 2026, started 14:32 UTC
 
 Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?
 
+**Against the baseline pinned 14 Sep 2026**
+
+- **floor** (reference): **Worse** (unconfirmed) −22 points; 95% interval −67 to +39 points. Lower on loops (−33) and uses-bash (−33); same on plain.
+- **b**: **Better** (unconfirmed) +11 points; 95% interval −46 to +63 points. Higher on uses-bash (+33); same on loops and plain.
+
+**Why unconfirmed:** with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks. For the same reason, **b** passing 33 points more than **floor** is not a detectable difference.
+
+**Read floor with care:** it lost 2 of its 9 runs and b lost none, so floor's rate rests on fewer runs. See What ran.
+
 | | |
 |---|---|
-| Suite | `smoke` |
-| Run | 2026-09-17 on `bench` |
+| Host | bench |
 | Arms | 2: `floor` (the reference), `b` |
 | Tasks | 3, each run 3 times per arm |
 | Runs | 18 planned, 16 counted |
-| Result | `floor` (the reference) passed 56% of its runs; `b` 89%. With 3 tasks the difference between `b` and `floor` (+33 points) is not statistically detectable. Against the pinned baseline, `floor` regressed and `b` improved at a tolerance of 10 points. The arms lost runs unequally; see What ran. |
 
 ## Arms
 
@@ -22,24 +31,92 @@ An arm is one configuration under test: a harness, a provider and a model, run o
 
 ## Tasks
 
-A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt. Every task's runs carry the 3 checks the suite declares, listed under Checks; the last column is what a task's runs are checked for beyond those, from its fixture or its own file, in that task's own words.
+A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt.
 
-| Task | What it asks | Fixture | How it is measured |
+A check is one yes-or-no test over a finished run. Every task carries the checks the suite declares; a fixture or the task itself can add more. A check's role decides what it does to a run:
+
+| | |
+|---|---|
+| headline | Together, the headline checks decide whether a run passed. |
+| validity | Decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure. |
+| guardrail | Reported, not part of the pass. |
+
+A check that cannot decide a run leaves that run out of its rate on both sides.
+
+Each task's results show one mark per run: ● passed, ○ failed, ? undecided, × not counted. Hover a mark for the reason; click it for the run. A task scores its mean over its counted, decided runs, and is called better or worse than its baseline beyond 10 points either way.
+
+### loops
+
+The model repeats a bash command until nb nudges it out of the loop
+
+Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, none of its own
+
+**Checks**
+
+| Check | What it tests | Role | Declared by |
 |---|---|---|---|
-| `loops` | The model repeats a bash command until nb nudges it out of the loop | `note` | — |
-| `plain` | The model answers in one turn with no tools | `note` | — |
-| `uses-bash` | The model runs one bash command and answers | `note` | `used-bash` (guardrail): uses bash |
+| exit_ok | nb exits with 'ok' | headline | suite |
+| builds | the repository builds after the change | headline | suite |
+| no_denials | no denied tool calls | validity | suite |
 
-## Checks
+**Results**
 
-A check is one yes-or-no test over a finished run. The headline checks together decide whether a run passed. A validity check decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure. Any other check is a guardrail: reported, not part of the pass. A check that cannot decide a run leaves that run out of its rate on both sides. A check is declared by the suite, by a fixture or by a task, and its rate is over the runs of the tasks it is on.
+| Arm | Runs | Score | Passed / decided | vs baseline (100%) | Verdict |
+|---|---|---|---|---|---|
+| floor | ● ● ○ | **67%** | 2 of 3 | −33 points | worse |
+| b | ● ● ● | **100%** | 3 of 3 | ±0 points | same |
 
-| Check | What it tests | Role | On |
+- floor run 3 failed: exit_ok: exit_reason=max_tool_calls
+
+### plain
+
+The model answers in one turn with no tools
+
+Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, none of its own
+
+**Checks**
+
+| Check | What it tests | Role | Declared by |
 |---|---|---|---|
-| `exit_ok` | nb exits with 'ok' | headline | every task |
-| `builds` | the repository builds after the change | headline | every task |
-| `no_denials` | no denied tool calls | validity | every task |
-| `used-bash` | uses bash | guardrail | `uses-bash` |
+| exit_ok | nb exits with 'ok' | headline | suite |
+| builds | the repository builds after the change | headline | suite |
+| no_denials | no denied tool calls | validity | suite |
+
+**Results**
+
+| Arm | Runs | Score | Passed / decided | vs baseline (100%) | Verdict |
+|---|---|---|---|---|---|
+| floor | ● ● × | **100%** | 2 of 2 | ±0 points | same |
+| b | ● ● ● | **100%** | 3 of 3 | ±0 points | same |
+
+- floor run 3 not counted: no_denials: 1 denied call: bash (no-match)
+
+### uses-bash
+
+The model runs one bash command and answers
+
+Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the suite, 1 of its own
+
+**Checks**
+
+| Check | What it tests | Role | Declared by |
+|---|---|---|---|
+| **used-bash** | uses bash | guardrail | this task |
+| exit_ok | nb exits with 'ok' | headline | suite |
+| builds | the repository builds after the change | headline | suite |
+| no_denials | no denied tool calls | validity | suite |
+
+**Results**
+
+| Arm | Runs | Score | Passed / decided | vs baseline (33%) | Verdict |
+|---|---|---|---|---|---|
+| floor | ○ × ○ | **0%** | 0 of 2 | −33 points | worse |
+| b | ● ○ ● | **67%** | 2 of 3 | +33 points | better |
+
+- floor run 1 failed: builds: 2 of 41 tests failed
+- floor run 2 never completed: sample setup hook failed: ``hooks/reset-fixture.sh`` exited 1: clone failed
+- floor run 3 failed: builds: 2 of 41 tests failed
+- b run 2 failed: builds: 2 of 41 tests failed
 
 ## Results
 
@@ -54,18 +131,14 @@ Pass rate is the share of counted runs in which every headline check held, avera
 
 With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.
 
-**Against the baseline.** The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each arm's score with it and calls anything more than 10 points either way a change; the interval is shown so a small number of tasks cannot hide behind the verdict.
+**Against the baseline.** The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each arm's score with it and calls anything more than 10 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.
 
 | Arm | Difference from baseline | 95% interval | Tasks better / worse / same | Verdict |
 |---|---|---|---|---|
-| `floor` | −22 points | −67 to +39 | 0 / 2 / 1 | regressed |
-| `b` | +11 points | −46 to +63 | 1 / 0 / 2 | improved |
+| `floor` | −22 points | −67 to +39 | 0 / 2 / 1 | **Worse** (unconfirmed) |
+| `b` | +11 points | −46 to +63 | 1 / 0 / 2 | **Better** (unconfirmed) |
 
-| Task | Baseline | `floor` | `b` |
-|---|---|---|---|
-| `loops` | 100% | 67% | 100% |
-| `plain` | 100% | 100% | 100% |
-| `uses-bash` | 33% | 0% | 67% |
+How each task scored against its baseline, and why runs failed, is shown with the task under Tasks.
 
 ## Failures
 
@@ -73,12 +146,12 @@ For each arm, the checks that failed in at least one counted run, most frequent 
 
 **`floor`** (the local floor) failed 2 checks:
 
-- **the repository builds after the change** (`builds`, headline) failed in 3 of 7 runs: twice on `uses-bash`, once on `loops`.
-- **nb exits with 'ok'** (`exit_ok`, headline) failed in 1 of 7 runs: once on `loops`.
+- **the repository builds after the change** (`builds`, headline) failed in 3 of 7 runs: twice on uses-bash, once on loops.
+- **nb exits with 'ok'** (`exit_ok`, headline) failed in 1 of 7 runs: once on loops.
 
 **`b`** failed 1 check:
 
-- **the repository builds after the change** (`builds`, headline) failed in 1 of 9 runs: once on `uses-bash`.
+- **the repository builds after the change** (`builds`, headline) failed in 1 of 9 runs: once on uses-bash.
 
 ## What ran
 
@@ -93,8 +166,8 @@ Every run planned by the matrix, and how far it got. *Attempted* runs started; *
 
 Runs left out, and why:
 
-- `floor/plain/3`: not counted, failed a validity check. no_denials: 1 denied call: bash (no-match)
-- `floor/uses-bash/2`: never completed. sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed
+- floor/plain/3: not counted, failed a validity check. no_denials: 1 denied call: bash (no-match)
+- floor/uses-bash/2: never completed. sample setup hook failed: ``hooks/reset-fixture.sh`` exited 1: clone failed
 
 How nb ended each completed run, per arm. `ok` is a normal finish; anything else is nb stopping the run, which the checks then grade like any other.
 
@@ -102,16 +175,6 @@ How nb ended each completed run, per arm. `ok` is a normal finish; anything else
 |---|---|---|
 | `floor` | 7 | 1 (`loops` run 3) |
 | `b` | 9 | 0 |
-
-## Results by task
-
-One row per task, one column per arm, one mark per run: ● passed, ○ failed, ? undecided, × not counted. Hover a mark for the reason; click it for the run.
-
-| Task | What it asks | `floor` | `b` |
-|---|---|---|---|
-| `loops` | The model repeats a bash command until nb nudges it out of the loop | ● ● ○ | ● ● ● |
-| `plain` | The model answers in one turn with no tools | ● ● × | ● ● ● |
-| `uses-bash` | The model runs one bash command and answers | ○ × ○ | ● ○ ● |
 
 ## Check pass rates
 
@@ -144,7 +207,7 @@ Every run, failures first. *Reason* is the first check that did not hold and wha
 | `floor` | `uses-bash` | 1 | ○ failed | `ok` | 13.5 | 41,200 | builds: 2 of 41 tests failed |
 | `floor` | `uses-bash` | 3 | ○ failed | `ok` | 16.9 | 47,200 | builds: 2 of 41 tests failed |
 | `floor` | `plain` | 3 | × not counted | `ok` | 16.9 | 67,200 | no_denials: 1 denied call: bash (no-match) |
-| `floor` | `uses-bash` | 2 | × never completed |  | 15.2 |  | sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed |
+| `floor` | `uses-bash` | 2 | × never completed |  | 15.2 |  | sample setup hook failed: ``hooks/reset-fixture.sh`` exited 1: clone failed |
 | `b` | `loops` | 1 | ● passed | `ok` | 16.5 | 61,000 |  |
 | `b` | `loops` | 2 | ● passed | `ok` | 17.3 | 63,000 |  |
 | `b` | `loops` | 3 | ● passed | `ok` | 18.2 | 65,000 |  |
@@ -164,11 +227,12 @@ What produced this report, so it can be run again, and how the numbers were comp
 
 | | |
 |---|---|
-| proctor | `0.1.0` |
-| nb | `1.0.0 at /usr/local/bin/nb` |
-| suite hash | `sha256:9c1e0000` |
-| repository | `3f2c1e9a` |
-| command | `proctor run smoke` |
-| created | `2026-09-17T14:32:00Z` |
+| run id | 20260917-1432-smoke-k7px |
+| proctor | 0.1.0 |
+| nb | 1.0.0 at ``/usr/local/bin/nb`` |
+| suite hash | sha256:9c1e0000 |
+| repository | 3f2c1e9a |
+| command | ``proctor run smoke`` |
+| created | 2026-09-17T14:32:00Z |
 
-Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run's wall time including hooks; tokens are what nb reported. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points; the interval is shown so a small n cannot hide.
+Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run's wall time including hooks; tokens are what nb reported. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).

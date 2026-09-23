@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>proctor</AssemblyName>
     <RootNamespace>Proctor</RootNamespace>
-    <Version>0.2.1</Version>
+    <Version>0.2.2</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
@@ -15,6 +15,11 @@
   <ItemGroup>
     <Compile Remove="Proctor.Tests\**;bench\**;evals\**;suites\**;fixtures\**;runs\**;reports\**" />
     <None Remove="Proctor.Tests\**;bench\**;evals\**;suites\**;fixtures\**;runs\**;reports\**" />
+  </ItemGroup>
+
+  <!-- The report's logo, inlined as a data URI. -->
+  <ItemGroup>
+    <EmbeddedResource Include="assets\pointy-hat.svg" LogicalName="pointy-hat.svg" />
   </ItemGroup>
 
   <ItemGroup>

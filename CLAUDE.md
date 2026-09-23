@@ -72,6 +72,7 @@ in the order the verbs run them. Every file is one concern:
 | `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions |
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); its latest report is checked in under `report/` |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
+| `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings |
 | `project/` | the brief, the plans, the research notes and the loose ends |
 
@@ -139,7 +140,19 @@ The directories are for reading, not for namespaces: everything is
   suite, never "carried by every task".
 - **The report is one list of blocks rendered twice** (`Report.Blocks`, then
   `RenderHtml` and `RenderMarkdown`), so the two renderings cannot drift in
-  wording; a cell may carry HTML for a link or hover. The structure and the
+  wording; a cell may carry HTML for a link or hover. Inline forms in block
+  text: `` `id` `` (body font, no wrap), ``` ``code`` ``` (monospace: only
+  commands and paths; `Report.Paths` finds paths in free-text reasons),
+  `**bold**`, `*italic*`, `[text](#anchor)` (a link on the page, its text in
+  `summary.md`). A `Para` with class `explain` is definitional text, muted;
+  findings are never muted. Colour is semantic only: green passed/better,
+  red failed/worse, amber not counted or a warning, purple a link.
+- **The verdict card is direction plus confidence, both from `stats.json`.**
+  Better/Worse/Unchanged is the baseline `verdict` (point estimate against
+  `--tolerance`); "(unconfirmed)" is `confirmed: false`. Without a baseline
+  the card compares each arm with the reference at no tolerance, confirmed
+  when the Newcombe interval excludes zero. The card never carries model
+  output. The structure and the
   reader-facing vocabulary (arm, task, run, check; counted, decided; "95%
   interval") are `project/plans/report-structure.md`. On disk a run is still
   a cell and a sample; only the page says run.

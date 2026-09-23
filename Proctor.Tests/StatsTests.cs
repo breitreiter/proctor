@@ -244,14 +244,20 @@ public class StatsTests
         var floor = bl.Arms["floor"];      // 1/3 against 2/3: −33 points, beyond the tolerance
         Assert.Equal((3, -33, "regressed"), (floor.NPairs, floor.DiffPoints, floor.Verdict));
         Assert.Equal((0, 1, 2), (floor.Won, floor.Lost, floor.Tied));
-        Assert.Equal(new BaselineTask(1.0, 0.0), floor.Tasks["plain"]);
+        Assert.Equal(new BaselineTask(1.0, 0.0, -100, "regressed"), floor.Tasks["plain"]);
+        Assert.Equal(new BaselineTask(1.0, 1.0, 0, "held"), floor.Tasks["loops"]);
         var b = bl.Arms["b"];              // 3/3 against 2/3: +33 points
         Assert.Equal((33, "improved"), (b.DiffPoints, b.Verdict));
         Assert.True(b.Ci95[0] < 0 && b.Ci95[1] > 0, "three tasks cannot make the interval exclude zero");
+        Assert.False(floor.Confirmed || b.Confirmed, "an interval that crosses the tolerance does not confirm the verdict");
 
         // Inside the tolerance is held, whichever way it leans; the between-arm comparison is untouched.
         var held = Stats.Compute(Exp(suite), suite, rows, guard with { TolerancePoints = 40 }).Baseline!;
         Assert.All(held.Arms.Values, a => Assert.Equal("held", a.Verdict));
+        Assert.All(held.Arms.Values, a => Assert.False(a.Confirmed));
+        // Held is confirmed only when the whole interval sits inside the tolerance.
+        var wide = Stats.Compute(Exp(suite), suite, rows, guard with { TolerancePoints = 100 }).Baseline!;
+        Assert.All(wide.Arms.Values, a => Assert.True(a.Confirmed));
         Assert.Equal(67, Assert.Single(stats.Comparisons).DiffPoints);
         Assert.Contains("tolerance of 10 points", stats.Methods);
     }

@@ -5,6 +5,29 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.2.2 — 2026-09-23
+
+The report, redesigned: a verdict card up top, one card per task, and a
+table of contents. Nothing on disk breaks; `stats.json` only gains fields.
+
+- `stats.json`: `baseline.arms.<arm>.confirmed` (the whole 95% interval lies
+  beyond the tolerance on the verdict's side, or within it for `held`);
+  `baseline.arms.<arm>.tasks.<task>` gains `diff_points` and `verdict` (the
+  same tolerance, per task); `comparisons[].tasks` is the per-task difference
+  in points; `arms.<arm>.tasks.<task>` is `{score, passed, decided}`.
+  `verdict` is unchanged and is still what `--fail-on regression` reads.
+- `report.html`: a sticky rail of sections and tasks (hidden below 900px)
+  with an inline scrollspy; the verdict card per arm (Better, Worse or
+  Unchanged, confirmed or not, the tasks behind it, why it cannot be
+  confirmed, and which arm to read with care); a card per task with its
+  checks (its own first) and every arm's runs, score and baseline verdict,
+  and each run that did not pass. The Checks section and Results by task
+  are folded into the task cards. Explanations are muted; monospace is for
+  commands and paths only. The run id moved to Reproducibility and method.
+  The wizard hat is inlined from `assets/pointy-hat.svg`, credited in the
+  footer (CC BY 3.0).
+- `summary.md` carries the same blocks: the card as a list, a `###` per task.
+
 ## 0.2.1 — 2026-09-23
 
 A task's own description of a shared check reaches the report

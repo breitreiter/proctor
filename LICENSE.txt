@@ -19,3 +19,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+The file assets/pointy-hat.svg is not covered by the license above. It is
+adapted from "Pointy hat" by Lorc (https://game-icons.net/1x1/lorc/pointy-hat.html),
+licensed under CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/).

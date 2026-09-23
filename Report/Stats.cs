@@ -35,7 +35,10 @@ record Exclusion(string Cell, string Status, string Reason);
 record ArmStats(
     int Planned, int Attempted, int Completed, int Graded, int Analysed, int Decided, List<Exclusion> Excluded, List<Exclusion> Undecided,
     RateJson? Pass, Dictionary<string, RateJson> Checks, List<CheckFailure> Failures, Dictionary<string, int> ExitReasons,
-    Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated);
+    Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated, Dictionary<string, TaskScore> Tasks);
+
+/// <summary>One arm on one task: its score (the mean over its decided runs, null when none was decided) and the runs behind it.</summary>
+record TaskScore(double? Score, int Passed, int Decided);
 
 /// <summary>A check that could not decide too many of the runs it applies to, across arms: the check needs rewriting before the experiment is conclusive.</summary>
 record UndecidedCheck(string Check, int Runs, int Of);
@@ -54,16 +57,23 @@ record TaskCheck(string Name, string Level, string Description);
 /// <summary>What a rate looks like in stats.json: the rate and interval, with the task and cell counts behind it.</summary>
 record RateJson(double Rate, Interval Ci95, int N, int KCells, int NCells, int? Errors = null, int? NeedsJudge = null);
 
-record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict);
+/// <summary>One arm against another, paired by task; <c>Tasks</c> is the difference on each shared task, in points.</summary>
+record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, int> Tasks);
 
 record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
 /// <summary>The guard comparison: every arm against the suite's pinned baseline, with a tolerance on the point estimate.</summary>
 record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms);
 
-record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, BaselineTask> Tasks);
+/// <summary>
+/// <c>Verdict</c> is the point estimate against the tolerance, and is what <c>--fail-on regression</c> reads.
+/// <c>Confirmed</c> says the whole 95% interval lies in the region the verdict names: beyond the tolerance on
+/// that side for <c>regressed</c> or <c>improved</c>, within it for <c>held</c>.
+/// </summary>
+record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, bool Confirmed, Dictionary<string, BaselineTask> Tasks);
 
-record BaselineTask(double Baseline, double Arm);
+/// <summary>One task against its pinned score, with the same tolerance on the difference.</summary>
+record BaselineTask(double Baseline, double Arm, int DiffPoints, string Verdict);
 
 record StatsFile(
     string Experiment, string Suite, int NTasks, bool Paired,
@@ -106,10 +116,16 @@ static class Stats
             {
                 var c = Compare(arm, "baseline", scores[arm], guard.Scores, tasks);
                 if (c is null) continue;
-                var verdict = c.DiffPoints < -guard.TolerancePoints ? "regressed" : c.DiffPoints > guard.TolerancePoints ? "improved" : "held";
-                var perTask = tasks.Where(x => scores[arm].ContainsKey(x) && guard.Scores.ContainsKey(x))
-                    .ToDictionary(x => x, x => new BaselineTask(Round3(guard.Scores[x]), Round3(scores[arm][x])));
-                against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, perTask);
+                var tol = guard.TolerancePoints;
+                var verdict = GuardVerdict(c.DiffPoints, tol);
+                var confirmed = verdict switch
+                {
+                    "regressed" => c.Ci95[1] < -tol,
+                    "improved" => c.Ci95[0] > tol,
+                    _ => c.Ci95[0] >= -tol && c.Ci95[1] <= tol,
+                };
+                var perTask = c.Tasks.ToDictionary(x => x.Key, x => new BaselineTask(Round3(guard.Scores[x.Key]), Round3(scores[arm][x.Key]), x.Value, GuardVerdict(x.Value, tol)));
+                against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, confirmed, perTask);
             }
             baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against);
         }
@@ -132,7 +148,7 @@ static class Stats
             + $"The detectable difference assumes 80% power and a per-task paired-difference sd of {AssumedSdOfPairedDifference}. "
             + "Durations are the run's wall time including hooks; tokens are what nb reported. "
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
-            + (baseline is null ? "" : $" The baseline verdict is the point estimate against a tolerance of {baseline.TolerancePoints} points; the interval is shown so a small n cannot hide.");
+            + (baseline is null ? "" : $" The baseline verdict is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
 
         var descriptions = new Descriptions(
             suite.Def.Description,
@@ -199,7 +215,12 @@ static class Stats
             ExitReasons: exitReasons,
             DurationMs: Summarise(completed.Where(r => r.DurationMs is not null).Select(r => (double)r.DurationMs!)),
             TokensTotal: Summarise(completed.Where(r => r.Usage?.Total is not null).Select(r => (double)r.Usage!.Total!)),
-            TokensEstimated: completed.Any(r => r.Usage?.Estimated == true));
+            TokensEstimated: completed.Any(r => r.Usage?.Estimated == true),
+            Tasks: tasks.ToDictionary(c => c, c =>
+            {
+                var runs = decided.Where(r => r.Task == c).ToList();
+                return new TaskScore(runs.Count == 0 ? null : Round3(runs.Average(r => r.Pass == true ? 1.0 : 0.0)), runs.Count(r => r.Pass == true), runs.Count);
+            }));
     }
 
     /// <summary>Per-task mean scores over the analysed samples, for the tasks that have any.</summary>
@@ -273,8 +294,12 @@ static class Stats
         var hi = Points(ci.Hi);
         return new Comparison(arm, vs, shared.Count, Points(diff), [lo, hi],
             Won: shared.Count(c => a[c] > b[c]), Lost: shared.Count(c => a[c] < b[c]), Tied: shared.Count(c => a[c] == b[c]),
-            Verdict: lo > 0 ? "better" : hi < 0 ? "worse" : "no-detectable-difference");
+            Verdict: lo > 0 ? "better" : hi < 0 ? "worse" : "no-detectable-difference",
+            Tasks: shared.ToDictionary(c => c, c => Points(a[c] - b[c])));
     }
+
+    static string GuardVerdict(int diffPoints, int tolerance) =>
+        diffPoints < -tolerance ? "regressed" : diffPoints > tolerance ? "improved" : "held";
 
     /// <summary>The minimum detectable effect at 80% power for a paired design with the assumed sd, and the n a 10-point effect needs.</summary>
     public static Mde Mde(int nPairs)

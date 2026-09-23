@@ -287,3 +287,9 @@ Every rate carries a 95% interval and its counts; comparisons between arms are
 paired on shared tasks with their own interval and a fixed verdict word; and
 the minimum detectable effect is stated so an underpowered result cannot read
 as "no difference". The methods are named in the report's last paragraph.
+
+## Credits
+
+The wizard hat icon (`assets/pointy-hat.svg`) is adapted from
+["Pointy hat"](https://game-icons.net/1x1/lorc/pointy-hat.html) by Lorc,
+licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).

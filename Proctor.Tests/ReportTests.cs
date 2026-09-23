@@ -54,16 +54,16 @@ public class ReportTests
         AssertSnapshot("summary.md", Report.Markdown(stats, rows, exp));
     }
 
+    /// <summary>The page loads nothing: styles, script and logo are inline. Links out (the icon's credit) are only followed by a reader.</summary>
     [Fact]
-    public void Html_ReferencesNoExternalUrl_AndIsOneFile()
+    public void Html_LoadsNothingFromOutside_AndIsOneFile()
     {
         var (stats, rows, exp) = Worked();
         var html = Report.Html(stats, rows, exp);
-        Assert.DoesNotMatch(new Regex(@"(https?:)?//[a-z0-9.-]+\.[a-z]{2,}", RegexOptions.IgnoreCase), html);
-        Assert.DoesNotContain("<script", html);
-        Assert.DoesNotContain("<link", html);
+        Assert.DoesNotMatch(new Regex(@"<(script|img|link|iframe|source)\b[^>]*\b(src|href)=""(?!data:|#)", RegexOptions.IgnoreCase), html);
         Assert.DoesNotContain("@import", html);
-        Assert.DoesNotContain("url(", html);
+        Assert.DoesNotMatch(new Regex(@"url\((?!#)", RegexOptions.IgnoreCase), html);
+        Assert.Contains("Lorc", html);   // CC BY 3.0: the credit ships with the icon
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class ReportTests
         foreach (var row in rows) Assert.Contains(row.RunId, html);
     }
 
-    /// <summary>A headline every task declares in its own words: the Tasks table carries each task's sentence, the Checks table points there, and a failure names the task's criterion.</summary>
+    /// <summary>A headline every task declares in its own words: each task card carries the task's sentence, the check pass rates point there, and a failure names the task's criterion.</summary>
     [Fact]
     public void ACheckDescribedPerTask_ShowsEachTasksSentence()
     {
@@ -112,12 +112,13 @@ public class ReportTests
         Assert.False(stats.Descriptions.Checks.ContainsKey("builds"));
 
         var md = Report.Markdown(stats, rows, exp);
-        Assert.Contains("| `plain` | The model answers in one turn with no tools | `note` | `builds` (headline): the answer gives `#fbedef` |", md);
-        Assert.Contains("| `builds` | per task; see Tasks | headline | every task |", md);
+        var plain = md.Split("### plain")[1].Split("### uses-bash")[0];
+        Assert.Contains("**3 checks**: 2 from the suite, 1 of its own", plain);
+        Assert.Contains("| **builds** | the answer gives `#fbedef` | headline | this task |", plain);
+        Assert.Contains("| `builds` | per task; see Tasks | headline |", md);
         Assert.Contains("**`builds`** (headline) failed in", md);
-        Assert.Contains("on `uses-bash` (the answer gives 120)", md);
-        Assert.DoesNotContain("the answer gives `#fbedef`\n", md.Split("## Checks")[1].Split("## Failures")[0]);
-        Assert.Contains("Every task's runs carry the 2 checks the suite declares", md);
+        Assert.Contains("on uses-bash (the answer gives 120)", md);
+        Assert.DoesNotContain("the answer gives `#fbedef`", md.Split("## Check pass rates")[1]);
     }
 
     [Fact]
