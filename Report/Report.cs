@@ -33,8 +33,9 @@ static class Report
     /// <summary>A table cell: the text both renderings show, and the HTML to use instead when the page can carry a link or a hover.</summary>
     record Cell(string Text, string? Html = null, string? Anchor = null);
 
-    // Inline forms both renderings share: `id`, ``code``, **bold**, *italic* and [text](#anchor). Markdown keeps the
-    // first four as they are and drops the link to its text, since summary.md has no anchors.
+    // Inline forms both renderings share: `id`, ``code``, **bold**, *italic* and [text](#anchor). Markdown writes
+    // ``code`` as `code` (it has one code style, and doubled backticks read as noise raw), keeps the rest as they
+    // are and drops the link to its text, since summary.md has no anchors.
 
     public static string Html(StatsFile stats, List<ResultRow> rows, Experiment exp, List<JudgeUse>? judges = null) => RenderHtml(Blocks(stats, rows, exp, judges), stats, exp);
     public static string Markdown(StatsFile stats, List<ResultRow> rows, Experiment exp, List<JudgeUse>? judges = null) => RenderMarkdown(Blocks(stats, rows, exp, judges));
@@ -404,7 +405,7 @@ static class Report
         rows.OrderBy(r => !r.Analysed ? 1 : r.Undecided is not null ? 2 : r.Pass == true ? 3 : 0).ThenBy(r => r.Arm).ThenBy(r => r.Task).ThenBy(r => r.Sample);
 
     /// <summary>A file path in free text (a hook, a script) set as code: `dir/name.ext`, at least one slash and an extension.</summary>
-    static string Paths(string text) => Regex.Replace(text, @"(?<![\w/`.-])(?:[\w.-]+/)+[\w-]+\.\w+(?![\w/`])", "``$0``");
+    static string Paths(string text) => Regex.Replace(text, @"(?<![\w/`.'""-])(?:[\w.-]+/)+[\w-]+\.\w+(?![\w/`])", "``$0``");
 
     /// <summary>What a check tests when it says one thing everywhere; a check each task describes in its own words points at the Tasks section.</summary>
     static string CheckText(StatsFile stats, string check) =>
@@ -825,12 +826,12 @@ static class Report
                 foreach (var f in c.Foot) Markdown(sb, f);
                 break;
             case TaskCard tc:
-                sb.Append($"### {tc.Name}\n\n{Md(tc.Prompt)}\n\n{string.Join(" · ", tc.Facts)}\n\n");
+                sb.Append($"### {tc.Name}\n\n{Md(tc.Prompt)}\n\n{Md(string.Join(" · ", tc.Facts))}\n\n");
                 foreach (var inner in tc.Body) Markdown(sb, inner);
                 break;
         }
     }
 
-    static string Md(string s) => Regex.Replace(s, @"\[([^\]]+)\]\(#[^)\s]+\)", "$1");
+    static string Md(string s) => Regex.Replace(Regex.Replace(s, @"\[([^\]]+)\]\(#[^)\s]+\)", "$1"), "``([^`]+?)``", "`$1`");
     static string MdCell(string s) => Md(s).Replace("|", "\\|");
 }

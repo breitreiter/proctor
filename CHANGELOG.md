@@ -5,6 +5,21 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.2.3 — 2026-09-23
+
+Reasons that read right at a skim. Nothing on disk breaks. A model check's
+reason comes from its verdict file, which a plain `grade` reuses, so an
+existing experiment gets the new `decide` and `judge` wording only with
+`grade --rejudge`; the other changes apply on the next `grade` or `report`.
+
+- A `decide` reason says `, expected <answer>` whenever the label is not the
+  expected one (`yes p=0.98, expected no`), below the threshold too; a
+  `judge` check that fails unanimously says `no 3/3, expected yes — "…"`.
+- A check with several fields leads its reason with the parts that decided
+  the verdict, then the rest.
+- `summary.md` writes code in single backticks; a path inside quotes in a
+  free-text reason is no longer wrapped as code.
+
 ## 0.2.2 — 2026-09-23
 
 The report, redesigned: a verdict card up top, one card per task, and a

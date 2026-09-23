@@ -152,6 +152,14 @@ public class ChecksTests
         Assert.Equal(("error", "tools_used: task has no expect.uses.tools_used or expect.tools_used"), (v.Result, v.Reason));
     }
 
+    [Fact]
+    public void Combined_ReasonLeadsWithThePartsThatDecidedIt()
+    {
+        var v = Suite("{\"answer_contains\": \"forty-two\", \"answer_words\": {\"max\": 3}}", Fixture("plain"));
+        Assert.Equal("fail", v.Result);
+        Assert.DoesNotContain("forty-two", v.Reason.Split("; ")[0]);
+    }
+
     [Theory]
     [InlineData("echo 'built fine'; exit 0", "pass", "built fine")]
     [InlineData("echo '2 of 41 tests failed'; exit 1", "fail", "2 of 41 tests failed")]

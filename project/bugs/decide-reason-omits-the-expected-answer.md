@@ -2,7 +2,8 @@
 type: bug
 title: A decide check's reason omits the expected answer, so a failure reads as a pass
 created: 2026-09-23
-status: open
+status: fixed
+fixed: 2026-09-23, 0.2.3
 found-by: the design-system docs-qa suite, reading its first 0.2.2 report
 ---
 
@@ -75,3 +76,15 @@ be treated the same way.
 
 `JudgeTests.cs` pins the current strings (`"yes p=0.98"`), so those cases will
 need updating alongside the fix.
+
+## Resolution
+
+Fixed in 0.2.3. A `decide` reason names the expected answer whenever the label
+is not that answer, on both the `noul` and the `choice` path, and below the
+threshold as well: `yes p=0.98, expected no`, `yes p=0.70 (below 0.80),
+expected no`, `complete p=0.97, expected asked`. A pass is unchanged. The
+`judge` check had the same gap on a unanimous failure and now reads
+`no 3/3, expected yes — "quote"`. A verdict file already on disk keeps
+the reason it was written with, and a plain `grade` reuses it; to get the
+new wording into an existing experiment, `grade --rejudge`, which calls the
+judge again.

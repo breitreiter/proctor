@@ -2,7 +2,8 @@
 type: bug
 title: summary.md writes code as ``double-backtick`` spans, which are noisy to read raw
 created: 2026-09-23
-status: open
+status: fixed
+fixed: 2026-09-23, 0.2.3
 severity: low
 found-by: the design-system docs-qa suite, reading its first 0.2.2 report
 ---
@@ -53,3 +54,11 @@ renderer, not in `Paths()` or at the call sites.
 
 Separately, and optional: `Paths()` could leave a path alone when it is already
 inside quotes, so a quoted string in a script's reason is not wrapped again.
+
+## Resolution
+
+Fixed in 0.2.3. The markdown renderer writes ` ``code`` ` as `` `code` ``
+when the content holds no backtick; the block IR and the HTML keep the two
+forms. `Paths()` also leaves a path alone when it sits right after a quote,
+so `'patterns/forms.md'` in a script's list repr is no longer wrapped, in
+either rendering.

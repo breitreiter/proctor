@@ -2,7 +2,8 @@
 type: bug
 title: A check with several fields lists its reasons in declaration order, so the failing part is buried
 created: 2026-09-23
-status: open
+status: fixed
+fixed: 2026-09-23, 0.2.3
 found-by: the design-system docs-qa suite, reading its first 0.2.2 report
 ---
 
@@ -63,3 +64,11 @@ part that passed is marked as passing.** Either of these would do:
 
 The first changes the least and keeps the reason readable in a table cell. For
 a passing combined verdict, every part passed and declaration order is fine.
+
+## Resolution
+
+Fixed in 0.2.3 by ordering on severity: the parts whose result is the
+combined result come first, in declaration order, then the rest, still
+joined with `; `. No `also:` marker; with the `decide` fix a passing part
+reads as passing on its own. The example above now reads
+`yes p=0.98, expected no; all 7 present`.

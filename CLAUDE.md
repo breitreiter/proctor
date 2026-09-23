@@ -232,7 +232,9 @@ The directories are for reading, not for namespaces: everything is
   an unverifiable quote, no quote on a yes/no, or no JSON block is
   discarded but stays in the file. Fewer than two usable samples (one when
   `samples` is 1) is `error`; unanimous decides; a split or an `unknown`
-  is `needs-judge`. The reason string is `yes 3/3 — "first quote"`, so the
+  is `needs-judge`. The reason string is `yes 3/3 — "first quote"` (on a
+  fail, `no 3/3, expected yes — "…"`; a `decide` likewise says
+  `, expected <answer>` whenever its label is not it), so the
   matrix tooltip shows evidence without opening the cell.
 - **Calibration is the bench's, not proctor's.** A threshold or a rubric
   earns a place in `grading.pass` by the numbers in `project/plans/jev-trial.md`;

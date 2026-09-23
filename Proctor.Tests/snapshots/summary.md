@@ -114,7 +114,7 @@ Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the suite, 1
 | b | ● ○ ● | **67%** | 2 of 3 | +33 points | better |
 
 - floor run 1 failed: builds: 2 of 41 tests failed
-- floor run 2 never completed: sample setup hook failed: ``hooks/reset-fixture.sh`` exited 1: clone failed
+- floor run 2 never completed: sample setup hook failed: `hooks/reset-fixture.sh` exited 1: clone failed
 - floor run 3 failed: builds: 2 of 41 tests failed
 - b run 2 failed: builds: 2 of 41 tests failed
 
@@ -167,7 +167,7 @@ Every run planned by the matrix, and how far it got. *Attempted* runs started; *
 Runs left out, and why:
 
 - floor/plain/3: not counted, failed a validity check. no_denials: 1 denied call: bash (no-match)
-- floor/uses-bash/2: never completed. sample setup hook failed: ``hooks/reset-fixture.sh`` exited 1: clone failed
+- floor/uses-bash/2: never completed. sample setup hook failed: `hooks/reset-fixture.sh` exited 1: clone failed
 
 How nb ended each completed run, per arm. `ok` is a normal finish; anything else is nb stopping the run, which the checks then grade like any other.
 
@@ -207,7 +207,7 @@ Every run, failures first. *Reason* is the first check that did not hold and wha
 | `floor` | `uses-bash` | 1 | ○ failed | `ok` | 13.5 | 41,200 | builds: 2 of 41 tests failed |
 | `floor` | `uses-bash` | 3 | ○ failed | `ok` | 16.9 | 47,200 | builds: 2 of 41 tests failed |
 | `floor` | `plain` | 3 | × not counted | `ok` | 16.9 | 67,200 | no_denials: 1 denied call: bash (no-match) |
-| `floor` | `uses-bash` | 2 | × never completed |  | 15.2 |  | sample setup hook failed: ``hooks/reset-fixture.sh`` exited 1: clone failed |
+| `floor` | `uses-bash` | 2 | × never completed |  | 15.2 |  | sample setup hook failed: `hooks/reset-fixture.sh` exited 1: clone failed |
 | `b` | `loops` | 1 | ● passed | `ok` | 16.5 | 61,000 |  |
 | `b` | `loops` | 2 | ● passed | `ok` | 17.3 | 63,000 |  |
 | `b` | `loops` | 3 | ● passed | `ok` | 18.2 | 65,000 |  |
@@ -229,10 +229,10 @@ What produced this report, so it can be run again, and how the numbers were comp
 |---|---|
 | run id | 20260917-1432-smoke-k7px |
 | proctor | 0.1.0 |
-| nb | 1.0.0 at ``/usr/local/bin/nb`` |
+| nb | 1.0.0 at `/usr/local/bin/nb` |
 | suite hash | sha256:9c1e0000 |
 | repository | 3f2c1e9a |
-| command | ``proctor run smoke`` |
+| command | `proctor run smoke` |
 | created | 2026-09-17T14:32:00Z |
 
 Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run's wall time including hooks; tokens are what nb reported. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).

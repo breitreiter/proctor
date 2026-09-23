@@ -207,8 +207,9 @@ static class Judge
             return Save(call, hash, request, [response], [new JudgeSample(null, null, null, null, "no answer of the expected type in the response")], usage, model, started,
                 Verdict.Err($"decide: {call.Judge} returned no {(options is null ? "noul" : "choice")} answer"));
 
-        var verdict = p < threshold ? new Verdict(Verdict.NeedsJudge, $"{label} p={p:0.00} (below {threshold:0.00})")
-            : Verdict.Of(label == expected, $"{label} p={p:0.00}");
+        var but = label == expected ? "" : $", expected {expected}";
+        var verdict = p < threshold ? new Verdict(Verdict.NeedsJudge, $"{label} p={p:0.00} (below {threshold:0.00}){but}")
+            : Verdict.Of(label == expected, $"{label} p={p:0.00}{but}");
         return Save(call, hash, request, [response], [new JudgeSample(label, p, null, null, null)], usage, model, started, verdict);
     }
 
@@ -295,7 +296,7 @@ static class Judge
         var cite = quote is null ? "" : $" — \"{Cut(quote)}\"";
         if (labels.All(l => l == expected)) return new Verdict(Verdict.Pass, $"{expected} {labels.Count}/{samples}{cite}");
         var other = expected == Yes ? No : Yes;
-        if (labels.All(l => l == other)) return new Verdict(Verdict.Fail, $"{other} {labels.Count}/{samples}{cite}");
+        if (labels.All(l => l == other)) return new Verdict(Verdict.Fail, $"{other} {labels.Count}/{samples}, expected {expected}{cite}");
         var counts = string.Join(", ", labels.GroupBy(l => l).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} {g.Count()}"));
         return new Verdict(Verdict.NeedsJudge, $"{(labels.Contains(Unknown) ? "unknown" : "split")}: {counts} of {samples}{cite}");
     }

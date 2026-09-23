@@ -99,8 +99,9 @@ public class JudgeTests
 
     [Theory]
     [InlineData(0.98, "pass", "yes p=0.98")]
-    [InlineData(0.04, "fail", "no p=0.96")]
+    [InlineData(0.04, "fail", "no p=0.96, expected yes")]
     [InlineData(0.70, "needs-judge", "yes p=0.70 (below 0.90)")]
+    [InlineData(0.30, "needs-judge", "no p=0.70 (below 0.90), expected yes")]
     public void Decide_ReadsANoulProbabilityAgainstTheThreshold(double p, string result, string reason)
     {
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", p.ToString("0.00")));
@@ -118,7 +119,7 @@ public class JudgeTests
         var http = new ScriptedHttp(HttpStatusCode.OK, Choice);
         const string spec = "{\"decide\": {\"ask\": \"What does it claim?\", \"window\": \"answer\", \"options\": {\"complete\": \"done\", \"asked\": \"a question\", \"blocked\": \"stuck\"}, \"expect\": \"EXPECT\", \"threshold\": 0.95}}";
         Assert.Equal(("pass", "complete p=0.97"), Suite(spec.Replace("EXPECT", "complete"), Fixture("plain"), Client(http)).Deconstruct());
-        Assert.Equal(("fail", "complete p=0.97"), Suite(spec.Replace("EXPECT", "asked"), Fixture("plain"), Client(http)).Deconstruct());
+        Assert.Equal(("fail", "complete p=0.97, expected asked"), Suite(spec.Replace("EXPECT", "asked"), Fixture("plain"), Client(http)).Deconstruct());
         Assert.Equal("done", JsonNode.Parse(http.LastBody!)!["questions"]!["q"]!["criteria"]!["complete"]!.GetValue<string>());
 
         // expect from the task, keyed by the check's name
@@ -172,7 +173,7 @@ public class JudgeTests
         Assert.Equal(3, yes.Calls);
 
         var no = new ScriptedChat(Answer("no", "The answer is"));
-        Assert.Equal(("fail", "no 3/3 — \"The answer is\""), Suite("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Client(chat: no)).Deconstruct());
+        Assert.Equal(("fail", "no 3/3, expected yes — \"The answer is\""), Suite("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Client(chat: no)).Deconstruct());
 
         var expectNo = Suite("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\", \"expect\": \"no\", \"samples\": 1}}", Fixture("plain"), Client(chat: new ScriptedChat(Answer("no", "forty-two"))));
         Assert.Equal(("pass", "no 1/1 — \"forty-two\""), expectNo.Deconstruct());
@@ -405,7 +406,7 @@ public class JudgeTests
         var compared = Proctor.Grade.Experiment(repo.Root, experiment, suite, compareLog, compare);
         Assert.Equal(("pass", "yes 2/2 — \"OK\""), compared.Single(g => g.Task == "uses-bash").Checks!["sensible"].Deconstruct());
         Assert.Equal("pass", Proctor.Grade.ReadChecks(Layout.Cell(Layout.Experiment(repo.Root, id), "a", "uses-bash", 1))!["sensible"].Result);
-        Assert.Contains("a/uses-bash/1  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2 — \"OK\")", compareLog.ToString());
+        Assert.Contains("a/uses-bash/1  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2, expected yes — \"OK\")", compareLog.ToString());
         Assert.Contains("2 of 3 verdicts agree; checks.json unchanged", compareLog.ToString());   // plain and loops error under both judges ("OK" is not in their answers); uses-bash disagrees
         Assert.Equal(3, http.Calls);   // decides are not remapped, so not re-called
         Assert.Equal(6, chat.Calls);
@@ -422,7 +423,7 @@ public class JudgeTests
         var stats = Stats.Compute(experiment, suite, rows);
         var html = Report.Html(stats, rows, experiment, uses);
         Assert.Contains("<dt>judge jev</dt><dd>systemone jev-1.13.0 at <code class=\"code\">http://judge.test/systemone</code>; graded stance</dd>", html);
-        Assert.Contains("| judge glm | chat glm at ``http://judge.test/v1``; graded sensible |", Report.Markdown(stats, rows, experiment, uses));
+        Assert.Contains("| judge glm | chat glm at `http://judge.test/v1`; graded sensible |", Report.Markdown(stats, rows, experiment, uses));
     }
 }
 

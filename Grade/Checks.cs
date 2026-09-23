@@ -212,7 +212,8 @@ static class Checks
         var verdicts = check.Spec.Where(f => f.Key != Description).Select(field => EvaluateField(field.Key, field.Value, check.Dir, name, cell, t)).ToList();
         if (verdicts.Count == 1) return verdicts[0];
         var worst = verdicts.MaxBy(v => v.Result switch { Verdict.Error => 3, Verdict.NeedsJudge => 2, Verdict.Fail => 1, _ => 0 })!;
-        return worst with { Reason = string.Join("; ", verdicts.Select(v => v.Reason)) };
+        // The parts that decided the verdict lead, so a skimmed reason opens with why it failed.
+        return worst with { Reason = string.Join("; ", verdicts.OrderBy(v => v.Result != worst.Result).Select(v => v.Reason)) };
     }
 
     /// <summary>A suite's check: its script path is relative to the suite directory.</summary>
