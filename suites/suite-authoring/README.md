@@ -7,8 +7,9 @@ of its own task, one correct and several wrong, and a written suite passes
 only if it passes the correct run and fails every wrong one.
 
 It is also proctor's demo project. Between them the files here use most of
-what proctor has, and `report/` holds the report of the latest run, so you
-can see the output without running anything.
+what proctor has. The report of a run goes in `report/` so you can see the
+output without running anything; none is there yet (see the end of this
+file).
 
 ## What runs
 
@@ -82,6 +83,5 @@ revision, and compare the two in one experiment.
 Both arms still pin a revision from before the suite/task rename
 (2026-09-23), so the agent they show reads `evals/` and `cases/` and writes
 that layout; the trial and the checks here accept it, and proctor reads it,
-for one release. `report/` is from that revision too and says eval and case.
-Bump the bundle revisions once the rename is pushed, then rerun and replace
-`report/`.
+for one release. Bump the bundle revisions once the rename is pushed, then
+rerun and copy the report into `report/` as above; that will be its first.

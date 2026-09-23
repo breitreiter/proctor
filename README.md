@@ -259,8 +259,7 @@ from a check that asks a model, and `list` says so.
 
 `suites/smoke/` with `fixtures/note/` is a complete example that runs against
 nb's Mock provider. `suites/suite-authoring/` is the demo project: a suite
-that asks an agent to write suites, using most of what is described here, with
-the report of its latest run checked in under `report/`. The check vocabulary and the shape of every file are in
+that asks an agent to write suites, using most of what is described here. The check vocabulary and the shape of every file are in
 `project/plans/on-disk-layout.md` and `project/plans/fixtures-arms-baselines.md`.
 
 ## Use
