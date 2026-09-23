@@ -96,7 +96,8 @@ static class Labels
 }
 
 /// <summary>A check as declared, with the directory its script path is relative to: the suite's (for the suite's own and a task's) or a fixture's.</summary>
-record CheckDef(JsonObject Spec, string Dir);
+/// <summary>A check as a task carries it: its spec, the directory its script resolves against, and the level that declared it (suite, fixture or task).</summary>
+record CheckDef(JsonObject Spec, string Dir, string Level);
 
 record Problem(string File, string Field, string Message)
 {
@@ -143,22 +144,21 @@ sealed class Suite
     /// <summary>The checks that apply to a task, the union of three levels: the suite's, its fixture's, then its own. A task's scripts resolve against the suite directory, as the suite's do.</summary>
     public Dictionary<string, CheckDef> ChecksFor(TaskDef c)
     {
-        var checks = Grading.Checks!.ToDictionary(k => k.Key, k => new CheckDef(k.Value, Dir));
-        foreach (var (name, spec) in FixtureOf(c)?.Checks ?? []) checks[name] = new CheckDef(spec, FixtureOf(c)!.Dir);
-        foreach (var (name, spec) in c.Checks ?? []) checks[name] = new CheckDef(spec, Dir);
+        var checks = Grading.Checks!.ToDictionary(k => k.Key, k => new CheckDef(k.Value, Dir, "suite"));
+        foreach (var (name, spec) in FixtureOf(c)?.Checks ?? []) checks[name] = new CheckDef(spec, FixtureOf(c)!.Dir, "fixture");
+        foreach (var (name, spec) in c.Checks ?? []) checks[name] = new CheckDef(spec, Dir, "task");
         return checks;
     }
 
     /// <summary>Every check name any cell can carry, suite checks first, then each task's fixture's and its own, in declared order.</summary>
     public List<string> CheckNames => AllChecks().Select(c => c.Name).Distinct().ToList();
 
-    /// <summary>What every check the suite can carry tests, in plain words: the declared description, or the one derived from a built-in spec.</summary>
-    public Dictionary<string, string> CheckDescriptions()
-    {
-        var described = new Dictionary<string, string>();
-        foreach (var (name, spec) in AllChecks()) described.TryAdd(name, Checks.Describe(spec));
-        return described;
-    }
+    /// <summary>What a check tests, in plain words, when it says one thing everywhere: the declared description, or the one derived from a built-in spec.
+    /// A check that tasks describe differently (a headline every task declares with its own criterion) is left out; the sentence is each task's, in <see cref="ChecksFor"/>.</summary>
+    public Dictionary<string, string> CheckDescriptions() =>
+        AllChecks().GroupBy(c => c.Name, c => Checks.Describe(c.Spec))
+            .Where(g => g.Distinct().Count() == 1)
+            .ToDictionary(g => g.Key, g => g.First());
 
     /// <summary>Every declared check in report order: the suite's, then per task its fixture's and its own. A name shared across tasks appears once per task.</summary>
     IEnumerable<(string Name, JsonObject Spec)> AllChecks() =>

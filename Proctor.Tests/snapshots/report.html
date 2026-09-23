@@ -57,13 +57,13 @@ dd { margin: 0; overflow-wrap: anywhere; }
 
 <section>
 <h2>Tasks</h2>
-<p>A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt. Every task&#39;s runs carry the 3 checks the suite declares, listed under Checks; the last column is what a task&#39;s runs are checked for beyond those, from its fixture or its own file.</p>
+<p>A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt. Every task&#39;s runs carry the 3 checks the suite declares, listed under Checks; the last column is what a task&#39;s runs are checked for beyond those, from its fixture or its own file, in that task&#39;s own words.</p>
 <table>
-<thead><tr><th>Task</th><th>What it asks</th><th>Fixture</th><th>Its own checks</th></tr></thead>
+<thead><tr><th>Task</th><th>What it asks</th><th>Fixture</th><th>How it is measured</th></tr></thead>
 <tbody>
 <tr><td><span class="id">loops</span></td><td>The model repeats a bash command until nb nudges it out of the loop</td><td><span class="id">note</span></td><td>—</td></tr>
 <tr><td><span class="id">plain</span></td><td>The model answers in one turn with no tools</td><td><span class="id">note</span></td><td>—</td></tr>
-<tr><td><span class="id">uses-bash</span></td><td>The model runs one bash command and answers</td><td><span class="id">note</span></td><td><span class="id">used-bash</span></td></tr>
+<tr><td><span class="id">uses-bash</span></td><td>The model runs one bash command and answers</td><td><span class="id">note</span></td><td><span class="id">used-bash</span> (guardrail): uses bash</td></tr>
 </tbody>
 </table>
 </section>

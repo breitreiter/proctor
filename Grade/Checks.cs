@@ -216,7 +216,7 @@ static class Checks
     }
 
     /// <summary>A suite's check: its script path is relative to the suite directory.</summary>
-    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, cell.SuiteDir), cell, t, name);
+    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, cell.SuiteDir, "suite"), cell, t, name);
 
     private static Verdict EvaluateField(string key, JsonNode? value, string scriptDir, string check, CellContext cell, Transcript t)
     {

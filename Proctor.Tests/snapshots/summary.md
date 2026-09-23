@@ -22,13 +22,13 @@ An arm is one configuration under test: a harness, a provider and a model, run o
 
 ## Tasks
 
-A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt. Every task's runs carry the 3 checks the suite declares, listed under Checks; the last column is what a task's runs are checked for beyond those, from its fixture or its own file.
+A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt. Every task's runs carry the 3 checks the suite declares, listed under Checks; the last column is what a task's runs are checked for beyond those, from its fixture or its own file, in that task's own words.
 
-| Task | What it asks | Fixture | Its own checks |
+| Task | What it asks | Fixture | How it is measured |
 |---|---|---|---|
 | `loops` | The model repeats a bash command until nb nudges it out of the loop | `note` | — |
 | `plain` | The model answers in one turn with no tools | `note` | — |
-| `uses-bash` | The model runs one bash command and answers | `note` | `used-bash` |
+| `uses-bash` | The model runs one bash command and answers | `note` | `used-bash` (guardrail): uses bash |
 
 ## Checks
 

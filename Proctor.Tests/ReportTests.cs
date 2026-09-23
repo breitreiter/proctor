@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Proctor;
 
@@ -85,6 +86,38 @@ public class ReportTests
         Assert.Contains("Arms lost runs unequally", html);
         Assert.Contains("Arms lost runs unequally", md);
         foreach (var row in rows) Assert.Contains(row.RunId, html);
+    }
+
+    /// <summary>A headline every task declares in its own words: the Tasks table carries each task's sentence, the Checks table points there, and a failure names the task's criterion.</summary>
+    [Fact]
+    public void ACheckDescribedPerTask_ShowsEachTasksSentence()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("smoke");
+        repo.EditJson("smoke/suite.json", e =>
+        {
+            e["grading"]!["checks"] = JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}, \"no_denials\": {\"denied_calls\": {\"max\": 0}}}");
+            e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"builds\"]");
+            e["grading"]!["validity"] = JsonNode.Parse("[\"no_denials\"]");
+        });
+        foreach (var (task, criterion) in new[] { ("loops", "the loop ends within four turns"), ("plain", "the answer gives `#fbedef`"), ("uses-bash", "the answer gives 120") })
+            repo.EditJson($"smoke/tasks/{task}.json", t => t["checks"] = JsonNode.Parse($"{{\"builds\": {{\"script\": \"checks/answer-nonempty.sh\", \"description\": \"{criterion}\"}}}}"));
+        var suite = repo.LoadSuite("smoke");
+        var rows = WorkedExperiment.Rows();
+        var exp = WorkedExperiment.Experiment(suite);
+        var stats = Stats.Compute(exp, suite, rows);
+
+        var builds = stats.TaskDetails!["plain"].Checks.Single(k => k.Name == "builds");
+        Assert.Equal(("task", "the answer gives `#fbedef`"), (builds.Level, builds.Description));
+        Assert.False(stats.Descriptions.Checks.ContainsKey("builds"));
+
+        var md = Report.Markdown(stats, rows, exp);
+        Assert.Contains("| `plain` | The model answers in one turn with no tools | `note` | `builds` (headline): the answer gives `#fbedef` |", md);
+        Assert.Contains("| `builds` | per task; see Tasks | headline | every task |", md);
+        Assert.Contains("**`builds`** (headline) failed in", md);
+        Assert.Contains("on `uses-bash` (the answer gives 120)", md);
+        Assert.DoesNotContain("the answer gives `#fbedef`\n", md.Split("## Checks")[1].Split("## Failures")[0]);
+        Assert.Contains("Every task's runs carry the 2 checks the suite declares", md);
     }
 
     [Fact]

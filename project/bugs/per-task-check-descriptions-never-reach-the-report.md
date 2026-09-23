@@ -2,7 +2,8 @@
 type: bug
 title: A task's own description of a shared check never reaches the report
 created: 2026-09-23
-status: open
+status: fixed
+fixed: 2026-09-23, 0.2.1
 found-by: the design-system docs-qa suite, restructuring for 0.2
 ---
 

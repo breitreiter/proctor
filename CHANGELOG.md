@@ -5,6 +5,22 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.2.1 — 2026-09-23
+
+A task's own description of a shared check reaches the report
+(`project/bugs/per-task-check-descriptions-never-reach-the-report.md`).
+
+- `stats.json` `task_details.<task>.checks` is a list of
+  `{name, level, description}` instead of names; `level` is `suite`,
+  `fixture` or `task`. `descriptions.checks` carries a check only when every
+  declaration describes it the same way. The field is a day old and read by
+  nothing outside proctor, so this ships as a patch.
+- The report's Tasks table column is "How it is measured": the task's
+  fixture- and task-level checks, headline first, each with the task's own
+  sentence. A headline every task declares under one name is on every row.
+  The Checks table reads "per task; see Tasks" for a check the tasks describe
+  differently, and Failures puts each task's sentence beside the task.
+
 ## 0.2.0 — 2026-09-23
 
 The vocabulary and the layout, renamed to suite / task / sample / check

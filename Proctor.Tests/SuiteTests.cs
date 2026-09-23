@@ -106,7 +106,19 @@ public class SuiteTests
         repo.EditJson("smoke/tasks/uses-bash.json", c => c["checks"] = JsonNode.Parse("{\"own\": {\"tools_used\": [\"bash\"]}}"));
         var suite = repo.LoadSuite("smoke");
         Assert.Contains("own", suite.Grading.Pass!);
-        Assert.Equal("nb exits with 'ok'", suite.CheckDescriptions()["own"]);   // the first task's, in file order: a per-task spec that differs should declare a description
+        Assert.False(suite.CheckDescriptions().ContainsKey("own"));   // three tasks, three criteria: no one sentence is the check's
+        Assert.Equal("nb exits with 'ok'", suite.ChecksFor(suite.Tasks.Single(t => t.Id == "loops")).Values.Select(k => Checks.Describe(k.Spec)).Last());
+        Assert.All(suite.Tasks, t => Assert.Equal("task", suite.ChecksFor(t)["own"].Level));
+    }
+
+    [Fact]
+    public void CheckDescriptions_KeepOneSentence_WhenEveryTaskAgrees()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("smoke");
+        foreach (var task in new[] { "plain", "loops", "uses-bash" })
+            repo.EditJson($"smoke/tasks/{task}.json", c => c["checks"] = JsonNode.Parse("{\"own\": {\"exit_reason\": \"ok\"}}"));
+        Assert.Equal("nb exits with 'ok'", repo.LoadSuite("smoke").CheckDescriptions()["own"]);
     }
 
     [Fact]

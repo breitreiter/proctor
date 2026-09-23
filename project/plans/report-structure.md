@@ -89,20 +89,26 @@ against a fixture repository, with the checks that say whether the outcome
 was reached. Each task is run 3 times per arm, so a score is not one lucky
 or unlucky attempt. Every task's runs carry the 3 checks the suite declares,
 listed under Checks; the last column is what a task's runs are checked for
-beyond those, from its fixture or its own file.
+beyond those, from its fixture or its own file, in that task's own words.
 
-| Task | What it asks | Fixture | Its own checks |
+| Task | What it asks | Fixture | How it is measured |
 |---|---|---|---|
 | `loops` | The model repeats a bash command until nb nudges it out of the loop | `note` | — |
 | `plain` | The model answers in one turn with no tools | `note` | — |
-| `uses-bash` | The model runs one bash command and answers | `note` | `used-bash` |
+| `uses-bash` | The model runs one bash command and answers | `note` | `used-bash` (guardrail): uses bash |
 
 Checks are the task's, not the suite's: a run carries the union of what the
 suite, its fixture and its own file declare (2026-09-23,
 [suite-task-check.md](suite-task-check.md)). Listing the whole union per
-task would repeat the shared checks on every row, so the table shows what
+task would repeat the suite's checks on every row, so the table shows what
 is particular to the task and the Checks section says which tasks carry
-each check. The fixture column is omitted when no task names one.
+each check. "Particular" means declared by the fixture or the task, not
+"carried by fewer than every task": a headline every task declares under
+one name, each with its own criterion, is on every row with that task's
+sentence, headline first (2026-09-23,
+[the bug](../bugs/per-task-check-descriptions-never-reach-the-report.md)).
+The row then reads as what we asked and how we decided. The fixture column
+is omitted when no task names one.
 
 ## Checks
 
@@ -120,6 +126,12 @@ rate is over the runs of the tasks it is on.
 | `builds` | the repository builds after the change | headline | every task |
 | `no_denials` | no denied tool calls | validity | every task |
 | `used-bash` | uses bash | guardrail | `uses-bash` |
+
+"What it tests" is one sentence only when the check says one thing
+everywhere: the suite's checks always do, and a fixture's or a task's does
+when every declaration describes it the same way. A check whose tasks
+describe it differently reads "per task; see Tasks" rather than one task's
+sentence standing in for all of them.
 
 ## Results
 
@@ -170,6 +182,11 @@ frequent first, with the tasks they failed on.
 
 - **the repository builds after the change** (`builds`, headline) failed in
   1 of 9 runs: once on `uses-bash`.
+
+A check described per task leads with its id and carries each task's
+sentence beside the task: **`answer`** (headline) failed in 2 of 9 runs:
+once on `lookup-semantic` (the answer gives `#fbedef`), once on
+`fanout-no-guidance` (the answer gives 120).
 
 ## What ran
 

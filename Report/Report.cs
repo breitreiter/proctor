@@ -67,9 +67,9 @@ static class Report
         var shared = SharedChecks(stats);
         var anyFixture = stats.Tasks.Any(c => FixtureOf(stats, c) is not null);
         b.Add(new Para($"A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run {(samplesPerTask.Count == 1 ? Times(samplesPerTask[0]) : "several times")} per arm, so a score is not one lucky or unlucky attempt."
-            + (shared.Count > 0 ? $" Every task's runs carry the {shared.Count} check{(shared.Count == 1 ? "" : "s")} the suite declares, listed under Checks; the last column is what a task's runs are checked for beyond those, from its fixture or its own file." : "")));
-        b.Add(new Table(["Task", "What it asks", .. anyFixture ? ["Fixture"] : Array.Empty<string>(), "Its own checks"],
-            stats.Tasks.Select(c => (List<Cell>)[Id(c), T(TaskText(stats, c)), .. anyFixture ? [T(FixtureOf(stats, c) is { } f ? $"`{f}`" : "—")] : Array.Empty<Cell>(), T(OwnChecks(stats, c, shared))]).ToList(), []));
+            + (shared.Count > 0 ? $" Every task's runs carry the {shared.Count} check{(shared.Count == 1 ? "" : "s")} the suite declares, listed under Checks; the last column is what a task's runs are checked for beyond those, from its fixture or its own file, in that task's own words." : " The last column is what each task's runs are checked for, in that task's own words.")));
+        b.Add(new Table(["Task", "What it asks", .. anyFixture ? ["Fixture"] : Array.Empty<string>(), "How it is measured"],
+            stats.Tasks.Select(c => (List<Cell>)[Id(c), T(TaskText(stats, c)), .. anyFixture ? [T(FixtureOf(stats, c) is { } f ? $"`{f}`" : "—")] : Array.Empty<Cell>(), T(OwnChecks(stats, c))]).ToList(), []));
 
         // 4. Checks
         b.Add(new Heading("Checks"));
@@ -107,9 +107,7 @@ static class Report
             if (s.Analysed == 0) { b.Add(new Para($"{who}: no run was counted.")); continue; }
             b.Add(new Para(s.Failures.Count == 0 ? $"{who} failed no check in any of its {s.Analysed} counted run{(s.Analysed == 1 ? "" : "s")}." : $"{who} failed {s.Failures.Count} check{(s.Failures.Count == 1 ? "" : "s")}:"));
             if (s.Failures.Count > 0)
-                b.Add(new Bullets(s.Failures.Select(f =>
-                    $"**{CheckText(stats, f.Check)}** (`{f.Check}`, {Role(stats, f.Check)}) failed in {f.Cells} of {f.Of} run{(f.Of == 1 ? "" : "s")}: "
-                    + string.Join(", ", f.Tasks.OrderByDescending(c => c.Value).Select(c => $"{Times(c.Value)} on `{c.Key}`")) + ".").ToList()));
+                b.Add(new Bullets(s.Failures.Select(f => FailureText(stats, f)).ToList()));
         }
         var undecided = arms.SelectMany(a => stats.Arms[a].Undecided).ToList();
         if (undecided.Count > 0 && undecided.Count <= 5)
@@ -267,7 +265,26 @@ static class Report
     static IEnumerable<ResultRow> Ordered(List<ResultRow> rows) =>
         rows.OrderBy(r => !r.Analysed ? 1 : r.Undecided is not null ? 2 : r.Pass == true ? 3 : 0).ThenBy(r => r.Arm).ThenBy(r => r.Task).ThenBy(r => r.Sample);
 
-    static string CheckText(StatsFile stats, string check) => stats.Descriptions.Checks.GetValueOrDefault(check, check);
+    /// <summary>What a check tests when it says one thing everywhere; a check each task describes in its own words points at the Tasks table.</summary>
+    static string CheckText(StatsFile stats, string check) =>
+        stats.Descriptions.Checks.GetValueOrDefault(check) ?? (PerTask(stats, check) ? "per task; see Tasks" : check);
+
+    /// <summary>A check with no one description, so the report has a sentence for it only per task.</summary>
+    static bool PerTask(StatsFile stats, string check) =>
+        !stats.Descriptions.Checks.ContainsKey(check) && stats.TaskDetails is { Count: > 0 } td && td.Values.Any(t => t.Checks.Any(k => k.Name == check));
+
+    static string? TaskCheckText(StatsFile stats, string task, string check) =>
+        stats.TaskDetails?.GetValueOrDefault(task)?.Checks.FirstOrDefault(k => k.Name == check)?.Description;
+
+    /// <summary>A failed check with the tasks it failed on; a check described per task carries each task's sentence beside the task.</summary>
+    static string FailureText(StatsFile stats, CheckFailure f)
+    {
+        var perTask = PerTask(stats, f.Check);
+        var head = perTask ? $"**`{f.Check}`** ({Role(stats, f.Check)})" : $"**{CheckText(stats, f.Check)}** (`{f.Check}`, {Role(stats, f.Check)})";
+        var on = f.Tasks.OrderByDescending(c => c.Value).Select(c =>
+            $"{Times(c.Value)} on `{c.Key}`" + (perTask && TaskCheckText(stats, c.Key, f.Check) is { } text ? $" ({text})" : ""));
+        return $"{head} failed in {f.Cells} of {f.Of} run{(f.Of == 1 ? "" : "s")}: {string.Join(", ", on)}.";
+    }
     static string TaskText(StatsFile stats, string c) => stats.Descriptions.Tasks.GetValueOrDefault(c, c);
 
     static IEnumerable<string> CheckNames(StatsFile stats) =>
@@ -275,21 +292,23 @@ static class Report
 
     static string? FixtureOf(StatsFile stats, string task) => stats.TaskDetails?.GetValueOrDefault(task)?.Fixture;
 
-    /// <summary>The checks every task carries: the suite's own, as far as the report can tell without the suite.</summary>
+    /// <summary>The checks the suite declares, which every task carries with one meaning. Every task carrying a check does not make it shared: a headline each task declares in its own words is the task's.</summary>
     static List<string> SharedChecks(StatsFile stats) =>
-        stats.TaskDetails is { Count: > 0 } td ? CheckNames(stats).Where(c => td.Values.All(t => t.Checks.Contains(c))).ToList() : CheckNames(stats).ToList();
+        stats.TaskDetails is { Count: > 0 } td ? CheckNames(stats).Where(c => td.Values.Any(t => t.Checks.Any(k => k.Name == c && k.Level == "suite"))).ToList() : CheckNames(stats).ToList();
 
-    static string OwnChecks(StatsFile stats, string task, List<string> shared)
+    /// <summary>How a task is measured beyond the suite's checks: its fixture's and its own, headline first, each in the task's words.</summary>
+    static string OwnChecks(StatsFile stats, string task)
     {
-        var own = stats.TaskDetails?.GetValueOrDefault(task)?.Checks.Where(c => !shared.Contains(c)).ToList() ?? [];
-        return own.Count == 0 ? "—" : string.Join(", ", own.Select(c => $"`{c}`"));
+        var own = (stats.TaskDetails?.GetValueOrDefault(task)?.Checks ?? []).Where(k => k.Level != "suite")
+            .OrderBy(k => Role(stats, k.Name) switch { "headline" => 0, "validity" => 1, _ => 2 }).ToList();
+        return own.Count == 0 ? "—" : string.Join("; ", own.Select(k => $"`{k.Name}` ({Role(stats, k.Name)}): {k.Description}"));
     }
 
     /// <summary>Which tasks' runs carry a check: every task, or the ones that do.</summary>
     static string On(StatsFile stats, string check)
     {
         if (stats.TaskDetails is not { Count: > 0 } td) return "every task";
-        var on = stats.Tasks.Where(t => td.GetValueOrDefault(t)?.Checks.Contains(check) == true).ToList();
+        var on = stats.Tasks.Where(t => td.GetValueOrDefault(t)?.Checks.Any(k => k.Name == check) == true).ToList();
         return on.Count == stats.Tasks.Count ? "every task" : on.Count == 0 ? "—" : string.Join(", ", on.Select(t => $"`{t}`"));
     }
 

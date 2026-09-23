@@ -129,6 +129,14 @@ The directories are for reading, not for namespaces: everything is
   `stats.json` as `descriptions`, with a per-arm `failures` list (each
   non-validity check that failed or errored in a counted cell, most often
   first, with its tasks), which the Failures section renders.
+  `descriptions.checks` holds a check only when it says one thing
+  everywhere (`Suite.CheckDescriptions`); a check each task declares in its
+  own words is absent there, and its sentence is per task in
+  `task_details.<task>.checks` (name, level, description). The Tasks table
+  shows a task's fixture- and task-level checks with those sentences, the
+  Checks table says "per task; see Tasks", and Failures puts the task's
+  sentence beside the task. "Shared" in the report means declared by the
+  suite, never "carried by every task".
 - **The report is one list of blocks rendered twice** (`Report.Blocks`, then
   `RenderHtml` and `RenderMarkdown`), so the two renderings cannot drift in
   wording; a cell may carry HTML for a link or hover. The structure and the

@@ -46,8 +46,10 @@ record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Tas
 /// <summary>What the ids mean, in the suite author's words (or derived from a built-in check), so the report can carry them.</summary>
 record Descriptions(string? Suite, Dictionary<string, string> Arms, Dictionary<string, string> Tasks, Dictionary<string, string> Checks);
 
-/// <summary>What a task is made of: the fixture it runs against and the checks its runs carry (the suite's, the fixture's and its own, in that order), so the report can show checks as the task's.</summary>
-record TaskJson(string? Fixture, List<string> Checks);
+/// <summary>What a task is made of: the fixture it runs against and the checks its runs carry (the suite's, the fixture's and its own, in that order), each with the level that declared it and what it tests in that task's words, so the report can show a task's criterion on its row.</summary>
+record TaskJson(string? Fixture, List<TaskCheck> Checks);
+
+record TaskCheck(string Name, string Level, string Description);
 
 /// <summary>What a rate looks like in stats.json: the rate and interval, with the task and cell counts behind it.</summary>
 record RateJson(double Rate, Interval Ci95, int N, int KCells, int NCells, int? Errors = null, int? NeedsJudge = null);
@@ -138,7 +140,7 @@ static class Stats
             suite.Tasks.ToDictionary(c => c.Id!, Suite.Describe),
             suite.CheckDescriptions());
 
-        var taskDetails = suite.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, suite.ChecksFor(c).Keys.ToList()));
+        var taskDetails = suite.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, suite.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
         return new StatsFile(experiment.Id, suite.Id, tasks.Count, Paired: true, armStats, comparisons, mde, methods, tasks, matrix, suite.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails);
     }
