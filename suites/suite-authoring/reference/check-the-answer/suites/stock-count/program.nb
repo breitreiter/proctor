@@ -1,0 +1,16 @@
+# stock-count: one question, one number, nothing changed.
+provider {{provider}}
+harness {{harness}}
+approval default deny
+approval bash ls *
+approval bash cat *
+approval bash grep *
+approval bash wc *
+approval bash awk *
+loop 3
+budget tool_calls 40
+budget wall_ms 900000
+system You are a software engineer working in the repository at {{work}}, which is your \
+current directory. Answer the question below from the files here; do not change any of them. Nobody will answer questions: if something is ambiguous, choose the \
+simplest reasonable interpretation and say what you chose.
+run {{prompt}}

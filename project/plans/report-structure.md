@@ -8,21 +8,22 @@ status: built 2026-09-22 as written, undecided runs out of the pass denominator;
 # The report, rebuilt for a reader who was not there
 
 The first real report (api-docs lookups, 2026-09-22) read as a wall of ids
-and intervals. Descriptions on checks and cases helped, but the page still
-assumes the reader knows what an arm, a case, a cell and a check are, opens
+and intervals. Descriptions on checks and tasks helped, but the page still
+assumes the reader knows what an arm, a task, a cell and a check are, opens
 with a data dump written as prose, and shows the same pass counts from five
 angles without saying which one to trust. This plan is the structure that
 replaces it. It is written as the worked smoke experiment, rendered in the
 proposed order, so the disagreement can be about actual lines.
 
 The rule the structure follows: **define a term before using it, then use it
-consistently.** Four terms carry the whole report:
+consistently.** Five terms carry the whole report:
 
 | term | one sentence, used verbatim wherever the term is introduced |
 |---|---|
-| arm | One configuration under test: a harness, a provider and a model, run over every case. The first arm is the reference the others are compared with. |
-| case | One task, given to every arm: a prompt against a fixture repository. |
-| run | One attempt at one case by one arm. A case is run several times per arm (its *samples*), so the score is not one lucky or unlucky attempt. (Was "cell" and "sample"; both words go.) |
+| suite | A collection of related tasks with one business goal. Named once, in the opening table; the description under the title is the suite's. |
+| arm | One configuration under test: a harness, a provider and a model, run over every task. The first arm is the reference the others are compared with. |
+| task | One input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. |
+| run | One attempt at one task by one arm. A task is run several times per arm (its *samples*), so the score is not one lucky or unlucky attempt. (Was "cell" and "sample"; both words go.) |
 | check | One yes-or-no test over a finished run. The **headline** checks together decide whether a run passed. A **validity** check decides whether a run counts at all. Any other check is a **guardrail**: reported, not part of the pass. |
 
 Every heading gets one sentence under it saying what the section is for.
@@ -33,12 +34,12 @@ Statistics stay, but move behind the plain result and get a plain name:
 
 1. **Title and about** (a table, not a paragraph)
 2. **Arms** (defines the term, lists them)
-3. **Cases** (defines the term, lists them with what each asks)
-4. **Checks** (defines the term and the three roles, lists them with what each tests)
+3. **Tasks** (defines the term, lists them with what each asks, its fixture, and the checks it carries beyond the shared ones)
+4. **Checks** (defines the term and the three roles, lists them with what each tests and which tasks carry each)
 5. **Results** (pass rate per arm, the comparison, the baseline; the verdict in words)
-6. **Failures** (per arm, the checks that failed and on which cases, in the words from 3 and 4)
+6. **Failures** (per arm, the checks that failed and on which tasks, in the words from 3 and 4)
 7. **What ran** (planned, attempted, completed, graded, analysed; what was excluded and why; how nb ended each run, per arm)
-8. **Results by case** (the glyph matrix, now that arm, case and run are defined)
+8. **Results by task** (the glyph matrix, now that arm, task and run are defined)
 9. **Check pass rates** (the checks table with per-arm rates)
 10. **Cost and effort**
 11. **Every run** (the per-run table, failures first)
@@ -63,35 +64,45 @@ builds and the tests pass?
 
 | | |
 |---|---|
-| Eval | `smoke` |
-| Run | 2026-09-17 on `imp` |
+| Suite | `smoke` |
+| Run | 2026-09-17 on `bench` |
 | Arms | 2: `floor` (the reference), `b` |
-| Cases | 3, each run 3 times per arm |
+| Tasks | 3, each run 3 times per arm |
 | Runs | 18 planned, 16 counted |
-| Result | `b` passed 89% of its runs, `floor` 56%. With 3 cases the difference (+33 points) is not statistically detectable. Against the pinned baseline, `floor` regressed and `b` improved at a tolerance of 10 points. |
+| Result | `b` passed 89% of its runs, `floor` 56%. With 3 tasks the difference (+33 points) is not statistically detectable. Against the pinned baseline, `floor` regressed and `b` improved at a tolerance of 10 points. |
 
 ## Arms
 
 An arm is one configuration under test: a harness, a provider and a model,
-run over every case. The first arm is the reference the others are compared
+run over every task. The first arm is the reference the others are compared
 with.
 
-| Arm | What it is | Harness | Provider | Model | Runs per case |
+| Arm | What it is | Harness | Provider | Model | Runs per task |
 |---|---|---|---|---|---|
-| `floor` | the local floor | nb | imp-qcoder | qwen-coder | 3 |
-| `b` | | nb | imp-glm | glm | 3 |
+| `floor` | the local floor | nb | local-qcoder | qwen-coder | 3 |
+| `b` | | nb | local-glm | glm | 3 |
 
-## Cases
+## Tasks
 
-A case is one task, given to every arm: a prompt against a fixture
-repository. Each case is run 3 times per arm, so a score is not one lucky or
-unlucky attempt.
+A task is one input and one desired outcome, given to every arm: a prompt
+against a fixture repository, with the checks that say whether the outcome
+was reached. Each task is run 3 times per arm, so a score is not one lucky
+or unlucky attempt. Every task's runs carry the 3 checks the suite declares,
+listed under Checks; the last column is what a task's runs are checked for
+beyond those, from its fixture or its own file.
 
-| Case | What it asks |
-|---|---|
-| `loops` | The model repeats a bash command until nb nudges it out of the loop |
-| `plain` | The model answers in one turn with no tools |
-| `uses-bash` | The model runs one bash command and answers |
+| Task | What it asks | Fixture | Its own checks |
+|---|---|---|---|
+| `loops` | The model repeats a bash command until nb nudges it out of the loop | `note` | — |
+| `plain` | The model answers in one turn with no tools | `note` | — |
+| `uses-bash` | The model runs one bash command and answers | `note` | `used-bash` |
+
+Checks are the task's, not the suite's: a run carries the union of what the
+suite, its fixture and its own file declare (2026-09-23,
+[suite-task-check.md](suite-task-check.md)). Listing the whole union per
+task would repeat the shared checks on every row, so the table shows what
+is particular to the task and the Checks section says which tasks carry
+each check. The fixture column is omitted when no task names one.
 
 ## Checks
 
@@ -99,19 +110,23 @@ A check is one yes-or-no test over a finished run. The headline checks
 together decide whether a run passed. A validity check decides whether a run
 counts at all: a run that fails one is left out of every rate, not counted as
 a failure. Any other check is a guardrail: reported, not part of the pass.
+A check that cannot decide a run leaves that run out of its rate on both
+sides. A check is declared by the suite, by a fixture or by a task, and its
+rate is over the runs of the tasks it is on.
 
-| Check | What it tests | Role |
-|---|---|---|
-| `exit_ok` | nb exits with 'ok' | headline |
-| `builds` | the repository builds after the change | headline |
-| `no_denials` | no denied tool calls | validity |
+| Check | What it tests | Role | On |
+|---|---|---|---|
+| `exit_ok` | nb exits with 'ok' | headline | every task |
+| `builds` | the repository builds after the change | headline | every task |
+| `no_denials` | no denied tool calls | validity | every task |
+| `used-bash` | uses bash | guardrail | `uses-bash` |
 
 ## Results
 
 Pass rate is the share of counted runs in which every headline check held,
-averaged case by case so that one case with many runs does not outweigh
+averaged task by task so that one task with many runs does not outweigh
 another. The 95% interval says how far the true rate could plausibly sit
-from the measured one; with 3 cases it is wide.
+from the measured one; with 3 tasks it is wide.
 
 | Arm | Pass rate | 95% interval | Passed / counted runs |
 |---|---|---|---|
@@ -120,20 +135,20 @@ from the measured one; with 3 cases it is wide.
 
 **`b` against `floor`.** `b` passed 33 points more of its runs than `floor`.
 The 95% interval on that difference runs from −31 to +75 points, so with 3
-cases the difference could be noise: no detectable difference. Case by case,
+tasks the difference could be noise: no detectable difference. Task by task,
 `b` did better on 2, worse on 0, the same on 1. To detect a 10-point
-difference reliably this eval would need about 200 cases.
+difference reliably this suite would need about 200 tasks.
 
-**Against the baseline.** The baseline is the score pinned for each case on
+**Against the baseline.** The baseline is the score pinned for each task on
 2026-09-14; the verdict compares each arm's score with it and calls anything
 more than 10 points either way a change.
 
-| Arm | Difference from baseline | 95% interval | Cases better / worse / same | Verdict |
+| Arm | Difference from baseline | 95% interval | Tasks better / worse / same | Verdict |
 |---|---|---|---|---|
 | `floor` | −22 points | −67 to +39 | 0 / 2 / 1 | regressed |
 | `b` | +11 points | −46 to +63 | 1 / 0 / 2 | improved |
 
-| Case | Baseline | `floor` | `b` |
+| Task | Baseline | `floor` | `b` |
 |---|---|---|---|
 | `loops` | 100% | 67% | 100% |
 | `plain` | 100% | 100% | 100% |
@@ -142,7 +157,7 @@ more than 10 points either way a change.
 ## Failures
 
 For each arm, the checks that failed in at least one counted run, most
-frequent first, with the cases they failed on.
+frequent first, with the tasks they failed on.
 
 **`floor`** (the local floor) failed 2 checks:
 
@@ -187,12 +202,12 @@ nb stopping the run, which the checks then grade like any other.
 | `floor` | 7 | 1 (`loops`, run 3) |
 | `b` | 9 | 0 |
 
-## Results by case
+## Results by task
 
-One row per case, one column per arm, one mark per run: ● passed, ○ failed,
+One row per task, one column per arm, one mark per run: ● passed, ○ failed,
 × not counted. Hover a mark for the reason; click it for the run.
 
-| Case | What it asks | `floor` | `b` |
+| Task | What it asks | `floor` | `b` |
 |---|---|---|---|
 | `loops` | The model repeats a bash command until nb nudges it out of the loop | ● ● ○ | ● ● ● |
 | `plain` | The model answers in one turn with no tools | ● ● × | ● ● ● |
@@ -225,7 +240,7 @@ nb reported. Cost is not shown: nb does not report it.
 Every run, failures first. *Reason* is the first check that did not hold and
 what it saw, or why the run never completed.
 
-| Arm | Case | Run | Result | nb ended | Duration | Tokens | Reason |
+| Arm | Task | Run | Result | nb ended | Duration | Tokens | Reason |
 |---|---|---|---|---|---|---|---|
 | `b` | `uses-bash` | 2 | ○ failed | ok | 17.3 | 63,000 | builds: 2 of 41 tests failed |
 | `floor` | `loops` | 3 | ○ failed | max_tool_calls | 23.5 | 47,200 | exit_ok: exit_reason=max_tool_calls |
@@ -245,16 +260,16 @@ hover text; it identifies, it does not inform.)
 |---|---|
 | proctor | 0.1.0 |
 | nb | 1.0.0 at /usr/local/bin/nb |
-| eval hash | sha256:9c1e0000 |
+| suite hash | sha256:9c1e0000 |
 | repository | 3f2c1e9a |
 | command | `proctor run smoke` |
 | created | 2026-09-17T14:32:00Z |
 
-Each case is scored as its mean over its counted runs, so n in every
-interval is the number of cases. Per-arm rates use the Wilson 95% interval.
+Each task is scored as its mean over its counted runs, so n in every
+interval is the number of tasks. Per-arm rates use the Wilson 95% interval.
 Differences between arms, and against the baseline, use Newcombe's paired
-method (Wilson square-and-add, with phi from the per-case scores). The
-detectable difference assumes 80% power and a per-case paired-difference sd
+method (Wilson square-and-add, with phi from the per-task scores). The
+detectable difference assumes 80% power and a per-task paired-difference sd
 of 0.5. No multiplicity adjustment; 1 comparison shown. The baseline verdict
 is the point estimate against the tolerance; the interval is shown so a
 small n cannot hide.
@@ -264,7 +279,7 @@ small n cannot hide.
 ## Undecided runs (`needs-judge`)
 
 A check that cannot decide is a defect in the check, not a fact about the
-model. One or two per experiment is an edge case; dozens means the criterion
+model. One or two per experiment is an edge task; dozens means the criterion
 is not decidable from the window it was given, and the fix is to rewrite the
 check, widen its window, or drop it. Nobody reviews 87 undecided runs by
 hand, so the report never presents them as a list to work through unless
@@ -304,13 +319,13 @@ be refused in `grading.pass` at validation, so the band is rare.
 - **The about table** replaces the two summary paragraphs. The one-sentence
   result in it is the report's verdict, built from the comparison and
   baseline verdicts that already exist in `stats.json`.
-- **Arms, Cases and Checks sections** are new. They need nothing new in
-  `stats.json`: arm details come from `experiment.json`'s copy of the eval,
-  cases and checks from the `descriptions` block.
-- **Failures** renders the existing per-arm `failures` list, with case
+- **Arms, Tasks and Checks sections** are new. They need nothing new in
+  `stats.json`: arm details come from `experiment.json`'s copy of the suite,
+  tasks and checks from the `descriptions` block.
+- **Failures** renders the existing per-arm `failures` list, with task
   counts written as "twice on `uses-bash`" and the exit reason folded into
   the `exit_ok` line when that is the check.
-- **Exit reasons** move into "What ran", per arm with the case named when
+- **Exit reasons** move into "What ran", per arm with the task named when
   the count is small, so a `max_tool_calls` is visibly one arm's problem.
 - **Every run** drops the run id from the visible columns and merges
   status and pass into one *Result* column.
@@ -332,5 +347,5 @@ be refused in `grading.pass` at validation, so the band is rare.
 - "Counted" versus "analysed": "counted" is plainer, but the accounting
   columns are named in `stats.json` and the layout plan. Rename in the
   rendering only, or everywhere?
-- The Cases table could carry the fixture id and the prompt in a hover.
+- The Tasks table could carry the fixture id and the prompt in a hover.
   Worth it, or noise?

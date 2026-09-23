@@ -5,6 +5,10 @@ created: 2026-09-20
 status: open; steps 0 and 1 are the long pole and can start now
 ---
 
+> Vocabulary: written before [suite-task-check.md](suite-task-check.md)
+> (2026-09-23). Read eval as suite, case as task, `evals/` as `suites/`,
+> `eval.json` as `suite.json` and `cases/` as `tasks/`.
+
 # Jev trial — measuring the bounded tier
 
 The research line in `jev-judge-research.md` asks seven questions and says
@@ -37,8 +41,8 @@ nothing built.
 judge shim uses does not know Jev, and the model-in-body form fails auth.
 
 ```
-POST http://imp:8086/x/cf/workers-ai/run/typesafe/jev
-Authorization: Bearer $MINROUTER_KEY
+POST $LLM_GATEWAY/cf/workers-ai/run/typesafe/jev
+Authorization: Bearer $LLM_GATEWAY_KEY
 {"state": "...", "questions": {"claims_done": {"type": "noul", "instructions": "Does the message claim the task is complete?"}}}
 
 {"state":"Completed","result":{"model":"jev-1.13.0","answers":{"claims_done":{"type":"noul","noul":0.98}},
@@ -56,7 +60,7 @@ endpoint returns per-token log probabilities, which is all candidate-set
 scoring needs:
 
 ```
-POST http://imp:8086/x/imp/v1/chat/completions
+POST $LLM_GATEWAY/local/v1/chat/completions
 {"messages": [{"role": "user", "content": "<window>\n\n<question> Answer with exactly one word, Yes or No."}],
  "max_tokens": 1, "temperature": 0, "logprobs": true, "top_logprobs": 8,
  "chat_template_kwargs": {"enable_thinking": false}}

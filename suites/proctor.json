@@ -1,0 +1,29 @@
+{
+  "//": "nb: the host binary and its config. judges: the endpoints the model checks call at grade time, by wire shape. ${VAR} references in endpoint and api_key resolve from the environment when `grade` runs: LLM_GATEWAY is the base URL of an OpenAI-dialect gateway, LLM_GATEWAY_KEY its key; the paths below are the routes this suite expects it to serve.",
+  "nb": {
+    "path": "../../nb/bin/Debug/net10.0/nb",
+    "config": "nb.json"
+  },
+  "judges": {
+    "jev": {
+      "kind": "systemone",
+      "endpoint": "${LLM_GATEWAY}/cf/workers-ai/run/typesafe/jev",
+      "api_key": "${LLM_GATEWAY_KEY}",
+      "family": "typesafe"
+    },
+    "glm": {
+      "kind": "chat",
+      "endpoint": "${LLM_GATEWAY}/cf/compat",
+      "model": "workers-ai/@cf/zai-org/glm-5.2",
+      "api_key": "${LLM_GATEWAY_KEY}",
+      "family": "glm"
+    },
+    "k2": {
+      "kind": "chat",
+      "endpoint": "${LLM_GATEWAY}/cf/compat",
+      "model": "workers-ai/@cf/moonshotai/kimi-k2.6",
+      "api_key": "${LLM_GATEWAY_KEY}",
+      "family": "kimi"
+    }
+  }
+}

@@ -5,6 +5,10 @@ created: 2026-09-17
 status: steps 1–7 built and tested 2026-09-17; step 8 run on imp 2026-09-18 (experiment `20260919-0343-code-change-hpzr`)
 ---
 
+> Vocabulary: written before [suite-task-check.md](suite-task-check.md)
+> (2026-09-23). Read eval as suite, case as task, `evals/` as `suites/`,
+> `eval.json` as `suite.json` and `cases/` as `tasks/`.
+
 # The first slice — run, grade, one report
 
 The smallest proctor that replaces what we keep rebuilding and puts a page in
@@ -271,8 +275,10 @@ checks with reference solutions and without a model; `--unsolved` shows the
 checks failing for the right reasons. To run it for real:
 
 ```bash
-export MINROUTER_KEY=...          # the minrouter key on imp; evals/nb.json reads it
-proctor run code-change           # the arm hook swaps imp to qcoder first
+export LLM_GATEWAY=http://...     # the gateway evals/nb.json and evals/proctor.json reach, and its key
+export LLM_GATEWAY_KEY=...
+export LLM_MODEL_HOST=...         # optional: the ssh host the arm hook swaps to qcoder first
+proctor run code-change
 proctor grade <id> && proctor report <id>
 ```
 

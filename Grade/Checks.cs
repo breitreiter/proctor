@@ -13,14 +13,14 @@ record Verdict(string Result, string Reason)
 }
 
 /// <summary>Everything the runner and the grader need to know about one cell, without the transcript.</summary>
-record CellContext(string EvalDir, string CellDir, string WorkDir, string Experiment, string Arm, CaseDef Case, int Sample)
+record CellContext(string SuiteDir, string CellDir, string WorkDir, string Experiment, string Arm, TaskDef Task, int Sample)
 {
-    /// <summary>What the case expects, its fixture's defaults included; the case's own block when there is no fixture.</summary>
-    public JsonObject? Expect { get; init; } = Case.Expect;
+    /// <summary>What the task expects, its fixture's defaults included; the task's own block when there is no fixture.</summary>
+    public JsonObject? Expect { get; init; } = Task.Expect;
     public Fixture? Fixture { get; init; }
     /// <summary>The arm's resolved bundle directory, when the arm has one.</summary>
     public string? BundleDir { get; init; }
-    /// <summary>The runner script in effect, relative to evals/; empty on a bare run.</summary>
+    /// <summary>The runner script in effect, relative to suites/; empty on a bare run.</summary>
     public string NbRunner { get; init; } = "";
     /// <summary>The host nb binary and its config, resolved: what a bare run starts, and what a hook mounts for a runner.</summary>
     public string NbPath { get; init; } = "";
@@ -36,22 +36,22 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
     public string? BundleMount => BundleDir is null ? null : Mounts?.Bundle ?? BundleDir;
 
     /// <summary>A container name for this cell, derived from its coordinates. Proctor never uses it; hooks and runners that own a container agree on it through this.</summary>
-    public string Container => $"proctor-{Experiment}-{Arm}-{Case.Id}-{Sample}";
+    public string Container => $"proctor-{Experiment}-{Arm}-{Task.Id}-{Sample}";
 
     public IDictionary<string, string> Environment() => new Dictionary<string, string>
     {
-        ["PROCTOR_EVAL_DIR"] = EvalDir,
+        ["PROCTOR_SUITE_DIR"] = SuiteDir,
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
         ["PROCTOR_BUNDLE"] = BundleDir ?? "",
         ["PROCTOR_EXPERIMENT"] = Experiment,
         ["PROCTOR_ARM"] = Arm,
-        ["PROCTOR_CASE"] = Case.Id ?? "",
+        ["PROCTOR_TASK"] = Task.Id ?? "",
         ["PROCTOR_SAMPLE"] = Sample.ToString(),
         ["PROCTOR_CELL"] = CellDir,
         ["PROCTOR_WORK"] = WorkDir,
         ["PROCTOR_WORK_MOUNT"] = WorkMount,
         ["PROCTOR_BUNDLE_MOUNT"] = BundleMount ?? "",
-        ["PROCTOR_CASE_JSON"] = JsonSerializer.Serialize(Case, Eval.JsonOptions),
+        ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(Task, Suite.JsonOptions),
         ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(CellDir, Layout.TranscriptFile),
         ["PROCTOR_DIFF"] = Path.Combine(CellDir, Layout.DiffFile),
@@ -59,6 +59,10 @@ record CellContext(string EvalDir, string CellDir, string WorkDir, string Experi
         ["PROCTOR_NB"] = NbPath,
         ["PROCTOR_NB_CONFIG"] = NbConfig ?? "",
         ["PROCTOR_CONTAINER"] = Container,
+        // The spellings before suite/task, for hooks and scripts written against them; gone after one release.
+        ["PROCTOR_EVAL_DIR"] = SuiteDir,
+        ["PROCTOR_CASE"] = Task.Id ?? "",
+        ["PROCTOR_CASE_JSON"] = JsonSerializer.Serialize(Task, Suite.JsonOptions),
     };
 }
 
@@ -80,9 +84,9 @@ static class Checks
     static readonly Dictionary<string, string> NotYet = new()
     {
         ["answer_json_schema"] = "needs a JSON-schema validator; not in this version",
-        ["oracle_hit"] = "oracle checks wait for an eval that uses an oracle",
-        ["oracle_misses"] = "oracle checks wait for an eval that uses an oracle",
-        ["oracle_turns"] = "oracle checks wait for an eval that uses an oracle",
+        ["oracle_hit"] = "oracle checks wait for a suite that uses an oracle",
+        ["oracle_misses"] = "oracle checks wait for a suite that uses an oracle",
+        ["oracle_turns"] = "oracle checks wait for a suite that uses an oracle",
         ["max_cost"] = "cost is omitted until nb's trailer carries it",
     };
 
@@ -98,7 +102,7 @@ static class Checks
     /// check describes itself (<see cref="Describe"/>); a script is a black box from outside, so its author must.
     /// Yields (field, problem); an empty field is the check itself.
     /// </summary>
-    public static IEnumerable<(string Field, string Problem)> ValidateCheck(JsonObject? spec, string evalDir)
+    public static IEnumerable<(string Field, string Problem)> ValidateCheck(JsonObject? spec, string suiteDir)
     {
         var fields = spec?.Where(f => f.Key != Description).ToList() ?? [];
         if (fields.Count == 0) { yield return ("", "a check is an object with at least one check field"); yield break; }
@@ -108,7 +112,7 @@ static class Checks
         if (description is null && spec.ContainsKey("script"))
             yield return (Description, "required for a script check: say in a sentence what the script tests, for the report's reader");
         foreach (var (key, value) in fields)
-            if (ValidateSpec(key, value, evalDir) is { } problem) yield return (key, problem);
+            if (ValidateSpec(key, value, suiteDir) is { } problem) yield return (key, problem);
     }
 
     /// <summary>What a check tests, for a reader: its description, else a sentence derived from its built-in fields.</summary>
@@ -126,8 +130,8 @@ static class Checks
         string Max(string what) => v!["max"]!.GetValue<long>() == 0 ? $"no {what}" : $"at most {v["max"]} {what}";
         var phrase = name switch
         {
-            _ when fromCase && name == "files_touched" => "the files changed are the ones the case expects",
-            _ when fromCase => $"{name.Replace('_', ' ')} is what the case expects",
+            _ when fromCase && name == "files_touched" => "the files changed are the ones the task expects",
+            _ when fromCase => $"{name.Replace('_', ' ')} is what the task expects",
             "exit_reason" => $"nb exits with '{v}'",
             "max_tool_calls" => $"at most {v} tool calls",
             "max_tokens" => $"at most {v!.GetValue<long>():N0} tokens",
@@ -170,7 +174,7 @@ static class Checks
     };
 
     /// <summary>Shape-check one field of a check spec at load time. Null when fine.</summary>
-    public static string? ValidateSpec(string key, JsonNode? value, string evalDir)
+    public static string? ValidateSpec(string key, JsonNode? value, string suiteDir)
     {
         var (name, negated) = Split(key);
         if (NotYet.TryGetValue(name, out var why)) return $"not yet: {why}";
@@ -178,11 +182,11 @@ static class Checks
         if (negated && name == "script") return "a script cannot be negated; make the script return the verdict you mean";
         if (name is Judge.Decide or Judge.JudgeCheck) return negated ? "a model check cannot be negated; say what you expect with expect" : Judge.ValidateSpec(name, value);
         if (value is JsonValue v && v.TryGetValue<string>(out var s) && s == FromExpect)
-            return name == "script" ? "a script path cannot come from the case" : null;
+            return name == "script" ? "a script path cannot come from the task" : null;
         return name switch
         {
             "script" when value is not JsonValue => "a script is a path string",
-            "script" when !File.Exists(Path.Combine(evalDir, value!.GetValue<string>())) => $"script not found: {value}",
+            "script" when !File.Exists(Path.Combine(suiteDir, value!.GetValue<string>())) => $"script not found: {value}",
             "exit_reason" or "answer_contains" or "answer_regex" or "answer_equals" when value is not JsonValue => "expects a string",
             "answer_regex" when !IsRegex(value!.GetValue<string>()) => "not a valid regular expression",
             "tools_used" or "tools_used_any" when value is not JsonArray => "expects a list of tool names",
@@ -211,8 +215,8 @@ static class Checks
         return worst with { Reason = string.Join("; ", verdicts.Select(v => v.Reason)) };
     }
 
-    /// <summary>An eval's check: its script path is relative to the eval directory.</summary>
-    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, cell.EvalDir), cell, t, name);
+    /// <summary>A suite's check: its script path is relative to the suite directory.</summary>
+    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, cell.SuiteDir), cell, t, name);
 
     private static Verdict EvaluateField(string key, JsonNode? value, string scriptDir, string check, CellContext cell, Transcript t)
     {
@@ -220,8 +224,9 @@ static class Checks
         if (name is Judge.Decide or Judge.JudgeCheck) return Judge.Evaluate(name, (JsonObject)value!, check, cell, t);
         if (value is JsonValue jv && jv.TryGetValue<string>(out var s) && s == FromExpect)
         {
-            value = cell.Expect?[name];
-            if (value is null) return Verdict.Err($"{name}: case has no expect.{name}");
+            // Keyed by the check's name first, so two checks over one field can differ per task; by the field for the common single task.
+            value = (cell.Expect?[check] as JsonObject)?[name] ?? cell.Expect?[name];
+            if (value is null) return Verdict.Err($"{name}: task has no expect.{check}.{name} or expect.{name}");
         }
         var verdict = name == "script" ? RunScript(value!.GetValue<string>(), scriptDir, cell) : BuiltIn(name, value!, cell, t);
         if (!negated || verdict.Result is Verdict.Error or Verdict.NeedsJudge) return verdict;

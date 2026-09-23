@@ -3,16 +3,16 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>Step 5: every built-in has a passing and a failing case; negation; @expect; the script contract.</summary>
+/// <summary>Step 5: every built-in has a passing and a failing task; negation; @expect; the script contract.</summary>
 public class ChecksTests
 {
     static Transcript Fixture(string name, string? diff = null) =>
         Transcript.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name + ".jsonl")), diff);
 
-    static CellContext Cell(JsonObject? expect = null, string? evalDir = null, string? cellDir = null) =>
-        new(evalDir ?? "/nonexistent", cellDir ?? Path.GetTempPath(), "/work", "exp", "a", new CaseDef("c", null, "p", expect), 1);
+    static CellContext Cell(JsonObject? expect = null, string? suiteDir = null, string? cellDir = null) =>
+        new(suiteDir ?? "/nonexistent", cellDir ?? Path.GetTempPath(), "/work", "exp", "a", new TaskDef("c", null, "p", expect), 1);
 
-    static Verdict Eval(string spec, Transcript t, JsonObject? expect = null) =>
+    static Verdict Suite(string spec, Transcript t, JsonObject? expect = null) =>
         Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), Cell(expect), t);
 
     const string Diff = "diff --git a/src/fetch.cs b/src/fetch.cs\n--- a/src/fetch.cs\n+++ b/src/fetch.cs\n@@ -1 +1 @@\n-a\n+b\ndiff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-a\n+b\n";
@@ -67,7 +67,7 @@ public class ChecksTests
     [InlineData("{\"max_tokens\": 10}", "provider-error", "error")]
     public void BuiltIns(string spec, string fixture, string expected)
     {
-        var verdict = Eval(spec, Fixture(fixture));
+        var verdict = Suite(spec, Fixture(fixture));
         Assert.True(expected == verdict.Result, $"{spec} on {fixture}: {verdict.Result} ({verdict.Reason})");
         Assert.NotEmpty(verdict.Reason);
     }
@@ -81,19 +81,19 @@ public class ChecksTests
     [InlineData("[\"tests/x.cs\"]", "at_least", "fail")]
     public void FilesTouched(string paths, string mode, string expected)
     {
-        var verdict = Eval($"{{\"files_touched\": {{\"paths\": {paths}, \"mode\": \"{mode}\"}}}}", Fixture("plain", Diff));
+        var verdict = Suite($"{{\"files_touched\": {{\"paths\": {paths}, \"mode\": \"{mode}\"}}}}", Fixture("plain", Diff));
         Assert.True(expected == verdict.Result, $"{paths} {mode}: {verdict.Result} ({verdict.Reason})");
     }
 
     [Fact]
     public void FilesTouched_WithoutADiffIsAnError() =>
-        Assert.Equal("error", Eval("{\"files_touched\": {\"paths\": [\"x\"], \"mode\": \"at_least\"}}", Fixture("plain")).Result);
+        Assert.Equal("error", Suite("{\"files_touched\": {\"paths\": [\"x\"], \"mode\": \"at_least\"}}", Fixture("plain")).Result);
 
     [Theory]
     [InlineData("{\"max_duration_ms\": 1800000}", "finishes within 30 min")]
     [InlineData("{\"max_duration_ms\": 1500}", "finishes within 1500 ms")]
     [InlineData("{\"not_exit_reason\": \"ok\"}", "not: nb exits with 'ok'")]
-    [InlineData("{\"files_touched\": \"@expect\"}", "the files changed are the ones the case expects")]
+    [InlineData("{\"files_touched\": \"@expect\"}", "the files changed are the ones the task expects")]
     [InlineData("{\"files_touched\": {\"paths\": [\"src/**\", \"README.md\"], \"mode\": \"at_most\"}}", "changes stay within src/**, README.md")]
     [InlineData("{\"tool_sequence\": {\"names\": [\"read\", \"bash\"], \"mode\": \"exact\"}}", "calls read, bash and nothing else")]
     [InlineData("{\"answer_words\": {\"min\": 10, \"max\": 50}}", "the answer is 10 to 50 words")]
@@ -105,7 +105,7 @@ public class ChecksTests
     [Fact]
     public void Description_IsNotEvaluated()
     {
-        var v = Eval("{\"exit_reason\": \"ok\", \"description\": \"nb finished cleanly\"}", Fixture("plain"));
+        var v = Suite("{\"exit_reason\": \"ok\", \"description\": \"nb finished cleanly\"}", Fixture("plain"));
         Assert.Equal("pass", v.Result);
         Assert.Equal("exit_reason=ok", v.Reason);
     }
@@ -113,31 +113,43 @@ public class ChecksTests
     [Fact]
     public void Negation_FlipsPassAndFail_ButNotError()
     {
-        Assert.Equal("pass", Eval("{\"not_answer_contains\": \"forty-three\"}", Fixture("plain")).Result);
-        var v = Eval("{\"not_answer_contains\": \"forty-two\"}", Fixture("plain"));
+        Assert.Equal("pass", Suite("{\"not_answer_contains\": \"forty-three\"}", Fixture("plain")).Result);
+        var v = Suite("{\"not_answer_contains\": \"forty-two\"}", Fixture("plain"));
         Assert.Equal("fail", v.Result);
         Assert.StartsWith("not: ", v.Reason);
-        Assert.Equal("error", Eval("{\"not_answer_contains\": \"x\"}", Fixture("provider-error")).Result);
+        Assert.Equal("error", Suite("{\"not_answer_contains\": \"x\"}", Fixture("provider-error")).Result);
     }
 
     [Fact]
     public void Conjunction_WorstVerdictWins_ReasonsJoined()
     {
-        var v = Eval("{\"max_tool_calls\": 40, \"exit_reason\": \"ok\"}", Fixture("loop-nudged"));
+        var v = Suite("{\"max_tool_calls\": 40, \"exit_reason\": \"ok\"}", Fixture("loop-nudged"));
         Assert.Equal("fail", v.Result);
         Assert.Contains("3 tool calls", v.Reason);
         Assert.Contains("exit_reason=max_tool_calls", v.Reason);
-        Assert.Equal("error", Eval("{\"exit_reason\": \"ok\", \"answer_contains\": \"x\"}", Fixture("provider-error")).Result);
+        Assert.Equal("error", Suite("{\"exit_reason\": \"ok\", \"answer_contains\": \"x\"}", Fixture("provider-error")).Result);
     }
 
     [Fact]
     public void FromExpect_ReadsTheCaseBlock_AndErrorsWhenAbsent()
     {
         var expect = JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject();
-        Assert.Equal("pass", Eval("{\"answer_contains\": \"@expect\"}", Fixture("plain"), expect).Result);
-        var v = Eval("{\"tools_used\": \"@expect\"}", Fixture("plain"), expect);
+        Assert.Equal("pass", Suite("{\"answer_contains\": \"@expect\"}", Fixture("plain"), expect).Result);
+        var v = Suite("{\"tools_used\": \"@expect\"}", Fixture("plain"), expect);
         Assert.Equal("error", v.Result);
         Assert.Contains("expect.tools_used", v.Reason);
+    }
+
+    [Fact]
+    public void FromExpect_IsKeyedByTheCheckName_BeforeTheField()
+    {
+        var t = Fixture("plain");
+        var expect = JsonNode.Parse("{\"greets\": {\"answer_contains\": \"zzz\"}, \"answer_contains\": \"forty\"}")!.AsObject();
+        var spec = JsonNode.Parse("{\"answer_contains\": \"@expect\"}")!.AsObject();
+        Assert.Equal("fail", Checks.Evaluate(spec, Cell(expect), t, "greets").Result);
+        Assert.Equal("pass", Checks.Evaluate(spec, Cell(expect), t, "other").Result);
+        var v = Checks.Evaluate(JsonNode.Parse("{\"tools_used\": \"@expect\"}")!.AsObject(), Cell(expect), t, "uses");
+        Assert.Equal(("error", "tools_used: task has no expect.uses.tools_used or expect.tools_used"), (v.Result, v.Reason));
     }
 
     [Theory]
@@ -151,7 +163,7 @@ public class ChecksTests
         using var repo = new TestRepo();
         var script = repo.Write("e/checks/c.sh", "#!/usr/bin/env bash\n" + body + "\n");
         File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        var cell = Cell(evalDir: Path.Combine(repo.Root, "evals", "e"), cellDir: repo.Root);
+        var cell = Cell(suiteDir: Path.Combine(repo.Root, "suites", "e"), cellDir: repo.Root);
 
         var v = Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/c.sh\"}")!.AsObject(), cell, Fixture("plain"));
         Assert.Equal(expected, v.Result);
@@ -163,7 +175,7 @@ public class ChecksTests
     {
         using var repo = new TestRepo();
         repo.Write("e/checks/noexec.sh", "#!/usr/bin/env bash\nexit 0\n");   // not executable
-        var cell = Cell(evalDir: Path.Combine(repo.Root, "evals", "e"), cellDir: repo.Root);
+        var cell = Cell(suiteDir: Path.Combine(repo.Root, "suites", "e"), cellDir: repo.Root);
         var v = Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/noexec.sh\"}")!.AsObject(), cell, Fixture("plain"));
         Assert.Equal("error", v.Result);
         Assert.Contains("could not run", v.Reason);
@@ -173,9 +185,9 @@ public class ChecksTests
     public void Script_SeesTheCellInItsEnvironment()
     {
         using var repo = new TestRepo();
-        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_CASE\" = c ] && [ \"$PROCTOR_ARM\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_CELL\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
+        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_TASK\" = c ] && [ \"$PROCTOR_ARM\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_CELL\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
         File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        var cell = Cell(JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject(), Path.Combine(repo.Root, "evals", "e"), repo.Root);
+        var cell = Cell(JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject(), Path.Combine(repo.Root, "suites", "e"), repo.Root);
         Assert.Equal("pass", Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/env.sh\"}")!.AsObject(), cell, Fixture("plain")).Result);
     }
 

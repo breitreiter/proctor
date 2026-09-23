@@ -5,6 +5,10 @@ created: 2026-09-22
 status: built 2026-09-22, steps 1–6 (see "As built"); a trusted threshold or rubric still waits on jev-trial.md step 0
 ---
 
+> Vocabulary: written before [suite-task-check.md](suite-task-check.md)
+> (2026-09-23). Read eval as suite, case as task, `evals/` as `suites/`,
+> `eval.json` as `suite.json` and `cases/` as `tasks/`.
+
 # The judge
 
 Proctor has no code that talks to a model. The `judge` check name is
@@ -92,12 +96,12 @@ because build, tests and diff cannot decide them:
   "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb.json" },
   "judges": {
     "default": "glm",
-    "glm": { "kind": "chat",      "endpoint": "http://imp:8086/x/cf/compat/v1", "model": "@cf/zai-org/glm-4.7",
-             "api_key": "${MINROUTER_KEY}", "family": "glm" },
-    "jev": { "kind": "systemone", "endpoint": "http://imp:8086/x/cf/workers-ai/run/typesafe/jev",
-             "api_key": "${MINROUTER_KEY}", "family": "typesafe" },
-    "gemma": { "kind": "logprobs", "endpoint": "http://imp:8086/x/imp-gemma/v1", "model": "gemma-3-12b-it",
-             "api_key": "${MINROUTER_KEY}", "family": "gemma" }
+    "glm": { "kind": "chat",      "endpoint": "${LLM_GATEWAY}/cf/compat/v1", "model": "@cf/zai-org/glm-4.7",
+             "api_key": "${LLM_GATEWAY_KEY}", "family": "glm" },
+    "jev": { "kind": "systemone", "endpoint": "${LLM_GATEWAY}/cf/workers-ai/run/typesafe/jev",
+             "api_key": "${LLM_GATEWAY_KEY}", "family": "typesafe" },
+    "gemma": { "kind": "logprobs", "endpoint": "${LLM_GATEWAY}/gemma/v1", "model": "gemma-3-12b-it",
+             "api_key": "${LLM_GATEWAY_KEY}", "family": "gemma" }
   }
 }
 ```
@@ -289,7 +293,7 @@ cover the whole path once.
 4. `verdicts/`, the cache, `--rejudge`.
 5. Provenance in the report; snapshot approved.
 6. The worked example: the three checks on code-change, graded once against
-   hosted Jev and GLM through minrouter, once against a local decider on
+   hosted Jev and GLM through the gateway, once against a local decider on
    imp, and the two verdict sets diffed. That diff is the first number the
    trial plan's step 2 wants and it comes out of proctor rather than the
    bench.

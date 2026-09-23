@@ -61,7 +61,7 @@ static class Window
     {
         "answer" => t.Answer,
         "answer_json" => t.AnswerJson?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }),
-        "prompt" => cell.Case.Prompt,
+        "prompt" => cell.Task.Prompt,
         "tool_calls" => string.Join("\n", t.ToolCalls.Select((c, i) =>
             $"{i + 1}. {c.Name} {Cut(c.Arguments?.ToJsonString() ?? "{}", ArgumentChars)}{(c.Denied ? " [denied]" : "")}")),
         "tool_results" => string.Join("\n\n", t.ToolResults.Select((r, i) =>

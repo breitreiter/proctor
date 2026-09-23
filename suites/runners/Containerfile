@@ -1,0 +1,24 @@
+# The image every code-change cell runs in: the .NET SDK the fixtures build with, and nb as a
+# layer on top of it. Built once per experiment by hooks/arm-setup.sh; entered per cell by
+# hooks/sample-setup.sh. The nb layer is nb's own Containerfile, built as `nb:latest`.
+ARG NB_IMAGE=nb:latest
+FROM ${NB_IMAGE} AS nb
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+COPY --from=nb /opt/nb /opt/nb
+# COPY --from carries no ENV: invariant globalization is what lets a self-contained .NET binary
+# start without libicu, and nb's own image sets it for itself.
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 NO_COLOR=1 \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    HOME=/home/agent
+# jq, because checks and hooks are shell and read JSON; the suite-authoring trial runs written ones here.
+RUN apt-get update && apt-get install -y --no-install-recommends jq && rm -rf /var/lib/apt/lists/*
+# The model runs as the caller's uid and gid, so what it writes in the checkout is the caller's on the
+# host: rootless podman maps the caller to this uid with --userns=keep-id; docker's daemon runs
+# as root and simply uses it. The home is where dotnet and NuGet write, and the package cache
+# directory exists so a named volume mounted on it inherits its ownership. The SDK image already
+# has a uid 1000, so the uid is allowed to repeat.
+ARG UID=1000
+ARG GID=1000
+RUN groupadd -o -g ${GID} agent && useradd -o -m -u ${UID} -g ${GID} agent \
+ && mkdir -p /home/agent/.nuget/packages && chown -R ${UID}:${GID} /home/agent
+USER agent

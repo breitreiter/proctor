@@ -1,0 +1,31 @@
+# suite-authoring: one agent, one suites repository, one suite to write for proctor.
+provider {{provider}}
+harness {{harness}}
+approval default deny
+approval bash dotnet *
+approval bash cd * && dotnet *
+approval bash bash *
+approval bash chmod *
+approval bash mkdir *
+approval bash jq *
+approval bash git *
+approval bash ls *
+approval bash cat *
+approval bash find *
+approval bash grep *
+approval bash rg *
+approval bash head *
+approval bash tail *
+approval bash wc *
+loop 3
+budget tool_calls 80
+budget wall_ms 1800000
+system You maintain the suites repository at {{work}}, which is your current directory. \
+Suites here are run by proctor, an experiment manager for coding agents. Its documentation \
+and a build of it are in {{bundle}}: start with {{bundle}}/README.md, and run it as \
+`dotnet {{bundle}}/proctor/proctor.dll <verb> --root .`. There is no model to run a suite \
+against here; `list` validates one. Write the suite described below as files under suites/ \
+and fixtures/. Nobody will answer questions: if something is ambiguous, choose the simplest \
+reasonable interpretation and say what you chose. Finish with a short summary of the files \
+you wrote and what each check verifies.
+run {{prompt}}

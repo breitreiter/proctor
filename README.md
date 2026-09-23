@@ -1,6 +1,6 @@
 # proctor
 
-Runs an eval's arms through [nb](../nb), grades the transcripts with declared
+Runs a suite's arms through [nb](../nb), grades the transcripts with declared
 checks, computes the statistics once, and renders one self-contained HTML
 report plus a markdown twin.
 
@@ -15,11 +15,32 @@ alias proctor='dotnet /path/to/proctor/bin/Debug/net10.0/proctor.dll'
 
 ## Configure
 
-A repository that uses proctor has `evals/` (yours, in git), `runs/` (raw
+A repository that uses proctor has `suites/` (yours, in git), `runs/` (raw
 output, gitignored) and `reports/` (derived, written by `proctor report`).
 
-`evals/proctor.json` says where nb is and which config it runs with; paths are
-relative to `evals/`:
+The words, which the report and every file use the same way:
+
+| word | one sentence |
+|---|---|
+| **suite** | A collection of related tasks with one business goal, graded by one shared checklist so a pass rate across them means one thing. |
+| **task** | One input and one desired outcome: a prompt against a fixture, with the checks that say whether the outcome was reached. |
+| **sample** | One measurement of a stochastic system: one attempt at one task by one arm. |
+| **check** | One yes-or-no item on the checklist, asked of a finished sample. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
+| **arm** | What is under test: a harness, a provider, a model and a bundle, run over every task. |
+| **fixture** | The repository a task runs against and what "done" looks like in it; reused across suites. |
+| **experiment** | One execution of one suite across every arm, task and sample. |
+| **baseline** | Pinned cells from an earlier experiment, compared with as a virtual arm. |
+
+A suite is one business goal probed by many tasks. Every task in it is
+graded by the same pass list. If you find yourself wanting a different
+pass list for one task, or a check that only makes sense on some tasks
+and passes vacuously on the rest, you have two suites. If you want to
+ask a second question of the same transcripts, you have a new check,
+not a new suite. The prompt is what the user wants, in the user's words;
+the task's checks are how proctor measures whether they got it.
+
+`suites/proctor.json` says where nb is and which config it runs with; paths are
+relative to `suites/`:
 
 ```json
 { "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb-mock.json" } }
@@ -32,15 +53,19 @@ The same file names the judges that the model checks call at grade time,
 by wire shape rather than vendor. A `systemone` judge answers typed
 questions with probabilities (`POST /v1/systemone`: Jev on Cloudflare, or
 anything that speaks it); a `chat` judge is an OpenAI-dialect chat
-completions endpoint with a model name. Keys are `${VAR}` references,
-resolved only when `grade` runs:
+completions endpoint with a model name. Endpoints and keys may be `${VAR}`
+references, resolved only when `grade` runs, so the committed file names no
+machine: the one checked in here expects `LLM_GATEWAY`, the base URL of an
+OpenAI-dialect gateway that serves the routes it names, and
+`LLM_GATEWAY_KEY`, its key. nb resolves the same references in its own
+config, which is how `suites/nb.json` reaches the same gateway.
 
 ```json
 {
   "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb.json" },
   "judges": {
-    "jev": { "kind": "systemone", "endpoint": "http://imp:8086/x/cf/workers-ai/run/typesafe/jev", "api_key": "${MINROUTER_KEY}", "family": "typesafe" },
-    "glm": { "kind": "chat", "endpoint": "http://imp:8086/x/cf/compat/v1", "model": "@cf/zai-org/glm-4.7", "api_key": "${MINROUTER_KEY}", "family": "glm" }
+    "jev": { "kind": "systemone", "endpoint": "${LLM_GATEWAY}/cf/workers-ai/run/typesafe/jev", "api_key": "${LLM_GATEWAY_KEY}", "family": "typesafe" },
+    "glm": { "kind": "chat", "endpoint": "${LLM_GATEWAY}/cf/compat/v1", "model": "@cf/zai-org/glm-4.7", "api_key": "${LLM_GATEWAY_KEY}", "family": "glm" }
   }
 }
 ```
@@ -50,8 +75,8 @@ carries a judge's family name; a judge should be off-family from every arm
 it grades. `max_window` (characters, default 24,000) caps what a judge is
 sent; a larger window is an error, never a truncation.
 
-An eval that runs nb inside a container names the script that runs it in
-its `eval.json`, beside the hooks that make the container; `--runner
+A suite that runs nb inside a container names the script that runs it in
+its `suite.json`, beside the hooks that make the container; `--runner
 <script>` (a path from the current directory) overrides it for one run and
 `--runner none` runs bare. The contract is the whole interface:
 
@@ -70,25 +95,25 @@ creates it, the runner execs into it, the sample teardown hook removes it.
 Hooks see which is in effect in `PROCTOR_RUNNER`, empty on a bare run, and
 skip the container. The manifest records the script and its hash, and
 `resume` refuses a changed one. The worked example is
-`evals/runners/container.sh` with the `code-change` eval's hooks and the
+`suites/runners/container.sh` with the `code-change` suite's hooks and the
 `Containerfile` beside the runner, which puts nb's own image (`podman build
 -t nb .` in the nb repository) on the .NET SDK:
 
 ```bash
-proctor run code-change                 # each cell in its own container, as eval.json says
+proctor run code-change                 # each cell in its own container, as suite.json says
 proctor run code-change --runner none   # bare: the shakedown, on this machine
 ```
 
-A bare run is for shaking down an eval: nb and the model's tools run on this
+A bare run is for shaking down a suite: nb and the model's tools run on this
 machine as you. A container is for anything you would not run on your own
-machine, which is every real eval, since the model runs whatever it decides
+machine, which is every real suite, since the model runs whatever it decides
 to. How to build the image, what to mount, who owns the files the model
 writes, and what nb leaves within its reach is nb's runbook,
 [`docs/containers.md`](../nb/docs/containers.md); the example above is that
 runbook applied. Each cell keeps `program.nb`, the source as resolved, and
 `program.jsonl`, what actually went down stdin.
 
-The eval's `nb` block names the runner, relative to the eval directory like
+The suite's `nb` block names the runner, relative to the suite directory like
 a hook, and `mounts`, where the runner will show nb the checkout and the
 bundle:
 
@@ -103,22 +128,22 @@ Hooks and checks run on the host and keep `PROCTOR_WORK` and
 `PROCTOR_BUNDLE_MOUNT` are the paths the model was told, which fall back to
 the host paths when nothing is mounted, so a check such as `stays-in-work`
 reads one variable either way. A bare run ignores the mounts, which is what
-makes `--runner none` a shakedown of the eval on the host. The plan and the
+makes `--runner none` a shakedown of the suite on the host. The plan and the
 worked example are in `project/plans/containerised-runs.md`.
 
-One eval is one directory, `evals/<id>/`:
+One suite is one directory, `suites/<id>/`:
 
 ```
-eval.json        description, labels, arms, samples, nb (runner, mounts), hooks, grading (checks, pass, validity)
-program.nb       the nb program template; {{prompt}}, {{case}}, {{work}}, {{provider}}, {{model}}, {{harness}}, {{arm}}, {{sample}}
-cases/*.json     one case per file; the id is the file name; names a fixture and adds the goal, a description and labels
+suite.json        description, labels, arms, samples, nb (runner, mounts), hooks, grading (checks, pass, validity)
+program.nb       the nb program template; {{prompt}}, {{task}}, {{work}}, {{provider}}, {{model}}, {{harness}}, {{arm}}, {{sample}}
+tasks/*.json     one task per file; the id is the file name; names a fixture and adds the prompt, a description, labels, expect and its own checks
 checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason); each needs a description
 hooks/*.sh       arm and sample setup/teardown
 ```
 
-A fixture is the repository a case is run against, with what "done" looks
+A fixture is the repository a task is run against, with what "done" looks
 like in it. Fixtures are repo-level, `fixtures/<id>/`, and reused across
-evals:
+suites:
 
 ```
 fixture.json     id, source ({path} or {git, rev}), stack, labels, default expect, checks (scripts with descriptions)
@@ -130,49 +155,67 @@ An arm may name a `bundle`, the pinned version of whatever it puts under
 test: `{ "path": "bundles/x" }` under the repository root, or
 `{ "git": url, "rev": sha }`. Proctor hands its directory to the program
 template as `{{bundle}}` and to hooks and checks as `PROCTOR_BUNDLE`, and
-records its identity in every manifest; what is inside it is the eval's
+records its identity in every manifest; what is inside it is the suite's
 business. Two arms with two bundles compare them in one experiment.
 
 Proctor checks the fixture out into the work directory before each sample,
-commits it, and collects `diff.patch` afterwards. A check named in `pass`
-that the eval does not declare must come from every case's fixture. A check
-named in `validity` decides whether a sample counts at all: a sample that
-fails one is excluded, not failed.
+commits it, and collects `diff.patch` afterwards.
+
+Checks live at three levels and a cell carries the union: the suite's
+`grading.checks` on every task, a fixture's `checks` on every task run
+against it, and a task's own `checks` on that task alone, for the outcome
+only it can state. A name declared at two levels is a problem. A check
+named in `pass` that the suite does not declare must reach every task from
+its fixture or its own block. A check named in `validity` decides whether a
+sample counts at all: a sample that fails one is excluded, not failed. A
+task's check is reported over the tasks that carry it.
+
+```json
+{
+  "id": "make-bat-implement-ifoo",
+  "fixture": "bat-service",
+  "prompt": "Make `Bat` implement `IFoo`. Its existing callers must not change.",
+  "expect": { "files_touched": { "paths": ["src/Bat.cs", "tests/**"], "mode": "at_most" } },
+  "checks": {
+    "callers-untouched": { "not_files_touched": { "paths": ["src/Consumers/**"], "mode": "at_least" }, "description": "no file under src/Consumers was changed" }
+  }
+}
+```
 
 The report is written for a reader, not a grader, so every id it prints
-carries a sentence beside it. An eval, an arm and a case take an optional
-`description`; a case without one is described by the first line of its
+carries a sentence beside it. A suite, an arm and a task take an optional
+`description`; a task without one is described by the first line of its
 prompt. A check takes `description` as a field beside its spec, and a
 script check must have one, because from outside a script says nothing:
 
 ```json
-"acceptance": { "script": "checks/acceptance.sh", "description": "the case's acceptance tests pass against the changed repository" }
+"acceptance": { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" }
 ```
 
 A built-in check describes itself from its spec (`{ "denied_calls": { "max":
 0 } }` reads as "no denied tool calls") unless you give it a better sentence.
 
 The report is built for someone who was not there, and for someone who opens
-one every few months as much as every day: it defines arm, case, run and
+one every few months as much as every day: it defines arm, task, run and
 check before using them, and every section opens with a sentence saying what
-it is for. It starts with the eval's description, a short table of what ran
-and a one-line result, then Arms, Cases and Checks with their sentences, then
+it is for. It starts with the suite's description, a short table of what ran
+and a one-line result, then Arms, Tasks and Checks with their sentences, then
 Results (pass rates, the comparison between arms, the baseline), then
 Failures: per arm, each check that failed, in the author's words, with how
-often and on which cases. Everything after that is evidence: what ran and
-what was left out, results by case, check pass rates, cost, every run, and
+often and on which tasks. Everything after that is evidence: what ran and
+what was left out, results by task, check pass rates, cost, every run, and
 the method last. A run whose headline check could not decide (a script's
 exit 2, a split judge) is *undecided*: out of the pass rate on both sides,
 listed for review when there are a few, and flagged as a defect in the check
 when there are many.
 
-Labels are yours: a key with a string or a list of strings, on the eval,
-the fixture or the case, and proctor never interprets a key. A case carries
-its fixture's labels, the eval's laid over them and its own over both, key
+Labels are yours: a key with a string or a list of strings, on the suite,
+the fixture or the task, and proctor never interprets a key. A task carries
+its fixture's labels, the suite's laid over them and its own over both, key
 by key. They print with `list`, filter it (`--label kind`, `--label
 area=coding/*`, repeatable; `*` matches within a slash segment and `**`
 across), and sit on every row of `results.jsonl` so a later report can group
-on them without re-reading an eval that has since changed:
+on them without re-reading a suite that has since changed:
 
 ```json
 { "labels": { "area": "coding/change", "stack": "dotnet" } }
@@ -197,37 +240,42 @@ report.
 "change-fits": { "judge":  { "ask": "Does the diff change only what the prompt asked for?", "window": "prompt+diff", "samples": 3 } }
 ```
 
-`expect` may be `"@expect"`, read from the case's `expect.<check name>`.
+`expect` may be `"@expect"`, read from the task's `expect.<check name>`;
+so may `ask`, read from `expect.<check name>.ask`, so one `correct` check
+can carry a rubric per task. A built-in field set to `"@expect"` reads
+`expect.<check name>.<field>` first and `expect.<field>` second.
 `with` names a judge from `proctor.json`; without it the only judge of the
-needed kind is used. Whether an eval is judged is not declared; it follows
+needed kind is used. Whether a suite is judged is not declared; it follows
 from a check that asks a model, and `list` says so.
 
-`evals/smoke/` with `fixtures/note/` is a complete example that runs against
-nb's Mock provider. The check vocabulary and the shape of every file are in
+`suites/smoke/` with `fixtures/note/` is a complete example that runs against
+nb's Mock provider. `suites/suite-authoring/` is the demo project: a suite
+that asks an agent to write suites, using most of what is described here, with
+the report of its latest run checked in under `report/`. The check vocabulary and the shape of every file are in
 `project/plans/on-disk-layout.md` and `project/plans/fixtures-arms-baselines.md`.
 
 ## Use
 
 ```bash
-proctor list [eval]          # validate; print the labels and the cells that would run
-proctor list --label kind=bugfix   # only the evals carrying that label
-proctor run <eval>           # run every cell into runs/<id>/; prints the id
+proctor list [suite]          # validate; print the labels and the cells that would run
+proctor list --label kind=bugfix   # only the suites carrying that label
+proctor run <suite>           # run every cell into runs/<id>/; prints the id
 proctor resume <id>          # rerun cells that did not complete
 proctor grade <id>           # checks over every completed cell -> checks.json; model verdicts cached in verdicts/
 proctor grade <id> --rejudge # call the judges again instead of reusing the cells' verdict files
 proctor grade <id> --judge glm=k2   # compare k2 against glm on the checks glm grades; checks.json is untouched
 proctor report <id>          # reports/data/<id>/{results.jsonl,stats.json,report.html,summary.md}
-proctor baseline <id> [--arm a] [--cases x,y]   # pin the arm's analysed cells as evals/<eval>/baseline.json
+proctor baseline <id> [--arm a] [--tasks x,y]   # pin the arm's analysed cells as suites/<suite>/baseline.json
 proctor report <id> --tolerance 10 --fail-on regression   # guard mode: exit 1 if an arm fell further than that
 ```
 
 Two ways of working. In explore mode several arms run in one experiment and
 the report compares them to each other. In guard mode one arm runs against
-a baseline: pinned cells per case, committed with the eval, written by
+a baseline: pinned cells per task, committed with the suite, written by
 `proctor baseline` from an experiment you trust. The report then adds a
 section comparing every arm to the baseline with the same paired method,
 a verdict of held, improved or regressed on the point estimate against the
-tolerance, and the interval beside it so a small case count cannot hide.
+tolerance, and the interval beside it so a small task count cannot hide.
 While the pinned experiment is still under `runs/`, its cells are re-read,
 so a regrade flows through; once it is archived the pinned scores stand,
 and the report says which.
@@ -236,6 +284,6 @@ and the report says which.
 or attach it to a message. `summary.md` has the same sections as plain tables.
 
 Every rate carries a 95% interval and its counts; comparisons between arms are
-paired on shared cases with their own interval and a fixed verdict word; and
+paired on shared tasks with their own interval and a fixed verdict word; and
 the minimum detectable effect is stated so an underpowered result cannot read
 as "no difference". The methods are named in the report's last paragraph.

@@ -1,0 +1,6 @@
+{
+  "id": "rename-namespace",
+  "description": "Rename the Legacy.Widgets namespace to Acme.Widgets across source, project file and tests",
+  "fixture": "widgets",
+  "prompt": "Rename the namespace `Legacy.Widgets` to `Acme.Widgets` everywhere: the source files under src/Widgets, the `RootNamespace` in Widgets.csproj, and the `using` directives in tests/Widgets.Tests. No type names change.\n\n`dotnet test tests/Widgets.Tests` must pass afterwards."
+}

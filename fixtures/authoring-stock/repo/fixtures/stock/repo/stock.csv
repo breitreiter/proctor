@@ -1,0 +1,21 @@
+sku,name,on_hand,reorder_point
+W-1001,hex bolt M6,420,200
+W-1002,hex bolt M8,150,200
+W-1003,wing nut M6,75,50
+W-1004,washer 6mm,900,500
+W-1005,washer 8mm,480,500
+W-1006,spring washer 6mm,50,50
+W-1007,cable tie 200mm,1200,1000
+W-1008,cable tie 300mm,640,1000
+W-1009,wall plug 6mm,310,300
+W-1010,wall plug 8mm,90,300
+W-1011,wood screw 4x40,2000,800
+W-1012,wood screw 5x60,800,800
+W-1013,hinge 75mm,12,40
+W-1014,hinge 100mm,44,40
+W-1015,shelf bracket,18,25
+W-1016,corner brace,60,25
+W-1017,door handle,7,10
+W-1018,cabinet knob,130,100
+W-1019,drawer runner 400mm,15,20
+W-1020,padlock 40mm,33,20

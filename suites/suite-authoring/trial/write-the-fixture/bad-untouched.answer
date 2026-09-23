@@ -1,0 +1,1 @@
+Renamed Legacy.Widgets to Acme.Widgets in the sources, the tests and the RootNamespace. All tests pass.

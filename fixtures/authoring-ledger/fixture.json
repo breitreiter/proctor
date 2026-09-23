@@ -1,0 +1,7 @@
+{
+  "id": "authoring-ledger",
+  "description": "A proctor repository with one complete fixture, ledger: a statement parser with a failing test, its build and test checks beside it",
+  "source": { "path": "repo", "exclude": ["bin", "obj"] },
+  "stack": "dotnet",
+  "labels": { "target": "ledger" }
+}

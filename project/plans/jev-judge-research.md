@@ -5,6 +5,10 @@ created: 2026-09-20
 status: open; reading pass done 2026-09-20 (../learnings/jev-judges.md); measurement plan in jev-trial.md
 ---
 
+> Vocabulary: written before [suite-task-check.md](suite-task-check.md)
+> (2026-09-23). Read eval as suite, case as task, `evals/` as `suites/`,
+> `eval.json` as `suite.json` and `cases/` as `tasks/`.
+
 # Research line — Jev and System One models as proctor's judge
 
 Jev is a model that returns typed labels with calibrated probabilities and

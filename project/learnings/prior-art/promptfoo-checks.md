@@ -92,7 +92,7 @@ The built-ins worth having, each binary, each negatable:
   `max_cost` over the trailer. promptfoo's `latency`, `cost`,
   `trajectory:step-count {max}` show that a per-case cap is a check people
   want, not only a report column. Cost is not in nb's trailer; proctor
-  computes it from `usage` and a price on the provider entry (zero for imp).
+  computes it from `usage` and a price on the provider entry (zero for a local model).
 
 Anything repo-specific, which is exactly `builds`, `tests-pass` and
 `diff-in-scope`, stays a script. That is promptfoo's `javascript` /
@@ -134,7 +134,7 @@ score prose against a reference answer. Our cases have no reference prose:
 the reference is a diff that builds, tests that pass, a JSON answer, or a
 rubric. n-gram overlap between two agents' closing summaries measures
 verbosity and phrasing, which is the verbosity trap the judge notes warn
-about. `similar` is the one that tempts, because qembed on imp makes it free,
+about. `similar` is the one that tempts, because a local embedding model makes it free,
 but it is still a scalar threshold on a quantity nobody can calibrate per
 case. Not now; if a case ever needs "did it say roughly this", it is a judged
 criterion with quoted evidence.

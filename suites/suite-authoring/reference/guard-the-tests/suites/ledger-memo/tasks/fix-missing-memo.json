@@ -1,0 +1,6 @@
+{
+  "id": "fix-missing-memo",
+  "description": "Fix the parser so a line without a memo parses, without changing the tests",
+  "fixture": "ledger",
+  "prompt": "`dotnet test Ledger.Tests` has one failing test, `Parse_LineWithoutMemo_HasNullMemo`. Fix the bug in the Ledger project so that it passes. Do not change the tests."
+}

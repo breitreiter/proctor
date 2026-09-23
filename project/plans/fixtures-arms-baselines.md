@@ -5,6 +5,10 @@ created: 2026-09-21
 status: built 2026-09-21; see "As built" at the end
 ---
 
+> Vocabulary: written before [suite-task-check.md](suite-task-check.md)
+> (2026-09-23). Read eval as suite, case as task, `evals/` as `suites/`,
+> `eval.json` as `suite.json` and `cases/` as `tasks/`.
+
 # Fixtures, arm bundles and baselines
 
 The second design plan. It changes the model in
@@ -117,8 +121,8 @@ that belong to the repository rather than to any one request.
   "id": "code-change",
   "labels": { "area": "coding/change" },
   "arms": [
-    { "id": "floor", "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3 },
-    { "id": "v3",    "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen3-coder-next", "samples": 3,
+    { "id": "floor", "runner": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next", "samples": 3 },
+    { "id": "v3",    "runner": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next", "samples": 3,
       "bundle": { "git": "git@…/exporter-instructions", "rev": "8a1f02c" } }
   ],
   "hooks": {

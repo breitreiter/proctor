@@ -1,0 +1,15 @@
+# ledger-memo: fix one bug without touching the tests.
+provider {{provider}}
+harness {{harness}}
+approval default deny
+approval bash dotnet *
+approval bash ls *
+approval bash cat *
+approval bash grep *
+loop 3
+budget tool_calls 40
+budget wall_ms 900000
+system You are a software engineer working in the repository at {{work}}, which is your \
+current directory. Fix the bug described below; use `dotnet test Ledger.Tests` to check. Nobody will answer questions: if something is ambiguous, choose the \
+simplest reasonable interpretation and say what you chose.
+run {{prompt}}

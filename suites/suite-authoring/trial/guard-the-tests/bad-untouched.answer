@@ -1,0 +1,1 @@
+Fixed Statement.Parse: a line without a memo field now parses with a null memo. All 5 tests pass.

@@ -1,0 +1,7 @@
+{
+  "id": "authoring-widgets",
+  "description": "A proctor repository with a bare .NET library under fixtures/widgets/repo and no fixture.json yet",
+  "source": { "path": "repo", "exclude": ["bin", "obj"] },
+  "stack": "dotnet",
+  "labels": { "target": "widgets" }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "stock-count",
+  "description": "Can the agent read a stock sheet and report exactly how many items are due for reorder, without changing it?",
+  "arms": [
+    {
+      "id": "floor",
+      "description": "the local floor",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "local-qcoder",
+      "model": "qwen3-coder-next",
+      "samples": 3
+    }
+  ],
+  "grading": {
+    "checks": {
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "right-count": {
+        "answer_regex": "@expect",
+        "description": "the answer ends with an ANSWER line giving exactly the expected count"
+      },
+      "read-only": {
+        "files_touched": {
+          "paths": [],
+          "mode": "at_most"
+        },
+        "description": "no file changed: the task only reads"
+      }
+    },
+    "pass": [
+      "exit_ok",
+      "right-count",
+      "read-only"
+    ]
+  }
+}

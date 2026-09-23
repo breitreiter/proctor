@@ -25,36 +25,53 @@ A repository that uses proctor has three directories, one per tier from
 
 | root | tier | in git | who writes it |
 |---|---|---|---|
-| `evals/` | definition | yes | the human |
+| `suites/` | definition | yes | the human |
 | `runs/` | raw | no, gitignored | the runner, grader and judge |
 | `reports/` | derived | yes | the reporter, never by hand |
 
-`evals/` is the sidecar the brief asks for. `runs/` is what `archive` uploads.
+`suites/` is the sidecar the brief asks for. `runs/` is what `archive` uploads.
 `reports/` is what the site bundle reads and what CI posts.
 
 The root names are fixed. A repo that wants them elsewhere sets paths in
-`evals/proctor.json`, but the default has to work with no configuration, and
+`suites/proctor.json`, but the default has to work with no configuration, and
 a reader should be able to guess where things are.
 
-## The definition tier: `evals/`
+## The definition tier: `suites/`
+
+> Renamed 2026-09-23 by [suite-task-check.md](suite-task-check.md): `evals/`
+> is `suites/`, `eval.json` is `suite.json`, `cases/` is `tasks/`, and a task
+> carries its own `checks`. Readers accept the old spellings, on disk and in
+> `runs/`, for one release; writers use the new ones.
+
+| word | one sentence | the article's word | was |
+|---|---|---|---|
+| **suite** | A collection of related tasks with one business goal, graded by one shared checklist so a pass rate across them means one thing. | evaluation suite | eval |
+| **task** | One input and one desired outcome: a prompt against a fixture, with the checks that say whether the outcome was reached. | task | case |
+| **sample** | One measurement of a stochastic system: one attempt at one task by one arm. | trial | sample |
+| **check** | One yes-or-no item on the checklist, asked of a finished sample. Its role in the headline is set by where it is listed. | grader | check |
+| **arm** | What is under test: a harness, a provider, a model and a bundle, run over every task. | agent harness + configuration | arm |
+| **fixture** | The repository a task runs against and what "done" looks like in it; reused across suites. | environment | fixture |
+| **experiment** | One execution of one suite across every arm, task and sample. | eval run | experiment |
+| **cell** | One arm, one task, one sample: the directory a sample's evidence lives in. | (transcript + outcome) | cell |
+| **baseline** | Pinned cells from an earlier experiment, compared with as a virtual arm. | regression eval | baseline |
 
 > Superseded in part by [fixtures-arms-baselines.md](fixtures-arms-baselines.md)
-> (2026-09-21): fixtures are repo-level under `fixtures/` and a case names
+> (2026-09-21): fixtures are repo-level under `fixtures/` and a task names
 > one; the sample hooks that reset the fixture and collected the diff are
 > proctor's; `grading.validity` is a third list beside `pass`.
 
-One eval is one behaviour under test, in its own directory. Cases are data
+One suite is one behaviour under test, in its own directory. Tasks are data
 beside it. This is the JUnit `@CsvFileSource` shape from the test-framework
 learnings, and the "one file, one thing" rule from lore.
 
 ```
-evals/
+suites/
   proctor.json                  repo-level: archive location, default arms, tool versions
-  code-change/                  one eval: "can the agent make this code change"
-    eval.json                   labels, arms, samples, nb (runner, mounts), hooks, grading
-    program.nb                  the nb program template; {{case}} placeholders
-    cases/
-      add-retry-flag.json       one case: which fixture, what prompt, what "done" means
+  code-change/                  one suite: "can the agent make this code change"
+    suite.json                   labels, arms, samples, nb (runner, mounts), hooks, grading
+    program.nb                  the nb program template; {{task}} placeholders
+    tasks/
+      add-retry-flag.json       one task: which fixture, what prompt, what "done" means
       fix-null-deref.json
       rename-module.json
     rubric.md                   judged criteria, if any; absent means deterministic only
@@ -64,14 +81,14 @@ evals/
       diff-in-scope.sh
 ```
 
-`eval.json` for the experiment in the brief:
+`suite.json` for the experiment in the brief:
 
 ```json
 {
   "id": "code-change",
   "labels": { "area": "coding/change" },
   "arms": [
-    { "id": "floor",  "runner": "nb",      "harness": "nb",          "provider": "imp-qcoder", "model": "qwen-coder", "samples": 3 },
+    { "id": "floor",  "runner": "nb",      "harness": "nb",          "provider": "local-qcoder", "model": "qwen-coder", "samples": 3 },
     { "id": "codex",  "runner": "command", "harness": "codex",       "model": "gpt-5",   "samples": 1,
       "command": "codex exec -m gpt-5 --skip-git-repo-check {{prompt}}" },
     { "id": "claude", "runner": "command", "harness": "claude-code", "model": "sonnet-5", "samples": 1,
@@ -90,7 +107,7 @@ evals/
       "under_budget": { "max_tool_calls": 40, "max_duration_ms": 1800000 },
       "builds":       { "script": "checks/builds.sh", "description": "the repository builds" },
       "tests-pass":   { "script": "checks/tests-pass.sh", "description": "the repository's own tests pass" },
-      "diff-in-scope":{ "script": "checks/diff-in-scope.sh", "description": "only the files the case names were changed" }
+      "diff-in-scope":{ "script": "checks/diff-in-scope.sh", "description": "only the files the task names were changed" }
     },
     "pass": ["exit_ok", "builds", "tests-pass"],
     "judge":  { "provider": "cf-glm", "criteria_from": "rubric.md", "window": "last-assistant+diff" }
@@ -106,14 +123,14 @@ Points to notice:
   and recorded per arm. Proctor never compares a costume arm to a real-CLI arm
   without the manifest showing which is which.
 - **Hooks are the project's scripts, run at a named level.** Proctor's
-  contract is the order (run, arm, case, sample; teardown in reverse) and the
-  recording. The fixture reset lives in the sample-level setup because a case
+  contract is the order (run, arm, task, sample; teardown in reverse) and the
+  recording. The fixture reset lives in the sample-level setup because a task
   here is a repository that the run mutates.
 - **Labels are the consumer's, and there are no tags** (2026-09-22; this
   replaced a registered `tags` list of `deterministic` and `judged`). A
-  label is a key with one or more string values on the eval, a fixture or a
-  case; proctor stores, prints, filters and records them on every result
-  row and never interprets a key. Whether an eval is judged follows from a
+  label is a key with one or more string values on the suite, a fixture or a
+  task; proctor stores, prints, filters and records them on every result
+  row and never interprets a key. Whether a suite is judged follows from a
   check naming a judge, so the PR-versus-nightly split is the consumer's to
   express, as a label its pipeline filters on.
 - **Grading is declared, not discovered.** Checks are a named map. Most are
@@ -123,7 +140,7 @@ Points to notice:
   every other check is a guardrail rate in the report. The judge is named by
   provider and reads a declared window, never the whole transcript.
 
-A case:
+A task:
 
 ```json
 {
@@ -133,18 +150,35 @@ A case:
   "expect": {
     "files_touched": { "paths": ["src/fetch.cs", "tests/FetchTests.cs"], "mode": "at_least" },
     "tools_used": ["bash"]
+  },
+  "checks": {
+    "retries-twice": {
+      "script": "checks/retries-twice.sh",
+      "description": "a getter that fails twice is called three times with --retry 2"
+    }
   }
 }
 ```
 
-The `expect` block is where a case supplies values to the eval's built-in
-checks. `files_touched` has a mode, `at_least`, `exactly` or `at_most`, over
+A task's `checks` block is the check set only this task can state: its
+desired outcome. It joins the suite's and the fixture's for that task's
+cells (a name declared at two levels is a problem); its scripts resolve
+against the suite directory like the suite's own; its rate in the report is
+over the tasks that carry it. A check every task needs belongs on the suite,
+parameterised through `expect`.
+
+The `expect` block is where a task supplies values to the suite's built-in
+checks. A field that says `"@expect"` reads `expect.<check name>.<field>`
+first and `expect.<field>` second, so two checks over one field can differ
+per task. A model check reads `expect.<check name>`: the expectation as a
+value, or `{ask, expect}` when its `ask` is `"@expect"` too, so one `correct`
+check can carry a rubric per task. `files_touched` has a mode, `at_least`, `exactly` or `at_most`, over
 the diff the teardown hook collected; without a mode the check would have no
 semantics, which was the state of this example before the promptfoo pass.
 
-The case id is the stable identity; it is a path segment in `runs/` and a
-column in every table. Renaming a case is a new case. The fixture is pinned
-to a revision so the case means the same thing next month.
+The task id is the stable identity; it is a path segment in `runs/` and a
+column in every table. Renaming a task is a new task. The fixture is pinned
+to a revision so the task means the same thing next month.
 
 ### The check vocabulary
 
@@ -167,14 +201,14 @@ Built-ins read a named **window** of the transcript. The windows are fixed:
 | `diff` | `diff.patch` in the cell, if the teardown hook wrote one |
 
 The built-ins, each binary, each negatable with a `not_` prefix, values
-supplied either in `eval.json` (same for every case) or in a case's `expect`
-block (per case):
+supplied either in `suite.json` (same for every task) or in a task's `expect`
+block (per task):
 
 | check | window | shape |
 |---|---|---|
-| `exit_reason` | trailer | one of nb's exit reasons; `ok` is the implicit default check on every case |
+| `exit_reason` | trailer | one of nb's exit reasons; `ok` is the implicit default check on every task |
 | `answer_contains`, `answer_regex`, `answer_equals` | answer | string or pattern |
-| `answer_json_schema` | answer_json | path to a schema file beside the case |
+| `answer_json_schema` | answer_json | path to a schema file beside the task |
 | `answer_words` | answer | `{min, max}` |
 | `tools_used`, `tools_used_any` | tool_calls | list of tool names |
 | `tool_args` | tool_calls | `{name, args, mode: partial \| exact, ignore: [globs]}`; `partial` means expected is a subset of actual |
@@ -187,7 +221,7 @@ block (per case):
 | `max_tool_calls`, `max_tokens`, `max_duration_ms`, `max_cost` | trailer | number; cost needs a price on the provider entry until nb carries it on the trailer |
 
 **A script is a check too**, declared as `{ "script": "checks/name.sh",
-"description": "..." }`. It runs in the cell directory with the case's `expect` block in an
+"description": "..." }`. It runs in the cell directory with the task's `expect` block in an
 environment variable, exits 0, 1 or 2 for pass, fail, needs-judge, and its
 first line of stdout is the reason. That is weaver's grader contract plus
 promptfoo's custom-assertion habit of returning a reason beside the verdict,
@@ -197,17 +231,17 @@ so a matrix cell can show both without opening a log.
 as a wall of ids). `description` is the one key in a check spec that is not
 a check. A built-in derives one from its fields when none is given; a script
 check must declare one, because from outside a script says nothing. The
-eval, an arm and a case take an optional `description` too, and a case
+suite, an arm and a task take an optional `description` too, and a task
 falls back to the first line of its prompt. `stats.json` carries them in a
-`descriptions` block and the report opens with the eval's, then "Where it
+`descriptions` block and the report opens with the suite's, then "Where it
 fell down": per arm, each check that did not hold in an analysed cell, in
-its own words, most often first, with the cases it happened in (the
+its own words, most often first, with the tasks it happened in (the
 `failures` list on each arm's stats). The tables print the sentence beside
 the id. The narrative is the author's prose and the counts, never a model's.
 
 **What is deliberately absent.** Scalar metrics that hide two booleans
 (`tool-call-f1` is `tools_used` plus `not_tools_used_any`); reference-text
-similarity (ROUGE, BLEU, embeddings), because our cases have no reference
+similarity (ROUGE, BLEU, embeddings), because our tasks have no reference
 prose and overlap measures phrasing; pairwise or holistic judging; and score
 averaging with weights and thresholds, because a pass is a named subset of
 binary checks, not a weighted sum.
@@ -231,7 +265,7 @@ language.
 
 ```
 runs/
-  20260917-1432-code-change-k7px/           experiment id: date, eval, 4 random chars
+  20260917-1432-code-change-k7px/           experiment id: date, suite, 4 random chars
     experiment.json                         the resolved matrix and provenance (below)
     status.json                             counts by cell status; rewritten as cells finish
     hooks/
@@ -240,7 +274,7 @@ runs/
       hooks/
         arm.setup.log
         arm.teardown.log
-      add-retry-flag/                       case
+      add-retry-flag/                       task
         1/                                  sample
           manifest.json                     random run id, coordinates, timing, versions
           status                            one word: pending | running | completed | failed | skipped
@@ -272,11 +306,11 @@ runs/
 
 **Experiment id.** The trackers all warned against timestamp-only names and
 against parameter-derived ids. This takes both halves: a date prefix so `ls`
-sorts chronologically, the eval id so a human can tell experiments apart, and
+sorts chronologically, the suite id so a human can tell experiments apart, and
 four random characters so two experiments started in the same minute do not
 collide. The random part is what makes it an id; the rest is a courtesy.
 
-**Cell path is coordinates.** `<arm>/<case>/<sample>/` is the compound id from
+**Cell path is coordinates.** `<arm>/<task>/<sample>/` is the compound id from
 the test-framework learnings, and it is deliberately not random: it is the
 key `resume` uses. The random id lives inside the manifest.
 
@@ -328,19 +362,19 @@ The cell manifest:
 {
   "run_id": "b7e2f9c04d1a4e6b",
   "experiment": "20260917-1432-code-change-k7px",
-  "arm": "floor", "case": "add-retry-flag", "sample": 1,
-  "runner": "nb", "harness": "nb", "provider": "imp-qcoder", "model": "qwen-coder",
+  "arm": "floor", "task": "add-retry-flag", "sample": 1,
+  "runner": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen-coder",
   "transcript": { "file": "transcript.jsonl", "format": "nb-jsonl" },
   "started": "2026-09-17T14:33:02Z", "ended": "2026-09-17T14:51:40Z", "duration_ms": 1118000,
-  "host": "imp",
+  "host": "bench",
   "versions": { "proctor": "0.1.0", "nb": "0.9.0" },
-  "eval_hash": "sha256:9c1e…", "program_hash": "sha256:41ab…",
+  "suite_hash": "sha256:9c1e…", "program_hash": "sha256:41ab…",
   "status": "completed", "attempts": 1
 }
 ```
 
 The experiment manifest holds what is the same for every cell, so cells do
-not repeat it: the resolved `eval.json`, the git commit and dirty flag of the
+not repeat it: the resolved `suite.json`, the git commit and dirty flag of the
 repository under test, the command line, the proctor and nb versions, the
 planned cell count, and the archive location once `archive` has run. This is
 Hydra's triple (resolved config, what was typed, tool runtime) plus Inspect's
@@ -355,7 +389,7 @@ the markdown renderer both read these files and neither computes anything.
 ```
 reports/
   data/
-    index.json                              every experiment: id, eval, date, headline, verdict, archive url
+    index.json                              every experiment: id, suite, date, headline, verdict, archive url
     20260917-1432-code-change-k7px/
       experiment.json                       the raw-tier manifest, verbatim (it has no secrets)
       results.jsonl                         one row per cell: coordinates, status, exit_reason, trailer fields, check results, verdict labels, run_id
@@ -377,14 +411,14 @@ and a bump of the bundle never touches a data commit.
 
 | verb | reads | writes |
 |---|---|---|
-| `proctor run <eval>` | `evals/<eval>/` | a new `runs/<id>/`, every cell |
+| `proctor run <suite>` | `suites/<suite>/` | a new `runs/<id>/`, every cell |
 | `proctor resume <id>` | `runs/<id>/` | cells whose `status` is not `completed` |
-| `proctor grade <id>` | `runs/<id>/`, `evals/<eval>/checks/` | `checks.json` in each completed cell |
+| `proctor grade <id>` | `runs/<id>/`, `suites/<suite>/checks/` | `checks.json` in each completed cell |
 | `proctor judge <id>` | `runs/<id>/`, `rubric.md` | `verdicts/<judge>.<rubric-hash>.json` where absent |
 | `proctor report <id>` | `runs/<id>/` | `reports/data/<id>/`, `index.json` |
 | `proctor archive <id>` | `runs/<id>/` | the bucket; the archive url into both manifests |
 | `proctor fetch <run-id>` | the bucket, `index.json` | one cell back under `runs/` |
-| `proctor list` | `evals/` | nothing; prints cells and a cost estimate |
+| `proctor list` | `suites/` | nothing; prints cells and a cost estimate |
 
 `run` is `resume` on an empty directory. `judge` is idempotent per judge and
 rubric hash, which is how a nightly judged pass can run against transcripts
@@ -397,7 +431,7 @@ re-run after any regrade.
   other. Resume needs the path key; joins need the id.
 - **No content-addressed input store in the first version.** The research
   recommended it so N samples do not carry N copies of shared inputs. A
-  resolved `program.nb` is a few kilobytes and a case's fixture is a git
+  resolved `program.nb` is a few kilobytes and a task's fixture is a git
   revision, not a copy. Revisit when a cell routinely carries something large
   that is identical across samples; the trigger is `du` showing duplicated
   megabytes, not a principle.

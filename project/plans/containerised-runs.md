@@ -5,6 +5,10 @@ created: 2026-09-21
 status: done (2026-09-22); coordinated with nb (`../nb/plans/container-runs.md`)
 ---
 
+> Vocabulary: written before [suite-task-check.md](suite-task-check.md)
+> (2026-09-23). Read eval as suite, case as task, `evals/` as `suites/`,
+> `eval.json` as `suite.json` and `cases/` as `tasks/`.
+
 # Containerised runs
 
 The normal way to run nb is inside a container: nb's own guidance is "one
@@ -337,8 +341,8 @@ runbook is written last, from what the live run actually did.
    below). Hooks gained `PROCTOR_NB` and `PROCTOR_NB_CONFIG` so the setup
    hook can mount the config the host binary was resolved with. The image
    is identified in `arm.setup.log` by id (docker's legacy builder has no
-   digest for a local image), on nb's image id. imp is reached by
-   `--add-host` from `/etc/hosts`; the key alone crosses, by `-e`. The SDK
+   digest for a local image), on nb's image id. the gateway's host is reached by
+   `--add-host` from `/etc/hosts`; its URL and key alone cross, by `-e`. The SDK
    image already has a uid 1000, so `useradd -o`; the gid is a build arg
    too, or the files come out as the caller's uid and a stranger's gid.
    Nine cells in nine containers (`20260922-1150-code-change-6y0s`)

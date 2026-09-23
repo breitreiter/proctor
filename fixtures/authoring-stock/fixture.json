@@ -1,0 +1,7 @@
+{
+  "id": "authoring-stock",
+  "description": "A proctor repository with one fixture, stock: a stock sheet to answer a question about, nothing to build",
+  "source": { "path": "repo" },
+  "stack": "dotnet",
+  "labels": { "target": "stock" }
+}

@@ -5,21 +5,22 @@ static class Program
     const string Usage = """
         usage: proctor <verb> [args] [--root <dir>]
 
-          list [eval]         validate and print the cells that would run
-          run <eval>          run every cell of an eval into a new experiment
+          list [suite]         validate and print the cells that would run
+          run <suite>          run every cell of a suite into a new experiment
           resume <experiment> run the cells of an experiment that have not completed
           grade <experiment>  run the checks over every completed cell; a model check's verdict is kept in the cell
           report <experiment> write results.jsonl, stats.json, report.html and summary.md
-          baseline <experiment> pin an arm's analysed cells as the eval's baseline, per case
+          baseline <experiment> pin an arm's analysed cells as the suite's baseline, per task
 
-        --root <dir>          the repository root holding evals/ (default: current directory)
-        --label <k[=glob]>    list: only evals carrying the label, or the label with a matching value (repeatable)
-        --nb <path>           the nb binary (default: evals/proctor.json nb.path, else PATH)
-        --runner <script>     the script that runs nb per cell (default: the eval's nb.runner); none runs nb bare
+        --root <dir>          the repository root holding suites/ (default: current directory)
+        --label <k[=glob]>    list: only suites carrying the label, or the label with a matching value (repeatable)
+        --nb <path>           the nb binary (default: suites/proctor.json nb.path, else PATH)
+        --runner <script>     the script that runs nb per cell (default: the suite's nb.runner); none runs nb bare
         --arm <id>            baseline: which arm to pin (required with several arms)
-        --cases <a,b>         baseline: only these cases; the rest keep their pins
+        --tasks <a,b>         baseline: only these tasks; the rest keep their pins
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the cells' verdict files
+        --version             print proctor's version (see CHANGELOG.md for what changed between versions)
         --tolerance <points>  report: how far below the baseline still counts as held (default 0)
         --fail-on regression  report: exit 1 when any arm regressed against the baseline
         """;
@@ -28,7 +29,7 @@ static class Program
     {
         var root = Directory.GetCurrentDirectory();
         string? nbPath = null, runner = null, arm = null, failOn = null;
-        List<string>? cases = null, labels = null, judges = null;
+        List<string>? tasks = null, labels = null, judges = null;
         var tolerance = 0;
         var rejudge = false;
         var positional = new List<string>();
@@ -43,10 +44,11 @@ static class Program
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
                 case "--rejudge": rejudge = true; break;
-                case "--cases" when i + 1 < args.Length: cases = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
+                case "--tasks" when i + 1 < args.Length: tasks = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
                 case "--tolerance" when i + 1 < args.Length && int.TryParse(args[i + 1], out var t) && t >= 0: tolerance = t; i++; break;
                 case "--fail-on" when i + 1 < args.Length && args[i + 1] == "regression": failOn = args[++i]; break;
                 case "-h" or "--help": Console.WriteLine(Usage); return 0;
+                case "--version": Console.WriteLine($"proctor {Runner.ProctorVersion}"); return 0;
                 case var flag when flag.StartsWith("--"): Console.Error.WriteLine($"unknown flag {flag}"); Console.Error.WriteLine(Usage); return 1;
                 default: positional.Add(args[i]); break;
             }
@@ -58,11 +60,11 @@ static class Program
             return (positional[0], positional.Skip(1).ToList()) switch
             {
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels),
-                ("run", [var eval]) => Verbs.Run(root, eval, nbPath, runner),
+                ("run", [var suite]) => Verbs.Run(root, suite, nbPath, runner),
                 ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner),
                 ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn),
-                ("baseline", [var id]) => Verbs.Baseline(root, id, arm, cases),
+                ("baseline", [var id]) => Verbs.Baseline(root, id, arm, tasks),
                 _ => Fail(Usage),
             };
         }

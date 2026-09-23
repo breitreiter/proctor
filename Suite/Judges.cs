@@ -1,0 +1,90 @@
+using System.Text.RegularExpressions;
+
+namespace Proctor;
+
+/// <summary>
+/// One entry of suites/proctor.json's judges block: an endpoint proctor's own checks call at grade time. The question is
+/// the suite's (a decide or judge check); the endpoint is the machine's, like nb.path. Kind is the wire shape, never a
+/// vendor: systemone (POST /v1/systemone, typed questions with probabilities) or chat (OpenAI-dialect chat completions).
+/// </summary>
+record JudgeDef(string? Kind, string? Endpoint, string? Model, string? ApiKey, string? Family, int? MaxWindow)
+{
+    public const string SystemOne = "systemone", Chat = "chat";
+    public const int DefaultMaxWindow = 24_000;
+
+    public int MaxWindowOrDefault => MaxWindow ?? DefaultMaxWindow;
+
+    static readonly Regex EnvRef = new(@"\$\{([A-Za-z_][A-Za-z0-9_]*)\}");
+
+    /// <summary>The key with ${VAR} references resolved from the environment, at grade time only, so list and run need no key.</summary>
+    public string? ResolvedKey(string judge) => ApiKey is null ? null : Resolve(ApiKey, judge, "api_key");
+
+    /// <summary>
+    /// The URL actually posted to. The endpoint as written may reference the environment the same way the key does
+    /// (`${LLM_GATEWAY}/cf/compat`), so the committed config names no machine; the verdict files and the report keep
+    /// the template, which is the same on every machine that runs the suite.
+    /// </summary>
+    public string ResolvedEndpoint(string judge) => Resolve(Endpoint!, judge, "endpoint");
+
+    static string Resolve(string value, string judge, string field) =>
+        EnvRef.Replace(value, m => Environment.GetEnvironmentVariable(m.Groups[1].Value)
+            ?? throw new ProctorException($"judge '{judge}': {m.Groups[1].Value} is not set in the environment (suites/proctor.json judges.{judge}.{field})"));
+
+    /// <summary>The endpoint with every ${VAR} stood in for by a URL, so its shape can be checked before any is set.</summary>
+    public string EndpointShape => EnvRef.Replace(Endpoint ?? "", "http://x");
+}
+
+static class Judges
+{
+    /// <summary>Shape-check the block at load time; every problem names its field.</summary>
+    public static void Validate(Dictionary<string, JudgeDef>? judges, Action<string, string> add)
+    {
+        foreach (var (name, def) in judges ?? [])
+        {
+            var f = $"judges.{name}";
+            if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9_-]*$")) add(f, "judge names are lowercase letters, digits, hyphens and underscores");
+            if (def is null) { add(f, "expects {kind, endpoint, model?, api_key?, family?, max_window?}"); continue; }
+            switch (def.Kind)
+            {
+                case JudgeDef.SystemOne:
+                    if (def.Model is not null) add($"{f}.model", "a systemone endpoint's model is the endpoint's; leave it out");
+                    break;
+                case JudgeDef.Chat:
+                    if (string.IsNullOrWhiteSpace(def.Model)) add($"{f}.model", "required for a chat judge: the model name the endpoint serves");
+                    break;
+                case null or "":
+                    add($"{f}.kind", "required: systemone or chat");
+                    break;
+                default:
+                    add($"{f}.kind", $"unknown kind '{def.Kind}'; known: systemone, chat");
+                    break;
+            }
+            if (string.IsNullOrWhiteSpace(def.Endpoint) || !Uri.TryCreate(def.EndpointShape, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+                add($"{f}.endpoint", "required: an http(s) URL, ${VAR} references allowed");
+            if (def.MaxWindow is < 1) add($"{f}.max_window", "must be at least 1 character");
+        }
+    }
+
+    /// <summary>
+    /// The judge a check uses: the one it names with `with`, else the only one of the kind it needs. Null with the
+    /// reason when there is none or the choice is ambiguous; the caller reports it against its own field.
+    /// </summary>
+    public static (string Name, JudgeDef Def)? Resolve(Dictionary<string, JudgeDef>? judges, string kind, string? with, out string? problem)
+    {
+        problem = null;
+        if (with is not null)
+        {
+            if (judges is null || !judges.TryGetValue(with, out var named)) { problem = $"no judge '{with}' in suites/proctor.json judges"; return null; }
+            if (named.Kind != kind) { problem = $"judge '{with}' is {named.Kind}; this check needs {kind}"; return null; }
+            return (with, named);
+        }
+        var ofKind = (judges ?? []).Where(j => j.Value.Kind == kind).ToList();
+        problem = ofKind.Count switch
+        {
+            0 => $"no {kind} judge in suites/proctor.json judges",
+            1 => null,
+            _ => $"several {kind} judges in suites/proctor.json ({string.Join(", ", ofKind.Select(j => j.Key))}); say which with `with`",
+        };
+        return ofKind.Count == 1 ? (ofKind[0].Key, ofKind[0].Value) : null;
+    }
+}

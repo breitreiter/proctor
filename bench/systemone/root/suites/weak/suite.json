@@ -1,0 +1,44 @@
+{
+  "id": "weak",
+  "arms": [
+    {
+      "id": "qchat",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "local-qchat",
+      "model": "qwen3-30b-a3b-instruct",
+      "samples": 3
+    }
+  ],
+  "grading": {
+    "checks": {
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "no_denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "not_nudged": {
+        "loop_nudged": false
+      },
+      "under_budget": {
+        "max_tool_calls": 60,
+        "max_duration_ms": 1800000
+      },
+      "diff-in-scope": {
+        "files_touched": "@expect"
+      },
+      "acceptance": {
+        "script": "checks/acceptance.sh"
+      }
+    },
+    "pass": [
+      "exit_ok",
+      "builds",
+      "tests-pass",
+      "acceptance"
+    ]
+  }
+}

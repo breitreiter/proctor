@@ -1,0 +1,10 @@
+{
+  "id": "write-the-fixture",
+  "description": "A fixture and a suite from a bare repository, where the repository's own tests cannot tell done from not done",
+  "labels": { "teaches": "fixture-and-script-check" },
+  "fixture": "authoring-widgets",
+  "prompt": "fixtures/widgets/ holds only repo/, a small .NET library with tests. Make it a proctor fixture with the id `widgets`, with checks that it builds and that its tests pass. Then write a suite with the id `widgets-rename`, with one task on that fixture: the agent under test is asked to rename the namespace `Legacy.Widgets` to `Acme.Widgets` everywhere, the `RootNamespace` in Widgets.csproj included. It has one arm: nb with the provider `local-qcoder` and the model `qwen3-coder-next`, three samples.\n\nA run passes only when the repository builds, its tests pass, and `Legacy.Widgets` appears nowhere under src/ or tests/. The library's tests pass before the rename as well as after it.\n\nValidate the suite with proctor's `list` before you finish.",
+  "expect": {
+    "suite": "widgets-rename"
+  }
+}

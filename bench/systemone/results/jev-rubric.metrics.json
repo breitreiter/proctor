@@ -1,6 +1,6 @@
 {
  "backend": "jev",
- "url": "http://imp:8086/x/cf/workers-ai/run/typesafe/jev",
+ "url": "${LLM_GATEWAY}/cf/workers-ai/run/typesafe/jev",
  "rubric": "bench/systemone/rubric.json",
  "items": 48,
  "seconds": 0.0,

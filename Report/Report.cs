@@ -39,14 +39,14 @@ static class Report
         Cell Id(string s) => new($"`{s}`");
 
         // 1. About
-        if (d.Eval is { } about) b.Add(new Para(about));
-        var samplesPerCase = arms.Select(a => Samples(exp, a)).Distinct().ToList();
+        if (d.Suite is { } about) b.Add(new Para(about));
+        var samplesPerTask = arms.Select(a => Samples(exp, a)).Distinct().ToList();
         b.Add(new Pairs(
         [
-            ("Eval", $"`{stats.Eval}`"),
+            ("Suite", $"`{stats.Suite}`"),
             ("Run", $"{exp.Created[..10]} on `{exp.Host}`"),
             ("Arms", $"{arms.Count}: " + string.Join(", ", arms.Select(a => a == first && arms.Count > 1 ? $"`{a}` (the reference)" : $"`{a}`"))),
-            ("Cases", $"{stats.NCases}, each run {(samplesPerCase.Count == 1 ? Times(samplesPerCase[0]) : string.Join(" or ", samplesPerCase.Select(Times)))} per arm"),
+            ("Tasks", $"{stats.NTasks}, each run {(samplesPerTask.Count == 1 ? Times(samplesPerTask[0]) : string.Join(" or ", samplesPerTask.Select(Times)))} per arm"),
             ("Runs", $"{stats.Arms.Values.Sum(a => a.Planned)} planned, {stats.Arms.Values.Sum(a => a.Analysed)} counted"),
             ("Result", ResultLine(stats)),
         ]));
@@ -55,26 +55,30 @@ static class Report
 
         // 2. Arms
         b.Add(new Heading("Arms"));
-        b.Add(new Para("An arm is one configuration under test: a harness, a provider and a model, run over every case." + (arms.Count > 1 ? " The first arm is the reference the others are compared with." : "")));
+        b.Add(new Para("An arm is one configuration under test: a harness, a provider and a model, run over every task." + (arms.Count > 1 ? " The first arm is the reference the others are compared with." : "")));
         var bundles = exp.Bundles is { Count: > 0 };
-        b.Add(new Table(["Arm", "What it is", "Harness", "Provider", "Model", "Runs per case", .. bundles ? ["Bundle"] : Array.Empty<string>()],
+        b.Add(new Table(["Arm", "What it is", "Harness", "Provider", "Model", "Runs per task", .. bundles ? ["Bundle"] : Array.Empty<string>()],
             arms.Select(a => (List<Cell>)[Id(a), T(d.Arms.GetValueOrDefault(a, "")), T(ArmField(exp, a, "harness")), T(ArmField(exp, a, "provider")), T(ArmField(exp, a, "model")), T(Samples(exp, a).ToString()),
                 .. bundles ? [T(exp.BundleOf(a) is { } bu ? $"`{bu.Source}`" : "")] : Array.Empty<Cell>()]).ToList(),
             [5]));
 
-        // 3. Cases
-        b.Add(new Heading("Cases"));
-        b.Add(new Para($"A case is one task, given to every arm: a prompt against a fixture repository. Each case is run {(samplesPerCase.Count == 1 ? Times(samplesPerCase[0]) : "several times")} per arm, so a score is not one lucky or unlucky attempt."));
-        b.Add(new Table(["Case", "What it asks"], stats.Cases.Select(c => (List<Cell>)[Id(c), T(CaseText(stats, c))]).ToList(), []));
+        // 3. Tasks
+        b.Add(new Heading("Tasks"));
+        var shared = SharedChecks(stats);
+        var anyFixture = stats.Tasks.Any(c => FixtureOf(stats, c) is not null);
+        b.Add(new Para($"A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run {(samplesPerTask.Count == 1 ? Times(samplesPerTask[0]) : "several times")} per arm, so a score is not one lucky or unlucky attempt."
+            + (shared.Count > 0 ? $" Every task's runs carry the {shared.Count} check{(shared.Count == 1 ? "" : "s")} the suite declares, listed under Checks; the last column is what a task's runs are checked for beyond those, from its fixture or its own file." : "")));
+        b.Add(new Table(["Task", "What it asks", .. anyFixture ? ["Fixture"] : Array.Empty<string>(), "Its own checks"],
+            stats.Tasks.Select(c => (List<Cell>)[Id(c), T(TaskText(stats, c)), .. anyFixture ? [T(FixtureOf(stats, c) is { } f ? $"`{f}`" : "—")] : Array.Empty<Cell>(), T(OwnChecks(stats, c, shared))]).ToList(), []));
 
         // 4. Checks
         b.Add(new Heading("Checks"));
-        b.Add(new Para("A check is one yes-or-no test over a finished run. The headline checks together decide whether a run passed. A validity check decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure. Any other check is a guardrail: reported, not part of the pass. A check that cannot decide a run leaves that run out of its rate on both sides."));
-        b.Add(new Table(["Check", "What it tests", "Role"], CheckNames(stats).Select(c => (List<Cell>)[Id(c), T(CheckText(stats, c)), T(Role(stats, c))]).ToList(), []));
+        b.Add(new Para("A check is one yes-or-no test over a finished run. The headline checks together decide whether a run passed. A validity check decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure. Any other check is a guardrail: reported, not part of the pass. A check that cannot decide a run leaves that run out of its rate on both sides. A check is declared by the suite, by a fixture or by a task, and its rate is over the runs of the tasks it is on."));
+        b.Add(new Table(["Check", "What it tests", "Role", "On"], CheckNames(stats).Select(c => (List<Cell>)[Id(c), T(CheckText(stats, c)), T(Role(stats, c)), T(On(stats, c))]).ToList(), []));
 
         // 5. Results
         b.Add(new Heading("Results"));
-        b.Add(new Para($"Pass rate is the share of counted runs in which every headline check held, averaged case by case so that one case with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with {stats.NCases} case{(stats.NCases == 1 ? "" : "s")} it is {(stats.NCases < 10 ? "wide" : "what it is")}."));
+        b.Add(new Para($"Pass rate is the share of counted runs in which every headline check held, averaged task by task so that one task with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with {stats.NTasks} task{(stats.NTasks == 1 ? "" : "s")} it is {(stats.NTasks < 10 ? "wide" : "what it is")}."));
         b.Add(new Table(["Arm", "Pass rate", "95% interval", "Passed / decided runs"],
             arms.Select(a => (List<Cell>)[Id(a), T(RatePct(stats.Arms[a].Pass)), T(IntervalText(stats.Arms[a].Pass)), T(stats.Arms[a].Pass is { } p ? $"{p.KCells} / {p.NCells}" : "—")]).ToList(),
             [1, 2, 3]));
@@ -82,20 +86,20 @@ static class Report
         b.Add(new Para(stats.Mde.Sentence));
         if (stats.Baseline is { } bl)
         {
-            b.Add(new Para($"**Against the baseline.** The baseline is the score pinned for each case on {bl.Set[..10]}, scores {bl.Scores}. The verdict compares each arm's score with it and calls anything more than {bl.TolerancePoints} point{(bl.TolerancePoints == 1 ? "" : "s")} either way a change; the interval is shown so a small number of cases cannot hide behind the verdict."));
-            b.Add(new Table(["Arm", "Difference from baseline", "95% interval", "Cases better / worse / same", "Verdict"],
+            b.Add(new Para($"**Against the baseline.** The baseline is the score pinned for each task on {bl.Set[..10]}, scores {bl.Scores}. The verdict compares each arm's score with it and calls anything more than {bl.TolerancePoints} point{(bl.TolerancePoints == 1 ? "" : "s")} either way a change; the interval is shown so a small number of tasks cannot hide behind the verdict."));
+            b.Add(new Table(["Arm", "Difference from baseline", "95% interval", "Tasks better / worse / same", "Verdict"],
                 arms.Select(a => bl.Arms.TryGetValue(a, out var g)
                     ? (List<Cell>)[Id(a), T(SignedPoints(g.DiffPoints)), T($"{Signed(g.Ci95[0])} to {Signed(g.Ci95[1])}"), T($"{g.Won} / {g.Lost} / {g.Tied}"), new Cell(g.Verdict, $"<span class=\"{(g.Verdict == "regressed" ? "fail" : "pass")}\">{E(g.Verdict)}</span>")]
-                    : [Id(a), T("—"), T("—"), T("—"), T("no shared cases")]).ToList(),
+                    : [Id(a), T("—"), T("—"), T("—"), T("no shared tasks")]).ToList(),
                 [1, 2, 3]));
-            b.Add(new Table(["Case", "Baseline", .. arms.Select(a => $"`{a}`")],
-                stats.Cases.Select(c => (List<Cell>)[Id(c), T(BaselineScore(bl, c)), .. arms.Select(a => T(bl.Arms.GetValueOrDefault(a)?.Cases.GetValueOrDefault(c) is { } bc ? Pct(bc.Arm) : "—"))]).ToList(),
+            b.Add(new Table(["Task", "Baseline", .. arms.Select(a => $"`{a}`")],
+                stats.Tasks.Select(c => (List<Cell>)[Id(c), T(BaselineScore(bl, c)), .. arms.Select(a => T(bl.Arms.GetValueOrDefault(a)?.Tasks.GetValueOrDefault(c) is { } bc ? Pct(bc.Arm) : "—"))]).ToList(),
                 Enumerable.Range(1, arms.Count + 1).ToHashSet()));
         }
 
         // 6. Failures
         b.Add(new Heading("Failures"));
-        b.Add(new Para("For each arm, the checks that failed in at least one counted run, most frequent first, with the cases they failed on. A check that could not decide a run is listed apart: that is the check's weakness, not the arm's."));
+        b.Add(new Para("For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run is listed apart: that is the check's weakness, not the arm's."));
         foreach (var a in arms)
         {
             var s = stats.Arms[a];
@@ -105,7 +109,7 @@ static class Report
             if (s.Failures.Count > 0)
                 b.Add(new Bullets(s.Failures.Select(f =>
                     $"**{CheckText(stats, f.Check)}** (`{f.Check}`, {Role(stats, f.Check)}) failed in {f.Cells} of {f.Of} run{(f.Of == 1 ? "" : "s")}: "
-                    + string.Join(", ", f.Cases.OrderByDescending(c => c.Value).Select(c => $"{Times(c.Value)} on `{c.Key}`")) + ".").ToList()));
+                    + string.Join(", ", f.Tasks.OrderByDescending(c => c.Value).Select(c => $"{Times(c.Value)} on `{c.Key}`")) + ".").ToList()));
         }
         var undecided = arms.SelectMany(a => stats.Arms[a].Undecided).ToList();
         if (undecided.Count > 0 && undecided.Count <= 5)
@@ -136,13 +140,13 @@ static class Report
             arms.Select(a => (List<Cell>)[Id(a), .. reasons.Select(r => T(ExitCell(stats.Arms[a], rows, a, r)))]).ToList(),
             Enumerable.Range(1, reasons.Count).ToHashSet()));
 
-        // 8. Results by case
-        b.Add(new Heading("Results by case"));
-        b.Add(new Para($"One row per case, one column per arm, one mark per run: {Pass} passed, {Fail} failed, {Undecided} undecided, {NotCounted} not counted. Hover a mark for the reason; click it for the run."));
-        b.Add(new Table(["Case", "What it asks", .. arms.Select(a => $"`{a}`")],
-            stats.Cases.Select(c => (List<Cell>)[Id(c), T(CaseText(stats, c)), .. arms.Select(a =>
+        // 8. Results by task
+        b.Add(new Heading("Results by task"));
+        b.Add(new Para($"One row per task, one column per arm, one mark per run: {Pass} passed, {Fail} failed, {Undecided} undecided, {NotCounted} not counted. Hover a mark for the reason; click it for the run."));
+        b.Add(new Table(["Task", "What it asks", .. arms.Select(a => $"`{a}`")],
+            stats.Tasks.Select(c => (List<Cell>)[Id(c), T(TaskText(stats, c)), .. arms.Select(a =>
             {
-                var runs = rows.Where(r => r.Arm == a && r.Case == c).OrderBy(r => r.Sample).ToList();
+                var runs = rows.Where(r => r.Arm == a && r.Task == c).OrderBy(r => r.Sample).ToList();
                 return new Cell(string.Join(" ", runs.Select(Glyph)),
                     string.Join("", runs.Select(r => $"<a href=\"#run-{E(r.RunId)}\" class=\"{GlyphClass(r)}\" title=\"{E(GlyphTitle(r))}\">{Glyph(r)}</a>")));
             })]).ToList(),
@@ -166,9 +170,9 @@ static class Report
         // 11. Every run
         b.Add(new Heading("Every run"));
         b.Add(new Para("Every run, failures first. *Reason* is the first check that did not hold and what it saw, or why the run never completed."));
-        b.Add(new Table(["Arm", "Case", "Run", "Result", "nb ended", $"Duration ({unit})", "Tokens", "Reason"],
+        b.Add(new Table(["Arm", "Task", "Run", "Result", "nb ended", $"Duration ({unit})", "Tokens", "Reason"],
             Ordered(rows).Select(r => (List<Cell>)[
-                new Cell($"`{r.Arm}`", Anchor: $"run-{r.RunId}"), Id(r.Case), T($"{r.Sample}"),
+                new Cell($"`{r.Arm}`", Anchor: $"run-{r.RunId}"), Id(r.Task), T($"{r.Sample}"),
                 new Cell($"{Glyph(r)} {Outcome(r)}", $"<span class=\"{GlyphClass(r)}\" title=\"{E(r.RunId)}\">{Glyph(r)} {E(Outcome(r))}</span>"),
                 T(r.ExitReason is null ? "" : $"`{r.ExitReason}`"), T(r.DurationMs is { } dm ? Duration(dm, unit) : ""), T(r.Usage?.Total is { } t ? Tokens(t) : ""), T(Reason(r))]).ToList(),
             [2, 5, 6]));
@@ -195,9 +199,9 @@ static class Report
         foreach (var c in stats.Comparisons)
             parts.Add(c.Verdict switch
             {
-                "better" => $"`{c.Arm}` is better than `{c.Vs}` by {c.DiffPoints} points, and with {c.NPairs} case{(c.NPairs == 1 ? "" : "s")} that difference is statistically detectable.",
-                "worse" => $"`{c.Arm}` is worse than `{c.Vs}` by {-c.DiffPoints} points, and with {c.NPairs} case{(c.NPairs == 1 ? "" : "s")} that difference is statistically detectable.",
-                _ => $"With {c.NPairs} case{(c.NPairs == 1 ? "" : "s")} the difference between `{c.Arm}` and `{c.Vs}` ({SignedPoints(c.DiffPoints)}) is not statistically detectable.",
+                "better" => $"`{c.Arm}` is better than `{c.Vs}` by {c.DiffPoints} points, and with {c.NPairs} task{(c.NPairs == 1 ? "" : "s")} that difference is statistically detectable.",
+                "worse" => $"`{c.Arm}` is worse than `{c.Vs}` by {-c.DiffPoints} points, and with {c.NPairs} task{(c.NPairs == 1 ? "" : "s")} that difference is statistically detectable.",
+                _ => $"With {c.NPairs} task{(c.NPairs == 1 ? "" : "s")} the difference between `{c.Arm}` and `{c.Vs}` ({SignedPoints(c.DiffPoints)}) is not statistically detectable.",
             });
         if (stats.Baseline is { } bl && bl.Arms.Count > 0)
             parts.Add($"Against the pinned baseline, {Join(bl.Arms.Select(a => $"`{a.Key}` {a.Value.Verdict}"))} at a tolerance of {bl.TolerancePoints} points.");
@@ -222,9 +226,9 @@ static class Report
         {
             "better" => $"`{c.Arm}` is better: the whole interval is above zero. ",
             "worse" => $"`{c.Arm}` is worse: the whole interval is below zero. ",
-            _ => $"with {c.NPairs} case{(c.NPairs == 1 ? "" : "s")} the difference could be noise: no detectable difference. ",
+            _ => $"with {c.NPairs} task{(c.NPairs == 1 ? "" : "s")} the difference could be noise: no detectable difference. ",
         });
-        sb.Append($"Case by case, `{c.Arm}` did better on {c.Won}, worse on {c.Lost}, the same on {c.Tied}.");
+        sb.Append($"Task by task, `{c.Arm}` did better on {c.Won}, worse on {c.Lost}, the same on {c.Tied}.");
         return sb.ToString();
     }
 
@@ -246,7 +250,7 @@ static class Report
         var n = a.ExitReasons.GetValueOrDefault(reason);
         if (a.Completed == 0) return "—";
         if (n == 0 || n > 3 || reason == "ok") return $"{n}";
-        var which = rows.Where(r => r.Arm == arm && r.ExitReason == reason).Select(r => $"`{r.Case}` run {r.Sample}");
+        var which = rows.Where(r => r.Arm == arm && r.ExitReason == reason).Select(r => $"`{r.Task}` run {r.Sample}");
         return $"{n} ({string.Join(", ", which)})";
     }
 
@@ -261,13 +265,33 @@ static class Report
     static string GlyphTitle(ResultRow r) => $"run {r.Sample}: {Outcome(r)}{(Reason(r).Length > 0 ? " — " + Reason(r) : "")} ({r.RunId})";
 
     static IEnumerable<ResultRow> Ordered(List<ResultRow> rows) =>
-        rows.OrderBy(r => !r.Analysed ? 1 : r.Undecided is not null ? 2 : r.Pass == true ? 3 : 0).ThenBy(r => r.Arm).ThenBy(r => r.Case).ThenBy(r => r.Sample);
+        rows.OrderBy(r => !r.Analysed ? 1 : r.Undecided is not null ? 2 : r.Pass == true ? 3 : 0).ThenBy(r => r.Arm).ThenBy(r => r.Task).ThenBy(r => r.Sample);
 
     static string CheckText(StatsFile stats, string check) => stats.Descriptions.Checks.GetValueOrDefault(check, check);
-    static string CaseText(StatsFile stats, string c) => stats.Descriptions.Cases.GetValueOrDefault(c, c);
+    static string TaskText(StatsFile stats, string c) => stats.Descriptions.Tasks.GetValueOrDefault(c, c);
 
     static IEnumerable<string> CheckNames(StatsFile stats) =>
         stats.PassChecks.Concat(stats.ValidityChecks).Concat(stats.Arms.Values.SelectMany(a => a.Checks.Keys)).Distinct();
+
+    static string? FixtureOf(StatsFile stats, string task) => stats.TaskDetails?.GetValueOrDefault(task)?.Fixture;
+
+    /// <summary>The checks every task carries: the suite's own, as far as the report can tell without the suite.</summary>
+    static List<string> SharedChecks(StatsFile stats) =>
+        stats.TaskDetails is { Count: > 0 } td ? CheckNames(stats).Where(c => td.Values.All(t => t.Checks.Contains(c))).ToList() : CheckNames(stats).ToList();
+
+    static string OwnChecks(StatsFile stats, string task, List<string> shared)
+    {
+        var own = stats.TaskDetails?.GetValueOrDefault(task)?.Checks.Where(c => !shared.Contains(c)).ToList() ?? [];
+        return own.Count == 0 ? "—" : string.Join(", ", own.Select(c => $"`{c}`"));
+    }
+
+    /// <summary>Which tasks' runs carry a check: every task, or the ones that do.</summary>
+    static string On(StatsFile stats, string check)
+    {
+        if (stats.TaskDetails is not { Count: > 0 } td) return "every task";
+        var on = stats.Tasks.Where(t => td.GetValueOrDefault(t)?.Checks.Contains(check) == true).ToList();
+        return on.Count == stats.Tasks.Count ? "every task" : on.Count == 0 ? "—" : string.Join(", ", on.Select(t => $"`{t}`"));
+    }
 
     static string Role(StatsFile stats, string check) =>
         stats.PassChecks.Contains(check) ? "headline" : stats.ValidityChecks.Contains(check) ? "validity" : "guardrail";
@@ -276,19 +300,19 @@ static class Report
         stats.Arms.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
 
     static string BaselineScore(BaselineStats bl, string c) =>
-        bl.Arms.Values.Select(a => a.Cases.GetValueOrDefault(c)).FirstOrDefault(x => x is not null) is { } bc ? Pct(bc.Baseline) : "—";
+        bl.Arms.Values.Select(a => a.Tasks.GetValueOrDefault(c)).FirstOrDefault(x => x is not null) is { } bc ? Pct(bc.Baseline) : "—";
 
     static string ArmField(Experiment exp, string arm, string field) =>
-        exp.EvalDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?[field]?.GetValue<string>() ?? "?";
+        exp.SuiteDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?[field]?.GetValue<string>() ?? "?";
 
     static int Samples(Experiment exp, string arm) =>
-        exp.EvalDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?["samples"]?.GetValue<int>() ?? 1;
+        exp.SuiteDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?["samples"]?.GetValue<int>() ?? 1;
 
     static IEnumerable<(string, string)> ReproFacts(StatsFile stats, Experiment exp, List<JudgeUse>? judges)
     {
         yield return ("proctor", exp.Versions.GetValueOrDefault("proctor", "unknown"));
         yield return ("nb", $"{exp.Versions.GetValueOrDefault("nb", "unknown")} at {exp.Nb.Path}");
-        yield return ("eval hash", exp.EvalHash);
+        yield return ("suite hash", exp.SuiteHash);
         foreach (var (arm, bundle) in exp.Bundles ?? []) yield return ($"bundle {arm}", $"{bundle.Source} {bundle.Hash}");
         foreach (var j in judges ?? [])
             yield return ($"judge {j.Judge}", $"{j.Kind}{(j.Model is null ? "" : " " + j.Model)} at {j.Endpoint}; graded {string.Join(", ", j.Checks)}");
@@ -339,14 +363,14 @@ static class Report
             <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>{E(stats.Eval)} — {E(stats.Experiment)}</title>
+            <title>{E(stats.Suite)} — {E(stats.Experiment)}</title>
             <style>
             {Css}
             </style>
             </head>
             <body>
             <main>
-            <h1>{E(stats.Eval)} <span class="id">{E(stats.Experiment)}</span></h1>
+            <h1>{E(stats.Suite)} <span class="id">{E(stats.Experiment)}</span></h1>
 
             """);
         var open = false;
@@ -435,7 +459,7 @@ static class Report
 
     static string RenderMarkdown(List<Block> blocks, StatsFile stats)
     {
-        var sb = new StringBuilder($"# {stats.Eval} — {stats.Experiment}\n\n");
+        var sb = new StringBuilder($"# {stats.Suite} — {stats.Experiment}\n\n");
         foreach (var block in blocks)
         {
             switch (block)

@@ -1,0 +1,123 @@
+{
+  "id": "suite-authoring",
+  "description": "Can a coding agent write a proctor suite from proctor's documentation, one that passes a correct run and fails the wrong ones? The two arms show the agent the same pinned documentation, one with the example suites beside it.",
+  "labels": {
+    "area": "authoring/suites",
+    "stack": "dotnet"
+  },
+  "arms": [
+    {
+      "id": "docs",
+      "description": "the README and the layout plans, no example suites",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "local-qcoder",
+      "model": "qwen3-coder-next",
+      "samples": 3,
+      "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "31ed54aaafa2d239bd23953cc35fc9b85e887e45" }
+    },
+    {
+      "id": "docs-and-examples",
+      "description": "the same documentation with the example suites and fixtures beside it",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "local-qcoder",
+      "model": "qwen3-coder-next",
+      "samples": 3,
+      "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "31ed54aaafa2d239bd23953cc35fc9b85e887e45" }
+    }
+  ],
+  "nb": {
+    "runner": "../runners/container.sh",
+    "mounts": {
+      "work": "/work",
+      "bundle": "/bundle"
+    }
+  },
+  "hooks": {
+    "arm": {
+      "setup": "hooks/arm-setup.sh"
+    },
+    "sample": {
+      "setup": "hooks/sample-setup.sh",
+      "teardown": "../code-change/hooks/sample-teardown.sh"
+    }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "no_denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "under_budget": {
+        "max_tool_calls": 80,
+        "max_duration_ms": 1800000
+      },
+      "validates": {
+        "script": "checks/validates.sh",
+        "description": "proctor's list loads the written suite without a problem"
+      },
+      "accepts-correct": {
+        "script": "checks/accepts-correct.sh",
+        "description": "the written suite passes a planted correct run of its task"
+      },
+      "rejects-wrong": {
+        "script": "checks/rejects-wrong.sh",
+        "description": "the written suite fails every planted wrong run of its task"
+      },
+      "self-validated": {
+        "script": "checks/self-validated.sh",
+        "description": "the agent ran proctor's list on its suite before finishing"
+      },
+      "describes-everything": {
+        "script": "checks/describes-everything.sh",
+        "description": "the written suite, its arms and its tasks each carry a description for the report's reader"
+      },
+      "read-examples": {
+        "script": "checks/read-examples.sh",
+        "description": "the agent opened at least one example suite or fixture in the bundle"
+      },
+      "stays-in-work": {
+        "script": "../code-change/checks/stays-in-work.sh",
+        "description": "no tool call reached outside the work directory and the bundle"
+      },
+      "stance": {
+        "decide": {
+          "ask": "Read answer. What does it claim about the state of the task the assistant was working on?",
+          "window": "answer",
+          "options": {
+            "complete": "It presents the work as finished: it says so, or it reports the files written and a clean validation as a done result",
+            "asked": "It stops to ask the user a question or for a decision before the work can be finished",
+            "blocked": "It reports that it could not finish because something outside its control prevented it: a missing tool, a limit reached, a failure it could not fix, a permission denied",
+            "other": "None of the above: it makes no claim about the task's state, for example a bare acknowledgement, a plan, or an unrelated message"
+          },
+          "expect": "complete",
+          "threshold": 0.95
+        },
+        "description": "the closing message claims the suite is written, not that it asked or gave up"
+      },
+      "prompt-hides-answer": {
+        "judge": {
+          "ask": "The diff adds a proctor suite; its task files carry a `prompt`, the task an agent under test will be given. Does every such prompt state the task without stating what a correct run's result is, leaving the expected answer or the solution's code to the suite's checks and expectations? Answer no if a prompt contains the expected number, or the code or edit that solves the task.",
+          "window": "diff",
+          "samples": 3,
+          "with": "glm"
+        },
+        "description": "the task prompt the written suite gives its agent does not give away the answer"
+      }
+    },
+    "pass": [
+      "exit_ok",
+      "validates",
+      "accepts-correct",
+      "rejects-wrong"
+    ],
+    "validity": [
+      "stays-in-work"
+    ]
+  }
+}

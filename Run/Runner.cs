@@ -7,7 +7,7 @@ namespace Proctor;
 
 /// <summary>runs/&lt;id&gt;/experiment.json: what is the same for every cell.</summary>
 record Experiment(
-    string Id, string Eval, string EvalHash, JsonObject EvalDef, List<string> Cases, int Planned,
+    string Id, string Suite, string SuiteHash, JsonObject SuiteDef, List<string> Tasks, int Planned,
     string Created, string CommandLine, string Host,
     Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
     Dictionary<string, ResolvedBundle>? Bundles = null)
@@ -23,7 +23,7 @@ record GitInfo(string Commit, bool Dirty);
 /// <summary>How nb is run: the host binary, its config, the runner script that stands in for the binary at the run step, if any, and where that runner shows nb the checkout and the bundle. Mounts are only in effect with a runner: a bare run resolves the host paths.</summary>
 record ResolvedNb(string Path, string? Config, ResolvedRunner? Runner = null, NbMounts? Mounts = null);
 
-/// <summary>The runner script as configured (relative to evals/), where it is, and the hash of its text.</summary>
+/// <summary>The runner script as configured (relative to suites/), where it is, and the hash of its text.</summary>
 record ResolvedRunner(string Script, string Path, string Hash);
 
 /// <summary>A cell's manifest.json.</summary>
@@ -32,7 +32,7 @@ record Manifest
     public required string RunId { get; init; }
     public required string Experiment { get; init; }
     public required string Arm { get; init; }
-    public required string Case { get; init; }
+    public required string Task { get; init; }
     public required int Sample { get; init; }
     public required string Runner { get; init; }
     public required string Harness { get; init; }
@@ -48,7 +48,7 @@ record Manifest
     public long? DurationMs { get; set; }
     public required string Host { get; init; }
     public required Dictionary<string, string> Versions { get; init; }
-    public required string EvalHash { get; init; }
+    public required string SuiteHash { get; init; }
     public required string ProgramHash { get; init; }
     public string Status { get; set; } = CellStatus.Pending;
     public string? StatusReason { get; set; }
@@ -67,29 +67,29 @@ static class CellStatus
     public static readonly string[] All = [Pending, Running, Completed, Failed, Skipped];
 }
 
-/// <summary>The matrix loop: arms, cases, samples; hooks at arm and sample level; nb as a subprocess.</summary>
-sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter log)
+/// <summary>The matrix loop: arms, tasks, samples; hooks at arm and sample level; nb as a subprocess.</summary>
+sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter log)
 {
     readonly string experimentDir = Layout.Experiment(root, experiment.Id);
-    readonly string evalsDir = Layout.Evals(root);
+    readonly string suitesDir = Layout.Suites(root);
 
-    /// <summary>Create a new experiment directory from an eval and run it.</summary>
-    public static string Start(string root, Eval eval, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
+    /// <summary>Create a new experiment directory from a suite and run it.</summary>
+    public static string Start(string root, Suite suite, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
-        var nb = ResolveNb(root, eval, config, nbOverride, runnerOverride);
-        var id = Layout.NewExperimentId(eval.Id, DateTime.UtcNow);
+        var nb = ResolveNb(root, suite, config, nbOverride, runnerOverride);
+        var id = Layout.NewExperimentId(suite.Id, DateTime.UtcNow);
         var experiment = new Experiment(
-            Id: id, Eval: eval.Id, EvalHash: eval.Hash,
-            EvalDef: JsonNode.Parse(File.ReadAllText(Path.Combine(eval.Dir, Layout.EvalFile)))!.AsObject(),
-            Cases: eval.Cases.Select(c => c.Id!).ToList(),
-            Planned: eval.PlannedCells,
+            Id: id, Suite: suite.Id, SuiteHash: suite.Hash,
+            SuiteDef: JsonNode.Parse(File.ReadAllText(Layout.SuiteFileIn(suite.Dir)))!.AsObject(),
+            Tasks: suite.Tasks.Select(c => c.Id!).ToList(),
+            Planned: suite.PlannedCells,
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
-            Bundles: ResolveBundles(root, eval));
+            Bundles: ResolveBundles(root, suite));
         var dir = Layout.Experiment(root, id);
         Directory.CreateDirectory(dir);
         WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);
-        new Runner(root, experiment, eval, log).RunPending();
+        new Runner(root, experiment, suite, log).RunPending();
         return id;
     }
 
@@ -98,19 +98,19 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     {
         var experiment = LoadExperiment(root, experimentId);
         var problems = new List<Problem>();
-        var config = Eval.LoadConfig(root, problems);
-        var eval = Eval.Load(root, experiment.Eval, problems)
-            ?? throw new ProctorException($"eval '{experiment.Eval}' no longer loads:\n" + string.Join("\n", problems));
-        if (eval.Hash != experiment.EvalHash)
-            throw new ProctorException($"evals/{eval.Id} has changed since experiment {experimentId} was created ({eval.Hash} vs {experiment.EvalHash}); a changed eval is a new experiment");
-        foreach (var (arm, bundle) in ResolveBundles(root, eval))
+        var config = Suite.LoadConfig(root, problems);
+        var suite = Suite.Load(root, experiment.Suite, problems)
+            ?? throw new ProctorException($"suite '{experiment.Suite}' no longer loads:\n" + string.Join("\n", problems));
+        if (suite.Hash != experiment.SuiteHash)
+            throw new ProctorException($"suites/{suite.Id} has changed since experiment {experimentId} was created ({suite.Hash} vs {experiment.SuiteHash}); a changed suite is a new experiment");
+        foreach (var (arm, bundle) in ResolveBundles(root, suite))
             if (experiment.BundleOf(arm)?.Hash != bundle.Hash)
                 throw new ProctorException($"the bundle of arm '{arm}' ({bundle.Source}) has changed since experiment {experimentId} was created ({bundle.Hash} vs {experiment.BundleOf(arm)?.Hash ?? "none"}); a changed bundle is a new experiment");
-        var runner = ResolveRunner(root, eval, runnerOverride);
+        var runner = ResolveRunner(root, suite, runnerOverride);
         if ((runner?.Script, runner?.Hash) != (experiment.Nb.Runner?.Script, experiment.Nb.Runner?.Hash))
             throw new ProctorException($"the runner has changed since experiment {experimentId} was created ({Describe(runner)} vs {Describe(experiment.Nb.Runner)}); a changed runner is a new experiment");
         if (nbOverride is not null) experiment = experiment with { Nb = experiment.Nb with { Path = Path.GetFullPath(nbOverride) } };
-        new Runner(root, experiment, eval, log).RunPending();
+        new Runner(root, experiment, suite, log).RunPending();
 
         static string Describe(ResolvedRunner? r) => r is null ? "none" : $"{r.Script} {r.Hash}";
     }
@@ -119,23 +119,23 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     {
         var file = Path.Combine(Layout.Experiment(root, experimentId), Layout.ExperimentFile);
         if (!File.Exists(file)) throw new ProctorException($"no experiment {experimentId} under {Layout.Experiment(root, "")}");
-        return JsonSerializer.Deserialize<Experiment>(File.ReadAllText(file), Eval.JsonOptions)!;
+        return ReadJson<Experiment>(file, ("eval", "suite"), ("eval_hash", "suite_hash"), ("eval_def", "suite_def"), ("cases", "tasks"))!;
     }
 
     /// <summary>Every cell's coordinates, in declared order.</summary>
-    public static IEnumerable<(Arm Arm, CaseDef Case, int Sample)> Cells(Eval eval) =>
-        from arm in eval.Arms from c in eval.Cases from s in Enumerable.Range(1, arm.SamplesOrOne) select (arm, c, s);
+    public static IEnumerable<(Arm Arm, TaskDef Task, int Sample)> Cells(Suite suite) =>
+        from arm in suite.Arms from c in suite.Tasks from s in Enumerable.Range(1, arm.SamplesOrOne) select (arm, c, s);
 
     /// <summary>Everything a hook or check needs to know about a cell, for the runner and the grader alike.</summary>
-    public static CellContext Context(string root, Experiment experiment, Eval eval, Arm arm, CaseDef c, int sample) =>
-        new(eval.Dir, Layout.Cell(Layout.Experiment(root, experiment.Id), arm.Id!, c.Id!, sample), Layout.Work(root, experiment.Id, arm.Id!, c.Id!, sample), experiment.Id, arm.Id!, c, sample)
-        { Expect = eval.ExpectFor(c), Fixture = eval.FixtureOf(c), BundleDir = experiment.BundleOf(arm.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", NbPath = experiment.Nb.Path, NbConfig = experiment.Nb.Config, Mounts = experiment.Nb.Mounts };
+    public static CellContext Context(string root, Experiment experiment, Suite suite, Arm arm, TaskDef c, int sample) =>
+        new(suite.Dir, Layout.Cell(Layout.Experiment(root, experiment.Id), arm.Id!, c.Id!, sample), Layout.Work(root, experiment.Id, arm.Id!, c.Id!, sample), experiment.Id, arm.Id!, c, sample)
+        { Expect = suite.ExpectFor(c), Fixture = suite.FixtureOf(c), BundleDir = experiment.BundleOf(arm.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", NbPath = experiment.Nb.Path, NbConfig = experiment.Nb.Config, Mounts = experiment.Nb.Mounts };
 
     /// <summary>Each arm's bundle, once per experiment: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
-    public static Dictionary<string, ResolvedBundle> ResolveBundles(string root, Eval eval)
+    public static Dictionary<string, ResolvedBundle> ResolveBundles(string root, Suite suite)
     {
         var bundles = new Dictionary<string, ResolvedBundle>();
-        foreach (var arm in eval.Arms.Where(a => a.Bundle is not null))
+        foreach (var arm in suite.Arms.Where(a => a.Bundle is not null))
         {
             var source = arm.Bundle!;
             if (source.Git is { } url)
@@ -172,16 +172,16 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     void RunPending()
     {
         WriteStatusCounts();
-        foreach (var arm in eval.Arms)
+        foreach (var arm in suite.Arms)
         {
-            var pending = eval.Cases.SelectMany(c => Enumerable.Range(1, arm.SamplesOrOne).Select(s => (c, s)))
+            var pending = suite.Tasks.SelectMany(c => Enumerable.Range(1, arm.SamplesOrOne).Select(s => (c, s)))
                 .Where(x => ReadStatus(Layout.Cell(experimentDir, arm.Id!, x.c.Id!, x.s)) != CellStatus.Completed).ToList();
             if (pending.Count == 0) continue;
 
             var armDir = Layout.Arm(experimentDir, arm.Id!);
             Directory.CreateDirectory(Path.Combine(armDir, Layout.HooksDir));
-            var armEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_ARM"] = arm.Id!, ["PROCTOR_EVAL_DIR"] = eval.Dir, ["PROCTOR_BUNDLE"] = experiment.BundleOf(arm.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = experiment.Nb.Runner?.Script ?? "" };
-            var setup = RunHook(eval.Def.Hooks?.Arm?.Setup, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.setup.log"));
+            var armEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_ARM"] = arm.Id!, ["PROCTOR_SUITE_DIR"] = suite.Dir, ["PROCTOR_EVAL_DIR"] = suite.Dir, ["PROCTOR_BUNDLE"] = experiment.BundleOf(arm.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = experiment.Nb.Runner?.Script ?? "" };
+            var setup = RunHook(suite.Def.Hooks?.Arm?.Setup, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.setup.log"));
             if (setup is not null)
             {
                 foreach (var (c, s) in pending) MarkFailed(arm, c, s, $"arm setup hook failed: {setup}");
@@ -190,30 +190,30 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
 
             foreach (var (c, s) in pending) RunCell(arm, c, s);
 
-            var teardown = RunHook(eval.Def.Hooks?.Arm?.Teardown, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.teardown.log"));
+            var teardown = RunHook(suite.Def.Hooks?.Arm?.Teardown, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.teardown.log"));
             if (teardown is not null) log.WriteLine($"  {arm.Id}: arm teardown hook failed: {teardown}");
         }
         WriteStatusCounts();
     }
 
-    void RunCell(Arm arm, CaseDef c, int sample)
+    void RunCell(Arm arm, TaskDef c, int sample)
     {
-        var cell = Context(root, experiment, eval, arm, c, sample);
+        var cell = Context(root, experiment, suite, arm, c, sample);
         var (cellDir, workDir) = (cell.CellDir, cell.WorkDir);
         Directory.CreateDirectory(Path.Combine(cellDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
 
-        var program = ResolveProgram(eval.ProgramTemplate, arm, c, sample, cell.WorkMount, cell.BundleMount);
+        var program = ResolveProgram(suite.ProgramTemplate, arm, c, sample, cell.WorkMount, cell.BundleMount);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
-            ? JsonSerializer.Deserialize<Manifest>(File.ReadAllText(manifestFile), Eval.JsonOptions)!
+            ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Case = c.Id!, Sample = sample,
+                RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample,
                 Runner = arm.Runner!, Harness = arm.Harness!, Provider = arm.Provider!, Model = arm.Model,
                 Fixture = cell.Fixture is null ? null : new FixtureRef(cell.Fixture.Id, cell.Fixture.Hash),
                 Bundle = experiment.BundleOf(arm.Id!), Nb = experiment.Nb,
-                Host = experiment.Host, Versions = experiment.Versions, EvalHash = eval.Hash, ProgramHash = Sha256(program),
+                Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash, ProgramHash = Sha256(program),
             };
         manifest.Attempts++;
         manifest.Started = Now();
@@ -232,13 +232,13 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
             : null;
         var setupRan = failure is null;
         if (setupRan)
-            failure = RunHook(eval.Def.Hooks?.Sample?.Setup, env, Path.Combine(cellDir, Layout.HooksDir, "sample.setup.log")) is { } setupError
+            failure = RunHook(suite.Def.Hooks?.Sample?.Setup, env, Path.Combine(cellDir, Layout.HooksDir, "sample.setup.log")) is { } setupError
                 ? $"sample setup hook failed: {setupError}"
                 : RunNb(cellDir, workDir, compiled!, env, manifest);
         // Teardown and the diff run whenever setup ran, even when setup failed: a container it half-made must not be left for the resumed cell.
         if (setupRan)
         {
-            if (RunHook(eval.Def.Hooks?.Sample?.Teardown, env, Path.Combine(cellDir, Layout.HooksDir, "sample.teardown.log")) is { } teardownError)
+            if (RunHook(suite.Def.Hooks?.Sample?.Teardown, env, Path.Combine(cellDir, Layout.HooksDir, "sample.teardown.log")) is { } teardownError)
                 failure ??= $"sample teardown hook failed: {teardownError}";
             if (cell.Fixture is not null && Checkout.CollectDiff(workDir, cellDir) is { } diffError)
                 failure ??= $"diff collection failed: {diffError}";
@@ -254,7 +254,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     }
 
     /// <summary>
-    /// `nb --compile` on the host binary, in the eval directory so `@file` includes resolve against the eval: the
+    /// `nb --compile` on the host binary, in the suite directory so `@file` includes resolve against the suite: the
     /// JSONL that goes down stdin, with every include inlined, so nothing nb runs on names a file the runner would
     /// have to carry. Written beside the source as program.jsonl. The program hash stays the source's. A program
     /// nb refuses fails here, on the host, before a checkout or a container exists for it.
@@ -264,7 +264,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
         var nb = experiment.Nb;
         var args = new List<string> { "--compile" };
         if (nb.Config is not null) args.AddRange(["--config", nb.Config]);
-        var result = Subprocess.Run(nb.Path, args, eval.Dir, new Dictionary<string, string> { ["NO_COLOR"] = "1" }, stdin: program);
+        var result = Subprocess.Run(nb.Path, args, suite.Dir, new Dictionary<string, string> { ["NO_COLOR"] = "1" }, stdin: program);
         if (!result.Started) return (null, result.Stderr);
         if (result.ExitCode != 0) return (null, $"nb --compile exited {result.ExitCode}: {result.FirstStderrLine}");
         File.WriteAllText(Path.Combine(cellDir, Layout.CompiledProgramFile), result.Stdout);
@@ -304,24 +304,24 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     string? RunHook(string? script, IDictionary<string, string> env, string logFile)
     {
         if (script is null) return null;
-        var result = Subprocess.Run(Path.GetFullPath(Path.Combine(eval.Dir, script)), [], eval.Dir, env);
+        var result = Subprocess.Run(Path.GetFullPath(Path.Combine(suite.Dir, script)), [], suite.Dir, env);
         File.WriteAllText(logFile, result.Stdout + (result.Stderr.Length > 0 ? "\n--- stderr ---\n" + result.Stderr : ""));
         if (!result.Started) return result.Stderr;
         return result.ExitCode == 0 ? null : $"{script} exited {result.ExitCode}: {result.FirstStderrLine}";
     }
 
-    void MarkFailed(Arm arm, CaseDef c, int sample, string reason)
+    void MarkFailed(Arm arm, TaskDef c, int sample, string reason)
     {
         var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
         Directory.CreateDirectory(cellDir);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
-            ? JsonSerializer.Deserialize<Manifest>(File.ReadAllText(manifestFile), Eval.JsonOptions)!
+            ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Case = c.Id!, Sample = sample,
+                RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample,
                 Runner = arm.Runner!, Harness = arm.Harness!, Provider = arm.Provider!, Model = arm.Model,
-                Host = experiment.Host, Versions = experiment.Versions, EvalHash = eval.Hash, ProgramHash = "",
+                Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash, ProgramHash = "",
             };
         manifest.Attempts++;
         manifest.StatusReason = reason;
@@ -339,7 +339,7 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     void WriteStatusCounts()
     {
         var counts = CellStatus.All.ToDictionary(s => s, _ => 0);
-        foreach (var (arm, c, s) in Cells(eval)) counts[ReadStatus(Layout.Cell(experimentDir, arm.Id!, c.Id!, s))]++;
+        foreach (var (arm, c, s) in Cells(suite)) counts[ReadStatus(Layout.Cell(experimentDir, arm.Id!, c.Id!, s))]++;
         WriteJson(Path.Combine(experimentDir, Layout.StatusCountsFile), new { planned = experiment.Planned, counts, updated = Now() });
     }
 
@@ -350,11 +350,12 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
     }
 
     /// <summary>Fill the template. {{work}} and {{bundle}} are the paths the model will see, which a runner may mount elsewhere. A prompt's newlines become nb continuation lines so the program stays one directive.</summary>
-    public static string ResolveProgram(string template, Arm arm, CaseDef c, int sample, string workDir, string? bundleDir = null)
+    public static string ResolveProgram(string template, Arm arm, TaskDef c, int sample, string workDir, string? bundleDir = null)
     {
         var values = new Dictionary<string, string>
         {
             ["prompt"] = c.Prompt!.Replace("\r\n", "\n").Replace("\n", " \\\n"),
+            ["task"] = c.Id!,
             ["case"] = c.Id!,
             ["work"] = workDir,
             ["bundle"] = bundleDir ?? "",
@@ -367,30 +368,30 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
         return System.Text.RegularExpressions.Regex.Replace(template, @"\{\{\s*([^}]*?)\s*\}\}", m => values[m.Groups[1].Value]);
     }
 
-    static ResolvedNb ResolveNb(string root, Eval eval, ProctorConfig config, string? nbOverride, string? runnerOverride)
+    static ResolvedNb ResolveNb(string root, Suite suite, ProctorConfig config, string? nbOverride, string? runnerOverride)
     {
         var nb = config.NbOrDefault;
-        var evalsDir = Layout.Evals(root);
+        var suitesDir = Layout.Suites(root);
         var path = nbOverride ?? nb.Path;
-        if (path.Contains(Path.DirectorySeparatorChar)) path = Path.GetFullPath(Path.Combine(nbOverride is null ? evalsDir : Directory.GetCurrentDirectory(), path));
+        if (path.Contains(Path.DirectorySeparatorChar)) path = Path.GetFullPath(Path.Combine(nbOverride is null ? suitesDir : Directory.GetCurrentDirectory(), path));
         else if (FindOnPath(path) is { } found) path = found;
-        else throw new ProctorException($"nb not found: '{path}' is not on PATH; set nb.path in evals/proctor.json or pass --nb");
+        else throw new ProctorException($"nb not found: '{path}' is not on PATH; set nb.path in suites/proctor.json or pass --nb");
         if (!File.Exists(path)) throw new ProctorException($"nb not found at {path}");
-        var configPath = nb.Config is null ? null : Path.GetFullPath(Path.Combine(evalsDir, nb.Config));
-        if (configPath is not null && !File.Exists(configPath)) throw new ProctorException($"nb config not found at {configPath} (evals/proctor.json nb.config)");
-        var runner = ResolveRunner(root, eval, runnerOverride);
-        return new ResolvedNb(path, configPath, runner, runner is null ? null : eval.Def.Nb?.Mounts);
+        var configPath = nb.Config is null ? null : Path.GetFullPath(Path.Combine(suitesDir, nb.Config));
+        if (configPath is not null && !File.Exists(configPath)) throw new ProctorException($"nb config not found at {configPath} (suites/proctor.json nb.config)");
+        var runner = ResolveRunner(root, suite, runnerOverride);
+        return new ResolvedNb(path, configPath, runner, runner is null ? null : suite.Def.Nb?.Mounts);
     }
 
-    /// <summary>The runner in effect: --runner (from the current directory) over the eval's nb.runner (from the eval directory); `--runner none` is a bare run. Recorded relative to evals/ when it lives there, else absolute, so a resume can compare it.</summary>
-    static ResolvedRunner? ResolveRunner(string root, Eval eval, string? runnerOverride)
+    /// <summary>The runner in effect: --runner (from the current directory) over the suite's nb.runner (from the suite directory); `--runner none` is a bare run. Recorded relative to suites/ when it lives there, else absolute, so a resume can compare it.</summary>
+    static ResolvedRunner? ResolveRunner(string root, Suite suite, string? runnerOverride)
     {
-        var evalsDir = Layout.Evals(root);
-        var script = runnerOverride ?? eval.Def.Nb?.Runner;
+        var suitesDir = Layout.Suites(root);
+        var script = runnerOverride ?? suite.Def.Nb?.Runner;
         if (script is null || runnerOverride == "none") return null;
-        var path = Path.GetFullPath(Path.Combine(runnerOverride is null ? eval.Dir : Directory.GetCurrentDirectory(), script));
-        if (!File.Exists(path)) throw new ProctorException($"runner not found at {path} ({(runnerOverride is null ? $"evals/{eval.Id}/eval.json nb.runner" : "--runner")})");
-        var relative = Path.GetRelativePath(evalsDir, path);
+        var path = Path.GetFullPath(Path.Combine(runnerOverride is null ? suite.Dir : Directory.GetCurrentDirectory(), script));
+        if (!File.Exists(path)) throw new ProctorException($"runner not found at {path} ({(runnerOverride is null ? $"suites/{suite.Id}/suite.json nb.runner" : "--runner")})");
+        var relative = Path.GetRelativePath(suitesDir, path);
         return new ResolvedRunner(relative.StartsWith("..") ? path : relative, path, Sha256(File.ReadAllText(path)));
     }
 
@@ -399,9 +400,13 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
             .Select(d => Path.Combine(d, name)).FirstOrDefault(File.Exists);
 
     /// <summary>Proctor's own version and nb's, asked of the host binary so a wrapper or a self-contained publish reports the same as the DLL would.</summary>
+    /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every experiment records.</summary>
+    public static string ProctorVersion =>
+        Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0";
+
     static Dictionary<string, string> Versions(string nbPath)
     {
-        var proctor = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0";
+        var proctor = ProctorVersion;
         var result = Subprocess.Run(nbPath, ["--version"], Path.GetDirectoryName(nbPath)!, new Dictionary<string, string> { ["NO_COLOR"] = "1" });
         var nb = result.Started && result.ExitCode == 0 ? result.Stdout.Trim().Split('+')[0] : "";
         return new() { ["proctor"] = proctor, ["nb"] = nb.Length > 0 ? nb : "unknown" };
@@ -421,5 +426,21 @@ sealed class Runner(string root, Experiment experiment, Eval eval, TextWriter lo
         "sha256:" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
 
     public static void WriteJson(string file, object value) =>
-        File.WriteAllText(file, JsonSerializer.Serialize(value, value.GetType(), Eval.JsonOptions) + "\n");
+        File.WriteAllText(file, JsonSerializer.Serialize(value, value.GetType(), Suite.JsonOptions) + "\n");
+
+    /// <summary>A cell's manifest, with the keys a cell written before suite/task used.</summary>
+    public static Manifest ReadManifest(string file) => ReadJson<Manifest>(file, ("case", "task"), ("eval_hash", "suite_hash"))!;
+
+    /// <summary>
+    /// Read a JSON file into a record, renaming top-level keys written under an older spelling first. Files under runs/
+    /// and a pinned baseline outlive a rename, so every reader of one accepts both spellings for a release.
+    /// </summary>
+    public static T? ReadJson<T>(string file, params (string Old, string New)[] legacy) where T : class
+    {
+        var node = JsonNode.Parse(File.ReadAllText(file)) as JsonObject;
+        if (node is null) return null;
+        foreach (var (old, @new) in legacy)
+            if (node.ContainsKey(old) && !node.ContainsKey(@new)) { node[@new] = node[old]!.DeepClone(); node.Remove(old); }
+        return node.Deserialize<T>(Suite.JsonOptions);
+    }
 }

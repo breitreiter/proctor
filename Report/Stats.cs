@@ -4,8 +4,8 @@ using System.Text.Json.Serialization;
 namespace Proctor;
 
 // Every number the report shows is computed here, once, into stats.json. The renderers read it.
-// Methods: project/learnings/prior-art/stats.md. Every case is scored as its mean over its analysed
-// samples, so n is the case count and a rate never overstates independence between samples.
+// Methods: project/learnings/prior-art/stats.md. Every task is scored as its mean over its analysed
+// samples, so n is the task count and a rate never overstates independence between samples.
 
 [JsonConverter(typeof(IntervalConverter))]
 record Interval(double Lo, double Hi);
@@ -40,33 +40,36 @@ record ArmStats(
 /// <summary>A check that could not decide too many of the runs it applies to, across arms: the check needs rewriting before the experiment is conclusive.</summary>
 record UndecidedCheck(string Check, int Runs, int Of);
 
-/// <summary>Where an arm fell down: a check that did not pass in some analysed cells, most often first, with the cases it happened in.</summary>
-record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Cases);
+/// <summary>Where an arm fell down: a check that did not pass in some analysed cells, most often first, with the tasks it happened in.</summary>
+record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Tasks);
 
-/// <summary>What the ids mean, in the eval author's words (or derived from a built-in check), so the report can carry them.</summary>
-record Descriptions(string? Eval, Dictionary<string, string> Arms, Dictionary<string, string> Cases, Dictionary<string, string> Checks);
+/// <summary>What the ids mean, in the suite author's words (or derived from a built-in check), so the report can carry them.</summary>
+record Descriptions(string? Suite, Dictionary<string, string> Arms, Dictionary<string, string> Tasks, Dictionary<string, string> Checks);
 
-/// <summary>What a rate looks like in stats.json: the rate and interval, with the case and cell counts behind it.</summary>
+/// <summary>What a task is made of: the fixture it runs against and the checks its runs carry (the suite's, the fixture's and its own, in that order), so the report can show checks as the task's.</summary>
+record TaskJson(string? Fixture, List<string> Checks);
+
+/// <summary>What a rate looks like in stats.json: the rate and interval, with the task and cell counts behind it.</summary>
 record RateJson(double Rate, Interval Ci95, int N, int KCells, int NCells, int? Errors = null, int? NeedsJudge = null);
 
 record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict);
 
-record Mde(int NPairs, int Points, int CasesFor10Points, string Sentence);
+record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
-/// <summary>The guard comparison: every arm against the eval's pinned baseline, with a tolerance on the point estimate.</summary>
+/// <summary>The guard comparison: every arm against the suite's pinned baseline, with a tolerance on the point estimate.</summary>
 record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms);
 
-record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, BaselineCase> Cases);
+record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, BaselineTask> Tasks);
 
-record BaselineCase(double Baseline, double Arm);
+record BaselineTask(double Baseline, double Arm);
 
 record StatsFile(
-    string Experiment, string Eval, int NCases, bool Paired,
+    string Experiment, string Suite, int NTasks, bool Paired,
     Dictionary<string, ArmStats> Arms, List<Comparison> Comparisons, Mde Mde, string Methods,
-    List<string> Cases, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
-    Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null);
+    List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
+    Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null);
 
-/// <summary>What the report knows about the baseline: the resolved per-case scores, where they came from, and the tolerance asked for.</summary>
+/// <summary>What the report knows about the baseline: the resolved per-task scores, where they came from, and the tolerance asked for.</summary>
 record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints);
 
 static class Stats
@@ -75,21 +78,21 @@ static class Stats
     const double ZPower = 2.801582;      // z_0.975 + z_0.80, for MDE at 80% power
     const double AssumedSdOfPairedDifference = 0.5;
 
-    public static StatsFile Compute(Experiment experiment, Eval eval, List<ResultRow> rows, GuardInput? guard = null)
+    public static StatsFile Compute(Experiment experiment, Suite suite, List<ResultRow> rows, GuardInput? guard = null)
     {
-        var arms = eval.Arms.Select(a => a.Id!).ToList();
-        var cases = eval.Cases.Select(c => c.Id!).ToList();
-        var checks = eval.CheckNames;
+        var arms = suite.Arms.Select(a => a.Id!).ToList();
+        var tasks = suite.Tasks.Select(c => c.Id!).ToList();
+        var checks = suite.CheckNames;
         var byArm = arms.ToDictionary(a => a, a => rows.Where(r => r.Arm == a).ToList());
 
-        var validity = eval.Grading.Validity ?? [];
-        var armStats = arms.ToDictionary(a => a, a => ArmStats(byArm[a], cases, checks, validity));
+        var validity = suite.Grading.Validity ?? [];
+        var armStats = arms.ToDictionary(a => a, a => ArmStats(byArm[a], tasks, checks, validity));
 
-        var scores = arms.ToDictionary(a => a, a => CaseScores(byArm[a].Where(r => r.Decided).ToList(), cases, r => r.Pass == true));
+        var scores = arms.ToDictionary(a => a, a => TaskScores(byArm[a].Where(r => r.Decided).ToList(), tasks, r => r.Pass == true));
         var comparisons = new List<Comparison>();
         foreach (var other in arms.Skip(1))
         {
-            var c = Compare(other, arms[0], scores[other], scores[arms[0]], cases);
+            var c = Compare(other, arms[0], scores[other], scores[arms[0]], tasks);
             if (c is not null) comparisons.Add(c);
         }
 
@@ -99,21 +102,21 @@ static class Stats
             var against = new Dictionary<string, BaselineArm>();
             foreach (var arm in arms)
             {
-                var c = Compare(arm, "baseline", scores[arm], guard.Scores, cases);
+                var c = Compare(arm, "baseline", scores[arm], guard.Scores, tasks);
                 if (c is null) continue;
                 var verdict = c.DiffPoints < -guard.TolerancePoints ? "regressed" : c.DiffPoints > guard.TolerancePoints ? "improved" : "held";
-                var perCase = cases.Where(x => scores[arm].ContainsKey(x) && guard.Scores.ContainsKey(x))
-                    .ToDictionary(x => x, x => new BaselineCase(Round3(guard.Scores[x]), Round3(scores[arm][x])));
-                against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, perCase);
+                var perTask = tasks.Where(x => scores[arm].ContainsKey(x) && guard.Scores.ContainsKey(x))
+                    .ToDictionary(x => x, x => new BaselineTask(Round3(guard.Scores[x]), Round3(scores[arm][x])));
+                against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, perTask);
             }
             baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against);
         }
 
-        var nPairs = comparisons.Count > 0 ? comparisons.Min(c => c.NPairs) : cases.Count(c => byArm[arms[0]].Any(r => r.Case == c && r.Decided));
+        var nPairs = comparisons.Count > 0 ? comparisons.Min(c => c.NPairs) : tasks.Count(c => byArm[arms[0]].Any(r => r.Task == c && r.Decided));
         var mde = Mde(nPairs);
 
-        var matrix = arms.ToDictionary(a => a, a => cases.ToDictionary(c => c,
-            c => byArm[a].Where(r => r.Case == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
+        var matrix = arms.ToDictionary(a => a, a => tasks.ToDictionary(c => c,
+            c => byArm[a].Where(r => r.Task == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
 
         // A check undecided in more than a few of the runs it applies to is a defect in the check; the report says so above the numbers.
         var undecidedChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
@@ -122,33 +125,35 @@ static class Stats
             return new UndecidedCheck(name, counted.Count(r => r.Checks![name] == Verdict.NeedsJudge), counted.Count);
         }).Where(u => u.Runs > 5 || (u.Of > 0 && u.Runs > 0.05 * u.Of)).ToList();
 
-        var methods = "Each case is scored as its mean over its counted, decided runs, so n in every interval is the number of cases. "
-            + "Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-case scores). "
-            + $"The detectable difference assumes 80% power and a per-case paired-difference sd of {AssumedSdOfPairedDifference}. "
+        var methods = "Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. "
+            + "Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
+            + $"The detectable difference assumes 80% power and a per-task paired-difference sd of {AssumedSdOfPairedDifference}. "
             + "Durations are the run's wall time including hooks; tokens are what nb reported. "
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
             + (baseline is null ? "" : $" The baseline verdict is the point estimate against a tolerance of {baseline.TolerancePoints} points; the interval is shown so a small n cannot hide.");
 
         var descriptions = new Descriptions(
-            eval.Def.Description,
-            eval.Arms.Where(a => a.Description is not null).ToDictionary(a => a.Id!, a => a.Description!),
-            eval.Cases.ToDictionary(c => c.Id!, Eval.Describe),
-            eval.CheckDescriptions());
+            suite.Def.Description,
+            suite.Arms.Where(a => a.Description is not null).ToDictionary(a => a.Id!, a => a.Description!),
+            suite.Tasks.ToDictionary(c => c.Id!, Suite.Describe),
+            suite.CheckDescriptions());
 
-        return new StatsFile(experiment.Id, eval.Id, cases.Count, Paired: true, armStats, comparisons, mde, methods, cases, matrix, eval.Grading.Pass!, validity, descriptions, undecidedChecks, baseline);
+        var taskDetails = suite.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, suite.ChecksFor(c).Keys.ToList()));
+
+        return new StatsFile(experiment.Id, suite.Id, tasks.Count, Paired: true, armStats, comparisons, mde, methods, tasks, matrix, suite.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails);
     }
 
-    static ArmStats ArmStats(List<ResultRow> rows, List<string> cases, List<string> checks, List<string> validity)
+    static ArmStats ArmStats(List<ResultRow> rows, List<string> tasks, List<string> checks, List<string> validity)
     {
         var analysed = rows.Where(r => r.Analysed).ToList();
         var excluded = rows.Where(r => r.Status != CellStatus.Pending && !r.Analysed)
             .Select(r => r.Invalid is not null
-                ? new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", "invalid", r.Invalid)
-                : new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", r.Status, r.StatusReason ?? "")).ToList();
+                ? new Exclusion($"{r.Arm}/{r.Task}/{r.Sample}", "invalid", r.Invalid)
+                : new Exclusion($"{r.Arm}/{r.Task}/{r.Sample}", r.Status, r.StatusReason ?? "")).ToList();
 
         var decided = analysed.Where(r => r.Decided).ToList();
-        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Arm}/{r.Case}/{r.Sample}", "undecided", r.Undecided!)).ToList();
-        var pass = CaseRate(decided, cases, r => r.Pass == true);
+        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Arm}/{r.Task}/{r.Sample}", "undecided", r.Undecided!)).ToList();
+        var pass = TaskRate(decided, tasks, r => r.Pass == true);
         var checkRates = checks.ToDictionary(name => name, name =>
         {
             // A validity check's rate is over every graded run: it says how many counted. Other checks are over the runs that count.
@@ -156,7 +161,7 @@ static class Stats
             var pool = validity.Contains(name) ? rows.Where(r => r.Checks is not null) : analysed;
             var graded = pool.Where(r => r.Checks!.ContainsKey(name)).ToList();
             var decidedByCheck = graded.Where(r => r.Checks![name] != Verdict.NeedsJudge).ToList();
-            var rate = CaseRate(decidedByCheck, cases, r => r.Checks![name] == Verdict.Pass);
+            var rate = TaskRate(decidedByCheck, tasks, r => r.Checks![name] == Verdict.Pass);
             return rate is null ? null : rate with
             {
                 Errors = graded.Count(r => r.Checks![name] == Verdict.Error),
@@ -170,7 +175,7 @@ static class Stats
             .Where(x => x.cells.Count > 0)
             .OrderByDescending(x => x.cells.Count).ThenBy(x => checks.IndexOf(x.name))
             .Select(x => new CheckFailure(x.name, x.cells.Count, analysed.Count(r => r.Checks!.TryGetValue(x.name, out var v) && v != Verdict.NeedsJudge),
-                cases.Where(c => x.cells.Any(r => r.Case == c)).ToDictionary(c => c, c => x.cells.Count(r => r.Case == c))))
+                tasks.Where(c => x.cells.Any(r => r.Task == c)).ToDictionary(c => c, c => x.cells.Count(r => r.Task == c))))
             .ToList();
 
         var completed = rows.Where(r => r.Status == CellStatus.Completed).ToList();
@@ -195,14 +200,14 @@ static class Stats
             TokensEstimated: completed.Any(r => r.Usage?.Estimated == true));
     }
 
-    /// <summary>Per-case mean scores over the analysed samples, for the cases that have any.</summary>
-    static Dictionary<string, double> CaseScores(List<ResultRow> analysed, List<string> cases, Func<ResultRow, bool> hit) =>
-        cases.Where(c => analysed.Any(r => r.Case == c))
-             .ToDictionary(c => c, c => analysed.Where(r => r.Case == c).Average(r => hit(r) ? 1.0 : 0.0));
+    /// <summary>Per-task mean scores over the analysed samples, for the tasks that have any.</summary>
+    static Dictionary<string, double> TaskScores(List<ResultRow> analysed, List<string> tasks, Func<ResultRow, bool> hit) =>
+        tasks.Where(c => analysed.Any(r => r.Task == c))
+             .ToDictionary(c => c, c => analysed.Where(r => r.Task == c).Average(r => hit(r) ? 1.0 : 0.0));
 
-    static RateJson? CaseRate(List<ResultRow> analysed, List<string> cases, Func<ResultRow, bool> hit)
+    static RateJson? TaskRate(List<ResultRow> analysed, List<string> tasks, Func<ResultRow, bool> hit)
     {
-        var scores = CaseScores(analysed, cases, hit);
+        var scores = TaskScores(analysed, tasks, hit);
         if (scores.Count == 0) return null;
         var p = scores.Values.Average();
         return new RateJson(Round3(p), Wilson(p, scores.Count), scores.Count, analysed.Count(hit), analysed.Count);
@@ -220,11 +225,11 @@ static class Stats
 
     /// <summary>
     /// Newcombe 1998 method 10 for paired proportions: the Wilson limits of each arm combined
-    /// square-and-add, with phi estimated from the 2x2 case table with Newcombe's continuity
-    /// correction (so phi is 0 when a margin is empty and below 1 when no case is discordant).
-    /// With one sample per case the table is the literal count of cases both passed, only the
+    /// square-and-add, with phi estimated from the 2x2 task table with Newcombe's continuity
+    /// correction (so phi is 0 when a margin is empty and below 1 when no task is discordant).
+    /// With one sample per task the table is the literal count of tasks both passed, only the
     /// first passed, only the second passed, neither; with several samples it is the expected
-    /// table from the per-case means, which reduces to the same thing when the scores are 0/1.
+    /// table from the per-task means, which reduces to the same thing when the scores are 0/1.
     /// </summary>
     public static (double Diff, Interval Ci) NewcombePaired(double[] a, double[] b)
     {
@@ -255,9 +260,9 @@ static class Stats
         return num / Math.Sqrt(margins);
     }
 
-    static Comparison? Compare(string arm, string vs, Dictionary<string, double> a, Dictionary<string, double> b, List<string> cases)
+    static Comparison? Compare(string arm, string vs, Dictionary<string, double> a, Dictionary<string, double> b, List<string> tasks)
     {
-        var shared = cases.Where(c => a.ContainsKey(c) && b.ContainsKey(c)).ToList();
+        var shared = tasks.Where(c => a.ContainsKey(c) && b.ContainsKey(c)).ToList();
         if (shared.Count == 0) return null;
         var sa = shared.Select(c => a[c]).ToArray();
         var sb = shared.Select(c => b[c]).ToArray();
@@ -276,8 +281,8 @@ static class Stats
         var casesFor10 = (int)Math.Round(Sq(ZPower * AssumedSdOfPairedDifference / 0.10));
         var rounded = casesFor10 >= 100 ? (int)Math.Round(casesFor10 / 10.0) * 10 : casesFor10;
         var sentence = nPairs == 0
-            ? "No paired cases were analysed, so no difference can be detected."
-            : $"With {nPairs} paired case{(nPairs == 1 ? "" : "s")} this experiment can reliably detect a difference of about {points} points. To detect 10 points you need about {rounded} cases.";
+            ? "No paired tasks were analysed, so no difference can be detected."
+            : $"With {nPairs} paired task{(nPairs == 1 ? "" : "s")} this experiment can reliably detect a difference of about {points} points. To detect 10 points you need about {rounded} tasks.";
         return new Mde(nPairs, points, rounded, sentence);
     }
 

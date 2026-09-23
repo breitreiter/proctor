@@ -4,7 +4,15 @@ namespace Proctor;
 
 record SubprocessResult(int ExitCode, string Stdout, string Stderr, bool Started)
 {
-    public string FirstStderrLine => Stderr.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) ?? "";
+    /// <summary>The line that says what went wrong: the first `Error:` line when there is one (nb warns about an unset ${VAR} in its config first), else the first non-empty line.</summary>
+    public string FirstStderrLine
+    {
+        get
+        {
+            var lines = Stderr.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+            return lines.FirstOrDefault(l => l.StartsWith("Error", StringComparison.OrdinalIgnoreCase)) ?? lines.FirstOrDefault() ?? "";
+        }
+    }
 }
 
 /// <summary>Run a program to completion. stdin is the given text, if any; stdout and stderr go to files when asked, otherwise they are captured.</summary>

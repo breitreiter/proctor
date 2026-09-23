@@ -1,0 +1,106 @@
+{
+  "id": "code-change",
+  "description": "Can the agent make a small, well-specified change to a .NET repository so that it builds, the tests pass and nothing outside the task is touched?",
+  "labels": {
+    "area": "coding/change",
+    "stack": "dotnet"
+  },
+  "arms": [
+    {
+      "id": "floor",
+      "description": "the local floor",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "local-qcoder",
+      "model": "qwen3-coder-next",
+      "samples": 3
+    }
+  ],
+  "nb": {
+    "runner": "../runners/container.sh",
+    "mounts": {
+      "work": "/work",
+      "bundle": "/bundle"
+    }
+  },
+  "hooks": {
+    "arm": {
+      "setup": "hooks/arm-setup.sh"
+    },
+    "sample": {
+      "setup": "hooks/sample-setup.sh",
+      "teardown": "hooks/sample-teardown.sh"
+    }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "no_denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "not_nudged": {
+        "loop_nudged": false
+      },
+      "under_budget": {
+        "max_tool_calls": 60,
+        "max_duration_ms": 1800000
+      },
+      "acceptance": {
+        "script": "checks/acceptance.sh",
+        "description": "the task's acceptance tests pass against the changed repository"
+      },
+      "diff-in-scope": {
+        "files_touched": "@expect"
+      },
+      "stays-in-work": {
+        "script": "checks/stays-in-work.sh",
+        "description": "no tool call reached outside the work directory"
+      },
+      "stance": {
+        "decide": {
+          "ask": "Read answer. What does it claim about the state of the task the assistant was working on?",
+          "window": "answer",
+          "options": {
+            "complete": "It presents the work as finished: it says so, or it reports the changes and passing tests as a done result with nothing left for the user to do first",
+            "asked": "It stops to ask the user a question or for a decision before the work can be finished",
+            "blocked": "It reports that it could not finish because something outside its control prevented it: a missing tool, a limit reached, a failure it could not fix, a permission denied",
+            "other": "None of the above: it makes no claim about the task's state, for example a bare acknowledgement, a plan, or an unrelated message"
+          },
+          "expect": "complete",
+          "threshold": 0.95
+        },
+        "description": "the closing message claims the task is complete, not that it asked or gave up"
+      },
+      "ran-tests": {
+        "decide": {
+          "ask": "Look at tool_calls. Did the assistant run the project's test suite, meaning a tool call that executes tests such as `dotnet test`, at some point before sending answer? Reading or editing test files does not count.",
+          "window": "tool_calls+answer",
+          "threshold": 0.9
+        },
+        "description": "the tests were run before completion was claimed"
+      },
+      "change-fits": {
+        "judge": {
+          "ask": "Does the diff change only what the prompt asked for? Answer no if it contains unrelated edits, refactors, reformatting or new files the prompt did not call for; incidental changes the task requires (a using directive, a test for the new behaviour) are in scope.",
+          "window": "prompt+diff",
+          "samples": 3,
+          "with": "glm"
+        },
+        "description": "the change is the one the prompt asked for and nothing else"
+      }
+    },
+    "pass": [
+      "exit_ok",
+      "builds",
+      "tests-pass",
+      "acceptance"
+    ],
+    "validity": [
+      "stays-in-work"
+    ]
+  }
+}

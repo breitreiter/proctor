@@ -1,0 +1,38 @@
+{
+  "//": "bench copy: weaker and starved arms for the systemone labelled set",
+  "//2": "LLM_GATEWAY is the base URL of an OpenAI-dialect gateway serving the routes below, LLM_GATEWAY_KEY its key; nb resolves ${VAR} from the environment.",
+  "Harness": "nb",
+  "ActiveProvider": "Mock",
+  "Trust": false,
+  "ChatProviders": [
+    {
+      "Name": "Mock",
+      "Response": "OK"
+    },
+    {
+      "Name": "MockB",
+      "Provider": "Mock",
+      "Response": "OK, from B"
+    },
+    {
+      "Name": "local-qcoder",
+      "Provider": "LocalLlm",
+      "Harness": "nb",
+      "Endpoint": "${LLM_GATEWAY}/qcoder/v1",
+      "ApiKey": "${LLM_GATEWAY_KEY}",
+      "Model": "qcoder",
+      "MaxContextTokens": 131072,
+      "Temperature": 0.2
+    },
+    {
+      "Name": "local-qchat",
+      "Provider": "LocalLlm",
+      "Harness": "nb",
+      "Endpoint": "${LLM_GATEWAY}/qchat/v1",
+      "ApiKey": "${LLM_GATEWAY_KEY}",
+      "Model": "qchat",
+      "MaxContextTokens": 131072,
+      "Temperature": 0.2
+    }
+  ]
+}

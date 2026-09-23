@@ -12,6 +12,17 @@ not a constitution. Expect it to be wrong in places and rewritten as the first
 experiments run. When something here hardens into a rule, it moves to
 `CLAUDE.md`; until then it is a sketch.
 
+## The words
+
+The vocabulary is fixed in `plans/suite-task-check.md` (2026-09-23), drawn
+against Anthropic's *Demystifying evals for AI agents*: a **suite** is a
+collection of related tasks with one business goal; a **task** is one input
+and one desired outcome, with its own checks; a **sample** is one measurement
+of a stochastic system; a **check** is one item on the checklist. Earlier
+sections of this brief were written with "eval" and "case" and have been
+renamed mechanically; where "eval" survives below it means evaluation in
+general, not a proctor suite.
+
 ## The problem
 
 nb (`../nb`) evaluates a conversation-program and is very good at that narrow
@@ -56,7 +67,7 @@ is the report shape we keep rebuilding and a reasonable starting point.
 
 ## The shape, roughly
 
-- **Opinionated about nb.** Proctor is not a general eval framework. It knows
+- **Opinionated about nb.** Proctor is not a general evaluation framework. It knows
   nb's directive set and wire format and it should feel like nb's other half,
   not a wrapper that could target anything.
 - **The seam is the program file and the JSONL stream.** Those are the only
@@ -75,7 +86,7 @@ is the report shape we keep rebuilding and a reasonable starting point.
 - **Logs stay authoritative.** Proctor derives everything from nb's output and
   never edits it. A graded verdict is a separate artefact that points at the
   run, so a regrade with a new rubric never touches the evidence.
-- **Runs live in three tiers.** Eval definitions and the small derived layer
+- **Runs live in three tiers.** Suite definitions and the small derived layer
   (report, results table) are committed beside the code. The raw layer
   (transcripts, stderr, config snapshots) is gitignored and archived to object
   storage in the same layout as on disk. `proctor archive <experiment>` syncs
@@ -171,7 +182,7 @@ Two consequences:
   manifests), never hand-edited, so the whole thing can be rebuilt from the
   repo alone. Transcripts are linked by run id to the archive, not embedded.
 - Cross-experiment views become possible and should be cheap: the same
-  headline metric over time for one eval file is the view a PM actually wants,
+  headline metric over time for one suite file is the view a PM actually wants,
   and the data is already there.
 
 Legibility rules for the site are the same as for a report: tables, intervals,
@@ -216,7 +227,7 @@ not fight it.
 What that means in practice: an arm has a setup and teardown hook that runs
 whatever the project says, and proctor waits for it, records that it ran, and
 captures its output beside the run. The lifecycle levels from
-`learnings/test-framework-patterns.md` (run, arm, case, sample) are where a
+`learnings/test-framework-patterns.md` (run, arm, task, sample) are where a
 project attaches its own scripts. Proctor's contract is the ordering and the
 recording, not the contents. If a project wants every sample in a fresh
 container, that is the project's script; proctor's job is to call it at the
@@ -234,14 +245,14 @@ treat the two as different resources and let an experiment use each for what
 it is good at:
 
 - **Shakedown runs.** Before spending money, run the whole experiment once on
-  local to prove the eval definition, the grader, the fixtures and the
+  local to prove the suite definition, the grader, the fixtures and the
   archive path all work. A shakedown is a first-class thing, not a manual
   habit, and it should be the default before any arm that costs money.
 - **A floor arm.** Weaver's harness matrix always carried a local model as the
   floor control, so every result was a gradient rather than a single number.
   Proctor should make that a one-line addition to any experiment.
-- **Large N where it is free.** Statistical power comes from cases, and local
-  inference lets deterministic evals run at an N that hosted models would not
+- **Large N where it is free.** Statistical power comes from tasks, and local
+  inference lets deterministic suites run at an N that hosted models would not
   justify. The nightly judged pass in `learnings/ci-distribution.md` can be
   local for the subject and hosted only for the judge.
 - **Throughput, not cost, is the local constraint.** Two boxes means two lanes;
@@ -295,10 +306,10 @@ it is wide. A pass-rate comparison between qwen and Sonnet on this design
 cannot detect anything smaller than a landslide, and the report should print
 that sentence rather than a verdict glyph. What the design does support is
 per-fixture reading: did each arm solve each fixture, with the transcript one
-fetch away. The case-by-arm matrix from `learnings/prior-art.md` §5 is the
+fetch away. The task-by-arm matrix from `learnings/prior-art.md` §5 is the
 headline table for this shape, not the arm-by-rate table.
 
-**The fixtures are the cases, and they are repositories.** A case here is not
+**The fixtures are the tasks, and they are repositories.** A task here is not
 a prompt row; it is a checkout, possibly with a container and fake services
 around it, that gets mutated by the run and must be reset per sample. This is
 the environment stance above in its most concrete form: the reset is the
@@ -313,19 +324,19 @@ real CLI gives fidelity and a different log for each. The manifest should
 record which was used, and the report should not compare a costume arm to a
 real-CLI arm without saying so.
 
-## Nice to have: an eval sidecar with a clear boundary
+## Nice to have: an evaluation sidecar with a clear boundary
 
 Ideally a project under test gets something analogous to its `test/`
-directory: a sidecar that defines its evals in a reproducible way, sitting
-beside the code without eval concerns leaking into the core codebase. "Here is
-the repo that does the thing, here is its evals sidecar, the two are related
+directory: a sidecar that defines its suites in a reproducible way, sitting
+beside the code without evaluation concerns leaking into the core codebase. "Here is
+the repo that does the thing, here is its evaluation sidecar, the two are related
 but the boundary is obvious." This is not mandatory, but it should tilt the
 design of how an experiment is defined on disk, and it argues for a definition
 that lives in plain files a project can check in rather than in proctor's own
 state.
 
 Both surviving in-house precedents already have this shape: nb keeps its bench
-under `evals/` and weaver keeps its rungs under `evals/`, each inside the repo
+under `suites/` and weaver keeps its rungs under `suites/`, each inside the repo
 it tests. What neither has is a shared convention, which is the part proctor
 would supply.
 

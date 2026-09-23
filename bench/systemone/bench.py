@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 """Run a rubric over items.jsonl against a System One endpoint and score it.
 
-    bench.py --backend jev   [--url http://imp:8086/x/cf/workers-ai/run/typesafe/jev] items.jsonl rubric.json
-    bench.py --backend llama [--url http://imp:8086/x/imp/v1/chat/completions] [--temperature-file t.json] items.jsonl rubric.json
+    bench.py --backend jev   [--url $LLM_GATEWAY/cf/workers-ai/run/typesafe/jev] items.jsonl rubric.json
+    bench.py --backend llama [--url $LLM_GATEWAY/local/v1/chat/completions] [--temperature-file t.json] items.jsonl rubric.json
 
 Writes results/<backend>-<rubric>.answers.jsonl (one line per item, per-question
 answer, probabilities, confidence, input tokens) and results/<backend>-<rubric>.metrics.json.
-Bearer token from $MINROUTER_KEY. Standard library only.
+LLM_GATEWAY is the base URL of the gateway the default URLs hang off; the bearer token is $LLM_GATEWAY_KEY. Standard library only.
 """
 import argparse, json, math, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 
-JEV_URL = "http://imp:8086/x/cf/workers-ai/run/typesafe/jev"
-LLAMA_URL = "http://imp:8086/x/imp/v1/chat/completions"
+GATEWAY = os.environ.get("LLM_GATEWAY", "http://localhost:8086")
+JEV_URL = f"{GATEWAY}/cf/workers-ai/run/typesafe/jev"
+LLAMA_URL = f"{GATEWAY}/local/v1/chat/completions"
 
 def post(url, body, timeout=120):
     req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
-        headers={"content-type": "application/json", "user-agent": "proctor-bench/0.1", "authorization": f"Bearer {os.environ['MINROUTER_KEY']}"})
+        headers={"content-type": "application/json", "user-agent": "proctor-bench/0.1", "authorization": f"Bearer {os.environ['LLM_GATEWAY_KEY']}"})
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r: return json.load(r)

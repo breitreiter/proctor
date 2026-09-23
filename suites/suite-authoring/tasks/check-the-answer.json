@@ -1,0 +1,10 @@
+{
+  "id": "check-the-answer",
+  "description": "A suite for a question with one right number, which must reject near misses and an agent that changes files",
+  "labels": { "teaches": "@expect" },
+  "fixture": "authoring-stock",
+  "prompt": "Write a suite with the id `stock-count`. It has one task, on the `stock` fixture already under fixtures/: the agent under test is asked how many SKUs in stock.csv are due for reorder, and to end its answer with a line `ANSWER: <n>`. The right answer is 8; it belongs in the task's expectations, not in the prompt the agent sees. It has one arm: nb with the provider `local-qcoder` and the model `qwen3-coder-next`, three samples.\n\nA run passes only when its ANSWER line gives exactly 8 (`ANSWER: 18` and `ANSWER: 80` are wrong) and it changed no file: the task is read-only.\n\nValidate the suite with proctor's `list` before you finish.",
+  "expect": {
+    "suite": "stock-count"
+  }
+}

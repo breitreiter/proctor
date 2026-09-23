@@ -36,54 +36,55 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <h1>smoke <span class="id">20260917-1432-smoke-k7px</span></h1>
 <p>Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?</p>
 <dl>
-<dt>Eval</dt><dd><span class="id">smoke</span></dd>
-<dt>Run</dt><dd>2026-09-17 on <span class="id">imp</span></dd>
+<dt>Suite</dt><dd><span class="id">smoke</span></dd>
+<dt>Run</dt><dd>2026-09-17 on <span class="id">bench</span></dd>
 <dt>Arms</dt><dd>2: <span class="id">floor</span> (the reference), <span class="id">b</span></dd>
-<dt>Cases</dt><dd>3, each run 3 times per arm</dd>
+<dt>Tasks</dt><dd>3, each run 3 times per arm</dd>
 <dt>Runs</dt><dd>18 planned, 16 counted</dd>
-<dt>Result</dt><dd><span class="id">floor</span> (the reference) passed 56% of its runs; <span class="id">b</span> 89%. With 3 cases the difference between <span class="id">b</span> and <span class="id">floor</span> (+33 points) is not statistically detectable. Against the pinned baseline, <span class="id">floor</span> regressed and <span class="id">b</span> improved at a tolerance of 10 points. The arms lost runs unequally; see What ran.</dd>
+<dt>Result</dt><dd><span class="id">floor</span> (the reference) passed 56% of its runs; <span class="id">b</span> 89%. With 3 tasks the difference between <span class="id">b</span> and <span class="id">floor</span> (+33 points) is not statistically detectable. Against the pinned baseline, <span class="id">floor</span> regressed and <span class="id">b</span> improved at a tolerance of 10 points. The arms lost runs unequally; see What ran.</dd>
 </dl>
 <section>
 <h2>Arms</h2>
-<p>An arm is one configuration under test: a harness, a provider and a model, run over every case. The first arm is the reference the others are compared with.</p>
+<p>An arm is one configuration under test: a harness, a provider and a model, run over every task. The first arm is the reference the others are compared with.</p>
 <table>
-<thead><tr><th>Arm</th><th>What it is</th><th>Harness</th><th>Provider</th><th>Model</th><th class="num">Runs per case</th></tr></thead>
+<thead><tr><th>Arm</th><th>What it is</th><th>Harness</th><th>Provider</th><th>Model</th><th class="num">Runs per task</th></tr></thead>
 <tbody>
-<tr><td><span class="id">floor</span></td><td>the local floor</td><td>nb</td><td>imp-qcoder</td><td>qwen-coder</td><td class="num">3</td></tr>
-<tr><td><span class="id">b</span></td><td></td><td>nb</td><td>imp-glm</td><td>glm</td><td class="num">3</td></tr>
+<tr><td><span class="id">floor</span></td><td>the local floor</td><td>nb</td><td>local-qcoder</td><td>qwen-coder</td><td class="num">3</td></tr>
+<tr><td><span class="id">b</span></td><td></td><td>nb</td><td>local-glm</td><td>glm</td><td class="num">3</td></tr>
 </tbody>
 </table>
 </section>
 
 <section>
-<h2>Cases</h2>
-<p>A case is one task, given to every arm: a prompt against a fixture repository. Each case is run 3 times per arm, so a score is not one lucky or unlucky attempt.</p>
+<h2>Tasks</h2>
+<p>A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt. Every task&#39;s runs carry the 3 checks the suite declares, listed under Checks; the last column is what a task&#39;s runs are checked for beyond those, from its fixture or its own file.</p>
 <table>
-<thead><tr><th>Case</th><th>What it asks</th></tr></thead>
+<thead><tr><th>Task</th><th>What it asks</th><th>Fixture</th><th>Its own checks</th></tr></thead>
 <tbody>
-<tr><td><span class="id">loops</span></td><td>The model repeats a bash command until nb nudges it out of the loop</td></tr>
-<tr><td><span class="id">plain</span></td><td>The model answers in one turn with no tools</td></tr>
-<tr><td><span class="id">uses-bash</span></td><td>The model runs one bash command and answers</td></tr>
+<tr><td><span class="id">loops</span></td><td>The model repeats a bash command until nb nudges it out of the loop</td><td><span class="id">note</span></td><td>—</td></tr>
+<tr><td><span class="id">plain</span></td><td>The model answers in one turn with no tools</td><td><span class="id">note</span></td><td>—</td></tr>
+<tr><td><span class="id">uses-bash</span></td><td>The model runs one bash command and answers</td><td><span class="id">note</span></td><td><span class="id">used-bash</span></td></tr>
 </tbody>
 </table>
 </section>
 
 <section>
 <h2>Checks</h2>
-<p>A check is one yes-or-no test over a finished run. The headline checks together decide whether a run passed. A validity check decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure. Any other check is a guardrail: reported, not part of the pass. A check that cannot decide a run leaves that run out of its rate on both sides.</p>
+<p>A check is one yes-or-no test over a finished run. The headline checks together decide whether a run passed. A validity check decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure. Any other check is a guardrail: reported, not part of the pass. A check that cannot decide a run leaves that run out of its rate on both sides. A check is declared by the suite, by a fixture or by a task, and its rate is over the runs of the tasks it is on.</p>
 <table>
-<thead><tr><th>Check</th><th>What it tests</th><th>Role</th></tr></thead>
+<thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>On</th></tr></thead>
 <tbody>
-<tr><td><span class="id">exit_ok</span></td><td>nb exits with &#39;ok&#39;</td><td>headline</td></tr>
-<tr><td><span class="id">builds</span></td><td>the repository builds after the change</td><td>headline</td></tr>
-<tr><td><span class="id">no_denials</span></td><td>no denied tool calls</td><td>validity</td></tr>
+<tr><td><span class="id">exit_ok</span></td><td>nb exits with &#39;ok&#39;</td><td>headline</td><td>every task</td></tr>
+<tr><td><span class="id">builds</span></td><td>the repository builds after the change</td><td>headline</td><td>every task</td></tr>
+<tr><td><span class="id">no_denials</span></td><td>no denied tool calls</td><td>validity</td><td>every task</td></tr>
+<tr><td><span class="id">used-bash</span></td><td>uses bash</td><td>guardrail</td><td><span class="id">uses-bash</span></td></tr>
 </tbody>
 </table>
 </section>
 
 <section>
 <h2>Results</h2>
-<p>Pass rate is the share of counted runs in which every headline check held, averaged case by case so that one case with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 cases it is wide.</p>
+<p>Pass rate is the share of counted runs in which every headline check held, averaged task by task so that one task with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 tasks it is wide.</p>
 <table>
 <thead><tr><th>Arm</th><th class="num">Pass rate</th><th class="num">95% interval</th><th class="num">Passed / decided runs</th></tr></thead>
 <tbody>
@@ -91,18 +92,18 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <tr><td><span class="id">b</span></td><td class="num">89%</td><td class="num">35% to 99%</td><td class="num">8 / 9</td></tr>
 </tbody>
 </table>
-<p><b><span class="id">b</span> against <span class="id">floor</span>.</b> <span class="id">b</span> passed 33 points more of its runs than <span class="id">floor</span>. The 95% interval on that difference runs from −31 to +75 points, so with 3 cases the difference could be noise: no detectable difference. Case by case, <span class="id">b</span> did better on 2, worse on 0, the same on 1.</p>
-<p>With 3 paired cases this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 cases.</p>
-<p><b>Against the baseline.</b> The baseline is the score pinned for each case on 2026-09-14, scores as pinned. The verdict compares each arm&#39;s score with it and calls anything more than 10 points either way a change; the interval is shown so a small number of cases cannot hide behind the verdict.</p>
+<p><b><span class="id">b</span> against <span class="id">floor</span>.</b> <span class="id">b</span> passed 33 points more of its runs than <span class="id">floor</span>. The 95% interval on that difference runs from −31 to +75 points, so with 3 tasks the difference could be noise: no detectable difference. Task by task, <span class="id">b</span> did better on 2, worse on 0, the same on 1.</p>
+<p>With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.</p>
+<p><b>Against the baseline.</b> The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each arm&#39;s score with it and calls anything more than 10 points either way a change; the interval is shown so a small number of tasks cannot hide behind the verdict.</p>
 <table>
-<thead><tr><th>Arm</th><th class="num">Difference from baseline</th><th class="num">95% interval</th><th class="num">Cases better / worse / same</th><th>Verdict</th></tr></thead>
+<thead><tr><th>Arm</th><th class="num">Difference from baseline</th><th class="num">95% interval</th><th class="num">Tasks better / worse / same</th><th>Verdict</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td class="num">−22 points</td><td class="num">−67 to +39</td><td class="num">0 / 2 / 1</td><td><span class="fail">regressed</span></td></tr>
 <tr><td><span class="id">b</span></td><td class="num">+11 points</td><td class="num">−46 to +63</td><td class="num">1 / 0 / 2</td><td><span class="pass">improved</span></td></tr>
 </tbody>
 </table>
 <table>
-<thead><tr><th>Case</th><th class="num">Baseline</th><th class="num"><span class="id">floor</span></th><th class="num"><span class="id">b</span></th></tr></thead>
+<thead><tr><th>Task</th><th class="num">Baseline</th><th class="num"><span class="id">floor</span></th><th class="num"><span class="id">b</span></th></tr></thead>
 <tbody>
 <tr><td><span class="id">loops</span></td><td class="num">100%</td><td class="num">67%</td><td class="num">100%</td></tr>
 <tr><td><span class="id">plain</span></td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td></tr>
@@ -113,7 +114,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 
 <section>
 <h2>Failures</h2>
-<p>For each arm, the checks that failed in at least one counted run, most frequent first, with the cases they failed on. A check that could not decide a run is listed apart: that is the check&#39;s weakness, not the arm&#39;s.</p>
+<p>For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run is listed apart: that is the check&#39;s weakness, not the arm&#39;s.</p>
 <p><b><span class="id">floor</span></b> (the local floor) failed 2 checks:</p>
 <ul>
 <li><b>the repository builds after the change</b> (<span class="id">builds</span>, headline) failed in 3 of 7 runs: twice on <span class="id">uses-bash</span>, once on <span class="id">loops</span>.</li>
@@ -152,10 +153,10 @@ dd { margin: 0; overflow-wrap: anywhere; }
 </section>
 
 <section>
-<h2>Results by case</h2>
-<p>One row per case, one column per arm, one mark per run: ● passed, ○ failed, ? undecided, &#215; not counted. Hover a mark for the reason; click it for the run.</p>
+<h2>Results by task</h2>
+<p>One row per task, one column per arm, one mark per run: ● passed, ○ failed, ? undecided, &#215; not counted. Hover a mark for the reason; click it for the run.</p>
 <table>
-<thead><tr><th>Case</th><th>What it asks</th><th><span class="id">floor</span></th><th><span class="id">b</span></th></tr></thead>
+<thead><tr><th>Task</th><th>What it asks</th><th><span class="id">floor</span></th><th><span class="id">b</span></th></tr></thead>
 <tbody>
 <tr><td><span class="id">loops</span></td><td>The model repeats a bash command until nb nudges it out of the loop</td><td><a href="#run-fl10000000000000" class="pass" title="run 1: passed (fl10000000000000)">●</a><a href="#run-fl20000000000000" class="pass" title="run 2: passed (fl20000000000000)">●</a><a href="#run-fl30000000000000" class="fail" title="run 3: failed — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></td><td><a href="#run-bl10000000000000" class="pass" title="run 1: passed (bl10000000000000)">●</a><a href="#run-bl20000000000000" class="pass" title="run 2: passed (bl20000000000000)">●</a><a href="#run-bl30000000000000" class="pass" title="run 3: passed (bl30000000000000)">●</a></td></tr>
 <tr><td><span class="id">plain</span></td><td>The model answers in one turn with no tools</td><td><a href="#run-fp10000000000000" class="pass" title="run 1: passed (fp10000000000000)">●</a><a href="#run-fp20000000000000" class="pass" title="run 2: passed (fp20000000000000)">●</a><a href="#run-fp30000000000000" class="fail" title="run 3: not counted — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></td><td><a href="#run-bp10000000000000" class="pass" title="run 1: passed (bp10000000000000)">●</a><a href="#run-bp20000000000000" class="pass" title="run 2: passed (bp20000000000000)">●</a><a href="#run-bp30000000000000" class="pass" title="run 3: passed (bp30000000000000)">●</a></td></tr>
@@ -173,6 +174,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <tr><td><span class="id">exit_ok</span></td><td>nb exits with &#39;ok&#39;</td><td>headline</td><td class="num">89% (6/7)</td><td class="num">100% (9/9)</td></tr>
 <tr><td><span class="id">builds</span></td><td>the repository builds after the change</td><td>headline</td><td class="num">56% (4/7)</td><td class="num">89% (8/9)</td></tr>
 <tr><td><span class="id">no_denials</span></td><td>no denied tool calls</td><td>validity</td><td class="num">89% (7/8)</td><td class="num">100% (9/9)</td></tr>
+<tr><td><span class="id">used-bash</span></td><td>uses bash</td><td>guardrail</td><td class="num">100% (2/2)</td><td class="num">100% (3/3)</td></tr>
 </tbody>
 </table>
 </section>
@@ -193,7 +195,7 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <h2>Every run</h2>
 <p>Every run, failures first. <i>Reason</i> is the first check that did not hold and what it saw, or why the run never completed.</p>
 <table>
-<thead><tr><th>Arm</th><th>Case</th><th class="num">Run</th><th>Result</th><th>nb ended</th><th class="num">Duration (min)</th><th class="num">Tokens</th><th>Reason</th></tr></thead>
+<thead><tr><th>Arm</th><th>Task</th><th class="num">Run</th><th>Result</th><th>nb ended</th><th class="num">Duration (min)</th><th class="num">Tokens</th><th>Reason</th></tr></thead>
 <tbody>
 <tr id="run-bu20000000000000"><td><span class="id">b</span></td><td><span class="id">uses-bash</span></td><td class="num">2</td><td><span class="fail" title="bu20000000000000">○ failed</span></td><td><span class="id">ok</span></td><td class="num">17.3</td><td class="num">63,000</td><td>builds: 2 of 41 tests failed</td></tr>
 <tr id="run-fl30000000000000"><td><span class="id">floor</span></td><td><span class="id">loops</span></td><td class="num">3</td><td><span class="fail" title="fl30000000000000">○ failed</span></td><td><span class="id">max_tool_calls</span></td><td class="num">23.5</td><td class="num">47,200</td><td>exit_ok: exit_reason=max_tool_calls</td></tr>
@@ -223,12 +225,12 @@ dd { margin: 0; overflow-wrap: anywhere; }
 <dl>
 <dt>proctor</dt><dd><span class="id">0.1.0</span></dd>
 <dt>nb</dt><dd><span class="id">1.0.0 at /usr/local/bin/nb</span></dd>
-<dt>eval hash</dt><dd><span class="id">sha256:9c1e0000</span></dd>
+<dt>suite hash</dt><dd><span class="id">sha256:9c1e0000</span></dd>
 <dt>repository</dt><dd><span class="id">3f2c1e9a</span></dd>
 <dt>command</dt><dd><span class="id">proctor run smoke</span></dd>
 <dt>created</dt><dd><span class="id">2026-09-17T14:32:00Z</span></dd>
 </dl>
-<p>Each case is scored as its mean over its counted, decided runs, so n in every interval is the number of cases. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-case scores). The detectable difference assumes 80% power and a per-case paired-difference sd of 0.5. Durations are the run&#39;s wall time including hooks; tokens are what nb reported. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points; the interval is shown so a small n cannot hide.</p>
+<p>Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run&#39;s wall time including hooks; tokens are what nb reported. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points; the interval is shown so a small n cannot hide.</p>
 </section>
 </main>
 </body>

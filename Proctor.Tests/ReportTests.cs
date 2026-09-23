@@ -14,9 +14,9 @@ public class ReportTests
 
     static (StatsFile Stats, List<ResultRow> Rows, Experiment Exp) Worked()
     {
-        var eval = WorkedExperiment.Eval();
+        var suite = WorkedExperiment.Suite();
         var rows = WorkedExperiment.Rows();
-        return (Stats.Compute(WorkedExperiment.Experiment(eval), eval, rows, WorkedExperiment.Guard()), rows, WorkedExperiment.Experiment(eval));
+        return (Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows, WorkedExperiment.Guard()), rows, WorkedExperiment.Experiment(suite));
     }
 
     static void AssertSnapshot(string name, string actual)
@@ -92,7 +92,7 @@ public class ReportTests
     {
         var (stats, rows, exp) = Worked();
         rows[0] = rows[0] with { StatusReason = "<b>bold</b> & \"quoted\"", Status = "failed", Pass = null, Checks = null };
-        var html = Report.Html(Stats.Compute(exp, WorkedExperiment.Eval(), rows), rows, exp);
+        var html = Report.Html(Stats.Compute(exp, WorkedExperiment.Suite(), rows), rows, exp);
         Assert.DoesNotContain("<b>bold</b>", html);
         Assert.Contains("&lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot;", html);
     }
