@@ -198,16 +198,25 @@ A built-in check describes itself from its spec (`{ "denied_calls": { "max":
 The report is built for someone who was not there, and for someone who opens
 one every few months as much as every day: it defines arm, task, run and
 check before using them, and every section opens with a sentence saying what
-it is for. It starts with the suite's description, a short table of what ran
-and a one-line result, then Arms, Tasks and Checks with their sentences, then
-Results (pass rates, the comparison between arms, the baseline), then
-Failures: per arm, each check that failed, in the author's words, with how
-often and on which tasks. Everything after that is evidence: what ran and
-what was left out, results by task, check pass rates, cost, every run, and
-the method last. A run whose headline check could not decide (a script's
-exit 2, a split judge) is *undecided*: out of the pass rate on both sides,
-listed for review when there are a few, and flagged as a defect in the check
-when there are many.
+it is for. Those definitions are set in muted grey so the findings stand
+out once you know the drill. A rail down the left lists every section and
+task and follows you as you scroll.
+
+It starts with the suite's question and a verdict card: for each arm,
+better, worse or unchanged and by how many points, whether the 95% interval
+confirms it, the tasks that moved it, and, when it cannot be confirmed, how
+many tasks it would take. The card says so if an arm lost more runs than
+another. Then Arms, and Tasks: one card per task with its prompt, its
+fixture, the checks it carries (its own first, then the suite's), and every
+arm's runs, score and verdict on it, followed by each run that did not pass
+and why. Results holds the numbers across all tasks (pass rates, the
+comparison between arms, the baseline), then Failures: per arm, each check
+that failed, in the author's words, with how often and on which tasks.
+Everything after that is evidence: what ran and what was left out, check
+pass rates, cost, every run, and the method last. A run whose headline check
+could not decide (a script's exit 2, a split judge) is *undecided*: out of
+the pass rate on both sides, listed for review when there are a few, and
+flagged as a defect in the check when there are many.
 
 Labels are yours: a key with a string or a list of strings, on the suite,
 the fixture or the task, and proctor never interprets a key. A task carries
@@ -272,16 +281,23 @@ proctor report <id> --tolerance 10 --fail-on regression   # guard mode: exit 1 i
 Two ways of working. In explore mode several arms run in one experiment and
 the report compares them to each other. In guard mode one arm runs against
 a baseline: pinned cells per task, committed with the suite, written by
-`proctor baseline` from an experiment you trust. The report then adds a
-section comparing every arm to the baseline with the same paired method,
-a verdict of held, improved or regressed on the point estimate against the
-tolerance, and the interval beside it so a small task count cannot hide.
+`proctor baseline` from an experiment you trust. The verdict card then
+compares every arm to the baseline with the same paired method, and each
+task card shows every arm against that task's pinned score. The verdict is
+held, improved or regressed on the point estimate against the tolerance,
+and `--fail-on regression` reads only that; it is *confirmed* only when the
+whole interval lies beyond the tolerance on the same side (or within it,
+for held), so a small task count cannot pass off a guess as a finding.
+Without a baseline the card compares each arm with the first.
 While the pinned experiment is still under `runs/`, its cells are re-read,
 so a regrade flows through; once it is archived the pinned scores stand,
 and the report says which.
 
-`report.html` is one file with no external assets; open it from `file://`
-or attach it to a message. `summary.md` has the same sections as plain tables.
+`report.html` is one file that loads nothing from outside (styles, a few
+lines of script for the section rail, and the logo are inline); open it from
+`file://` or attach it to a message. The page reads the same without the
+script. `summary.md` has the same content as plain markdown: the verdict
+card as a list and a heading per task.
 
 Every rate carries a 95% interval and its counts; comparisons between arms are
 paired on shared tasks with their own interval and a fixed verdict word; and
