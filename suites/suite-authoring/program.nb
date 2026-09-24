@@ -29,6 +29,11 @@ approval bash stat *
 approval bash tree *
 approval bash echo *
 approval bash pwd *
+approval bash rm *
+approval bash mv *
+approval bash cp *
+approval bash touch *
+approval bash cd * && bash *
 loop 3
 budget tool_calls 80
 budget wall_ms 1800000
