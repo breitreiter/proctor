@@ -3,7 +3,7 @@
 # beside every id; proctor falls back to a prompt line for a task, but a reader deserves a sentence.
 set -uo pipefail
 id=$(jq -r .suite <<<"$PROCTOR_EXPECT")
-dir="$PROCTOR_WORK/suites/$id"; def="$def"
+dir="$PROCTOR_WORK/suites/$id"; def="$dir/suite.json"
 # The layout before suite/task, which an agent shown an older bundle still writes.
 [ -f "$def" ] || { dir="$PROCTOR_WORK/evals/$id"; def="$dir/eval.json"; }
 [ -f "$def" ] || { echo "no suite to read"; exit 1; }
