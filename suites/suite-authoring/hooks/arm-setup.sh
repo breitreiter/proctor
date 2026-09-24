@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Arm setup: the model on the model box, proctor built from the arm's bundle, and the arm's view of
-# that bundle: what the agent is shown at /bundle. Both arms pin the same revision; the view is
+# that bundle: what the agent is shown at /work/.bundle. Both arms pin the same revision; the view is
 # what differs, so the comparison between arms is the examples and nothing else. The image and the
 # package cache are code-change's, extended by nothing but the fixtures here.
 set -euo pipefail

@@ -31,7 +31,7 @@
     "runner": "../runners/container.sh",
     "mounts": {
       "work": "/work",
-      "bundle": "/bundle"
+      "bundle": "/work/.bundle"
     }
   },
   "hooks": {

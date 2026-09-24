@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Sample setup: the cell's container, as code-change's, except that /bundle is the arm's view (see
-# arm-setup.sh) rather than the clone itself, read-only.
+# Sample setup: the cell's container, as code-change's, except that the bundle mount is the arm's view
+# (see arm-setup.sh) rather than the clone itself, read-only. suite.json puts it inside the work mount,
+# since nb's file tools read nothing outside the working directory; on the host that leaves an empty
+# mount point in the checkout, which git does not see.
 set -euo pipefail
 [ -n "$PROCTOR_RUNNER" ] || { echo "bare run: nb stays on the host, no container"; exit 0; }
 engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)

@@ -22,7 +22,9 @@ yet.
 
 Both arms pin the same proctor revision as their `bundle`. `hooks/arm-setup.sh`
 builds proctor from it and prepares the arm's *view*: the files the agent sees at
-`/bundle`. The only difference between the arms is whether the examples are in
+`/work/.bundle`, read-only. The view sits inside the workspace because nb's file
+tools (`read_file`, `grep`, `list_dir`) read only under the working directory;
+mounted beside it, the documentation could be read only through `bash`. The only difference between the arms is whether the examples are in
 the view, so comparing them tests a theory about how agents use documentation:
 that an agent reads a worked example alongside the structured docs and borrows
 from it. `read-examples` is the rate at which it does.
