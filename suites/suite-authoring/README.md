@@ -79,9 +79,3 @@ the whole clone, answer key included, and gets no proctor build.
 
 To test a documentation change, push it, add an arm whose bundle pins the new
 revision, and compare the two in one experiment.
-
-Both arms still pin a revision from before the suite/task rename
-(2026-09-23), so the agent they show reads `evals/` and `cases/` and writes
-that layout; the trial and the checks here accept it, and proctor reads it,
-for one release. Bump the bundle revisions once the rename is pushed, then
-rerun and copy the report into `report/` as above; that will be its first.

@@ -14,7 +14,7 @@
       "provider": "local-qcoder",
       "model": "qwen3-coder-next",
       "samples": 3,
-      "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "31ed54aaafa2d239bd23953cc35fc9b85e887e45" }
+      "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "1e71808b804a63a3469f3ca91ff3efaf9b95a1d0" }
     },
     {
       "id": "docs-and-examples",
@@ -24,7 +24,7 @@
       "provider": "local-qcoder",
       "model": "qwen3-coder-next",
       "samples": 3,
-      "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "31ed54aaafa2d239bd23953cc35fc9b85e887e45" }
+      "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "1e71808b804a63a3469f3ca91ff3efaf9b95a1d0" }
     }
   ],
   "nb": {
