@@ -70,7 +70,7 @@ in the order the verbs run them. Every file is one concern:
 | `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |
 | `suites/smoke/` | proctor's own suite: every task scripts nb's Mock provider |
 | `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions |
-| `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet (the next run, after the bundle bump, is the first) |
+| `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings |

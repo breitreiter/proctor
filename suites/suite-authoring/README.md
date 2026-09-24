@@ -8,8 +8,8 @@ only if it passes the correct run and fails every wrong one.
 
 It is also proctor's demo project. Between them the files here use most of
 what proctor has. The report of a run goes in `report/` so you can see the
-output without running anything; none is there yet (see the end of this
-file).
+output without running anything; none is there
+yet.
 
 ## What runs
 
