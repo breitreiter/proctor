@@ -1,6 +1,7 @@
 {
   "//": "Copy to nb.json (gitignored) and point the routes at your gateway. nb's config for every suite here. Mock entries drive the smoke suite; local-qcoder is the floor arm of code-change.",
   "//2": "LLM_GATEWAY is the base URL of an OpenAI-dialect gateway serving the routes below, LLM_GATEWAY_KEY its key; export both before `proctor run code-change`. nb resolves ${VAR} from the environment.",
+  "//3": "MaxContextTokens must not exceed the context the server was started with (llama-server -c): nb compacts against this number, and a request past the server's limit is a 400 that ends the run as provider_error.",
   "Harness": "nb",
   "ActiveProvider": "Mock",
   "Trust": false,
