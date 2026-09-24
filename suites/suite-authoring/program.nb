@@ -17,6 +17,18 @@ approval bash rg *
 approval bash head *
 approval bash tail *
 approval bash wc *
+approval bash sed *
+approval bash awk *
+approval bash cut *
+approval bash sort *
+approval bash uniq *
+approval bash diff *
+approval bash file *
+approval bash strings *
+approval bash stat *
+approval bash tree *
+approval bash echo *
+approval bash pwd *
 loop 3
 budget tool_calls 80
 budget wall_ms 1800000
