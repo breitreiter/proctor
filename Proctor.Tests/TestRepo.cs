@@ -30,7 +30,7 @@ sealed class TestRepo : IDisposable
         Environment.GetEnvironmentVariable("NB_PATH")
         ?? Path.GetFullPath(Path.Combine(SourceRoot, "..", "nb", "bin", "Debug", "net10.0", "nb"));
 
-    public static string NbMockConfig => Path.Combine(SourceRoot, "suites", "nb.json");
+    public static string NbMockConfig => Path.Combine(SourceRoot, "suites", "nb.example.json");
 
     /// <summary>Copy a suite from this repository's suites/ into the temp root, with a proctor.json pointing at nb.</summary>
     public string CopySuite(string suiteId)

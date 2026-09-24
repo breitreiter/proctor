@@ -1,5 +1,5 @@
 {
-  "//": "nb: the host binary and its config. judges: the endpoints the model checks call at grade time, by wire shape. ${VAR} references in endpoint and api_key resolve from the environment when `grade` runs: LLM_GATEWAY is the base URL of an OpenAI-dialect gateway, LLM_GATEWAY_KEY its key; the paths below are the routes this suite expects it to serve.",
+  "//": "Copy to proctor.json (gitignored) and point the routes at your gateway. nb: the host binary and its config. judges: the endpoints the model checks call at grade time, by wire shape. ${VAR} references in endpoint and api_key resolve from the environment when `grade` runs: LLM_GATEWAY is the base URL of an OpenAI-dialect gateway, LLM_GATEWAY_KEY its key; the paths below are the routes this suite expects it to serve.",
   "nb": {
     "path": "../../nb/bin/Debug/net10.0/nb",
     "config": "nb.json"

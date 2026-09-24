@@ -372,13 +372,15 @@ sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter 
     {
         var nb = config.NbOrDefault;
         var suitesDir = Layout.Suites(root);
+        if (!File.Exists(Path.Combine(suitesDir, Layout.ProctorConfigFile)) && File.Exists(Path.Combine(suitesDir, "proctor.example.json")))
+            throw new ProctorException("no suites/proctor.json: copy suites/proctor.example.json (and nb.example.json beside it) and point them at your gateway");
         var path = nbOverride ?? nb.Path;
         if (path.Contains(Path.DirectorySeparatorChar)) path = Path.GetFullPath(Path.Combine(nbOverride is null ? suitesDir : Directory.GetCurrentDirectory(), path));
         else if (FindOnPath(path) is { } found) path = found;
         else throw new ProctorException($"nb not found: '{path}' is not on PATH; set nb.path in suites/proctor.json or pass --nb");
         if (!File.Exists(path)) throw new ProctorException($"nb not found at {path}");
         var configPath = nb.Config is null ? null : Path.GetFullPath(Path.Combine(suitesDir, nb.Config));
-        if (configPath is not null && !File.Exists(configPath)) throw new ProctorException($"nb config not found at {configPath} (suites/proctor.json nb.config)");
+        if (configPath is not null && !File.Exists(configPath)) throw new ProctorException($"nb config not found at {configPath} (suites/proctor.json nb.config){(File.Exists(Path.ChangeExtension(configPath, ".example.json")) ? $"; copy {Path.GetFileName(Path.ChangeExtension(configPath, ".example.json"))} beside it" : "")}");
         var runner = ResolveRunner(root, suite, runnerOverride);
         return new ResolvedNb(path, configPath, runner, runner is null ? null : suite.Def.Nb?.Mounts);
     }

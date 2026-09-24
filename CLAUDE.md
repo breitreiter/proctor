@@ -201,8 +201,7 @@ The directories are for reading, not for namespaces: everything is
   so a provider change is a config line. Both are `Verdict`s like any
   check. The question is the suite's (the check spec), the endpoint is the
   machine's (`proctor.json` `judges`), and the key and endpoint are
-  resolved at grade time only (`${VAR}` in both; the committed config names
-  `LLM_GATEWAY` and `LLM_GATEWAY_KEY`, never a host), so `list` and `run`
+  resolved at grade time only (`${VAR}` in both), so `list` and `run`
   need no key. Verdict files and the report keep the endpoint as written,
   so neither names the machine that graded. `Suite.Load` resolves each
   model check's judge when handed the config's judges; the test helper
@@ -278,6 +277,11 @@ The directories are for reading, not for namespaces: everything is
   and the script starts nb the same way. The bare path deliberately does not get the cell environment:
   `PROCTOR_EXPECT` in the model's reach would leak the answer. A runner that
   forwards its environment into the container wholesale would do the same.
+- **The machine's config is never committed.** `suites/proctor.json` and
+  `suites/nb.json` are gitignored; `*.example.json` beside them are the
+  committed, host-neutral forms (`${LLM_GATEWAY}`, `${LLM_GATEWAY_KEY}`), and
+  `run` says to copy them when the live file is missing. The tests read
+  `nb.example.json` for its Mock providers, so keep those in it.
 - **The runner is the suite's, the binary is the machine's.** `suite.json`'s
   `nb` block (`runner`, relative to the suite directory like a hook, and
   `mounts`) says how the suite runs nb, because the runner only works with

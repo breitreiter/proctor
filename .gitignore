@@ -13,6 +13,8 @@ obj/
 # Local config with keys
 appsettings.json
 !appsettings.example.json
+suites/proctor.json
+suites/nb.json
 
 # Fixture checkouts made by sample setup hooks
 .proctor/

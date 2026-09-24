@@ -13,6 +13,11 @@ dotnet build
 alias proctor='dotnet /path/to/proctor/bin/Debug/net10.0/proctor.dll'
 ```
 
+To run this repository's own suites, copy `suites/proctor.example.json` to
+`suites/proctor.json` and `suites/nb.example.json` to `suites/nb.json`, and
+point their routes at your gateway (see below). Both copies are gitignored,
+since they name your machine.
+
 ## Configure
 
 A repository that uses proctor has `suites/` (yours, in git), `runs/` (raw
@@ -54,11 +59,12 @@ by wire shape rather than vendor. A `systemone` judge answers typed
 questions with probabilities (`POST /v1/systemone`: Jev on Cloudflare, or
 anything that speaks it); a `chat` judge is an OpenAI-dialect chat
 completions endpoint with a model name. Endpoints and keys may be `${VAR}`
-references, resolved only when `grade` runs, so the committed file names no
-machine: the one checked in here expects `LLM_GATEWAY`, the base URL of an
-OpenAI-dialect gateway that serves the routes it names, and
-`LLM_GATEWAY_KEY`, its key. nb resolves the same references in its own
-config, which is how `suites/nb.json` reaches the same gateway.
+references, resolved only when `grade` runs. This repository commits only
+`suites/proctor.example.json`, which expects `LLM_GATEWAY`, the base URL of
+an OpenAI-dialect gateway that serves the routes it names, and
+`LLM_GATEWAY_KEY`, its key; your `suites/proctor.json` is gitignored, so the
+routes you point it at stay on your machine. nb resolves the same references
+in its own config, which is how `suites/nb.json` reaches the same gateway.
 
 ```json
 {

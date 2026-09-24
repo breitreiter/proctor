@@ -65,7 +65,7 @@ agent.
 ## Run it
 
 ```bash
-export LLM_GATEWAY=... LLM_GATEWAY_KEY=...     # the gateway suites/nb.json and suites/proctor.json name
+export LLM_GATEWAY=... LLM_GATEWAY_KEY=...     # the gateway suites/nb.json and suites/proctor.json name (copied from *.example.json)
 dotnet build                                   # the trial grades with this build
 suites/suite-authoring/reference/shakedown.sh    # optional: the trial against the references, ~2 min
 proctor run suite-authoring
