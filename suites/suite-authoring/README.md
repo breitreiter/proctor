@@ -59,8 +59,9 @@ experiment stays in the cell under `trial/` as evidence.
 as examples of the practices above. `reference/shakedown.sh` proves the trial
 without a model. The references must pass every check. With `--naive`, each
 reference loses the check that made it discriminate, and `rejects-wrong` must name
-the wrong runs that got through. `trial/` and `reference/` are never shown to the
-agent.
+the wrong runs that got through. Nothing in this directory is shown to the agent:
+its checks and `trial/` are the grader and `reference/` is the answer key, so
+the examples arm sees the other suites but not this one.
 
 ## Run it
 

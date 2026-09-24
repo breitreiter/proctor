@@ -13,8 +13,9 @@ build="$root/.proctor/proctor-builds/$rev"
 [ -f "$build/proctor.dll" ] || dotnet build "$PROCTOR_BUNDLE/Proctor.csproj" -c Release -o "$build" --nologo -v q >/dev/null
 echo "proctor $rev built at $build"
 
-# The view: documentation for every arm, the examples for the arm named for them. This suite's
-# trial/ and reference/ are its answer key and never shown; nor are the workspace fixtures the tasks run in.
+# The view: documentation for every arm, the examples for the arm named for them. This suite is never
+# shown, since its checks and trial are the grader and its reference/ the answer key; nor are the
+# workspace fixtures the tasks run in.
 view="$root/.proctor/views/$rev/$PROCTOR_ARM"
 rm -rf "$view" && mkdir -p "$view/project/plans"
 cp "$PROCTOR_BUNDLE/README.md" "$view/"
@@ -25,7 +26,7 @@ case "$PROCTOR_ARM" in
     # A revision has suites/ or, before the rename, evals/; find fails on a start path that is missing.
     dirs=(); for d in suites evals fixtures; do [ -d "$PROCTOR_BUNDLE/$d" ] && dirs+=("$d"); done
     (cd "$PROCTOR_BUNDLE" && find "${dirs[@]}" -type f \
-       -not -path 'suites/suite-authoring/trial/*' -not -path 'suites/suite-authoring/reference/*' -not -path 'evals/eval-authoring/trial/*' -not -path 'evals/eval-authoring/reference/*' -not -path 'fixtures/authoring-*' \
+       -not -path 'suites/suite-authoring/*' -not -path 'evals/eval-authoring/*' -not -path 'fixtures/authoring-*' \
        -not -path '*/bin/*' -not -path '*/obj/*' -not -name baseline.json -print0 \
      | xargs -0 cp --parents -t "$view") ;;
   *) echo "no view for arm $PROCTOR_ARM"; exit 1 ;;
