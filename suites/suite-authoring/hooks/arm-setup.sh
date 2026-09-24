@@ -22,7 +22,9 @@ cp "$PROCTOR_BUNDLE"/project/plans/{on-disk-layout,fixtures-arms-baselines,conta
 case "$PROCTOR_ARM" in
   docs) ;;
   docs-and-examples)
-    (cd "$PROCTOR_BUNDLE" && find suites evals fixtures -type f 2>/dev/null \
+    # A revision has suites/ or, before the rename, evals/; find fails on a start path that is missing.
+    dirs=(); for d in suites evals fixtures; do [ -d "$PROCTOR_BUNDLE/$d" ] && dirs+=("$d"); done
+    (cd "$PROCTOR_BUNDLE" && find "${dirs[@]}" -type f \
        -not -path 'suites/suite-authoring/trial/*' -not -path 'suites/suite-authoring/reference/*' -not -path 'evals/eval-authoring/trial/*' -not -path 'evals/eval-authoring/reference/*' -not -path 'fixtures/authoring-*' \
        -not -path '*/bin/*' -not -path '*/obj/*' -not -name baseline.json -print0 \
      | xargs -0 cp --parents -t "$view") ;;
