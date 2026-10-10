@@ -118,8 +118,8 @@ static class Verbs
         GuardInput? guard = null;
         if (Proctor.Baseline.Load(suite) is { } baseline)
         {
-            var (scores, source) = baseline.Resolve(root, suite);
-            guard = new GuardInput(baseline.Set, source, scores, tolerancePoints);
+            var (scores, source, gaps) = baseline.Resolve(root, suite);
+            guard = new GuardInput(baseline.Set, source, scores, tolerancePoints, gaps);
         }
         var stats = Stats.Compute(experiment, suite, rows, guard);
         Runner.WriteJson(Path.Combine(outDir, Layout.StatsFile), stats);
@@ -133,6 +133,8 @@ static class Verbs
         if (ungraded > 0) Console.WriteLine($"note: {ungraded} completed cell{(ungraded == 1 ? " has" : "s have")} no checks.json; run `proctor grade {experimentId}` first for them to count");
         if (stats.Baseline is { } bl)
         {
+            foreach (var gap in bl.Gaps ?? [])
+                Console.WriteLine($"warning: the baseline's pinned cells in {gap.Experiment} were never graded on the pass check '{gap.Check}'; {gap.Tasks.Count} task{(gap.Tasks.Count == 1 ? "" : "s")} use the score as pinned ({string.Join(", ", gap.Tasks)})");
             foreach (var (arm, g) in bl.Arms) Console.WriteLine($"  {arm} vs baseline: {(g.DiffPoints >= 0 ? "+" : "")}{g.DiffPoints} pts [{g.Ci95[0]}, {g.Ci95[1]}], {g.Verdict}");
             if (failOn == "regression" && bl.Arms.Values.Any(g => g.Verdict == "regressed")) return 1;
         }

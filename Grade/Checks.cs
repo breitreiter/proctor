@@ -94,8 +94,8 @@ static class Checks
     public static bool AsksAModel(JsonObject spec) => spec.Any(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck);
 
     /// <summary>The model checks of a spec, for validating their judges against proctor.json.</summary>
-    public static IEnumerable<(string Name, JsonObject Spec)> ModelChecks(JsonObject spec) =>
-        spec.Where(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck && f.Value is JsonObject).Select(f => (Split(f.Key).Name, (JsonObject)f.Value!));
+    public static IEnumerable<(string Name, JsonObject Spec)> ModelChecks(JsonObject? spec) =>
+        (spec ?? []).Where(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck && f.Value is JsonObject).Select(f => (Split(f.Key).Name, (JsonObject)f.Value!));
 
     /// <summary>
     /// Validate a whole check at load time: every field's shape, and that a script check says what it tests. A built-in

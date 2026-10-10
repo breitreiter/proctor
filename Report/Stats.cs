@@ -63,7 +63,7 @@ record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95,
 record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
 /// <summary>The guard comparison: every arm against the suite's pinned baseline, with a tolerance on the point estimate.</summary>
-record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms);
+record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms, List<BaselineGap>? Gaps = null);
 
 /// <summary>
 /// <c>Verdict</c> is the point estimate against the tolerance, and is what <c>--fail-on regression</c> reads.
@@ -82,7 +82,7 @@ record StatsFile(
     Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null);
 
 /// <summary>What the report knows about the baseline: the resolved per-task scores, where they came from, and the tolerance asked for.</summary>
-record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints);
+record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints, List<BaselineGap>? Gaps = null);
 
 static class Stats
 {
@@ -127,7 +127,7 @@ static class Stats
                 var perTask = c.Tasks.ToDictionary(x => x.Key, x => new BaselineTask(Round3(guard.Scores[x.Key]), Round3(scores[arm][x.Key]), x.Value, GuardVerdict(x.Value, tol)));
                 against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, confirmed, perTask);
             }
-            baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against);
+            baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against, guard.Gaps is { Count: > 0 } ? guard.Gaps : null);
         }
 
         var nPairs = comparisons.Count > 0 ? comparisons.Min(c => c.NPairs) : tasks.Count(c => byArm[arms[0]].Any(r => r.Task == c && r.Decided));

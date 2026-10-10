@@ -330,6 +330,7 @@ sealed class Suite
         foreach (var (arm, i) in (def.Arms ?? []).Select((a, i) => (a, i)))
         {
             var f = $"arms[{i}]";
+            if (arm is null) { Add(f, "an arm is an object, not null"); continue; }
             if (string.IsNullOrWhiteSpace(arm.Id)) Add($"{f}.id", "required");
             else if (!seen.Add(arm.Id)) Add($"{f}.id", $"duplicate arm id '{arm.Id}'");
             else if (!Regex.IsMatch(arm.Id, "^[a-z0-9][a-z0-9-]*$")) Add($"{f}.id", "arm ids are path segments: lowercase letters, digits and hyphens");
@@ -416,10 +417,12 @@ sealed class Suite
         }
         if (def.Grading.Pass is null or { Count: 0 }) Add("grading.pass", "required: the checks whose conjunction is the headline pass");
         foreach (var name in def.Grading.Pass ?? [])
-            if (Undeclared(name) is { } why) Add("grading.pass", why);
+            if (name is null) Add("grading.pass", "a check name, not null");
+            else if (Undeclared(name) is { } why) Add("grading.pass", why);
         foreach (var name in def.Grading.Validity ?? [])
         {
-            if (Undeclared(name) is { } why) Add("grading.validity", why);
+            if (name is null) Add("grading.validity", "a check name, not null");
+            else if (Undeclared(name) is { } why) Add("grading.validity", why);
             else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the sample counts, not both");
         }
     }

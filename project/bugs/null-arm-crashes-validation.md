@@ -2,7 +2,8 @@
 type: bug
 title: A null entry in a suite's arms crashes validation with a NullReferenceException
 created: 2026-10-09
-status: open
+status: fixed
+fixed: 2026-10-10, 0.2.4
 found-by: a downstream suite, building a throwaway shakedown suite with jq
 ---
 
@@ -58,3 +59,13 @@ hooks); not checked.
 
 **A `null` arm is a problem, not a crash:** `arms[1]: an arm is an object, not
 null`, collected with the others. Skip the entry's remaining checks.
+
+## Resolution
+
+Fixed in 0.2.4. A `null` arm is `arms[i]: an arm is an object, not null`,
+and the entry's remaining checks are skipped. The other places a null could
+come from JSON were tested too: a `null` in `grading.pass` or
+`grading.validity` crashed the same way and is now a problem; a `null`
+check spec (suite, fixture or task) was already a problem, but the judges
+pass that `list`, `run` and `grade` make would still dereference it, which
+is fixed in `Checks.ModelChecks`.

@@ -2,7 +2,8 @@
 type: bug
 title: A baseline pin graded without one of the suite's pass checks recomputes to 0, silently
 created: 2026-10-09
-status: open
+status: fixed
+fixed: 2026-10-10, 0.2.4
 found-by: a downstream suite, planning a second suite to compare against the first's baseline
 ---
 
@@ -67,3 +68,15 @@ it means grading went wrong.
 
 A warning from `report` naming the check and the pinned experiment would make
 the fallback visible.
+
+## Resolution
+
+Fixed in 0.2.4, in `Baseline.Resolve` rather than `Grade.Pass`, so a missing
+pass check inside an experiment is still a failure. A task whose pinned cells
+lack any current pass check is not rescored: it keeps `pin.Score`, which
+makes the source "as pinned" or "partly recomputed". The check comes back as a
+gap (`stats.json` `baseline.gaps`: check, experiment, tasks), which `report`
+prints as a warning and the report shows as a warning band at the top. The
+pinned score was decided by the pass list of its time, and the warning says
+so, because for a baseline copied from another suite that is a different
+question.

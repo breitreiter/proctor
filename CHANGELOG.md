@@ -5,6 +5,18 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.2.4 — 2026-10-10
+
+Two fixes. Nothing on disk breaks; `stats.json` only gains a field.
+
+- A baseline whose pinned cells were never graded on one of the suite's
+  current `pass` checks no longer rescores them to 0. Those tasks keep the
+  pinned score, `stats.json` lists the check under `baseline.gaps` (check,
+  experiment, tasks), and the report and `report`'s console output warn.
+  Within an experiment a missing pass check still fails the run.
+- A `null` in a suite's `arms`, `grading.pass` or `grading.validity` is a
+  problem naming the field, not a crash.
+
 ## 0.2.3 — 2026-09-23
 
 Reasons that read right at a skim. Nothing on disk breaks. A model check's

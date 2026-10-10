@@ -67,6 +67,8 @@ static class Report
         ]));
         foreach (var u in stats.UndecidedChecks)
             b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Runs} of the {u.Of} runs it applies to. Its pass rates below are over the {u.Of - u.Runs} runs it decided, and the check needs rewriting before this experiment is conclusive."));
+        foreach (var g in bl?.Gaps ?? [])
+            b.Add(new Warning($"The baseline's pinned runs, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the baseline is the score as pinned, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the arm."));
 
         // 2. Arms
         b.Add(new Heading("Arms", "arms"));

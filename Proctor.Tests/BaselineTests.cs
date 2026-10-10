@@ -61,4 +61,34 @@ public class BaselineTests
         Assert.Equal(id, baseline["tasks"]!["plain"]!["experiment"]!.GetValue<string>());
         Assert.Equal("gone", baseline["tasks"]!["loops"]!["experiment"]!.GetValue<string>());
     }
+
+    [Fact]
+    public void Baseline_PinnedCellsMissingAPassCheck_StandAsPinned_AndTheReportNamesTheCheck()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("smoke");
+        repo.EditJson("smoke/suite.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        var config = Suite.LoadConfig(repo.Root, []);
+        var suite = repo.LoadSuite("smoke");
+        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
+        Assert.Equal(0, Verbs.Baseline(repo.Root, id, null, null));
+
+        // The pass list grows after pinning: the pinned cells were never graded on the new check. Rescoring them
+        // would read it as an error and every task as 0; instead each task stands as pinned and the gap is named.
+        repo.EditJson("smoke/suite.json", e =>
+        {
+            e["grading"]!["checks"]!["answer-short"] = JsonNode.Parse("""{ "max_tokens": 100000 }""");
+            e["grading"]!["pass"]!.AsArray().Add("answer-short");
+        });
+        Assert.Equal(0, Verbs.Report(repo.Root, id));
+        var bl = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "stats.json")))!["baseline"]!;
+        Assert.Equal("as pinned", bl["scores"]!.GetValue<string>());
+        var gap = Assert.Single(bl["gaps"]!.AsArray())!;
+        Assert.Equal("answer-short", gap["check"]!.GetValue<string>());
+        Assert.Equal(id, gap["experiment"]!.GetValue<string>());
+        Assert.Equal(suite.Tasks.Count, gap["tasks"]!.AsArray().Count);
+        Assert.Equal(1.0, bl["arms"]!["a"]!["tasks"]!["plain"]!["baseline"]!.GetValue<double>());
+        Assert.Contains("never graded on the headline check `answer-short`", File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md")));
+    }
 }

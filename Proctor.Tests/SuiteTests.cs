@@ -311,4 +311,30 @@ public class SuiteTests
         repo.EditJson("smoke/suite.json", e => e["arms"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\", \"rev\": \"abc\"}"));
         Assert.Empty(repo.Problems("smoke"));
     }
+
+    [Theory]
+    [InlineData("smoke/suite.json", "arms", "arms[2]")]
+    [InlineData("smoke/suite.json", "grading.checks", "grading.checks.nothing")]
+    [InlineData("smoke/suite.json", "grading.pass", "grading.pass")]
+    [InlineData("smoke/suite.json", "grading.validity", "grading.validity")]
+    [InlineData("smoke/tasks/plain.json", "checks", "checks.nothing")]
+    [InlineData("../fixtures/note/fixture.json", "checks", "checks.nothing")]
+    public void ANullEntry_IsAProblem_NotACrash(string file, string path, string field)
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("smoke");
+        repo.EditJson(file, e =>
+        {
+            var parts = path.Split('.');
+            var parent = parts[..^1].Aggregate((JsonNode)e, (n, p) => n[p]!);
+            switch (parent[parts[^1]])
+            {
+                case JsonArray a: a.Add(null); break;
+                case JsonObject o: o["nothing"] = null; break;
+                case null when parts[^1] == "validity": parent[parts[^1]] = new JsonArray((JsonNode?)null); break;
+                case null: parent[parts[^1]] = new JsonObject { ["nothing"] = null }; break;
+            }
+        });
+        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith(Path.GetFileName(file)) && p.Field == field);
+    }
 }
