@@ -84,22 +84,20 @@ static class Verbs
         foreach (var c in taskIds ?? [])
             if (suite.Tasks.All(x => x.Id != c)) throw new ProctorException($"no task '{c}' in suite '{suite.Id}'");
 
-        var rows = Results.Collect(root, experiment, suite).Where(r => r.Arm == arm.Id && r.Decided).ToList();
+        var rows = Results.Collect(root, experiment, suite);
         var existing = Proctor.Baseline.Load(suite);
         var pins = existing?.Tasks.ToDictionary(k => k.Key, k => k.Value) ?? [];
         var pinned = 0;
         foreach (var c in suite.Tasks.Where(c => taskIds is null || taskIds.Contains(c.Id!)))
         {
-            var analysed = rows.Where(r => r.Task == c.Id).OrderBy(r => r.Sample).ToList();
-            if (analysed.Count == 0)
+            if (Proctor.Baseline.PinOf(experiment, suite, rows, arm.Id!, c) is not { } pin)
             {
                 Console.WriteLine($"  {c.Id}  {(pins.ContainsKey(c.Id!) ? $"kept: {pins[c.Id!].Experiment}/{pins[c.Id!].Arm}" : "not pinned")}: arm {arm.Id} analysed no sample of it");
                 continue;
             }
-            pins[c.Id!] = new BaselinePin(experiment.Id, arm.Id!, analysed.Select(r => r.Sample).ToList(),
-                experiment.BundleOf(arm.Id!)?.Hash, suite.FixtureOf(c)?.Hash, Math.Round(analysed.Average(r => r.Pass == true ? 1.0 : 0.0), 3));
+            pins[c.Id!] = pin;
             pinned++;
-            Console.WriteLine($"  {c.Id}  pinned {experiment.Id}/{arm.Id} samples {string.Join(",", pins[c.Id!].Samples)}  score {pins[c.Id!].Score:0.###}");
+            Console.WriteLine($"  {c.Id}  pinned {experiment.Id}/{arm.Id} samples {string.Join(",", pin.Samples)}  score {pin.Score:0.###}");
         }
         var baseline = new Baseline(DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), Environment.CommandLine, experiment.SuiteHash, pins);
         baseline.Save(suite);
@@ -107,7 +105,7 @@ static class Verbs
         return 0;
     }
 
-    public static int Report(string root, string experimentId, int tolerancePoints = 0, string? failOn = null)
+    public static int Report(string root, string experimentId, int tolerancePoints = 0, string? failOn = null, string? againstId = null)
     {
         var (experiment, suite) = LoadExperiment(root, experimentId);
         var outDir = Layout.ReportData(root, experimentId);
@@ -116,7 +114,8 @@ static class Verbs
         var rows = Results.Collect(root, experiment, suite);
         Results.Write(Path.Combine(outDir, Layout.ResultsFile), rows);
         GuardInput? guard = null;
-        if (Proctor.Baseline.Load(suite) is { } baseline)
+        if (againstId is not null) guard = Against(root, suite, againstId, tolerancePoints);
+        else if (Proctor.Baseline.Load(suite) is { } baseline)
         {
             var (scores, source, gaps) = baseline.Resolve(root, suite);
             guard = new GuardInput(baseline.Set, source, scores, tolerancePoints, gaps);
@@ -133,12 +132,44 @@ static class Verbs
         if (ungraded > 0) Console.WriteLine($"note: {ungraded} completed cell{(ungraded == 1 ? " has" : "s have")} no checks.json; run `proctor grade {experimentId}` first for them to count");
         if (stats.Baseline is { } bl)
         {
+            var vs = bl.Against ?? "baseline";
             foreach (var gap in bl.Gaps ?? [])
-                Console.WriteLine($"warning: the baseline's pinned cells in {gap.Experiment} were never graded on the pass check '{gap.Check}'; {gap.Tasks.Count} task{(gap.Tasks.Count == 1 ? "" : "s")} use the score as pinned ({string.Join(", ", gap.Tasks)})");
-            foreach (var (arm, g) in bl.Arms) Console.WriteLine($"  {arm} vs baseline: {(g.DiffPoints >= 0 ? "+" : "")}{g.DiffPoints} pts [{g.Ci95[0]}, {g.Ci95[1]}], {g.Verdict}");
+                Console.WriteLine($"warning: the {(bl.Against is null ? "baseline's pinned " : "")}cells in {gap.Experiment} were never graded on the pass check '{gap.Check}'; {gap.Tasks.Count} task{(gap.Tasks.Count == 1 ? "" : "s")} use the score as pinned ({string.Join(", ", gap.Tasks)})");
+            foreach (var (arm, g) in bl.Arms) Console.WriteLine($"  {arm} vs {vs}: {(g.DiffPoints >= 0 ? "+" : "")}{g.DiffPoints} pts [{g.Ci95[0]}, {g.Ci95[1]}], {g.Verdict}");
+            foreach (var arm in bl.Unpaired ?? []) Console.WriteLine($"  {arm} vs {vs}: no arm '{arm}' there");
             if (failOn == "regression" && bl.Arms.Values.Any(g => g.Verdict == "regressed")) return 1;
         }
         else if (failOn is not null) Console.WriteLine($"note: --fail-on {failOn} has nothing to fail on; the suite has no baseline (run `proctor baseline <experiment>`)");
         return 0;
+    }
+
+    /// <summary>
+    /// report --against: each arm against the arm of the same id in another experiment, of this suite or another.
+    /// Its pins are its decided cells as its own suite scored them, then rescored under this suite like a baseline.
+    /// </summary>
+    static GuardInput Against(string root, Suite suite, string otherId, int tolerancePoints)
+    {
+        var (other, otherSuite) = LoadExperiment(root, otherId);
+        var rows = Results.Collect(root, other, otherSuite);
+        var perArm = new Dictionary<string, Dictionary<string, double>>();
+        var sources = new List<string>();
+        var gaps = new List<BaselineGap>();
+        foreach (var arm in suite.Arms.Where(a => otherSuite.Arms.Any(o => o.Id == a.Id)))
+        {
+            var pins = otherSuite.Tasks.Where(c => suite.Tasks.Any(x => x.Id == c.Id))
+                .Select(c => (c.Id!, Pin: Proctor.Baseline.PinOf(other, otherSuite, rows, arm.Id!, c)))
+                .Where(x => x.Pin is not null).ToDictionary(x => x.Item1, x => x.Pin!);
+            if (pins.Count == 0) continue;     // its suite may have the arm now, but the experiment decided none of its cells
+            var (scores, armSource, armGaps) = new Baseline(other.Created, "", other.SuiteHash, pins).Resolve(root, suite);
+            perArm[arm.Id!] = scores;
+            sources.Add(armSource);
+            foreach (var g in armGaps)
+                if (gaps.FirstOrDefault(x => x.Check == g.Check) is { } seen) seen.Tasks.AddRange(g.Tasks.Except(seen.Tasks));
+                else gaps.Add(g);
+        }
+        if (perArm.Count == 0)
+            throw new ProctorException($"experiment '{otherId}' has none of this suite's arms ({string.Join(", ", suite.Arms.Select(a => a.Id))}); --against pairs arms by id");
+        var source = sources.Distinct().Count() == 1 ? sources[0] : "partly recomputed";
+        return new GuardInput(other.Created, source, [], tolerancePoints, gaps, otherId, perArm);
     }
 }

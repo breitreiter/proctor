@@ -23,6 +23,14 @@ record Baseline(string Set, string Command, string SuiteHash, Dictionary<string,
 
     public void Save(Suite suite) => Runner.WriteJson(FileOf(suite), this);
 
+    /// <summary>An arm's pin for one task: its decided cells in the experiment, scored as that experiment's suite decided them; null when it decided none.</summary>
+    public static BaselinePin? PinOf(Experiment experiment, Suite suite, List<ResultRow> rows, string arm, TaskDef task)
+    {
+        var decided = rows.Where(r => r.Arm == arm && r.Task == task.Id && r.Decided).OrderBy(r => r.Sample).ToList();
+        return decided.Count == 0 ? null : new BaselinePin(experiment.Id, arm, decided.Select(r => r.Sample).ToList(),
+            experiment.BundleOf(arm)?.Hash, suite.FixtureOf(task)?.Hash, Math.Round(decided.Average(r => r.Pass == true ? 1.0 : 0.0), 3));
+    }
+
     /// <summary>
     /// Per-task scores for the report: recomputed from the pinned cells where they still exist, else as pinned. The word says which.
     /// A pinned cell graded without one of the suite's pass checks cannot be rescored under the current list (a missing check

@@ -62,8 +62,12 @@ record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95,
 
 record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
-/// <summary>The guard comparison: every arm against the suite's pinned baseline, with a tolerance on the point estimate.</summary>
-record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms, List<BaselineGap>? Gaps = null);
+/// <summary>
+/// The guard comparison: every arm against the suite's pinned baseline, with a tolerance on the point estimate.
+/// With <c>Against</c> (report --against), each arm against the arm of the same id in that experiment instead, and
+/// <c>Set</c> is when it was created; <c>Unpaired</c> are the arms it does not have.
+/// </summary>
+record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms, List<BaselineGap>? Gaps = null, string? Against = null, List<string>? Unpaired = null);
 
 /// <summary>
 /// <c>Verdict</c> is the point estimate against the tolerance, and is what <c>--fail-on regression</c> reads.
@@ -82,7 +86,12 @@ record StatsFile(
     Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null);
 
 /// <summary>What the report knows about the baseline: the resolved per-task scores, where they came from, and the tolerance asked for.</summary>
-record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints, List<BaselineGap>? Gaps = null);
+/// <summary>What the arms are compared with: one set of task scores for every arm, or with <c>PerArm</c> (report --against) each arm's own, and none for an arm it lacks.</summary>
+record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints, List<BaselineGap>? Gaps = null,
+    string? Against = null, Dictionary<string, Dictionary<string, double>>? PerArm = null)
+{
+    public Dictionary<string, double>? ScoresFor(string arm) => PerArm is null ? Scores : PerArm.GetValueOrDefault(arm);
+}
 
 static class Stats
 {
@@ -114,7 +123,8 @@ static class Stats
             var against = new Dictionary<string, BaselineArm>();
             foreach (var arm in arms)
             {
-                var c = Compare(arm, "baseline", scores[arm], guard.Scores, tasks);
+                if (guard.ScoresFor(arm) is not { } theirs) continue;
+                var c = Compare(arm, "baseline", scores[arm], theirs, tasks);
                 if (c is null) continue;
                 var tol = guard.TolerancePoints;
                 var verdict = GuardVerdict(c.DiffPoints, tol);
@@ -124,10 +134,12 @@ static class Stats
                     "improved" => c.Ci95[0] > tol,
                     _ => c.Ci95[0] >= -tol && c.Ci95[1] <= tol,
                 };
-                var perTask = c.Tasks.ToDictionary(x => x.Key, x => new BaselineTask(Round3(guard.Scores[x.Key]), Round3(scores[arm][x.Key]), x.Value, GuardVerdict(x.Value, tol)));
+                var perTask = c.Tasks.ToDictionary(x => x.Key, x => new BaselineTask(Round3(theirs[x.Key]), Round3(scores[arm][x.Key]), x.Value, GuardVerdict(x.Value, tol)));
                 against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, confirmed, perTask);
             }
-            baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against, guard.Gaps is { Count: > 0 } ? guard.Gaps : null);
+            var unpaired = guard.PerArm is null ? null : arms.Where(a => !guard.PerArm.ContainsKey(a)).ToList();
+            baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against, guard.Gaps is { Count: > 0 } ? guard.Gaps : null,
+                guard.Against, unpaired is { Count: > 0 } ? unpaired : null);
         }
 
         var nPairs = comparisons.Count > 0 ? comparisons.Min(c => c.NPairs) : tasks.Count(c => byArm[arms[0]].Any(r => r.Task == c && r.Decided));
@@ -143,12 +155,13 @@ static class Stats
             return new UndecidedCheck(name, counted.Count(r => r.Checks![name] == Verdict.NeedsJudge), counted.Count);
         }).Where(u => u.Runs > 5 || (u.Of > 0 && u.Runs > 0.05 * u.Of)).ToList();
 
+        var vs = guard?.Against is null ? "the baseline" : "each arm's earlier run";
         var methods = "Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. "
-            + "Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
+            + $"Per-arm rates use the Wilson 95% interval. Differences between arms, and against {vs}, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
             + $"The detectable difference assumes 80% power and a per-task paired-difference sd of {AssumedSdOfPairedDifference}. "
             + "Durations are the run's wall time including hooks; tokens are what nb reported. "
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
-            + (baseline is null ? "" : $" The baseline verdict is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
+            + (baseline is null ? "" : $" The {(guard?.Against is null ? "baseline verdict" : "verdict against each arm's earlier run")} is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
 
         var descriptions = new Descriptions(
             suite.Def.Description,

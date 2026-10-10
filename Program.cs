@@ -23,12 +23,13 @@ static class Program
         --version             print proctor's version (see CHANGELOG.md for what changed between versions)
         --tolerance <points>  report: how far below the baseline still counts as held (default 0)
         --fail-on regression  report: exit 1 when any arm regressed against the baseline
+        --against <experiment> report: compare each arm with the arm of the same id in that experiment, in place of the baseline
         """;
 
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, arm = null, failOn = null;
+        string? nbPath = null, runner = null, arm = null, failOn = null, against = null;
         List<string>? tasks = null, labels = null, judges = null;
         var tolerance = 0;
         var rejudge = false;
@@ -46,6 +47,7 @@ static class Program
                 case "--rejudge": rejudge = true; break;
                 case "--tasks" when i + 1 < args.Length: tasks = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
                 case "--tolerance" when i + 1 < args.Length && int.TryParse(args[i + 1], out var t) && t >= 0: tolerance = t; i++; break;
+                case "--against" when i + 1 < args.Length: against = args[++i]; break;
                 case "--fail-on" when i + 1 < args.Length && args[i + 1] == "regression": failOn = args[++i]; break;
                 case "-h" or "--help": Console.WriteLine(Usage); return 0;
                 case "--version": Console.WriteLine($"proctor {Runner.ProctorVersion}"); return 0;
@@ -63,7 +65,7 @@ static class Program
                 ("run", [var suite]) => Verbs.Run(root, suite, nbPath, runner),
                 ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner),
                 ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge),
-                ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn),
+                ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn, against),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, arm, tasks),
                 _ => Fail(Usage),
             };

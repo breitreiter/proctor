@@ -128,7 +128,13 @@ The directories are for reading, not for namespaces: everything is
   and compares every arm to them with the same Newcombe pairing. The verdict
   is `held`, `improved` or `regressed` on the point estimate against
   `--tolerance`; `--fail-on regression` turns it into an exit code. The
-  baseline is not in the accounting or the matrix.
+  baseline is not in the accounting or the matrix. `report --against <exp>`
+  replaces it for one report with per-arm scores from another experiment
+  (`GuardInput.PerArm`), arms paired by id, built as pins by
+  `Baseline.PinOf` and resolved by the same `Resolve`; the page then says
+  "earlier run" where it said "baseline". A pinned cell graded without a
+  current `pass` check is not rescored: its task stands as pinned and the
+  check is a `baseline.gaps` warning.
 - **Every id in the report carries a sentence.** `description` is the one
   key in a check spec that is not a check (`Checks.Description`); a script
   check must declare one, a built-in derives one from its fields

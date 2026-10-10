@@ -46,6 +46,7 @@ static class Report
         var first = arms[0];
         var d = stats.Descriptions;
         var bl = stats.Baseline;
+        var vs = Vs(bl);
         var b = new List<Block>();
         Cell T(string s) => new(s);
         Cell Id(string s) => new($"`{s}`");
@@ -68,7 +69,7 @@ static class Report
         foreach (var u in stats.UndecidedChecks)
             b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Runs} of the {u.Of} runs it applies to. Its pass rates below are over the {u.Of - u.Runs} runs it decided, and the check needs rewriting before this experiment is conclusive."));
         foreach (var g in bl?.Gaps ?? [])
-            b.Add(new Warning($"The baseline's pinned runs, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the baseline is the score as pinned, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the arm."));
+            b.Add(new Warning($"{(bl!.Against is null ? "The baseline's pinned runs" : "The earlier runs")}, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the {vs} is the score {(bl.Against is null ? "as pinned" : "that experiment gave")}, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the arm."));
 
         // 2. Arms
         b.Add(new Heading("Arms", "arms"));
@@ -91,7 +92,7 @@ static class Report
         ], "roles"));
         b.Add(new Para("A check that cannot decide a run leaves that run out of its rate on both sides.", "explain"));
         b.Add(new Para($"Each task's results show one mark per run: {Pass} passed, {Fail} failed, {Undecided} undecided, {NotCounted} not counted. Hover a mark for the reason; click it for the run. A task scores its mean over its counted, decided runs"
-            + (bl is null ? "." : bl.TolerancePoints == 0 ? ", and is called better or worse than its baseline on any difference." : $", and is called better or worse than its baseline beyond {bl.TolerancePoints} points either way."), "explain"));
+            + (bl is null ? "." : bl.TolerancePoints == 0 ? $", and is called better or worse than its {vs} on any difference." : $", and is called better or worse than its {vs} beyond {bl.TolerancePoints} points either way."), "explain"));
         foreach (var task in stats.Tasks) b.Add(TaskBlock(stats, rows, task, runsPerArm));
 
         // 4. Results: only the numbers across all tasks
@@ -104,15 +105,18 @@ static class Report
         b.Add(new Para(stats.Mde.Sentence));
         if (bl is not null)
         {
-            b.Add(new Para($"**Against the baseline.** The baseline is the score pinned for each task on {bl.Set[..10]}, scores {bl.Scores}. The verdict compares each arm's score with it and calls anything more than {bl.TolerancePoints} point{(bl.TolerancePoints == 1 ? "" : "s")} either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.", "explain"));
-            b.Add(new Table(["Arm", "Difference from baseline", "95% interval", "Tasks better / worse / same", "Verdict"],
+            b.Add(new Para((bl.Against is null
+                ? $"**Against the baseline.** The baseline is the score pinned for each task on {bl.Set[..10]}, scores {bl.Scores}."
+                : $"**Against ``{bl.Against}``.** Each arm is compared with its earlier run: the arm of the same id in experiment ``{bl.Against}``, from {bl.Set[..10]}, task by task, scores {bl.Scores}.")
+                + $" The verdict compares each arm's score with it and calls anything more than {bl.TolerancePoints} point{(bl.TolerancePoints == 1 ? "" : "s")} either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.", "explain"));
+            b.Add(new Table(["Arm", $"Difference from {vs}", "95% interval", "Tasks better / worse / same", "Verdict"],
                 arms.Select(a => bl.Arms.TryGetValue(a, out var g)
                     ? (List<Cell>)[Id(a), T(SignedPoints(g.DiffPoints)), T($"{Signed(g.Ci95[0])} to {Signed(g.Ci95[1])}"), T($"{g.Won} / {g.Lost} / {g.Tied}"),
                         new Cell($"**{ArmWord(g.Verdict)}** {Confirmation(g.Confirmed)}", $"<b class=\"{ToneClass(ArmTone(g.Verdict))}\">{ArmWord(g.Verdict)}</b> {Confirmation(g.Confirmed)}")]
-                    : [Id(a), T("—"), T("—"), T("—"), T("no shared tasks")]).ToList(),
+                    : [Id(a), T("—"), T("—"), T("—"), T(Unpaired(bl, a))]).ToList(),
                 [1, 2, 3]));
         }
-        b.Add(new Para($"How each task scored{(bl is null ? "" : " against its baseline")}, and why runs failed, is shown with the task under [Tasks](#tasks).", "explain"));
+        b.Add(new Para($"How each task scored{(bl is null ? "" : $" against its {vs}")}, and why runs failed, is shown with the task under [Tasks](#tasks).", "explain"));
 
         // 5. Failures
         b.Add(new Heading("Failures", "failures"));
@@ -204,11 +208,11 @@ static class Report
         string title;
         if (stats.Baseline is { } bl)
         {
-            title = $"Against the baseline pinned {ShortDate(bl.Set)}";
+            title = bl.Against is null ? $"Against the baseline pinned {ShortDate(bl.Set)}" : $"Against {bl.Against}, arm by arm";
             rows = arms.Select(a => bl.Arms.TryGetValue(a, out var g)
                 ? new CardArm(a, a == first && arms.Count > 1, ArmWord(g.Verdict), ArmTone(g.Verdict), g.Confirmed, SignedPoints(g.DiffPoints), $"{Signed(g.Ci95[0])} to {Signed(g.Ci95[1])}",
                     Drivers(g.Tasks.Select(t => (t.Key, t.Value.DiffPoints, t.Value.Verdict)), g.Verdict))
-                : new CardArm(a, a == first && arms.Count > 1, "No shared tasks", null, true, "", "", "")).ToList();
+                : new CardArm(a, a == first && arms.Count > 1, Capital(Unpaired(bl, a)), null, true, "", "", "")).ToList();
         }
         else if (stats.Comparisons.Count > 0)
         {
@@ -236,6 +240,14 @@ static class Report
             foot.Add(new Para(a, "caution"));
         return new Card(title, rows, foot);
     }
+
+    /// <summary>What an arm is compared with, in a sentence: the suite's pinned baseline, or with report --against, its earlier run.</summary>
+    static string Vs(BaselineStats? bl) => bl?.Against is null ? "baseline" : "earlier run";
+
+    /// <summary>Why an arm has no row against the baseline: the other experiment has no such arm, or they share no task.</summary>
+    static string Unpaired(BaselineStats bl, string arm) => bl.Unpaired?.Contains(arm) == true ? $"not in {bl.Against}" : "no shared tasks";
+
+    static string Capital(string s) => char.ToUpperInvariant(s[0]) + s[1..];
 
     /// <summary>The tasks behind an arm's verdict: the ones that moved, the arm's own direction first, then the ones that held.</summary>
     static string Drivers(IEnumerable<(string Task, int Diff, string Verdict)> tasks, string armVerdict)
@@ -310,9 +322,9 @@ static class Report
                 new(Declared(k.Level), $"<span class=\"src\">{Declared(k.Level)}</span>")]).ToList(),
             [], "checks"));
 
-        var baseline = bl?.Arms.Values.Select(a => a.Tasks.GetValueOrDefault(task)).FirstOrDefault(x => x is not null)?.Baseline;
+        var baseline = bl?.Against is null ? bl?.Arms.Values.Select(a => a.Tasks.GetValueOrDefault(task)).FirstOrDefault(x => x is not null)?.Baseline : null;
         body.Add(new Label("Results"));
-        body.Add(new Table(["Arm", "Runs", "Score", "Passed / decided", .. bl is null ? Array.Empty<string>() : [baseline is { } p ? $"vs baseline ({Pct(p)})" : "vs baseline", "Verdict"]],
+        body.Add(new Table(["Arm", "Runs", "Score", "Passed / decided", .. bl is null ? Array.Empty<string>() : [baseline is { } p ? $"vs baseline ({Pct(p)})" : $"vs {Vs(bl)}", "Verdict"]],
             arms.Select(a =>
             {
                 var runs = rows.Where(r => r.Arm == a && r.Task == task).OrderBy(r => r.Sample).ToList();

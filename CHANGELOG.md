@@ -7,7 +7,17 @@ formats or the vocabulary; a patch bump does not.
 
 ## 0.2.4 — 2026-10-10
 
-Two fixes. Nothing on disk breaks; `stats.json` only gains a field.
+Two fixes and `report --against`. Nothing on disk breaks; `stats.json` only
+gains fields.
+
+- `report <id> --against <other>` compares each arm with the arm of the same
+  id in another experiment, of this suite or another, in place of the
+  baseline: "did the new condition help each arm?". The other experiment's
+  decided cells are rescored under this suite's lists from their
+  `checks.json`, with no judge calls, and the gap rule below applies. An arm
+  the other experiment lacks is listed as unpaired. `stats.json`
+  `baseline.against` and `baseline.unpaired`; `--tolerance` and
+  `--fail-on regression` work as with a baseline.
 
 - A baseline whose pinned cells were never graded on one of the suite's
   current `pass` checks no longer rescores them to 0. Those tasks keep the

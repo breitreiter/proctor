@@ -91,4 +91,43 @@ public class BaselineTests
         Assert.Equal(1.0, bl["arms"]!["a"]!["tasks"]!["plain"]!["baseline"]!.GetValue<double>());
         Assert.Contains("never graded on the headline check `answer-short`", File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md")));
     }
+
+    [Fact]
+    public void ReportAgainst_PairsEachArmWithItsOwnEarlierRun_AndNamesAnArmTheOtherLacks()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("smoke");
+        repo.EditJson("smoke/suite.json", e => { foreach (var a in e["arms"]!.AsArray()) a!["samples"] = 1; });
+        var config = Suite.LoadConfig(repo.Root, []);
+        var suite = repo.LoadSuite("smoke");
+        var earlier = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, earlier), suite, TextWriter.Null);
+
+        // Arm b did worse on plain last time; arm a did not. A single pin could not show both.
+        var cell = Layout.Cell(Layout.Experiment(repo.Root, earlier), "b", "plain", 1);
+        var checks = JsonNode.Parse(File.ReadAllText(Path.Combine(cell, "checks.json")))!;
+        checks["says-expected"]!["result"] = "fail";
+        File.WriteAllText(Path.Combine(cell, "checks.json"), checks.ToJsonString());
+
+        // The new experiment adds an arm the earlier one never had.
+        repo.EditJson("smoke/suite.json", e => e["arms"]!.AsArray().Add(JsonNode.Parse("""{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 1 }""")));
+        suite = repo.LoadSuite("smoke");
+        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
+
+        Assert.Equal(0, Verbs.Report(repo.Root, id, againstId: earlier, failOn: "regression"));
+        var bl = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "stats.json")))!["baseline"]!;
+        Assert.Equal(earlier, bl["against"]!.GetValue<string>());
+        Assert.Equal("recomputed", bl["scores"]!.GetValue<string>());
+        Assert.Equal("held", bl["arms"]!["a"]!["verdict"]!.GetValue<string>());
+        Assert.Equal("improved", bl["arms"]!["b"]!["verdict"]!.GetValue<string>());
+        Assert.Equal(100, bl["arms"]!["b"]!["tasks"]!["plain"]!["diff_points"]!.GetValue<int>());
+        Assert.Null(bl["arms"]!["c"]);
+        Assert.Equal(["c"], bl["unpaired"]!.AsArray().Select(x => x!.GetValue<string>()));
+        var summary = File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md"));
+        Assert.Contains($"Against {earlier}, arm by arm", summary);
+        Assert.Contains($"not in {earlier}", summary);
+
+        Assert.Throws<ProctorException>(() => Verbs.Report(repo.Root, earlier, againstId: "no-such-experiment"));
+    }
 }

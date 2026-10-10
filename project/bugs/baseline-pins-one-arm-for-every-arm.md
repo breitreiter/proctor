@@ -2,7 +2,8 @@
 type: bug
 title: A baseline pins one arm, so a suite that reruns the same arms under a new condition cannot compare arm to arm
 created: 2026-10-09
-status: open
+status: fixed
+fixed: 2026-10-10, 0.2.4
 found-by: a downstream suite, planning a variant of itself with tools enabled
 ---
 
@@ -49,3 +50,16 @@ Any suite that reruns the same arms under a changed condition (a new model
 version, a new bundle, tools on or off) needs this. Without it the choices are
 the loop above or putting both conditions in one suite, which a per-suite
 program rules out.
+
+## Resolution
+
+Fixed in 0.2.4 by comparing experiments directly rather than pinning per arm:
+`report <id> --against <other>` pairs each arm with the arm of the same id in
+the other experiment (of this suite or another) and replaces the baseline for
+that report. Nothing is copied or written, and no judge is called: the other
+experiment's decided cells are rescored from their `checks.json` under this
+suite's lists, and a current pass check they were never graded on is a gap
+(see `baseline-missing-pass-check-scores-zero.md`). An arm the other
+experiment lacks is reported as not in it. The suite's `baseline.json`
+stays the regression guard. Per-arm pins in it (`--each-arm`) were left for
+when someone needs a standing per-arm guard in CI.
