@@ -39,7 +39,12 @@ What proctor lacks today (survey 2026-09-29), all of which this needs:
 
 ## Decisions
 
-1. **Podman is mandatory.** Every cell runs in a container proctor composes.
+1. **A container is mandatory: podman preferred, docker supported.** Every
+   cell runs in a container proctor composes. (The dev box has docker and no
+   podman, as of 2026-09-29. `runners/container.sh` already falls back to docker,
+   so `Run/Container.cs` keeps one engine switch and avoids flags only one
+   engine has, or maps them. `--userns=keep-id` is podman's; docker's
+   equivalent is `--user $(id -u):$(id -g)`.)
    There is no host run and no runner-script indirection. Agents avoid
    containers unless nagged and every project ends up needing one, so the
    default is the only path. This retires the brief's *the test environment
@@ -59,11 +64,16 @@ What proctor lacks today (survey 2026-09-29), all of which this needs:
    (its plan, item 5). A consumer agent reading proctor's docs and nb's
    finds exactly one way to test in Claude Code: run Claude Code.
 
-3. **Every agent's output is normalised to nb's transcript schema by an
-   adapter in proctor, read from stdout.** stdout is out of the model's reach
-   once proctor holds it; a file inside the container is not. The grader
-   (`Grade/Transcript.cs`) does not change. It is the definition of the
-   minimum the schema doc locks.
+3. **Every agent's output is translated into the lingua franca by an adapter
+   in proctor, read from stdout.** The lingua franca is nb's transcript
+   schema: a core whose counted fields are defined by what they count
+   (`turns`, `tool_calls`, `denied`, `exit_reason`), a normalised tool `kind`,
+   and optional `ext.<agent>.*` extensions (nb plan, item 1). stdout is out of
+   the model's reach once proctor holds it; a file inside the container is
+   not. The grader (`Grade/Transcript.cs`) learns `kind` and `ext`. Checks
+   match on the core by default. A check that names an extension or a tool
+   `name` is agent-specific and reports n/a on other agents, and validation
+   flags one in a multi-agent suite.
 
 4. **One home per agent: `Agents/<Agent>/`.** Each holds the invocation, the
    stream adapter, the capability table (which compiled directives it
@@ -97,6 +107,33 @@ What proctor lacks today (survey 2026-09-29), all of which this needs:
    cc and Codex costumes gone, a report can no longer compare a costume with
    the harness it imitates, so the labelling rule the brief needed for that
    (~:277–325) has nothing left to guard.
+
+10. **Harness compliance is a product loop, not a risk to be mitigated.** The
+   story proctor exists to tell is "we're fine on Codex, but the latest
+   Claude Code has problems." That needs the harness version to be a
+   dimension of the experiment, and it commits proctor to keeping up with
+   every harness it supports, permanently. Consequences:
+   - **An agent version is a pinned, named thing.** `agent_version` on an
+     arm, no floating `latest`. Auto-update is disabled in the image.
+   - **A version bump is an experiment.** The old and new versions run as
+     two arms of the same agent on the same model, and the report is the
+     changelog: "cc 2.1.285 → 2.1.290: two tasks regress". The same
+     mechanism serves the PM question ("is the new cc worse for us?") and
+     proctor's own upkeep.
+   - **Adapters are strict.** An event type, tool name or ending an adapter
+     doesn't recognise fails the cell as `adapter_unmapped` (infrastructure),
+     never a silent drop. A vendor format change shows up as a visible
+     failure on the first run after the bump, not as quietly wrong
+     transcripts.
+   - **Each supported version has a conformance kit**
+     (`Agents/<Agent>/conformance/<version>/`): recorded streams covering
+     each core event, each `kind` mapping, a denial, a subagent, a resume, and
+     each ending, plus the expected lingua-franca output. These are unit tests
+     of the adapter. Bumping a version means recording a new kit (one scripted
+     live run) and making it pass.
+   - **Comparisons across versions are labelled.** The report refuses to
+     pool samples from different `agent_version`s into one arm, and the
+     method section names every version.
 
 ## Work
 
@@ -186,11 +223,19 @@ judge time. On a trip: kill, write the `result` trailer with
   result must not depend on whose credentials built the image. Manifest
   records auth mode and cc version.
 - **Adapter** (`StreamJsonAdapter.cs`): `assistant` text blocks →
-  `assistant_text`; `tool_use` → `tool_call`; `user` `tool_result` →
-  `tool_result`; per-message `usage` → `usage`; `result` → trailer
-  (`num_turns`, `total_cost_usd`, `permission_denials` → `denied` and the
-  denied calls' `approved: false`, `session_id` kept for resume). Unit-tested
-  against recorded stream-json under `Proctor.Tests/fixtures/claude-code/`.
+  `assistant_text`; `tool_use` → `tool_call` with `kind` from the adapter's
+  name map (`Bash` → `shell`, `Edit` → `edit`, `Task` → `agent`, …);
+  `parent_tool_use_id` → `ext.claude_code.parent`; `user` `tool_result` →
+  `tool_result`; per-message `usage` → `usage`; `result` → trailer.
+  `turns` and `tool_calls` are **counted from the events by the lingua
+  franca's definitions, not copied from `num_turns`**. `permission_denials`
+  → `denied` and the denied calls' `approved: false`. `session_id` goes to
+  `ext.claude_code.session_id` for resume. On resume, cost and turns are
+  summed across processes (verified 2026-09-29: `total_cost_usd` and
+  `num_turns` are per process), and the oracle's answer is written as the
+  `user` event by proctor, because cc doesn't echo a resumed prompt into
+  the stream. Strict: anything unmapped is `adapter_unmapped`. Tested against
+  the conformance kit (decision 10).
 - **No mod.** An earlier draft kept one to capture `prompt.compose` for
   calibrating nb's `claude-code` costume; the costume is retired, so it has
   no job. Mods stay a known tool if a suite ever needs something stream-json
@@ -200,8 +245,10 @@ judge time. On a trip: kill, write the `result` trailer with
 
 Same shape. `codex exec --json`, resume with `codex exec resume <id>`, OpenAI
 models only, approval policy and sandbox mode from the compiled `approval`
-directives, clean `HOME` and `CODEX_HOME`. Adapter unit-tested against
-recorded output under `Proctor.Tests/fixtures/codex/`.
+directives, clean `HOME` and `CODEX_HOME`. The adapter is strict, maps
+Codex's tool names to `kind` (`shell` → `shell`, `apply_patch` → `edit`, …),
+and is tested against its conformance kit. Sandbox and approval behaviour
+inside the container is unverified; see *Open questions*.
 
 ### 7. Oracle (`Run/Oracle.cs`)
 
@@ -276,6 +323,9 @@ draft guide and treating where it stalls as the edits. Short by design:
    run a real suite: retiring the old route before the new one works leaves
    none.
 9. Guide finished by an agent porting a suite cold.
+10. The first deliberate version bump of cc, run as a two-arm experiment
+    (decision 10). This rehearses the compliance loop before it's needed in
+    anger.
 
 ## Retires
 
@@ -294,7 +344,11 @@ draft guide and treating where it stalls as the edits. Short by design:
 
 - Scoped gateway tokens: can the gateway mint them? If not, add it or accept
   the shared key for now.
-- Streaming out of `podman exec`: which of unbuffered / pty / FIFO works.
+- Streaming out of `podman exec` / `docker exec`: which of unbuffered / pty /
+  FIFO works.
+- Cost of real cc per task. Not measured: "hello" on Opus cost $0.10, because
+  cc sends ~22k prompt tokens before doing anything. Budget stage 3 from the
+  first real `code-change` run, not from the costume numbers.
 - Whether judge time should count against `wall_ms`. This plan says no;
   revisit if a suite leans on the oracle hard enough for it to matter.
 - Codex's own sandbox inside a rootless podman container: its `--sandbox`
