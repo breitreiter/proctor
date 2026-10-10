@@ -17,6 +17,13 @@ dotnet bin/Debug/net10.0/proctor.dll list             # or: dotnet run -- list
 Tests need nb built: `$NB_PATH`, else `../nb/bin/Debug/net10.0/nb` (build nb
 with `dotnet build` in its repo; its Mock provider drives every test here).
 
+## Bugs
+
+File a bug as a GitHub issue (`gh issue create`), not a file under
+`project/bugs/`; that directory holds the bugs filed before 2026-10-10 and
+gains no new ones. When planning a bug bash, start from the open issues
+(`gh issue list`), then any `status: open` file in `project/bugs/`.
+
 ## Vocabulary
 
 Fixed in `project/plans/suite-task-check.md` against Anthropic's
