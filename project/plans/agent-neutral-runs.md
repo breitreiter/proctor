@@ -238,6 +238,19 @@ below:
 - **`denied` is 0 by construction** under `bypassPermissions`; the denial
   mapping comes with `approval` (5).
 
+**Staging 3 landed on 2026-10-16** (proctor 0.2.6): `grade` reads agent
+cells. One departure: **nb is not converted to ATIF at ingest yet.**
+`Transcript.Read` has two readers into the one `Transcript` the checks see,
+nb's JSONL and ATIF plus `core.json`. Every experiment already under `runs/`
+holds nb JSONL, so the nb reader stays for a release either way; the
+conversion's point is the deterministic gate (8), which compares nb bare with
+nb through Harbor, so it lands with `Agents/Nb` in staging 4. Script checks
+are read from the verifier (decision 8), not rerun. `loop_nudged` on an agent
+cell is `error` until the report has an n/a verdict (decisions 3 and 7). The
+report still says nb where an agent arm ran (the arms table's harness and
+provider, "nb ended", "tokens nb reported"); decision 10's method section is
+what fixes that.
+
 ### 1. Compile (`Harbor/Compile.cs`)
 
 A new pipeline stage between `Suite/` and `Run/`. `run` writes, under the

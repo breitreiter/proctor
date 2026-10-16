@@ -34,8 +34,7 @@ static class Results
             var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
             var status = Runner.ReadStatus(cellDir);
-            var transcriptFile = Path.Combine(cellDir, Layout.TranscriptFile);
-            var trailer = status == CellStatus.Completed && File.Exists(transcriptFile) ? Transcript.Read(cellDir).Trailer : null;
+            var trailer = status == CellStatus.Completed && Transcript.Exists(cellDir) ? Transcript.Read(cellDir).Trailer : null;
             var checks = status == CellStatus.Completed ? Grade.ReadChecks(cellDir) : null;
             rows.Add(new ResultRow(
                 RunId: manifest?.RunId ?? "",

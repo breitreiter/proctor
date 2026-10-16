@@ -29,6 +29,8 @@ record CellContext(string SuiteDir, string CellDir, string WorkDir, string Exper
     public NbMounts? Mounts { get; init; }
     /// <summary>The judges a decide or judge check calls; set by grade, absent while running.</summary>
     public JudgeClient? Judges { get; init; }
+    /// <summary>An agent cell: its script checks already ran in Harbor's verifier, and grade reads their verdicts from the cell.</summary>
+    public bool ScriptsInVerifier { get; init; }
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
     public string WorkMount => Mounts?.Work ?? WorkDir;
@@ -229,7 +231,9 @@ static class Checks
             value = (cell.Expect?[check] as JsonObject)?[name] ?? cell.Expect?[name];
             if (value is null) return Verdict.Err($"{name}: task has no expect.{check}.{name} or expect.{name}");
         }
-        var verdict = name == "script" ? RunScript(value!.GetValue<string>(), scriptDir, cell) : BuiltIn(name, value!, cell, t);
+        var verdict = name == "script"
+            ? cell.ScriptsInVerifier ? VerifierScript(check, cell) : RunScript(value!.GetValue<string>(), scriptDir, cell)
+            : BuiltIn(name, value!, cell, t);
         if (!negated || verdict.Result is Verdict.Error or Verdict.NeedsJudge) return verdict;
         return new Verdict(verdict.Result == Verdict.Pass ? Verdict.Fail : Verdict.Pass, "not: " + verdict.Reason);
     }
@@ -267,6 +271,8 @@ static class Checks
                 var errors = t.ToolResults.Count(r => r.IsError);
                 return Verdict.Of(errors <= v["max"]!.GetValue<int>(), $"{errors} tool error{(errors == 1 ? "" : "s")} (max {v["max"]})");
             }
+            case "loop_nudged" when cell.ScriptsInVerifier:
+                return Verdict.Err("loop_nudged is nb's nudge; a vendor agent has none to fire");
             case "loop_nudged":
                 return Verdict.Of(t.LoopNudged == v.GetValue<bool>(), t.LoopNudged ? "loop nudge fired" : "no loop nudge");
             case "answer_contains":
@@ -379,6 +385,32 @@ static class Checks
             2 => new Verdict(Verdict.NeedsJudge, firstLine ?? "needs judge"),
             var code => Verdict.Err(firstLine ?? $"{script} exited {code}: {result.FirstStderrLine}"),
         };
+    }
+
+    /// <summary>
+    /// A script check that ran in Harbor's verifier: reward.json's key is the verdict (1 pass, 0 fail, 2 needs-judge),
+    /// the first line of verifier/&lt;check&gt;.out the reason. A missing key is error, never fail: the script exited
+    /// otherwise, or the verifier never reached it.
+    /// </summary>
+    private static Verdict VerifierScript(string check, CellContext cell)
+    {
+        var verifier = Path.Combine(cell.CellDir, Layout.VerifierDir);
+        string? FirstLine(string file) => File.Exists(Path.Combine(verifier, file))
+            ? File.ReadAllLines(Path.Combine(verifier, file)).Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) : null;
+        var rewardFile = Path.Combine(cell.CellDir, Layout.RewardFile);
+        if (!File.Exists(rewardFile)) return Verdict.Err("the verifier wrote no reward.json");
+        var reward = JsonNode.Parse(File.ReadAllText(rewardFile))?[check];
+        var reason = FirstLine($"{check}.out");
+        return reward is JsonValue v && v.TryGetValue<double>(out var r) ? r switch
+        {
+            1 => new Verdict(Verdict.Pass, reason ?? "pass"),
+            0 => new Verdict(Verdict.Fail, reason ?? "fail"),
+            2 => new Verdict(Verdict.NeedsJudge, reason ?? "needs judge"),
+            _ => Verdict.Err($"reward {r} is not 0, 1 or 2"),
+        }
+        : FirstLine("apply.out") is { } applyError ? Verdict.Err($"the run's diff did not apply in the verifier: {applyError}")
+        : FirstLine($"{check}.exit") is { } code ? Verdict.Err(reason ?? $"exited {code}")
+        : Verdict.Err("the verifier did not run this check");
     }
 
     private static (string Name, bool Negated) Split(string key) =>

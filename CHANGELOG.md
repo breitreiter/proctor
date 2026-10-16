@@ -5,6 +5,24 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.2.6 — 2026-10-16
+
+`grade` grades agent cells (staging step 3). Nothing on disk breaks; an nb
+cell is read and graded as before, and no rendering changed.
+
+- An agent cell's run is its ATIF `trajectory.json`, with `core.json` as the
+  trailer: `exit_reason`, `max_tool_calls`, `max_tokens`, `max_duration_ms`
+  and `denied_calls` read proctor's own count. The windows (answer, answer
+  JSON, tool calls, tool results, user turns) are the main agent's
+  conversation; a tool result is an error when the agent marked it so.
+- A script check on an agent cell is not rerun: its verdict is the cell's
+  `reward.json` key, its reason the first line of `verifier/<check>.out`. A
+  missing key is `error`, with the script's output or the diff that did not
+  apply as the reason.
+- `loop_nudged` on an agent cell is `error`: only nb nudges.
+- `core.json` gains `duration_ms`, the agent's phase alone, and takes Harbor's
+  token counts when the trajectory has none.
+
 ## 0.2.5 — 2026-10-16
 
 Agent arms: a real vendor CLI, run by Harbor in the fixture's image, as an

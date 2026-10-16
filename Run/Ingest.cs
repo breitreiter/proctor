@@ -9,9 +9,9 @@ record AgentRun(string Name, string? Version, string Model, Dictionary<string, s
 /// <summary>
 /// core.json: proctor's own count of a run, by its own definitions, from the ATIF steps, never the agent's own count.
 /// A turn is one agent step (one model response); a tool call is one entry of a step's tool_calls, subagents' included;
-/// kinds tally the calls by proctor's normalised tool kind.
+/// kinds tally the calls by proctor's normalised tool kind; the duration is the agent's phase alone.
 /// </summary>
-record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dictionary<string, int> Kinds, long? InputTokens, long? CachedTokens, long? OutputTokens, double? CostUsd);
+record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dictionary<string, int> Kinds, long? InputTokens, long? CachedTokens, long? OutputTokens, double? CostUsd, long? DurationMs = null);
 
 /// <summary>
 /// A Harbor trial into a cell: the trajectory, the agent's native logs, the diff, the verifier's rewards and outputs,
@@ -87,7 +87,15 @@ static class Ingest
         };
         var (core, unmapped) = Count(JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject(), arm.Agent!, exitReason);
         if (unmapped is not null) return $"adapter_unmapped: {unmapped}";
-        Runner.WriteJson(Path.Combine(cellDir, Layout.CoreFile), core!);
+        // Tokens are the trajectory's when it carries them, else Harbor's account of the agent's run.
+        Runner.WriteJson(Path.Combine(cellDir, Layout.CoreFile), core! with
+        {
+            InputTokens = core.InputTokens ?? manifest.Agent.InputTokens,
+            CachedTokens = core.CachedTokens ?? manifest.Agent.CachedTokens,
+            OutputTokens = core.OutputTokens ?? manifest.Agent.OutputTokens,
+            CostUsd = core.CostUsd ?? manifest.Agent.CostUsd,
+            DurationMs = Elapsed(result["agent_execution"]),
+        });
         return null;
     }
 
@@ -127,6 +135,11 @@ static class Ingest
     }
 
     static long? Long(JsonNode? node) => node?.GetValue<long>();
+
+    /// <summary>A Harbor phase's wall time: the agent's run alone, without the image build, the setup or the verifier.</summary>
+    static long? Elapsed(JsonNode? timing) =>
+        DateTimeOffset.TryParse(timing?["started_at"]?.GetValue<string>(), out var start) && DateTimeOffset.TryParse(timing?["finished_at"]?.GetValue<string>(), out var end)
+            ? (long)(end - start).TotalMilliseconds : null;
 
     static string FirstLine(string? text) => (text ?? "").Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) ?? "";
 

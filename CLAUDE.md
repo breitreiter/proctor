@@ -70,7 +70,7 @@ in the order the verbs run them. Every file is one concern:
 | `Run/Ingest.cs` | a Harbor trial into a cell, and the counted core (`core.json`) from the ATIF trajectory |
 | `Run/Checkout.cs` | the work directory: materialise the fixture, collect the diff, restore both for a regrade |
 | `Run/Subprocess.cs` | the one process helper: hooks, nb, Harbor, script checks, git; an optional timeout |
-| `Grade/Transcript.cs` | nb JSONL into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
+| `Grade/Transcript.cs` | nb JSONL, or an agent cell's ATIF trajectory with its `core.json`, into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
 | `Grade/Checks.cs` | the built-in vocabulary and the script contract; `Glob` |
 | `Grade/Window.cs` | what a model check sees: named extractions from the transcript, joined with `+`, compiled into labelled fences |
 | `Grade/Judge.cs` | `JudgeClient` (the transports), the `decide` check over systemone, the `judge` check over chat, the verdict file as cache, the report's judge provenance |
@@ -140,9 +140,16 @@ The directories are for reading, not for namespaces: everything is
   one Harbor job in `<cell>/harbor/`; `Ingest` lifts the trial into the
   cell and writes `core.json`, proctor's own count, strictly: an unknown
   tool, a version other than the pin, or no trajectory fails the cell. An
-  agent timeout is a completed run with `time_budget`. Grading an agent
-  cell is not yet (staging step 3): `grade` skips it and says so, and a
-  script check that reads `PROCTOR_TRANSCRIPT` has none in the verifier.
+  agent timeout is a completed run with `time_budget`. `grade` reads an
+  agent cell like any other: `Transcript.Read` takes `trajectory.json`
+  when there is no `transcript.jsonl`, with `core.json` as the trailer (so
+  a budget check reads proctor's count, never the agent's) and the main
+  agent's conversation as the windows (a subagent's calls are counted, not
+  listed). A script check is not rerun on the host: its verdict is the
+  cell's `reward.json` key and its reason the first line of
+  `verifier/<check>.out`, a missing key `error`. `loop_nudged` is `error`
+  on an agent cell, since only nb nudges; a script check that reads
+  `PROCTOR_TRANSCRIPT` has none in the verifier.
 - **The baseline is a virtual arm in the statistics, not in the experiment.**
   `report` resolves `baseline.json` to per-task scores (re-read from the
   pinned cells' `checks.json` under the current `pass` and `validity`

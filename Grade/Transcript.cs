@@ -4,7 +4,8 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-// nb's JSONL read into the fixed windows the checks look at. Nothing here judges anything.
+// A cell's run read into the fixed windows the checks look at: nb's JSONL, or an agent cell's ATIF trajectory with
+// proctor's counted core. Nothing here judges anything.
 
 record Trailer(
     string ExitReason,
@@ -19,13 +20,13 @@ record ToolCall(string Id, string Name, JsonObject? Arguments, string? Approved,
     public string? Rung => ApprovalReason?.Split(' ', 2)[0];
 }
 
-record ToolResult(string Id, string Output, JsonObject? Result)
+record ToolResult(string Id, string Output, JsonObject? Result, bool? Failed = null)
 {
-    /// <summary>A refusal, a tool that reported an error, or a command whose exit code was not 0.</summary>
-    public bool IsError =>
+    /// <summary>What the agent said of the result, when it says (an ATIF result's is_error); else a refusal, a tool that reported an error, or a command whose exit code was not 0.</summary>
+    public bool IsError => Failed ?? (
         Output.StartsWith("Error:", StringComparison.Ordinal)
         || (Result?["exit_code"] is JsonValue v && v.TryGetValue<int>(out var code) && code != 0)
-        || (ExitCodeTrailer.Match(Output) is { Success: true } m && m.Groups[1].Value != "0");
+        || (ExitCodeTrailer.Match(Output) is { Success: true } m && m.Groups[1].Value != "0"));
 
     static readonly Regex ExitCodeTrailer = new(@"\[exit code: (\d+)\]\s*$");
 }
@@ -46,14 +47,68 @@ sealed class Transcript
     public string? Diff { get; init; }
     public bool LoopNudged => UserTurns.Any(u => u.IsLoopNudge);
 
-    /// <summary>Read a cell: transcript.jsonl plus diff.patch when the teardown hook wrote one.</summary>
+    /// <summary>Whether a cell holds a run to read: nb's transcript, or an agent cell's trajectory.</summary>
+    public static bool Exists(string cellDir) =>
+        File.Exists(Path.Combine(cellDir, Layout.TranscriptFile)) || File.Exists(Path.Combine(cellDir, Layout.TrajectoryFile));
+
+    /// <summary>Read a cell: transcript.jsonl, else an agent cell's trajectory.json and core.json; plus diff.patch when there is one.</summary>
     public static Transcript Read(string cellDir)
     {
         var diffFile = Path.Combine(cellDir, Layout.DiffFile);
-        return Parse(
-            File.ReadAllText(Path.Combine(cellDir, Layout.TranscriptFile)),
-            File.Exists(diffFile) ? File.ReadAllText(diffFile) : null);
+        var diff = File.Exists(diffFile) ? File.ReadAllText(diffFile) : null;
+        var trajectory = Path.Combine(cellDir, Layout.TrajectoryFile);
+        if (!File.Exists(Path.Combine(cellDir, Layout.TranscriptFile)) && File.Exists(trajectory))
+        {
+            var core = Path.Combine(cellDir, Layout.CoreFile);
+            return FromAtif(JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject(),
+                File.Exists(core) ? Runner.ReadJson<CountedCore>(core) : null, diff);
+        }
+        return Parse(File.ReadAllText(Path.Combine(cellDir, Layout.TranscriptFile)), diff);
     }
+
+    /// <summary>
+    /// An ATIF trajectory: the main agent's conversation as the windows (a subagent's calls are counted in the core, not
+    /// listed), and the core as the trailer, so a check reads proctor's count and never the agent's. The answer is the
+    /// last agent step with text; a tool result is an error when the agent marked it so (Claude Code's is_error).
+    /// </summary>
+    public static Transcript FromAtif(JsonObject trajectory, CountedCore? core, string? diff = null)
+    {
+        var t = new Transcript { Diff = diff };
+        foreach (var step in (trajectory["steps"]?.AsArray() ?? []).OfType<JsonObject>())
+        {
+            var text = AtifText(step["message"]);
+            switch (Str(step, "source"))
+            {
+                case "user":
+                    t.UserTurns.Add(new UserTurn(text, null));
+                    break;
+                case "agent":
+                    if (text.Trim().Length > 0) t.Answer = text;
+                    foreach (var call in (step["tool_calls"]?.AsArray() ?? []).OfType<JsonObject>())
+                        t.ToolCalls.Add(new ToolCall(Str(call, "tool_call_id") ?? "", Str(call, "function_name") ?? "", call["arguments"]?.DeepClone() as JsonObject, null, null));
+                    foreach (var result in (step["observation"]?["results"]?.AsArray() ?? []).OfType<JsonObject>())
+                    {
+                        var isError = result["extra"]?["tool_result_metadata"]?["raw_tool_result"]?["is_error"] is JsonValue e && e.TryGetValue<bool>(out var b) ? b : (bool?)null;
+                        t.ToolResults.Add(new ToolResult(Str(result, "source_call_id") ?? "", AtifText(result["content"]), null, isError ?? false));
+                    }
+                    break;
+            }
+        }
+        if (t.Answer is not null) t.AnswerJson = LastJsonFence(t.Answer);
+        if (core is not null)
+            t.Trailer = new Trailer(core.ExitReason, core.InputTokens, core.OutputTokens,
+                core.InputTokens is { } i && core.OutputTokens is { } o ? i + o : null, Estimated: false,
+                core.Turns, core.ToolCalls, core.DurationMs, Provider: null, Harness: Str(trajectory["agent"] as JsonObject ?? [], "name"), core.Denied, OracleTurns: 0);
+        return t;
+    }
+
+    /// <summary>An ATIF message or result content: a string, or content parts whose text parts are joined.</summary>
+    static string AtifText(JsonNode? node) => node switch
+    {
+        JsonValue v when v.TryGetValue<string>(out var s) => s,
+        JsonArray parts => string.Join("\n", parts.OfType<JsonObject>().Select(p => Str(p, "text") ?? "").Where(x => x.Length > 0)),
+        _ => "",
+    };
 
     public static Transcript Parse(string jsonl, string? diff = null)
     {

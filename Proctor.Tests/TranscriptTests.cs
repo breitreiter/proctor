@@ -117,3 +117,52 @@ public class TranscriptTests
         Assert.Empty(Fixture("plain").TouchedPaths());
     }
 }
+
+/// <summary>An agent cell's ATIF trajectory, captured from Claude Code 2.1.301 on Haiku through Harbor 0.24.0 (fix-null-deref, 2026-10-16).</summary>
+public class AtifTranscriptTests
+{
+    static readonly System.Text.Json.Nodes.JsonObject Captured =
+        System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "atif-claude-code.json")))!.AsObject();
+
+    [Fact]
+    public void Windows_AreTheMainConversation()
+    {
+        var t = Transcript.FromAtif(Captured, null);
+        Assert.StartsWith("Fixed. `Parse_LineWithoutMemo_HasNullMemo` now passes", t.Answer);
+        Assert.Equal(["Bash", "Bash", "Read", "Edit", "Bash"], t.ToolCalls.Select(c => c.Name));
+        Assert.Equal("/app/Ledger/Statement.cs", t.ToolCalls[2].Arguments!["file_path"]!.GetValue<string>());
+        Assert.Equal(t.ToolCalls.Select(c => c.Id), t.ToolResults.Select(r => r.Id));
+        Assert.All(t.ToolResults, r => Assert.False(r.IsError));
+        Assert.Contains("Passed!", t.ToolResults[^1].Output);
+        var user = Assert.Single(t.UserTurns);
+        Assert.StartsWith("`dotnet test Ledger.Tests` has one failing test", user.Text);
+        Assert.False(t.LoopNudged);
+        Assert.Null(t.Trailer);
+    }
+
+    [Fact]
+    public void Trailer_IsTheCountedCore_NeverTheAgentsOwnCount()
+    {
+        var (core, unmapped) = Ingest.Count(Captured, "claude-code", "ok");
+        Assert.Null(unmapped);
+        var t = Transcript.FromAtif(Captured, core! with { DurationMs = 41_000 });
+        var trailer = t.Trailer!;
+        Assert.Equal("ok", trailer.ExitReason);
+        Assert.Equal(4, trailer.Turns);
+        Assert.Equal(5, trailer.ToolCalls);
+        Assert.Equal(100_250 + 1_268, trailer.Total);
+        Assert.Equal(41_000, trailer.DurationMs);
+        Assert.Equal("claude-code", trailer.Harness);
+        Assert.Equal(new Dictionary<string, int> { ["shell"] = 3, ["read"] = 1, ["edit"] = 1 }, core.Kinds);
+    }
+
+    [Fact]
+    public void AToolResult_TheAgentMarkedAnError_IsAToolError()
+    {
+        var copy = Captured.DeepClone().AsObject();
+        copy["steps"]![1]!["observation"]!["results"]![0]!["extra"]!["tool_result_metadata"]!["raw_tool_result"]!["is_error"] = true;
+        var t = Transcript.FromAtif(copy, null);
+        Assert.True(t.ToolResults[0].IsError);
+        Assert.Equal(1, t.ToolResults.Count(r => r.IsError));
+    }
+}

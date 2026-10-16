@@ -144,7 +144,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     /// <summary>Everything a hook or check needs to know about a cell, for the runner and the grader alike.</summary>
     public static CellContext Context(string root, Experiment experiment, Suite suite, Arm arm, TaskDef c, int sample) =>
         new(suite.Dir, Layout.Cell(Layout.Experiment(root, experiment.Id), arm.Id!, c.Id!, sample), Layout.Work(root, experiment.Id, arm.Id!, c.Id!, sample), experiment.Id, arm.Id!, c, sample)
-        { Expect = suite.ExpectFor(c), Fixture = suite.FixtureOf(c), BundleDir = experiment.BundleOf(arm.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", NbPath = experiment.Nb.Path, NbConfig = experiment.Nb.Config, Mounts = experiment.Nb.Mounts };
+        { Expect = suite.ExpectFor(c), Fixture = suite.FixtureOf(c), BundleDir = experiment.BundleOf(arm.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", NbPath = experiment.Nb.Path, NbConfig = experiment.Nb.Config, Mounts = experiment.Nb.Mounts, ScriptsInVerifier = arm.IsAgent };
 
     /// <summary>Each arm's bundle, once per experiment: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
     public static Dictionary<string, ResolvedBundle> ResolveBundles(string root, Suite suite)

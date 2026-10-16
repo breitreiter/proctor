@@ -24,15 +24,9 @@ static class Grade
                 grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, null, null, null));
                 continue;
             }
-            if (arm.IsAgent)
-            {
-                grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, null, null, null));
-                log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  not graded: grading an agent arm's cell from its trajectory and the verifier's rewards is not yet implemented");
-                continue;
-            }
             var cell = Runner.Context(root, experiment, suite, arm, c, sample) with { Judges = judges };
-            // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree.
-            if (cell.Fixture is not null && suite.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(cell.Fixture, cell.WorkDir, cellDir) is { } error)
+            // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree. An agent cell's scripts ran in the verifier.
+            if (!arm.IsAgent && cell.Fixture is not null && suite.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(cell.Fixture, cell.WorkDir, cellDir) is { } error)
                 log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  could not restore the checkout: {error}");
             var checks = Cell(cell, suite, Transcript.Read(cellDir));
             var pass = Pass(checks, suite.Grading.Pass!);

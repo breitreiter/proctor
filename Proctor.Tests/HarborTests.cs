@@ -189,6 +189,7 @@ public class HarborTests
             ["task_name"] = "proctor/fix-null-deref",
             ["agent_info"] = new JsonObject { ["name"] = "claude-code", ["version"] = version },
             ["agent_result"] = new JsonObject { ["n_input_tokens"] = 1200, ["n_cache_tokens"] = 800, ["n_output_tokens"] = 300, ["cost_usd"] = 0.004 },
+            ["agent_execution"] = new JsonObject { ["started_at"] = "2026-10-16T21:59:40.250000Z", ["finished_at"] = "2026-10-16T22:00:21.750000Z" },
             ["exception_info"] = exception is null ? null : new JsonObject { ["exception_type"] = exception, ["exception_message"] = "it went wrong\nat line 1" },
         }.ToJsonString());
         if (trajectory is not "") File.WriteAllText(Path.Combine(dir, "agent", "trajectory.json"), trajectory ?? Trajectory("Read", "Edit", "Bash"));
@@ -232,6 +233,7 @@ public class HarborTests
         Assert.Equal(1, core["kinds"]!["edit"]!.GetValue<int>());
         Assert.Equal(1, core["kinds"]!["shell"]!.GetValue<int>());
         Assert.Equal(1200, core["input_tokens"]!.GetValue<long>());
+        Assert.Equal(41_500, core["duration_ms"]!.GetValue<long>());   // the agent's phase, not the trial's
     }
 
     [Fact]
@@ -298,6 +300,8 @@ public class HarborTests
         echo '{"steps": [{"step_id": 1, "source": "agent", "message": "done", "tool_calls": [{"tool_call_id": "a", "function_name": "Edit", "arguments": {}}]}]}' > "$t/agent/trajectory.json"
         echo 'diff --git a/x b/x' > "$t/artifacts/logs/artifacts/diff.patch"
         echo '{"builds": 1, "tests-pass": 0}' > "$t/verifier/reward.json"
+        echo 'dotnet build: 0 errors' > "$t/verifier/builds.out"; echo 0 > "$t/verifier/builds.exit"
+        echo '1 of 6 tests failed: Parse_LineWithoutMemo_HasNullMemo' > "$t/verifier/tests-pass.out"; echo 1 > "$t/verifier/tests-pass.exit"
         """;
 
     [Fact]
@@ -337,11 +341,77 @@ public class HarborTests
         // The key reached Harbor's process and no file.
         Assert.DoesNotContain(Directory.GetFiles(expDir, "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains($"sk-test-{keyVar}"));
 
-        // grade says what it cannot do yet rather than reading a transcript that is not there.
-        var log = new StringWriter();
-        var grades = Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, log);
-        Assert.Null(Assert.Single(grades).Checks);
-        Assert.Contains("not graded: grading an agent arm's cell", log.ToString());
+        // grade reads the script verdicts the verifier left, and runs the built-ins over the trajectory and the diff.
+        var grade = Assert.Single(Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null));
+        Assert.False(grade.Pass);
+        Assert.Equal(new Verdict(Verdict.Pass, "dotnet build: 0 errors"), grade.Checks!["builds"]);
+        Assert.Equal(new Verdict(Verdict.Fail, "1 of 6 tests failed: Parse_LineWithoutMemo_HasNullMemo"), grade.Checks["tests-pass"]);
+        Assert.Equal(new Verdict(Verdict.Fail, "touched 1 outside expected: x"), grade.Checks["diff-in-scope"]);
+        var row = Assert.Single(Results.Collect(repo.Root, Runner.LoadExperiment(repo.Root, id), suite));
+        Assert.Equal("ok", row.ExitReason);
+        Assert.Equal(1, row.ToolCalls);
+        Assert.Equal(15, row.Usage!.Total);
+    }
+
+    /// <summary>An agent cell as ingest leaves it, graded on its own: script verdicts from the verifier, the rest from the trajectory and the diff.</summary>
+    static Dictionary<string, Verdict> GradeAgentCell(Action<string> edit, Action<JsonObject>? editSuite = null)
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        if (editSuite is not null) repo.EditJson("agent-smoke/suite.json", editSuite);
+        var suite = repo.LoadSuite("agent-smoke");
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
+        File.WriteAllText(Path.Combine(trial, "verifier", "tests-pass.out"), "6 of 6 tests pass\n");
+        Assert.Null(Ingest.Trial(trial, cell, CcArm, NewManifest()));
+        edit(cell);
+        var context = new CellContext(suite.Dir, cell, Path.Combine(repo.Root, "work"), "e", "cc-haiku", suite.Tasks[0], 1)
+            { Expect = suite.ExpectFor(suite.Tasks[0]), Fixture = suite.FixtureOf(suite.Tasks[0]), ScriptsInVerifier = true };
+        return Grade.Cell(context, suite, Transcript.Read(cell));
+    }
+
+    [Fact]
+    public void Grade_AnAgentCell_ReadsTheVerifier_AndTheTrajectory()
+    {
+        var checks = GradeAgentCell(_ => { });
+        Assert.Equal(new Verdict(Verdict.Pass, "dotnet build: 0 errors"), checks["builds"]);
+        Assert.Equal(new Verdict(Verdict.Pass, "6 of 6 tests pass"), checks["tests-pass"]);
+        Assert.Equal(new Verdict(Verdict.Pass, "touched 1, all expected"), checks["diff-in-scope"]);
+    }
+
+    [Fact]
+    public void Grade_AMissingRewardKey_IsAnError_NeverAFail()
+    {
+        var checks = GradeAgentCell(cell =>
+        {
+            File.WriteAllText(Path.Combine(cell, "reward.json"), "{\"builds\": 1}");
+            File.WriteAllText(Path.Combine(cell, "verifier", "tests-pass.out"), "dotnet: command not found\n");
+            File.WriteAllText(Path.Combine(cell, "verifier", "tests-pass.exit"), "127\n");
+        });
+        Assert.Equal(new Verdict(Verdict.Error, "dotnet: command not found"), checks["tests-pass"]);
+
+        checks = GradeAgentCell(cell =>
+        {
+            File.WriteAllText(Path.Combine(cell, "reward.json"), "{}");
+            File.WriteAllText(Path.Combine(cell, "verifier", "apply.out"), "error: patch failed: Ledger/Statement.cs:31\n");
+        });
+        Assert.Equal(new Verdict(Verdict.Error, "the run's diff did not apply in the verifier: error: patch failed: Ledger/Statement.cs:31"), checks["builds"]);
+    }
+
+    [Fact]
+    public void Grade_BuiltIns_ReadTheCountedCore_AndTheNudgeIsNbs()
+    {
+        var checks = GradeAgentCell(_ => { }, e =>
+        {
+            e["grading"]!["checks"]!["few-calls"] = JsonNode.Parse("{\"max_tool_calls\": 2}");
+            e["grading"]!["checks"]!["exit-ok"] = JsonNode.Parse("{\"exit_reason\": \"ok\"}");
+            e["grading"]!["checks"]!["not-nudged"] = JsonNode.Parse("{\"loop_nudged\": false}");
+            e["grading"]!["checks"]!["answered"] = JsonNode.Parse("{\"answer_contains\": \"6 of 6\"}");
+        });
+        Assert.Equal(new Verdict(Verdict.Fail, "3 tool calls (max 2)"), checks["few-calls"]);
+        Assert.Equal(Verdict.Pass, checks["exit-ok"].Result);
+        Assert.Equal(Verdict.Pass, checks["answered"].Result);
+        Assert.Equal(new Verdict(Verdict.Error, "loop_nudged is nb's nudge; a vendor agent has none to fire"), checks["not-nudged"]);
     }
 
     [Fact]
