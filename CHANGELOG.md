@@ -5,6 +5,39 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.2.5 — 2026-10-16
+
+Agent arms: a real vendor CLI, run by Harbor in the fixture's image, as an
+arm beside nb's. Staging step 2 of `project/plans/agent-neutral-runs.md`:
+compile, run and ingest, for Claude Code. Nothing on disk breaks; an nb
+suite runs exactly as before.
+
+- An arm with `"agent": "claude-code"`, `"agent_version"` (pinned) and a
+  bare Anthropic `model` runs through Harbor. The suite pins
+  `harbor.version` and sets `limits.wall_ms`; every task's fixture declares
+  an `image` (`from`, `env`, `run`). `codex` and `qwen-code` are "not yet".
+  `limits.tool_calls`, `tokens` and `cost_usd` are "not yet"; a sample hook
+  in a suite with an agent arm is refused (its setup goes in the image).
+- `suites/proctor.json` gains `agents.claude-code` (`base_url`, `api_key`,
+  `${VAR}` resolved at `run`) and `harbor.uv`. The base URL's host is the one
+  name the agent's container may reach. See `proctor.example.json`.
+- `run` compiles each agent arm's tasks under `runs/<id>/harbor/tasks/` and
+  records `harbor` (version, tasks hash) and `versions.harbor` in
+  `experiment.json`; `resume` refuses compiled tasks changed on disk. Each
+  cell runs one Harbor job in `<cell>/harbor/`, with telemetry off and the key
+  only in Harbor's environment.
+- An agent cell holds `trajectory.json` (ATIF), `agent/` (native logs),
+  `diff.patch`, `verifier/` and `reward.json` (one key per script check: 1
+  pass, 0 fail, 2 needs-judge, absent error), and `core.json`: proctor's own
+  count (turns, tool calls, kinds, tokens, exit reason). Its manifest has
+  `agent` in place of `runner`, `harness` and `provider`, which are now
+  optional. A Harbor exception other than a timeout, a version other than the
+  pinned one, or a tool the mapping does not know fails the cell.
+- `grade` skips an agent cell and says so: grading from the trajectory and
+  the rewards is staging step 3.
+- `Subprocess.Run` takes a timeout; the Harbor process is killed past the
+  wall limit plus build, verifier and start-up time.
+
 ## 0.2.4 — 2026-10-10
 
 Two fixes and `report --against`. Nothing on disk breaks; `stats.json` only

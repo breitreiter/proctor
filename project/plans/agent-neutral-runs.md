@@ -210,6 +210,34 @@ A failure in 4 or 5 narrows the plan but does not reverse it.
 run*). Step 5 narrows the oracle: Qwen Code cannot be a bridge target, and
 the target's record in bridge mode is raw ACP history, not ATIF.
 
+**Staging 2 landed on 2026-10-16** (proctor 0.2.5) for Claude Code: compile
+(1), run (2) and ingest (3), with `suites/agent-smoke` (cc on Haiku,
+`fix-null-deref` on `ledger`) as its suite. Where it differs from the text
+below:
+
+- **One Harbor job per cell, not one per experiment.** A cell's job is one
+  trial of one task by one agent (`<cell>/harbor/job.json`), so a trial maps
+  to its cell by construction, a cell's attempts and status stay proctor's,
+  and `resume` reruns exactly the cells that did not complete. The cost is
+  Harbor's concurrency (cells run one at a time, as nb cells do) and a few
+  seconds of Harbor start-up per cell; one job per arm with
+  `n_concurrent_trials` is the follow-on once the paid arms make wall time
+  matter.
+- **Tasks compile per (arm, task)**, under
+  `runs/<id>/harbor/tasks/<arm>/<task>/`, because the image installs the
+  arm's agent at its pin. Docker's layer cache shares the fixture layers.
+- **The instruction is the task's prompt.** The program template is nb's;
+  `system` → `append_system_prompt` and the tool directives are
+  `Agents/ClaudeCode` (5). Permission mode is stated as `bypassPermissions`
+  and every model alias as the arm's model, recorded in the manifest.
+- **Limits:** `limits.wall_ms` only; the rest are "not yet".
+- **The verifier runs script checks only.** It has no transcript, so a
+  script check that reads `PROCTOR_TRANSCRIPT` (code-change's
+  `stays-in-work`) cannot run there; it becomes a built-in over ATIF in (4).
+  `grade` skips agent cells until (4).
+- **`denied` is 0 by construction** under `bypassPermissions`; the denial
+  mapping comes with `approval` (5).
+
 ### 1. Compile (`Harbor/Compile.cs`)
 
 A new pipeline stage between `Suite/` and `Run/`. `run` writes, under the

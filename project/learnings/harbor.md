@@ -294,3 +294,15 @@ total over five cc trials, 18 gateway requests.
   `agent_result`. An oracle task needs an ACP reader at ingest, or a
   conversion upstream.
 - **Telemetry** stayed off by `HARBOR_TELEMETRY=off` on every invocation.
+
+### Staging 2, run (2026-10-16)
+
+`suites/agent-smoke` through proctor 0.2.5: cc 2.1.301 on Haiku 5.5,
+`fix-null-deref`, compiled by `Harbor/Compile.cs` rather than by hand.
+Completed with `builds` and `tests-pass` both 1; 86 s with the image built
+from scratch, 58 s cached; $0.0046, 5 tool calls over 4 turns by proctor's
+count. One thing the spike did not write down: a collected container path is
+mirrored under the trial's `artifacts/`, so `/logs/artifacts/diff.patch`
+lands at `artifacts/logs/artifacts/diff.patch` (the manifest says so), not
+at `artifacts/diff.patch`. Ingest first read the wrong path and fell back to
+an empty diff; it now fails the cell when the diff is missing.

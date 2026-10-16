@@ -64,9 +64,12 @@ in the order the verbs run them. Every file is one concern:
 | `Suite/Judges.cs` | `proctor.json`'s `judges` block: an endpoint per name by wire shape (`systemone`, `chat`), key resolution, which judge a check gets |
 | `Suite/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
 | `Suite/Baseline.cs` | `suites/<suite>/baseline.json`: pinned cells per task; scores recomputed from the cells while they exist |
-| `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, resume |
+| `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, an agent cell through Harbor, resume |
+| `Harbor/Compile.cs` | an agent arm's task as a Harbor task (`instruction.md`, `task.toml`, the image, the verifier) and a cell's job file |
+| `Run/Harbor.cs` | one cell's Harbor job: `uv tool run harbor@<pin>`, telemetry off, the key in its environment only |
+| `Run/Ingest.cs` | a Harbor trial into a cell, and the counted core (`core.json`) from the ATIF trajectory |
 | `Run/Checkout.cs` | the work directory: materialise the fixture, collect the diff, restore both for a regrade |
-| `Run/Subprocess.cs` | the one process helper: hooks, nb, script checks, git |
+| `Run/Subprocess.cs` | the one process helper: hooks, nb, Harbor, script checks, git; an optional timeout |
 | `Grade/Transcript.cs` | nb JSONL into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
 | `Grade/Checks.cs` | the built-in vocabulary and the script contract; `Glob` |
 | `Grade/Window.cs` | what a model check sees: named extractions from the transcript, joined with `+`, compiled into labelled fences |
@@ -77,6 +80,7 @@ in the order the verbs run them. Every file is one concern:
 | `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |
 | `suites/smoke/` | proctor's own suite: every task scripts nb's Mock provider |
 | `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions |
+| `suites/agent-smoke/` | the Harbor path's shakedown: Claude Code on Haiku, one task on `ledger`; retired when `code-change` is ported (agent-neutral-runs staging 5) |
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
@@ -121,6 +125,24 @@ The directories are for reading, not for namespaces: everything is
   by source, path and hash in `experiment.json` and every cell manifest;
   proctor never reads what is inside it. `resume` refuses a changed bundle
   as it refuses a changed suite.
+- **An agent arm is a vendor CLI run by Harbor; an nb arm is nb run bare.**
+  `arm.agent` (`claude-code`; `codex` and `qwen-code` not yet) with a pinned
+  `agent_version` and a bare model of the agent's vendor; the nb fields are
+  refused on it. The plan is `project/plans/agent-neutral-runs.md`; what
+  Harbor writes is `project/learnings/harbor.md`. `run` compiles each
+  (agent arm, task) once under `runs/<id>/harbor/tasks/<arm>/<task>/`: the
+  prompt as `instruction.md`, the fixture's `repo/` (and only it) committed
+  in the image `fixture.image` describes, the arm's agent installed at its
+  pin, and `tests/` with the suite, the fixture minus `repo/`, and a
+  `test.sh` running every script check in Harbor's separate, offline
+  verifier (one `reward.json` key per check). The allowlist is the host of
+  `proctor.json` `agents.<agent>.base_url`, exactly as spelled. Each cell is
+  one Harbor job in `<cell>/harbor/`; `Ingest` lifts the trial into the
+  cell and writes `core.json`, proctor's own count, strictly: an unknown
+  tool, a version other than the pin, or no trajectory fails the cell. An
+  agent timeout is a completed run with `time_budget`. Grading an agent
+  cell is not yet (staging step 3): `grade` skips it and says so, and a
+  script check that reads `PROCTOR_TRANSCRIPT` has none in the verifier.
 - **The baseline is a virtual arm in the statistics, not in the experiment.**
   `report` resolves `baseline.json` to per-task scores (re-read from the
   pinned cells' `checks.json` under the current `pass` and `validity`

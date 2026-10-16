@@ -1,0 +1,386 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Proctor;
+
+namespace Proctor.Tests;
+
+/// <summary>Agent arms: validation, compiling a task for Harbor, ingesting a trial, and the runner with a stand-in for Harbor.</summary>
+public class HarborTests
+{
+    const string BaseUrl = "http://library:8086/x/anthropic";
+
+    static JsonObject ReadJson(string file) => JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+
+    /// <summary>agent-smoke, with proctor.json naming the agent's endpoint, a key from a variable only this test sets, and uv as given.</summary>
+    static (TestRepo Repo, string KeyVar) AgentRepo(string? uv = null)
+    {
+        var repo = new TestRepo();
+        repo.CopySuite("agent-smoke");
+        var keyVar = "PROCTOR_TEST_KEY_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        Environment.SetEnvironmentVariable(keyVar, "sk-test-" + keyVar);
+        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), JsonSerializer.Serialize(new
+        {
+            nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
+            agents = new Dictionary<string, object> { ["claude-code"] = new { base_url = BaseUrl, api_key = "${" + keyVar + "}" } },
+            harbor = new { uv = uv ?? "uv" },
+        }));
+        return (repo, keyVar);
+    }
+
+    [Fact]
+    public void AgentSmoke_Loads_AsOneAgentArm()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        var suite = repo.LoadSuite("agent-smoke");
+        var arm = Assert.Single(suite.Arms);
+        Assert.True(arm.IsAgent);
+        Assert.True(suite.HasAgentArms);
+        Assert.Equal("claude-code", arm.Agent);
+        Assert.Equal("2.1.301", arm.AgentVersion);
+        Assert.Equal("0.24.0", suite.Def.Harbor!.Version);
+        Assert.Equal(900_000, suite.Def.Limits!.WallMs);
+        Assert.Equal(["builds", "diff-in-scope", "tests-pass"], suite.ChecksFor(suite.Tasks[0]).Keys.Order(StringComparer.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("harness", "\"claude-code\"", "arms[0].harness", "an nb field")]
+    [InlineData("provider", "\"anthropic\"", "arms[0].provider", "an nb field")]
+    [InlineData("model", "\"gpt-5.4\"", "arms[0].model", "not an Anthropic model")]
+    [InlineData("model", "\"anthropic/claude-haiku-5-5\"", "arms[0].model", "provider prefix")]
+    [InlineData("agent_version", "null", "arms[0].agent_version", "pinned")]
+    [InlineData("agent_version", "\"latest\"", "arms[0].agent_version", "not a version number")]
+    [InlineData("agent", "\"codex\"", "arms[0].agent", "not yet implemented")]
+    [InlineData("agent", "\"cursor\"", "arms[0].agent", "unknown agent")]
+    public void AgentArm_IsValidated(string field, string value, string problemField, string message)
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        repo.EditJson("agent-smoke/suite.json", e => e["arms"]![0]![field] = JsonNode.Parse(value));
+        Assert.Contains(repo.Problems("agent-smoke"), p => p.Field == problemField && p.Message.Contains(message));
+    }
+
+    [Fact]
+    public void AgentArm_NeedsAPinnedHarbor_AWallLimit_AndAnImageOnEveryFixture()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        repo.EditJson("agent-smoke/suite.json", e => { e.Remove("harbor"); e["limits"] = JsonNode.Parse("{\"tool_calls\": 60}"); });
+        repo.EditJson("../fixtures/ledger/fixture.json", f => f.Remove("image"));
+        var problems = repo.Problems("agent-smoke");
+        Assert.Contains(problems, p => p.Field == "harbor.version" && p.Message.Contains("required with an agent arm"));
+        Assert.Contains(problems, p => p.Field == "limits.wall_ms" && p.Message.Contains("required"));
+        Assert.Contains(problems, p => p.Field == "limits.tool_calls" && p.Message.Contains("not yet"));
+        Assert.Contains(problems, p => p.File.EndsWith("fixture.json") && p.Field == "image");
+    }
+
+    [Fact]
+    public void AgentArm_RefusesSampleHooks_AndANbSuiteRefusesTheHarborBlocks()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        repo.WriteScript("agent-smoke/hooks/setup.sh", "#!/bin/sh\nexit 0\n");
+        repo.EditJson("agent-smoke/suite.json", e => e["hooks"] = JsonNode.Parse("{\"sample\": {\"setup\": \"hooks/setup.sh\"}}"));
+        Assert.Contains(repo.Problems("agent-smoke"), p => p.Field == "hooks.sample" && p.Message.Contains("fixture's image"));
+
+        repo.CopySuite("smoke");
+        repo.EditJson("smoke/suite.json", e => { e["harbor"] = JsonNode.Parse("{\"version\": \"0.24.0\"}"); e["limits"] = JsonNode.Parse("{\"wall_ms\": 60000}"); });
+        var problems = repo.Problems("smoke");
+        Assert.Contains(problems, p => p.Field == "harbor" && p.Message.Contains("nothing runs through Harbor"));
+        Assert.Contains(problems, p => p.Field == "limits" && p.Message.Contains("budget directives"));
+    }
+
+    [Fact]
+    public void Compile_WritesTheTask_WithTheRepoInTheImage_AndTheChecksOnlyInTheVerifier()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        var suite = repo.LoadSuite("agent-smoke");
+        var expDir = Path.Combine(repo.Root, "runs", "exp");
+        var hash = HarborCompile.Tasks(expDir, suite, "exp", _ => new AgentRoute(BaseUrl, "sk-secret"));
+        Assert.Equal(hash, HarborCompile.TreeHash(expDir));
+        var task = Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref");
+
+        Assert.Equal(suite.Tasks[0].Prompt!.TrimEnd() + "\n", File.ReadAllText(Path.Combine(task, "instruction.md")));
+
+        var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
+        Assert.Contains("name = \"proctor/fix-null-deref\"", toml);
+        Assert.Contains("timeout_sec = 900.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"library\"]", toml);
+        Assert.Contains("environment_mode = \"separate\"\nnetwork_mode = \"no-network\"", toml);
+        Assert.Contains("git diff --cached --binary HEAD > /logs/artifacts/diff.patch", toml);
+
+        var dockerfile = File.ReadAllText(Path.Combine(task, "environment", "Dockerfile"));
+        Assert.Contains("FROM mcr.microsoft.com/dotnet/sdk:10.0\n", dockerfile);
+        Assert.Contains("DOTNET_NOLOGO=\"1\"", dockerfile);
+        Assert.Contains("COPY repo /app\nWORKDIR /app\nRUN git init -q", dockerfile);
+        Assert.Contains("RUN find . -name '*.csproj' -exec dotnet restore -v q {} \\;\n", dockerfile);
+        Assert.Contains("bootstrap.sh | bash -s -- 2.1.301", dockerfile);
+
+        // Only repo/ enters the image's build context: no checks, no .git, nothing excluded.
+        var context = Path.Combine(task, "environment", "repo");
+        Assert.True(File.Exists(Path.Combine(context, "Ledger", "Statement.cs")));
+        Assert.False(Directory.Exists(Path.Combine(context, ".git")));
+        Assert.False(Directory.Exists(Path.Combine(context, "checks")));
+        Assert.Empty(Directory.GetDirectories(context, "obj", SearchOption.AllDirectories));
+
+        // The checks, the suite and the expectations are the verifier's.
+        var tests = Path.Combine(task, "tests");
+        Assert.True(File.Exists(Path.Combine(tests, "fixture", "checks", "builds.sh")));
+        Assert.False(Directory.Exists(Path.Combine(tests, "fixture", "repo")));
+        Assert.True(File.Exists(Path.Combine(tests, "suite", "tasks", "fix-null-deref.json")));
+        var test = File.ReadAllText(Path.Combine(tests, "test.sh"));
+        Assert.Contains("check 'builds' '/tests/fixture/checks/builds.sh'\n", test);
+        Assert.Contains("check 'tests-pass' '/tests/fixture/checks/tests-pass.sh'\n", test);
+        Assert.DoesNotContain("diff-in-scope", test);
+        Assert.True(File.GetUnixFileMode(Path.Combine(tests, "test.sh")).HasFlag(UnixFileMode.UserExecute));
+        var env = File.ReadAllText(Path.Combine(tests, "env.sh"));
+        Assert.Contains("export PROCTOR_WORK='/app'\n", env);
+        Assert.Contains("export PROCTOR_TASK='fix-null-deref'\n", env);
+        Assert.Contains("\"files_touched\":{\"paths\":[\"Ledger/**\"]", env);
+
+        // Nothing compiled holds the key.
+        Assert.DoesNotContain(Directory.GetFiles(Path.Combine(expDir, "harbor"), "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains("sk-secret"));
+    }
+
+    [Fact]
+    public void Job_StatesEverySettingHarborWouldDefault_AndCarriesNoKey()
+    {
+        var arm = new Arm("cc-haiku", null, null, null, "claude-haiku-5-5", 1, null, Agent: "claude-code", AgentVersion: "2.1.301");
+        var job = HarborCompile.Job(arm, "/t", "/j", new AgentRoute(BaseUrl, "sk-secret"));
+        Assert.Equal(1, job["n_attempts"]!.GetValue<int>());
+        Assert.Equal(0, job["retry"]!["max_retries"]!.GetValue<int>());
+        var agent = job["agents"]![0]!;
+        Assert.Equal("claude-code", agent["name"]!.GetValue<string>());
+        Assert.Equal("claude-haiku-5-5", agent["model_name"]!.GetValue<string>());
+        Assert.Equal("2.1.301", agent["kwargs"]!["version"]!.GetValue<string>());
+        Assert.Equal("bypassPermissions", agent["kwargs"]!["permission_mode"]!.GetValue<string>());
+        Assert.Equal(BaseUrl, agent["env"]!["ANTHROPIC_BASE_URL"]!.GetValue<string>());
+        foreach (var alias in new[] { "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL" })
+            Assert.Equal("claude-haiku-5-5", agent["env"]![alias]!.GetValue<string>());
+        Assert.DoesNotContain("sk-secret", job.ToJsonString());
+    }
+
+    // A trial as Harbor 0.24.0 writes one: result.json, the agent's logs with the ATIF trajectory, the artifacts, the verifier.
+
+    static readonly Arm CcArm = new("cc-haiku", null, null, null, "claude-haiku-5-5", 1, null, Agent: "claude-code", AgentVersion: "2.1.301");
+
+    static string Trajectory(params string[] tools) => new JsonObject
+    {
+        ["schema_version"] = "ATIF-v1.7",
+        ["agent"] = new JsonObject { ["name"] = "claude-code", ["version"] = "2.1.301" },
+        ["steps"] = new JsonArray(
+            new JsonObject { ["step_id"] = 1, ["source"] = "user", ["message"] = "fix it" },
+            new JsonObject
+            {
+                ["step_id"] = 2, ["source"] = "agent", ["message"] = "",
+                ["tool_calls"] = new JsonArray(tools.Select((t, i) => (JsonNode)new JsonObject { ["tool_call_id"] = $"c{i}", ["function_name"] = t, ["arguments"] = new JsonObject() }).ToArray()),
+            },
+            new JsonObject { ["step_id"] = 3, ["source"] = "agent", ["message"] = "Fixed; 6 of 6 tests pass." }),
+        ["final_metrics"] = new JsonObject { ["total_prompt_tokens"] = 1200, ["total_completion_tokens"] = 300, ["total_cached_tokens"] = 800, ["total_cost_usd"] = 0.004 },
+    }.ToJsonString();
+
+    static string WriteTrial(string dir, string? exception = null, string version = "2.1.301", string? trajectory = null)
+    {
+        Directory.CreateDirectory(Path.Combine(dir, "agent"));
+        Directory.CreateDirectory(Path.Combine(dir, "artifacts", "logs", "artifacts"));
+        Directory.CreateDirectory(Path.Combine(dir, "verifier"));
+        File.WriteAllText(Path.Combine(dir, "result.json"), new JsonObject
+        {
+            ["task_name"] = "proctor/fix-null-deref",
+            ["agent_info"] = new JsonObject { ["name"] = "claude-code", ["version"] = version },
+            ["agent_result"] = new JsonObject { ["n_input_tokens"] = 1200, ["n_cache_tokens"] = 800, ["n_output_tokens"] = 300, ["cost_usd"] = 0.004 },
+            ["exception_info"] = exception is null ? null : new JsonObject { ["exception_type"] = exception, ["exception_message"] = "it went wrong\nat line 1" },
+        }.ToJsonString());
+        if (trajectory is not "") File.WriteAllText(Path.Combine(dir, "agent", "trajectory.json"), trajectory ?? Trajectory("Read", "Edit", "Bash"));
+        File.WriteAllText(Path.Combine(dir, "agent", "claude-code.txt"), "{\"type\":\"result\"}\n");
+        File.WriteAllText(Path.Combine(dir, "artifacts", "logs", "artifacts", "diff.patch"), "diff --git a/Ledger/Statement.cs b/Ledger/Statement.cs\n");
+        File.WriteAllText(Path.Combine(dir, "verifier", "reward.json"), "{\"builds\": 1, \"tests-pass\": 1}\n");
+        File.WriteAllText(Path.Combine(dir, "verifier", "builds.out"), "dotnet build: 0 errors\n");
+        return dir;
+    }
+
+    static Manifest NewManifest() => new()
+    {
+        RunId = "r", Experiment = "e", Arm = "cc-haiku", Task = "fix-null-deref", Sample = 1, Host = "h", Versions = [], SuiteHash = "s", ProgramHash = "p",
+        Agent = new AgentRun("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
+    };
+
+    [Fact]
+    public void Ingest_LiftsTheTrialIntoTheCell_AndCountsByProctorsDefinitions()
+    {
+        using var repo = new TestRepo();
+        var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var manifest = NewManifest();
+
+        Assert.Null(Ingest.Trial(trial, cell, CcArm, manifest));
+        Assert.Equal(["agent", "core.json", "diff.patch", "reward.json", "trajectory.json", "verifier"],
+            Directory.GetFileSystemEntries(cell).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.True(File.Exists(Path.Combine(cell, "agent", "claude-code.txt")));
+        Assert.True(File.Exists(Path.Combine(cell, "verifier", "builds.out")));
+        Assert.Equal("2.1.301", manifest.Agent!.Version);
+        Assert.Equal(1200, manifest.Agent.InputTokens);
+        Assert.Equal(0.004, manifest.Agent.CostUsd);
+        Assert.Equal(Path.Combine("..", "trial"), manifest.Agent.Trial);
+
+        var core = ReadJson(Path.Combine(cell, "core.json"));
+        Assert.Equal("ok", core["exit_reason"]!.GetValue<string>());
+        Assert.Equal(2, core["turns"]!.GetValue<int>());
+        Assert.Equal(3, core["tool_calls"]!.GetValue<int>());
+        Assert.Equal(0, core["denied"]!.GetValue<int>());
+        Assert.Equal(1, core["kinds"]!["read"]!.GetValue<int>());
+        Assert.Equal(1, core["kinds"]!["edit"]!.GetValue<int>());
+        Assert.Equal(1, core["kinds"]!["shell"]!.GetValue<int>());
+        Assert.Equal(1200, core["input_tokens"]!.GetValue<long>());
+    }
+
+    [Fact]
+    public void Ingest_CountsSubagentCalls()
+    {
+        var trajectory = JsonNode.Parse(Trajectory("Task"))!.AsObject();
+        trajectory["subagent_trajectories"] = new JsonArray(JsonNode.Parse(Trajectory("Grep", "Read")));
+        var (core, unmapped) = Ingest.Count(trajectory, "claude-code", "ok");
+        Assert.Null(unmapped);
+        Assert.Equal(3, core!.ToolCalls);
+        Assert.Equal(4, core.Turns);
+        Assert.Equal(1, core.Kinds["agent"]);
+        Assert.Equal(1, core.Kinds["search"]);
+    }
+
+    [Theory]
+    [InlineData("AgentTimeoutError", null, "time_budget")]
+    [InlineData("NonZeroAgentExitCodeError", null, "agent_error")]
+    [InlineData("EnvironmentStartTimeoutError", "harbor: EnvironmentStartTimeoutError: it went wrong", null)]
+    public void Ingest_FailedIsInfrastructure_ATimeoutIsACompletedRun(string exception, string? failure, string? exitReason)
+    {
+        using var repo = new TestRepo();
+        var trial = WriteTrial(Path.Combine(repo.Root, "trial"), exception);
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        Assert.Equal(failure, Ingest.Trial(trial, cell, CcArm, NewManifest()));
+        if (exitReason is not null) Assert.Equal(exitReason, ReadJson(Path.Combine(cell, "core.json"))["exit_reason"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Ingest_IsStrict_AboutTheVersion_AndTheTools()
+    {
+        using var repo = new TestRepo();
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        Assert.Equal("agent_version_mismatch: the trial ran claude-code 2.1.302, the arm pins 2.1.301",
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t1"), version: "2.1.302"), cell, CcArm, NewManifest()));
+        Assert.Equal("adapter_unmapped: tool 'mcp__fs__read' has no kind for claude-code",
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t2"), trajectory: Trajectory("Read", "mcp__fs__read")), cell, CcArm, NewManifest()));
+        Assert.Equal("adapter_unmapped: the trial has no agent/trajectory.json",
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t3"), trajectory: ""), cell, CcArm, NewManifest()));
+        var noDiff = WriteTrial(Path.Combine(repo.Root, "t5"));
+        File.Delete(Path.Combine(noDiff, "artifacts", "logs", "artifacts", "diff.patch"));
+        Assert.StartsWith("the trial collected no diff", Ingest.Trial(noDiff, cell, CcArm, NewManifest()));
+        Assert.Equal("agent exited without a trajectory: NonZeroAgentExitCodeError: it went wrong",
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t4"), "NonZeroAgentExitCodeError", trajectory: ""), cell, CcArm, NewManifest()));
+    }
+
+    /// <summary>
+    /// A stand-in for `uv tool run harbor@… run --config job.json`: it records its argv and the two variables proctor
+    /// sets, then writes one trial where the job file says. The trial is the one the ingest tests use.
+    /// </summary>
+    static string FakeUv(TestRepo repo, string trialScript) => repo.WriteScript("fake-uv.sh", $$"""
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" > "{{repo.Root}}/uv.argv"
+        echo "telemetry=${HARBOR_TELEMETRY:-} key=${ANTHROPIC_API_KEY:-}" > "{{repo.Root}}/uv.env"
+        jobs=$(jq -r .jobs_dir job.json)
+        t="$jobs/job/fix-null-deref__abc123"
+        mkdir -p "$t/agent" "$t/artifacts/logs/artifacts" "$t/verifier"
+        {{trialScript}}
+        """);
+
+    const string GoodTrial = """
+        echo '{"agent_info": {"name": "claude-code", "version": "2.1.301"}, "agent_result": {"n_input_tokens": 10, "n_output_tokens": 5, "cost_usd": 0.001}, "exception_info": null}' > "$t/result.json"
+        echo '{"steps": [{"step_id": 1, "source": "agent", "message": "done", "tool_calls": [{"tool_call_id": "a", "function_name": "Edit", "arguments": {}}]}]}' > "$t/agent/trajectory.json"
+        echo 'diff --git a/x b/x' > "$t/artifacts/logs/artifacts/diff.patch"
+        echo '{"builds": 1, "tests-pass": 0}' > "$t/verifier/reward.json"
+        """;
+
+    [Fact]
+    public void Run_AnAgentArm_CompilesOnce_RunsHarborPerCell_AndIngests()
+    {
+        using var scratch = new TestRepo();
+        var (repo, keyVar) = AgentRepo(FakeUv(scratch, GoodTrial));
+        using var _r = repo;
+        var suite = repo.LoadSuite("agent-smoke");
+        var id = Runner.Start(repo.Root, suite, Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var expDir = Layout.Experiment(repo.Root, id);
+
+        var experiment = ReadJson(Path.Combine(expDir, "experiment.json"));
+        Assert.Equal("0.24.0", experiment["versions"]!["harbor"]!.GetValue<string>());
+        Assert.Equal("0.24.0", experiment["harbor"]!["version"]!.GetValue<string>());
+        Assert.Equal(HarborCompile.TreeHash(expDir), experiment["harbor"]!["tasks_hash"]!.GetValue<string>());
+
+        var cell = Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1);
+        Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
+        var manifest = ReadJson(Path.Combine(cell, "manifest.json"));
+        Assert.Equal("atif", manifest["transcript"]!["format"]!.GetValue<string>());
+        Assert.Equal("trajectory.json", manifest["transcript"]!["file"]!.GetValue<string>());
+        Assert.Null(manifest["harness"]);
+        Assert.Null(manifest["provider"]);
+        Assert.Equal("claude-code", manifest["agent"]!["name"]!.GetValue<string>());
+        Assert.Equal("2.1.301", manifest["agent"]!["version"]!.GetValue<string>());
+        Assert.Equal("0.24.0", manifest["agent"]!["harbor"]!.GetValue<string>());
+        Assert.Equal("bypassPermissions", manifest["agent"]!["kwargs"]!["permission_mode"]!.GetValue<string>());
+        Assert.Equal("0.24.0", manifest["versions"]!["harbor"]!.GetValue<string>());
+        Assert.Equal(1, ReadJson(Path.Combine(cell, "core.json"))["tool_calls"]!.GetValue<int>());
+        Assert.Equal("{\"builds\": 1, \"tests-pass\": 0}", File.ReadAllText(Path.Combine(cell, "reward.json")).Trim());
+
+        Assert.Equal("tool run harbor@0.24.0 run --config job.json", File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
+        Assert.Equal($"telemetry=off key=sk-test-{keyVar}", File.ReadAllText(Path.Combine(scratch.Root, "uv.env")).Trim());
+        var job = ReadJson(Path.Combine(cell, "harbor", "job.json"));
+        Assert.Equal(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), job["tasks"]![0]!["path"]!.GetValue<string>());
+        // The key reached Harbor's process and no file.
+        Assert.DoesNotContain(Directory.GetFiles(expDir, "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains($"sk-test-{keyVar}"));
+
+        // grade says what it cannot do yet rather than reading a transcript that is not there.
+        var log = new StringWriter();
+        var grades = Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, log);
+        Assert.Null(Assert.Single(grades).Checks);
+        Assert.Contains("not graded: grading an agent arm's cell", log.ToString());
+    }
+
+    [Fact]
+    public void Run_HarborWithoutATrial_FailsTheCell_AndResumeRunsItAgain()
+    {
+        using var scratch = new TestRepo();
+        var (repo, _) = AgentRepo(FakeUv(scratch, "echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1"));
+        using var _r = repo;
+        var id = Runner.Start(repo.Root, repo.LoadSuite("agent-smoke"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var cell = Layout.Cell(Layout.Experiment(repo.Root, id), "cc-haiku", "fix-null-deref", 1);
+        Assert.Equal("failed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
+        Assert.Equal("Harbor exited 1 without a trial: docker: Cannot connect to the Docker daemon", ReadJson(Path.Combine(cell, "manifest.json"))["status_reason"]!.GetValue<string>());
+
+        File.WriteAllText(Path.Combine(scratch.Root, "suites", "fake-uv.sh"), File.ReadAllText(Path.Combine(scratch.Root, "suites", "fake-uv.sh")).Replace("echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1", GoodTrial));
+        Runner.Resume(repo.Root, id, null, null, TextWriter.Null);
+        Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
+        Assert.Equal(2, ReadJson(Path.Combine(cell, "manifest.json"))["attempts"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void Resume_RefusesChangedCompiledTasks()
+    {
+        using var scratch = new TestRepo();
+        var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
+        using var _r = repo;
+        var id = Runner.Start(repo.Root, repo.LoadSuite("agent-smoke"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        File.AppendAllText(Path.Combine(Layout.HarborTask(Layout.Experiment(repo.Root, id), "cc-haiku", "fix-null-deref"), "instruction.md"), "and also\n");
+        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
+        Assert.Contains("have changed on disk", e.Message);
+    }
+
+    [Fact]
+    public void Run_WithoutTheAgentsEndpoint_FailsBeforeAnythingIsMade()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        repo.WriteProctorConfig();
+        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadSuite("agent-smoke"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
+        Assert.Contains("no agents.claude-code", e.Message);
+        Assert.False(Directory.Exists(Path.Combine(repo.Root, "runs")));
+    }
+}

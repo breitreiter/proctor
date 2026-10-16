@@ -10,7 +10,14 @@ namespace Proctor;
 
 record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclude);
 
-record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null, string? Description = null);
+/// <summary>
+/// The image an agent arm runs the fixture in: a base image, the environment, and the commands that make the checkout
+/// ready (a package restore), run in the work directory after the fixture is committed, at build time and with network,
+/// so neither the agent nor the checks need any.
+/// </summary>
+record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env);
+
+record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, FixtureImage? Image = null);
 
 /// <summary>One fixture directory, loaded. Construct through <see cref="Load"/>.</summary>
 sealed record Fixture
@@ -64,6 +71,12 @@ sealed record Fixture
             case { Path: null, Git: null }: Add("source", "required: {path} or {git, rev}"); break;
         }
         Labels.Validate(def.Labels, Add);
+        if (def.Image is { } image)
+        {
+            if (string.IsNullOrWhiteSpace(image.From)) Add("image.from", "required: the base image (mcr.microsoft.com/dotnet/sdk:10.0)");
+            foreach (var key in (image.Env ?? []).Keys.Where(k => !Regex.IsMatch(k, "^[A-Za-z_][A-Za-z0-9_]*$"))) Add($"image.env.{key}", "not an environment variable name");
+            if (image.Run?.Any(string.IsNullOrWhiteSpace) == true) Add("image.run", "a command, not an empty string");
+        }
         foreach (var (name, spec) in def.Checks ?? [])
         {
             var f = $"checks.{name}";

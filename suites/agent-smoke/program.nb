@@ -1,0 +1,2 @@
+# agent-smoke: agent arms take the task prompt as their instruction; this template is for nb arms.
+run {{prompt}}

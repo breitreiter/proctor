@@ -10,7 +10,7 @@ record Experiment(
     string Id, string Suite, string SuiteHash, JsonObject SuiteDef, List<string> Tasks, int Planned,
     string Created, string CommandLine, string Host,
     Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
-    Dictionary<string, ResolvedBundle>? Bundles = null)
+    Dictionary<string, ResolvedBundle>? Bundles = null, ResolvedHarbor? Harbor = null)
 {
     public ResolvedBundle? BundleOf(string arm) => Bundles?.GetValueOrDefault(arm);
 }
@@ -34,9 +34,10 @@ record Manifest
     public required string Arm { get; init; }
     public required string Task { get; init; }
     public required int Sample { get; init; }
-    public required string Runner { get; init; }
-    public required string Harness { get; init; }
-    public required string Provider { get; init; }
+    /// <summary>How an nb arm ran; absent on an agent arm, whose run is <see cref="Agent"/>.</summary>
+    public string? Runner { get; init; }
+    public string? Harness { get; init; }
+    public string? Provider { get; init; }
     public string? Model { get; init; }
     public FixtureRef? Fixture { get; init; }
     public ResolvedBundle? Bundle { get; init; }
@@ -54,6 +55,8 @@ record Manifest
     public string? StatusReason { get; set; }
     public int Attempts { get; set; }
     public int? NbExitCode { get; set; }
+    /// <summary>An agent arm's run: the agent as the trial reported it, its settings, the Harbor that ran it, and what it used.</summary>
+    public AgentRun? Agent { get; set; }
 }
 
 record TranscriptRef(string File, string Format);
@@ -68,7 +71,7 @@ static class CellStatus
 }
 
 /// <summary>The matrix loop: arms, tasks, samples; hooks at arm and sample level; nb as a subprocess.</summary>
-sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter log)
+sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConfig config, TextWriter log)
 {
     readonly string experimentDir = Layout.Experiment(root, experiment.Id);
     readonly string suitesDir = Layout.Suites(root);
@@ -77,6 +80,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter 
     public static string Start(string root, Suite suite, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
         var nb = ResolveNb(root, suite, config, nbOverride, runnerOverride);
+        foreach (var arm in suite.Arms.Where(a => a.IsAgent)) Route(config, arm);   // a missing endpoint fails before anything is made
         var id = Layout.NewExperimentId(suite.Id, DateTime.UtcNow);
         var experiment = new Experiment(
             Id: id, Suite: suite.Id, SuiteHash: suite.Hash,
@@ -88,8 +92,17 @@ sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter 
             Bundles: ResolveBundles(root, suite));
         var dir = Layout.Experiment(root, id);
         Directory.CreateDirectory(dir);
+        if (suite.HasAgentArms)
+        {
+            var version = suite.Def.Harbor!.Version!;
+            experiment = experiment with
+            {
+                Versions = new(experiment.Versions) { ["harbor"] = version },
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(config, arm))),
+            };
+        }
         WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);
-        new Runner(root, experiment, suite, log).RunPending();
+        new Runner(root, experiment, suite, config, log).RunPending();
         return id;
     }
 
@@ -109,8 +122,10 @@ sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter 
         var runner = ResolveRunner(root, suite, runnerOverride);
         if ((runner?.Script, runner?.Hash) != (experiment.Nb.Runner?.Script, experiment.Nb.Runner?.Hash))
             throw new ProctorException($"the runner has changed since experiment {experimentId} was created ({Describe(runner)} vs {Describe(experiment.Nb.Runner)}); a changed runner is a new experiment");
+        if (experiment.Harbor is { } harbor && HarborCompile.TreeHash(Layout.Experiment(root, experimentId)) != harbor.TasksHash)
+            throw new ProctorException($"the Harbor tasks compiled for experiment {experimentId} have changed on disk ({Layout.HarborDir}/tasks); a changed task is a new experiment");
         if (nbOverride is not null) experiment = experiment with { Nb = experiment.Nb with { Path = Path.GetFullPath(nbOverride) } };
-        new Runner(root, experiment, suite, log).RunPending();
+        new Runner(root, experiment, suite, config, log).RunPending();
 
         static string Describe(ResolvedRunner? r) => r is null ? "none" : $"{r.Script} {r.Hash}";
     }
@@ -188,7 +203,9 @@ sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter 
                 continue;
             }
 
-            foreach (var (c, s) in pending) RunCell(arm, c, s);
+            foreach (var (c, s) in pending)
+                if (arm.IsAgent) RunAgentCell(arm, c, s);
+                else RunCell(arm, c, s);
 
             var teardown = RunHook(suite.Def.Hooks?.Arm?.Teardown, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.teardown.log"));
             if (teardown is not null) log.WriteLine($"  {arm.Id}: arm teardown hook failed: {teardown}");
@@ -210,7 +227,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter 
             : new Manifest
             {
                 RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample,
-                Runner = arm.Runner!, Harness = arm.Harness!, Provider = arm.Provider!, Model = arm.Model,
+                Runner = arm.Runner, Harness = arm.Harness, Provider = arm.Provider, Model = arm.Model,
                 Fixture = cell.Fixture is null ? null : new FixtureRef(cell.Fixture.Id, cell.Fixture.Hash),
                 Bundle = experiment.BundleOf(arm.Id!), Nb = experiment.Nb,
                 Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash, ProgramHash = Sha256(program),
@@ -252,6 +269,63 @@ sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter 
         WriteStatusCounts();
         log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {manifest.Status}  {(failure ?? ExitReasonOf(cellDir))}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
+
+    /// <summary>
+    /// An agent arm's cell: one Harbor trial of the task compiled for the arm, then ingest. The checkout, the setup and
+    /// the diff are the image's and Harbor's; arm hooks still ran on the host around the arm's cells.
+    /// </summary>
+    void RunAgentCell(Arm arm, TaskDef c, int sample)
+    {
+        var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
+        Directory.CreateDirectory(cellDir);
+        var taskDir = Layout.HarborTask(experimentDir, arm.Id!, c.Id!);
+        var route = Route(config, arm);
+        var fixture = suite.FixtureOf(c)!;
+        var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
+        var manifest = File.Exists(manifestFile)
+            ? ReadManifest(manifestFile)
+            : new Manifest
+            {
+                RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample, Model = arm.Model,
+                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
+                Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash,
+                ProgramHash = Sha256(File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
+            };
+        manifest.Agent = new AgentRun(arm.Agent!, null, arm.Model!, HarborCompile.AgentKwargs(arm), HarborCompile.AgentEnv(arm, route), experiment.Harbor!.Version, null);
+        manifest.Attempts++;
+        manifest.Started = Now();
+        manifest.Ended = null;
+        manifest.DurationMs = null;
+        manifest.StatusReason = null;
+        SetStatus(cellDir, manifest, CellStatus.Running);
+
+        var stopwatch = Stopwatch.StartNew();
+        var (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, cellDir, arm, taskDir, route, suite.Def.Limits!.WallMs!.Value);
+        if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, arm, manifest);
+        stopwatch.Stop();
+
+        manifest.Ended = Now();
+        manifest.DurationMs = stopwatch.ElapsedMilliseconds;
+        manifest.StatusReason = failure;
+        SetStatus(cellDir, manifest, failure is null ? CellStatus.Completed : CellStatus.Failed);
+        WriteStatusCounts();
+        var exitReason = failure is null ? ReadJson<CountedCore>(Path.Combine(cellDir, Layout.CoreFile))?.ExitReason : null;
+        log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+    }
+
+    /// <summary>Where an agent arm's model calls go, from proctor.json's agents block, ${VAR} resolved now: the key never reaches a file.</summary>
+    static AgentRoute Route(ProctorConfig config, Arm arm)
+    {
+        var endpoint = config.Agents?.GetValueOrDefault(arm.Agent!)
+            ?? throw new ProctorException($"suites/proctor.json has no agents.{arm.Agent} (arm '{arm.Id}'): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
+        var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"agents.{arm.Agent}.base_url").TrimEnd('/');
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"suites/proctor.json agents.{arm.Agent}.base_url: '{baseUrl}' is not a URL");
+        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"agents.{arm.Agent}.api_key"));
+    }
+
+    static string ResolveEnv(string value, string field) =>
+        System.Text.RegularExpressions.Regex.Replace(value, @"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", m => Environment.GetEnvironmentVariable(m.Groups[1].Value)
+            ?? throw new ProctorException($"{m.Groups[1].Value} is not set in the environment (suites/proctor.json {field})"));
 
     /// <summary>
     /// `nb --compile` on the host binary, in the suite directory so `@file` includes resolve against the suite: the
@@ -320,7 +394,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, TextWriter 
             : new Manifest
             {
                 RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample,
-                Runner = arm.Runner!, Harness = arm.Harness!, Provider = arm.Provider!, Model = arm.Model,
+                Runner = arm.Runner, Harness = arm.Harness, Provider = arm.Provider, Model = arm.Model,
                 Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash, ProgramHash = "",
             };
         manifest.Attempts++;

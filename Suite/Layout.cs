@@ -35,6 +35,16 @@ static class Layout
     public const string ChecksFile = "checks.json";
     public const string VerdictsDir = "verdicts";
 
+    /// <summary>An agent arm's cells: the compiled Harbor tasks per experiment, Harbor's own job per cell, and what ingest lifts out of the trial.</summary>
+    public const string HarborDir = "harbor";
+    public const string HarborJobFile = "job.json";
+    public const string HarborLogFile = "harbor.log";
+    public const string TrajectoryFile = "trajectory.json";
+    public const string CoreFile = "core.json";
+    public const string RewardFile = "reward.json";
+    public const string AgentLogsDir = "agent";
+    public const string VerifierDir = "verifier";
+
     public const string ResultsFile = "results.jsonl";
     public const string StatsFile = "stats.json";
     public const string ReportHtmlFile = "report.html";
@@ -55,6 +65,8 @@ static class Layout
         Path.Combine(experimentDir, arm, task, sample.ToString());
     public static string Work(string root, string experimentId, string arm, string task, int sample) =>
         Path.Combine(root, WorkDir, experimentId, arm, task, sample.ToString());
+    /// <summary>The Harbor task an arm runs a task as, compiled once per experiment.</summary>
+    public static string HarborTask(string experimentDir, string arm, string task) => Path.Combine(experimentDir, HarborDir, "tasks", arm, task);
     public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
     public static string ReportData(string root, string experimentId) =>
         Path.Combine(root, ReportsDir, "data", experimentId);

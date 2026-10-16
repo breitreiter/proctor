@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace Proctor;
 
-record SubprocessResult(int ExitCode, string Stdout, string Stderr, bool Started)
+record SubprocessResult(int ExitCode, string Stdout, string Stderr, bool Started, bool TimedOut = false)
 {
     /// <summary>The line that says what went wrong: the first `Error:` line when there is one (nb warns about an unset ${VAR} in its config first), else the first non-empty line.</summary>
     public string FirstStderrLine
@@ -15,11 +15,14 @@ record SubprocessResult(int ExitCode, string Stdout, string Stderr, bool Started
     }
 }
 
-/// <summary>Run a program to completion. stdin is the given text, if any; stdout and stderr go to files when asked, otherwise they are captured.</summary>
+/// <summary>
+/// Run a program to completion, or until the timeout, when one is given: then the process tree is killed and the result
+/// says TimedOut. stdin is the given text, if any; stdout and stderr go to files when asked, otherwise they are captured.
+/// </summary>
 static class Subprocess
 {
     public static SubprocessResult Run(string program, IEnumerable<string> args, string workingDir,
-        IDictionary<string, string>? env = null, string? stdoutFile = null, string? stderrFile = null, string? stdin = null)
+        IDictionary<string, string>? env = null, string? stdoutFile = null, string? stderrFile = null, string? stdin = null, TimeSpan? timeout = null)
     {
         var psi = new ProcessStartInfo(program)
         {
@@ -45,6 +48,12 @@ static class Subprocess
             var stderr = Pump(process.StandardError, stderrFile);
             if (stdin is not null) process.StandardInput.Write(stdin);
             process.StandardInput.Close();
+            if (timeout is { } limit && !process.WaitForExit(limit))
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit();
+                return new SubprocessResult(-1, stdout.Result, stderr.Result, Started: true, TimedOut: true);
+            }
             process.WaitForExit();
             return new SubprocessResult(process.ExitCode, stdout.Result, stderr.Result, Started: true);
         }

@@ -1,0 +1,31 @@
+{
+  "id": "agent-smoke",
+  "description": "Does a vendor agent, run by Harbor in the fixture's image, make a small well-specified fix that builds and passes the tests? The Harbor path's shakedown: one task, one cheap model.",
+  "labels": {
+    "area": "coding/change",
+    "stack": "dotnet"
+  },
+  "arms": [
+    {
+      "id": "cc-haiku",
+      "description": "Claude Code on Haiku",
+      "agent": "claude-code",
+      "agent_version": "2.1.301",
+      "model": "claude-haiku-5-5",
+      "samples": 1
+    }
+  ],
+  "harbor": { "version": "0.24.0" },
+  "limits": { "wall_ms": 900000 },
+  "grading": {
+    "checks": {
+      "diff-in-scope": {
+        "files_touched": "@expect"
+      }
+    },
+    "pass": [
+      "builds",
+      "tests-pass"
+    ]
+  }
+}

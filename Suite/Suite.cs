@@ -23,16 +23,43 @@ record SuiteNb(string? Runner = null, NbMounts? Mounts = null);
 /// <summary>Where the runner shows nb the checkout and the bundle: what {{work}} and {{bundle}} resolve to when a runner is in effect. Absent, the host paths.</summary>
 record NbMounts(string? Work = null, string? Bundle = null);
 
-/// <summary>suites/proctor.json. Everything optional; the defaults are the layout's defaults. The judges are the endpoints the grade-time checks call.</summary>
-record ProctorConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null)
+/// <summary>
+/// suites/proctor.json. Everything optional; the defaults are the layout's defaults. The judges are the endpoints the
+/// grade-time checks call; agents are where each vendor agent's model calls go (the machine's, like nb.path); harbor is
+/// how Harbor is started on this machine.
+/// </summary>
+record ProctorConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, Dictionary<string, AgentEndpoint>? Agents = null, HarborConfig? Harbor = null)
 {
     public NbConfig NbOrDefault => Nb ?? new NbConfig();
 }
 
-record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null, string? Description = null)
+/// <summary>
+/// One entry of proctor.json's agents block: the base URL an agent's model calls go to and its key, ${VAR} resolved at
+/// run time. The base URL's host is the one name the agent's container may reach.
+/// </summary>
+record AgentEndpoint(string? BaseUrl, string? ApiKey);
+
+/// <summary>proctor.json's harbor block: the uv that runs the suite's pinned Harbor (default: uv on PATH).</summary>
+record HarborConfig(string Uv = "uv");
+
+/// <summary>
+/// An arm is what is under test. Without an agent (or with agent nb) it is nb, run bare: runner, harness and provider
+/// say how. With a vendor agent it is that agent's real CLI at a pinned version, run by Harbor in the fixture's image.
+/// </summary>
+record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null, string? Description = null, string? Agent = null, string? AgentVersion = null)
 {
+    public const string Nb = "nb", ClaudeCode = "claude-code", Codex = "codex", QwenCode = "qwen-code";
+
     public int SamplesOrOne => Samples ?? 1;
+    /// <summary>A vendor agent run through Harbor, not nb.</summary>
+    public bool IsAgent => Agent is not null && Agent != Nb;
 }
+
+/// <summary>suite.json's harbor block: the Harbor release every agent arm runs on, pinned.</summary>
+record HarborDef(string? Version);
+
+/// <summary>suite.json's limits: run policy for agent arms. wall_ms is Harbor's agent timeout; the rest are not yet.</summary>
+record Limits(long? WallMs, int? ToolCalls, long? Tokens, double? CostUsd);
 
 /// <summary>The pinned version of what an arm puts under test: a directory in this repository, or a git revision. What is inside is the suite's business.</summary>
 record BundleSource(string? Path, string? Git, string? Rev)
@@ -47,7 +74,7 @@ record Hooks(HookPair? Run, HookPair? Arm, HookPair? Task, HookPair? Sample);
 record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<string>? Validity);
 
 /// <summary>Tags is what labels replaced; it is here so a leftover is a problem rather than silently ignored.</summary>
-record SuiteDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, SuiteNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null);
+record SuiteDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, SuiteNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null);
 
 /// <summary>A task: one input and one desired outcome. Expect parameterises the shared checks; Checks are the ones only this task can state.</summary>
 record TaskDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, Dictionary<string, JsonObject>? Checks = null);
@@ -121,6 +148,8 @@ sealed class Suite
     public required string Hash { get; init; }
 
     public List<Arm> Arms => Def.Arms!;
+    /// <summary>Whether any arm runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
+    public bool HasAgentArms => Arms.Any(a => a.IsAgent);
     public Grading Grading => Def.Grading!;
     public int PlannedCells => Arms.Sum(a => a.SamplesOrOne) * Tasks.Count;
 
@@ -199,6 +228,11 @@ sealed class Suite
             if (raw?[field] is not null)
                 problems.Add(new Problem(Path.GetRelativePath(root, file), $"nb.{field}", $"belongs in the suite: suite.json nb.{field}"));
         Judges.Validate(config?.Judges, (field, message) => problems.Add(new Problem(Path.GetRelativePath(root, file), field, message)));
+        foreach (var (name, endpoint) in config?.Agents ?? [])
+        {
+            if (name != Arm.ClaudeCode) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}", $"unknown agent; known: {Arm.ClaudeCode}"));
+            else if (string.IsNullOrWhiteSpace(endpoint?.BaseUrl)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.base_url", "required: where the agent's model calls go"));
+        }
         return config ?? new ProctorConfig(null);
     }
 
@@ -334,6 +368,8 @@ sealed class Suite
             if (string.IsNullOrWhiteSpace(arm.Id)) Add($"{f}.id", "required");
             else if (!seen.Add(arm.Id)) Add($"{f}.id", $"duplicate arm id '{arm.Id}'");
             else if (!Regex.IsMatch(arm.Id, "^[a-z0-9][a-z0-9-]*$")) Add($"{f}.id", "arm ids are path segments: lowercase letters, digits and hyphens");
+            if (arm.IsAgent) { ValidateAgentArm(arm, f, Add); continue; }
+            if (arm.Agent is not null && arm.AgentVersion is not null) Add($"{f}.agent_version", "nb is the binary proctor.json names; agent_version pins a vendor agent");
             switch (arm.Runner)
             {
                 case "nb":
@@ -361,6 +397,8 @@ sealed class Suite
                 case { Path: null, Git: null }: Add($"{f}.bundle", "expects {path} or {git, rev}"); break;
             }
         }
+
+        ValidateHarbor(def, Add, dir, tasks, fixtures, root, problems);
 
         if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use arm or sample");
         if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use arm or sample");
@@ -424,6 +462,58 @@ sealed class Suite
             if (name is null) Add("grading.validity", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.validity", why);
             else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the sample counts, not both");
+        }
+    }
+
+    /// <summary>
+    /// A vendor agent arm: a model of the agent's own vendor, with no provider prefix (Harbor passes it to the gateway
+    /// verbatim), at a pinned agent version. The nb fields have no meaning on it. Only Claude Code runs in this version.
+    /// </summary>
+    static void ValidateAgentArm(Arm arm, string f, Action<string, string> add)
+    {
+        switch (arm.Agent)
+        {
+            case Arm.ClaudeCode: break;
+            case Arm.Codex or Arm.QwenCode: add($"{f}.agent", $"'{arm.Agent}' is not yet implemented; only {Arm.ClaudeCode} runs through Harbor in this version"); return;
+            default: add($"{f}.agent", $"unknown agent '{arm.Agent}'; known: {Arm.Nb}, {Arm.ClaudeCode}"); return;
+        }
+        foreach (var (field, value) in new[] { ("runner", arm.Runner), ("harness", arm.Harness), ("provider", arm.Provider), ("command", arm.Command) })
+            if (value is not null) add($"{f}.{field}", $"an nb field; an arm with agent {arm.Agent} is that agent, on the model it names");
+        if (arm.Bundle is not null) add($"{f}.bundle", "a bundle on an agent arm is not yet implemented");
+        if (string.IsNullOrWhiteSpace(arm.Model)) add($"{f}.model", $"required for agent {arm.Agent}");
+        else if (arm.Model.Contains('/')) add($"{f}.model", $"'{arm.Model}' has a provider prefix; name the model bare (claude-haiku-5-5), as the gateway receives it");
+        else if (!arm.Model.StartsWith("claude-", StringComparison.Ordinal)) add($"{f}.model", $"'{arm.Model}' is not an Anthropic model; {Arm.ClaudeCode} runs Anthropic models only, so the harness and the model are one vendor's");
+        if (string.IsNullOrWhiteSpace(arm.AgentVersion)) add($"{f}.agent_version", $"required: the {arm.Agent} release under test, pinned (there is no latest)");
+        else if (!Regex.IsMatch(arm.AgentVersion, @"^\d+(\.\d+)*$")) add($"{f}.agent_version", $"'{arm.AgentVersion}' is not a version number");
+    }
+
+    /// <summary>
+    /// What an agent arm needs from the rest of the suite: a pinned Harbor, a wall limit (Harbor's agent timeout) and an
+    /// image on every task's fixture. A sample hook runs on the host, which an agent's container never sees; the setup it
+    /// did belongs in the fixture's image.
+    /// </summary>
+    static void ValidateHarbor(SuiteDef def, Action<string, string> add, string dir, List<TaskDef> tasks, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
+    {
+        var agents = (def.Arms ?? []).Any(a => a?.IsAgent == true);
+        if (def.Harbor is { } harbor && (string.IsNullOrWhiteSpace(harbor.Version) || !Regex.IsMatch(harbor.Version, @"^\d+(\.\d+)*$")))
+            add("harbor.version", "required: the Harbor release, pinned (0.24.0)");
+        foreach (var (field, value) in new (string, object?)[] { ("tool_calls", def.Limits?.ToolCalls), ("tokens", def.Limits?.Tokens), ("cost_usd", def.Limits?.CostUsd) })
+            if (value is not null) add($"limits.{field}", "not yet implemented; only wall_ms is enforced in this version");
+        if (def.Limits?.WallMs is < 1000) add("limits.wall_ms", "at least 1000");
+        if (!agents)
+        {
+            if (def.Harbor is not null) add("harbor", "no arm names a vendor agent, so nothing runs through Harbor");
+            if (def.Limits is not null) add("limits", "applies to agent arms; an nb arm's limits are budget directives in the program");
+            return;
+        }
+        if (def.Harbor is null) add("harbor.version", "required with an agent arm: the Harbor release it runs on, pinned (0.24.0)");
+        if (def.Limits?.WallMs is null) add("limits.wall_ms", "required with an agent arm: how long its run may take");
+        if (def.Hooks?.Sample is not null) add("hooks.sample", "not yet with an agent arm: a sample hook runs on the host, the agent in its container; move the setup into the fixture's image");
+        foreach (var c in tasks)
+        {
+            if (c.Fixture is null) problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), "fixture", "required with an agent arm: the agent runs in the fixture's image"));
+            else if (fixtures.GetValueOrDefault(c.Fixture) is { Def.Image: null } fixture)
+                problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(fixture.Dir, Layout.FixtureFile)), "image", "required by an agent arm of this suite: {from, run, env}, the image the agent and the checks run in"));
         }
     }
 

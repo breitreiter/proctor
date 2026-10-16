@@ -2,6 +2,11 @@
   "id": "ledger",
   "source": { "path": "repo", "exclude": ["bin", "obj"] },
   "stack": "dotnet",
+  "image": {
+    "from": "mcr.microsoft.com/dotnet/sdk:10.0",
+    "env": { "DOTNET_CLI_TELEMETRY_OPTOUT": "1", "DOTNET_NOLOGO": "1", "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1" },
+    "run": ["find . -name '*.csproj' -exec dotnet restore -v q {} \\;"]
+  },
   "checks": {
     "builds":     { "script": "checks/builds.sh", "description": "the repository builds" },
     "tests-pass": { "script": "checks/tests-pass.sh", "description": "the repository's own tests pass" }
