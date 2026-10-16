@@ -1,0 +1,4 @@
+# The agent, pinned, in the image: the trial installs nothing and needs no network to start.
+RUN apt-get update -q && apt-get install -y -q --no-install-recommends procps >/dev/null && rm -rf /var/lib/apt/lists/* \
+ && curl -fsSL https://downloads.claude.ai/claude-code-releases/bootstrap.sh | bash -s -- 2.1.301 \
+ && /root/.local/bin/claude --version

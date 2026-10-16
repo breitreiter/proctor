@@ -206,6 +206,10 @@ From `learnings/harbor.md`, *Unverified*:
 A spike that fails 1–3 sends this plan back to the first draft's own runner.
 A failure in 4 or 5 narrows the plan but does not reverse it.
 
+**Run on 2026-10-15: go.** All five pass (`learnings/harbor.md`, *The spike,
+run*). Step 5 narrows the oracle: Qwen Code cannot be a bridge target, and
+the target's record in bridge mode is raw ACP history, not ATIF.
+
 ### 1. Compile (`Harbor/Compile.cs`)
 
 A new pipeline stage between `Suite/` and `Run/`. `run` writes, under the

@@ -1,0 +1,25 @@
+version = "1.0"
+
+[task]
+name = "proctor/fix-null-deref"
+description = "Fix the one failing test in a statement parser without touching the tests"
+
+[agent]
+timeout_sec = 900.0
+network_mode = "allowlist"
+allowed_hosts = ["library"]
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
+storage_mb = 10240
+network_mode = "public"
+
+[verifier]
+timeout_sec = 300.0
+environment_mode = "separate"
+network_mode = "no-network"
+
+[[verifier.collect]]
+command = "cd /app && git add -A && git diff --cached --binary HEAD > /logs/artifacts/diff.patch"

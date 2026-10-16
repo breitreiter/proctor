@@ -1,0 +1,3 @@
+`dotnet test Ledger.Tests` has one failing test: `Parse_LineWithoutMemo_HasNullMemo` throws a NullReferenceException. A statement line without a memo field (`2026-01-03,-12.50`) must parse with a null memo; a memo that is present is trimmed, and an empty memo is null, as the other tests already say.
+
+Fix the bug in the Ledger project. Do not change the tests.

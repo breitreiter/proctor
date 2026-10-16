@@ -1,0 +1,11 @@
+version = "1.0"
+[task]
+name = "proctor/netprobe"
+[agent]
+timeout_sec = 120.0
+network_mode = "allowlist"
+allowed_hosts = ["library"]
+[environment]
+network_mode = "public"
+[verifier]
+timeout_sec = 60.0
