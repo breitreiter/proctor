@@ -1,0 +1,12 @@
+{
+  "id": "denied",
+  "description": "The model asks for a bash command that writes, which nb refuses",
+  "fixture": "note",
+  "prompt": "MOCK:tool=bash echo changed > note.txt",
+  "expect": {
+    "files_touched": {
+      "paths": [],
+      "mode": "exactly"
+    }
+  }
+}

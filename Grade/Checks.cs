@@ -31,6 +31,8 @@ record CellContext(string SuiteDir, string CellDir, string WorkDir, string Exper
     public JudgeClient? Judges { get; init; }
     /// <summary>An agent cell: its script checks already ran in Harbor's verifier, and grade reads their verdicts from the cell.</summary>
     public bool ScriptsInVerifier { get; init; }
+    /// <summary>A vendor agent's cell, not nb's: nb's own behaviour (the loop nudge) has nothing to read there.</summary>
+    public bool Vendor { get; init; }
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
     public string WorkMount => Mounts?.Work ?? WorkDir;
@@ -271,7 +273,7 @@ static class Checks
                 var errors = t.ToolResults.Count(r => r.IsError);
                 return Verdict.Of(errors <= v["max"]!.GetValue<int>(), $"{errors} tool error{(errors == 1 ? "" : "s")} (max {v["max"]})");
             }
-            case "loop_nudged" when cell.ScriptsInVerifier:
+            case "loop_nudged" when cell.Vendor:
                 return Verdict.Err("loop_nudged is nb's nudge; a vendor agent has none to fire");
             case "loop_nudged":
                 return Verdict.Of(t.LoopNudged == v.GetValue<bool>(), t.LoopNudged ? "loop nudge fired" : "no loop nudge");

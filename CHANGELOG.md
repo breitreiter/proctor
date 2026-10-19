@@ -5,6 +5,50 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.3.0 — 2026-10-18
+
+nb as a Harbor agent, and the deterministic gate (staging step 4 of
+`project/plans/agent-neutral-runs.md`). Two things in `suite.json` change
+meaning, hence the minor bump:
+
+- **`"agent": "nb"` now runs nb through Harbor.** It used to be the same as
+  no agent (nb bare). An arm without `agent` is nb bare, exactly as before;
+  no suite in this repository named `agent: nb`. The arm keeps `harness`,
+  `provider` and `model`; `runner`, `command` and `agent_version` are
+  refused on it, and `bundle` is "not yet".
+- **`harbor` is no longer an arm id**: it is the experiment's directory for
+  the compiled Harbor tasks, and an arm by that name put its cells there.
+
+What lands:
+
+- An nb arm's image copies nb's own layer: `suites/proctor.json` gains
+  `harbor.nb`, nb's self-contained linux-x64 publish, which `run` builds once
+  into a local `proctor-nb:<content hash>` image. Its `nb --version` must be
+  the host nb's, which compiles the program; `resume` refuses a changed
+  publish.
+- The program is compiled on the host per cell, as on the bare path, with
+  `{{work}}` as `/app`. nb's Harbor agent is proctor's
+  (`Harbor/nb_agent.py`, compiled into `runs/<id>/harbor/agents/` and part
+  of the compiled tree's hash); it uploads the program and nb's config and
+  runs nb on stdin in `/app`.
+- The agent reaches the host of its provider's `Endpoint` in nb's config,
+  or nothing at all for a provider without one (Mock). The endpoint's
+  `${VAR}`s go to the agent by value; the key's variable goes by name, its
+  value only in Harbor's process environment.
+- Ingest converts nb's JSONL (`agent/nb.jsonl`) to ATIF (`Run/NbAtif.cs`):
+  one agent step per nb turn, and nb's own fields (a turn's source, a
+  call's approval, a result's structured result, the trailer) under
+  `extra`, which the ATIF reader reads back. An nb arm in Harbor fails as
+  on the bare path: no result trailer before the time limit is a failed
+  cell. `core.json` counts nb's denials.
+- `loop_nudged` is graded on nb arms in Harbor; it stays `error` on a
+  vendor agent's cell.
+- `suites/gate/`: one Mock arm bare and the same arm through Harbor, five
+  tasks. `GateTests` runs it when `PROCTOR_GATE` names the publish and
+  asserts the two give the same nb transcript, counted core and
+  `checks.json`, apart from timings and the checkout's path (a host
+  directory bare, `/app` in the image).
+
 ## 0.2.6 — 2026-10-16
 
 `grade` grades agent cells (staging step 3). Nothing on disk breaks; an nb

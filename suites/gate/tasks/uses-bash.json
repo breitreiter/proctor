@@ -1,0 +1,12 @@
+{
+  "id": "uses-bash",
+  "description": "The model runs one allowed bash command and answers",
+  "fixture": "note",
+  "prompt": "MOCK:tool=bash echo hi",
+  "expect": {
+    "files_touched": {
+      "paths": [],
+      "mode": "exactly"
+    }
+  }
+}

@@ -39,6 +39,7 @@ static class Layout
     public const string HarborDir = "harbor";
     public const string HarborJobFile = "job.json";
     public const string HarborLogFile = "harbor.log";
+    public const string NbLogFile = "nb.jsonl";
     public const string TrajectoryFile = "trajectory.json";
     public const string CoreFile = "core.json";
     public const string RewardFile = "reward.json";

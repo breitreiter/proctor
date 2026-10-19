@@ -1,5 +1,5 @@
 {
-  "//": "Copy to proctor.json (gitignored) and point the routes at your gateway. nb: the host binary and its config. agents: where each vendor agent's model calls go (its base URL's host is the only name its container may reach). harbor.uv: the uv that runs a suite's pinned Harbor. judges: the endpoints the model checks call at grade time, by wire shape. ${VAR} references in endpoint and api_key resolve from the environment when `grade` (judges) or `run` (agents) needs them: LLM_GATEWAY is the base URL of an OpenAI-dialect gateway, LLM_GATEWAY_KEY its key; the paths below are the routes this suite expects it to serve.",
+  "//": "Copy to proctor.json (gitignored) and point the routes at your gateway. nb: the host binary and its config. agents: where each vendor agent's model calls go (its base URL's host is the only name its container may reach). harbor.uv: the uv that runs a suite's pinned Harbor; harbor.nb: nb's self-contained linux-x64 publish (`dotnet publish nb.csproj -c Release -r linux-x64 --self-contained -o artifacts/linux-x64` in nb's repository), the same nb as nb.path, which an arm with agent nb runs in its image. judges: the endpoints the model checks call at grade time, by wire shape. ${VAR} references in endpoint and api_key resolve from the environment when `grade` (judges) or `run` (agents) needs them: LLM_GATEWAY is the base URL of an OpenAI-dialect gateway, LLM_GATEWAY_KEY its key; the paths below are the routes this suite expects it to serve.",
   "nb": {
     "path": "../../nb/bin/Debug/net10.0/nb",
     "config": "nb.json"
@@ -11,7 +11,8 @@
     }
   },
   "harbor": {
-    "uv": "uv"
+    "uv": "uv",
+    "nb": "../../nb/artifacts/linux-x64"
   },
   "judges": {
     "jev": {

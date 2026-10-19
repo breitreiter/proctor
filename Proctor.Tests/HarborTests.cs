@@ -214,7 +214,7 @@ public class HarborTests
         var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
         var manifest = NewManifest();
 
-        Assert.Null(Ingest.Trial(trial, cell, CcArm, manifest));
+        Assert.Null(Ingest.Trial(trial, cell, CcArm, manifest, CcArm.AgentVersion!));
         Assert.Equal(["agent", "core.json", "diff.patch", "reward.json", "trajectory.json", "verifier"],
             Directory.GetFileSystemEntries(cell).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.True(File.Exists(Path.Combine(cell, "agent", "claude-code.txt")));
@@ -258,7 +258,7 @@ public class HarborTests
         using var repo = new TestRepo();
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"), exception);
         var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
-        Assert.Equal(failure, Ingest.Trial(trial, cell, CcArm, NewManifest()));
+        Assert.Equal(failure, Ingest.Trial(trial, cell, CcArm, NewManifest(), CcArm.AgentVersion!));
         if (exitReason is not null) Assert.Equal(exitReason, ReadJson(Path.Combine(cell, "core.json"))["exit_reason"]!.GetValue<string>());
     }
 
@@ -268,16 +268,16 @@ public class HarborTests
         using var repo = new TestRepo();
         var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
         Assert.Equal("agent_version_mismatch: the trial ran claude-code 2.1.302, the arm pins 2.1.301",
-            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t1"), version: "2.1.302"), cell, CcArm, NewManifest()));
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t1"), version: "2.1.302"), cell, CcArm, NewManifest(), CcArm.AgentVersion!));
         Assert.Equal("adapter_unmapped: tool 'mcp__fs__read' has no kind for claude-code",
-            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t2"), trajectory: Trajectory("Read", "mcp__fs__read")), cell, CcArm, NewManifest()));
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t2"), trajectory: Trajectory("Read", "mcp__fs__read")), cell, CcArm, NewManifest(), CcArm.AgentVersion!));
         Assert.Equal("adapter_unmapped: the trial has no agent/trajectory.json",
-            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t3"), trajectory: ""), cell, CcArm, NewManifest()));
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t3"), trajectory: ""), cell, CcArm, NewManifest(), CcArm.AgentVersion!));
         var noDiff = WriteTrial(Path.Combine(repo.Root, "t5"));
         File.Delete(Path.Combine(noDiff, "artifacts", "logs", "artifacts", "diff.patch"));
-        Assert.StartsWith("the trial collected no diff", Ingest.Trial(noDiff, cell, CcArm, NewManifest()));
+        Assert.StartsWith("the trial collected no diff", Ingest.Trial(noDiff, cell, CcArm, NewManifest(), CcArm.AgentVersion!));
         Assert.Equal("agent exited without a trajectory: NonZeroAgentExitCodeError: it went wrong",
-            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t4"), "NonZeroAgentExitCodeError", trajectory: ""), cell, CcArm, NewManifest()));
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t4"), "NonZeroAgentExitCodeError", trajectory: ""), cell, CcArm, NewManifest(), CcArm.AgentVersion!));
     }
 
     /// <summary>
@@ -363,10 +363,10 @@ public class HarborTests
         var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
         File.WriteAllText(Path.Combine(trial, "verifier", "tests-pass.out"), "6 of 6 tests pass\n");
-        Assert.Null(Ingest.Trial(trial, cell, CcArm, NewManifest()));
+        Assert.Null(Ingest.Trial(trial, cell, CcArm, NewManifest(), CcArm.AgentVersion!));
         edit(cell);
         var context = new CellContext(suite.Dir, cell, Path.Combine(repo.Root, "work"), "e", "cc-haiku", suite.Tasks[0], 1)
-            { Expect = suite.ExpectFor(suite.Tasks[0]), Fixture = suite.FixtureOf(suite.Tasks[0]), ScriptsInVerifier = true };
+            { Expect = suite.ExpectFor(suite.Tasks[0]), Fixture = suite.FixtureOf(suite.Tasks[0]), ScriptsInVerifier = true, Vendor = true };
         return Grade.Cell(context, suite, Transcript.Read(cell));
     }
 
@@ -452,5 +452,138 @@ public class HarborTests
         var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadSuite("agent-smoke"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
         Assert.Contains("no agents.claude-code", e.Message);
         Assert.False(Directory.Exists(Path.Combine(repo.Root, "runs")));
+    }
+
+    // nb as a Harbor agent: the gate suite's harbor arm.
+
+    static readonly Arm NbArm = new("nb-harbor", null, "nb", "Mock", "mock", 2, null, Agent: "nb");
+
+    [Fact]
+    public void NbAgentArm_IsAHarborArm_ButNotAVendors()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("gate");
+        var suite = repo.LoadSuite("gate");
+        var (bare, harbor) = (suite.Arms[0], suite.Arms[1]);
+        Assert.False(bare.IsAgent);
+        Assert.True(harbor.IsAgent);
+        Assert.False(harbor.IsVendor);
+        Assert.True(suite.HasAgentArms);
+    }
+
+    [Theory]
+    [InlineData("runner", "\"nb\"", "arms[1].runner", "bare path")]
+    [InlineData("agent_version", "\"0.9.0\"", "arms[1].agent_version", "the binary's")]
+    [InlineData("provider", "null", "arms[1].provider", "required for agent nb")]
+    [InlineData("bundle", "{\"path\": \"bundles/smoke\"}", "arms[1].bundle", "not yet")]
+    [InlineData("id", "\"harbor\"", "arms[1].id", "compiled for Harbor")]
+    public void NbAgentArm_IsValidated(string field, string value, string problemField, string message)
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("gate");
+        repo.EditJson("gate/suite.json", e => e["arms"]![1]![field] = JsonNode.Parse(value));
+        Assert.Contains(repo.Problems("gate"), p => p.Field == problemField && p.Message.Contains(message));
+    }
+
+    [Fact]
+    public void Compile_NbArm_CopiesNbsLayer_ReachesNothingOnMock_AndCompilesTheAgent()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("gate");
+        var suite = repo.LoadSuite("gate");
+        var expDir = Path.Combine(repo.Root, "runs", "exp");
+        var hash = HarborCompile.Tasks(expDir, suite, "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        var task = Layout.HarborTask(expDir, "nb-harbor", "writes");
+        Assert.False(Directory.Exists(Layout.HarborTask(expDir, "nb-bare", "writes")));
+
+        var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
+        Assert.Contains("timeout_sec = 120.0\nnetwork_mode = \"no-network\"\n\n[environment]", toml);
+        var dockerfile = File.ReadAllText(Path.Combine(task, "environment", "Dockerfile"));
+        Assert.Contains("COPY --from=proctor-nb:0123456789abcdef /opt/nb /opt/nb\nENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1\nRUN /opt/nb/nb --version\n", dockerfile);
+        Assert.DoesNotContain("claude", dockerfile);
+        Assert.Contains("check 'new-file' '/tests/suite/checks/new-file.sh'\n", File.ReadAllText(Path.Combine(task, "tests", "test.sh")));
+
+        // The agent is compiled beside the tasks, and a changed agent is a changed tree.
+        var agent = Path.Combine(HarborCompile.AgentsDir(expDir), "nb_agent.py");
+        Assert.Contains("class NbAgent(BaseAgent)", File.ReadAllText(agent));
+        Assert.Contains("+", hash);
+        File.AppendAllText(agent, "# edited\n");
+        Assert.NotEqual(hash, HarborCompile.TreeHash(expDir));
+    }
+
+    [Fact]
+    public void Job_NbArm_ImportsProctorsAgent_WithTheCellsProgram_AndTheKeyByNameOnly()
+    {
+        var route = new AgentRoute("http://library:8086/x/qcoder/v1", "sk-secret", "LLM_GATEWAY_KEY", new() { ["LLM_GATEWAY"] = "http://library:8086/x" });
+        var job = HarborCompile.Job(NbArm, "/t", "/j", route, new NbCell("/cell/program.jsonl", "/suites/nb.json", "/exp/harbor/agents"));
+        var agent = job["agents"]![0]!.AsObject();
+        Assert.Null(agent["name"]);
+        Assert.Equal(HarborCompile.NbAgentImport, agent["import_path"]!.GetValue<string>());
+        Assert.Equal("""{"program":"/cell/program.jsonl","workdir":"/app","config":"/suites/nb.json","secret":"LLM_GATEWAY_KEY"}""", agent["kwargs"]!.ToJsonString());
+        Assert.Equal("""{"LLM_GATEWAY":"http://library:8086/x"}""", agent["env"]!.ToJsonString());
+        Assert.DoesNotContain("sk-secret", job.ToJsonString());
+    }
+
+    static string WriteNbTrial(string dir, string jsonl, string version = "0.9.0", string? exception = null, string exit = "0")
+    {
+        Directory.CreateDirectory(Path.Combine(dir, "agent"));
+        Directory.CreateDirectory(Path.Combine(dir, "artifacts", "logs", "artifacts"));
+        Directory.CreateDirectory(Path.Combine(dir, "verifier"));
+        File.WriteAllText(Path.Combine(dir, "result.json"), new JsonObject
+        {
+            ["agent_info"] = new JsonObject { ["name"] = "nb", ["version"] = version },
+            ["agent_execution"] = new JsonObject { ["started_at"] = "2026-10-18T10:00:00Z", ["finished_at"] = "2026-10-18T10:00:01.5Z" },
+            ["exception_info"] = exception is null ? null : new JsonObject { ["exception_type"] = exception, ["exception_message"] = "timed out" },
+        }.ToJsonString());
+        if (jsonl.Length > 0) File.WriteAllText(Path.Combine(dir, "agent", "nb.jsonl"), jsonl);
+        File.WriteAllText(Path.Combine(dir, "agent", "nb.exit"), exit + "\n");
+        File.WriteAllText(Path.Combine(dir, "agent", "nb.stderr.log"), "\nUnhandled exception: provider 'Mock' not configured\n");
+        File.WriteAllText(Path.Combine(dir, "artifacts", "logs", "artifacts", "diff.patch"), "");
+        File.WriteAllText(Path.Combine(dir, "verifier", "reward.json"), "{\"new-file\": 0}\n");
+        return dir;
+    }
+
+    static string Captured(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name + ".jsonl"));
+
+    [Fact]
+    public void Ingest_NbTrial_ConvertsNbsLogToATrajectory_AndCountsIt()
+    {
+        using var repo = new TestRepo();
+        var trial = WriteNbTrial(Path.Combine(repo.Root, "trial"), Captured("loop-nudged"));
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var manifest = NewManifest() with { Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null) };
+
+        Assert.Null(Ingest.Trial(trial, cell, NbArm, manifest, "0.9.0"));
+        Assert.True(File.Exists(Path.Combine(cell, "agent", "nb.jsonl")));
+        Assert.Equal(0, manifest.NbExitCode);
+        Assert.Equal("nb", ReadJson(Path.Combine(cell, "trajectory.json"))["agent"]!["name"]!.GetValue<string>());
+        var core = ReadJson(Path.Combine(cell, "core.json"));
+        Assert.Equal("max_tool_calls", core["exit_reason"]!.GetValue<string>());   // nb's own ending
+        Assert.Equal(3, core["tool_calls"]!.GetValue<int>());
+        Assert.Equal(3, core["kinds"]!["shell"]!.GetValue<int>());
+        Assert.Equal(1500, core["duration_ms"]!.GetValue<long>());
+
+        var t = Transcript.Read(cell);
+        Assert.True(t.LoopNudged);
+        Assert.Equal("Mock", t.Trailer!.Provider);
+    }
+
+    [Fact]
+    public void Ingest_NbTrial_FailsAsTheBarePathDoes()
+    {
+        using var repo = new TestRepo();
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        AgentRun nbRun = new("nb", null, "mock", [], [], "0.24.0", null);
+        string? Ingested(string trial) => Ingest.Trial(trial, cell, NbArm, NewManifest() with { Agent = nbRun }, "0.9.0");
+
+        Assert.Equal("agent_version_mismatch: the image ran nb 0.8.1, the host nb that compiled the program is 0.9.0",
+            Ingested(WriteNbTrial(Path.Combine(repo.Root, "t1"), Captured("plain"), version: "0.8.1")));
+        Assert.Equal("nb exited 1 without a result trailer: Unhandled exception: provider 'Mock' not configured",
+            Ingested(WriteNbTrial(Path.Combine(repo.Root, "t2"), "{\"type\":\"user\",\"turn\":0,\"text\":\"hi\"}\n", exit: "1")));
+        Assert.Equal("nb did not run in the trial (no agent/nb.jsonl)", Ingested(WriteNbTrial(Path.Combine(repo.Root, "t3"), "")));
+
+        // Out of time is a completed run, whatever nb got written.
+        Assert.Null(Ingested(WriteNbTrial(Path.Combine(repo.Root, "t4"), "{\"type\":\"user\",\"turn\":0,\"text\":\"hi\"}\n", exception: "AgentTimeoutError", exit: "")));
+        Assert.Equal("time_budget", ReadJson(Path.Combine(cell, "core.json"))["exit_reason"]!.GetValue<string>());
     }
 }

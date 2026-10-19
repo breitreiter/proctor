@@ -35,10 +35,23 @@ static class Ingest
             ["WebFetch"] = "web", ["WebSearch"] = "web",
             ["Skill"] = "skill", ["SlashCommand"] = "skill",
         },
+        [Arm.Nb] = new()
+        {
+            ["bash"] = "shell",
+            ["read_file"] = "read", ["list_dir"] = "read",
+            ["write_file"] = "write",
+            ["edit_file"] = "edit",
+            ["find_files"] = "search", ["grep"] = "search",
+            ["fetch_url"] = "web", ["search_web"] = "web",
+            ["todo"] = "plan",
+        },
     };
 
-    /// <summary>Lift the trial into the cell and fill the manifest. Null when the cell completed; otherwise why it failed (infrastructure only).</summary>
-    public static string? Trial(string trialDir, string cellDir, Arm arm, Manifest manifest)
+    /// <summary>
+    /// Lift the trial into the cell and fill the manifest. Null when the cell completed; otherwise why it failed
+    /// (infrastructure only). The version is the arm's pin for a vendor agent, the host nb's for nb.
+    /// </summary>
+    public static string? Trial(string trialDir, string cellDir, Arm arm, Manifest manifest, string expectedVersion)
     {
         var result = JsonNode.Parse(File.ReadAllText(Path.Combine(trialDir, "result.json")))!.AsObject();
         CopyTree(Path.Combine(trialDir, "agent"), Path.Combine(cellDir, Layout.AgentLogsDir));
@@ -71,21 +84,31 @@ static class Ingest
             return $"harbor: {exceptionLine}";
         if (exceptionType == "NonZeroAgentExitCodeError" && !hasTrajectory)
             return $"agent exited without a trajectory: {exceptionLine}";
-        if (manifest.Agent.Version != arm.AgentVersion)
-            return $"agent_version_mismatch: the trial ran {arm.Agent} {manifest.Agent.Version ?? "unknown"}, the arm pins {arm.AgentVersion}";
+        if (manifest.Agent.Version != expectedVersion)
+            return arm.IsVendor
+                ? $"agent_version_mismatch: the trial ran {arm.Agent} {manifest.Agent.Version ?? "unknown"}, the arm pins {arm.AgentVersion}"
+                : $"agent_version_mismatch: the image ran nb {manifest.Agent.Version ?? "unknown"}, the host nb that compiled the program is {expectedVersion}";
+        if (!arm.IsVendor)
+        {
+            if (Nb(trialDir, cellDir, exceptionType, manifest) is { } nbFailure) return nbFailure;
+            hasTrajectory = true;
+            trajectoryFile = Path.Combine(cellDir, Layout.TrajectoryFile);
+        }
         if (!hasTrajectory)
             return "adapter_unmapped: the trial has no agent/trajectory.json";
         if (!File.Exists(diff))
             return $"the trial collected no diff (artifacts/logs/artifacts/{Layout.DiffFile}); the verifier's collect step did not run";
 
-        File.Copy(trajectoryFile, Path.Combine(cellDir, Layout.TrajectoryFile), overwrite: true);
+        if (arm.IsVendor) File.Copy(trajectoryFile, Path.Combine(cellDir, Layout.TrajectoryFile), overwrite: true);
+        var trajectory = JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject();
         var exitReason = exceptionType switch
         {
             "AgentTimeoutError" => "time_budget",
             "NonZeroAgentExitCodeError" => "agent_error",
-            _ => "ok",
+            // nb names its own ending, as on the bare path.
+            _ => trajectory["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok",
         };
-        var (core, unmapped) = Count(JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject(), arm.Agent!, exitReason);
+        var (core, unmapped) = Count(trajectory, arm.Agent!, exitReason);
         if (unmapped is not null) return $"adapter_unmapped: {unmapped}";
         // Tokens are the trajectory's when it carries them, else Harbor's account of the agent's run.
         Runner.WriteJson(Path.Combine(cellDir, Layout.CoreFile), core! with
@@ -99,11 +122,33 @@ static class Ingest
         return null;
     }
 
-    /// <summary>The counted core of an ATIF trajectory. Under bypassPermissions nothing is refused, so denied is 0; the denial mapping comes with approval.</summary>
+    /// <summary>
+    /// nb's native log (agent/nb.jsonl, its stderr and exit code, which the agent wrote) as the cell's trajectory.
+    /// Failed as on the bare path: nb that ends without a result trailer before its time is up did not run.
+    /// </summary>
+    static string? Nb(string trialDir, string cellDir, string? exceptionType, Manifest manifest)
+    {
+        var logs = Path.Combine(trialDir, "agent");
+        var jsonl = Path.Combine(logs, Layout.NbLogFile);
+        if (int.TryParse(ReadOr(Path.Combine(logs, "nb.exit")).Trim(), out var exit)) manifest.NbExitCode = exit;
+        var stderr = FirstLine(ReadOr(Path.Combine(logs, "nb.stderr.log")));
+        if (!File.Exists(jsonl)) return $"nb did not run in the trial (no agent/{Layout.NbLogFile}){(exceptionType is null ? "" : $": {exceptionType}")}";
+        var native = File.ReadAllText(jsonl);
+        var (trajectory, unmapped) = NbAtif.Convert(native, manifest.Agent!.Version);
+        if (unmapped is not null) return $"adapter_unmapped: {unmapped}";
+        if (trajectory!["extra"]?["result"] is null && exceptionType != "AgentTimeoutError")
+            return $"nb exited {manifest.NbExitCode?.ToString() ?? "?"} without a result trailer: {stderr}";
+        Runner.WriteJson(Path.Combine(cellDir, Layout.TrajectoryFile), trajectory);
+        return null;
+    }
+
+    static string ReadOr(string file) => File.Exists(file) ? File.ReadAllText(file) : "";
+
+    /// <summary>The counted core of an ATIF trajectory. Denied is the calls the agent refused: nb marks them; under bypassPermissions Claude Code refuses none, and its denial mapping comes with approval.</summary>
     public static (CountedCore? Core, string? Unmapped) Count(JsonObject trajectory, string agent, string exitReason)
     {
         var kinds = Kinds[agent];
-        int turns = 0, calls = 0;
+        int turns = 0, calls = 0, denied = 0;
         var tally = new Dictionary<string, int>();
         string? unmapped = null;
 
@@ -119,6 +164,7 @@ static class Ingest
                 {
                     var name = call?["function_name"]?.GetValue<string>() ?? "";
                     calls++;
+                    if (call?["extra"]?["approved"]?.GetValue<string>() == "deny") denied++;
                     if (kinds.TryGetValue(name, out var kind)) tally[kind] = tally.GetValueOrDefault(kind) + 1;
                     else unmapped ??= $"tool '{name}' has no kind for {agent}";
                 }
@@ -129,7 +175,7 @@ static class Ingest
         if (unmapped is not null) return (null, unmapped);
 
         var metrics = trajectory["final_metrics"];
-        return (new CountedCore(exitReason, turns, calls, Denied: 0, tally,
+        return (new CountedCore(exitReason, turns, calls, denied, tally,
             Long(metrics?["total_prompt_tokens"]), Long(metrics?["total_cached_tokens"]), Long(metrics?["total_completion_tokens"]),
             metrics?["total_cost_usd"]?.GetValue<double>()), null);
     }

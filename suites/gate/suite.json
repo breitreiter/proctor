@@ -1,0 +1,23 @@
+{
+  "id": "gate",
+  "description": "The deterministic gate: one Mock arm run bare and the same arm run through Harbor must give identical counted cores and checks, apart from timings.",
+  "arms": [
+    { "id": "nb-bare", "description": "nb on the Mock provider, run bare on the host.", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 2 },
+    { "id": "nb-harbor", "description": "The same nb on the same Mock provider, run as a Harbor agent in the fixture's image.", "agent": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 2 }
+  ],
+  "harbor": { "version": "0.24.0" },
+  "limits": { "wall_ms": 120000 },
+  "grading": {
+    "checks": {
+      "exit-ok":        { "exit_reason": "ok" },
+      "no-denials":     { "denied_calls": { "max": 0 } },
+      "not-nudged":     { "loop_nudged": false },
+      "under-budget":   { "max_tool_calls": 2, "max_tokens": 100000 },
+      "no-tool-errors": { "tool_errors": { "max": 0 } },
+      "says-expected":  { "answer_contains": "@expect" },
+      "touches":        { "files_touched": "@expect" },
+      "new-file":       { "script": "checks/new-file.sh", "description": "the checkout has new.txt as the Mock wrote it" }
+    },
+    "pass": ["exit-ok", "says-expected"]
+  }
+}

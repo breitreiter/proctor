@@ -1,6 +1,13 @@
 {
   "id": "note",
-  "source": { "path": "repo" },
+  "source": {
+    "path": "repo"
+  },
   "stack": "none",
-  "expect": { "answer_contains": "OK" }
+  "expect": {
+    "answer_contains": "OK"
+  },
+  "image": {
+    "from": "mcr.microsoft.com/dotnet/sdk:10.0"
+  }
 }

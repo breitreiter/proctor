@@ -39,20 +39,26 @@ record ProctorConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, 
 /// </summary>
 record AgentEndpoint(string? BaseUrl, string? ApiKey);
 
-/// <summary>proctor.json's harbor block: the uv that runs the suite's pinned Harbor (default: uv on PATH).</summary>
-record HarborConfig(string Uv = "uv");
+/// <summary>
+/// proctor.json's harbor block: the uv that runs the suite's pinned Harbor (default: uv on PATH), and nb's self-contained
+/// linux-x64 publish directory, which an nb arm's image carries (relative to suites/, like nb.path).
+/// </summary>
+record HarborConfig(string Uv = "uv", string? Nb = null);
 
 /// <summary>
-/// An arm is what is under test. Without an agent (or with agent nb) it is nb, run bare: runner, harness and provider
-/// say how. With a vendor agent it is that agent's real CLI at a pinned version, run by Harbor in the fixture's image.
+/// An arm is what is under test. Without an agent it is nb, run bare: runner, harness and provider say how. With an
+/// agent it runs through Harbor in the fixture's image: a vendor agent is that agent's real CLI at a pinned version;
+/// agent nb is nb itself, the binary proctor.json's harbor.nb names, on the provider the arm names.
 /// </summary>
 record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null, string? Description = null, string? Agent = null, string? AgentVersion = null)
 {
     public const string Nb = "nb", ClaudeCode = "claude-code", Codex = "codex", QwenCode = "qwen-code";
 
     public int SamplesOrOne => Samples ?? 1;
-    /// <summary>A vendor agent run through Harbor, not nb.</summary>
-    public bool IsAgent => Agent is not null && Agent != Nb;
+    /// <summary>Run through Harbor: a vendor agent, or nb as a Harbor agent.</summary>
+    public bool IsAgent => Agent is not null;
+    /// <summary>A vendor's CLI, not nb.</summary>
+    public bool IsVendor => IsAgent && Agent != Nb;
 }
 
 /// <summary>suite.json's harbor block: the Harbor release every agent arm runs on, pinned.</summary>
@@ -368,8 +374,9 @@ sealed class Suite
             if (string.IsNullOrWhiteSpace(arm.Id)) Add($"{f}.id", "required");
             else if (!seen.Add(arm.Id)) Add($"{f}.id", $"duplicate arm id '{arm.Id}'");
             else if (!Regex.IsMatch(arm.Id, "^[a-z0-9][a-z0-9-]*$")) Add($"{f}.id", "arm ids are path segments: lowercase letters, digits and hyphens");
-            if (arm.IsAgent) { ValidateAgentArm(arm, f, Add); continue; }
-            if (arm.Agent is not null && arm.AgentVersion is not null) Add($"{f}.agent_version", "nb is the binary proctor.json names; agent_version pins a vendor agent");
+            else if (arm.Id == Layout.HarborDir) Add($"{f}.id", $"'{Layout.HarborDir}' is the experiment's directory for the tasks compiled for Harbor; name the arm something else");
+            if (arm.IsVendor) { ValidateAgentArm(arm, f, Add); continue; }
+            if (arm.IsAgent) { ValidateNbAgentArm(arm, f, Add); continue; }
             switch (arm.Runner)
             {
                 case "nb":
@@ -488,6 +495,21 @@ sealed class Suite
     }
 
     /// <summary>
+    /// nb as a Harbor agent: the harness and provider as on the bare path, the model optional likewise. The runner is the
+    /// bare path's (Harbor runs nb here) and the version is the binary's, so neither is the arm's to say.
+    /// </summary>
+    static void ValidateNbAgentArm(Arm arm, string f, Action<string, string> add)
+    {
+        if (arm.Runner is not null) add($"{f}.runner", "the bare path's; an arm with agent nb runs nb through Harbor");
+        if (arm.Command is not null) add($"{f}.command", "the bare path's; an arm with agent nb runs nb through Harbor");
+        if (arm.AgentVersion is not null) add($"{f}.agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
+        if (string.IsNullOrWhiteSpace(arm.Provider)) add($"{f}.provider", "required for agent nb (a provider entry name in nb's config)");
+        if (string.IsNullOrWhiteSpace(arm.Harness)) add($"{f}.harness", "required for agent nb (nb, qwen-code, codex or claude-code)");
+        if (arm.Bundle is not null) add($"{f}.bundle", "a bundle on an agent arm is not yet implemented");
+        if (arm.Samples is < 1) add($"{f}.samples", "must be at least 1");
+    }
+
+    /// <summary>
     /// What an agent arm needs from the rest of the suite: a pinned Harbor, a wall limit (Harbor's agent timeout) and an
     /// image on every task's fixture. A sample hook runs on the host, which an agent's container never sees; the setup it
     /// did belongs in the fixture's image.
@@ -502,7 +524,7 @@ sealed class Suite
         if (def.Limits?.WallMs is < 1000) add("limits.wall_ms", "at least 1000");
         if (!agents)
         {
-            if (def.Harbor is not null) add("harbor", "no arm names a vendor agent, so nothing runs through Harbor");
+            if (def.Harbor is not null) add("harbor", "no arm names an agent, so nothing runs through Harbor");
             if (def.Limits is not null) add("limits", "applies to agent arms; an nb arm's limits are budget directives in the program");
             return;
         }

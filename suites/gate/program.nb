@@ -1,0 +1,6 @@
+# The gate: every task scripts nb's Mock provider, so bare and Harbor runs can be compared exactly.
+provider {{provider}}
+harness {{harness}}
+loop 2
+budget tool_calls 3
+run {{prompt}}

@@ -1,0 +1,12 @@
+{
+  "id": "loops",
+  "description": "The model repeats a bash command until nb nudges it, then hits the tool-call budget",
+  "fixture": "note",
+  "prompt": "MOCK:loop=bash echo x",
+  "expect": {
+    "files_touched": {
+      "paths": [],
+      "mode": "exactly"
+    }
+  }
+}

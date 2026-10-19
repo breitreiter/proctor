@@ -66,8 +66,10 @@ in the order the verbs run them. Every file is one concern:
 | `Suite/Baseline.cs` | `suites/<suite>/baseline.json`: pinned cells per task; scores recomputed from the cells while they exist |
 | `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, an agent cell through Harbor, resume |
 | `Harbor/Compile.cs` | an agent arm's task as a Harbor task (`instruction.md`, `task.toml`, the image, the verifier) and a cell's job file |
-| `Run/Harbor.cs` | one cell's Harbor job: `uv tool run harbor@<pin>`, telemetry off, the key in its environment only |
+| `Harbor/nb_agent.py` | nb as a Harbor agent: uploads the cell's program and nb's config, runs nb on stdin; embedded, compiled into `runs/<id>/harbor/agents/` (Python, not compiled into proctor) |
+| `Run/Harbor.cs` | one cell's Harbor job: `uv tool run harbor@<pin>`, telemetry off, the key in its environment only; nb's layer image from its publish |
 | `Run/Ingest.cs` | a Harbor trial into a cell, and the counted core (`core.json`) from the ATIF trajectory |
+| `Run/NbAtif.cs` | nb's JSONL as an ATIF trajectory, nb's own fields under `extra` |
 | `Run/Checkout.cs` | the work directory: materialise the fixture, collect the diff, restore both for a regrade |
 | `Run/Subprocess.cs` | the one process helper: hooks, nb, Harbor, script checks, git; an optional timeout |
 | `Grade/Transcript.cs` | nb JSONL, or an agent cell's ATIF trajectory with its `core.json`, into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
@@ -80,6 +82,7 @@ in the order the verbs run them. Every file is one concern:
 | `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |
 | `suites/smoke/` | proctor's own suite: every task scripts nb's Mock provider |
 | `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions |
+| `suites/gate/` | the deterministic gate: one Mock arm bare and the same arm as a Harbor agent; `GateTests` (with `PROCTOR_GATE`) asserts they agree |
 | `suites/agent-smoke/` | the Harbor path's shakedown: Claude Code on Haiku, one task on `ledger`; retired when `code-change` is ported (agent-neutral-runs staging 5) |
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
@@ -125,31 +128,51 @@ The directories are for reading, not for namespaces: everything is
   by source, path and hash in `experiment.json` and every cell manifest;
   proctor never reads what is inside it. `resume` refuses a changed bundle
   as it refuses a changed suite.
-- **An agent arm is a vendor CLI run by Harbor; an nb arm is nb run bare.**
-  `arm.agent` (`claude-code`; `codex` and `qwen-code` not yet) with a pinned
-  `agent_version` and a bare model of the agent's vendor; the nb fields are
-  refused on it. The plan is `project/plans/agent-neutral-runs.md`; what
-  Harbor writes is `project/learnings/harbor.md`. `run` compiles each
-  (agent arm, task) once under `runs/<id>/harbor/tasks/<arm>/<task>/`: the
-  prompt as `instruction.md`, the fixture's `repo/` (and only it) committed
-  in the image `fixture.image` describes, the arm's agent installed at its
+- **An arm with an agent runs through Harbor; an arm without one is nb run
+  bare.** `arm.agent` is `claude-code` (`codex` and `qwen-code` not yet),
+  with a pinned `agent_version` and a bare model of the agent's vendor, the
+  nb fields refused; or `nb`, nb itself as a Harbor agent, with `harness`,
+  `provider` and `model` as on the bare path and `runner`, `command` and
+  `agent_version` refused. (Decision 1's rule, Harbor exactly when the
+  program has tools, waits for validation to refuse tools on the bare path;
+  until then `agent: nb` is how an nb arm asks for Harbor.) The plan is
+  `project/plans/agent-neutral-runs.md`; what Harbor writes is
+  `project/learnings/harbor.md`. `run` compiles each (agent arm, task) once
+  under `runs/<id>/harbor/tasks/<arm>/<task>/` (so `harbor` is not an arm
+  id): the prompt as `instruction.md`, the fixture's `repo/` (and only it)
+  committed in the image `fixture.image` describes, the arm's agent at its
   pin, and `tests/` with the suite, the fixture minus `repo/`, and a
   `test.sh` running every script check in Harbor's separate, offline
-  verifier (one `reward.json` key per check). The allowlist is the host of
-  `proctor.json` `agents.<agent>.base_url`, exactly as spelled. Each cell is
-  one Harbor job in `<cell>/harbor/`; `Ingest` lifts the trial into the
-  cell and writes `core.json`, proctor's own count, strictly: an unknown
-  tool, a version other than the pin, or no trajectory fails the cell. An
-  agent timeout is a completed run with `time_budget`. `grade` reads an
-  agent cell like any other: `Transcript.Read` takes `trajectory.json`
-  when there is no `transcript.jsonl`, with `core.json` as the trailer (so
-  a budget check reads proctor's count, never the agent's) and the main
-  agent's conversation as the windows (a subagent's calls are counted, not
-  listed). A script check is not rerun on the host: its verdict is the
-  cell's `reward.json` key and its reason the first line of
-  `verifier/<check>.out`, a missing key `error`. `loop_nudged` is `error`
-  on an agent cell, since only nb nudges; a script check that reads
-  `PROCTOR_TRANSCRIPT` has none in the verifier.
+  verifier (one `reward.json` key per check). A vendor agent reaches the
+  host of `proctor.json` `agents.<agent>.base_url`, exactly as spelled; nb
+  reaches the host of its provider's `Endpoint` in nb's config, or nothing
+  (Mock), its endpoint `${VAR}`s passed by value and its key by name. Each
+  cell is one Harbor job in `<cell>/harbor/`; `Ingest` lifts the trial into
+  the cell and writes `core.json`, proctor's own count, strictly: an
+  unknown tool or event, a version other than the pin, or no trajectory
+  fails the cell. An agent timeout is a completed run with `time_budget`.
+  `grade` reads an agent cell like any other: `Transcript.Read` takes
+  `trajectory.json` when there is no `transcript.jsonl`, with `core.json`
+  as the trailer (so a budget check reads proctor's count, never the
+  agent's) and the main agent's conversation as the windows (a subagent's
+  calls are counted, not listed). A script check is not rerun on the host:
+  its verdict is the cell's `reward.json` key and its reason the first line
+  of `verifier/<check>.out`, a missing key `error`. `loop_nudged` is
+  `error` on a vendor agent's cell, since only nb nudges; a script check
+  that reads `PROCTOR_TRANSCRIPT` has none in the verifier.
+- **nb in Harbor is the host's nb.** `proctor.json` `harbor.nb` is nb's
+  self-contained linux-x64 publish; `run` builds it once into a
+  `proctor-nb:<content hash>` image that each nb task's Dockerfile copies
+  `/opt/nb` from, and refuses a publish whose `nb --version` is not the
+  host nb's, since the host compiles the program (per cell, `{{work}}` as
+  `/app`) and the image runs it. The agent (`Harbor/nb_agent.py`) is on
+  Harbor's `PYTHONPATH` from `runs/<id>/harbor/agents/`. Its native log is
+  `agent/nb.jsonl` (with `nb.stderr.log` and `nb.exit`), which ingest
+  converts to ATIF (`NbAtif`); `NbAtifTests` holds every captured Mock
+  transcript to reading the same through ATIF as directly. The gate
+  (`suites/gate`, `GateTests`, decision 12) is opt-in:
+  `PROCTOR_GATE=<publish dir> dotnet test --no-build --filter GateTests`,
+  about ten minutes, Docker and uv needed.
 - **The baseline is a virtual arm in the statistics, not in the experiment.**
   `report` resolves `baseline.json` to per-task scores (re-read from the
   pinned cells' `checks.json` under the current `pass` and `validity`

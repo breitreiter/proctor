@@ -1,0 +1,14 @@
+{
+  "id": "writes",
+  "description": "The model writes a new file",
+  "fixture": "note",
+  "prompt": "MOCK:tool=write_file new.txt",
+  "expect": {
+    "files_touched": {
+      "paths": [
+        "new.txt"
+      ],
+      "mode": "exactly"
+    }
+  }
+}

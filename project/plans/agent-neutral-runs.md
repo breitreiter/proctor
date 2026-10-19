@@ -251,6 +251,38 @@ report still says nb where an agent arm ran (the arms table's harness and
 provider, "nb ended", "tokens nb reported"); decision 10's method section is
 what fixes that.
 
+**Staging 4 landed on 2026-10-18** (proctor 0.3.0): nb as a Harbor agent,
+nb's JSONL converted to ATIF at ingest, and the gate (`suites/gate`,
+`GateTests`). Where it differs from the text below:
+
+- **The path is chosen by `agent: nb`, not by the program's tools.** nb's
+  tools are all on unless a program says `tools none`, so routing by tools
+  now would move every Mock arm, `smoke`'s included, off the bare path
+  (decision 1 says they stay). An arm without `agent` is bare, as before;
+  `agent: nb` is Harbor. Decision 1's rule lands with validation refusing
+  tools on the bare path, which is the same week `nb.runner` retires.
+- **The nb binary is a layer, not an install.** `proctor.json` `harbor.nb`
+  names nb's self-contained publish, built once into a local
+  `proctor-nb:<content hash>` image that each task's Dockerfile copies
+  `/opt/nb` from (132 MB copied into every task directory was the
+  alternative). The pin is that hash, plus a check that the publish's
+  version is the host nb's, which compiles the program.
+- **nb's Harbor agent is a few dozen lines of Python** compiled from the
+  assembly into `runs/<id>/harbor/agents/` and imported by path; there is
+  no `Agents/` directory yet. The tool → kind table is in `Ingest.cs` beside
+  Claude Code's. Fake tools and the oracle are not in it (7).
+- **The nb reader stays.** Bare cells keep `transcript.jsonl` and are read
+  directly; an nb cell in Harbor is read through ATIF. `NbAtifTests` holds
+  every captured Mock transcript to the same windows both ways, which is
+  the conversion's half of the gate without Docker.
+- **The gate is opt-in** (`PROCTOR_GATE=<publish>`), since it needs Docker,
+  uv and about ten minutes. It compares nb's transcript (minus the
+  trailer's timings), the counted core (minus duration) and `checks.json`
+  for five Mock tasks × two samples. The checkout's path is the one other
+  difference, by construction (`write_file` reports the absolute path it
+  wrote: a host directory bare, `/app` in the image), so the comparison
+  maps one to the other. Green on 2026-10-18.
+
 ### 1. Compile (`Harbor/Compile.cs`)
 
 A new pipeline stage between `Suite/` and `Run/`. `run` writes, under the

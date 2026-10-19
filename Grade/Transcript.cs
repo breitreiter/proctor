@@ -69,36 +69,55 @@ sealed class Transcript
     /// <summary>
     /// An ATIF trajectory: the main agent's conversation as the windows (a subagent's calls are counted in the core, not
     /// listed), and the core as the trailer, so a check reads proctor's count and never the agent's. The answer is the
-    /// last agent step with text; a tool result is an error when the agent marked it so (Claude Code's is_error).
+    /// last agent step with text; a tool result is an error when the agent marked it so (Claude Code's is_error). What
+    /// nb's conversion keeps under extra (a turn's source, a call's approval, a result's structured result, the parsed
+    /// answer, nb's own trailer) is read back, so an nb run reads the same through Harbor as bare.
     /// </summary>
     public static Transcript FromAtif(JsonObject trajectory, CountedCore? core, string? diff = null)
     {
         var t = new Transcript { Diff = diff };
+        var nb = Str(trajectory["agent"] as JsonObject ?? [], "name") == Arm.Nb;
         foreach (var step in (trajectory["steps"]?.AsArray() ?? []).OfType<JsonObject>())
         {
             var text = AtifText(step["message"]);
+            var extra = step["extra"] as JsonObject;
             switch (Str(step, "source"))
             {
                 case "user":
-                    t.UserTurns.Add(new UserTurn(text, null));
+                    t.UserTurns.Add(new UserTurn(text, extra is null ? null : Str(extra, "source")));
                     break;
                 case "agent":
-                    if (text.Trim().Length > 0) t.Answer = text;
+                    if (text.Trim().Length > 0)
+                    {
+                        t.Answer = text;
+                        t.AnswerJson = extra?["assistant_json"]?.DeepClone() ?? LastJsonFence(text);
+                    }
                     foreach (var call in (step["tool_calls"]?.AsArray() ?? []).OfType<JsonObject>())
-                        t.ToolCalls.Add(new ToolCall(Str(call, "tool_call_id") ?? "", Str(call, "function_name") ?? "", call["arguments"]?.DeepClone() as JsonObject, null, null));
+                    {
+                        var approval = call["extra"] as JsonObject ?? [];
+                        t.ToolCalls.Add(new ToolCall(Str(call, "tool_call_id") ?? "", Str(call, "function_name") ?? "", call["arguments"]?.DeepClone() as JsonObject, Str(approval, "approved"), Str(approval, "approval_reason")));
+                    }
                     foreach (var result in (step["observation"]?["results"]?.AsArray() ?? []).OfType<JsonObject>())
                     {
                         var isError = result["extra"]?["tool_result_metadata"]?["raw_tool_result"]?["is_error"] is JsonValue e && e.TryGetValue<bool>(out var b) ? b : (bool?)null;
-                        t.ToolResults.Add(new ToolResult(Str(result, "source_call_id") ?? "", AtifText(result["content"]), null, isError ?? false));
+                        // nb marks no result an error; its output says so, as on the bare path.
+                        t.ToolResults.Add(new ToolResult(Str(result, "source_call_id") ?? "", AtifText(result["content"]), result["extra"]?["result"]?.DeepClone() as JsonObject, isError ?? (nb ? null : false)));
                     }
                     break;
             }
         }
-        if (t.Answer is not null) t.AnswerJson = LastJsonFence(t.Answer);
         if (core is not null)
+        {
+            var own = trajectory["extra"]?["result"] as JsonObject;
+            var usage = own?["usage"] as JsonObject;
             t.Trailer = new Trailer(core.ExitReason, core.InputTokens, core.OutputTokens,
-                core.InputTokens is { } i && core.OutputTokens is { } o ? i + o : null, Estimated: false,
-                core.Turns, core.ToolCalls, core.DurationMs, Provider: null, Harness: Str(trajectory["agent"] as JsonObject ?? [], "name"), core.Denied, OracleTurns: 0);
+                Num(usage, "total") ?? (core.InputTokens is { } i && core.OutputTokens is { } o ? i + o : null),
+                Estimated: usage?["estimated"] is JsonValue est && est.TryGetValue<bool>(out var estimated) && estimated,
+                core.Turns, core.ToolCalls, core.DurationMs,
+                Provider: own is null ? null : Str(own, "provider"),
+                Harness: nb ? (own is null ? null : Str(own, "harness")) ?? Arm.Nb : Str(trajectory["agent"] as JsonObject ?? [], "name"),
+                core.Denied, OracleTurns: (int?)Num(own, "oracle_turns") ?? 0);
+        }
         return t;
     }
 
@@ -194,7 +213,8 @@ sealed class Transcript
     private static long? Num(JsonObject? o, string key) =>
         o?[key] is JsonValue v && v.TryGetValue<long>(out var n) ? n : null;
 
-    private static string Text(JsonObject ev)
+    /// <summary>An nb event's text: its text field, or its content parts joined.</summary>
+    public static string Text(JsonObject ev)
     {
         if (Str(ev, "text") is { } s) return s;
         if (ev["content"] is JsonArray parts)
