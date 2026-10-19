@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Arm setup: the model on the model box, proctor built from the arm's bundle, and the arm's view of
 # that bundle: what the agent is shown at /work/.bundle. Both arms pin the same revision; the view is
-# what differs, so the comparison between arms is the examples and nothing else. The image and the
-# package cache are code-change's, extended by nothing but the fixtures here.
+# what differs, so the comparison between arms is the examples and nothing else. The image is
+# runners/Containerfile's, the package cache warmed for this suite's fixtures.
 set -euo pipefail
 "$PROCTOR_SUITE_DIR/../code-change/hooks/ensure-model.sh" qcoder
 root=$(cd "$PROCTOR_SUITE_DIR/../.." && pwd)

@@ -5,6 +5,46 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.3.1 — 2026-10-18
+
+Codex and Qwen Code as agents, and `code-change` ported to agent arms
+(staging step 5 of `project/plans/agent-neutral-runs.md`). Nothing that
+read before stops reading, hence a patch.
+
+- `arm.agent` takes `codex` (OpenAI models: `gpt-…`, `o<n>…`, `codex-…`) and
+  `qwen-code` (Qwen models: `qwen…`), each with a pinned `agent_version` and
+  the model bare. `suites/proctor.json` `agents` takes `codex` and
+  `qwen-code` beside `claude-code`; both are OpenAI-dialect routes, and the
+  key travels as `OPENAI_API_KEY` in Harbor's process only.
+- Both CLIs are installed in the task's image from npm, on Node 22 by nvm,
+  at the pin. Codex is Harbor's own agent, which finds the pin and installs
+  nothing. Qwen Code's Harbor agent reinstalls from the network on every
+  trial, so proctor brings `Harbor/qwen_code_agent.py`, which checks the
+  image's `qwen --version` against the pin instead and fails setup when it
+  differs.
+- Ingest maps each agent's tools to proctor's kinds (`Run/Ingest.cs`); an
+  unknown tool is `adapter_unmapped`, as on Claude Code. Qwen Code's
+  `save_memory` is a new kind, `memory`. Harbor runs both with approvals and
+  sandbox bypassed, so `denied` is 0 by construction.
+- `suites/code-change` runs four agent arms through Harbor: `floor` (nb on
+  qwen3-coder-next, now `agent: nb`), `qwen` (Qwen Code on the same model),
+  `cc-haiku` and `codex-mini` (one sample each). Its runner, mounts and
+  sample hooks are gone; `fetchcli` and `widgets` gain an `image`. The
+  `stays-in-work` validity check is dropped from it: it reads the
+  transcript, which the verifier has none of, and in the agent's container
+  there is nothing outside the checkout for it to guard. It moves, with
+  the sample teardown hook, into `suite-authoring`, which still runs on the
+  runner path and shared both. Its `baseline.json` is kept for `floor`.
+- A vendor agent's run with no turn at all is failed at ingest ("its model
+  never answered"), not a completed run: Codex retries an unreachable
+  endpoint until the agent timeout, which would otherwise read as a
+  `time_budget` run that did nothing.
+- nb's Harbor agent took the key's variable as `secrets` (a list) while the
+  job passed `secret`; it takes `secret` now. No run was affected: the only
+  nb arm in Harbor so far was on Mock, which has no key.
+- `docs/porting-to-agent-neutral.md`: the porting guide's draft, from the
+  `code-change` move.
+
 ## 0.3.0 — 2026-10-18
 
 nb as a Harbor agent, and the deterministic gate (staging step 4 of

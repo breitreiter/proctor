@@ -101,13 +101,13 @@ creates it, the runner execs into it, the sample teardown hook removes it.
 Hooks see which is in effect in `PROCTOR_RUNNER`, empty on a bare run, and
 skip the container. The manifest records the script and its hash, and
 `resume` refuses a changed one. The worked example is
-`suites/runners/container.sh` with the `code-change` suite's hooks and the
+`suites/runners/container.sh` with the `suite-authoring` suite's hooks and the
 `Containerfile` beside the runner, which puts nb's own image
 (`podman build -t nb .` in the nb repository) on the .NET SDK:
 
 ```bash
-proctor run code-change                 # each cell in its own container, as suite.json says
-proctor run code-change --runner none   # bare: the shakedown, on this machine
+proctor run suite-authoring                 # each cell in its own container, as suite.json says
+proctor run suite-authoring --runner none   # bare: the shakedown, on this machine
 ```
 
 A bare run is for shaking down a suite: nb and the model's tools run on this

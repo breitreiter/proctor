@@ -39,7 +39,7 @@ static class HarborRun
     const string Docker = "docker";
 
     /// <summary>Run the trial. Returns the trial directory, or why there is none (infrastructure: the cell fails).</summary>
-    public static (string? TrialDir, string? Failure) Trial(string uv, string version, string cellDir, Arm arm, string taskDir, AgentRoute route, long wallMs, NbCell? nb = null)
+    public static (string? TrialDir, string? Failure) Trial(string uv, string version, string cellDir, Arm arm, string taskDir, AgentRoute route, long wallMs, string agentsDir, NbCell? nb = null)
     {
         var harborDir = Path.Combine(cellDir, Layout.HarborDir);
         if (Directory.Exists(harborDir)) Directory.Delete(harborDir, recursive: true);   // a resumed cell starts clean
@@ -49,8 +49,8 @@ static class HarborRun
 
         var env = new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" };
         if (route is { KeyEnv: { } name, ApiKey: { } key }) env[name] = key;
-        // nb's agent is proctor's own, imported from the experiment's harbor/agents/.
-        if (nb is not null) env["PYTHONPATH"] = nb.AgentsDir;
+        // nb's and Qwen Code's agents are proctor's own, imported from the experiment's harbor/agents/.
+        if (HarborCompile.IsOwnAgent(arm)) env["PYTHONPATH"] = agentsDir;
         var timeout = TimeSpan.FromMilliseconds(wallMs) + Overhead;
         var result = Subprocess.Run(uv, ["tool", "run", $"harbor@{version}", "run", "--config", Layout.HarborJobFile], harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);

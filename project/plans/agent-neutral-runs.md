@@ -283,6 +283,34 @@ nb's JSONL converted to ATIF at ingest, and the gate (`suites/gate`,
   wrote: a host directory bare, `/app` in the image), so the comparison
   maps one to the other. Green on 2026-10-18.
 
+**Staging 5's code landed on 2026-10-18** (proctor 0.3.1): Codex and Qwen
+Code as agents, `code-change` on all four, the porting guide's draft
+(`docs/porting-to-agent-neutral.md`). Its real run is still to come: the
+gateway did not resolve from the dev box that day, so both agents were
+shaken down on `agent-smoke` with a key that reaches nothing (each built,
+installed at its pin, started, and was ingested). Where it differs from the
+text below:
+
+- **Still no `Agents/` directory.** Each agent is a few lines in four
+  switches (validation's vendor rule, compile's kwargs, env and install,
+  ingest's tool kinds); a directory per agent waits for the conformance
+  kits, which are what it would mostly hold.
+- **Qwen Code is proctor's agent, subclassing Harbor's.** Harbor's
+  reinstalls nvm, Node and the CLI from the network on every trial, image or
+  no image; proctor's replaces that with a check of the image's version
+  against the pin. Codex is Harbor's own, which skips the install at the pin.
+- **No approval on either.** Harbor runs Codex with
+  `--dangerously-bypass-approvals-and-sandbox` and Qwen Code with `--yolo`,
+  with no setting for anything else; `denied` is 0 by construction, as on
+  Claude Code. The *Open questions* on Codex's sandbox and denials stand.
+- **`stays-in-work` leaves `code-change`** rather than becoming a built-in
+  over ATIF: it reads the transcript, which the verifier has none of, and
+  the container leaves nothing outside the checkout to guard.
+  `suite-authoring`, still on the runner path, keeps it.
+- **A vendor agent does not see the program template.** The nb arm's
+  template tells it nobody will answer questions; the vendor arms get the
+  task's prompt alone.
+
 ### 1. Compile (`Harbor/Compile.cs`)
 
 A new pipeline stage between `Suite/` and `Run/`. `run` writes, under the

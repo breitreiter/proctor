@@ -21,12 +21,12 @@ PROGRAM = "/nb/program.jsonl"
 
 class NbAgent(BaseAgent):
     def __init__(self, *args, program: str, config: str | None = None, workdir: str = "/app",
-                 secrets: list[str] | None = None, **kwargs):
+                 secret: str | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self._program = program
         self._config = config
         self._workdir = workdir
-        self._secrets = secrets or []
+        self._secret = secret
         self._version: str | None = None
 
     @staticmethod
@@ -46,10 +46,11 @@ class NbAgent(BaseAgent):
             self._version = result.stdout.strip().split("+")[0]
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
-        # The configured env (the provider's endpoint variables) plus each key by name from Harbor's own environment,
+        # The configured env (the provider's endpoint variables) plus the key, by name, from Harbor's own environment,
         # which is the only place proctor puts it.
         env = {"NO_COLOR": "1", **self.extra_env}
-        env.update({name: os.environ[name] for name in self._secrets if name in os.environ})
+        if self._secret and self._secret in os.environ:
+            env[self._secret] = os.environ[self._secret]
         logs = str(self.environment_logs_dir)
         config = f"--config {CONFIG} " if self._config else ""
         await environment.exec(

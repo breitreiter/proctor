@@ -67,6 +67,7 @@ in the order the verbs run them. Every file is one concern:
 | `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, an agent cell through Harbor, resume |
 | `Harbor/Compile.cs` | an agent arm's task as a Harbor task (`instruction.md`, `task.toml`, the image, the verifier) and a cell's job file |
 | `Harbor/nb_agent.py` | nb as a Harbor agent: uploads the cell's program and nb's config, runs nb on stdin; embedded, compiled into `runs/<id>/harbor/agents/` (Python, not compiled into proctor) |
+| `Harbor/qwen_code_agent.py` | Harbor's Qwen Code agent with its per-trial network install replaced by a check that the image holds the pin; embedded and compiled like `nb_agent.py` |
 | `Run/Harbor.cs` | one cell's Harbor job: `uv tool run harbor@<pin>`, telemetry off, the key in its environment only; nb's layer image from its publish |
 | `Run/Ingest.cs` | a Harbor trial into a cell, and the counted core (`core.json`) from the ATIF trajectory |
 | `Run/NbAtif.cs` | nb's JSONL as an ATIF trajectory, nb's own fields under `extra` |
@@ -81,13 +82,14 @@ in the order the verbs run them. Every file is one concern:
 | `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json` |
 | `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |
 | `suites/smoke/` | proctor's own suite: every task scripts nb's Mock provider |
-| `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions |
+| `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions; four agent arms through Harbor (nb, Qwen Code, Claude Code, Codex) |
 | `suites/gate/` | the deterministic gate: one Mock arm bare and the same arm as a Harbor agent; `GateTests` (with `PROCTOR_GATE`) asserts they agree |
-| `suites/agent-smoke/` | the Harbor path's shakedown: Claude Code on Haiku, one task on `ledger`; retired when `code-change` is ported (agent-neutral-runs staging 5) |
+| `suites/agent-smoke/` | the Harbor path's shakedown: Claude Code on Haiku, one task on `ledger`; `HarborTests` build on it. Retired once `code-change`'s first run on all four agents is in |
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings |
+| `docs/` | user-facing guides beyond the README: `porting-to-agent-neutral.md`, how a suite moves to agent arms (a draft, from porting `code-change`) |
 | `project/` | the brief, the plans, the research notes and the loose ends |
 
 The directories are for reading, not for namespaces: everything is
@@ -129,9 +131,10 @@ The directories are for reading, not for namespaces: everything is
   proctor never reads what is inside it. `resume` refuses a changed bundle
   as it refuses a changed suite.
 - **An arm with an agent runs through Harbor; an arm without one is nb run
-  bare.** `arm.agent` is `claude-code` (`codex` and `qwen-code` not yet),
-  with a pinned `agent_version` and a bare model of the agent's vendor, the
-  nb fields refused; or `nb`, nb itself as a Harbor agent, with `harness`,
+  bare.** `arm.agent` is a vendor agent (`claude-code` on Anthropic models,
+  `codex` on OpenAI's, `qwen-code` on Qwen's), with a pinned
+  `agent_version` and a bare model of the agent's vendor, the nb fields
+  refused; or `nb`, nb itself as a Harbor agent, with `harness`,
   `provider` and `model` as on the bare path and `runner`, `command` and
   `agent_version` refused. (Decision 1's rule, Harbor exactly when the
   program has tools, waits for validation to refuse tools on the bare path;
@@ -144,13 +147,16 @@ The directories are for reading, not for namespaces: everything is
   pin, and `tests/` with the suite, the fixture minus `repo/`, and a
   `test.sh` running every script check in Harbor's separate, offline
   verifier (one `reward.json` key per check). A vendor agent reaches the
-  host of `proctor.json` `agents.<agent>.base_url`, exactly as spelled; nb
+  host of `proctor.json` `agents.<agent>.base_url`, exactly as spelled, its
+  key in Harbor's process as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`; nb
   reaches the host of its provider's `Endpoint` in nb's config, or nothing
   (Mock), its endpoint `${VAR}`s passed by value and its key by name. Each
   cell is one Harbor job in `<cell>/harbor/`; `Ingest` lifts the trial into
   the cell and writes `core.json`, proctor's own count, strictly: an
   unknown tool or event, a version other than the pin, or no trajectory
-  fails the cell. An agent timeout is a completed run with `time_budget`.
+  fails the cell. An agent timeout is a completed run with `time_budget`;
+  a vendor agent that took no turn at all is failed, since its model never
+  answered (Codex retries an unreachable endpoint until the timeout).
   `grade` reads an agent cell like any other: `Transcript.Read` takes
   `trajectory.json` when there is no `transcript.jsonl`, with `core.json`
   as the trailer (so a budget check reads proctor's count, never the
@@ -173,6 +179,16 @@ The directories are for reading, not for namespaces: everything is
   (`suites/gate`, `GateTests`, decision 12) is opt-in:
   `PROCTOR_GATE=<publish dir> dotnet test --no-build --filter GateTests`,
   about ten minutes, Docker and uv needed.
+- **Codex and Qwen Code are installed in the image, never at trial time.**
+  Both come from npm on Node 22 by nvm under `~/.nvm`, where Harbor's agents
+  look. Harbor's Codex agent skips its install when `codex --version` is the
+  pin; Harbor's Qwen Code agent reinstalls from the network on every trial,
+  so proctor brings its own (`Harbor/qwen_code_agent.py`, imported like
+  nb's), which fails setup when the image's version is not the pin. Harbor
+  runs both with approvals and sandbox bypassed (it has no other mode), so
+  `denied` is 0 by construction, as under Claude Code's
+  `bypassPermissions`. No vendor agent sees the program template: its
+  instruction is the task's prompt.
 - **The baseline is a virtual arm in the statistics, not in the experiment.**
   `report` resolves `baseline.json` to per-task scores (re-read from the
   pinned cells' `checks.json` under the current `pass` and `validity`

@@ -53,6 +53,8 @@ record HarborConfig(string Uv = "uv", string? Nb = null);
 record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null, string? Description = null, string? Agent = null, string? AgentVersion = null)
 {
     public const string Nb = "nb", ClaudeCode = "claude-code", Codex = "codex", QwenCode = "qwen-code";
+    /// <summary>The vendor agents, each its vendor's CLI on its vendor's models only.</summary>
+    public static readonly string[] Vendors = [ClaudeCode, Codex, QwenCode];
 
     public int SamplesOrOne => Samples ?? 1;
     /// <summary>Run through Harbor: a vendor agent, or nb as a Harbor agent.</summary>
@@ -236,7 +238,7 @@ sealed class Suite
         Judges.Validate(config?.Judges, (field, message) => problems.Add(new Problem(Path.GetRelativePath(root, file), field, message)));
         foreach (var (name, endpoint) in config?.Agents ?? [])
         {
-            if (name != Arm.ClaudeCode) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}", $"unknown agent; known: {Arm.ClaudeCode}"));
+            if (!Arm.Vendors.Contains(name)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}", $"unknown agent; known: {string.Join(", ", Arm.Vendors)}"));
             else if (string.IsNullOrWhiteSpace(endpoint?.BaseUrl)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.base_url", "required: where the agent's model calls go"));
         }
         return config ?? new ProctorConfig(null);
@@ -474,22 +476,24 @@ sealed class Suite
 
     /// <summary>
     /// A vendor agent arm: a model of the agent's own vendor, with no provider prefix (Harbor passes it to the gateway
-    /// verbatim), at a pinned agent version. The nb fields have no meaning on it. Only Claude Code runs in this version.
+    /// verbatim), at a pinned agent version. The nb fields have no meaning on it.
     /// </summary>
     static void ValidateAgentArm(Arm arm, string f, Action<string, string> add)
     {
-        switch (arm.Agent)
+        var (vendor, models, example) = arm.Agent switch
         {
-            case Arm.ClaudeCode: break;
-            case Arm.Codex or Arm.QwenCode: add($"{f}.agent", $"'{arm.Agent}' is not yet implemented; only {Arm.ClaudeCode} runs through Harbor in this version"); return;
-            default: add($"{f}.agent", $"unknown agent '{arm.Agent}'; known: {Arm.Nb}, {Arm.ClaudeCode}"); return;
-        }
+            Arm.ClaudeCode => ("an Anthropic", @"^claude-", "claude-haiku-5-5"),
+            Arm.Codex => ("an OpenAI", @"^(gpt-|o\d|codex-)", "gpt-5-mini"),
+            Arm.QwenCode => ("a Qwen", @"^qwen", "qwen3-coder-next"),
+            _ => (null, null, null),
+        };
+        if (vendor is null) { add($"{f}.agent", $"unknown agent '{arm.Agent}'; known: {Arm.Nb}, {string.Join(", ", Arm.Vendors)}"); return; }
         foreach (var (field, value) in new[] { ("runner", arm.Runner), ("harness", arm.Harness), ("provider", arm.Provider), ("command", arm.Command) })
             if (value is not null) add($"{f}.{field}", $"an nb field; an arm with agent {arm.Agent} is that agent, on the model it names");
         if (arm.Bundle is not null) add($"{f}.bundle", "a bundle on an agent arm is not yet implemented");
         if (string.IsNullOrWhiteSpace(arm.Model)) add($"{f}.model", $"required for agent {arm.Agent}");
-        else if (arm.Model.Contains('/')) add($"{f}.model", $"'{arm.Model}' has a provider prefix; name the model bare (claude-haiku-5-5), as the gateway receives it");
-        else if (!arm.Model.StartsWith("claude-", StringComparison.Ordinal)) add($"{f}.model", $"'{arm.Model}' is not an Anthropic model; {Arm.ClaudeCode} runs Anthropic models only, so the harness and the model are one vendor's");
+        else if (arm.Model.Contains('/')) add($"{f}.model", $"'{arm.Model}' has a provider prefix; name the model bare ({example}), as the gateway receives it");
+        else if (!Regex.IsMatch(arm.Model, models!)) add($"{f}.model", $"'{arm.Model}' is not {vendor} model; {arm.Agent} runs {vendor[(vendor.IndexOf(' ') + 1)..]} models only, so the harness and the model are one vendor's");
         if (string.IsNullOrWhiteSpace(arm.AgentVersion)) add($"{f}.agent_version", $"required: the {arm.Agent} release under test, pinned (there is no latest)");
         else if (!Regex.IsMatch(arm.AgentVersion, @"^\d+(\.\d+)*$")) add($"{f}.agent_version", $"'{arm.AgentVersion}' is not a version number");
     }

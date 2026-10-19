@@ -20,7 +20,7 @@ record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dict
 /// </summary>
 static class Ingest
 {
-    /// <summary>Claude Code's tools by proctor's kind. A tool missing here is adapter_unmapped.</summary>
+    /// <summary>Each agent's tools by proctor's kind, as the trajectory names them. A tool missing here is adapter_unmapped.</summary>
     static readonly Dictionary<string, Dictionary<string, string>> Kinds = new()
     {
         [Arm.ClaudeCode] = new()
@@ -34,6 +34,28 @@ static class Ingest
             ["TodoWrite"] = "plan", ["ExitPlanMode"] = "plan",
             ["WebFetch"] = "web", ["WebSearch"] = "web",
             ["Skill"] = "skill", ["SlashCommand"] = "skill",
+        },
+        // Codex's names are its rollout's (Harbor keeps them): unified exec's two calls, the older shells, apply_patch for every file change.
+        [Arm.Codex] = new()
+        {
+            ["exec_command"] = "shell", ["write_stdin"] = "shell", ["shell"] = "shell", ["local_shell"] = "shell", ["shell_command"] = "shell",
+            ["view_image"] = "read",
+            ["apply_patch"] = "edit",
+            ["update_plan"] = "plan",
+            ["web_search_call"] = "web",
+        },
+        [Arm.QwenCode] = new()
+        {
+            ["run_shell_command"] = "shell",
+            ["read_file"] = "read", ["read_many_files"] = "read", ["list_directory"] = "read",
+            ["write_file"] = "write",
+            ["edit"] = "edit", ["replace"] = "edit",
+            ["glob"] = "search", ["grep_search"] = "search", ["search_file_content"] = "search",
+            ["task"] = "agent",
+            ["todo_write"] = "plan", ["exit_plan_mode"] = "plan",
+            ["web_fetch"] = "web", ["web_search"] = "web",
+            ["skill"] = "skill",
+            ["save_memory"] = "memory",
         },
         [Arm.Nb] = new()
         {
@@ -110,6 +132,10 @@ static class Ingest
         };
         var (core, unmapped) = Count(trajectory, arm.Agent!, exitReason);
         if (unmapped is not null) return $"adapter_unmapped: {unmapped}";
+        // A vendor agent that never took a turn never heard from its model (Codex retries an unreachable endpoint until
+        // the timeout): an outage, not a run. nb names its own ending, as on the bare path.
+        if (arm.IsVendor && core!.Turns == 0)
+            return $"the agent took no turn ({exitReason}): its model never answered; see agent/ for why";
         // Tokens are the trajectory's when it carries them, else Harbor's account of the agent's run.
         Runner.WriteJson(Path.Combine(cellDir, Layout.CoreFile), core! with
         {
@@ -144,7 +170,7 @@ static class Ingest
 
     static string ReadOr(string file) => File.Exists(file) ? File.ReadAllText(file) : "";
 
-    /// <summary>The counted core of an ATIF trajectory. Denied is the calls the agent refused: nb marks them; under bypassPermissions Claude Code refuses none, and its denial mapping comes with approval.</summary>
+    /// <summary>The counted core of an ATIF trajectory. Denied is the calls the agent refused: nb marks them; the vendor agents run with approvals bypassed (Claude Code's bypassPermissions, Codex's and Qwen Code's only mode in Harbor), so refuse none, and their denial mapping comes with approval.</summary>
     public static (CountedCore? Core, string? Unmapped) Count(JsonObject trajectory, string agent, string exitReason)
     {
         var kinds = Kinds[agent];

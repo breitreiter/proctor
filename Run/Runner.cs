@@ -297,7 +297,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
                 Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash,
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };
-        var nb = program is null ? null : new NbCell(Path.Combine(cellDir, Layout.CompiledProgramFile), experiment.Nb.Config, HarborCompile.AgentsDir(experimentDir));
+        var nb = program is null ? null : new NbCell(Path.Combine(cellDir, Layout.CompiledProgramFile), experiment.Nb.Config);
         manifest.Agent = new AgentRun(arm.Agent!, null, arm.Model ?? "", HarborCompile.AgentKwargs(arm, route, nb), HarborCompile.AgentEnv(arm, route), experiment.Harbor!.Version, null);
         manifest.Attempts++;
         manifest.Started = Now();
@@ -314,7 +314,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             if (Compile(cellDir, program).Error is { } compileError) failure = $"program compile failed: {compileError}";
         }
         if (failure is null)
-            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, cellDir, arm, taskDir, route, suite.Def.Limits!.WallMs!.Value, nb);
+            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, cellDir, arm, taskDir, route, suite.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb);
         if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, arm, manifest, arm.IsVendor ? arm.AgentVersion! : experiment.Versions["nb"]);
         stopwatch.Stop();
 
@@ -340,7 +340,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             ?? throw new ProctorException($"suites/proctor.json has no agents.{arm.Agent} (arm '{arm.Id}'): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
         var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"agents.{arm.Agent}.base_url").TrimEnd('/');
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"suites/proctor.json agents.{arm.Agent}.base_url: '{baseUrl}' is not a URL");
-        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"agents.{arm.Agent}.api_key"), "ANTHROPIC_API_KEY");
+        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"agents.{arm.Agent}.api_key"), HarborCompile.KeyEnv(arm.Agent!));
     }
 
     static readonly System.Text.RegularExpressions.Regex EnvRef = new(@"\$\{([A-Za-z_][A-Za-z0-9_]*)\}");

@@ -1,4 +1,4 @@
-# The image every code-change cell runs in: the .NET SDK the fixtures build with, and nb as a
+# The image every cell of a suite on the runner path runs in (suite-authoring; code-change runs through Harbor now): the .NET SDK the fixtures build with, and nb as a
 # layer on top of it. Built once per experiment by hooks/arm-setup.sh; entered per cell by
 # hooks/sample-setup.sh. The nb layer is nb's own Containerfile, built as `nb:latest`.
 ARG NB_IMAGE=nb:latest

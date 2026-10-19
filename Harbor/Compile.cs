@@ -20,8 +20,8 @@ record AgentRoute(string? BaseUrl, string? ApiKey, string? KeyEnv = null, Dictio
     public string? Host => BaseUrl is null ? null : new Uri(BaseUrl).Host;
 }
 
-/// <summary>An nb cell's own inputs to its job: the program compiled on the host for this cell and nb's config (host paths the agent uploads), and where the agent itself is.</summary>
-record NbCell(string Program, string? Config, string AgentsDir);
+/// <summary>An nb cell's own inputs to its job: the program compiled on the host for this cell and nb's config (host paths the agent uploads).</summary>
+record NbCell(string Program, string? Config);
 
 static class HarborCompile
 {
@@ -29,12 +29,22 @@ static class HarborCompile
     public const string Workdir = "/app";
     /// <summary>What Harbor's verifier collect step writes and the verifier applies: the run's change against the fixture commit.</summary>
     const string DiffInContainer = "/logs/artifacts/diff.patch";
-    /// <summary>nb's Harbor agent, as Harbor imports it from the experiment's harbor/agents/ on PYTHONPATH.</summary>
-    public const string NbAgentImport = "nb_agent:NbAgent";
-    const string NbAgentFile = "nb_agent.py";
+    /// <summary>
+    /// The agents proctor brings itself, as Harbor imports them from the experiment's harbor/agents/ on PYTHONPATH: nb,
+    /// and Qwen Code, whose Harbor agent reinstalls from the network on every trial (proctor's checks the image's pin
+    /// instead). Claude Code and Codex are Harbor's own, which skip the install when the image has the pin.
+    /// </summary>
+    static readonly Dictionary<string, (string Import, string File)> OwnAgents = new()
+    {
+        [Arm.Nb] = ("nb_agent:NbAgent", "nb_agent.py"),
+        [Arm.QwenCode] = ("qwen_code_agent:QwenCodeAgent", "qwen_code_agent.py"),
+    };
+
+    /// <summary>Whether Harbor imports this arm's agent from the experiment rather than naming one of its own.</summary>
+    public static bool IsOwnAgent(Arm arm) => OwnAgents.ContainsKey(arm.Agent!);
 
     /// <summary>
-    /// Every agent arm's tasks, under the experiment, and nb's Harbor agent beside them when an arm is nb. Returns the
+    /// Every agent arm's tasks, under the experiment, and proctor's own Harbor agents beside them for the arms that use one. Returns the
     /// tree's hash, which the experiment records and a resume checks. The nb image is the tag of proctor's nb layer.
     /// </summary>
     public static string Tasks(string experimentDir, Suite suite, string experimentId, Func<Arm, AgentRoute> route, string? nbImage = null)
@@ -42,21 +52,22 @@ static class HarborCompile
         foreach (var arm in suite.Arms.Where(a => a.IsAgent))
             foreach (var c in suite.Tasks)
                 Task(Layout.HarborTask(experimentDir, arm.Id!, c.Id!), suite, arm, c, experimentId, route(arm), nbImage);
-        if (suite.Arms.Any(a => a.IsAgent && !a.IsVendor))
+        foreach (var agent in suite.Arms.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => a.Agent!).Distinct())
         {
             var agents = AgentsDir(experimentDir);
             Directory.CreateDirectory(agents);
-            using var source = typeof(HarborCompile).Assembly.GetManifestResourceStream(NbAgentFile)!;
-            using var dest = File.Create(Path.Combine(agents, NbAgentFile));
+            var file = OwnAgents[agent].File;
+            using var source = typeof(HarborCompile).Assembly.GetManifestResourceStream(file)!;
+            using var dest = File.Create(Path.Combine(agents, file));
             source.CopyTo(dest);
         }
         return TreeHash(experimentDir);
     }
 
-    /// <summary>Where nb's Harbor agent is compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
+    /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
     public static string AgentsDir(string experimentDir) => Path.Combine(experimentDir, Layout.HarborDir, "agents");
 
-    /// <summary>The compiled tasks, plus the agents directory when there is one (an experiment of vendor arms only hashes as before).</summary>
+    /// <summary>The compiled tasks, plus the agents directory when there is one (an experiment of Harbor's own agents only hashes as before).</summary>
     public static string TreeHash(string experimentDir)
     {
         var tasks = Tree.Hash(Path.Combine(experimentDir, Layout.HarborDir, "tasks"), new HashSet<string> { ".git" });
@@ -88,59 +99,70 @@ static class HarborCompile
     /// Harbor's job for one cell: one trial of one task by one agent. Every setting Harbor would otherwise default is
     /// stated: the pinned version, the permission mode, each model alias (Harbor maps them all to one model on a custom
     /// base URL; proctor says so rather than inherits it), no retries (a retry is proctor's attempt), one trial at a time.
-    /// The key is not here: it goes in the environment of the one Harbor process. An nb arm's agent is proctor's
-    /// own, by import path, with the cell's host-compiled program and nb's config as its kwargs.
+    /// The key is not here: it goes in the environment of the one Harbor process. proctor's own agents (nb, Qwen
+    /// Code) are named by import path; nb's kwargs carry the cell's host-compiled program and nb's config.
     /// </summary>
-    public static JsonObject Job(Arm arm, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null) => new()
+    public static JsonObject Job(Arm arm, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null)
     {
-        ["job_name"] = "job",
-        ["jobs_dir"] = jobsDir,
-        ["n_attempts"] = 1,
-        ["n_concurrent_trials"] = 1,
-        ["quiet"] = true,
-        ["retry"] = new JsonObject { ["max_retries"] = 0 },
-        ["agents"] = new JsonArray(arm.IsVendor
-            ? new JsonObject
-            {
-                ["name"] = arm.Agent,
-                ["model_name"] = arm.Model,
-                ["kwargs"] = JsonSerializer.SerializeToNode(AgentKwargs(arm, route, nb)),
-                ["env"] = JsonSerializer.SerializeToNode(AgentEnv(arm, route)),
-            }
-            : new JsonObject
-            {
-                ["import_path"] = NbAgentImport,
-                ["model_name"] = arm.Model,
-                ["kwargs"] = JsonSerializer.SerializeToNode(AgentKwargs(arm, route, nb)),
-                ["env"] = JsonSerializer.SerializeToNode(AgentEnv(arm, route)),
-            }),
-        ["tasks"] = new JsonArray(new JsonObject { ["path"] = taskDir }),
-    };
+        var agent = new JsonObject();
+        if (OwnAgents.TryGetValue(arm.Agent!, out var own)) agent["import_path"] = own.Import;
+        else agent["name"] = arm.Agent;
+        agent["model_name"] = arm.Model;
+        agent["kwargs"] = JsonSerializer.SerializeToNode(AgentKwargs(arm, route, nb));
+        agent["env"] = JsonSerializer.SerializeToNode(AgentEnv(arm, route));
+        return new()
+        {
+            ["job_name"] = "job",
+            ["jobs_dir"] = jobsDir,
+            ["n_attempts"] = 1,
+            ["n_concurrent_trials"] = 1,
+            ["quiet"] = true,
+            ["retry"] = new JsonObject { ["max_retries"] = 0 },
+            ["agents"] = new JsonArray(agent),
+            ["tasks"] = new JsonArray(new JsonObject { ["path"] = taskDir }),
+        };
+    }
 
-    /// <summary>The agent's settings as Harbor takes them; the cell manifest records the same. nb's: the program and config on the host, the work directory, and the key's variable by name.</summary>
+    /// <summary>
+    /// The agent's settings as Harbor takes them; the cell manifest records the same. A vendor agent's: its pin, and
+    /// Claude Code's permission mode (Codex and Qwen Code have no setting for it: Harbor runs them with approvals and
+    /// sandbox bypassed, always). nb's: the program and config on the host, the work directory, and the key's
+    /// variable by name.
+    /// </summary>
     public static Dictionary<string, string> AgentKwargs(Arm arm, AgentRoute route, NbCell? nb = null)
     {
-        if (arm.IsVendor) return new() { ["version"] = arm.AgentVersion!, ["permission_mode"] = "bypassPermissions" };
+        switch (arm.Agent)
+        {
+            case Arm.ClaudeCode: return new() { ["version"] = arm.AgentVersion!, ["permission_mode"] = "bypassPermissions" };
+            case Arm.Codex or Arm.QwenCode: return new() { ["version"] = arm.AgentVersion! };
+        }
         var kwargs = new Dictionary<string, string> { ["program"] = nb!.Program, ["workdir"] = Workdir };
         if (nb.Config is not null) kwargs["config"] = nb.Config;
         if (route.KeyEnv is not null) kwargs["secret"] = route.KeyEnv;
         return kwargs;
     }
 
+    /// <summary>The variable a vendor agent's key travels in, in Harbor's process environment.</summary>
+    public static string KeyEnv(string agent) => agent == Arm.ClaudeCode ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
+
     /// <summary>
     /// What the agent's process sees beyond Harbor's own. Claude Code: the base URL and every model alias set to the
-    /// arm's model, explicitly. nb: the variables its config's provider entry names for its endpoint.
+    /// arm's model, explicitly. Codex and Qwen Code: the base URL (Harbor writes Codex's into its config.toml; Qwen
+    /// Code takes the model from model_name). nb: the variables its config's provider entry names for its endpoint.
     /// </summary>
-    public static Dictionary<string, string> AgentEnv(Arm arm, AgentRoute route) => arm.IsVendor
-        ? new()
+    public static Dictionary<string, string> AgentEnv(Arm arm, AgentRoute route) => arm.Agent switch
+    {
+        Arm.ClaudeCode => new()
         {
             ["ANTHROPIC_BASE_URL"] = route.BaseUrl!,
             ["ANTHROPIC_DEFAULT_OPUS_MODEL"] = arm.Model!,
             ["ANTHROPIC_DEFAULT_SONNET_MODEL"] = arm.Model!,
             ["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = arm.Model!,
             ["CLAUDE_CODE_SUBAGENT_MODEL"] = arm.Model!,
-        }
-        : new(route.Env ?? []);
+        },
+        Arm.Codex or Arm.QwenCode => new() { ["OPENAI_BASE_URL"] = route.BaseUrl! },
+        _ => new(route.Env ?? []),
+    };
 
     /// <summary>
     /// The agent's phase reaches only the model endpoint's host, exactly as the base URL spells it (Harbor's allowlist
@@ -206,6 +228,19 @@ static class HarborCompile
             RUN apt-get update -q && apt-get install -y -q --no-install-recommends procps >/dev/null && rm -rf /var/lib/apt/lists/* \
              && curl -fsSL https://downloads.claude.ai/claude-code-releases/bootstrap.sh | bash -s -- {arm.AgentVersion} \
              && /root/.local/bin/claude --version
+
+            """,
+        // Node from nvm under ~/.nvm, where Harbor's agents look for it, so their version checks find the pin.
+        Arm.Codex => $"""
+            RUN apt-get update -q && apt-get install -y -q --no-install-recommends ripgrep procps >/dev/null && rm -rf /var/lib/apt/lists/* \
+             && {NodeInstall} \
+             && npm install -g @openai/codex@{arm.AgentVersion} >/dev/null && codex --version \
+             && ln -sf "$(command -v node)" /usr/local/bin/node && ln -sf "$(command -v codex)" /usr/local/bin/codex
+
+            """,
+        Arm.QwenCode => $"""
+            RUN {NodeInstall} \
+             && npm install -g @qwen-code/qwen-code@{arm.AgentVersion} >/dev/null && qwen --version
 
             """,
         _ => throw new InvalidOperationException($"no install for agent {arm.Agent}"),
@@ -313,6 +348,9 @@ static class HarborCompile
         foreach (var dir in Directory.GetDirectories(from).Where(d => !skip.Contains(Path.GetFullPath(d)) && Path.GetFileName(d) != ".git"))
             CopyTree(dir, Path.Combine(to, Path.GetFileName(dir)), skip);
     }
+
+    /// <summary>Node 22 by nvm, as Harbor's own installs do it. NVM_DIR is explicit: under RUN's /bin/sh, nvm.sh cannot find its own directory and installs Node elsewhere.</summary>
+    const string NodeInstall = """export NVM_DIR="$HOME/.nvm" && curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.2/install.sh | env -u NODE_VERSION bash >/dev/null && . "$NVM_DIR/nvm.sh" && nvm install 22 >/dev/null && nvm alias default 22 >/dev/null""";
 
     static readonly JsonSerializerOptions TomlString = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 

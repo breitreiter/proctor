@@ -8,28 +8,47 @@
   "arms": [
     {
       "id": "floor",
-      "description": "the local floor",
-      "runner": "nb",
+      "description": "the local floor: nb on qwen3-coder-next",
+      "agent": "nb",
       "harness": "nb",
       "provider": "local-qcoder",
       "model": "qwen3-coder-next",
       "samples": 3
+    },
+    {
+      "id": "qwen",
+      "description": "Qwen Code on the same local model",
+      "agent": "qwen-code",
+      "agent_version": "0.25.2",
+      "model": "qwen3-coder-next",
+      "samples": 3
+    },
+    {
+      "id": "cc-haiku",
+      "description": "Claude Code on Haiku, the cheapest Anthropic model",
+      "agent": "claude-code",
+      "agent_version": "2.1.301",
+      "model": "claude-haiku-5-5",
+      "samples": 1
+    },
+    {
+      "id": "codex-mini",
+      "description": "Codex on GPT-5 mini, the cheapest OpenAI model",
+      "agent": "codex",
+      "agent_version": "0.163.0",
+      "model": "gpt-5-mini",
+      "samples": 1
     }
   ],
-  "nb": {
-    "runner": "../runners/container.sh",
-    "mounts": {
-      "work": "/work",
-      "bundle": "/bundle"
-    }
+  "harbor": {
+    "version": "0.24.0"
+  },
+  "limits": {
+    "wall_ms": 1800000
   },
   "hooks": {
     "arm": {
-      "setup": "hooks/arm-setup.sh"
-    },
-    "sample": {
-      "setup": "hooks/sample-setup.sh",
-      "teardown": "hooks/sample-teardown.sh"
+      "setup": "hooks/ensure-model.sh"
     }
   },
   "grading": {
@@ -55,10 +74,6 @@
       },
       "diff-in-scope": {
         "files_touched": "@expect"
-      },
-      "stays-in-work": {
-        "script": "checks/stays-in-work.sh",
-        "description": "no tool call reached outside the work directory"
       },
       "stance": {
         "decide": {
@@ -98,9 +113,6 @@
       "builds",
       "tests-pass",
       "acceptance"
-    ],
-    "validity": [
-      "stays-in-work"
     ]
   }
 }

@@ -306,3 +306,26 @@ mirrored under the trial's `artifacts/`, so `/logs/artifacts/diff.patch`
 lands at `artifacts/logs/artifacts/diff.patch` (the manifest says so), not
 at `artifacts/diff.patch`. Ingest first read the wrong path and fell back to
 an empty diff; it now fails the cell when the diff is missing.
+
+### Staging 5, shaken down (2026-10-18)
+
+Codex 0.163.0 and Qwen Code 0.25.2 through proctor 0.3.1 on `agent-smoke`,
+with the gateway unresolvable from the box (so: everything but the model).
+
+- **Harbor's Qwen Code agent always installs.** Its `install()` runs the nvm
+  installer and `npm install -g` on every trial, with no check of what the
+  image holds, so it needs public network in the agent phase. Claude Code's
+  and Codex's check the pin first and skip.
+- **nvm under `RUN` needs `NVM_DIR`.** Docker's `RUN` is `/bin/sh`; sourced
+  there, `nvm.sh` cannot find its own directory and puts Node under
+  `/usr/bin/versions/`. Harbor's agents look in `~/.nvm`, so export
+  `NVM_DIR="$HOME/.nvm"` first, as Harbor's own snippet does.
+- **Codex tries a WebSocket first.** It opens `ws://<base>/responses`, and
+  falls back to HTTPS after five failures. A gateway that does not proxy
+  WebSockets costs a few seconds of retries per run, not the run.
+- **Qwen Code's API error is a Harbor exception** (`UnknownApiError`), so
+  an unreachable endpoint fails the cell as infrastructure. Codex's goes on
+  retrying until the agent timeout, which Harbor reports as a timeout with
+  no turns; ingest fails a vendor run with no turn, so an outage never
+  reads as a run.
+

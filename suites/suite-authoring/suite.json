@@ -40,7 +40,7 @@
     },
     "sample": {
       "setup": "hooks/sample-setup.sh",
-      "teardown": "../code-change/hooks/sample-teardown.sh"
+      "teardown": "hooks/sample-teardown.sh"
     }
   },
   "grading": {
@@ -82,7 +82,7 @@
         "description": "the agent opened at least one example suite or fixture in the bundle"
       },
       "stays-in-work": {
-        "script": "../code-change/checks/stays-in-work.sh",
+        "script": "checks/stays-in-work.sh",
         "description": "no tool call reached outside the work directory and the bundle"
       },
       "stance": {

@@ -50,7 +50,6 @@ public class HarborTests
     [InlineData("model", "\"anthropic/claude-haiku-5-5\"", "arms[0].model", "provider prefix")]
     [InlineData("agent_version", "null", "arms[0].agent_version", "pinned")]
     [InlineData("agent_version", "\"latest\"", "arms[0].agent_version", "not a version number")]
-    [InlineData("agent", "\"codex\"", "arms[0].agent", "not yet implemented")]
     [InlineData("agent", "\"cursor\"", "arms[0].agent", "unknown agent")]
     public void AgentArm_IsValidated(string field, string value, string problemField, string message)
     {
@@ -234,6 +233,16 @@ public class HarborTests
         Assert.Equal(1, core["kinds"]!["shell"]!.GetValue<int>());
         Assert.Equal(1200, core["input_tokens"]!.GetValue<long>());
         Assert.Equal(41_500, core["duration_ms"]!.GetValue<long>());   // the agent's phase, not the trial's
+    }
+
+    [Fact]
+    public void Ingest_AVendorRunWithNoTurn_IsAnOutage_NotARun()
+    {
+        using var repo = new TestRepo();
+        var noTurn = new JsonObject { ["schema_version"] = "ATIF-v1.7", ["steps"] = new JsonArray(new JsonObject { ["step_id"] = 1, ["source"] = "user", ["message"] = "fix it" }) };
+        var trial = WriteTrial(Path.Combine(repo.Root, "trial"), "AgentTimeoutError", trajectory: noTurn.ToJsonString());
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        Assert.StartsWith("the agent took no turn (time_budget)", Ingest.Trial(trial, cell, CcArm, NewManifest(), CcArm.AgentVersion!));
     }
 
     [Fact]
@@ -454,6 +463,113 @@ public class HarborTests
         Assert.False(Directory.Exists(Path.Combine(repo.Root, "runs")));
     }
 
+    // Codex and Qwen Code: Harbor's agents on an OpenAI-dialect route, Qwen Code's install replaced by proctor's pin check.
+
+    const string OpenAiUrl = "http://library:8086/x/openai/v1";
+    static readonly Arm CodexArm = new("codex-mini", null, null, null, "gpt-5-mini", 1, null, Agent: "codex", AgentVersion: "0.163.0");
+    static readonly Arm QwenArm = new("qwen", null, null, null, "qwen3-coder-next", 1, null, Agent: "qwen-code", AgentVersion: "0.25.2");
+
+    [Theory]
+    [InlineData("codex", "gpt-5-mini", null)]
+    [InlineData("codex", "o4-mini", null)]
+    [InlineData("codex", "claude-haiku-5-5", "not an OpenAI model")]
+    [InlineData("qwen-code", "qwen3-coder-next", null)]
+    [InlineData("qwen-code", "gpt-5-mini", "not a Qwen model")]
+    [InlineData("claude-code", "qwen3-coder-next", "not an Anthropic model")]
+    public void VendorArm_TakesItsVendorsModelsOnly(string agent, string model, string? message)
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        repo.EditJson("agent-smoke/suite.json", e => { e["arms"]![0]!["agent"] = agent; e["arms"]![0]!["model"] = model; });
+        var problems = repo.Problems("agent-smoke").Where(p => p.Field.StartsWith("arms[0]")).ToList();
+        if (message is null) Assert.Empty(problems);
+        else Assert.Contains(problems, p => p.Field == "arms[0].model" && p.Message.Contains(message));
+    }
+
+    [Fact]
+    public void Config_KnowsEveryVendorAgent()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), """{"agents": {"codex": {"base_url": "http://x/v1"}, "qwen-code": {"base_url": "http://x/v1"}, "cursor": {"base_url": "http://x"}}}""");
+        var problems = new List<Problem>();
+        Suite.LoadConfig(repo.Root, problems);
+        Assert.Equal(["agents.cursor"], problems.Select(p => p.Field));
+    }
+
+    [Fact]
+    public void Job_Codex_IsHarborsAgent_AtItsPin_OnTheBaseUrl()
+    {
+        var job = HarborCompile.Job(CodexArm, "/t", "/j", new AgentRoute(OpenAiUrl, "sk-secret", HarborCompile.KeyEnv("codex")));
+        var agent = job["agents"]![0]!;
+        Assert.Equal("codex", agent["name"]!.GetValue<string>());
+        Assert.Null(agent["import_path"]);
+        Assert.Equal("gpt-5-mini", agent["model_name"]!.GetValue<string>());
+        Assert.Equal("""{"version":"0.163.0"}""", agent["kwargs"]!.ToJsonString());
+        Assert.Equal($$"""{"OPENAI_BASE_URL":"{{OpenAiUrl}}"}""", agent["env"]!.ToJsonString());
+        Assert.Equal("OPENAI_API_KEY", HarborCompile.KeyEnv("codex"));
+        Assert.DoesNotContain("sk-secret", job.ToJsonString());
+    }
+
+    [Fact]
+    public void Job_QwenCode_ImportsProctorsAgent()
+    {
+        var agent = HarborCompile.Job(QwenArm, "/t", "/j", new AgentRoute(OpenAiUrl, "sk-secret", HarborCompile.KeyEnv("qwen-code")))["agents"]![0]!;
+        Assert.Null(agent["name"]);
+        Assert.Equal("qwen_code_agent:QwenCodeAgent", agent["import_path"]!.GetValue<string>());
+        Assert.Equal("""{"version":"0.25.2"}""", agent["kwargs"]!.ToJsonString());
+        Assert.Equal($$"""{"OPENAI_BASE_URL":"{{OpenAiUrl}}"}""", agent["env"]!.ToJsonString());
+    }
+
+    [Fact]
+    public void Compile_CodexAndQwenCode_InstallThePinInTheImage_AndOnlyQwenCodeBringsAnAgent()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        repo.EditJson("agent-smoke/suite.json", e => e["arms"] = JsonNode.Parse("""
+            [{"id": "codex-mini", "agent": "codex", "agent_version": "0.163.0", "model": "gpt-5-mini"},
+             {"id": "qwen", "agent": "qwen-code", "agent_version": "0.25.2", "model": "qwen3-coder-next"}]
+            """));
+        var suite = repo.LoadSuite("agent-smoke");
+        var expDir = Path.Combine(repo.Root, "runs", "exp");
+        HarborCompile.Tasks(expDir, suite, "exp", _ => new AgentRoute(OpenAiUrl, "sk-secret"));
+
+        var codex = File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "codex-mini", "fix-null-deref"), "environment", "Dockerfile"));
+        Assert.Contains("npm install -g @openai/codex@0.163.0", codex);
+        Assert.Contains("ln -sf \"$(command -v codex)\" /usr/local/bin/codex", codex);
+        var qwen = File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "qwen", "fix-null-deref"), "environment", "Dockerfile"));
+        // nvm under RUN's /bin/sh finds its own directory only when told, and Harbor's agents look for Node in ~/.nvm.
+        Assert.Contains("export NVM_DIR=\"$HOME/.nvm\" && ", qwen);
+        Assert.Contains("nvm install 22", qwen);
+        Assert.Contains("npm install -g @qwen-code/qwen-code@0.25.2", qwen);
+        Assert.Contains("allowed_hosts = [\"library\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "qwen", "fix-null-deref"), "task.toml")));
+
+        Assert.Equal(["qwen_code_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(expDir)).Select(Path.GetFileName));
+        Assert.Contains("class QwenCodeAgent(QwenCode)", File.ReadAllText(Path.Combine(HarborCompile.AgentsDir(expDir), "qwen_code_agent.py")));
+    }
+
+    [Fact]
+    public void Compile_ClaudeCodeOnly_BringsNoAgent()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        var expDir = Path.Combine(repo.Root, "runs", "exp");
+        var hash = HarborCompile.Tasks(expDir, repo.LoadSuite("agent-smoke"), "exp", _ => new AgentRoute(BaseUrl, "sk-secret"));
+        Assert.False(Directory.Exists(HarborCompile.AgentsDir(expDir)));
+        Assert.DoesNotContain("+", hash);
+    }
+
+    [Theory]
+    [InlineData("codex", new[] { "exec_command", "write_stdin", "apply_patch", "update_plan", "web_search_call" }, "shell:2 edit:1 plan:1 web:1")]
+    [InlineData("qwen-code", new[] { "read_file", "glob", "grep_search", "edit", "write_file", "run_shell_command", "todo_write" }, "read:1 search:2 edit:1 write:1 shell:1 plan:1")]
+    public void Count_MapsEachVendorsToolsToKinds(string agent, string[] tools, string expected)
+    {
+        var (core, unmapped) = Ingest.Count(JsonNode.Parse(Trajectory(tools))!.AsObject(), agent, "ok");
+        Assert.Null(unmapped);
+        Assert.Equal(expected.Split(' ').Order(StringComparer.Ordinal), core!.Kinds.Select(k => $"{k.Key}:{k.Value}").Order(StringComparer.Ordinal));
+        Assert.Equal($"tool 'Bash' has no kind for {agent}", Ingest.Count(JsonNode.Parse(Trajectory("Bash"))!.AsObject(), agent, "ok").Unmapped);
+    }
+
     // nb as a Harbor agent: the gate suite's harbor arm.
 
     static readonly Arm NbArm = new("nb-harbor", null, "nb", "Mock", "mock", 2, null, Agent: "nb");
@@ -515,10 +631,10 @@ public class HarborTests
     public void Job_NbArm_ImportsProctorsAgent_WithTheCellsProgram_AndTheKeyByNameOnly()
     {
         var route = new AgentRoute("http://library:8086/x/qcoder/v1", "sk-secret", "LLM_GATEWAY_KEY", new() { ["LLM_GATEWAY"] = "http://library:8086/x" });
-        var job = HarborCompile.Job(NbArm, "/t", "/j", route, new NbCell("/cell/program.jsonl", "/suites/nb.json", "/exp/harbor/agents"));
+        var job = HarborCompile.Job(NbArm, "/t", "/j", route, new NbCell("/cell/program.jsonl", "/suites/nb.json"));
         var agent = job["agents"]![0]!.AsObject();
         Assert.Null(agent["name"]);
-        Assert.Equal(HarborCompile.NbAgentImport, agent["import_path"]!.GetValue<string>());
+        Assert.Equal("nb_agent:NbAgent", agent["import_path"]!.GetValue<string>());
         Assert.Equal("""{"program":"/cell/program.jsonl","workdir":"/app","config":"/suites/nb.json","secret":"LLM_GATEWAY_KEY"}""", agent["kwargs"]!.ToJsonString());
         Assert.Equal("""{"LLM_GATEWAY":"http://library:8086/x"}""", agent["env"]!.ToJsonString());
         Assert.DoesNotContain("sk-secret", job.ToJsonString());

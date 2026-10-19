@@ -53,7 +53,7 @@ experiment stays in the cell under `trial/` as evidence.
 | check | kind | what it says |
 |---|---|---|
 | `exit_ok`, `validates`, `accepts-correct`, `rejects-wrong` | pass | nb finished; `proctor list` loads the suite cleanly; it passes the correct run; it fails every wrong one |
-| `stays-in-work` | validity | the agent stayed in its checkout and the bundle (shared with code-change) |
+| `stays-in-work` | validity | the agent stayed in its checkout and the bundle (once shared with code-change, which runs through Harbor now) |
 | `self-validated`, `describes-everything`, `read-examples` | guardrail | it ran `list` itself; every id carries a description; it opened an example |
 | `stance` (`decide`), `prompt-hides-answer` (`judge`) | guardrail | the closing message claims completion; the task prompt it wrote does not give away the answer |
 

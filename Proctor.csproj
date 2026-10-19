@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>proctor</AssemblyName>
     <RootNamespace>Proctor</RootNamespace>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
@@ -17,10 +17,11 @@
     <None Remove="Proctor.Tests\**;bench\**;evals\**;suites\**;fixtures\**;runs\**;reports\**" />
   </ItemGroup>
 
-  <!-- The report's logo, inlined as a data URI; nb's Harbor agent, compiled into each experiment that has an nb arm. -->
+  <!-- The report's logo, inlined as a data URI; proctor's own Harbor agents (nb, Qwen Code), compiled into each experiment with an arm that uses one. -->
   <ItemGroup>
     <EmbeddedResource Include="assets\pointy-hat.svg" LogicalName="pointy-hat.svg" />
     <EmbeddedResource Include="Harbor\nb_agent.py" LogicalName="nb_agent.py" />
+    <EmbeddedResource Include="Harbor\qwen_code_agent.py" LogicalName="qwen_code_agent.py" />
   </ItemGroup>
 
   <ItemGroup>
