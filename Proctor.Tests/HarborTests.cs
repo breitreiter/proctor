@@ -512,6 +512,13 @@ public class HarborTests
     }
 
     [Fact]
+    public void Job_Codex_PassesTheRoutesNativeConfig()
+    {
+        var job = HarborCompile.Job(CodexArm, "/t", "/j", new AgentRoute(OpenAiUrl, "sk-secret", HarborCompile.KeyEnv("codex"), Config: "/suites/codex.toml"));
+        Assert.Equal("""{"version":"0.163.0","config":"/suites/codex.toml"}""", job["agents"]![0]!["kwargs"]!.ToJsonString());
+    }
+
+    [Fact]
     public void Job_QwenCode_ImportsProctorsAgent()
     {
         var agent = HarborCompile.Job(QwenArm, "/t", "/j", new AgentRoute(OpenAiUrl, "sk-secret", HarborCompile.KeyEnv("qwen-code")))["agents"]![0]!;

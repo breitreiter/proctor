@@ -5,6 +5,22 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.3.2 — 2026-10-20
+
+`code-change`'s first run on all four agents, and what it found. Nothing
+that read before stops reading, hence a patch.
+
+- Ingest knows nb's wire names: `todo_write` and `todo_read` (`todo` is the
+  directive, not a tool) and `apply_patch`. Every nb cell that planned had
+  failed `adapter_unmapped`.
+- Ingest knows Codex's goal tools (`get_goal`, `create_goal`,
+  `update_goal`, as `plan`) and `request_user_input`, a new kind, `ask`.
+- `suites/proctor.json` `agents.codex` takes an optional `config`: a native
+  Codex `config.toml`, relative to `suites/`, passed to Harbor's Codex agent,
+  which merges the base URL over it. A llama-server Responses endpoint takes
+  only function tools, so Codex on one needs `web_search = "disabled"` and
+  `[features] multi_agent = false`. `config` on another agent is "not yet".
+
 ## 0.3.1 — 2026-10-18
 
 Codex and Qwen Code as agents, and `code-change` ported to agent arms

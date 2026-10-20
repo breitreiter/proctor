@@ -80,7 +80,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     public static string Start(string root, Suite suite, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
         var nb = ResolveNb(root, suite, config, nbOverride, runnerOverride);
-        foreach (var arm in suite.Arms.Where(a => a.IsAgent)) Route(config, nb, arm);   // a missing endpoint fails before anything is made
+        foreach (var arm in suite.Arms.Where(a => a.IsAgent)) Route(root, config, nb, arm);   // a missing endpoint fails before anything is made
         var id = Layout.NewExperimentId(suite.Id, DateTime.UtcNow);
         var experiment = new Experiment(
             Id: id, Suite: suite.Id, SuiteHash: suite.Hash,
@@ -99,7 +99,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             experiment = experiment with
             {
                 Versions = new(experiment.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(config, nb, arm), nbImage), nbImage),
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(root, config, nb, arm), nbImage), nbImage),
             };
         }
         WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);
@@ -282,7 +282,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
         Directory.CreateDirectory(cellDir);
         var taskDir = Layout.HarborTask(experimentDir, arm.Id!, c.Id!);
-        var route = Route(config, experiment.Nb, arm);
+        var route = Route(root, config, experiment.Nb, arm);
         var fixture = suite.FixtureOf(c)!;
         // nb's program is compiled on the host as on the bare path, with the checkout where the image has it.
         var program = arm.IsVendor ? null : ResolveProgram(suite.ProgramTemplate, arm, c, sample, HarborCompile.Workdir);
@@ -333,14 +333,16 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     /// process by value and whose key goes by name, as on the bare path, where nb resolves them itself. A provider
     /// with no endpoint (Mock) reaches nothing.
     /// </summary>
-    static AgentRoute Route(ProctorConfig config, ResolvedNb nb, Arm arm)
+    static AgentRoute Route(string root, ProctorConfig config, ResolvedNb nb, Arm arm)
     {
         if (!arm.IsVendor) return NbRoute(nb, arm);
         var endpoint = config.Agents?.GetValueOrDefault(arm.Agent!)
             ?? throw new ProctorException($"suites/proctor.json has no agents.{arm.Agent} (arm '{arm.Id}'): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
         var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"agents.{arm.Agent}.base_url").TrimEnd('/');
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"suites/proctor.json agents.{arm.Agent}.base_url: '{baseUrl}' is not a URL");
-        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"agents.{arm.Agent}.api_key"), HarborCompile.KeyEnv(arm.Agent!));
+        var agentConfig = endpoint.Config is null ? null : Path.GetFullPath(Path.Combine(Layout.Suites(root), endpoint.Config));
+        if (agentConfig is not null && !File.Exists(agentConfig)) throw new ProctorException($"suites/proctor.json agents.{arm.Agent}.config: {agentConfig} not found");
+        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"agents.{arm.Agent}.api_key"), HarborCompile.KeyEnv(arm.Agent!), Config: agentConfig);
     }
 
     static readonly System.Text.RegularExpressions.Regex EnvRef = new(@"\$\{([A-Za-z_][A-Za-z0-9_]*)\}");

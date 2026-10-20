@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>proctor</AssemblyName>
     <RootNamespace>Proctor</RootNamespace>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 

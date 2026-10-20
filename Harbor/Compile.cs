@@ -13,9 +13,9 @@ namespace Proctor;
 /// What compile needs from the machine: where the agent's model calls go, resolved, and the key with the variable it
 /// travels in (Harbor's process environment only). The host is the one name the agent may reach; with no base URL (nb's
 /// Mock) the agent reaches nothing. Env is what the agent's process needs beside the key: nb's config names its
-/// endpoint as ${VAR}s, which it resolves inside the container.
+/// endpoint as ${VAR}s, which it resolves inside the container. Config is a vendor agent's native config file on the host.
 /// </summary>
-record AgentRoute(string? BaseUrl, string? ApiKey, string? KeyEnv = null, Dictionary<string, string>? Env = null)
+record AgentRoute(string? BaseUrl, string? ApiKey, string? KeyEnv = null, Dictionary<string, string>? Env = null, string? Config = null)
 {
     public string? Host => BaseUrl is null ? null : new Uri(BaseUrl).Host;
 }
@@ -134,6 +134,7 @@ static class HarborCompile
         switch (arm.Agent)
         {
             case Arm.ClaudeCode: return new() { ["version"] = arm.AgentVersion!, ["permission_mode"] = "bypassPermissions" };
+            case Arm.Codex when route.Config is not null: return new() { ["version"] = arm.AgentVersion!, ["config"] = route.Config };
             case Arm.Codex or Arm.QwenCode: return new() { ["version"] = arm.AgentVersion! };
         }
         var kwargs = new Dictionary<string, string> { ["program"] = nb!.Program, ["workdir"] = Workdir };

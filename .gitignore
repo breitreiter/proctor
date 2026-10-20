@@ -15,6 +15,7 @@ appsettings.json
 !appsettings.example.json
 suites/proctor.json
 suites/nb.json
+suites/codex.toml
 
 # Fixture checkouts made by sample setup hooks
 .proctor/

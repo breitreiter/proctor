@@ -95,3 +95,27 @@ not name the new thing or for anyone building from source.
 - `Feature_Release_Workflow_Publishes_To_Nuget.md`: tag-triggered pack and
   push plus per-RID archives on a GitHub Release. The README already points
   at a releases page nothing fills.
+
+## `resume` does not notice a changed agent route
+
+`resume` refuses a changed suite and a changed compiled task (`harbor/tasks`
+hashed), but reads `proctor.json`'s `agents.<agent>.base_url` fresh. The
+task's `allowed_hosts` was compiled from the old host, so a changed route
+gives a cell whose base URL the allowlist does not admit: Harbor's egress
+sidecar (gost, transparent, sniffing `Host`/SNI) accepts the TCP connection
+and drops it, and Codex logs `Handshake not finished` then `error sending
+request`. Seen 2026-10-19 on `20261019-2118-code-change-ax3m` after `library`
+became `library.lan`. Record each agent arm's route in `experiment.json` and
+refuse a changed one, as for the suite.
+
+## A bare gateway hostname does not resolve for a musl agent
+
+Docker writes `search lan` with `options ndots:0` into the task container's
+`resolv.conf`. glibc (Node: Claude Code, Qwen Code) still tries the search
+list for `library`; musl applies it only to names with fewer dots than
+`ndots`, so Codex (a static musl binary) asks for bare `library` and gets
+`failed to lookup address information: Try again` until the agent timeout.
+Worked around in the machine's `proctor.json` by spelling Codex's route
+`library.lan`. Options: validation warns on a dotless agent host, or compile
+pins the host's address in the task (an `extra_hosts`-style entry, if Harbor
+allows one) so the spelling does not matter.

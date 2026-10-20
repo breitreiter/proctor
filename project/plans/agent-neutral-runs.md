@@ -285,11 +285,21 @@ nb's JSONL converted to ATIF at ingest, and the gate (`suites/gate`,
 
 **Staging 5's code landed on 2026-10-18** (proctor 0.3.1): Codex and Qwen
 Code as agents, `code-change` on all four, the porting guide's draft
-(`docs/porting-to-agent-neutral.md`). Its real run is still to come: the
-gateway did not resolve from the dev box that day, so both agents were
-shaken down on `agent-smoke` with a key that reaches nothing (each built,
-installed at its pin, started, and was ingested). Where it differs from the
-text below:
+(`docs/porting-to-agent-neutral.md`). The gateway did not resolve from the
+dev box that day, so both agents were shaken down on `agent-smoke` with a
+key that reaches nothing (each built, installed at its pin, started, and was
+ingested).
+
+**Its real run is in** (2026-10-20, proctor 0.3.2):
+`20261020-0239-code-change-f3h0`, 24 of 24 cells completed, ungraded yet.
+It tested the plumbing, not the vendors' models: OpenAI's route had a
+10-call daily cap, so Codex ran against qwen3-coder-next on imp (its cells
+still say `gpt-5-mini`, which llama-server ignores), through the new
+`agents.codex.config` that turns off the two tools llama-server refuses.
+Claude Code ran on Haiku. The run found nb's and Codex's unmapped tools
+(0.3.2) and two loose ends in `project/todo.md` (`resume` and a changed
+route; a bare hostname under musl). Codex on GPT-5 is still to run. Where it
+differs from the text below:
 
 - **Still no `Agents/` directory.** Each agent is a few lines in four
   switches (validation's vendor rule, compile's kwargs, env and install,

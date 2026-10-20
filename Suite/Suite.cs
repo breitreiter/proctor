@@ -35,9 +35,11 @@ record ProctorConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, 
 
 /// <summary>
 /// One entry of proctor.json's agents block: the base URL an agent's model calls go to and its key, ${VAR} resolved at
-/// run time. The base URL's host is the one name the agent's container may reach.
+/// run time. The base URL's host is the one name the agent's container may reach. Config is a native config file for
+/// the agent, relative to suites/ (Codex's config.toml, which Harbor's own settings merge over): what the endpoint
+/// needs of the agent, such as tools a local server cannot take.
 /// </summary>
-record AgentEndpoint(string? BaseUrl, string? ApiKey);
+record AgentEndpoint(string? BaseUrl, string? ApiKey, string? Config = null);
 
 /// <summary>
 /// proctor.json's harbor block: the uv that runs the suite's pinned Harbor (default: uv on PATH), and nb's self-contained
@@ -240,6 +242,7 @@ sealed class Suite
         {
             if (!Arm.Vendors.Contains(name)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}", $"unknown agent; known: {string.Join(", ", Arm.Vendors)}"));
             else if (string.IsNullOrWhiteSpace(endpoint?.BaseUrl)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.base_url", "required: where the agent's model calls go"));
+            if (endpoint?.Config is not null && name != Arm.Codex) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.config", $"not yet: only {Arm.Codex} takes a native config"));
         }
         return config ?? new ProctorConfig(null);
     }

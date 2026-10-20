@@ -41,7 +41,8 @@ static class Ingest
             ["exec_command"] = "shell", ["write_stdin"] = "shell", ["shell"] = "shell", ["local_shell"] = "shell", ["shell_command"] = "shell",
             ["view_image"] = "read",
             ["apply_patch"] = "edit",
-            ["update_plan"] = "plan",
+            ["update_plan"] = "plan", ["get_goal"] = "plan", ["create_goal"] = "plan", ["update_goal"] = "plan",
+            ["request_user_input"] = "ask",
             ["web_search_call"] = "web",
         },
         [Arm.QwenCode] = new()
@@ -62,10 +63,11 @@ static class Ingest
             ["bash"] = "shell",
             ["read_file"] = "read", ["list_dir"] = "read",
             ["write_file"] = "write",
-            ["edit_file"] = "edit",
+            ["edit_file"] = "edit", ["apply_patch"] = "edit",
             ["find_files"] = "search", ["grep"] = "search",
             ["fetch_url"] = "web", ["search_web"] = "web",
-            ["todo"] = "plan",
+            // `todo` is nb's directive; on the wire it is two tools.
+            ["todo_write"] = "plan", ["todo_read"] = "plan",
         },
     };
 
