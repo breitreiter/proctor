@@ -329,3 +329,39 @@ with the gateway unresolvable from the box (so: everything but the model).
   no turns; ingest fails a vendor run with no turn, so an outage never
   reads as a run.
 
+
+### Conformance at $0 (2026-10-20)
+
+`project/plans/harbor-conformance.md`: each vendor agent at its pin against a
+scripted model (`fixtures/stub`), and Harbor's `oracle` agent over
+`code-change`'s reference solutions. No hosted model, judge or gateway.
+
+- **A task's compose services share the agent's network namespace.** With
+  egress control on, Harbor attaches a service from
+  `environment/docker-compose.yaml` that declares no networking to the
+  sidecar's namespace, as it does `main`. The stub serves at `localhost:8765`.
+  Loopback is exempt from the sidecar's redirect (`fib daddr type local`), so
+  the allowlist never sees it, and the host has no port.
+- **All three agents run on a stub that is stateless and keys on the prompt.**
+  Claude Code (Anthropic Messages), Codex (Responses, after the WebSocket 404)
+  and Qwen Code (Chat Completions) each took one shell call, ran it, accepted
+  a final text, and Harbor's ATIF ingested strictly. A 500 on every request
+  is `failed` on all three. A tool call followed by silence is `completed`
+  with `time_budget`. One run is nine trials, about 18 minutes once the
+  images are cached.
+- **The offered tool list is the conformance test for `Ingest.Kinds`.** The
+  first run found 16 tools the three agents offer at their pins that ingest
+  would have refused the first time a model called one. Among them are
+  Claude Code's `Cron*`, `*Worktree`, `SendMessage`, `Workflow` and
+  `ReportFindings`; Codex's `multi_agent_v1` and `web_search`; Qwen Code's
+  `notebook_edit`, `tool_search` and `tool_call`. The night before, real
+  models had found two such tools (`get_goal`, nb's `todo_write`) at the cost
+  of a run each.
+- **The oracle runs the task's `solution/solve.sh` in the task's image.** So
+  a reference solution may use only what the fixture's image has. The `.NET`
+  SDK image has `git` and no `python3`. The first oracle pass found
+  `add-retry-flag`'s reference broken twice over: it needed python, and the
+  2026-09-23 vocabulary rename had turned its C# `case` labels into `task`,
+  so its edits matched nothing. It is a `git apply` of a patch now. A patch
+  fails loudly when the fixture moves; an edit that matches nothing passes
+  silently.

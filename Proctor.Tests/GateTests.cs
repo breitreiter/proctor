@@ -38,7 +38,8 @@ public class GateTests
         var experiment = Runner.LoadExperiment(repo.Root, id);
         Grade.Experiment(repo.Root, experiment, suite, TextWriter.Null);
 
-        Assert.Empty(Differences(repo.Root, id, suite));
+        var differences = Differences(repo.Root, id, suite);
+        Assert.True(differences.Count == 0, string.Join("\n", differences));
     }
 
     /// <summary>Every way a Harbor cell differs from its bare twin, as "task/sample: what"; empty when the gate is green.</summary>

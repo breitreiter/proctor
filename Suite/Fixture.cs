@@ -13,9 +13,11 @@ record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclu
 /// <summary>
 /// The image an agent arm runs the fixture in: a base image, the environment, and the commands that make the checkout
 /// ready (a package restore), run in the work directory after the fixture is committed, at build time and with network,
-/// so neither the agent nor the checks need any.
+/// so neither the agent nor the checks need any. Services is a directory beside repo/ holding a docker-compose.yaml of
+/// extra services (and whatever it mounts), copied into the task's environment/: Harbor runs them beside the agent, in
+/// its network namespace.
 /// </summary>
-record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env);
+record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env, string? Services = null);
 
 record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, FixtureImage? Image = null);
 
@@ -76,6 +78,13 @@ sealed record Fixture
             if (string.IsNullOrWhiteSpace(image.From)) Add("image.from", "required: the base image (mcr.microsoft.com/dotnet/sdk:10.0)");
             foreach (var key in (image.Env ?? []).Keys.Where(k => !Regex.IsMatch(k, "^[A-Za-z_][A-Za-z0-9_]*$"))) Add($"image.env.{key}", "not an environment variable name");
             if (image.Run?.Any(string.IsNullOrWhiteSpace) == true) Add("image.run", "a command, not an empty string");
+            if (image.Services is { } services)
+            {
+                var servicesDir = System.IO.Path.Combine(dir, services);
+                if (!File.Exists(System.IO.Path.Combine(servicesDir, "docker-compose.yaml"))) Add("image.services", $"no docker-compose.yaml in {services}");
+                else if (File.Exists(System.IO.Path.Combine(servicesDir, "Dockerfile")) || Directory.Exists(System.IO.Path.Combine(servicesDir, "repo")))
+                    Add("image.services", "Dockerfile and repo are the image's own names in environment/");
+            }
         }
         foreach (var (name, spec) in def.Checks ?? [])
         {

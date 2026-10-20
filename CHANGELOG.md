@@ -5,6 +5,28 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.3.3 — 2026-10-20
+
+Harbor conformance at no cost (`project/plans/harbor-conformance.md`).
+Nothing that read before stops reading, hence a patch.
+
+- `fixture.json` `image.services` names a directory beside `repo/` with a
+  `docker-compose.yaml` of extra services, copied into each compiled task's
+  `environment/`. Harbor runs them beside the agent, in its network
+  namespace.
+- `fixtures/stub`, a scripted model endpoint (Anthropic Messages, OpenAI
+  Responses and Chat Completions; `STUB:run=`, `STUB:fail`, `STUB:hang`),
+  and `suites/conformance`, every vendor agent against it.
+  `ConformanceTests` (`PROCTOR_CONFORMANCE=1`) runs those cells and an oracle
+  pass of `code-change`'s reference solutions through Harbor.
+- Ingest maps the 16 tools the three agents offer at their pins that it
+  lacked. Two kinds are new: `schedule` (Claude Code's `Cron*`,
+  `ScheduleWakeup`) and `meta` (Qwen Code's `tool_search`, `tool_call`).
+- `suites/agent-smoke` is retired: it is `Proctor.Tests/suites/harbor-unit`,
+  test data that never runs.
+- `code-change`'s `add-retry-flag` reference solution works again: it is a
+  patch, and it no longer needs python.
+
 ## 0.3.2 — 2026-10-20
 
 `code-change`'s first run on all four agents, and what it found. Nothing

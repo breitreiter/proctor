@@ -460,6 +460,7 @@ draft guide, and treating where it stalls as the edits. Short by design:
    lands until green.
 5. `Agents/Codex` and `Agents/QwenCode` (5); `code-change` on all four
    agents; the porting guide drafted from that move.
+   Checking proctor's layer over Harbor is `harbor-conformance.md`, at $0.
 6. Limits (decision 6) end to end; `max_cost` stops being stubbed and the
    report's "Cost is not shown" goes.
 7. Oracle (7), after nb ships `--judge`.

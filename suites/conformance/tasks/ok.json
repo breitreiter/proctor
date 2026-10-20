@@ -1,0 +1,6 @@
+{
+  "id": "ok",
+  "description": "The stub asks for one shell command, then lists the tools the agent offered",
+  "fixture": "stub",
+  "prompt": "Run the command the stub names. STUB:run=echo stub > made.txt"
+}

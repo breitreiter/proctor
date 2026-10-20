@@ -85,6 +85,7 @@ static class HarborCompile
         File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(suite, c, route));
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
         File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, arm, nbImage));
+        if (fixture.Def.Image!.Services is { } services) CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
 
         var tests = Path.Combine(dir, "tests");
         CopyTree(suite.Dir, Path.Combine(tests, "suite"), []);

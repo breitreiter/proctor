@@ -1,0 +1,6 @@
+{
+  "id": "fail",
+  "description": "The stub answers every request with a 500: an outage, so the cell is failed, never a run",
+  "fixture": "stub",
+  "prompt": "Nothing will answer. STUB:fail"
+}

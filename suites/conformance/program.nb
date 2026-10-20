@@ -1,0 +1,2 @@
+# conformance: every arm is a vendor agent, which takes the task's prompt as its instruction; nb arms would use this.
+run {{prompt}}

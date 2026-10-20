@@ -84,11 +84,11 @@ in the order the verbs run them. Every file is one concern:
 | `suites/smoke/` | proctor's own suite: every task scripts nb's Mock provider |
 | `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions; four agent arms through Harbor (nb, Qwen Code, Claude Code, Codex) |
 | `suites/gate/` | the deterministic gate: one Mock arm bare and the same arm as a Harbor agent; `GateTests` (with `PROCTOR_GATE`) asserts they agree |
-| `suites/agent-smoke/` | the Harbor path's shakedown: Claude Code on Haiku, one task on `ledger`; `HarborTests` build on it. Retired once `code-change`'s first run on all four agents is in |
+| `suites/conformance/` | Harbor conformance at $0: every vendor agent at its pin against `fixtures/stub`'s scripted model, tasks `ok`, `fail`, `hang`; `ConformanceTests` (with `PROCTOR_CONFORMANCE`) asserts each cell came back as scripted. The plan and its benchmark are `project/plans/harbor-conformance.md` |
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
-| `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings |
+| `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings; `suites/` is test data `TestRepo.CopySuite` finds after `suites/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never a suite to run |
 | `docs/` | user-facing guides beyond the README: `porting-to-agent-neutral.md`, how a suite moves to agent arms (a draft, from porting `code-change`) |
 | `project/` | the brief, the plans, the research notes and the loose ends |
 
@@ -179,6 +179,26 @@ The directories are for reading, not for namespaces: everything is
   (`suites/gate`, `GateTests`, decision 12) is opt-in:
   `PROCTOR_GATE=<publish dir> dotnet test --no-build --filter GateTests`,
   about ten minutes, Docker and uv needed.
+- **A check of the layer costs nothing.** Proctor checks that it drives
+  Harbor and reads back what Harbor wrote, never Harbor itself and never a
+  model: the unit tests, the gate (nb on Mock) and conformance (each vendor
+  agent on the stub) cover it, with no hosted model, judge or gateway. A
+  hosted model runs only in an experiment whose question is that model,
+  its spend agreed first. `PROCTOR_CONFORMANCE=1 dotnet test --no-build
+  --filter ConformanceTests` runs the stub cells and the oracle pass (each
+  `code-change` task's `reference/<task>.sh` as Harbor's `solution/`,
+  every script check 1); Docker and uv needed, about half an hour, $0.
+- **The stub model is the vendor agents' Mock.** `fixtures/stub/services/stub.py`
+  speaks Anthropic Messages, OpenAI Responses and Chat Completions and
+  reads its script from the prompt: `STUB:run=<cmd>` (one call to the
+  agent's shell tool, then `tools: <every tool the request offered>`),
+  `STUB:fail` (500s), `STUB:hang` (the call, then silence). It runs as a
+  compose service from the fixture's `image.services` directory, which
+  compile copies into the task's `environment/`; Harbor puts such a
+  service in the main container's network namespace, so the agent reaches
+  it at `localhost:8765` and the host listens on nothing. Its tool list is
+  how `Ingest.Kinds` keeps up with an agent's pin: a tool it offers that
+  `Kinds` lacks is a conformance miss before any model ever calls it.
 - **Codex and Qwen Code are installed in the image, never at trial time.**
   Both come from npm on Node 22 by nvm under `~/.nvm`, where Harbor's agents
   look. Harbor's Codex agent skips its install when `codex --version` is the
@@ -188,7 +208,11 @@ The directories are for reading, not for namespaces: everything is
   runs both with approvals and sandbox bypassed (it has no other mode), so
   `denied` is 0 by construction, as under Claude Code's
   `bypassPermissions`. No vendor agent sees the program template: its
-  instruction is the task's prompt.
+  instruction is the task's prompt. `proctor.json` `agents.codex.config` is a native
+  Codex `config.toml` (relative to `suites/`) that Harbor merges its base
+  URL over: what an endpoint needs of the agent, such as a llama-server,
+  which takes only function tools (`web_search = "disabled"`,
+  `[features] multi_agent = false`).
 - **The baseline is a virtual arm in the statistics, not in the experiment.**
   `report` resolves `baseline.json` to per-task scores (re-read from the
   pinned cells' `checks.json` under the current `pass` and `validity`

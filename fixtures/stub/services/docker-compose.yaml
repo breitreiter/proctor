@@ -1,0 +1,8 @@
+# The scripted model beside the agent. No networks: with egress control on, Harbor puts a service that declares none
+# in the main container's network namespace, so the agent reaches it at http://localhost:8765 and the host has no port.
+services:
+  stub:
+    image: python:3.13-alpine
+    command: ["python", "-u", "/stub/stub.py"]
+    volumes:
+      - ./stub.py:/stub/stub.py:ro

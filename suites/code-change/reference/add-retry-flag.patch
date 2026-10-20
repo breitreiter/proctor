@@ -1,0 +1,101 @@
+diff --git a/README.md b/README.md
+index a164113..7378a10 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,4 @@
+ # fetchcli
+ 
+-A small command-line fetcher. `dotnet run --project src/FetchCli -- <url> [--timeout <seconds>]`
++A small command-line fetcher. `dotnet run --project src/FetchCli -- <url> [--timeout <seconds>] [--retry <n>]`
+ prints the body of the URL. Tests: `dotnet test tests/FetchCli.Tests`.
+diff --git a/src/FetchCli/Fetcher.cs b/src/FetchCli/Fetcher.cs
+index b830623..f1779eb 100644
+--- a/src/FetchCli/Fetcher.cs
++++ b/src/FetchCli/Fetcher.cs
+@@ -9,6 +9,12 @@ public sealed class Fetcher(Func<string, TimeSpan, Task<string>> get)
+         return await client.GetStringAsync(url);
+     });
+ 
+-    public Task<string> RunAsync(Options options) =>
+-        get(options.Url, TimeSpan.FromSeconds(options.TimeoutSeconds));
++    public async Task<string> RunAsync(Options options)
++    {
++        for (var attempt = 0; ; attempt++)
++        {
++            try { return await get(options.Url, TimeSpan.FromSeconds(options.TimeoutSeconds)); }
++            catch (Exception) when (attempt < options.Retry) { }
++        }
++    }
+ }
+diff --git a/src/FetchCli/Options.cs b/src/FetchCli/Options.cs
+index a233217..b33ad19 100644
+--- a/src/FetchCli/Options.cs
++++ b/src/FetchCli/Options.cs
+@@ -3,10 +3,14 @@ namespace FetchCli;
+ /// <summary>Parsed command line: the URL to fetch and how long to wait for it.</summary>
+ public sealed record Options(string Url, int TimeoutSeconds = 30)
+ {
++    /// <summary>How many more times to try after a failed fetch.</summary>
++    public int Retry { get; init; }
++
+     public static Options Parse(string[] args)
+     {
+         string? url = null;
+         var timeout = 30;
++        var retry = 0;
+         for (var i = 0; i < args.Length; i++)
+         {
+             switch (args[i])
+@@ -14,6 +18,10 @@ public sealed record Options(string Url, int TimeoutSeconds = 30)
+                 case "--timeout" when i + 1 < args.Length:
+                     timeout = int.Parse(args[++i]);
+                     break;
++                case "--retry" when i + 1 < args.Length:
++                    retry = int.Parse(args[++i]);
++                    if (retry < 0) throw new ArgumentException("--retry must not be negative");
++                    break;
+                 case var flag when flag.StartsWith("--"):
+                     throw new ArgumentException($"unknown flag {flag}");
+                 default:
+@@ -22,6 +30,6 @@ public sealed record Options(string Url, int TimeoutSeconds = 30)
+             }
+         }
+         if (url is null) throw new ArgumentException("a url is required");
+-        return new Options(url, timeout);
++        return new Options(url, timeout) { Retry = retry };
+     }
+ }
+diff --git a/src/FetchCli/Program.cs b/src/FetchCli/Program.cs
+index eb10dda..3c763b5 100644
+--- a/src/FetchCli/Program.cs
++++ b/src/FetchCli/Program.cs
+@@ -9,7 +9,7 @@ try
+ catch (ArgumentException e)
+ {
+     Console.Error.WriteLine($"fetchcli: {e.Message}");
+-    Console.Error.WriteLine("usage: fetchcli <url> [--timeout <seconds>]");
++    Console.Error.WriteLine("usage: fetchcli <url> [--timeout <seconds>] [--retry <n>]");
+     return 2;
+ }
+ catch (HttpRequestException e)
+diff --git a/tests/FetchCli.Tests/RetryTests.cs b/tests/FetchCli.Tests/RetryTests.cs
+new file mode 100644
+index 0000000..79005f2
+--- /dev/null
++++ b/tests/FetchCli.Tests/RetryTests.cs
+@@ -0,0 +1,15 @@
++using FetchCli;
++
++public class RetryTests
++{
++    [Fact]
++    public void Retry_IsParsed() => Assert.Equal(2, Options.Parse(["--retry", "2", "http://x/"]).Retry);
++
++    [Fact]
++    public async Task Run_Retries()
++    {
++        var calls = 0;
++        var f = new Fetcher((_, _) => ++calls < 2 ? throw new HttpRequestException() : Task.FromResult("ok"));
++        Assert.Equal("ok", await f.RunAsync(new Options("http://x/") { Retry = 1 }));
++    }
++}

@@ -1,6 +1,6 @@
 {
-  "id": "agent-smoke",
-  "description": "Does a vendor agent, run by Harbor in the fixture's image, make a small well-specified fix that builds and passes the tests? The Harbor path's shakedown: one task, one cheap model.",
+  "id": "harbor-unit",
+  "description": "Test data for HarborTests: one Claude Code arm, one task on ledger. Never run for real: HarborTests stand a fake uv in for Harbor.",
   "labels": {
     "area": "coding/change",
     "stack": "dotnet"

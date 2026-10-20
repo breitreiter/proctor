@@ -1,0 +1,37 @@
+{
+  "id": "conformance",
+  "description": "Does proctor drive each vendor agent through Harbor and read back what Harbor wrote? Every arm talks to the stub fixture's scripted model, so a run costs nothing.",
+  "arms": [
+    {
+      "id": "claude-code",
+      "description": "Claude Code at code-change's pin, on the stub's Anthropic Messages endpoint",
+      "agent": "claude-code",
+      "agent_version": "2.1.301",
+      "model": "claude-haiku-5-5"
+    },
+    {
+      "id": "codex",
+      "description": "Codex at code-change's pin, on the stub's OpenAI Responses endpoint",
+      "agent": "codex",
+      "agent_version": "0.163.0",
+      "model": "gpt-5-mini"
+    },
+    {
+      "id": "qwen-code",
+      "description": "Qwen Code at code-change's pin, on the stub's OpenAI Chat Completions endpoint",
+      "agent": "qwen-code",
+      "agent_version": "0.25.2",
+      "model": "qwen3-coder-next"
+    }
+  ],
+  "harbor": { "version": "0.24.0" },
+  "limits": { "wall_ms": 120000 },
+  "grading": {
+    "checks": {
+      "exit-ok": { "exit_reason": "ok" },
+      "one-shell-call": { "max_tool_calls": 1 },
+      "lists-tools": { "answer_contains": "tools: " }
+    },
+    "pass": ["exit-ok", "made-file"]
+  }
+}

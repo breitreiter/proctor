@@ -21,19 +21,22 @@ record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dict
 static class Ingest
 {
     /// <summary>Each agent's tools by proctor's kind, as the trajectory names them. A tool missing here is adapter_unmapped.</summary>
-    static readonly Dictionary<string, Dictionary<string, string>> Kinds = new()
+    internal static readonly Dictionary<string, Dictionary<string, string>> Kinds = new()
     {
         [Arm.ClaudeCode] = new()
         {
-            ["Bash"] = "shell", ["BashOutput"] = "shell", ["KillShell"] = "shell", ["KillBash"] = "shell",
+            ["Bash"] = "shell", ["BashOutput"] = "shell", ["KillShell"] = "shell", ["KillBash"] = "shell", ["TaskStop"] = "shell",
+            ["EnterWorktree"] = "shell", ["ExitWorktree"] = "shell",
             ["Read"] = "read", ["LS"] = "read", ["NotebookRead"] = "read",
             ["Write"] = "write",
             ["Edit"] = "edit", ["MultiEdit"] = "edit", ["NotebookEdit"] = "edit",
             ["Glob"] = "search", ["Grep"] = "search",
-            ["Task"] = "agent", ["Agent"] = "agent",
+            ["Task"] = "agent", ["Agent"] = "agent", ["ListAgents"] = "agent", ["SendMessage"] = "agent", ["Workflow"] = "agent",
             ["TodoWrite"] = "plan", ["ExitPlanMode"] = "plan",
             ["WebFetch"] = "web", ["WebSearch"] = "web",
             ["Skill"] = "skill", ["SlashCommand"] = "skill",
+            ["CronCreate"] = "schedule", ["CronDelete"] = "schedule", ["CronList"] = "schedule", ["ScheduleWakeup"] = "schedule",
+            ["ReportFindings"] = "ask",
         },
         // Codex's names are its rollout's (Harbor keeps them): unified exec's two calls, the older shells, apply_patch for every file change.
         [Arm.Codex] = new()
@@ -43,20 +46,22 @@ static class Ingest
             ["apply_patch"] = "edit",
             ["update_plan"] = "plan", ["get_goal"] = "plan", ["create_goal"] = "plan", ["update_goal"] = "plan",
             ["request_user_input"] = "ask",
-            ["web_search_call"] = "web",
+            ["web_search_call"] = "web", ["web_search"] = "web",
+            ["multi_agent_v1"] = "agent",
         },
         [Arm.QwenCode] = new()
         {
             ["run_shell_command"] = "shell",
             ["read_file"] = "read", ["read_many_files"] = "read", ["list_directory"] = "read",
             ["write_file"] = "write",
-            ["edit"] = "edit", ["replace"] = "edit",
+            ["edit"] = "edit", ["replace"] = "edit", ["notebook_edit"] = "edit",
             ["glob"] = "search", ["grep_search"] = "search", ["search_file_content"] = "search",
             ["task"] = "agent",
             ["todo_write"] = "plan", ["exit_plan_mode"] = "plan",
             ["web_fetch"] = "web", ["web_search"] = "web",
             ["skill"] = "skill",
             ["save_memory"] = "memory",
+            ["tool_search"] = "meta", ["tool_call"] = "meta",
         },
         [Arm.Nb] = new()
         {

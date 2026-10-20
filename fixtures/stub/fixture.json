@@ -1,0 +1,16 @@
+{
+  "id": "stub",
+  "description": "An empty checkout beside a scripted model endpoint (services/stub.py): the vendor agents' Mock, for conformance runs that cost nothing.",
+  "source": { "path": "repo" },
+  "stack": "none",
+  "image": {
+    "from": "mcr.microsoft.com/dotnet/sdk:10.0",
+    "services": "services"
+  },
+  "checks": {
+    "made-file": {
+      "script": "checks/made-file.sh",
+      "description": "the checkout has made.txt, which the stub's one command writes"
+    }
+  }
+}

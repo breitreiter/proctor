@@ -35,7 +35,9 @@ sealed class TestRepo : IDisposable
     /// <summary>Copy a suite from this repository's suites/ into the temp root, with a proctor.json pointing at nb.</summary>
     public string CopySuite(string suiteId)
     {
-        CopyDirectory(Path.Combine(SourceRoot, "suites", suiteId), Path.Combine(Root, "suites", suiteId));
+        var source = Path.Combine(SourceRoot, "suites", suiteId);
+        if (!Directory.Exists(source)) source = Path.Combine(SourceRoot, "Proctor.Tests", "suites", suiteId);   // test data, never a suite to run
+        CopyDirectory(source, Path.Combine(Root, "suites", suiteId));
         foreach (var file in Directory.GetFiles(Path.Combine(Root, "suites", suiteId, "tasks"), "*.json"))
             if (JsonNode.Parse(File.ReadAllText(file))?["fixture"]?.GetValue<string>() is { } fixture) CopyFixture(fixture);
         foreach (var arm in JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "suites", suiteId, "suite.json")))?["arms"]?.AsArray() ?? [])

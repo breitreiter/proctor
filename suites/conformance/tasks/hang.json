@@ -1,0 +1,6 @@
+{
+  "id": "hang",
+  "description": "The stub asks for one shell command, then never answers: the agent's time budget ends a completed run",
+  "fixture": "stub",
+  "prompt": "The second answer never comes. STUB:hang"
+}
