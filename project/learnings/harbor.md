@@ -253,6 +253,13 @@ total over five cc trials, 18 gateway requests.
   the egress sidecar works with docker group membership alone. A
   `no-network` or `allowlist` phase builds the sidecar even when the agent
   phase is public.
+- **Podman is an environment type, not a compatibility shim.** Harbor
+  0.24.0's `podman` environment subclasses `docker` with the podman CLI:
+  `podman compose` (docker-compose over the podman socket, `up --wait`
+  off, since it hangs rootless) or `podman-compose --in-pod=false`, and the
+  same egress sidecar (its docs list `allowlist` and per-phase policy for
+  podman, nftables permitting). Proctor selects it with `harbor.engine`;
+  as of 2026-10-20 no gate or conformance run has been on podman.
 - **Model names go bare.** With `ANTHROPIC_BASE_URL` set, Harbor passes `-m`
   through verbatim, so `anthropic/claude-haiku-5-5` reaches the gateway with
   its prefix and 404s. Compile must write `claude-haiku-5-5`.

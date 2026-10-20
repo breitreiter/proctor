@@ -4,13 +4,13 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>Runs only when PROCTOR_CONFORMANCE is set; it needs Docker, uv and Harbor, and network to build the images.</summary>
+/// <summary>Runs only when PROCTOR_CONFORMANCE is set; it needs Docker or podman (proctor.json harbor.engine), uv and Harbor, and network to build the images.</summary>
 sealed class ConformanceFactAttribute : FactAttribute
 {
     public ConformanceFactAttribute()
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PROCTOR_CONFORMANCE")))
-            Skip = "set PROCTOR_CONFORMANCE=1 (Docker, uv and Harbor needed) to run every vendor agent against the stub model";
+            Skip = "set PROCTOR_CONFORMANCE=1 (Docker or podman, uv and Harbor needed) to run every vendor agent against the stub model";
     }
 }
 

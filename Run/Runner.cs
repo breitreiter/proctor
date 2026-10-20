@@ -95,11 +95,12 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         if (suite.HasAgentArms)
         {
             var version = suite.Def.Harbor!.Version!;
+            var engine = (config.Harbor ?? new HarborConfig()).Engine;
             var nbImage = suite.Arms.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, experiment.Versions["nb"]) : null;
             experiment = experiment with
             {
                 Versions = new(experiment.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(root, config, nb, arm), nbImage), nbImage),
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(root, config, nb, arm), nbImage), nbImage, engine),
             };
         }
         WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);
@@ -125,6 +126,8 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             throw new ProctorException($"the runner has changed since experiment {experimentId} was created ({Describe(runner)} vs {Describe(experiment.Nb.Runner)}); a changed runner is a new experiment");
         if (experiment.Harbor is { } harbor && HarborCompile.TreeHash(Layout.Experiment(root, experimentId)) != harbor.TasksHash)
             throw new ProctorException($"the Harbor tasks compiled for experiment {experimentId} have changed on disk ({Layout.HarborDir}/tasks); a changed task is a new experiment");
+        if (experiment.Harbor is { } recorded && (config.Harbor ?? new HarborConfig()).Engine is var engine && engine != recorded.Engine)
+            throw new ProctorException($"the container engine (suites/proctor.json harbor.engine) has changed since experiment {experimentId} was created ({engine} vs {recorded.Engine}); a changed engine is a new experiment");
         if (experiment.Harbor?.NbImage is { } image && NbImage(root, config, experiment.Versions["nb"]) is var now && now != image)
             throw new ProctorException($"nb's publish (suites/proctor.json harbor.nb) has changed since experiment {experimentId} was created ({now} vs {image}); a changed nb is a new experiment");
         if (nbOverride is not null) experiment = experiment with { Nb = experiment.Nb with { Path = Path.GetFullPath(nbOverride) } };
@@ -314,7 +317,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             if (Compile(cellDir, program).Error is { } compileError) failure = $"program compile failed: {compileError}";
         }
         if (failure is null)
-            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, cellDir, arm, taskDir, route, suite.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb);
+            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, experiment.Harbor.Engine, cellDir, arm, taskDir, route, suite.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb);
         if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, arm, manifest, arm.IsVendor ? arm.AgentVersion! : experiment.Versions["nb"]);
         stopwatch.Stop();
 
@@ -366,7 +369,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     static string NbImage(string root, ProctorConfig config, string hostVersion)
     {
         var publish = config.Harbor?.Nb ?? throw new ProctorException("an nb arm runs through Harbor on nb's self-contained linux-x64 publish: set harbor.nb in suites/proctor.json to its directory");
-        var (tag, version) = HarborRun.NbImage(Path.GetFullPath(Path.Combine(Layout.Suites(root), publish)));
+        var (tag, version) = HarborRun.NbImage(Path.GetFullPath(Path.Combine(Layout.Suites(root), publish)), (config.Harbor ?? new HarborConfig()).Engine);
         if (version != hostVersion)
             throw new ProctorException($"nb's publish (suites/proctor.json harbor.nb) is {version}, the host nb is {hostVersion}: publish the same nb, so the program compiled on the host is the program the image runs");
         return tag;

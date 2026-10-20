@@ -178,7 +178,16 @@ The directories are for reading, not for namespaces: everything is
   transcript to reading the same through ATIF as directly. The gate
   (`suites/gate`, `GateTests`, decision 12) is opt-in:
   `PROCTOR_GATE=<publish dir> dotnet test --no-build --filter GateTests`,
-  about ten minutes, Docker and uv needed.
+  about ten minutes, Docker (or podman) and uv needed.
+- **Harbor's engine is the machine's.** `proctor.json` `harbor.engine`
+  (`docker`, the default, or `podman`) is Harbor's `environment.type` in
+  every cell's job file and the CLI nb's layer is built with; podman's
+  local tag is `localhost/proctor-nb:<hash>`, spelled out so the compiled
+  `COPY --from` resolves no short name. `experiment.json` records it and
+  `resume` refuses a changed one, since the compiled tasks name a layer in
+  that engine's store. Podman needs `podman.socket` running (Harbor's
+  preflight probes `podman compose ls`). The bare path's hooks pick their
+  own engine (`command -v podman`).
 - **A check of the layer costs nothing.** Proctor checks that it drives
   Harbor and reads back what Harbor wrote, never Harbor itself and never a
   model: the unit tests, the gate (nb on Mock) and conformance (each vendor
@@ -187,7 +196,7 @@ The directories are for reading, not for namespaces: everything is
   its spend agreed first. `PROCTOR_CONFORMANCE=1 dotnet test --no-build
   --filter ConformanceTests` runs the stub cells and the oracle pass (each
   `code-change` task's `reference/<task>.sh` as Harbor's `solution/`,
-  every script check 1); Docker and uv needed, about half an hour, $0.
+  every script check 1); Docker (or podman) and uv needed, about half an hour, $0.
 - **The stub model is the vendor agents' Mock.** `fixtures/stub/services/stub.py`
   speaks Anthropic Messages, OpenAI Responses and Chat Completions and
   reads its script from the prompt: `STUB:run=<cmd>` (one call to the

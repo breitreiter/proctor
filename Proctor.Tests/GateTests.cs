@@ -4,13 +4,13 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>Runs only when PROCTOR_GATE names nb's self-contained linux-x64 publish; it needs Docker, uv and Harbor too.</summary>
+/// <summary>Runs only when PROCTOR_GATE names nb's self-contained linux-x64 publish; it needs Docker or podman (proctor.json harbor.engine), uv and Harbor too.</summary>
 sealed class GateFactAttribute : FactAttribute
 {
     public GateFactAttribute()
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PROCTOR_GATE")))
-            Skip = "set PROCTOR_GATE to nb's linux-x64 publish directory (Docker, uv and Harbor needed) to run the deterministic gate";
+            Skip = "set PROCTOR_GATE to nb's linux-x64 publish directory (Docker or podman, uv and Harbor needed) to run the deterministic gate";
     }
 }
 

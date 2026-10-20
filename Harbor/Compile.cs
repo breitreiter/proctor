@@ -98,12 +98,12 @@ static class HarborCompile
 
     /// <summary>
     /// Harbor's job for one cell: one trial of one task by one agent. Every setting Harbor would otherwise default is
-    /// stated: the pinned version, the permission mode, each model alias (Harbor maps them all to one model on a custom
+    /// stated: the container engine, the pinned version, the permission mode, each model alias (Harbor maps them all to one model on a custom
     /// base URL; proctor says so rather than inherits it), no retries (a retry is proctor's attempt), one trial at a time.
     /// The key is not here: it goes in the environment of the one Harbor process. proctor's own agents (nb, Qwen
     /// Code) are named by import path; nb's kwargs carry the cell's host-compiled program and nb's config.
     /// </summary>
-    public static JsonObject Job(Arm arm, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null)
+    public static JsonObject Job(Arm arm, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null, string engine = "docker")
     {
         var agent = new JsonObject();
         if (OwnAgents.TryGetValue(arm.Agent!, out var own)) agent["import_path"] = own.Import;
@@ -119,6 +119,7 @@ static class HarborCompile
             ["n_concurrent_trials"] = 1,
             ["quiet"] = true,
             ["retry"] = new JsonObject { ["max_retries"] = 0 },
+            ["environment"] = new JsonObject { ["type"] = engine },
             ["agents"] = new JsonArray(agent),
             ["tasks"] = new JsonArray(new JsonObject { ["path"] = taskDir }),
         };

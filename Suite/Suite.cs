@@ -42,10 +42,14 @@ record ProctorConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, 
 record AgentEndpoint(string? BaseUrl, string? ApiKey, string? Config = null);
 
 /// <summary>
-/// proctor.json's harbor block: the uv that runs the suite's pinned Harbor (default: uv on PATH), and nb's self-contained
-/// linux-x64 publish directory, which an nb arm's image carries (relative to suites/, like nb.path).
+/// proctor.json's harbor block: the uv that runs the suite's pinned Harbor (default: uv on PATH), nb's self-contained
+/// linux-x64 publish directory, which an nb arm's image carries (relative to suites/, like nb.path), and the container
+/// engine Harbor drives, its environment type: docker (the default) or podman.
 /// </summary>
-record HarborConfig(string Uv = "uv", string? Nb = null);
+record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker")
+{
+    public static readonly string[] Engines = ["docker", "podman"];
+}
 
 /// <summary>
 /// An arm is what is under test. Without an agent it is nb, run bare: runner, harness and provider say how. With an
@@ -237,6 +241,8 @@ sealed class Suite
         foreach (var field in new[] { "runner", "mounts" })
             if (raw?[field] is not null)
                 problems.Add(new Problem(Path.GetRelativePath(root, file), $"nb.{field}", $"belongs in the suite: suite.json nb.{field}"));
+        if (config?.Harbor is { } harbor && !HarborConfig.Engines.Contains(harbor.Engine))
+            problems.Add(new Problem(Path.GetRelativePath(root, file), "harbor.engine", $"unknown engine '{harbor.Engine}'; known: {string.Join(", ", HarborConfig.Engines)}"));
         Judges.Validate(config?.Judges, (field, message) => problems.Add(new Problem(Path.GetRelativePath(root, file), field, message)));
         foreach (var (name, endpoint) in config?.Agents ?? [])
         {

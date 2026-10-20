@@ -5,6 +5,18 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.3.4 — 2026-10-20
+
+Agent arms on podman. Nothing that read before stops reading, hence a patch.
+
+- `proctor.json` `harbor.engine` is the container engine Harbor drives,
+  `docker` (the default) or `podman`: Harbor's job file states it as
+  `environment.type`, and nb's layer is built in that engine's store
+  (`localhost/proctor-nb:<hash>` under podman). Podman needs its API socket
+  (`systemctl --user enable --now podman.socket`) and a compose frontend.
+- `experiment.json` records the engine under `harbor.engine` (absent reads
+  as `docker`), and `resume` refuses a changed one.
+
 ## 0.3.3 — 2026-10-20
 
 Harbor conformance at no cost (`project/plans/harbor-conformance.md`).

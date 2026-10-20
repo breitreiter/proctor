@@ -11,10 +11,16 @@ moves its arms to the first kind. The design is
 Runs as before. Nothing here applies, and validation refuses `harbor` and
 `limits` on it, since nothing runs through Harbor.
 
-## 2. The machine: Docker, uv, and proctor.json
+## 2. The machine: Docker or podman, uv, and proctor.json
 
-An agent arm needs Docker (with the Compose and buildx plugins) and uv on the
-machine that runs it; the bare path needs neither. In `suites/proctor.json`:
+An agent arm needs a container engine and uv on the machine that runs it;
+the bare path needs neither. The engine is Docker (with the Compose and
+buildx plugins) or podman (with its API socket running, `systemctl --user
+enable --now podman.socket`, and a compose frontend: docker-compose v2 or
+`podman-compose`). In `suites/proctor.json`:
+
+- `harbor.engine`: `docker` (the default) or `podman`. An experiment keeps
+  the engine it started on; `resume` refuses another.
 
 - `agents.<agent>`: `base_url` and `api_key` for each vendor agent the suite
   names (`claude-code` an Anthropic route, `codex` and `qwen-code` an

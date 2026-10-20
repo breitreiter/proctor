@@ -265,6 +265,54 @@ can carry a rubric per task. A built-in field set to `"@expect"` reads
 needed kind is used. Whether a suite is judged is not declared; it follows
 from a check that asks a model, and `list` says so.
 
+### Agent arms
+
+An arm that names an `agent` runs through
+[Harbor](https://github.com/harbor-framework/harbor), in a container built
+from its fixture's image, instead of running nb on this machine. The agent
+is a vendor's own CLI at a pinned version (`claude-code`, `codex`,
+`qwen-code`), or `nb` itself:
+
+```json
+{
+  "arms": [
+    { "id": "cc-haiku", "agent": "claude-code", "agent_version": "2.1.301", "model": "claude-haiku-5-5" },
+    { "id": "floor", "agent": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next" }
+  ],
+  "harbor": { "version": "0.24.0" },
+  "limits": { "wall_ms": 1800000 }
+}
+```
+
+The machine needs [uv](https://docs.astral.sh/uv/), which runs the pinned
+Harbor, and a container engine, set by `harbor.engine` in
+`suites/proctor.json`:
+
+- **Docker** (the default), with the Compose and buildx CLI plugins.
+- **Podman**, with its API socket running and a compose frontend
+  (docker-compose v2, used through `podman compose`, or `podman-compose`):
+
+  ```bash
+  systemctl --user enable --now podman.socket
+  ```
+
+The same file says where each vendor agent's model calls go and where nb's
+self-contained linux-x64 publish is, for an `agent: nb` arm:
+
+```json
+{
+  "agents": { "claude-code": { "base_url": "${LLM_GATEWAY}/anthropic", "api_key": "${LLM_GATEWAY_KEY}" } },
+  "harbor": { "uv": "uv", "engine": "podman", "nb": "../../nb/artifacts/linux-x64" }
+}
+```
+
+While the agent works, its container reaches only the host of its model's
+base URL; the checks run afterwards with no network at all. An experiment
+keeps the engine it started on, and `resume` refuses a different one. What
+a fixture's image needs and how a suite moves to agent arms is
+[`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md);
+`suites/code-change/` runs the same three tasks on all four agents.
+
 `suites/smoke/` with `fixtures/note/` is a complete example that runs against
 nb's Mock provider. `suites/suite-authoring/` is the demo project: a suite
 that asks an agent to write suites, using most of what is described here.

@@ -148,6 +148,8 @@ public class HarborTests
         var job = HarborCompile.Job(arm, "/t", "/j", new AgentRoute(BaseUrl, "sk-secret"));
         Assert.Equal(1, job["n_attempts"]!.GetValue<int>());
         Assert.Equal(0, job["retry"]!["max_retries"]!.GetValue<int>());
+        Assert.Equal("docker", job["environment"]!["type"]!.GetValue<string>());
+        Assert.Equal("podman", HarborCompile.Job(arm, "/t", "/j", new AgentRoute(BaseUrl, "sk-secret"), engine: "podman")["environment"]!["type"]!.GetValue<string>());
         var agent = job["agents"]![0]!;
         Assert.Equal("claude-code", agent["name"]!.GetValue<string>());
         Assert.Equal("claude-haiku-5-5", agent["model_name"]!.GetValue<string>());
@@ -453,6 +455,26 @@ public class HarborTests
     }
 
     [Fact]
+    public void Run_OnPodman_RecordsTheEngine_HandsItToHarbor_AndResumeRefusesAnother()
+    {
+        using var scratch = new TestRepo();
+        var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
+        using var _r = repo;
+        var config = Path.Combine(repo.Root, "suites", "proctor.json");
+        void Engine(string engine) { var c = ReadJson(config); c["harbor"]!["engine"] = engine; File.WriteAllText(config, c.ToJsonString()); }
+        Engine("podman");
+        var id = Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var expDir = Layout.Experiment(repo.Root, id);
+        Assert.Equal("podman", ReadJson(Path.Combine(expDir, "experiment.json"))["harbor"]!["engine"]!.GetValue<string>());
+        var job = Path.Combine(Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1), Layout.HarborDir, Layout.HarborJobFile);
+        Assert.Equal("podman", ReadJson(job)["environment"]!["type"]!.GetValue<string>());
+
+        Engine("docker");
+        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
+        Assert.Contains("the container engine (suites/proctor.json harbor.engine) has changed", e.Message);
+    }
+
+    [Fact]
     public void Run_WithoutTheAgentsEndpoint_FailsBeforeAnythingIsMade()
     {
         var (repo, _) = AgentRepo();
@@ -495,6 +517,20 @@ public class HarborTests
         var problems = new List<Problem>();
         Suite.LoadConfig(repo.Root, problems);
         Assert.Equal(["agents.cursor"], problems.Select(p => p.Field));
+    }
+
+    [Theory]
+    [InlineData("docker", null)]
+    [InlineData("podman", null)]
+    [InlineData("nerdctl", "unknown engine 'nerdctl'; known: docker, podman")]
+    public void Config_KnowsDockerAndPodman(string engine, string? message)
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), $$$"""{"harbor": {"engine": "{{{engine}}}"}}""");
+        var problems = new List<Problem>();
+        Suite.LoadConfig(repo.Root, problems);
+        Assert.Equal(message is null ? [] : [("harbor.engine", message)], problems.Select(p => (p.Field, p.Message)));
     }
 
     [Fact]
