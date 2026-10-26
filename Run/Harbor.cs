@@ -18,6 +18,18 @@ static class HarborRun
     static readonly TimeSpan Overhead = TimeSpan.FromSeconds(1800 + 900 + 600);
 
     /// <summary>
+    /// The pin covers Harbor, not what it depends on (litellm is `&gt;=1.92.0`), so uv resolves the rest fresh each time
+    /// and a poisoned release reaches the next run: litellm 1.107.0 (2026-10-21) was on PyPI for two hours. Hijacked
+    /// releases are pulled within hours, so nothing younger than a week is a candidate. It applies to Harbor too: a pin
+    /// bumped to a release under a week old fails to resolve until it ages.
+    /// </summary>
+    const string Cooldown = "7 days";
+
+    /// <summary>uv's arguments for `harbor run` on the job file in the working directory.</summary>
+    public static string[] UvArgs(string version) =>
+        ["tool", "run", "--exclude-newer", Cooldown, $"harbor@{version}", "run", "--config", Layout.HarborJobFile];
+
+    /// <summary>
     /// nb's layer: the self-contained publish proctor.json harbor.nb names, as a local image holding only /opt/nb,
     /// tagged by the publish's content hash and built once in the engine's store. An nb arm's image copies it, so the
     /// binary that runs is the one hashed, and its version is asked of it here. Podman keeps a local image under
@@ -52,7 +64,7 @@ static class HarborRun
         // nb's and Qwen Code's agents are proctor's own, imported from the experiment's harbor/agents/.
         if (HarborCompile.IsOwnAgent(arm)) env["PYTHONPATH"] = agentsDir;
         var timeout = TimeSpan.FromMilliseconds(wallMs) + Overhead;
-        var result = Subprocess.Run(uv, ["tool", "run", $"harbor@{version}", "run", "--config", Layout.HarborJobFile], harborDir, env,
+        var result = Subprocess.Run(uv, UvArgs(version), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);
         if (!result.Started) return (null, $"could not start Harbor: {result.Stderr} (suites/proctor.json harbor.uv)");
         if (result.TimedOut) return (null, $"Harbor did not finish within {timeout.TotalMinutes:0} minutes; killed (its containers may need `{engine} ps` and removing)");

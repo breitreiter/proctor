@@ -77,7 +77,7 @@ public class ConformanceTests
             var job = HarborCompile.Job(arm, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null));
             job["agents"] = new JsonArray(new JsonObject { ["name"] = "oracle" });
             Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), job);
-            var run = Subprocess.Run("uv", ["tool", "run", $"harbor@{suite.Def.Harbor!.Version}", "run", "--config", Layout.HarborJobFile], harborDir,
+            var run = Subprocess.Run("uv", HarborRun.UvArgs(suite.Def.Harbor!.Version), harborDir,
                 new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" }, timeout: TimeSpan.FromMinutes(30));
 
             var reward = Directory.GetFiles(Path.Combine(harborDir, "jobs"), Layout.RewardFile, SearchOption.AllDirectories).FirstOrDefault();

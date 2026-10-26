@@ -345,7 +345,7 @@ public class HarborTests
         Assert.Equal(1, ReadJson(Path.Combine(cell, "core.json"))["tool_calls"]!.GetValue<int>());
         Assert.Equal("{\"builds\": 1, \"tests-pass\": 0}", File.ReadAllText(Path.Combine(cell, "reward.json")).Trim());
 
-        Assert.Equal("tool run harbor@0.24.0 run --config job.json", File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
+        Assert.Equal("tool run --exclude-newer 7 days harbor@0.24.0 run --config job.json",File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
         Assert.Equal($"telemetry=off key=sk-test-{keyVar}", File.ReadAllText(Path.Combine(scratch.Root, "uv.env")).Trim());
         var job = ReadJson(Path.Combine(cell, "harbor", "job.json"));
         Assert.Equal(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), job["tasks"]![0]!["path"]!.GetValue<string>());

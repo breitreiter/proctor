@@ -68,7 +68,7 @@ in the order the verbs run them. Every file is one concern:
 | `Harbor/Compile.cs` | an agent arm's task as a Harbor task (`instruction.md`, `task.toml`, the image, the verifier) and a cell's job file |
 | `Harbor/nb_agent.py` | nb as a Harbor agent: uploads the cell's program and nb's config, runs nb on stdin; embedded, compiled into `runs/<id>/harbor/agents/` (Python, not compiled into proctor) |
 | `Harbor/qwen_code_agent.py` | Harbor's Qwen Code agent with its per-trial network install replaced by a check that the image holds the pin; embedded and compiled like `nb_agent.py` |
-| `Run/Harbor.cs` | one cell's Harbor job: `uv tool run harbor@<pin>`, telemetry off, the key in its environment only; nb's layer image from its publish |
+| `Run/Harbor.cs` | one cell's Harbor job: `uv tool run harbor@<pin>` with a seven-day `--exclude-newer` cooldown on everything it resolves, telemetry off, the key in its environment only; nb's layer image from its publish |
 | `Run/Ingest.cs` | a Harbor trial into a cell, and the counted core (`core.json`) from the ATIF trajectory |
 | `Run/NbAtif.cs` | nb's JSONL as an ATIF trajectory, nb's own fields under `extra` |
 | `Run/Checkout.cs` | the work directory: materialise the fixture, collect the diff, restore both for a regrade |
