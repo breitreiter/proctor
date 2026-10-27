@@ -54,7 +54,7 @@ static class HarborRun
 
     /// <summary>
     /// Under podman, what would fail a trial partway that is cheap to see first: the compose frontend `podman compose`
-    /// delegates to, and whether short names resolve. Harbor's egress sidecar builds `FROM gogost/gost`, which podman
+    /// delegates to, the banner it prints before delegating, and whether short names resolve. Harbor's egress sidecar builds `FROM gogost/gost`, which podman
     /// refuses with no search registry; podman-compose has no `compose ls` (Harbor's preflight) and rejects
     /// `exec --no-TTY` (the allowlist phase). Seen with Harbor 0.24.0 (project/learnings/harbor.md).
     /// </summary>
@@ -62,14 +62,18 @@ static class HarborRun
     {
         var compose = Subprocess.Run("podman", ["compose", "version"], Directory.GetCurrentDirectory());
         var registries = Subprocess.Run("podman", ["info", "--format", "{{json .Registries}}"], Directory.GetCurrentDirectory());
-        var problems = PodmanProblems(compose is { Started: true, ExitCode: 0 } ? compose.Stdout : null, registries is { Started: true, ExitCode: 0 } ? registries.Stdout : null);
+        var problems = PodmanProblems(compose is { Started: true, ExitCode: 0 } ? compose.Stdout : null, registries is { Started: true, ExitCode: 0 } ? registries.Stdout : null, compose.Stderr);
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
     }
 
-    /// <summary>The problems in `podman compose version` and `podman info`'s registries, either null when the command failed.</summary>
-    public static List<string> PodmanProblems(string? composeVersion, string? registries)
+    /// <summary>The problems in `podman compose version` (its output and its stderr) and `podman info`'s registries, either output null when the command failed.</summary>
+    public static List<string> PodmanProblems(string? composeVersion, string? registries, string? composeStderr = null)
     {
         var problems = new List<string>();
+        // Harbor reads `compose exec` output with stderr in it, so this banner becomes part of every version an agent's
+        // setup asks the image for: Codex reinstalls (and fails), proctor's Qwen Code agent refuses the image.
+        if (composeStderr?.Contains("Executing external compose provider") == true)
+            problems.Add("harbor.engine is podman, but `podman compose` announces its provider on every call, which Harbor reads as agent output: add compose_warning_logs = false under [engine] in ~/.config/containers/containers.conf");
         if (composeVersion is null)
             problems.Add("harbor.engine is podman, but `podman compose version` failed: install docker-compose v2 (Ubuntu: docker-compose-v2) and start the API socket with `systemctl --user enable --now podman.socket`");
         else if (!composeVersion.Contains("Docker Compose", StringComparison.OrdinalIgnoreCase))

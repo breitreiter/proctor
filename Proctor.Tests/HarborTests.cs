@@ -103,6 +103,12 @@ public class HarborTests
         Assert.Contains("unqualified-search-registries = [\"docker.io\"]", shortName);
         Assert.Single(HarborRun.PodmanProblems("Docker Compose version v2.40.3", """{"search":[]}"""));
         Assert.Equal(2, HarborRun.PodmanProblems(null, null).Count);
+
+        // the banner podman prints on stderr before every compose call reaches Harbor's exec output
+        var banner = Assert.Single(HarborRun.PodmanProblems("Docker Compose version 2.40.3", """{"search":["docker.io"]}""",
+            "\u001b[4m>>>> Executing external compose provider \"/usr/libexec/docker/cli-plugins/docker-compose\". Please see podman-compose(1) for how to disable this message. <<<<\n"));
+        Assert.Contains("compose_warning_logs = false", banner);
+        Assert.Empty(HarborRun.PodmanProblems("Docker Compose version 2.40.3", """{"search":["docker.io"]}""", ""));
     }
 
     [Fact]

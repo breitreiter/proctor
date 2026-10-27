@@ -409,3 +409,28 @@ oracle agent on a probe task with an `allowlist` phase, no model.
   removed them afterwards. Not explained: the run was inside a bubblewrap
   sandbox (podman as a remote client of the socket), and no AppArmor denial
   was visible. Repeat outside the sandbox before treating it as podman's.
+
+### Conformance on podman (2026-10-27)
+
+Both conformance tests on the same machine, Harbor run through a sandboxed
+`uv` (`docs/podman.md` §8); `PROCTOR_CONFORMANCE` now takes the
+`proctor.json` whose `harbor` block to run on.
+
+- **The oracle pass was green at once** (3.5 min): every `code-change`
+  task's script checks are 1 with its reference solution.
+- **The vendor agents failed on the compose banner.** `podman compose`
+  prints `>>>> Executing external compose provider … <<<<` on stderr before
+  every call, and Harbor reads `compose exec` output with stderr in it. So
+  `codex --version` read as banner plus version: Harbor's Codex agent took
+  its pin for missing and failed reinstalling (`apt-get`), and proctor's
+  Qwen Code agent refused the image as the wrong version. Claude Code and
+  the oracle never compare such output, which is why the #5 probes (oracle
+  only) missed it. `compose_warning_logs = false` under `[engine]` in
+  `~/.config/containers/containers.conf` silences it; `run` now refuses
+  podman while it is on. With it off, all three agents came back as the
+  stub scripted them (17 min).
+- **The sidecar leak (#7) is per environment, not per trial.** The
+  separate verifier is `no-network`, so it has a sidecar too: each cell
+  left two exited sidecars and two networks (`…__env_default`,
+  `…__verifier__trial_default`), 18 of each per run. Still only seen with
+  Harbor sandboxed.

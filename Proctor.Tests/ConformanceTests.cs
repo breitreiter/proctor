@@ -4,7 +4,10 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>Runs only when PROCTOR_CONFORMANCE is set; it needs Docker or podman (proctor.json harbor.engine), uv and Harbor, and network to build the images.</summary>
+/// <summary>
+/// Runs only when PROCTOR_CONFORMANCE is set; it needs Docker or podman, uv and Harbor, and network to build the images.
+/// `1` takes harbor.uv and harbor.engine from this repository's suites/proctor.json; a path takes them from that file.
+/// </summary>
 sealed class ConformanceFactAttribute : FactAttribute
 {
     public ConformanceFactAttribute()
@@ -24,11 +27,21 @@ public class ConformanceTests
 {
     const string Stub = "http://localhost:8765";
 
+    /// <summary>The Harbor conformance runs on: harbor.uv and harbor.engine of the proctor.json PROCTOR_CONFORMANCE names.</summary>
+    static (string Uv, string Engine) MachineHarbor()
+    {
+        var named = Environment.GetEnvironmentVariable("PROCTOR_CONFORMANCE");
+        var file = named is null or "1" ? Path.Combine(TestRepo.SourceRoot, "suites", "proctor.json") : Path.GetFullPath(named);
+        var harbor = File.Exists(file) ? JsonNode.Parse(File.ReadAllText(file))?["harbor"] : null;
+        return (harbor?["uv"]?.GetValue<string>() ?? "uv", harbor?["engine"]?.GetValue<string>() ?? "docker");
+    }
+
     [ConformanceFact]
     public void EveryVendorAgent_RunsAndReadsBack_AsTheStubScriptedIt()
     {
         using var repo = new TestRepo();
         repo.CopySuite("conformance");
+        var (uv, engine) = MachineHarbor();
         File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
@@ -38,6 +51,7 @@ public class ConformanceTests
                 ["codex"] = new { base_url = $"{Stub}/v1", api_key = "stub" },
                 ["qwen-code"] = new { base_url = $"{Stub}/v1", api_key = "stub" },
             },
+            harbor = new { uv, engine },
         }));
         var config = Suite.LoadConfig(repo.Root, []);
         var suite = repo.LoadSuite("conformance");
@@ -60,6 +74,7 @@ public class ConformanceTests
         repo.CopySuite("code-change");
         var suite = repo.LoadSuite("code-change");
         var arm = suite.Arms.First(a => a.IsVendor);
+        var (uv, engine) = MachineHarbor();
         var expDir = Path.Combine(repo.Root, "runs", "oracle");
         HarborCompile.Tasks(expDir, suite, "oracle", _ => new AgentRoute(null, null));
 
@@ -74,10 +89,10 @@ public class ConformanceTests
 
             var harborDir = Path.Combine(expDir, "oracle-jobs", c.Id!);
             Directory.CreateDirectory(harborDir);
-            var job = HarborCompile.Job(arm, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null));
+            var job = HarborCompile.Job(arm, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null), engine: engine);
             job["agents"] = new JsonArray(new JsonObject { ["name"] = "oracle" });
             Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), job);
-            var run = Subprocess.Run("uv", HarborRun.UvArgs(suite.Def.Harbor!.Version), harborDir,
+            var run = Subprocess.Run(uv, HarborRun.UvArgs(suite.Def.Harbor!.Version), harborDir,
                 new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" }, timeout: TimeSpan.FromMinutes(30));
 
             var reward = Directory.GetFiles(Path.Combine(harborDir, "jobs"), Layout.RewardFile, SearchOption.AllDirectories).FirstOrDefault();

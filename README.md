@@ -289,27 +289,10 @@ Harbor, and a container engine, set by `harbor.engine` in
 `suites/proctor.json`:
 
 - **Docker** (the default), with the Compose and buildx CLI plugins.
-- **Podman**, with its API socket running, docker-compose v2 as the
-  frontend of `podman compose` (Ubuntu: `docker-compose-v2`), and short
-  image names resolving, since Harbor's egress sidecar is built from one:
-
-  ```bash
-  systemctl --user enable --now podman.socket
-  echo 'unqualified-search-registries = ["docker.io"]' >> ~/.config/containers/registries.conf
-  ```
-
-  `podman-compose` does not work with Harbor 0.24.0 (it has no `compose ls`
-  and rejects `exec --no-TTY`); with both installed, set
-  `PODMAN_COMPOSE_PROVIDER` to docker-compose's path. `run` checks both
-  before it starts.
-
-  A rootless container reaches the host as `host.containers.internal`,
-  which is the host's routable address, not its loopback. For a gateway
-  listening on `127.0.0.1`, add `pasta_options = ["--map-host-loopback",
-  "169.254.1.2"]` under `[network]` in `~/.config/containers/containers.conf`
-  and use `host.containers.internal` in the base URL. The allowlist is by
-  host, not port, so every service on the host's loopback is then open to
-  the agent, not just the gateway.
+- **Podman**, rootless, with its API socket running, docker-compose v2
+  behind `podman compose`, and three lines of user config. The setup,
+  and why each step is there, is [`docs/podman.md`](docs/podman.md);
+  `run` checks what it can before it starts.
 
 The same file says where each vendor agent's model calls go and where nb's
 self-contained linux-x64 publish is, for an `agent: nb` arm:

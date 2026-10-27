@@ -84,12 +84,12 @@ in the order the verbs run them. Every file is one concern:
 | `suites/smoke/` | proctor's own suite: every task scripts nb's Mock provider |
 | `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions; four agent arms through Harbor (nb, Qwen Code, Claude Code, Codex) |
 | `suites/gate/` | the deterministic gate: one Mock arm bare and the same arm as a Harbor agent; `GateTests` (with `PROCTOR_GATE`) asserts they agree |
-| `suites/conformance/` | Harbor conformance at $0: every vendor agent at its pin against `fixtures/stub`'s scripted model, tasks `ok`, `fail`, `hang`; `ConformanceTests` (with `PROCTOR_CONFORMANCE`) asserts each cell came back as scripted. The plan and its benchmark are `project/plans/harbor-conformance.md` |
+| `suites/conformance/` | Harbor conformance at $0: every vendor agent at its pin against `fixtures/stub`'s scripted model, tasks `ok`, `fail`, `hang`; `ConformanceTests` (with `PROCTOR_CONFORMANCE`, `1` or a `proctor.json` whose `harbor` block to run on) asserts each cell came back as scripted. The plan and its benchmark are `project/plans/harbor-conformance.md` |
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings; `suites/` is test data `TestRepo.CopySuite` finds after `suites/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never a suite to run |
-| `docs/` | user-facing guides beyond the README: `porting-to-agent-neutral.md`, how a suite moves to agent arms (a draft, from porting `code-change`) |
+| `docs/` | user-facing guides beyond the README: `porting-to-agent-neutral.md`, how a suite moves to agent arms (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor |
 | `project/` | the brief, the plans, the research notes and the loose ends |
 
 The directories are for reading, not for namespaces: everything is
@@ -188,9 +188,12 @@ The directories are for reading, not for namespaces: everything is
   that engine's store. Podman needs `podman.socket` running (Harbor's
   preflight probes `podman compose ls`), docker-compose v2 behind
   `podman compose` (podman-compose has no `ls` and rejects
-  `exec --no-TTY`), and a search registry, since the egress sidecar is
-  `FROM gogost/gost`; `run` and `resume` check the last two before
-  anything starts (`HarborRun.CheckPodman`, `project/learnings/harbor.md`).
+  `exec --no-TTY`), a search registry, since the egress sidecar is
+  `FROM gogost/gost`, and `compose_warning_logs = false`, since Harbor
+  reads the compose banner as agent output; `run` and `resume` check the
+  last three before anything starts (`HarborRun.CheckPodman`). The
+  machine's setup is `docs/podman.md`; what was seen is
+  `project/learnings/harbor.md`.
   The bare path's hooks pick their own engine (`command -v podman`).
 - **A check of the layer costs nothing.** Proctor checks that it drives
   Harbor and reads back what Harbor wrote, never Harbor itself and never a
