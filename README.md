@@ -329,6 +329,7 @@ proctor resume <id>          # rerun cells that did not complete
 proctor grade <id>           # checks over every completed cell -> checks.json; model verdicts cached in verdicts/
 proctor grade <id> --rejudge # call the judges again instead of reusing the cells' verdict files
 proctor grade <id> --judge glm=k2   # compare k2 against glm on the checks glm grades; checks.json is untouched
+proctor grade <id> --arm a [--tasks x,y]   # only those cells (--arm repeatable); the rest keep their checks.json, so a paid judge pass can be staged
 proctor report <id>          # reports/data/<id>/{results.jsonl,stats.json,report.html,summary.md}
 proctor baseline <id> [--arm a] [--tasks x,y]   # pin the arm's analysed cells as suites/<suite>/baseline.json
 proctor report <id> --tolerance 10 --fail-on regression   # guard mode: exit 1 if an arm fell further than that

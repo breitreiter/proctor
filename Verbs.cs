@@ -51,19 +51,29 @@ static class Verbs
         Runner.Resume(root, experimentId, nbPath, runner, Console.Out);
         return 0;
     }
-    public static int Grade(string root, string experimentId, List<string>? judgeRemaps = null, bool rejudge = false)
+    public static int Grade(string root, string experimentId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? armIds = null, List<string>? taskIds = null)
     {
         var (experiment, suite) = LoadExperiment(root, experimentId);
+        RequireKnown(suite, armIds, taskIds);
         var problems = new List<Problem>();
         var config = Suite.LoadConfig(root, problems);
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
         var judges = suite.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge) : null;
-        var grades = Proctor.Grade.Experiment(root, experiment, suite, Console.Out, judges);
+        var grades = Proctor.Grade.Experiment(root, experiment, suite, Console.Out, judges, armIds, taskIds);
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
         var undecided = grades.Count(g => g.Checks is not null && g.Invalid is null && g.Pass is null);
-        Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided > 0 ? $", {undecided} undecided" : "")}");
+        var untouched = Runner.Cells(suite).Count() - grades.Count;
+        Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided > 0 ? $", {undecided} undecided" : "")}{(untouched > 0 ? $"; {untouched} outside --arm/--tasks left as they were" : "")}");
         return 0;
+    }
+
+    static void RequireKnown(Suite suite, List<string>? armIds, List<string>? taskIds)
+    {
+        foreach (var a in armIds ?? [])
+            if (suite.Arms.All(x => x.Id != a)) throw new ProctorException($"no arm '{a}' in suite '{suite.Id}' ({string.Join(", ", suite.Arms.Select(x => x.Id))})");
+        foreach (var c in taskIds ?? [])
+            if (suite.Tasks.All(x => x.Id != c)) throw new ProctorException($"no task '{c}' in suite '{suite.Id}'");
     }
 
     static (Experiment, Suite) LoadExperiment(string root, string experimentId)
@@ -75,14 +85,15 @@ static class Verbs
         return (experiment, suite);
     }
     /// <summary>Pin an arm's analysed cells as the suite's baseline, per task; tasks the arm did not analyse keep their old pin.</summary>
-    public static int Baseline(string root, string experimentId, string? armId, List<string>? taskIds)
+    public static int Baseline(string root, string experimentId, List<string>? armIds, List<string>? taskIds)
     {
         var (experiment, suite) = LoadExperiment(root, experimentId);
+        if (armIds is { Count: > 1 }) throw new ProctorException("baseline pins one arm; give --arm once");
+        var armId = armIds?.Single();
         var arm = armId is null
             ? suite.Arms.Count == 1 ? suite.Arms[0] : throw new ProctorException($"suite '{suite.Id}' has {suite.Arms.Count} arms; say which with --arm ({string.Join(", ", suite.Arms.Select(a => a.Id))})")
             : suite.Arms.FirstOrDefault(a => a.Id == armId) ?? throw new ProctorException($"no arm '{armId}' in suite '{suite.Id}' ({string.Join(", ", suite.Arms.Select(a => a.Id))})");
-        foreach (var c in taskIds ?? [])
-            if (suite.Tasks.All(x => x.Id != c)) throw new ProctorException($"no task '{c}' in suite '{suite.Id}'");
+        RequireKnown(suite, null, taskIds);
 
         var rows = Results.Collect(root, experiment, suite);
         var existing = Proctor.Baseline.Load(suite);
@@ -128,8 +139,9 @@ static class Verbs
         File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Proctor.Report.Markdown(stats, rows, experiment, judges));
 
         Console.WriteLine($"{Path.GetRelativePath(root, outDir)}/: {Layout.ResultsFile} ({rows.Count} rows), {Layout.StatsFile}, {Layout.ReportHtmlFile}, {Layout.SummaryFile}");
-        var ungraded = rows.Count(r => r.Status == CellStatus.Completed && r.Checks is null);
-        if (ungraded > 0) Console.WriteLine($"note: {ungraded} completed cell{(ungraded == 1 ? " has" : "s have")} no checks.json; run `proctor grade {experimentId}` first for them to count");
+        var ungraded = rows.Where(r => r.Status == CellStatus.Completed && r.Checks is null).ToList();
+        if (ungraded.Count > 0)
+            Console.WriteLine($"note: {ungraded.Count} completed cell{(ungraded.Count == 1 ? " has" : "s have")} no checks.json ({string.Join(", ", ungraded.GroupBy(r => r.Arm).Select(g => $"arm {g.Key}: {g.Count()}"))}); run `proctor grade {experimentId}` first for them to count");
         if (stats.Baseline is { } bl)
         {
             var vs = bl.Against ?? "baseline";

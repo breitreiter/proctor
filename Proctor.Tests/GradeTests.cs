@@ -49,6 +49,34 @@ public class GradeTests
     }
 
     [Fact]
+    public void Grade_LimitedToArmsAndTasks_LeavesTheOtherCellsAsTheyWere()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("smoke");
+        repo.EditJson("smoke/suite.json", e => { foreach (var arm in e["arms"]!.AsArray()) arm!["samples"] = 1; });
+        var config = Suite.LoadConfig(repo.Root, []);
+        var suite = repo.LoadSuite("smoke");
+        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
+        var expDir = Layout.Experiment(repo.Root, id);
+        var experiment = Runner.LoadExperiment(repo.Root, id);
+        bool Graded(string arm, string task) => File.Exists(Path.Combine(Layout.Cell(expDir, arm, task, 1), "checks.json"));
+
+        var onlyA = Grade.Experiment(repo.Root, experiment, suite, TextWriter.Null, arms: ["a"]);
+        Assert.All(onlyA, g => Assert.Equal("a", g.Arm));
+        Assert.True(Graded("a", "plain"));
+        Assert.False(Graded("b", "plain"));
+
+        // a later pass over b's plain task leaves a's checks.json untouched
+        var aPlain = Path.Combine(Layout.Cell(expDir, "a", "plain", 1), "checks.json");
+        File.WriteAllText(aPlain, "{}");
+        var bPlain = Grade.Experiment(repo.Root, experiment, suite, TextWriter.Null, arms: ["b"], tasks: ["plain"]);
+        Assert.Equal(("b", "plain"), (Assert.Single(bPlain).Arm, bPlain[0].Task));
+        Assert.True(Graded("b", "plain"));
+        Assert.False(Graded("b", "loops"));
+        Assert.Equal("{}", File.ReadAllText(aPlain));
+    }
+
+    [Fact]
     public void Pass_IsTheConjunctionOfNamedChecks_ErrorIsNotAPass()
     {
         var checks = new Dictionary<string, Verdict>

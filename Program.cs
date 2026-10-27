@@ -16,8 +16,8 @@ static class Program
         --label <k[=glob]>    list: only suites carrying the label, or the label with a matching value (repeatable)
         --nb <path>           the nb binary (default: suites/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per cell (default: the suite's nb.runner); none runs nb bare
-        --arm <id>            baseline: which arm to pin (required with several arms)
-        --tasks <a,b>         baseline: only these tasks; the rest keep their pins
+        --arm <id>            grade: only this arm's cells, the others left as they are (repeatable); baseline: which arm to pin (required with several arms)
+        --tasks <a,b>         grade: only these tasks' cells; baseline: only these tasks, the rest keep their pins
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the cells' verdict files
         --version             print proctor's version (see CHANGELOG.md for what changed between versions)
@@ -29,8 +29,8 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, arm = null, failOn = null, against = null;
-        List<string>? tasks = null, labels = null, judges = null;
+        string? nbPath = null, runner = null, failOn = null, against = null;
+        List<string>? tasks = null, labels = null, judges = null, arms = null;
         var tolerance = 0;
         var rejudge = false;
         var positional = new List<string>();
@@ -41,7 +41,7 @@ static class Program
                 case "--root" when i + 1 < args.Length: root = Path.GetFullPath(args[++i]); break;
                 case "--nb" when i + 1 < args.Length: nbPath = args[++i]; break;
                 case "--runner" when i + 1 < args.Length: runner = args[++i]; break;
-                case "--arm" when i + 1 < args.Length: arm = args[++i]; break;
+                case "--arm" when i + 1 < args.Length: (arms ??= []).Add(args[++i]); break;
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
                 case "--rejudge": rejudge = true; break;
@@ -64,9 +64,9 @@ static class Program
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels),
                 ("run", [var suite]) => Verbs.Run(root, suite, nbPath, runner),
                 ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner),
-                ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge),
+                ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge, arms, tasks),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn, against),
-                ("baseline", [var id]) => Verbs.Baseline(root, id, arm, tasks),
+                ("baseline", [var id]) => Verbs.Baseline(root, id, arms, tasks),
                 _ => Fail(Usage),
             };
         }

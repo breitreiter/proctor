@@ -56,7 +56,7 @@ public class BaselineTests
         Assert.Equal(0, Verbs.Report(repo.Root, id, tolerancePoints: 40, failOn: "regression"));
 
         // Re-baselining one task keeps the other pins.
-        Assert.Equal(0, Verbs.Baseline(repo.Root, id, "a", ["plain"]));
+        Assert.Equal(0, Verbs.Baseline(repo.Root, id, ["a"], ["plain"]));
         baseline = JsonNode.Parse(File.ReadAllText(file))!;
         Assert.Equal(id, baseline["tasks"]!["plain"]!["experiment"]!.GetValue<string>());
         Assert.Equal("gone", baseline["tasks"]!["loops"]!["experiment"]!.GetValue<string>());

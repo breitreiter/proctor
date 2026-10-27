@@ -8,14 +8,18 @@ static class Grade
 {
     public record CellGrade(string Arm, string Task, int Sample, string Status, Dictionary<string, Verdict>? Checks, bool? Pass, string? Invalid);
 
-    public static List<CellGrade> Experiment(string root, Experiment experiment, Suite suite, TextWriter log, JudgeClient? judges = null)
+    /// <param name="arms">Only these arms' cells, when given; the others are not read and their checks.json is left as it was.</param>
+    /// <param name="tasks">Only these tasks' cells, when given, likewise.</param>
+    public static List<CellGrade> Experiment(string root, Experiment experiment, Suite suite, TextWriter log, JudgeClient? judges = null,
+        IReadOnlyCollection<string>? arms = null, IReadOnlyCollection<string>? tasks = null)
     {
-        if (judges is { Comparing: true }) return Compare(root, experiment, suite, log, judges);
+        var cells = Runner.Cells(suite).Where(x => (arms is null || arms.Contains(x.Arm.Id!)) && (tasks is null || tasks.Contains(x.Task.Id!))).ToList();
+        if (judges is { Comparing: true }) return Compare(root, experiment, suite, cells, log, judges);
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var grades = new List<CellGrade>();
         if (judges is not null)
             foreach (var note in Judge.SameFamilyNotes(suite, judges)) log.WriteLine($"  note: {note}");
-        foreach (var (arm, c, sample) in Runner.Cells(suite))
+        foreach (var (arm, c, sample) in cells)
         {
             var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
             var status = Runner.ReadStatus(cellDir);
@@ -41,12 +45,12 @@ static class Grade
     /// A `--judge a=b` pass: only the checks whose declared judge is remapped are evaluated, by b, into b's verdict files
     /// beside a's; checks.json is read, compared against and never written. The grades returned are the ones on file.
     /// </summary>
-    static List<CellGrade> Compare(string root, Experiment experiment, Suite suite, TextWriter log, JudgeClient judges)
+    static List<CellGrade> Compare(string root, Experiment experiment, Suite suite, List<(Arm Arm, TaskDef Task, int Sample)> cells, TextWriter log, JudgeClient judges)
     {
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var grades = new List<CellGrade>();
         int compared = 0, agreed = 0;
-        foreach (var (arm, c, sample) in Runner.Cells(suite))
+        foreach (var (arm, c, sample) in cells)
         {
             var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
             var status = Runner.ReadStatus(cellDir);
