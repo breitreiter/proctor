@@ -208,6 +208,29 @@ public class JudgeTests
         Assert.Contains("not found verbatim", e.Reason);
     }
 
+    [Fact]
+    public void Judge_VerifiesQuotesOfJsonIgnoringWhitespaceAndEscapes()
+    {
+        var plan = "{\n  \"title\": \"Share of \\\"slow\\\" requests\",\n  \"color\": {\n    \"field\": \"day_type\"\n  }\n}";
+        var lines = new[]
+        {
+            new JsonObject { ["type"] = "user", ["turn"] = 0, ["text"] = "Plan the chart." },
+            new JsonObject { ["type"] = "assistant_text", ["turn"] = 1, ["text"] = plan },
+            JsonNode.Parse("{\"type\":\"result\",\"turn\":null,\"exit_reason\":\"ok\",\"usage\":{\"input\":10,\"output\":5,\"total\":15},\"turns\":1,\"tool_calls\":0,\"provider\":\"Mock\"}")!,
+        };
+        var t = Transcript.Parse(string.Join("\n", lines.Select(l => l.ToJsonString())));
+        const string spec = "{\"judge\": {\"ask\": \"?\", \"window\": \"answer\"}}";
+
+        // compact where the answer is indented, unescaped where it is escaped, and the raw escaped form
+        var right = new ScriptedChat(Answer("yes", "\"color\": {\"field\": \"day_type\""), Answer("yes", "\"title\": \"Share of \"slow\" requests\""), Answer("yes", "Share of \\\"slow\\\""));
+        Assert.Equal("pass", Suite(spec, t, Client(chat: right)).Result);
+
+        var wrong = new ScriptedChat(Answer("yes", "\"color\": {\"field\": \"weekday\""));
+        var e = Suite(spec, t, Client(chat: wrong));
+        Assert.Equal("error", e.Result);
+        Assert.Contains("not found verbatim", e.Reason);
+    }
+
     // ---- the verdict file ----
 
     [Fact]

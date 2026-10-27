@@ -341,7 +341,9 @@ The directories are for reading, not for namespaces: everything is
   plain is how `b` becomes the applied judge, and a plain grade that reuses
   `b`'s file marks it applied.
 - **A judge's evidence is verified, its reasoning discarded.** Every quote
-  must be a whitespace-normalised substring of the window; a sample with
+  must be a substring of the window with all whitespace removed from both,
+  against the window as written or with its JSON string escapes undone
+  (a judge quotes JSON compacted and unescaped); a sample with
   an unverifiable quote, no quote on a yes/no, or no JSON block is
   discarded but stays in the file. Fewer than two usable samples (one when
   `samples` is 1) is `error`; unanimous decides; a split or an `unknown`

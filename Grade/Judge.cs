@@ -312,15 +312,20 @@ static class Judge
         var label = (json["label"] as JsonValue)?.ToString().Trim().ToLowerInvariant();
         if (label is not (Yes or No or Unknown)) return new JudgeSample(label, null, null, reasoning, $"label '{label}' is not yes, no or unknown");
         var evidence = (json["evidence"] as JsonArray)?.Select(e => e?.ToString() ?? "").Where(e => e.Length > 0).ToList() ?? [];
-        var material = Normalise(string.Join("\n", parts.Values));
-        var unverified = evidence.Where(e => !material.Contains(Normalise(e), StringComparison.Ordinal)).ToList();
+        var joined = string.Join("\n", parts.Values);
+        string[] material = [Normalise(joined), Normalise(Unescape(joined))];
+        var unverified = evidence.Where(e => !material.Any(m => m.Contains(Normalise(e), StringComparison.Ordinal))).ToList();
         if (unverified.Count > 0) return new JudgeSample(label, null, evidence, reasoning, $"evidence not found verbatim in the material: \"{Cut(unverified[0])}\"");
         if (label != Unknown && evidence.Count == 0) return new JudgeSample(label, null, evidence, reasoning, "no evidence quoted");
         return new JudgeSample(label, null, evidence, reasoning, null);
     }
 
+    // A judge quotes JSON as it reads it: compacted, and with string escapes undone. So a
+    // quote is compared with all whitespace removed, against the window raw and unescaped.
     static readonly Regex Spaces = new(@"\s+");
-    static string Normalise(string s) => Spaces.Replace(s, " ").Trim();
+    static readonly Regex Escape = new(@"\\([""\\/nrt])");
+    static string Normalise(string s) => Spaces.Replace(s, "");
+    static string Unescape(string s) => Escape.Replace(s, m => m.Groups[1].Value switch { "n" => "\n", "r" => "\r", "t" => "\t", var c => c });
 
     // ---- the verdict file: the cache and the record ----
 
