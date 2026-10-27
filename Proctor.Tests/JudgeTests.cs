@@ -42,7 +42,38 @@ public class JudgeTests
         }
     }
 
-    static readonly JudgeDef Jev = new(JudgeDef.SystemOne, "http://judge.test/systemone", null, null, "typesafe", null);
+    /// <summary>An endpoint that answers from a script, the last answer repeating, and counts the requests that reach it.</summary>
+    sealed class SequenceHttp(params (HttpStatusCode Status, string Body, string? RetryAfter)[] answers) : HttpMessageHandler
+    {
+        public int Calls;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var (status, body, retryAfter) = answers[Math.Min(Calls++, answers.Length - 1)];
+            var response = new HttpResponseMessage(status) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+            if (retryAfter is not null) response.Headers.TryAddWithoutValidation("Retry-After", retryAfter);
+            return Task.FromResult(response);
+        }
+    }
+
+    const string DailyCap = "{\"error\": {\"message\": \"daily limit for 'glm' reached (150/day)\", \"type\": \"rate_limit\"}}";
+
+    static string Completion(string content) => new JsonObject
+    {
+        ["id"] = "c", ["object"] = "chat.completion", ["created"] = 0, ["model"] = "glm",
+        ["choices"] = new JsonArray(new JsonObject { ["index"] = 0, ["finish_reason"] = "stop", ["message"] = new JsonObject { ["role"] = "assistant", ["content"] = content } }),
+        ["usage"] = new JsonObject { ["prompt_tokens"] = 100, ["completion_tokens"] = 20, ["total_tokens"] = 120 },
+    }.ToJsonString();
+
+    /// <summary>The real chat transport, the SDK included, over a scripted endpoint; sleeps are recorded, not slept.</summary>
+    static JudgeClient Wire(SequenceHttp chatHttp, List<TimeSpan> slept, ScriptedHttp? systemOne = null) => new()
+    {
+        Defs = new() { ["jev"] = Jev, ["glm"] = Glm },
+        Http = new HttpClient(systemOne ?? new ScriptedHttp(HttpStatusCode.InternalServerError, "unused")),
+        ChatClient = (def, key) => JudgeClient.OpenAiCompatible(def, key, new HttpClient(chatHttp)),
+        Sleep = d => { slept.Add(d); return Task.CompletedTask; },
+    };
+
+    static readonly JudgeDef Jev =new(JudgeDef.SystemOne, "http://judge.test/systemone", null, null, "typesafe", null);
     static readonly JudgeDef Glm = new(JudgeDef.Chat, "http://judge.test/v1", "glm", null, "glm", null);
 
     static JudgeClient Client(ScriptedHttp? http = null, ScriptedChat? chat = null, bool rejudge = false) => new()
@@ -160,6 +191,68 @@ public class JudgeTests
 
         var empty = Suite("{\"decide\": {\"ask\": \"?\", \"window\": \"diff\"}}", Fixture("plain"), Client(new ScriptedHttp(HttpStatusCode.OK, Noul)));
         Assert.Equal(("error", "decide: window 'diff' is empty"), empty.Deconstruct());
+    }
+
+    // ---- throttling ----
+
+    [Fact]
+    public void Judge_AnsweringOnly429_IsStoppedForThePass_AndTheSdkDoesNotRetryUnderneath()
+    {
+        var http = new SequenceHttp((HttpStatusCode.TooManyRequests, DailyCap, null));
+        var slept = new List<TimeSpan>();
+        var client = Wire(http, slept);
+
+        var first = Suite("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), client);
+        Assert.Equal("error", first.Result);
+        Assert.Contains("glm stopped for this pass", first.Reason);
+        Assert.Contains("daily limit for 'glm' reached (150/day)", first.Reason);
+        Assert.Equal(4, http.Calls);            // one call and three retries, each one request on the wire
+        Assert.Equal(3, slept.Count);
+
+        // every later check on that judge errors without a request
+        var second = Suite("{\"judge\": {\"ask\": \"Another?\", \"window\": \"answer\"}}", Fixture("plain"), client, name: "other");
+        Assert.Equal(first.Reason, second.Reason);
+        Assert.Equal(4, http.Calls);
+        Assert.Equal(2, client.Errors["glm"].Count);
+    }
+
+    [Fact]
+    public void Judge_RetryAfterBeyondWhatIsWorthWaiting_StopsAtOnce()
+    {
+        var http = new SequenceHttp((HttpStatusCode.TooManyRequests, DailyCap, "3600"));
+        var slept = new List<TimeSpan>();
+        var v = Suite("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Wire(http, slept));
+        Assert.Contains("stopped for this pass", v.Reason);
+        Assert.Equal(1, http.Calls);
+        Assert.Empty(slept);
+    }
+
+    [Fact]
+    public void Judge_ThrottledOnce_WaitsAsTold_AndDecides()
+    {
+        var http = new SequenceHttp((HttpStatusCode.TooManyRequests, DailyCap, "2"), (HttpStatusCode.OK, Completion(Answer("yes", "forty-two")), null));
+        var slept = new List<TimeSpan>();
+        var v = Suite("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Wire(http, slept));
+        Assert.Equal(("pass", "yes 3/3 — \"forty-two\""), v.Deconstruct());
+        Assert.Equal(4, http.Calls);
+        Assert.Equal([TimeSpan.FromSeconds(2)], slept);
+    }
+
+    [Fact]
+    public void Decide_429StopsTheJudge_ButAnotherFailureDoesNot()
+    {
+        var slept = new List<TimeSpan>();
+        var limited = new ScriptedHttp(HttpStatusCode.TooManyRequests, "{\"error\": \"rate limited\"}");
+        var client = Wire(new SequenceHttp((HttpStatusCode.OK, "unused", null)), slept, limited);
+        Assert.Contains("jev stopped for this pass", Suite("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), client).Reason);
+        Assert.Contains("jev stopped for this pass", Suite("{\"decide\": {\"ask\": \"Again?\", \"window\": \"answer\"}}", Fixture("plain"), client, name: "other").Reason);
+        Assert.Equal(4, limited.Calls);
+
+        var down = new ScriptedHttp(HttpStatusCode.BadGateway, "upstream gone");
+        var other = Wire(new SequenceHttp((HttpStatusCode.OK, "unused", null)), slept, down);
+        Suite("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), other);
+        Suite("{\"decide\": {\"ask\": \"Again?\", \"window\": \"answer\"}}", Fixture("plain"), other, name: "other");
+        Assert.Equal(2, down.Calls);
     }
 
     // ---- judge ----

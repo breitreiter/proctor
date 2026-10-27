@@ -24,9 +24,42 @@ sealed class JudgeClient
     /// <summary>Ignore verdict files and call again.</summary>
     public bool Rejudge { get; init; }
     public HttpClient Http { get; init; } = new() { Timeout = TimeSpan.FromMinutes(2) };
-    public Func<JudgeDef, string?, IChatClient> ChatClient { get; init; } = OpenAiCompatible;
+    public Func<JudgeDef, string?, IChatClient> ChatClient { get; init; } = (def, key) => OpenAiCompatible(def, key);
+    public Func<TimeSpan, Task> Sleep { get; init; } = d => Task.Delay(d);
+    /// <summary>Where a stopped judge is announced, as it stops.</summary>
+    public Action<string> Note { get; init; } = _ => { };
+    /// <summary>The model checks that ended in error this pass, per judge, with their reasons.</summary>
+    public Dictionary<string, List<string>> Errors { get; } = [];
 
-    public static JudgeClient From(ProctorConfig config, List<string>? remaps, bool rejudge)
+    // A grade pass loses nothing by giving up on a throttled judge: an error verdict is asked again by the next grade.
+    // So a throttle is retried briefly and then the judge is stopped for the pass, rather than every remaining sample
+    // of every cell being refused in turn (4,300 refused requests in one pass against a daily cap; issue #4).
+    const int MaxRetries = 3;
+    static readonly TimeSpan MaxWait = TimeSpan.FromSeconds(60);
+    readonly Dictionary<string, string> stopped = [];
+
+    /// <summary>One request to a judge, retried while it is throttled; a judge that stays throttled is stopped for the pass.</summary>
+    public T Send<T>(string judge, Func<Task<T>> send)
+    {
+        if (stopped.TryGetValue(judge, out var why)) throw new JudgeStopped(why);
+        for (var attempt = 0; ; attempt++)
+        {
+            try { return send().GetAwaiter().GetResult(); }
+            catch (Exception e) when (Throttle.Of(e) is { } throttle)
+            {
+                var wait = throttle.RetryAfter ?? TimeSpan.FromSeconds(2 << attempt);
+                if (attempt >= MaxRetries || wait > MaxWait)
+                {
+                    stopped[judge] = $"{judge} stopped for this pass: rate limited ({throttle.Text}); grade again once it clears";
+                    Note($"  note: {stopped[judge]}");
+                    throw new JudgeStopped(stopped[judge]);
+                }
+                Sleep(wait).GetAwaiter().GetResult();
+            }
+        }
+    }
+
+    public static JudgeClient From(ProctorConfig config, List<string>? remaps, bool rejudge, Action<string>? note = null)
     {
         var remap = new Dictionary<string, string>();
         foreach (var r in remaps ?? [])
@@ -37,7 +70,7 @@ sealed class JudgeClient
                 if (config.Judges?.ContainsKey(name) != true) throw new ProctorException($"--judge {r}: no judge '{name}' in suites/proctor.json");
             remap[parts[0]] = parts[1];
         }
-        return new JudgeClient { Defs = config.Judges ?? [], Remap = remap, Rejudge = rejudge };
+        return new JudgeClient { Defs = config.Judges ?? [], Remap = remap, Rejudge = rejudge, Note = note ?? (_ => { }) };
     }
 
     /// <summary>The judge a check is graded by: what it names (or the only one of its kind), through the remap.</summary>
@@ -57,9 +90,68 @@ sealed class JudgeClient
     public bool Remaps(string name, JsonObject spec, string check) =>
         Remap.ContainsKey(Declared(Judge.KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), check).Name);
 
-    static IChatClient OpenAiCompatible(JudgeDef def, string? key) =>
-        new OpenAIClient(new ApiKeyCredential(key ?? "none"), new OpenAIClientOptions { Endpoint = new Uri(def.Endpoint!) })
-            .GetChatClient(def.Model!).AsIChatClient();
+    public static IChatClient OpenAiCompatible(JudgeDef def, string? key, HttpClient? http = null)
+    {
+        // The SDK's own retries would run underneath Send: four requests per attempt, on a schedule it cannot see.
+        var options = new OpenAIClientOptions { Endpoint = new Uri(def.Endpoint!), RetryPolicy = new System.ClientModel.Primitives.ClientRetryPolicy(maxRetries: 0) };
+        if (http is not null) options.Transport = new System.ClientModel.Primitives.HttpClientPipelineTransport(http);
+        return new OpenAIClient(new ApiKeyCredential(key ?? "none"), options).GetChatClient(def.Model!).AsIChatClient();
+    }
+}
+
+/// <summary>A judge stopped earlier in this pass; the message says why.</summary>
+sealed class JudgeStopped(string message) : Exception(message);
+
+/// <summary>A systemone endpoint's non-success answer, kept whole so a throttle can be recognised.</summary>
+sealed class JudgeHttpException(int status, string body, string? retryAfter) : Exception($"HTTP {status}: {body.Split('\n')[0].Trim()}")
+{
+    public int Status => status;
+    public string Body => body;
+    public string? RetryAfter => retryAfter;
+}
+
+/// <summary>
+/// A rate-limit refusal, recognised from either transport the way nb recognises one (nb.Core/RateLimitRetry.cs): the
+/// status first, the body's prose when a gateway says it without one. Text is what the endpoint said, the only place the
+/// cause is named ("daily limit for 'glm' reached (150/day)" behind a bare 429).
+/// </summary>
+record Throttle(string Text, TimeSpan? RetryAfter)
+{
+    static readonly string[] Signals = ["rate limit", "rate_limit", "ratelimit", "too many requests", "reduce request rate", "quota exceeded", "exceeded your current quota", "overloaded"];
+
+    public static Throttle? Of(Exception e)
+    {
+        var (status, body, retryAfter) = e switch
+        {
+            ClientResultException c => (c.Status, c.GetRawResponse()?.Content?.ToString(), c.GetRawResponse()?.Headers.TryGetValue("Retry-After", out var h) == true ? h : null),
+            JudgeHttpException j => (j.Status, j.Body, j.RetryAfter),
+            _ => (0, null, null),
+        };
+        var text = string.IsNullOrWhiteSpace(body) ? e.Message : body;
+        if (status is not (429 or 503 or 529) && !Signals.Any(s => text.Contains(s, StringComparison.OrdinalIgnoreCase))) return null;
+        return new Throttle($"{(status > 0 ? $"HTTP {status}: " : "")}{Said(text)}", Seconds(retryAfter));
+    }
+
+    /// <summary>The error's message when the body is the usual JSON error, else its first line.</summary>
+    static string Said(string body)
+    {
+        try
+        {
+            // {"error": {"message": …}} (OpenAI's shape), {"error": "…"} or {"message": "…"}
+            var json = JsonNode.Parse(body) as JsonObject;
+            var error = json?["error"];
+            if (((error as JsonObject)?["message"] ?? error ?? json?["message"]) is JsonValue v && v.TryGetValue<string>(out var message)) return message;
+        }
+        catch (JsonException) { }
+        var line = body.Split('\n')[0].Trim();
+        return line.Length <= 200 ? line : line[..200] + "…";
+    }
+
+    /// <summary>Retry-After as seconds or as an HTTP date.</summary>
+    static TimeSpan? Seconds(string? retryAfter) =>
+        int.TryParse(retryAfter, out var s) ? TimeSpan.FromSeconds(s)
+        : DateTimeOffset.TryParse(retryAfter, out var at) ? at - DateTimeOffset.UtcNow
+        : null;
 }
 
 /// <summary>One sample of a model's answer, as read. Problem says why it was discarded; a discarded sample is still in the file.</summary>
@@ -162,7 +254,9 @@ static class Judge
         if (parts is null) return Verdict.Err($"{name}: {error}");
 
         var call = new Call(client, check, judge, def, window, parts, Path.Combine(cell.CellDir, Layout.VerdictsDir));
-        return name == Decide ? RunDecide(call, spec, expect) : RunJudge(call, spec, expect);
+        var verdict = name == Decide ? RunDecide(call, spec, expect) : RunJudge(call, spec, expect);
+        if (verdict.Result == Verdict.Error) (client.Errors.TryGetValue(judge, out var errors) ? errors : client.Errors[judge] = []).Add(verdict.Reason);
+        return verdict;
     }
 
     /// <summary>Everything one evaluation carries from the cell to the endpoint and back to the verdict file.</summary>
@@ -187,8 +281,12 @@ static class Judge
 
         var started = DateTime.UtcNow;
         JsonNode response;
-        try { response = PostSystemOne(call, request).GetAwaiter().GetResult(); }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException or ProctorException)
+        try { response = call.Client.Send(call.Judge, () => PostSystemOne(call, request)); }
+        catch (JudgeStopped e)
+        {
+            return Save(call, hash, request, [], [new JudgeSample(null, null, null, null, e.Message)], null, null, started, Verdict.Err($"decide: {e.Message}"));
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException or ProctorException or JudgeHttpException)
         {
             return Save(call, hash, request, [], [new JudgeSample(null, null, null, null, e.Message)], null, null, started,
                 Verdict.Err($"decide: {call.Judge} did not answer: {FirstLine(e.Message)}"));
@@ -220,7 +318,8 @@ static class Judge
         if (call.Def.ResolvedKey(call.Judge) is { } key) message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
         using var response = await call.Client.Http.SendAsync(message);
         var body = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode) throw new ProctorException($"HTTP {(int)response.StatusCode}: {FirstLine(body)}");
+        if (!response.IsSuccessStatusCode)
+            throw new JudgeHttpException((int)response.StatusCode, body, response.Headers.RetryAfter is { } ra ? ra.Delta?.TotalSeconds.ToString("0") ?? ra.Date?.ToString("R") : null);
         return JsonNode.Parse(body) ?? throw new JsonException("empty response");
     }
 
@@ -267,10 +366,17 @@ static class Judge
             return Save(call, hash, request, [], [new JudgeSample(null, null, null, null, e.Message)], null, null, started, Verdict.Err($"judge: {call.Judge}: {FirstLine(e.Message)}"));
         }
         var messages = new List<ChatMessage> { new(ChatRole.System, SystemPrompt), new(ChatRole.User, user) };
-        for (var i = 0; i < samples; i++)
+        string? halted = null;
+        for (var i = 0; i < samples && halted is null; i++)
         {
             ChatResponse response;
-            try { response = chat.GetResponseAsync(messages, new ChatOptions { Temperature = 0 }).GetAwaiter().GetResult(); }
+            try { response = call.Client.Send(call.Judge, () => chat.GetResponseAsync(messages, new ChatOptions { Temperature = 0 })); }
+            catch (JudgeStopped e)
+            {
+                read.Add(new JudgeSample(null, null, null, null, e.Message));
+                halted = e.Message;
+                continue;
+            }
             catch (Exception e) when (e is not OutOfMemoryException)
             {
                 read.Add(new JudgeSample(null, null, null, null, $"no answer: {FirstLine(e.Message)}"));
@@ -283,7 +389,8 @@ static class Judge
 
         var kept = read.Where(s => s.Problem is null).ToList();
         var needed = Math.Min(2, samples);
-        var verdict = kept.Count < needed
+        var verdict = halted is not null ? Verdict.Err($"judge: {halted}")
+            : kept.Count < needed
             ? Verdict.Err($"judge: {kept.Count} of {samples} usable answers from {call.Judge}: {string.Join("; ", read.Where(s => s.Problem is not null).Select(s => s.Problem).Distinct())}")
             : Settle(kept, expected, samples);
         return Save(call, hash, request, responses, read, input is null ? null : new JudgeUsage(input, output), call.Def.Model, started, verdict);

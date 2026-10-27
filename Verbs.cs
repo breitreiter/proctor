@@ -58,13 +58,18 @@ static class Verbs
         var problems = new List<Problem>();
         var config = Suite.LoadConfig(root, problems);
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
-        var judges = suite.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge) : null;
+        var judges = suite.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge, Console.WriteLine) : null;
         var grades = Proctor.Grade.Experiment(root, experiment, suite, Console.Out, judges, armIds, taskIds);
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
         var undecided = grades.Count(g => g.Checks is not null && g.Invalid is null && g.Pass is null);
         var untouched = Runner.Cells(suite).Count() - grades.Count;
         Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided > 0 ? $", {undecided} undecided" : "")}{(untouched > 0 ? $"; {untouched} outside --arm/--tasks left as they were" : "")}");
+        foreach (var (judge, reasons) in judges?.Errors ?? [])
+        {
+            var top = reasons.GroupBy(r => r).OrderByDescending(g => g.Count()).First();
+            Console.WriteLine($"  {judge}: {reasons.Count} check{(reasons.Count == 1 ? "" : "s")} errored; most often ({top.Count()}): {top.Key}");
+        }
         return 0;
     }
 

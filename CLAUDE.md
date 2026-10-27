@@ -344,6 +344,15 @@ The directories are for reading, not for namespaces: everything is
   whose verdicts the cells hold. Changing `with` in the suite and grading
   plain is how `b` becomes the applied judge, and a plain grade that reuses
   `b`'s file marks it applied.
+- **A throttled judge is stopped for the pass, not retried per sample.**
+  Every judge request goes through `JudgeClient.Send`: a refusal that
+  `Throttle.Of` recognises (429, 503 or 529, or a rate-limit phrase in the
+  body, as nb's `RateLimitRetry` reads one) is retried three times at 2, 4
+  and 8 s or its `Retry-After`; a `Retry-After` over a minute, or a fourth
+  refusal, stops that judge, and every later check on it is `error` with
+  the endpoint's own words and no request. Nothing is lost, since the next
+  `grade` asks an `error` again. The OpenAI SDK's retries are off
+  (`ClientRetryPolicy(0)`), or each attempt is four requests underneath.
 - **A judge's evidence is verified, its reasoning discarded.** Every quote
   must be a substring of the window with all whitespace removed from both,
   against the window as written or with its JSON string escapes undone
