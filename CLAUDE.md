@@ -186,8 +186,12 @@ The directories are for reading, not for namespaces: everything is
   `COPY --from` resolves no short name. `experiment.json` records it and
   `resume` refuses a changed one, since the compiled tasks name a layer in
   that engine's store. Podman needs `podman.socket` running (Harbor's
-  preflight probes `podman compose ls`). The bare path's hooks pick their
-  own engine (`command -v podman`).
+  preflight probes `podman compose ls`), docker-compose v2 behind
+  `podman compose` (podman-compose has no `ls` and rejects
+  `exec --no-TTY`), and a search registry, since the egress sidecar is
+  `FROM gogost/gost`; `run` and `resume` check the last two before
+  anything starts (`HarborRun.CheckPodman`, `project/learnings/harbor.md`).
+  The bare path's hooks pick their own engine (`command -v podman`).
 - **A check of the layer costs nothing.** Proctor checks that it drives
   Harbor and reads back what Harbor wrote, never Harbor itself and never a
   model: the unit tests, the gate (nb on Mock) and conformance (each vendor

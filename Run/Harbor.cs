@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Proctor;
 
 /// <summary>
@@ -48,6 +50,34 @@ static class HarborRun
             if (!built.Started || built.ExitCode != 0) throw new ProctorException($"could not build nb's layer {tag} from {publishDir}: {(built.Started ? built.FirstStderrLine : built.Stderr)}");
         }
         return (tag, asked.Stdout.Trim().Split('+')[0]);
+    }
+
+    /// <summary>
+    /// Under podman, what would fail a trial partway that is cheap to see first: the compose frontend `podman compose`
+    /// delegates to, and whether short names resolve. Harbor's egress sidecar builds `FROM gogost/gost`, which podman
+    /// refuses with no search registry; podman-compose has no `compose ls` (Harbor's preflight) and rejects
+    /// `exec --no-TTY` (the allowlist phase). Seen with Harbor 0.24.0 (project/learnings/harbor.md).
+    /// </summary>
+    public static void CheckPodman()
+    {
+        var compose = Subprocess.Run("podman", ["compose", "version"], Directory.GetCurrentDirectory());
+        var registries = Subprocess.Run("podman", ["info", "--format", "{{json .Registries}}"], Directory.GetCurrentDirectory());
+        var problems = PodmanProblems(compose is { Started: true, ExitCode: 0 } ? compose.Stdout : null, registries is { Started: true, ExitCode: 0 } ? registries.Stdout : null);
+        if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
+    }
+
+    /// <summary>The problems in `podman compose version` and `podman info`'s registries, either null when the command failed.</summary>
+    public static List<string> PodmanProblems(string? composeVersion, string? registries)
+    {
+        var problems = new List<string>();
+        if (composeVersion is null)
+            problems.Add("harbor.engine is podman, but `podman compose version` failed: install docker-compose v2 (Ubuntu: docker-compose-v2) and start the API socket with `systemctl --user enable --now podman.socket`");
+        else if (!composeVersion.Contains("Docker Compose", StringComparison.OrdinalIgnoreCase))
+            problems.Add($"harbor.engine is podman, but `podman compose` runs {composeVersion.Split('\n')[0].Trim()}; Harbor drives docker-compose v2 only (podman-compose has no `compose ls` and rejects `exec --no-TTY`). Install docker-compose v2, and with both installed set PODMAN_COMPOSE_PROVIDER to its path");
+        var search = registries is null ? null : (JsonNode.Parse(registries) as JsonObject)?["search"] as JsonArray;
+        if (search is not { Count: > 0 })
+            problems.Add("harbor.engine is podman, but short image names do not resolve, and Harbor's egress sidecar is built from one (gogost/gost): add unqualified-search-registries = [\"docker.io\"] to ~/.config/containers/registries.conf");
+        return problems;
     }
 
     /// <summary>Run the trial. Returns the trial directory, or why there is none (infrastructure: the cell fails).</summary>

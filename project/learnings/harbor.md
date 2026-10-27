@@ -372,3 +372,40 @@ scripted model (`fixtures/stub`), and Harbor's `oracle` agent over
   so its edits matched nothing. It is a `git apply` of a patch now. A patch
   fails loudly when the fixture moves; an edit that matches nothing passes
   silently.
+
+### Podman, checked (2026-10-27)
+
+Issue #5's findings, repeated on another machine: rootless podman 5.7.0 on
+Ubuntu with its `docker-compose-v2` package (2.40.3), Harbor 0.24.0, the
+oracle agent on a probe task with an `allowlist` phase, no model.
+
+- **The sidecar needs short names to resolve.** Its Dockerfile is
+  `FROM gogost/gost:…@sha256:…`, and Ubuntu's `/etc/containers/registries.conf`
+  defines no search registry, so the sidecar build fails before the trial
+  starts. `unqualified-search-registries = ["docker.io"]` in
+  `~/.config/containers/registries.conf` fixes it: reward 1.0 in 25 s. The
+  podman API service reads that file too, which is where Harbor's builds
+  happen.
+- **docker-compose v2 through `podman compose` works; podman-compose
+  cannot.** Harbor prefers `podman compose` whenever `podman compose up
+  --help` answers (`environments/docker/runtime.py`) and probes it with
+  `podman compose ls` in preflight, which podman-compose lacks. With
+  podman-compose alone Harbor calls it directly, and the allowlist phase's
+  `compose exec --no-TTY` (`docker.py`) is refused (seen on podman 6.1.3
+  and podman-compose 1.6.0; here read from the code, not run). `run`
+  checks both before an experiment is made (`HarborRun.CheckPodman`).
+- **The allowlist holds:** the allowed host answered, a name and a bare IP
+  outside it got nothing.
+- **The host's loopback is open by host, not by port.** A rootless trial
+  reaches a gateway on `127.0.0.1` as `host.containers.internal` only with
+  `pasta_options = ["--map-host-loopback", "169.254.1.2"]` under `[network]`
+  in `~/.config/containers/containers.conf`; then a second loopback port
+  answered as well. Every loopback service on the machine is open to the
+  trial.
+- **Teardown leaks the sidecar here.** Every trial with a sidecar ended
+  with `compose down` failing on it (`rootless netns: kill network process:
+  permission denied`), leaving an exited sidecar container and the
+  project's network; the trial's reward was unaffected and `podman rm -f`
+  removed them afterwards. Not explained: the run was inside a bubblewrap
+  sandbox (podman as a remote client of the socket), and no AppArmor denial
+  was visible. Repeat outside the sandbox before treating it as podman's.

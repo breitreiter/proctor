@@ -90,6 +90,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
             Bundles: ResolveBundles(root, suite));
+        if (suite.HasAgentArms && (config.Harbor ?? new HarborConfig()).Engine == "podman") HarborRun.CheckPodman();
         var dir = Layout.Experiment(root, id);
         Directory.CreateDirectory(dir);
         if (suite.HasAgentArms)
@@ -130,6 +131,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             throw new ProctorException($"the container engine (suites/proctor.json harbor.engine) has changed since experiment {experimentId} was created ({engine} vs {recorded.Engine}); a changed engine is a new experiment");
         if (experiment.Harbor?.NbImage is { } image && NbImage(root, config, experiment.Versions["nb"]) is var now && now != image)
             throw new ProctorException($"nb's publish (suites/proctor.json harbor.nb) has changed since experiment {experimentId} was created ({now} vs {image}); a changed nb is a new experiment");
+        if (experiment.Harbor?.Engine == "podman") HarborRun.CheckPodman();
         if (nbOverride is not null) experiment = experiment with { Nb = experiment.Nb with { Path = Path.GetFullPath(nbOverride) } };
         new Runner(root, experiment, suite, config, log).RunPending();
 

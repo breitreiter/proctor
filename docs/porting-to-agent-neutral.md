@@ -16,8 +16,12 @@ Runs as before. Nothing here applies, and validation refuses `harbor` and
 An agent arm needs a container engine and uv on the machine that runs it;
 the bare path needs neither. The engine is Docker (with the Compose and
 buildx plugins) or podman (with its API socket running, `systemctl --user
-enable --now podman.socket`, and a compose frontend: docker-compose v2 or
-`podman-compose`). In `suites/proctor.json`:
+enable --now podman.socket`, docker-compose v2 behind `podman compose`, and
+`unqualified-search-registries = ["docker.io"]` in
+`~/.config/containers/registries.conf` for the egress sidecar's short-name
+image). `podman-compose` does not work with Harbor 0.24.0, and `run` refuses
+it; the README's Agent arms section has the details, including how to reach
+a gateway on the host's loopback. In `suites/proctor.json`:
 
 - `harbor.engine`: `docker` (the default) or `podman`. An experiment keeps
   the engine it started on; `resume` refuses another.

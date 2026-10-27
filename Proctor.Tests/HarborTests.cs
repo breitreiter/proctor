@@ -90,6 +90,22 @@ public class HarborTests
     }
 
     [Fact]
+    public void Podman_NeedsDockerComposeAndAShortNameRegistry()
+    {
+        Assert.Empty(HarborRun.PodmanProblems("Docker Compose version 2.40.3+ds1-0ubuntu1", """{"search":["docker.io"]}"""));
+
+        var pc = Assert.Single(HarborRun.PodmanProblems("podman-compose version 1.6.0\npodman version 5.7.0", """{"search":["docker.io"]}"""));
+        Assert.Contains("podman-compose", pc);
+        Assert.Contains("PODMAN_COMPOSE_PROVIDER", pc);
+        Assert.Contains("podman compose", Assert.Single(HarborRun.PodmanProblems(null, """{"search":["docker.io"]}""")));
+
+        var shortName = Assert.Single(HarborRun.PodmanProblems("Docker Compose version v2.40.3", "{}"));
+        Assert.Contains("unqualified-search-registries = [\"docker.io\"]", shortName);
+        Assert.Single(HarborRun.PodmanProblems("Docker Compose version v2.40.3", """{"search":[]}"""));
+        Assert.Equal(2, HarborRun.PodmanProblems(null, null).Count);
+    }
+
+    [Fact]
     public void Compile_WritesTheTask_WithTheRepoInTheImage_AndTheChecksOnlyInTheVerifier()
     {
         var (repo, _) = AgentRepo();
