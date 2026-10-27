@@ -5,6 +5,34 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## 0.3.5 — 2026-10-27
+
+A bug bash: issues #2 to #5. Nothing that read before stops reading, hence
+a patch.
+
+- `grade` takes `--arm` (repeatable) and `--tasks`, grading only those
+  cells and leaving the others' `checks.json` as they were, so a paid judge
+  pass can be staged one arm at a time (#2). `baseline` refuses a second
+  `--arm`; `report`'s note on ungraded cells counts them per arm.
+- A judge's quote is verified with all whitespace removed, against the
+  window as written and with its JSON string escapes undone, so a correct
+  quote of indented or escaped JSON is no longer discarded (#3).
+- A judge that stays throttled is stopped for the pass (#4): a 429, 503 or
+  529, or a rate-limit phrase in the body, is retried at 2, 4 and 8 s or
+  its `Retry-After`, then every later check on that judge is `error` with
+  the endpoint's own words and no request. The OpenAI SDK no longer
+  retries underneath. `grade` prints the stop, and errored checks per
+  judge after its summary.
+- Under `harbor.engine: podman`, `run` and `resume` refuse to start unless
+  `podman compose` is docker-compose v2 and short image names resolve,
+  saying what to install or add (#5). The README and the porting guide
+  name the prerequisites, and how to reach a gateway on the host's
+  loopback.
+- Harbor's dependencies resolve under a seven-day cooldown
+  (`uv tool run --exclude-newer "7 days"`), so a poisoned release pulled
+  within the week never reaches a run; a Harbor pin under a week old
+  fails to resolve until it ages.
+
 ## 0.3.4 — 2026-10-20
 
 Agent arms on podman. Nothing that read before stops reading, hence a patch.
