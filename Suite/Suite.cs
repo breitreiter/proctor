@@ -392,7 +392,7 @@ sealed class Suite
             {
                 case "nb":
                     if (string.IsNullOrWhiteSpace(arm.Provider)) Add($"{f}.provider", "required for the nb runner (a provider entry name in nb's config)");
-                    if (string.IsNullOrWhiteSpace(arm.Harness)) Add($"{f}.harness", "required for the nb runner (nb, qwen-code, codex or claude-code)");
+                    if (string.IsNullOrWhiteSpace(arm.Harness)) Add($"{f}.harness", "required for the nb runner: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
                     break;
                 case "command":
                     Add($"{f}.runner", "'command' is not yet implemented; only 'nb' arms run in this version");
@@ -517,7 +517,7 @@ sealed class Suite
         if (arm.Command is not null) add($"{f}.command", "the bare path's; an arm with agent nb runs nb through Harbor");
         if (arm.AgentVersion is not null) add($"{f}.agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
         if (string.IsNullOrWhiteSpace(arm.Provider)) add($"{f}.provider", "required for agent nb (a provider entry name in nb's config)");
-        if (string.IsNullOrWhiteSpace(arm.Harness)) add($"{f}.harness", "required for agent nb (nb, qwen-code, codex or claude-code)");
+        if (string.IsNullOrWhiteSpace(arm.Harness)) add($"{f}.harness", "required for agent nb: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
         if (arm.Bundle is not null) add($"{f}.bundle", "a bundle on an agent arm is not yet implemented");
         if (arm.Samples is < 1) add($"{f}.samples", "must be at least 1");
     }

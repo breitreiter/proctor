@@ -102,7 +102,8 @@ committed; nothing else of the fixture enters the image the agent runs in.
 - An arm that was `harness: claude-code | codex | qwen-code` (nb in a
   costume) becomes `agent: claude-code | codex | qwen-code` with the vendor's
   model. This is the change most likely to move numbers: its first run is a
-  new baseline for that arm.
+  new baseline for that arm. It is not optional: nb refuses the costume names
+  since 2026-10-28, so an unported arm fails at compile with the same redirect.
 
 ## 7. Baselines
 
