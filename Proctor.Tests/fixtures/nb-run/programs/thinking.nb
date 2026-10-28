@@ -1,0 +1,1 @@
+run MOCK:response=<think>weigh it</think>hi

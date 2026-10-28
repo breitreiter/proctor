@@ -527,4 +527,5 @@ From `learnings/harbor.md`, accepted for this route:
   ATIF itself would make the bare and Harbor paths identical by construction.
   That is nb's call, in its plan. Answered 2026-10-27: nb writes it
   (`--trajectory`) and `NbAtif` is deleted, in `../nb/plans/atif-and-acp.md`
-  stage 3, which also schedules nb as an ACP bridge target (stage 5).
+  stage 3, which also schedules nb as an ACP bridge target (stage 5). Done
+  2026-10-28.

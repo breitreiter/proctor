@@ -1,0 +1,3 @@
+oracle @oracle-sheet.md
+system be brief
+run MOCK:response=Which environment should I deploy to? MOCK:oracle=deploy-target

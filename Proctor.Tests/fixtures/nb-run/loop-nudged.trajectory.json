@@ -1,0 +1,192 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "agent": {
+    "name": "nb",
+    "version": "0.9.0",
+    "model_name": "mock-model"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-10-28T22:59:30.513Z",
+      "source": "user",
+      "message": "MOCK:loop=bash echo x"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-10-28T22:59:30.595Z",
+      "source": "agent",
+      "message": "",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1,
+      "tool_calls": [
+        {
+          "tool_call_id": "mock-loop",
+          "function_name": "bash",
+          "arguments": {
+            "command": "echo x",
+            "description": "scripted by MockProvider"
+          },
+          "extra": {
+            "approved": "allow",
+            "approval_reason": "safe"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "mock-loop",
+            "content": "x\n\n[exit code: 0]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-10-28T22:59:30.687Z",
+      "source": "agent",
+      "message": "",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1,
+      "tool_calls": [
+        {
+          "tool_call_id": "mock-loop",
+          "function_name": "bash",
+          "arguments": {
+            "command": "echo x",
+            "description": "scripted by MockProvider"
+          },
+          "extra": {
+            "approved": "allow",
+            "approval_reason": "safe"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "mock-loop",
+            "content": "x\n\n[exit code: 0]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-10-28T22:59:30.702Z",
+      "source": "agent",
+      "message": "",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1,
+      "tool_calls": [
+        {
+          "tool_call_id": "mock-loop",
+          "function_name": "bash",
+          "arguments": {
+            "command": "echo x",
+            "description": "scripted by MockProvider"
+          },
+          "extra": {
+            "approved": "allow",
+            "approval_reason": "safe"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "mock-loop",
+            "content": "x\n\n[exit code: 0]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-10-28T22:59:30.704Z",
+      "source": "user",
+      "message": "<system_reminder>You appear to be stuck in a repetitive loop (3 similar tool-call sequences at the tail of this turn). You are not making progress. Options: (1) reconsider your approach, (2) try a different tool or different arguments, (3) stop and end the turn, stating plainly what is blocked and what you would need to proceed. No one is available to answer a question mid-run.</system_reminder>",
+      "extra": {
+        "source": "loop"
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-10-28T22:59:30.715Z",
+      "source": "agent",
+      "message": "",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1,
+      "tool_calls": [
+        {
+          "tool_call_id": "mock-loop",
+          "function_name": "bash",
+          "arguments": {
+            "command": "echo x",
+            "description": "scripted by MockProvider"
+          },
+          "extra": {
+            "approved": "allow",
+            "approval_reason": "safe"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "mock-loop",
+            "content": "x\n\n[exit code: 0]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-10-28T22:59:30.728Z",
+      "source": "agent",
+      "message": "I've reached the maximum number of tool calls for this message. Let me provide a response with the information I have."
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 50,
+    "total_completion_tokens": 25,
+    "total_steps": 7
+  },
+  "extra": {
+    "result": {
+      "type": "result",
+      "turn": null,
+      "exit_reason": "max_tool_calls",
+      "usage": {
+        "input": 50,
+        "output": 25,
+        "total": 75
+      },
+      "turns": 5,
+      "tool_calls": 4,
+      "duration_ms": 233,
+      "provider_ms": 55,
+      "provider": "Mock",
+      "model": "mock-model",
+      "program_sha256": "4f871dc4fc7c2252bf5d29d16bf753887eecf159917293ae28c77dc5c9eec915",
+      "nb_version": "0.9.0+74389810ad7d155cc30585ccda42f22604cdcf8c"
+    }
+  }
+}

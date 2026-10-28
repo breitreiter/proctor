@@ -1,0 +1,60 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "agent": {
+    "name": "nb",
+    "version": "0.9.0",
+    "model_name": "mock-model"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-10-28T22:59:28.928Z",
+      "source": "user",
+      "message": "MOCK:nousage"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-10-28T22:59:29.063Z",
+      "source": "agent",
+      "message": "OK",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 2300,
+        "completion_tokens": 0,
+        "extra": {
+          "estimated": true
+        }
+      },
+      "llm_call_count": 1
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 2300,
+    "total_completion_tokens": 0,
+    "total_steps": 2,
+    "extra": {
+      "estimated": true
+    }
+  },
+  "extra": {
+    "result": {
+      "type": "result",
+      "turn": null,
+      "exit_reason": "ok",
+      "usage": {
+        "input": 2300,
+        "output": 0,
+        "total": 2300,
+        "estimated": true
+      },
+      "turns": 1,
+      "tool_calls": 0,
+      "duration_ms": 168,
+      "provider_ms": 14,
+      "provider": "Mock",
+      "model": "mock-model",
+      "program_sha256": "addf2dde76648d155cf34ab3d5e0e29d40319af7284ec7250563674fcca537c7",
+      "nb_version": "0.9.0+74389810ad7d155cc30585ccda42f22604cdcf8c"
+    }
+  }
+}

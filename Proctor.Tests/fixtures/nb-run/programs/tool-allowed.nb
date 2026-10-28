@@ -1,0 +1,2 @@
+approval bash echo *
+run MOCK:tool=bash echo hi

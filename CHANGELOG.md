@@ -5,6 +5,17 @@ prints it and every `experiment.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
+## Unreleased
+
+- nb writes its own ATIF (`--trajectory`, nb's `plans/atif-and-acp.md` stage
+  3), and `Run/NbAtif.cs` is gone. An nb cell in Harbor takes
+  `agent/trajectory.json` as a vendor agent's, now with per-step model,
+  tokens and cost. Bare cells gain `trajectory.json` beside
+  `transcript.jsonl` (set by `NB_TRAJECTORY`, which a runner script passes
+  on untouched); grading still reads the JSONL there. Needs nb at or after
+  this change: an older nb ignores the variable, and its Harbor cells fail
+  as "nb exited N without a trajectory".
+
 ## 0.3.5 — 2026-10-27
 
 A bug bash: issues #2 to #5. Nothing that read before stops reading, hence

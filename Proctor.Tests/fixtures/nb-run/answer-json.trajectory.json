@@ -1,0 +1,59 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "agent": {
+    "name": "nb",
+    "version": "0.9.0",
+    "model_name": "mock-model"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-10-28T22:59:43.838Z",
+      "source": "user",
+      "message": "MOCK:response=Here you go:\n```json\n{\"status\": \"done\", \"files\": 2}\n```"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-10-28T22:59:43.973Z",
+      "source": "agent",
+      "message": "Here you go:\n```json\n{\"status\": \"done\", \"files\": 2}\n```",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1,
+      "extra": {
+        "assistant_json": {
+          "status": "done",
+          "files": 2
+        }
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 10,
+    "total_completion_tokens": 5,
+    "total_steps": 2
+  },
+  "extra": {
+    "result": {
+      "type": "result",
+      "turn": null,
+      "exit_reason": "ok",
+      "usage": {
+        "input": 10,
+        "output": 5,
+        "total": 15
+      },
+      "turns": 1,
+      "tool_calls": 0,
+      "duration_ms": 169,
+      "provider_ms": 14,
+      "provider": "Mock",
+      "model": "mock-model",
+      "program_sha256": "ea99a38cad1c17c2057d3263e4b7aedfb078483ca4b888f76c150a9102ab0a1a",
+      "nb_version": "0.9.0+74389810ad7d155cc30585ccda42f22604cdcf8c"
+    }
+  }
+}

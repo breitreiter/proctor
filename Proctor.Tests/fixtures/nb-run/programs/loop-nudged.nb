@@ -1,0 +1,2 @@
+budget tool_calls 4
+run MOCK:loop=bash echo x

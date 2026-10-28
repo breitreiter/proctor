@@ -67,7 +67,7 @@ public class GateTests
                 var harborJsonl = Untimed(File.ReadAllText(Path.Combine(h, Layout.AgentLogsDir, Layout.NbLogFile)));
                 if (bareJsonl != harborJsonl) differences.Add($"{at}: nb's transcript differs\n--- bare\n{bareJsonl}\n--- harbor\n{harborJsonl}");
 
-                var (trajectory, _) = NbAtif.Convert(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)), null);
+                var trajectory = JsonNode.Parse(File.ReadAllText(Path.Combine(b, Layout.TrajectoryFile)))!.AsObject();
                 var exit = trajectory!["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";
                 var bareCore = Ingest.Count(trajectory, Arm.Nb, exit).Core! with { DurationMs = null };
                 var harborCore = Runner.ReadJson<CountedCore>(Path.Combine(h, Layout.CoreFile))! with { DurationMs = null };

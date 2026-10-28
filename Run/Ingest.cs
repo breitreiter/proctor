@@ -157,21 +157,25 @@ static class Ingest
     }
 
     /// <summary>
-    /// nb's native log (agent/nb.jsonl, its stderr and exit code, which the agent wrote) as the cell's trajectory.
-    /// Failed as on the bare path: nb that ends without a result trailer before its time is up did not run.
+    /// nb's own trajectory (agent/trajectory.json, which nb wrote with --trajectory beside its JSONL, stderr and exit
+    /// code) as the cell's. Failed as on the bare path: nb that ends without one before its time is up did not run.
+    /// Out of time is a completed run with nothing written: nb writes both files when the run ends.
     /// </summary>
     static string? Nb(string trialDir, string cellDir, string? exceptionType, Manifest manifest)
     {
         var logs = Path.Combine(trialDir, "agent");
-        var jsonl = Path.Combine(logs, Layout.NbLogFile);
         if (int.TryParse(ReadOr(Path.Combine(logs, "nb.exit")).Trim(), out var exit)) manifest.NbExitCode = exit;
         var stderr = FirstLine(ReadOr(Path.Combine(logs, "nb.stderr.log")));
-        if (!File.Exists(jsonl)) return $"nb did not run in the trial (no agent/{Layout.NbLogFile}){(exceptionType is null ? "" : $": {exceptionType}")}";
-        var native = File.ReadAllText(jsonl);
-        var (trajectory, unmapped) = NbAtif.Convert(native, manifest.Agent!.Version);
-        if (unmapped is not null) return $"adapter_unmapped: {unmapped}";
-        if (trajectory!["extra"]?["result"] is null && exceptionType != "AgentTimeoutError")
-            return $"nb exited {manifest.NbExitCode?.ToString() ?? "?"} without a result trailer: {stderr}";
+        if (!File.Exists(Path.Combine(logs, Layout.NbLogFile))) return $"nb did not run in the trial (no agent/{Layout.NbLogFile}){(exceptionType is null ? "" : $": {exceptionType}")}";
+        var trajectory = ReadOr(Path.Combine(logs, Layout.TrajectoryFile)) is { Length: > 0 } text ? JsonNode.Parse(text)!.AsObject() : null;
+        if (trajectory is null && exceptionType != "AgentTimeoutError")
+            return $"nb exited {manifest.NbExitCode?.ToString() ?? "?"} without a trajectory: {stderr}";
+        trajectory ??= new JsonObject
+        {
+            ["schema_version"] = "ATIF-v1.7",
+            ["agent"] = new JsonObject { ["name"] = Arm.Nb, ["version"] = manifest.Agent!.Version },
+            ["steps"] = new JsonArray(),
+        };
         Runner.WriteJson(Path.Combine(cellDir, Layout.TrajectoryFile), trajectory);
         return null;
     }

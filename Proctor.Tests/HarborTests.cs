@@ -735,7 +735,9 @@ public class HarborTests
         Assert.DoesNotContain("sk-secret", job.ToJsonString());
     }
 
-    static string WriteNbTrial(string dir, string jsonl, string version = "0.9.0", string? exception = null, string exit = "0")
+    /// <summary>A fake nb trial. <paramref name="run"/> names a captured pair in fixtures/nb-run (its JSONL and trajectory),
+    /// "" writes an empty JSONL and no trajectory (nb that failed before running), null writes neither (nb never started).</summary>
+    static string WriteNbTrial(string dir, string? run, string version = "0.9.0", string? exception = null, string exit = "0")
     {
         Directory.CreateDirectory(Path.Combine(dir, "agent"));
         Directory.CreateDirectory(Path.Combine(dir, "artifacts", "logs", "artifacts"));
@@ -746,7 +748,8 @@ public class HarborTests
             ["agent_execution"] = new JsonObject { ["started_at"] = "2026-10-18T10:00:00Z", ["finished_at"] = "2026-10-18T10:00:01.5Z" },
             ["exception_info"] = exception is null ? null : new JsonObject { ["exception_type"] = exception, ["exception_message"] = "timed out" },
         }.ToJsonString());
-        if (jsonl.Length > 0) File.WriteAllText(Path.Combine(dir, "agent", "nb.jsonl"), jsonl);
+        if (run is not null) File.WriteAllText(Path.Combine(dir, "agent", "nb.jsonl"), run.Length > 0 ? NbRun(run, ".jsonl") : "");
+        if (run is { Length: > 0 }) File.WriteAllText(Path.Combine(dir, "agent", "trajectory.json"), NbRun(run, ".trajectory.json"));
         File.WriteAllText(Path.Combine(dir, "agent", "nb.exit"), exit + "\n");
         File.WriteAllText(Path.Combine(dir, "agent", "nb.stderr.log"), "\nUnhandled exception: provider 'Mock' not configured\n");
         File.WriteAllText(Path.Combine(dir, "artifacts", "logs", "artifacts", "diff.patch"), "");
@@ -754,13 +757,13 @@ public class HarborTests
         return dir;
     }
 
-    static string Captured(string name) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name + ".jsonl"));
+    static string NbRun(string name, string extension) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "nb-run", name + extension));
 
     [Fact]
-    public void Ingest_NbTrial_ConvertsNbsLogToATrajectory_AndCountsIt()
+    public void Ingest_NbTrial_TakesNbsTrajectory_AndCountsIt()
     {
         using var repo = new TestRepo();
-        var trial = WriteNbTrial(Path.Combine(repo.Root, "trial"), Captured("loop-nudged"));
+        var trial = WriteNbTrial(Path.Combine(repo.Root, "trial"), "loop-nudged");
         var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
         var manifest = NewManifest() with { Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null) };
 
@@ -770,8 +773,9 @@ public class HarborTests
         Assert.Equal("nb", ReadJson(Path.Combine(cell, "trajectory.json"))["agent"]!["name"]!.GetValue<string>());
         var core = ReadJson(Path.Combine(cell, "core.json"));
         Assert.Equal("max_tool_calls", core["exit_reason"]!.GetValue<string>());   // nb's own ending
-        Assert.Equal(3, core["tool_calls"]!.GetValue<int>());
-        Assert.Equal(3, core["kinds"]!["shell"]!.GetValue<int>());
+        Assert.Equal(4, core["tool_calls"]!.GetValue<int>());
+        Assert.Equal(4, core["kinds"]!["shell"]!.GetValue<int>());
+        Assert.Equal(50, core["input_tokens"]!.GetValue<long>());   // nb's own final_metrics
         Assert.Equal(1500, core["duration_ms"]!.GetValue<long>());
 
         var t = Transcript.Read(cell);
@@ -788,13 +792,13 @@ public class HarborTests
         string? Ingested(string trial) => Ingest.Trial(trial, cell, NbArm, NewManifest() with { Agent = nbRun }, "0.9.0");
 
         Assert.Equal("agent_version_mismatch: the image ran nb 0.8.1, the host nb that compiled the program is 0.9.0",
-            Ingested(WriteNbTrial(Path.Combine(repo.Root, "t1"), Captured("plain"), version: "0.8.1")));
-        Assert.Equal("nb exited 1 without a result trailer: Unhandled exception: provider 'Mock' not configured",
-            Ingested(WriteNbTrial(Path.Combine(repo.Root, "t2"), "{\"type\":\"user\",\"turn\":0,\"text\":\"hi\"}\n", exit: "1")));
-        Assert.Equal("nb did not run in the trial (no agent/nb.jsonl)", Ingested(WriteNbTrial(Path.Combine(repo.Root, "t3"), "")));
+            Ingested(WriteNbTrial(Path.Combine(repo.Root, "t1"), "plain", version: "0.8.1")));
+        Assert.Equal("nb exited 1 without a trajectory: Unhandled exception: provider 'Mock' not configured",
+            Ingested(WriteNbTrial(Path.Combine(repo.Root, "t2"), "", exit: "1")));
+        Assert.Equal("nb did not run in the trial (no agent/nb.jsonl)", Ingested(WriteNbTrial(Path.Combine(repo.Root, "t3"), null)));
 
-        // Out of time is a completed run, whatever nb got written.
-        Assert.Null(Ingested(WriteNbTrial(Path.Combine(repo.Root, "t4"), "{\"type\":\"user\",\"turn\":0,\"text\":\"hi\"}\n", exception: "AgentTimeoutError", exit: "")));
+        // Out of time is a completed run, with nothing written: nb writes both files when the run ends.
+        Assert.Null(Ingested(WriteNbTrial(Path.Combine(repo.Root, "t4"), "", exception: "AgentTimeoutError", exit: "")));
         Assert.Equal("time_budget", ReadJson(Path.Combine(cell, "core.json"))["exit_reason"]!.GetValue<string>());
     }
 }

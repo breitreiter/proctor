@@ -112,7 +112,11 @@ The work to absorb:
 3. **nb writes ATIF itself** (its open question). nb's JSONL is also its
    program format (`--seed` reads what `--output jsonl` writes), so it does
    not go away. ATIF is the output format, and the program stays nb's. Once
-   nb emits ATIF, `NbAtif` moves into nb or is deleted.
+   nb emits ATIF, `NbAtif` moves into nb or is deleted. *Done 2026-10-28:
+   nb writes it (`--trajectory`, with per-step metrics, which also settles
+   item 2 without a new JSONL event) and `NbAtif` is deleted. Item 1 is
+   half done: bare cells carry nb's trajectory, but grading still reads
+   their JSONL, and `Parse` stays while `runs/` holds JSONL-only cells.*
 4. **Pin the version as for agents.** v1.7 is recorded; a newer
    `schema_version` is an ingest failure until it has been read, as an
    unknown tool is now.
@@ -227,7 +231,7 @@ for; by hand on System.Text.Json the protocol is small.
 | session mapping | `session/new` calls `NbRuntime.BuildAsync`; the program file sets up the session (provider, model, approval, budget, `system`) with no `run`, and prompts arrive over ACP. `session/prompt` calls `AppendHistory` then `ConversationManager.RunAsync`, with `session/cancel` on its token. `exit_reason` maps to `stopReason` | ~150 lines, 0.5–1 day |
 | updates, cheap | after each turn, send the turn's new history as one set of updates; enough for the bridge, since `acpx prompt` blocks until the turn ends | ~100 lines, 0.5 day |
 | updates, live | an event sink through `ConversationManager`'s streaming loop and tool dispatch in place of `MarkdownRenderer`; a 1,340-line file that writes to the console directly | +1–2 days |
-| transcript beside the protocol | nb still writes its JSONL to a file, so ingest reads `nb.jsonl` through `NbAtif` as now, not the bridge's ACP record | ~0.5 day |
+| transcript beside the protocol | nb writes its trajectory to a file (`--trajectory`, since 2026-10-28), so ingest reads that as now, not the bridge's ACP record | ~0.5 day |
 | tests | Mock provider over in-memory pipes: two prompts in one session, cancel, stop reasons | ~1 day |
 
 Mapping the `mcpServers` a client passes in `session/new` onto `McpManager`

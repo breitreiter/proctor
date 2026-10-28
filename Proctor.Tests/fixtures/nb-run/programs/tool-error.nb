@@ -1,0 +1,2 @@
+approval bash exit *
+run MOCK:tool=bash exit 3

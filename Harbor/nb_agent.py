@@ -2,8 +2,8 @@
 
 The image already holds the binary (/opt/nb, copied from proctor's nb layer), so setup installs nothing: it uploads the
 config the host's nb runs with and the program proctor compiled on the host for this cell, and asks the binary its
-version. The run is nb's own invocation, the program on stdin; its JSONL, stderr and exit code are the native log,
-which proctor converts to ATIF at ingest. A non-zero exit is nb's to report in the transcript, not a Harbor failure.
+version. The run is nb's own invocation, the program on stdin; nb writes its own ATIF trajectory (--trajectory) where
+Harbor keeps an agent's, beside its JSONL, stderr and exit code. A non-zero exit is nb's to report, not a Harbor failure.
 """
 
 import os
@@ -54,7 +54,7 @@ class NbAgent(BaseAgent):
         logs = str(self.environment_logs_dir)
         config = f"--config {CONFIG} " if self._config else ""
         await environment.exec(
-            f"cd {shlex.quote(self._workdir)} && {NB} --output jsonl {config}- < {PROGRAM}"
+            f"cd {shlex.quote(self._workdir)} && {NB} --output jsonl --trajectory {logs}/trajectory.json {config}- < {PROGRAM}"
             f" > {logs}/nb.jsonl 2> {logs}/nb.stderr.log; echo $? > {logs}/nb.exit",
             env=env,
         )

@@ -1,0 +1,87 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "agent": {
+    "name": "nb",
+    "version": "0.9.0",
+    "model_name": "mock-model"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-10-28T22:59:42.119Z",
+      "source": "user",
+      "message": "MOCK:tool=bash exit 3"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-10-28T22:59:42.207Z",
+      "source": "agent",
+      "message": "",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1,
+      "tool_calls": [
+        {
+          "tool_call_id": "mock-call-1",
+          "function_name": "bash",
+          "arguments": {
+            "command": "exit 3",
+            "description": "scripted by MockProvider"
+          },
+          "extra": {
+            "approved": "allow",
+            "approval_reason": "pre-approved"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "mock-call-1",
+            "content": "[exit code: 3]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-10-28T22:59:42.303Z",
+      "source": "agent",
+      "message": "OK",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20,
+    "total_completion_tokens": 10,
+    "total_steps": 3
+  },
+  "extra": {
+    "result": {
+      "type": "result",
+      "turn": null,
+      "exit_reason": "ok",
+      "usage": {
+        "input": 20,
+        "output": 10,
+        "total": 30
+      },
+      "turns": 2,
+      "tool_calls": 1,
+      "duration_ms": 201,
+      "provider_ms": 24,
+      "provider": "Mock",
+      "model": "mock-model",
+      "program_sha256": "f3be6fd384a1a8af217b88520c99ca0eb9d25f6aaf1f34fbd46dc1ea79139c57",
+      "nb_version": "0.9.0+74389810ad7d155cc30585ccda42f22604cdcf8c"
+    }
+  }
+}

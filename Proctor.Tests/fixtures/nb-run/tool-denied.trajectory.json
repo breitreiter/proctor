@@ -1,0 +1,88 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "agent": {
+    "name": "nb",
+    "version": "0.9.0",
+    "model_name": "mock-model"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-10-28T22:59:40.462Z",
+      "source": "user",
+      "message": "MOCK:tool=bash rm -rf /x"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-10-28T22:59:40.545Z",
+      "source": "agent",
+      "message": "",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1,
+      "tool_calls": [
+        {
+          "tool_call_id": "mock-call-1",
+          "function_name": "bash",
+          "arguments": {
+            "command": "rm -rf /x",
+            "description": "scripted by MockProvider"
+          },
+          "extra": {
+            "approved": "deny",
+            "approval_reason": "default-deny (default=deny; no approval bash pattern matched (none configured); the safe-command list and the trust rung are suppressed under default deny, so an explicit pattern is the only way through)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "mock-call-1",
+            "content": "Error: bash (Delete): /x was denied — the approval policy default is deny, and no allow-rule matched. Near miss: default=deny; no approval bash pattern matched (none configured); the safe-command list and the trust rung are suppressed under default deny, so an explicit pattern is the only way through. This will not succeed on retry; nothing in this run will grant it. It would require this directive in the program: approval bash rm *. Continue with what you are authorized to do, or report that the operation is not permitted.\n\n[nb] bash has failed 1 time(s); 2 attempt(s) left before this turn is aborted. Analyze the root cause and try a different approach — do not retry the same call."
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-10-28T22:59:40.634Z",
+      "source": "agent",
+      "message": "OK",
+      "model_name": "mock-model",
+      "metrics": {
+        "prompt_tokens": 10,
+        "completion_tokens": 5
+      },
+      "llm_call_count": 1
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 20,
+    "total_completion_tokens": 10,
+    "total_steps": 3
+  },
+  "extra": {
+    "result": {
+      "type": "result",
+      "turn": null,
+      "exit_reason": "ok",
+      "usage": {
+        "input": 20,
+        "output": 10,
+        "total": 30
+      },
+      "turns": 2,
+      "tool_calls": 1,
+      "duration_ms": 184,
+      "provider_ms": 25,
+      "provider": "Mock",
+      "model": "mock-model",
+      "denied": 1,
+      "program_sha256": "36d7ff2051160aabb4dd1969b6d40d312722fed9cb5e25ad224b5219b22c1d95",
+      "nb_version": "0.9.0+74389810ad7d155cc30585ccda42f22604cdcf8c"
+    }
+  }
+}

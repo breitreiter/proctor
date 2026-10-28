@@ -70,7 +70,6 @@ in the order the verbs run them. Every file is one concern:
 | `Harbor/qwen_code_agent.py` | Harbor's Qwen Code agent with its per-trial network install replaced by a check that the image holds the pin; embedded and compiled like `nb_agent.py` |
 | `Run/Harbor.cs` | one cell's Harbor job: `uv tool run harbor@<pin>` with a seven-day `--exclude-newer` cooldown on everything it resolves, telemetry off, the key in its environment only; nb's layer image from its publish |
 | `Run/Ingest.cs` | a Harbor trial into a cell, and the counted core (`core.json`) from the ATIF trajectory |
-| `Run/NbAtif.cs` | nb's JSONL as an ATIF trajectory, nb's own fields under `extra` |
 | `Run/Checkout.cs` | the work directory: materialise the fixture, collect the diff, restore both for a regrade |
 | `Run/Subprocess.cs` | the one process helper: hooks, nb, Harbor, script checks, git; an optional timeout |
 | `Grade/Transcript.cs` | nb JSONL, or an agent cell's ATIF trajectory with its `core.json`, into the windows checks read (trailer, answer, answer JSON, tool calls, tool results, user turns, diff) |
@@ -88,7 +87,7 @@ in the order the verbs run them. Every file is one concern:
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
-| `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts; `snapshots/` are the approved renderings; `suites/` is test data `TestRepo.CopySuite` finds after `suites/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never a suite to run |
+| `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one run (`capture.sh` regenerates them); `snapshots/` are the approved renderings; `suites/` is test data `TestRepo.CopySuite` finds after `suites/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never a suite to run |
 | `docs/` | user-facing guides beyond the README: `porting-to-agent-neutral.md`, how a suite moves to agent arms (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor |
 | `project/` | the brief, the plans, the research notes and the loose ends |
 
@@ -172,10 +171,12 @@ The directories are for reading, not for namespaces: everything is
   `/opt/nb` from, and refuses a publish whose `nb --version` is not the
   host nb's, since the host compiles the program (per cell, `{{work}}` as
   `/app`) and the image runs it. The agent (`Harbor/nb_agent.py`) is on
-  Harbor's `PYTHONPATH` from `runs/<id>/harbor/agents/`. Its native log is
-  `agent/nb.jsonl` (with `nb.stderr.log` and `nb.exit`), which ingest
-  converts to ATIF (`NbAtif`); `NbAtifTests` holds every captured Mock
-  transcript to reading the same through ATIF as directly. The gate
+  Harbor's `PYTHONPATH` from `runs/<id>/harbor/agents/`. nb writes its own
+  ATIF to `agent/trajectory.json` (`--trajectory`), beside its JSONL
+  (`agent/nb.jsonl`, with `nb.stderr.log` and `nb.exit`); ingest takes it
+  as a vendor agent's. Bare cells get one too (`NB_TRAJECTORY`, so a runner
+  script passes it on), though grading reads their JSONL. `NbTrajectoryTests`
+  holds every `fixtures/nb-run` pair to reading the same both ways. The gate
   (`suites/gate`, `GateTests`, decision 12) is opt-in:
   `PROCTOR_GATE=<publish dir> dotnet test --no-build --filter GateTests`,
   about ten minutes, Docker (or podman) and uv needed.

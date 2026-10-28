@@ -50,7 +50,7 @@ public class RunnerTests
         // Cell level: every file the plan names, and nothing that belongs elsewhere.
         var cell = Cell(repo, id, "a", "plain", 1);
         Assert.Equal(
-            ["diff.patch", "hooks", "manifest.json", "program.jsonl", "program.nb", "status", "stderr.txt", "transcript.jsonl"],
+            ["diff.patch", "hooks", "manifest.json", "program.jsonl", "program.nb", "status", "stderr.txt", "trajectory.json", "transcript.jsonl"],
             Directory.GetFileSystemEntries(cell).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Equal(["sample.setup.log", "sample.teardown.log"],
             Directory.GetFiles(Path.Combine(cell, "hooks")).Select(Path.GetFileName).Order(StringComparer.Ordinal));

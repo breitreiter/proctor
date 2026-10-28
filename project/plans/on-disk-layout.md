@@ -281,6 +281,7 @@ runs/
           program.nb                        the program exactly as run, placeholders resolved
           program.jsonl                     what went down stdin: the program compiled on the host by `nb --compile`, includes inlined
           transcript.jsonl                  nb's output, untouched
+          trajectory.json                   nb's own ATIF of the same run (NB_TRAJECTORY), what the Harbor gate compares
           stderr.txt
           hooks/
             sample.setup.log

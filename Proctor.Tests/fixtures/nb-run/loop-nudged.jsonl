@@ -1,0 +1,12 @@
+{"type":"user","turn":0,"text":"MOCK:loop=bash echo x"}
+{"type":"tool_call","turn":1,"id":"mock-loop","name":"bash","arguments":{"command":"echo x","description":"scripted by MockProvider"},"approved":"allow","approval_reason":"safe"}
+{"type":"tool_result","turn":1,"id":"mock-loop","output":"x\n\n[exit code: 0]"}
+{"type":"tool_call","turn":2,"id":"mock-loop","name":"bash","arguments":{"command":"echo x","description":"scripted by MockProvider"},"approved":"allow","approval_reason":"safe"}
+{"type":"tool_result","turn":2,"id":"mock-loop","output":"x\n\n[exit code: 0]"}
+{"type":"tool_call","turn":3,"id":"mock-loop","name":"bash","arguments":{"command":"echo x","description":"scripted by MockProvider"},"approved":"allow","approval_reason":"safe"}
+{"type":"tool_result","turn":3,"id":"mock-loop","output":"x\n\n[exit code: 0]"}
+{"type":"user","turn":4,"text":"<system_reminder>You appear to be stuck in a repetitive loop (3 similar tool-call sequences at the tail of this turn). You are not making progress. Options: (1) reconsider your approach, (2) try a different tool or different arguments, (3) stop and end the turn, stating plainly what is blocked and what you would need to proceed. No one is available to answer a question mid-run.</system_reminder>","source":"loop"}
+{"type":"tool_call","turn":5,"id":"mock-loop","name":"bash","arguments":{"command":"echo x","description":"scripted by MockProvider"},"approved":"allow","approval_reason":"safe"}
+{"type":"tool_result","turn":5,"id":"mock-loop","output":"x\n\n[exit code: 0]"}
+{"type":"assistant_text","turn":6,"text":"I've reached the maximum number of tool calls for this message. Let me provide a response with the information I have."}
+{"type":"result","turn":null,"exit_reason":"max_tool_calls","usage":{"input":50,"output":25,"total":75},"turns":5,"tool_calls":4,"duration_ms":233,"provider_ms":55,"provider":"Mock","model":"mock-model","program_sha256":"4f871dc4fc7c2252bf5d29d16bf753887eecf159917293ae28c77dc5c9eec915","nb_version":"0.9.0+74389810ad7d155cc30585ccda42f22604cdcf8c"}
