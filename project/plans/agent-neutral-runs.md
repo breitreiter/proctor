@@ -525,4 +525,6 @@ From `learnings/harbor.md`, accepted for this route:
   before promising `no_denials` on Codex arms.
 - **nb emitting ATIF.** Converting at ingest is enough to start. nb writing
   ATIF itself would make the bare and Harbor paths identical by construction.
-  That is nb's call, in its plan.
+  That is nb's call, in its plan. Answered 2026-10-27: nb writes it
+  (`--trajectory`) and `NbAtif` is deleted, in `../nb/plans/atif-and-acp.md`
+  stage 3, which also schedules nb as an ACP bridge target (stage 5).

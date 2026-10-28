@@ -203,6 +203,10 @@ nb's in-process oracle either way.
 
 ### What ACP in nb would cost (napkin, 2026-10-27)
 
+Now planned in `../nb/plans/atif-and-acp.md`. Harbor 0.24's bridge takes any
+agent implementing `ACPAgentMixin`, so risk 1 below is settled in source; a $0
+spike still confirms it. Sizes there supersede these.
+
 A tool-using nb arm under Harbor can take the outside oracle only if nb is a
 bridge target, which means speaking ACP. Sized from nb's code, not built:
 about **3–4 days** for nb as a bridge target, **5–6** with live streaming,
