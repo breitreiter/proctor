@@ -63,6 +63,7 @@ static class Ingest
             ["save_memory"] = "memory",
             ["tool_search"] = "meta", ["tool_call"] = "meta",
         },
+        // Mirrored by nb's nb.Tests/ProctorContractTests.cs, which fails when nb advertises a tool not listed here.
         [Arm.Nb] = new()
         {
             ["bash"] = "shell",

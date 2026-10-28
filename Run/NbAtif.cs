@@ -12,6 +12,7 @@ namespace Proctor;
 /// </summary>
 static class NbAtif
 {
+    // Mirrored by nb's nb.Tests/ProctorContractTests.cs, which fails when nb emits a type this does not map.
     /// <summary>nb's directive events: configuration, not conversation, kept under the trajectory's extra.</summary>
     static readonly HashSet<string> Directives = ["run", "provider", "model", "harness", "mcp", "tools", "approval", "loop", "budget", "oracle"];
 
