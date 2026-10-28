@@ -1,8 +1,30 @@
 # proctor
 
-Runs a suite's arms through [nb](https://github.com/breitreiter/nb), grades the transcripts with declared
-checks, computes the statistics once, and renders one self-contained HTML
-report plus a markdown twin.
+Runs a suite's arms, grades the transcripts with declared checks, computes
+the statistics once, and renders one self-contained HTML report plus a
+markdown twin.
+
+An arm is either [nb](https://github.com/breitreiter/nb) run bare on this
+machine, or an agent run in a container by
+[Harbor](https://github.com/harbor-framework/harbor). Harbor's agents are
+Claude Code, Codex, Qwen Code, and nb itself.
+
+**Proctor leans on Harbor and ATIF.** Harbor runs a trial and returns its
+evidence; proctor decides what that evidence means across a suite. Every
+trial comes back as an ATIF trajectory (Harbor's agent trajectory format,
+v1.7), and ATIF is the format the grader reads. An nb cell under Harbor has
+its JSONL converted to ATIF. A bare nb cell is still read from its JSONL,
+and a test holds every captured transcript to reading the same either way.
+A shared format is not yet comparability, so proctor counts turns, tool
+calls, denials and how the run ended itself, by its own definitions, from
+the ATIF steps. It never takes an agent's word for its own numbers.
+
+The direction is anything with tools through Harbor. The bare path is for
+tool-less programs and for shaking a suite down, where it needs no
+container and no Python. nb is to write ATIF itself, which would make the
+two paths identical by construction. The reasoning, and the costs accepted
+for it (a Python dependency and a fast-moving upstream), are in
+`project/plans/agent-neutral-runs.md`.
 
 ## Install
 
@@ -48,7 +70,7 @@ the task's checks are how proctor measures whether they got it.
 relative to `suites/`:
 
 ```json
-{ "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb-mock.json" } }
+{ "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb.json" } }
 ```
 
 Without it, `nb` is taken from `PATH` and nb resolves its own config.
@@ -71,7 +93,7 @@ in its own config, which is how `suites/nb.json` reaches the same gateway.
   "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb.json" },
   "judges": {
     "jev": { "kind": "systemone", "endpoint": "${LLM_GATEWAY}/cf/workers-ai/run/typesafe/jev", "api_key": "${LLM_GATEWAY_KEY}", "family": "typesafe" },
-    "glm": { "kind": "chat", "endpoint": "${LLM_GATEWAY}/cf/compat/v1", "model": "@cf/zai-org/glm-4.7", "api_key": "${LLM_GATEWAY_KEY}", "family": "glm" }
+    "glm": { "kind": "chat", "endpoint": "${LLM_GATEWAY}/cf/compat", "model": "workers-ai/@cf/zai-org/glm-5.2", "api_key": "${LLM_GATEWAY_KEY}", "family": "glm" }
   }
 }
 ```
@@ -80,6 +102,17 @@ in its own config, which is how `suites/nb.json` reaches the same gateway.
 carries a judge's family name; a judge should be off-family from every arm
 it grades. `max_window` (characters, default 24,000) caps what a judge is
 sent; a larger window is an error, never a truncation.
+
+A judge that is rate-limited (429, 503 or 529, or a rate-limit message in
+the body) is retried three times, honouring `Retry-After`. If it keeps
+refusing, or asks for a wait of more than a minute, it is stopped for the
+rest of the pass. Every later check on it is then `error`, with the
+endpoint's own words and no further requests. Nothing is lost: the next
+`grade` asks every `error` again.
+
+nb's runner, below, is the older way to put a bare nb arm in a container.
+For a new suite with tools, prefer an agent arm (`agent: nb` for nb
+itself; see *Agent arms*).
 
 A suite that runs nb inside a container names the script that runs it in
 its `suite.json`, beside the hooks that make the container;
@@ -141,7 +174,7 @@ One suite is one directory, `suites/<id>/`:
 
 ```
 suite.json        description, labels, arms, samples, nb (runner, mounts), hooks, grading (checks, pass, validity)
-program.nb       the nb program template; {{prompt}}, {{task}}, {{work}}, {{provider}}, {{model}}, {{harness}}, {{arm}}, {{sample}}
+program.nb       the nb program template; {{prompt}}, {{task}}, {{work}}, {{bundle}}, {{provider}}, {{model}}, {{harness}}, {{arm}}, {{sample}}
 tasks/*.json     one task per file; the id is the file name; names a fixture and adds the prompt, a description, labels, expect and its own checks
 checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason); each needs a description
 hooks/*.sh       arm and sample setup/teardown
@@ -310,10 +343,35 @@ keeps the engine it started on, and `resume` refuses a different one. What
 a fixture's image needs and how a suite moves to agent arms is
 [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md);
 `suites/code-change/` runs the same three tasks on all four agents.
+`agents.codex.config` may name a native Codex `config.toml` (relative to
+`suites/`), merged under Harbor's base URL. Use it for what an endpoint
+needs of the agent: a llama-server takes only function tools, for example.
+
+Harbor pins its own version but not its dependencies' versions, so proctor
+resolves them with uv's `--exclude-newer` seven days back. A poisoned
+release that is pulled within a week never reaches you. If the account
+that runs agent arms holds credentials worth stealing, `harbor.uv` can
+point at a wrapper that runs uv in a sandbox with your home directory
+hidden. `docs/podman.md` §8 has one.
+
+To check that a machine can run agent arms, without a model and at $0:
+
+```bash
+PROCTOR_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
+```
+
+This runs every vendor agent at its pin against a scripted stub model,
+then each `code-change` task's reference solution through Harbor's
+verifier. It takes about twenty minutes. `PROCTOR_CONFORMANCE` may
+instead name a `proctor.json` whose `harbor` block to use, so podman can
+be checked without changing your config.
 
 `suites/smoke/` with `fixtures/note/` is a complete example that runs against
 nb's Mock provider. `suites/suite-authoring/` is the demo project: a suite
 that asks an agent to write suites, using most of what is described here.
+`suites/gate/` and `suites/conformance/` are proctor's own checks of its
+Harbor path: nb on Mock, bare and through Harbor, must agree, and each
+vendor agent on the stub must come back as scripted.
 The check vocabulary and the shape of every file are in
 `project/plans/on-disk-layout.md` and `project/plans/fixtures-arms-baselines.md`.
 
@@ -331,6 +389,8 @@ proctor grade <id> --arm a [--tasks x,y]   # only those cells (--arm repeatable)
 proctor report <id>          # reports/data/<id>/{results.jsonl,stats.json,report.html,summary.md}
 proctor baseline <id> [--arm a] [--tasks x,y]   # pin the arm's analysed cells as suites/<suite>/baseline.json
 proctor report <id> --tolerance 10 --fail-on regression   # guard mode: exit 1 if an arm fell further than that
+proctor report <id> --against <earlier>   # each arm against the same arm in an earlier experiment, in place of the baseline
+proctor --version
 ```
 
 Two ways of working. In explore mode several arms run in one experiment and
@@ -343,7 +403,10 @@ held, improved or regressed on the point estimate against the tolerance,
 and `--fail-on regression` reads only that; it is *confirmed* only when the
 whole interval lies beyond the tolerance on the same side (or within it,
 for held), so a small task count cannot pass off a guess as a finding.
-Without a baseline the card compares each arm with the first.
+Without a baseline the card compares each arm with the first, the
+reference. `--against <experiment>` stands in for the baseline for one
+report: each arm is compared with the arm of the same id in that earlier
+experiment, and the page says "earlier run" where it said "baseline".
 While the pinned experiment is still under `runs/`, its cells are re-read,
 so a regrade flows through; once it is archived the pinned scores stand,
 and the report says which.
