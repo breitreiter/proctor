@@ -418,7 +418,7 @@ an nb arm and nb's own in-process oracle loop produce the same counted core
 and user turns apart from bookkeeping. That needs nb as an ACP target. Until
 then, the gate is a cc arm on Haiku over one recorded oracle task, checked
 by hand, and the `oracle_*` checks are stubbed on Harbor arms only. nb is
-an ACP target since 2026-10-28, so the Mock gate can be built with step 7. Known cost: each answer is a new turn over ACP
+an ACP target since 2026-10-28, so the Mock gate can be built with step 7. `nb --judge` shipped 2026-10-29 (`../nb/docs/conversation-program-cli.md` §8.3): the message on stdin as text, `--sheet`, `--provider <entry>` for the judging entry, and one JSON line out (`verdict` hit/done/miss, `keys`, `answer` on a hit, `raw`, `usage`, `warnings`). Every verdict exits 0; a failed call exits 2. Known cost: each answer is a new turn over ACP
 rather than nb's in-process continuation, which is close to what a real user
 answering in `-p` mode gets. It is recorded, not corrected.
 
@@ -467,7 +467,7 @@ draft guide, and treating where it stalls as the edits. Short by design:
    Checking proctor's layer over Harbor is `harbor-conformance.md`, at $0.
 6. Limits (decision 6) end to end; `max_cost` stops being stubbed and the
    report's "Cost is not shown" goes.
-7. Oracle (7), after nb ships `--judge`.
+7. Oracle (7). nb ships `--judge` since 2026-10-29.
 8. Refuse `harness` in validation, in the same week nb retires the costumes
    (nb plan, staging 5). Not before step 5 has run a real suite: retiring
    the old route before the new one works leaves none.
