@@ -194,7 +194,11 @@ Each is a commit with its tests, and `main` stays green after each.
    is. Running an oracle suite is refused as "not yet" in `Runner.Start` until item 4.
    The oracle checks stay in `NotYet` until item 2.
 2. Bare path: the prepended directives and the three checks. This is end to end on
-   the bare runner, Mock, with a `RunnerTests` case per ending.
+   the bare runner, Mock, with a `RunnerTests` case per ending. **Done 2026-10-29**
+   (`OracleBareTests`). `oracle_hit` on a task with no sheet is an error, not a
+   fail; `oracle_turns` and `oracle_misses` count 0 there. nb's ATIF marks an
+   oracle turn with `extra {source, keys}`, no `verdict`, so ingest (item 4)
+   writes those two.
 3. `oracle_user.py`, the run-less program, and the job's `user_agent`. These are unit
    tests on the compile and on the Python loop's parsing (canned `acpx` output).
 4. Ingest: marking, endings, and the judge's usage in the manifest. These are

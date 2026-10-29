@@ -231,6 +231,21 @@ script check must have one, because from outside a script says nothing:
 { "acceptance": { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" } }
 ```
 
+A task can name an **answer sheet**, a scripted user that answers when the
+agent stops to ask: `"oracle": "oracle/<task>.md"`, a file inside the suite
+directory in nb's format (`## <id>`, then the answer, verbatim). After a turn
+that ends `ok`, a judge reads the agent's last message against the sheet. On a
+hit the selected answers become the next user turn and the run goes on; when
+the agent asked for something the sheet lacks, the run ends `oracle_miss`.
+`suite.json`'s `oracle` block sets how many answers a run may get (`turns`,
+default 8, then `oracle_budget`) and which nb config entry judges (`judge`;
+by default the arm's own provider). The checks are `oracle_hit` (a list of
+entry ids the oracle must have answered with), `oracle_turns {max}` and
+`oracle_misses {max}`. A bare nb arm runs nb's own oracle; an `agent: nb` arm
+is not yet supported, and a vendor agent arm beside an oracle task is
+refused, because Harbor leaves a bridged vendor agent no trajectory to grade
+(`project/plans/oracle-in-proctor.md`).
+
 A built-in check describes itself from its spec
 (`{ "denied_calls": { "max": 0 } }` reads as "no denied tool calls") unless you give it a better sentence.
 

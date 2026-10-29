@@ -79,10 +79,10 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     /// <summary>Create a new experiment directory from a suite and run it.</summary>
     public static string Start(string root, Suite suite, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
-        // Validation accepts an answer sheet so suites can be written against it; running one lands with the oracle's
-        // bare and Harbor paths (plans/oracle-in-proctor.md, work items 2-4). Until then, refuse rather than run without it.
-        if (suite.Tasks.FirstOrDefault(c => c.Oracle is not null) is { } oracleTask)
-            throw new ProctorException($"not yet: task {oracleTask.Id} names an answer sheet, and this version cannot run the oracle (plans/oracle-in-proctor.md)");
+        // The bare path runs nb's in-process oracle; the Harbor path's simulated user lands with plans/oracle-in-proctor.md
+        // items 3-4. Until then, refuse rather than run an nb agent arm without its oracle.
+        if (suite.Tasks.FirstOrDefault(c => c.Oracle is not null) is { } oracleTask && suite.Arms.FirstOrDefault(a => a.IsAgent) is { } agentArm)
+            throw new ProctorException($"not yet: task {oracleTask.Id} names an answer sheet, and arm {agentArm.Id} runs through Harbor, whose oracle is not built yet (plans/oracle-in-proctor.md)");
         var nb = ResolveNb(root, suite, config, nbOverride, runnerOverride);
         foreach (var arm in suite.Arms.Where(a => a.IsAgent)) Route(root, config, nb, arm);   // a missing endpoint fails before anything is made
         var id = Layout.NewExperimentId(suite.Id, DateTime.UtcNow);
@@ -232,7 +232,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         Directory.CreateDirectory(Path.Combine(cellDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
 
-        var program = ResolveProgram(suite.ProgramTemplate, arm, c, sample, cell.WorkMount, cell.BundleMount);
+        var program = OraclePrefix(suite, c) + ResolveProgram(suite.ProgramTemplate, arm, c, sample, cell.WorkMount, cell.BundleMount);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
@@ -482,6 +482,19 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     {
         var file = Path.Combine(cellDir, Layout.TranscriptFile);
         return File.Exists(file) ? Transcript.Read(cellDir).Trailer?.ExitReason : null;
+    }
+
+    /// <summary>
+    /// A bare cell's oracle, as nb's own directives ahead of the template: they apply to every run after them, so the
+    /// template needs no placeholder. The sheet is the host path, which --compile inlines, so a runner's container never
+    /// needs the file. Empty for a task without a sheet.
+    /// </summary>
+    public static string OraclePrefix(Suite suite, TaskDef c)
+    {
+        if (suite.OracleOf(c) is not { } sheet) return "";
+        var prefix = $"oracle @{sheet}\n";
+        if (suite.Def.Oracle?.Judge is { } judge) prefix += $"oracle provider {judge}\n";
+        return prefix + $"budget oracle_turns {suite.OracleTurns}\n";
     }
 
     /// <summary>Fill the template. {{work}} and {{bundle}} are the paths the model will see, which a runner may mount elsewhere. A prompt's newlines become nb continuation lines so the program stays one directive.</summary>

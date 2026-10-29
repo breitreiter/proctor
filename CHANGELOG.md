@@ -7,6 +7,16 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- The oracle runs on bare nb arms (`project/plans/oracle-in-proctor.md`,
+  work item 2): a cell of an oracle task gets `oracle @<sheet>`, `oracle
+  provider <judge>` and `budget oracle_turns <n>` ahead of its template, and
+  nb's in-process oracle answers. `oracle_hit`, `oracle_turns` and
+  `oracle_misses` are checks now, read from the user turns nb marks
+  `source: oracle` (with their `keys`) and the exit reason; one on a suite
+  with no oracle task is a problem. An oracle suite with an `agent` arm is
+  still refused at `run`. Also fixed: a `{max}` check given a bare number
+  (`"denied_calls": 2`) threw from validation instead of reporting it.
+
 - A task can name an answer sheet (`"oracle": "oracle/<task>.md"`, inside
   the suite directory), and `suite.json` takes an `oracle` block (`judge`,
   an nb config entry; `turns`, default 8). Validation only, for now

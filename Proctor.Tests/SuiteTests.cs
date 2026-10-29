@@ -147,7 +147,7 @@ public class SuiteTests
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"], \"validity\": [\"y\"]}", "smoke/suite.json", "grading.validity")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"], \"validity\": [\"x\"]}", "smoke/suite.json", "grading.validity")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"bogus\": 1}}, \"pass\": [\"x\"]}", "smoke/suite.json", "grading.checks.x.bogus")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"oracle_hit\": [\"k\"]}}, \"pass\": [\"x\"]}", "smoke/suite.json", "grading.checks.x.oracle_hit")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"oracle_hit\": [\"k\"]}}, \"pass\": [\"x\"]}", "smoke/suite.json", "grading.checks.x")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"files_touched\": {\"paths\": []}}}, \"pass\": [\"x\"]}", "smoke/suite.json", "grading.checks.x.files_touched")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"script\": \"checks/nope.sh\"}}, \"pass\": [\"x\"]}", "smoke/suite.json", "grading.checks.x.script")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"not_script\": \"checks/answer-nonempty.sh\", \"description\": \"d\"}}, \"pass\": [\"x\"]}", "smoke/suite.json", "grading.checks.x.not_script")]

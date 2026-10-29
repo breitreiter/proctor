@@ -81,18 +81,18 @@ static class Checks
     [
         "exit_reason", "answer_contains", "answer_regex", "answer_equals", "answer_words",
         "tools_used", "tools_used_any", "tool_args", "tool_sequence", "denied_calls", "tool_errors",
-        "loop_nudged", "files_touched", "max_tool_calls", "max_tokens", "max_duration_ms", "script",
+        "loop_nudged", "oracle_hit", "oracle_misses", "oracle_turns", "files_touched", "max_tool_calls", "max_tokens", "max_duration_ms", "script",
         Judge.Decide, Judge.JudgeCheck,
     ];
 
     static readonly Dictionary<string, string> NotYet = new()
     {
         ["answer_json_schema"] = "needs a JSON-schema validator; not in this version",
-        ["oracle_hit"] = "oracle checks wait for a suite that uses an oracle",
-        ["oracle_misses"] = "oracle checks wait for a suite that uses an oracle",
-        ["oracle_turns"] = "oracle checks wait for a suite that uses an oracle",
         ["max_cost"] = "cost is omitted until nb's trailer carries it",
     };
+
+    /// <summary>A field that reads the oracle's turns or ending, negated or not.</summary>
+    public static bool IsOracleCheck(string key) => Split(key).Name is "oracle_hit" or "oracle_misses" or "oracle_turns";
 
     /// <summary>A check that calls a model: decide or judge, negated or not.</summary>
     public static bool AsksAModel(JsonObject spec) => spec.Any(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck);
@@ -143,6 +143,9 @@ static class Checks
             "denied_calls" => Max("denied tool calls"),
             "tool_errors" => Max("tool errors"),
             "loop_nudged" => v!.GetValue<bool>() ? "the loop nudge fires" : "the loop nudge does not fire",
+            "oracle_hit" => $"the oracle answers with {List(v)}",
+            "oracle_misses" => v!["max"]!.GetValue<long>() == 0 ? "the agent asks nothing the answer sheet lacks" : $"at most {v["max"]} oracle misses",
+            "oracle_turns" => Max("oracle answers"),
             "answer_contains" => $"the answer contains '{v}'",
             "answer_equals" => $"the answer is exactly '{v}'",
             "answer_regex" => $"the answer matches /{v}/",
@@ -196,7 +199,8 @@ static class Checks
             "tools_used" or "tools_used_any" when value is not JsonArray => "expects a list of tool names",
             "loop_nudged" when value is not JsonValue => "expects true or false",
             "max_tool_calls" or "max_tokens" or "max_duration_ms" when value is not JsonValue => "expects a number",
-            "denied_calls" or "tool_errors" when value?["max"] is null => "expects {max}",
+            "denied_calls" or "tool_errors" or "oracle_misses" or "oracle_turns" when value is not JsonObject o || o["max"] is null => "expects {max}",
+            "oracle_hit" when value is not JsonArray a || a.Count == 0 => "expects a non-empty list of answer sheet entry ids",
             "answer_words" when value is not JsonObject || (value["min"] is null && value["max"] is null) => "expects {min} and/or {max}",
             "tool_args" when value?["name"] is null => "expects {name, args, mode: partial|exact, ignore: [globs]}",
             "tool_args" when value["mode"] is JsonValue m && m.GetValue<string>() is not ("partial" or "exact") => "mode is partial or exact",
@@ -277,6 +281,26 @@ static class Checks
                 return Verdict.Err("loop_nudged is nb's nudge; a vendor agent has none to fire");
             case "loop_nudged":
                 return Verdict.Of(t.LoopNudged == v.GetValue<bool>(), t.LoopNudged ? "loop nudge fired" : "no loop nudge");
+            case "oracle_hit":
+            {
+                if (cell.Task.Oracle is null) return Verdict.Err($"task {cell.Task.Id} names no answer sheet, so the oracle could not answer");
+                var keys = t.UserTurns.Where(u => u.IsOracle).SelectMany(u => u.Keys ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var missing = v.AsArray().Select(n => n!.GetValue<string>()).Where(k => !keys.Contains(k, StringComparer.OrdinalIgnoreCase)).ToList();
+                var answered = keys.Count == 0 ? "the oracle never answered" : $"the oracle answered with {string.Join(", ", keys)}";
+                return Verdict.Of(missing.Count == 0, missing.Count == 0 ? answered : $"{answered}; never {string.Join(", ", missing)}");
+            }
+            // One run ends on at most one miss: nb ends it there, as oracle_miss.
+            case "oracle_misses":
+            {
+                if (trailer is null) return Verdict.Err("no result trailer");
+                var misses = trailer.ExitReason == "oracle_miss" ? 1 : 0;
+                return Verdict.Of(misses <= v["max"]!.GetValue<int>(), misses == 0 ? "no oracle miss" : "the run ended on an oracle miss: the agent asked for something the sheet does not cover");
+            }
+            case "oracle_turns":
+            {
+                var turns = t.UserTurns.Count(u => u.IsOracle);
+                return Verdict.Of(turns <= v["max"]!.GetValue<int>(), $"{turns} oracle answer{(turns == 1 ? "" : "s")} (max {v["max"]})");
+            }
             case "answer_contains":
                 if (t.Answer is null) return Verdict.Err("no assistant answer");
                 return Verdict.Of(t.Answer.Contains(v.GetValue<string>(), StringComparison.Ordinal), $"answer {(t.Answer.Contains(v.GetValue<string>()) ? "contains" : "lacks")} '{v}'");

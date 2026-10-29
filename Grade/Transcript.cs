@@ -31,8 +31,17 @@ record ToolResult(string Id, string Output, JsonObject? Result, bool? Failed = n
     static readonly Regex ExitCodeTrailer = new(@"\[exit code: (\d+)\]\s*$");
 }
 
-record UserTurn(string Text, string? Source)
+/// <summary>A user turn after the prompt. Source is who wrote it when the program did not (nb's "oracle"); Keys are the sheet entries an oracle turn answered with.</summary>
+record UserTurn(string Text, string? Source, IReadOnlyList<string>? Keys = null)
 {
+    public bool IsOracle => Source == "oracle";
+
+    // By value, keys included: a record compares a list by reference, and two reads of one run must be equal.
+    public virtual bool Equals(UserTurn? other) =>
+        other is not null && Text == other.Text && Source == other.Source && (Keys ?? []).SequenceEqual(other.Keys ?? []);
+
+    public override int GetHashCode() => HashCode.Combine(Text, Source, Keys?.Count ?? 0);
+
     public bool IsLoopNudge => Text.StartsWith("<system_reminder>", StringComparison.Ordinal) && Text.Contains("repetitive loop");
 }
 
@@ -84,7 +93,7 @@ sealed class Transcript
             switch (Str(step, "source"))
             {
                 case "user":
-                    t.UserTurns.Add(new UserTurn(text, extra is null ? null : Str(extra, "source")));
+                    t.UserTurns.Add(new UserTurn(text, extra is null ? null : Str(extra, "source"), Keys(extra?["keys"])));
                     break;
                 case "agent":
                     if (text.Trim().Length > 0)
@@ -142,7 +151,7 @@ sealed class Transcript
             switch (Str(ev, "type"))
             {
                 case "user":
-                    t.UserTurns.Add(new UserTurn(Text(ev), Str(ev, "source")));
+                    t.UserTurns.Add(new UserTurn(Text(ev), Str(ev, "source"), Keys(ev["keys"])));
                     break;
                 case "assistant_text":
                     t.Answer = Text(ev);
@@ -207,7 +216,10 @@ sealed class Transcript
         catch (JsonException) { return null; }
     }
 
-    private static string? Str(JsonObject o, string key) =>
+    private static IReadOnlyList<string>? Keys(JsonNode? keys) =>
+        keys is JsonArray a ? a.Select(k => k?.GetValue<string>()).OfType<string>().ToList() : null;
+
+    static string? Str(JsonObject o, string key) =>
         o[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     private static long? Num(JsonObject? o, string key) =>

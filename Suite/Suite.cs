@@ -493,7 +493,8 @@ sealed class Suite
         }
 
         ValidateHarbor(def, Add, dir, tasks, fixtures, root, problems);
-        ValidateOracle(def, Add, tasks);
+        ValidateOracle(def, Add, tasks, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), field, message)),
+            (f, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(f.Dir, Layout.FixtureFile)), field, message)));
 
         if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use arm or sample");
         if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use arm or sample");
@@ -634,7 +635,8 @@ sealed class Suite
     /// Harbor. A vendor agent can be a bridge target, but bridged it leaves no ATIF (Harbor converts the user agent's
     /// log, not the target's), and Qwen Code cannot be a target at all (plans/oracle-in-proctor.md, question 4).
     /// </summary>
-    static void ValidateOracle(SuiteDef def, Action<string, string> add, List<TaskDef> tasks)
+    static void ValidateOracle(SuiteDef def, Action<string, string> add, List<TaskDef> tasks, Dictionary<string, Fixture> fixtures,
+        Action<TaskDef, string, string> addToTask, Action<Fixture, string, string> addToFixture)
     {
         var oracleTasks = tasks.Where(c => c.Oracle is not null).Select(c => c.Id).ToList();
         if (def.Oracle is { } oracle)
@@ -643,7 +645,17 @@ sealed class Suite
             if (oracle.Turns is < 1) add("oracle.turns", "must be at least 1");
             if (oracle.Judge is not null && string.IsNullOrWhiteSpace(oracle.Judge)) add("oracle.judge", "an nb config entry name, or absent for the arm's own provider");
         }
-        if (oracleTasks.Count == 0) return;
+        if (oracleTasks.Count == 0)
+        {
+            // A check that can never fire is still an error: nothing would answer it.
+            const string never = "an oracle check, and no task names an answer sheet (a task's oracle), so the oracle never answers";
+            static IEnumerable<string> Oracular(Dictionary<string, JsonObject>? checks) =>
+                (checks ?? []).Where(k => k.Value?.Any(f => Checks.IsOracleCheck(f.Key)) == true).Select(k => k.Key);
+            foreach (var name in Oracular(def.Grading?.Checks)) add($"grading.checks.{name}", never);
+            foreach (var fixture in fixtures.Values) foreach (var name in Oracular(fixture.Checks)) addToFixture(fixture, $"checks.{name}", never);
+            foreach (var c in tasks) foreach (var name in Oracular(c.Checks)) addToTask(c, $"checks.{name}", never);
+            return;
+        }
         foreach (var (arm, i) in (def.Arms ?? []).Select((a, i) => (a, i)))
             if (arm?.IsVendor == true)
                 add($"arms[{i}].agent", $"not yet: task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb arms only. Through Harbor's simulated user, {arm.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
