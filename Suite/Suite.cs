@@ -87,11 +87,25 @@ record Hooks(HookPair? Run, HookPair? Arm, HookPair? Task, HookPair? Sample);
 
 record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<string>? Validity);
 
-/// <summary>Tags is what labels replaced; it is here so a leftover is a problem rather than silently ignored.</summary>
-record SuiteDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, SuiteNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null);
+/// <summary>
+/// suite.json's oracle block, for the tasks that name an answer sheet: the nb config entry that judges (absent, the arm's
+/// own provider, as nb's in-process oracle does) and how many answers a run may get. See plans/oracle-in-proctor.md.
+/// </summary>
+record OracleDef(string? Judge = null, int? Turns = null)
+{
+    /// <summary>nb's own default for budget oracle_turns.</summary>
+    public const int DefaultTurns = 8;
+}
 
-/// <summary>A task: one input and one desired outcome. Expect parameterises the shared checks; Checks are the ones only this task can state.</summary>
-record TaskDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, Dictionary<string, JsonObject>? Checks = null);
+/// <summary>Tags is what labels replaced; it is here so a leftover is a problem rather than silently ignored.</summary>
+record SuiteDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, SuiteNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null);
+
+/// <summary>
+/// A task: one input and one desired outcome. Expect parameterises the shared checks; Checks are the ones only this task
+/// can state. Oracle is an answer sheet (nb's format), relative to the suite directory and inside it, so it never reaches
+/// a fixture's repo or the agent's container: a scripted user that answers when the agent stops to ask.
+/// </summary>
+record TaskDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, Dictionary<string, JsonObject>? Checks = null, string? Oracle = null);
 
 /// <summary>
 /// Consumer metadata: a key with one or more string values, on a suite, a fixture or a task. Proctor never
@@ -183,6 +197,12 @@ sealed class Suite
     }
 
     public Fixture? FixtureOf(TaskDef c) => c.Fixture is null ? null : Fixtures[c.Fixture];
+
+    /// <summary>The task's answer sheet on the host, or null when it has none.</summary>
+    public string? OracleOf(TaskDef c) => c.Oracle is null ? null : Path.GetFullPath(Path.Combine(Dir, c.Oracle));
+
+    /// <summary>How many answers a run of an oracle task may get.</summary>
+    public int OracleTurns => Def.Oracle?.Turns ?? OracleDef.DefaultTurns;
 
     /// <summary>The checks that apply to a task, the union of three levels: the suite's, its fixture's, then its own. A task's scripts resolve against the suite directory, as the suite's do.</summary>
     public Dictionary<string, CheckDef> ChecksFor(TaskDef c)
@@ -309,6 +329,9 @@ sealed class Suite
             foreach (Match m in Regex.Matches(template, @"\{\{\s*([^}]*?)\s*\}\}"))
                 if (!Placeholders.Contains(m.Groups[1].Value))
                     problems.Add(new Problem(rel(templateFile), m.Value, $"unknown placeholder; known: {string.Join(", ", Placeholders.Select(p => "{{" + p + "}}"))}"));
+            if (tasks.Any(c => c.Oracle is not null))
+                foreach (var problem in OracleTemplateProblems(template, def.Arms?.Any(a => a is { IsAgent: true, IsVendor: false }) == true))
+                    problems.Add(new Problem(rel(templateFile), "", problem));
         }
 
         if (problems.Count > before) return null;
@@ -324,6 +347,44 @@ sealed class Suite
             Hash = HashDefinition(root, dir, def, tasks, fixtures.Values),
         };
     }
+
+    /// <summary>
+    /// What an oracle task needs of the program template. The suite's oracle block owns the oracle's directives, which
+    /// proctor prepends, so the template may not state its own. On an nb arm through Harbor the prompt is sent by the
+    /// simulated user rather than run by the program, so the template's one run must be the last directive and run the
+    /// task's prompt as it is, or the bridge would run something other than what the bare path does.
+    /// </summary>
+    static List<string> OracleTemplateProblems(string template, bool bridged)
+    {
+        var problems = new List<string>();
+        var directives = Directives(template);
+        if (directives.Any(d => Verb(d) == "oracle"))
+            problems.Add("an oracle directive with a task naming an answer sheet: the suite's oracle block sets the oracle; remove the directive");
+        if (directives.Any(d => Regex.IsMatch(d, @"^budget\s+oracle_turns\b")))
+            problems.Add("budget oracle_turns with a task naming an answer sheet: set oracle.turns in suite.json instead");
+        if (bridged && (directives.Count(d => Verb(d) == "run") != 1 || directives.LastOrDefault() != "run {{prompt}}"))
+            problems.Add("an oracle task on an nb agent arm needs the template to end in its one run, exactly `run {{prompt}}`: the simulated user sends the prompt over the bridge");
+        return problems;
+    }
+
+    /// <summary>The template's directives: comments and blank lines dropped, backslash continuations joined.</summary>
+    static List<string> Directives(string template)
+    {
+        var directives = new List<string>();
+        var pending = "";
+        foreach (var raw in template.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.TrimEnd();
+            if (pending.Length == 0 && (line.Trim().Length == 0 || line.TrimStart().StartsWith('#'))) continue;
+            if (line.EndsWith('\\')) { pending += line[..^1] + " "; continue; }
+            directives.Add((pending + line).Trim());
+            pending = "";
+        }
+        if (pending.Length > 0) directives.Add(pending.Trim());
+        return directives;
+    }
+
+    static string Verb(string directive) => directive.Split(' ', 2)[0];
 
     static string TaskFile(string dir, TaskDef c) => Path.Combine(Layout.TasksDirIn(dir), c.Id + ".json");
 
@@ -352,6 +413,8 @@ sealed class Suite
             if (c.Fixture is not null && !Regex.IsMatch(c.Fixture, "^[a-z0-9][a-z0-9-]*$"))
                 problems.Add(new Problem(rel(file), "fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens"));
             Labels.Validate(c.Labels, (field, message) => problems.Add(new Problem(rel(file), field, message)));
+            if (c.Oracle is not null && OracleSheetProblem(dir, c.Oracle) is { } sheetProblem)
+                problems.Add(new Problem(rel(file), "oracle", sheetProblem));
             foreach (var (name, spec) in c.Checks ?? [])
             {
                 var f = $"checks.{name}";
@@ -363,6 +426,19 @@ sealed class Suite
         if (tasks.Count == 0)
             problems.Add(new Problem(rel(tasksDir), "", "no tasks; a suite needs at least one *.json task"));
         return tasks;
+    }
+
+    /// <summary>A sheet inside the suite directory with at least one headed entry, which is what nb's answer sheet selects.</summary>
+    static string? OracleSheetProblem(string dir, string oracle)
+    {
+        var full = Path.GetFullPath(Path.Combine(dir, oracle));
+        var suiteDir = Path.GetFullPath(dir) + Path.DirectorySeparatorChar;
+        if (string.IsNullOrWhiteSpace(oracle) || Path.IsPathRooted(oracle) || !full.StartsWith(suiteDir, StringComparison.Ordinal))
+            return "an answer sheet is a path inside the suite directory, relative to it, so it never reaches a fixture or the agent's container";
+        if (!File.Exists(full)) return $"answer sheet not found: {oracle}";
+        if (!File.ReadLines(full).Any(l => l.StartsWith('#')))
+            return "the answer sheet has no headed entries (# id, then the answer), so the oracle could select nothing";
+        return null;
     }
 
     private static void ValidateDef(SuiteDef def, string root, string dir, string file, string suiteId, List<TaskDef> tasks, Dictionary<string, Fixture> fixtures, List<Problem> problems)
@@ -417,6 +493,7 @@ sealed class Suite
         }
 
         ValidateHarbor(def, Add, dir, tasks, fixtures, root, problems);
+        ValidateOracle(def, Add, tasks);
 
         if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use arm or sample");
         if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use arm or sample");
@@ -552,11 +629,32 @@ sealed class Suite
         }
     }
 
+    /// <summary>
+    /// The oracle block needs a task to serve, and an oracle task needs arms that can take one: nb, bare or through
+    /// Harbor. A vendor agent can be a bridge target, but bridged it leaves no ATIF (Harbor converts the user agent's
+    /// log, not the target's), and Qwen Code cannot be a target at all (plans/oracle-in-proctor.md, question 4).
+    /// </summary>
+    static void ValidateOracle(SuiteDef def, Action<string, string> add, List<TaskDef> tasks)
+    {
+        var oracleTasks = tasks.Where(c => c.Oracle is not null).Select(c => c.Id).ToList();
+        if (def.Oracle is { } oracle)
+        {
+            if (oracleTasks.Count == 0) add("oracle", "no task names an answer sheet (a task's oracle), so there is nothing for the oracle to serve");
+            if (oracle.Turns is < 1) add("oracle.turns", "must be at least 1");
+            if (oracle.Judge is not null && string.IsNullOrWhiteSpace(oracle.Judge)) add("oracle.judge", "an nb config entry name, or absent for the arm's own provider");
+        }
+        if (oracleTasks.Count == 0) return;
+        foreach (var (arm, i) in (def.Arms ?? []).Select((a, i) => (a, i)))
+            if (arm?.IsVendor == true)
+                add($"arms[{i}].agent", $"not yet: task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb arms only. Through Harbor's simulated user, {arm.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
+    }
+
     /// <summary>Every definition file: the suite's own, plus each named fixture's fixture.json and check scripts. Not the fixture's source tree; that is the fixture hash, recorded per cell.</summary>
     private static string HashDefinition(string root, string dir, SuiteDef def, List<TaskDef> tasks, IEnumerable<Fixture> fixtures)
     {
         var files = new List<string> { Layout.SuiteFileIn(dir), Path.Combine(dir, Layout.ProgramTemplateFile) };
         files.AddRange(Directory.GetFiles(Layout.TasksDirIn(dir), "*.json"));
+        files.AddRange(tasks.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));
         foreach (var spec in def.Grading!.Checks!.Values.Concat(tasks.SelectMany(c => (c.Checks ?? []).Values)))
             if (spec["script"] is JsonValue v && v.TryGetValue<string>(out var script)) files.Add(Path.Combine(dir, script));
         foreach (var pair in new[] { def.Hooks?.Arm, def.Hooks?.Sample })

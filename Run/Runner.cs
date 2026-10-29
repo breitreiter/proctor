@@ -79,6 +79,10 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     /// <summary>Create a new experiment directory from a suite and run it.</summary>
     public static string Start(string root, Suite suite, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
+        // Validation accepts an answer sheet so suites can be written against it; running one lands with the oracle's
+        // bare and Harbor paths (plans/oracle-in-proctor.md, work items 2-4). Until then, refuse rather than run without it.
+        if (suite.Tasks.FirstOrDefault(c => c.Oracle is not null) is { } oracleTask)
+            throw new ProctorException($"not yet: task {oracleTask.Id} names an answer sheet, and this version cannot run the oracle (plans/oracle-in-proctor.md)");
         var nb = ResolveNb(root, suite, config, nbOverride, runnerOverride);
         foreach (var arm in suite.Arms.Where(a => a.IsAgent)) Route(root, config, nb, arm);   // a missing endpoint fails before anything is made
         var id = Layout.NewExperimentId(suite.Id, DateTime.UtcNow);

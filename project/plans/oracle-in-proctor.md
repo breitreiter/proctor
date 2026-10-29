@@ -65,16 +65,18 @@ Facts this plan rests on, each checked against Harbor 0.24 source or by running 
 
 ### Suite
 
-- `oracle` on a task: a path relative to the task file, to an answer sheet. A missing
-  file, or a sheet with no headed entry, is a validation problem.
-- `limits.oracle_turns`: how many answers a run may get. It defaults to nb's 8 and
-  applies on both paths.
-- `oracle_judge` on the suite: the nb config entry that judges. Absent, the arm's own
-  `provider` judges, as nb's in-process oracle does.
+- `oracle` on a task: a path relative to the suite directory and inside it, to an
+  answer sheet. A missing file, or a sheet with no headed entry, is a validation problem.
+- `oracle` on the suite, `{judge, turns}`:
+  - `turns` is how many answers a run may get. It defaults to nb's 8 and applies on
+    both paths.
+  - `judge` is the nb config entry that judges. Absent, the arm's own `provider`
+    judges, as nb's in-process oracle does.
 - Validation refuses:
   - a task with an `oracle` on a vendor arm (question 4);
-  - an `oracle` task whose program template doesn't end in exactly one `run`
-    (needed by the bridge below);
+  - an `oracle` task whose program template doesn't end in exactly one `run`,
+    `run {{prompt}}`, when an arm is nb through Harbor (needed by the bridge below);
+  - a template that states `oracle` or `budget oracle_turns` itself;
   - the three oracle checks on a suite with no oracle task. Today's "not yet" becomes
     this, so a check that can't fire is still an error.
 
@@ -185,8 +187,12 @@ Decision 9 as a test, beside `GateTests` and on the same terms: Mock, an engine,
 
 Each is a commit with its tests, and `main` stays green after each.
 
-1. Suite schema and validation: `oracle`, `limits.oracle_turns`, `oracle_judge`, the
-   refusals, and the checks' new error. No run changes.
+1. Suite schema and validation. **Done 2026-10-29.** As built, the settings are one
+   `oracle` block (`{judge, turns}`), not `limits.oracle_turns` and `oracle_judge`:
+   `limits` is refused on a suite without agent arms, and the oracle serves bare
+   arms too. A task's sheet is relative to the suite directory, as a check's script
+   is. Running an oracle suite is refused as "not yet" in `Runner.Start` until item 4.
+   The oracle checks stay in `NotYet` until item 2.
 2. Bare path: the prepended directives and the three checks. This is end to end on
    the bare runner, Mock, with a `RunnerTests` case per ending.
 3. `oracle_user.py`, the run-less program, and the job's `user_agent`. These are unit

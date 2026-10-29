@@ -7,6 +7,15 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- A task can name an answer sheet (`"oracle": "oracle/<task>.md"`, inside
+  the suite directory), and `suite.json` takes an `oracle` block (`judge`,
+  an nb config entry; `turns`, default 8). Validation only, for now
+  (`project/plans/oracle-in-proctor.md`, work item 1). A vendor arm on a
+  suite with an oracle task is refused. A template may not state the oracle
+  itself, and with an nb agent arm it must end in exactly `run {{prompt}}`.
+  `run` refuses an oracle suite as "not yet" until the oracle's run paths
+  land.
+
 - `NbAgent` is an ACP bridge target (nb's `plans/atif-and-acp.md` stage 5):
   it implements Harbor's `ACPAgentMixin`, declares `bridges={acp}`, and
   launches `nb --acp` with `--trajectory` in its logs dir, so nb rewrites

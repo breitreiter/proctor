@@ -433,7 +433,9 @@ The directories are for reading, not for namespaces: everything is
   match; a changed suite is a new experiment.
 - **Validation says "not yet" rather than silently skipping**: `command` arms,
   run- and task-level hooks, the oracle checks, `answer_json_schema`,
-  `max_cost`.
+  `max_cost`. A task's `oracle` validates but `Runner.Start` refuses to run
+  it until `project/plans/oracle-in-proctor.md` items 2-4 land; a vendor arm
+  beside an oracle task is refused for good (Harbor leaves it no ATIF).
 - **Snapshot tests** fail on any rendering change and leave a `.received` file
   (gitignored) beside the approved one. Review it, then approve with
   `PROCTOR_APPROVE=1`. Render to check: `google-chrome --headless=new
