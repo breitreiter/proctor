@@ -413,6 +413,9 @@ Harbor path. `nb.runner` and `nb.mounts` go (Retires).
 
 ### 7. Oracle (`Harbor/oracle_user.py` + `nb --judge`)
 
+Planned in `oracle-in-proctor.md` (2026-10-29), which settles the sheet, the judge, the
+ATIF shape and the refusal of vendor targets.
+
 Decision 9. Gate: on the Mock provider, the oracle as a simulated user over
 an nb arm and nb's own in-process oracle loop produce the same counted core
 and user turns apart from bookkeeping. That needs nb as an ACP target. Until

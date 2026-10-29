@@ -119,3 +119,28 @@ Worked around in the machine's `proctor.json` by spelling Codex's route
 `library.lan`. Options: validation warns on a dotless agent host, or compile
 pins the host's address in the task (an `extra_hosts`-style entry, if Harbor
 allows one) so the spelling does not matter.
+
+## An oracle for vendor arms, the hokey way, if the refusal starts costing us
+
+A task with an `oracle` is refused on Claude Code, Codex and Qwen Code arms
+(`plans/oracle-in-proctor.md`, question 4): bridged through Harbor's simulated user, cc
+and Codex leave no ATIF, and Qwen Code can't be a target at all. Revisit only if a
+real use case is being disqualified by it, i.e. a suite we want to run on a vendor
+agent needs the scripted user.
+
+The cheap route skips the bridge entirely. Run the vendor agent direct, as today, and
+give it a way to ask:
+- **The channel:** inject an MCP server (`proctor_chat`, say) whose one tool takes a
+  question and answers it with `nb --judge` against the task's sheet. The server runs
+  on the host side of the wall, so the sheet stays out of the container.
+- **The prompt:** append a line telling the agent it exists, e.g. "I'm not at my desk
+  right now. Use the proctor_chat tool if you need to ask me a question; I'll respond
+  immediately."
+
+Costs to weigh first:
+- **The prompt under test changes.** That's the thing nb's oracle refuses to do (no ask
+  tool, no system-prompt steer). The results compare only to other arms run the same
+  way, never to an nb arm on the in-process oracle.
+- **A tool call is not a halt.** A model that would have stopped and asked in prose may
+  call the tool instead, or may not. Ingest would count `proctor_chat` calls as oracle
+  turns, and the method section has to say this arm's oracle is a tool.
