@@ -1,0 +1,3 @@
+{"jsonrpc":"2.0","id":3,"method":"session/prompt","params":{"sessionId":"nb-session","prompt":[{"type":"text","text":"MOCK:response=Which deploy target? MOCK:oracle=deploy-target"}]}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"nb-session","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Which deploy target? MOCK:oracle=deploy-target"}}}}
+{"jsonrpc":"2.0","id":3,"result":{"stopReason":"end_turn","usage":{"inputTokens":10,"outputTokens":5,"totalTokens":15},"_meta":{"nb":{"exit_reason":"ok"}}}}

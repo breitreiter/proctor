@@ -7,6 +7,17 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- The oracle's simulated user for nb agent arms is built, not yet run
+  (`project/plans/oracle-in-proctor.md`, work item 3).
+  `Harbor/oracle_user.py` (`OracleUser`) is compiled beside the agents with
+  its prompt template when an agent arm meets an oracle task. It sends the
+  task over the ACP bridge with `acpx --format json`, judges each finished
+  `ok` turn with the host's `nb --judge`, and records the ending, the
+  answers and the judgements in `oracle-user.json`. An oracle cell's job
+  names it as the `user_agent`, its compiled program drops the final `run`,
+  and its diff leaves out the bridge's `.acpxrc.json`. `run` still refuses
+  the combination until ingest reads that record (item 4).
+
 - The oracle runs on bare nb arms (`project/plans/oracle-in-proctor.md`,
   work item 2): a cell of an oracle task gets `oracle @<sheet>`, `oracle
   provider <judge>` and `budget oracle_turns <n>` ahead of its template, and

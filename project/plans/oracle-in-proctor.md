@@ -19,7 +19,7 @@ Facts this plan rests on, each checked against Harbor 0.24 source or by running 
   `AgentConfig`: it takes `import_path` and `kwargs`, plus `bridge {kind: acp}` and
   `user_prompt_template_path`. It runs in the Harbor process on the host, so it
   can read host files and run the host's nb. Its logs land in the trial's
-  `agent/user-agent/`.
+  `user-agent/`, beside `agent/` (the stage-5 run's trial has it there).
 - **The user agent's turns are `acpx prompt` calls in the container.** With
   `--format json`, `acpx` prints the whole JSON-RPC exchange, including the
   prompt's answer, for example
@@ -32,7 +32,7 @@ Facts this plan rests on, each checked against Harbor 0.24 source or by running 
   the raw ACP export. nb is unaffected: it writes its own trajectory on every
   prompt.
 - **nb already marks oracle turns in ATIF.** On the bare path `AtifWriter` writes an
-  oracle turn as a `user` step with `extra.source: "oracle"`, plus its `keys` and `verdict`.
+  oracle turn as a `user` step with `extra.source: "oracle"` and its `keys` (no `verdict`).
   `Transcript` reads `extra.source` into `UserTurn.Source`.
 
 ## The four questions
@@ -48,7 +48,7 @@ Facts this plan rests on, each checked against Harbor 0.24 source or by running 
 
    The judging entry is an nb config entry, named the same way on both paths.
 3. **What does a turn look like in ATIF?** The same as on the bare path. Ingest
-   writes `extra: {source: "oracle", keys, verdict}` on the bridged trajectory's
+   writes `extra: {source: "oracle", keys}` on the bridged trajectory's
    answer steps, from the user agent's log. `Transcript` and the checks then read
    one shape from both paths.
 4. **What about agents that can't be a target?** They're refused at validation,
@@ -110,8 +110,7 @@ The prompt can't reach nb as the program's `run`, because the user agent sends i
   `nb_agent.py`. Its loop follows nb's `ResolveWithOracleAsync`, so the two paths
   agree by construction:
   1. Send the task with `acpx --format json prompt`. Read the prompt's answer and its
-     last message: the `agent_message_chunk` text after the prompt's last tool
-     update.
+     last message: its last non-empty `agent_message_chunk` (see item 3's note).
   2. The judge runs only after `ok`. If the answer isn't `end_turn` with
      `_meta.nb.exit_reason == "ok"`, or it's an error, stop. The run's own ending
      stands.
@@ -123,7 +122,7 @@ The prompt can't reach nb as the program's `run`, because the user agent sends i
      - **hit** otherwise sends `answer` as the next prompt, then goes back to step 2.
   4. A judge exit other than 0 ends the run as `judge_error`.
 
-  It writes `agent/user-agent/oracle-user.json` with its turns (`keys`, `verdict`,
+  It writes `user-agent/oracle-user.json` with its turns (`keys`, `verdict`,
   `answer`, the judge's `usage`), the ending, and every verdict. It makes no model call
   of its own.
 
@@ -132,10 +131,13 @@ The prompt can't reach nb as the program's `run`, because the user agent sends i
 For a cell with `oracle-user.json`:
 
 - **The trajectory's user steps.** After the first one, they must be the answers in
-  order, compared by text. Each gets `extra {source: "oracle", keys, verdict}`. A
+  order, compared by text with trailing whitespace trimmed (acpx trims a prompt's).
+  Each gets `extra {source: "oracle", keys}`. A
   count or text mismatch fails the cell as `adapter_unmapped`, by the strict rule.
 - **The exit reason.** The log's ending replaces the trajectory's reason when the
-  ending is `oracle_miss` or `oracle_budget`. On the bare path nb sets these reasons
+  ending is `oracle_miss` or `oracle_budget`. An `agent` ending (the turn didn't
+  end `ok`, so it wasn't judged), `ok`, or none at all (the trial was killed
+  mid-loop) leaves the trajectory's. On the bare path nb sets these reasons
   itself.
 - **A `judge_error` ending** fails the cell as infrastructure. A run whose judge broke
   doesn't measure the agent.
@@ -201,6 +203,28 @@ Each is a commit with its tests, and `main` stays green after each.
    writes those two.
 3. `oracle_user.py`, the run-less program, and the job's `user_agent`. These are unit
    tests on the compile and on the Python loop's parsing (canned `acpx` output).
+   **Done 2026-10-29** (`OracleHarborTests`, which runs `Proctor.Tests/python`'s
+   unittest suite: stub `harbor` modules, `acpx` 0.11.2's output captured from
+   `nb --acp` on Mock, and the loop judged by the real `nb --judge` on Mock). What the
+   build settled:
+   - **The judged message** is the prompt's last non-empty `agent_message_chunk`. nb
+     sends each assistant message whole as one chunk, so this is nb's
+     `LastAssistantText` for the turn. No "after the last tool update" rule is needed.
+   - **The prompt goes on stdin** (`printf '%s' … | acpx --format json prompt --file -`),
+     so a leading dash or newlines survive. acpx trims trailing whitespace, hence the
+     trimmed comparison at ingest. acpx's reconnect banner is on stderr; stdout is pure
+     JSON-RPC.
+   - **Harbor requires `{{ bridge_instructions }}`** in a user prompt template, so the
+     sentinel stays: `oracle_user.j2` is compiled beside the agents.
+   - **The bridge writes `.acpxrc.json` into `/app`.** Harbor's exec has no default cwd,
+     so it runs in the image's WORKDIR, the checkout. An oracle task's diff collect
+     excludes it. The agent can still see it in the checkout, a known difference.
+   - **The judge defaults to the arm's provider**, passed explicitly: `nb --judge` alone
+     would judge with the config's `ActiveProvider`.
+   - **`oracle-user.json`** is `{ending, answers: [{text, keys}], judgements: [nb --judge's
+     JSON], prompts: [{stop_reason, exit_reason, error}], error?}`. `ending` is one of `ok`,
+     `oracle_miss`, `oracle_budget`, `judge_error`, `agent`, or null if the trial was
+     killed mid-loop.
 4. Ingest: marking, endings, and the judge's usage in the manifest. These are
    `HarborTests` on a recorded trial.
 5. The gate, then the plan, docs and CHANGELOG.
@@ -210,7 +234,7 @@ Each is a commit with its tests, and `main` stays green after each.
 Nothing here changes nb. Proctor depends on things nb already has:
 - `nb --judge`'s JSON and exit codes;
 - `--acp`'s `_meta.nb.exit_reason`;
-- the oracle's ATIF shape (`extra.source`/`keys`/`verdict`);
+- the oracle's ATIF shape (`extra.source`/`keys`);
 - `MOCK:oracle=`.
 
 `../nb/nb.Tests/ProctorContractTests.cs` should gain those as tripwires, so a change

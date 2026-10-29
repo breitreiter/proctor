@@ -1,0 +1,10 @@
+{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{"fs":{"readTextFile":true,"writeTextFile":true},"terminal":true},"clientInfo":{"name":"acpx","version":"0.11.2"}}}
+{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":1,"agentCapabilities":{"loadSession":false,"promptCapabilities":{"image":true,"audio":false,"embeddedContext":true}},"authMethods":[],"agentInfo":{"name":"nb","version":"0.9.0"}}}
+{"jsonrpc":"2.0","id":1,"method":"session/new","params":{"cwd":"/app","mcpServers":[]}}
+{"jsonrpc":"2.0","id":1,"result":{"sessionId":"nb-session"}}
+{"jsonrpc":"2.0","id":2,"method":"session/prompt","params":{"sessionId":"nb-session","prompt":[{"type":"text","text":"MOCK:tool=bash echo hi"}]}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"nb-session","update":{"sessionUpdate":"tool_call","toolCallId":"mock-call-1","title":"bash","kind":"execute","status":"pending","rawInput":{"command":"echo hi","description":"scripted by MockProvider"}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"nb-session","update":{"sessionUpdate":"tool_call_update","toolCallId":"mock-call-1","status":"in_progress"}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"nb-session","update":{"sessionUpdate":"tool_call_update","toolCallId":"mock-call-1","status":"completed","content":[{"type":"content","content":{"type":"text","text":"hi\n\n[exit code: 0]"}}]}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"nb-session","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"OK"}}}}
+{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn","usage":{"inputTokens":20,"outputTokens":10,"totalTokens":30},"_meta":{"nb":{"exit_reason":"ok"}}}}

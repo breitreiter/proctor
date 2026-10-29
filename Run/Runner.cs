@@ -307,6 +307,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };
         var nb = program is null ? null : new NbCell(Path.Combine(cellDir, Layout.CompiledProgramFile), experiment.Nb.Config);
+        var oracle = OracleCellOf(arm, c);
         manifest.Agent = new AgentRun(arm.Agent!, null, arm.Model ?? "", HarborCompile.AgentKwargs(arm, route, nb), HarborCompile.AgentEnv(arm, route), experiment.Harbor!.Version, null);
         manifest.Attempts++;
         manifest.Started = Now();
@@ -320,10 +321,12 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         if (program is not null)
         {
             File.WriteAllText(Path.Combine(cellDir, Layout.ProgramFile), program);
-            if (Compile(cellDir, program).Error is { } compileError) failure = $"program compile failed: {compileError}";
+            var (compiled, compileError) = Compile(cellDir, program);
+            if (compileError is not null) failure = $"program compile failed: {compileError}";
+            else if (oracle is not null) File.WriteAllText(nb!.Program, HarborCompile.WithoutRun(compiled!));
         }
         if (failure is null)
-            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, experiment.Harbor.Engine, cellDir, arm, taskDir, route, suite.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb);
+            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, experiment.Harbor.Engine, cellDir, arm, taskDir, route, suite.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb, oracle);
         if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, arm, manifest, arm.IsVendor ? arm.AgentVersion! : experiment.Versions["nb"]);
         stopwatch.Stop();
 
@@ -335,6 +338,15 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         var exitReason = failure is null ? ReadJson<CountedCore>(Path.Combine(cellDir, Layout.CoreFile))?.ExitReason : null;
         log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
+
+    /// <summary>
+    /// An oracle task's simulated user on this arm: the host nb judges, with its config, as the arm's own provider unless
+    /// the suite names a judge, which is what nb's in-process oracle does on the bare path.
+    /// </summary>
+    OracleCell? OracleCellOf(Arm arm, TaskDef c) => suite.OracleOf(c) is { } sheet
+        ? new OracleCell(sheet, experiment.Nb.Path, experiment.Nb.Config, suite.Def.Oracle?.Judge ?? arm.Provider, suite.OracleTurns,
+            Path.Combine(HarborCompile.AgentsDir(experimentDir), HarborCompile.OracleTemplateFile))
+        : null;
 
     /// <summary>
     /// Where an agent arm's model calls go, ${VAR} resolved now: the key never reaches a file. A vendor agent's is

@@ -85,18 +85,18 @@ static class HarborRun
     }
 
     /// <summary>Run the trial. Returns the trial directory, or why there is none (infrastructure: the cell fails).</summary>
-    public static (string? TrialDir, string? Failure) Trial(string uv, string version, string engine, string cellDir, Arm arm, string taskDir, AgentRoute route, long wallMs, string agentsDir, NbCell? nb = null)
+    public static (string? TrialDir, string? Failure) Trial(string uv, string version, string engine, string cellDir, Arm arm, string taskDir, AgentRoute route, long wallMs, string agentsDir, NbCell? nb = null, OracleCell? oracle = null)
     {
         var harborDir = Path.Combine(cellDir, Layout.HarborDir);
         if (Directory.Exists(harborDir)) Directory.Delete(harborDir, recursive: true);   // a resumed cell starts clean
         Directory.CreateDirectory(harborDir);
         var jobsDir = Path.Combine(harborDir, "jobs");
-        Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), HarborCompile.Job(arm, taskDir, jobsDir, route, nb, engine));
+        Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), HarborCompile.Job(arm, taskDir, jobsDir, route, nb, engine, oracle));
 
         var env = new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" };
         if (route is { KeyEnv: { } name, ApiKey: { } key }) env[name] = key;
-        // nb's and Qwen Code's agents are proctor's own, imported from the experiment's harbor/agents/.
-        if (HarborCompile.IsOwnAgent(arm)) env["PYTHONPATH"] = agentsDir;
+        // nb's and Qwen Code's agents, and the oracle's simulated user, are proctor's own, imported from the experiment's harbor/agents/.
+        if (HarborCompile.IsOwnAgent(arm) || oracle is not null) env["PYTHONPATH"] = agentsDir;
         var timeout = TimeSpan.FromMilliseconds(wallMs) + Overhead;
         var result = Subprocess.Run(uv, UvArgs(version), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);

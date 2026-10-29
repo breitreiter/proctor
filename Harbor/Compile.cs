@@ -23,6 +23,12 @@ record AgentRoute(string? BaseUrl, string? ApiKey, string? KeyEnv = null, Dictio
 /// <summary>An nb cell's own inputs to its job: the program compiled on the host for this cell and nb's config (host paths the agent uploads).</summary>
 record NbCell(string Program, string? Config);
 
+/// <summary>
+/// An oracle cell's simulated user, all host paths: the task's answer sheet, the host nb that judges and its config, the
+/// config entry that judges, how many answers the run may get, and the compiled user prompt template.
+/// </summary>
+record OracleCell(string Sheet, string Nb, string? Config, string? Judge, int Turns, string Template);
+
 static class HarborCompile
 {
     /// <summary>Where the checkout is in the image, for the agent and the verifier alike.</summary>
@@ -40,6 +46,16 @@ static class HarborCompile
         [Arm.QwenCode] = ("qwen_code_agent:QwenCodeAgent", "qwen_code_agent.py"),
     };
 
+    /// <summary>The oracle's simulated user (Harbor/oracle_user.py), compiled beside the agents for an experiment with an oracle task and an agent arm.</summary>
+    const string OracleUserImport = "oracle_user:OracleUser", OracleUserFile = "oracle_user.py";
+
+    /// <summary>
+    /// The oracle's user prompt template. Harbor requires both variables; the sentinel line lets OracleUser take the task
+    /// back out, since the bridge's instructions are for a model playing the user, and this user is a script.
+    /// </summary>
+    public const string OracleTemplateFile = "oracle_user.j2";
+    const string OracleTemplate = "{{ instruction }}\n<<<PROCTOR-BRIDGE>>>\n{{ bridge_instructions }}\n";
+
     /// <summary>Whether Harbor imports this arm's agent from the experiment rather than naming one of its own.</summary>
     public static bool IsOwnAgent(Arm arm) => OwnAgents.ContainsKey(arm.Agent!);
 
@@ -52,17 +68,23 @@ static class HarborCompile
         foreach (var arm in suite.Arms.Where(a => a.IsAgent))
             foreach (var c in suite.Tasks)
                 Task(Layout.HarborTask(experimentDir, arm.Id!, c.Id!), suite, arm, c, experimentId, route(arm), nbImage);
-        foreach (var agent in suite.Arms.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => a.Agent!).Distinct())
+        var files = suite.Arms.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
+        var oracle = HasOracle(suite);
+        if (oracle) files.Add(OracleUserFile);
+        var agents = AgentsDir(experimentDir);
+        foreach (var file in files)
         {
-            var agents = AgentsDir(experimentDir);
             Directory.CreateDirectory(agents);
-            var file = OwnAgents[agent].File;
             using var source = typeof(HarborCompile).Assembly.GetManifestResourceStream(file)!;
             using var dest = File.Create(Path.Combine(agents, file));
             source.CopyTo(dest);
         }
+        if (oracle) File.WriteAllText(Path.Combine(agents, OracleTemplateFile), OracleTemplate);
         return TreeHash(experimentDir);
     }
+
+    /// <summary>Whether a suite's agent arms run with the oracle's simulated user: an agent arm beside a task with an answer sheet (validation keeps vendor arms out).</summary>
+    public static bool HasOracle(Suite suite) => suite.Arms.Any(a => a.IsAgent) && suite.Tasks.Any(c => c.Oracle is not null);
 
     /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
     public static string AgentsDir(string experimentDir) => Path.Combine(experimentDir, Layout.HarborDir, "agents");
@@ -82,7 +104,7 @@ static class HarborCompile
         var fixture = suite.FixtureOf(c)!;
         Directory.CreateDirectory(Path.Combine(dir, "environment"));
         File.WriteAllText(Path.Combine(dir, "instruction.md"), c.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
-        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(suite, c, route));
+        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(suite, c, route, bridged: c.Oracle is not null));
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
         File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, arm, nbImage));
         if (fixture.Def.Image!.Services is { } services) CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
@@ -103,7 +125,7 @@ static class HarborCompile
     /// The key is not here: it goes in the environment of the one Harbor process. proctor's own agents (nb, Qwen
     /// Code) are named by import path; nb's kwargs carry the cell's host-compiled program and nb's config.
     /// </summary>
-    public static JsonObject Job(Arm arm, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null, string engine = "docker")
+    public static JsonObject Job(Arm arm, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null, string engine = "docker", OracleCell? oracle = null)
     {
         var agent = new JsonObject();
         if (OwnAgents.TryGetValue(arm.Agent!, out var own)) agent["import_path"] = own.Import;
@@ -111,7 +133,7 @@ static class HarborCompile
         agent["model_name"] = arm.Model;
         agent["kwargs"] = JsonSerializer.SerializeToNode(AgentKwargs(arm, route, nb));
         agent["env"] = JsonSerializer.SerializeToNode(AgentEnv(arm, route));
-        return new()
+        var job = new JsonObject
         {
             ["job_name"] = "job",
             ["jobs_dir"] = jobsDir,
@@ -123,6 +145,39 @@ static class HarborCompile
             ["agents"] = new JsonArray(agent),
             ["tasks"] = new JsonArray(new JsonObject { ["path"] = taskDir }),
         };
+        if (oracle is not null) job["user_agent"] = UserAgent(oracle);
+        return job;
+    }
+
+    /// <summary>
+    /// An oracle cell's simulated user: OracleUser on the host, bridged to the agent over ACP, with the sheet, the judge
+    /// and the budget as kwargs. Harbor hands it the task through the compiled template.
+    /// </summary>
+    public static JsonObject UserAgent(OracleCell oracle)
+    {
+        var kwargs = new JsonObject { ["sheet"] = oracle.Sheet, ["nb"] = oracle.Nb, ["turns"] = oracle.Turns };
+        if (oracle.Config is not null) kwargs["config"] = oracle.Config;
+        if (oracle.Judge is not null) kwargs["judge"] = oracle.Judge;
+        return new JsonObject
+        {
+            ["import_path"] = OracleUserImport,
+            ["user_prompt_template_path"] = oracle.Template,
+            ["bridge"] = new JsonObject { ["kind"] = "acp" },
+            ["kwargs"] = kwargs,
+        };
+    }
+
+    /// <summary>
+    /// The compiled program without its run: over the bridge the simulated user sends the prompt, and nb --acp refuses a
+    /// program that holds one. Validation guarantees an oracle task's template has exactly one run, last.
+    /// </summary>
+    public static string WithoutRun(string jsonl)
+    {
+        var lines = jsonl.Split('\n').ToList();
+        var run = lines.FindLastIndex(l => l.Length > 0 && JsonNode.Parse(l)?["type"]?.GetValue<string>() == "run");
+        if (run < 0) throw new ProctorException("the compiled program has no run to hand to the simulated user");
+        lines.RemoveAt(run);
+        return string.Join('\n', lines);
     }
 
     /// <summary>
@@ -170,9 +225,10 @@ static class HarborCompile
     /// <summary>
     /// The agent's phase reaches only the model endpoint's host, exactly as the base URL spells it (Harbor's allowlist
     /// matches names exactly), or nothing when there is no endpoint; the image builds with network; the verifier has
-    /// none, so the image restores packages.
+    /// none, so the image restores packages. A bridged task's diff leaves out the bridge's acpx config, which Harbor
+    /// writes into the work directory (its exec's default cwd, the image's WORKDIR).
     /// </summary>
-    static string TaskToml(Suite suite, TaskDef c, AgentRoute route) => $"""
+    static string TaskToml(Suite suite, TaskDef c, AgentRoute route, bool bridged) => $"""
         version = "1.0"
 
         [task]
@@ -193,7 +249,7 @@ static class HarborCompile
         network_mode = "no-network"
 
         [[verifier.collect]]
-        command = {Toml($"cd {Workdir} && git add -A && git diff --cached --binary HEAD > {DiffInContainer}")}
+        command = {Toml($"cd {Workdir} && git add -A{(bridged ? " -- . ':(exclude).acpxrc.json'" : "")} && git diff --cached --binary HEAD > {DiffInContainer}")}
 
         """;
 

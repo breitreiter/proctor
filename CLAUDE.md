@@ -67,6 +67,7 @@ in the order the verbs run them. Every file is one concern:
 | `Run/Runner.cs` | experiment and cell manifests, the matrix loop, hooks, nb as a subprocess, an agent cell through Harbor, resume |
 | `Harbor/Compile.cs` | an agent arm's task as a Harbor task (`instruction.md`, `task.toml`, the image, the verifier) and a cell's job file |
 | `Harbor/nb_agent.py` | nb as a Harbor agent: uploads the cell's program and nb's config, runs nb on stdin; embedded, compiled into `runs/<id>/harbor/agents/` (Python, not compiled into proctor) |
+| `Harbor/oracle_user.py` | the oracle as Harbor's simulated user, on the host: sends the task over the ACP bridge (`acpx`), judges each finished turn with the host's `nb --judge`, answers from the sheet, writes `oracle-user.json`; embedded and compiled like `nb_agent.py` with its template (`oracle_user.j2`) when an agent arm meets an oracle task |
 | `Harbor/qwen_code_agent.py` | Harbor's Qwen Code agent with its per-trial network install replaced by a check that the image holds the pin; embedded and compiled like `nb_agent.py` |
 | `Run/Harbor.cs` | one cell's Harbor job: `uv tool run harbor@<pin>` with a seven-day `--exclude-newer` cooldown on everything it resolves, telemetry off, the key in its environment only; nb's layer image from its publish |
 | `Run/Ingest.cs` | a Harbor trial into a cell, and the counted core (`core.json`) from the ATIF trajectory |
@@ -87,7 +88,7 @@ in the order the verbs run them. Every file is one concern:
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
-| `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one run (`capture.sh` regenerates them); `snapshots/` are the approved renderings; `suites/` is test data `TestRepo.CopySuite` finds after `suites/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never a suite to run |
+| `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one run (`capture.sh` regenerates them); `snapshots/` are the approved renderings; `suites/` is test data `TestRepo.CopySuite` finds after `suites/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never a suite to run; `python/` is `oracle_user.py`'s unittest suite, on stub `harbor` modules and captured `acpx` output, which `OracleHarborTests` runs with `python3` |
 | `docs/` | user-facing guides beyond the README: `porting-to-agent-neutral.md`, how a suite moves to agent arms (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor |
 | `project/` | the brief, the plans, the research notes and the loose ends |
 
@@ -435,8 +436,8 @@ The directories are for reading, not for namespaces: everything is
   run- and task-level hooks, `answer_json_schema`, `max_cost`. A task's
   `oracle` runs on bare nb arms (nb's in-process oracle, its directives
   prepended by `Runner.OraclePrefix`); `Runner.Start` refuses an oracle suite
-  with an `agent` arm until `project/plans/oracle-in-proctor.md` items 3-4
-  land, and a vendor arm beside an oracle task is refused for good (Harbor
+  with an `agent` arm until `project/plans/oracle-in-proctor.md` item 4
+  (ingest of the simulated user's record) lands, and a vendor arm beside an oracle task is refused for good (Harbor
   leaves it no ATIF).
 - **Snapshot tests** fail on any rendering change and leave a `.received` file
   (gitignored) beside the approved one. Review it, then approve with
