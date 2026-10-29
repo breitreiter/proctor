@@ -141,7 +141,10 @@ number in the report.
    A tool-less nb arm keeps nb's in-process oracle on the bare path, where
    the sheet is on the host already and the model has no tool to read it.
    A tool-using nb arm with an oracle is refused until nb speaks ACP, the
-   bridge's only way to a target (nb plan, *Open questions*).
+   bridge's only way to a target (nb plan, *Open questions*). nb speaks it
+   since 2026-10-28 (`nb --acp`, `../nb/plans/atif-and-acp.md` stage 5), and
+   `NbAgent` is a bridge target; the refusal was never coded, and what is
+   left is step 7.
 
 10. **The report's method section records, per arm**, agent, agent version,
     model, Harbor version, which limits were enforced, and the permission
@@ -414,7 +417,8 @@ Decision 9. Gate: on the Mock provider, the oracle as a simulated user over
 an nb arm and nb's own in-process oracle loop produce the same counted core
 and user turns apart from bookkeeping. That needs nb as an ACP target. Until
 then, the gate is a cc arm on Haiku over one recorded oracle task, checked
-by hand, and the `oracle_*` checks are stubbed on Harbor arms only. Known cost: each answer is a new turn over ACP
+by hand, and the `oracle_*` checks are stubbed on Harbor arms only. nb is
+an ACP target since 2026-10-28, so the Mock gate can be built with step 7. Known cost: each answer is a new turn over ACP
 rather than nb's in-process continuation, which is close to what a real user
 answering in `-p` mode gets. It is recorded, not corrected.
 

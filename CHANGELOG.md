@@ -7,6 +7,14 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- `NbAgent` is an ACP bridge target (nb's `plans/atif-and-acp.md` stage 5):
+  it implements Harbor's `ACPAgentMixin`, declares `bridges={acp}`, and
+  launches `nb --acp` with `--trajectory` in its logs dir, so nb rewrites
+  `agent/trajectory.json` after every prompt and ingest reads it as on the
+  direct path. Run once through Harbor 0.24 with the spike's scripted user
+  on Mock (podman): two turns, one session. Nothing routes an arm through
+  the bridge yet; that is the oracle's step 7.
+
 - nb writes its own ATIF (`--trajectory`, nb's `plans/atif-and-acp.md` stage
   3), and `Run/NbAtif.cs` is gone. An nb cell in Harbor takes
   `agent/trajectory.json` as a vendor agent's, now with per-step model,

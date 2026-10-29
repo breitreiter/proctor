@@ -716,7 +716,7 @@ public class HarborTests
 
         // The agent is compiled beside the tasks, and a changed agent is a changed tree.
         var agent = Path.Combine(HarborCompile.AgentsDir(expDir), "nb_agent.py");
-        Assert.Contains("class NbAgent(BaseAgent)", File.ReadAllText(agent));
+        Assert.Contains("class NbAgent(BaseAgent, ACPAgentMixin)", File.ReadAllText(agent));
         Assert.Contains("+", hash);
         File.AppendAllText(agent, "# edited\n");
         Assert.NotEqual(hash, HarborCompile.TreeHash(expDir));
