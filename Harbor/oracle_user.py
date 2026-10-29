@@ -10,8 +10,10 @@ loop follows nb's (ProgramEvaluator.ResolveWithOracleAsync), so the two paths ag
    sends the sheet's answer as the next prompt, and the loop goes on.
 3. A judge that fails ends the run judge_error, which ingest fails as infrastructure.
 
-The record is oracle-user.json in the user agent's logs: the ending, each answer with its sheet keys, each judgement
-as nb printed it (its usage included), and each prompt's answer. Ingest reads it (project/plans/oracle-in-proctor.md).
+The record is oracle-user.json in the user agent's logs: the ending, each prompt as sent (the task, then each answer with
+its sheet keys) with how it ended, and each judgement as nb printed it, its usage included. A prompt goes in the record
+before it is sent, so one still in flight when the trial was killed shows, with no stop_reason. Ingest reads it
+(project/plans/oracle-in-proctor.md).
 """
 
 import asyncio
@@ -132,12 +134,13 @@ class OracleUser(BaseAgent):
         return json.loads(out.decode())
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
-        record = {"ending": None, "answers": [], "judgements": [], "prompts": []}
-        message, used = task_text(instruction), 0
+        record = {"ending": None, "prompts": [], "judgements": []}
+        sent, used = {"text": task_text(instruction)}, 0
         try:
             while True:
-                prompt = await self._prompt(environment, message)
-                record["prompts"].append({k: v for k, v in prompt.items() if k != "last"})
+                record["prompts"].append(sent)
+                prompt = await self._prompt(environment, sent["text"])
+                sent.update({k: v for k, v in prompt.items() if k != "last"})
                 if not judged(prompt):
                     record["ending"] = "agent"   # the run's own ending stands
                     break
@@ -152,8 +155,7 @@ class OracleUser(BaseAgent):
                     record["ending"] = step
                     break
                 used += 1
-                message = verdict["answer"]
-                record["answers"].append({"text": message, "keys": verdict["keys"]})
+                sent = {"text": verdict["answer"], "keys": verdict["keys"]}
         finally:
             (self.logs_dir / LOG).write_text(json.dumps(record, indent=1))
         context.metadata = {"oracle_ending": record["ending"], "oracle_turns": used}

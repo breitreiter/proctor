@@ -434,11 +434,11 @@ The directories are for reading, not for namespaces: everything is
   match; a changed suite is a new experiment.
 - **Validation says "not yet" rather than silently skipping**: `command` arms,
   run- and task-level hooks, `answer_json_schema`, `max_cost`. A task's
-  `oracle` runs on bare nb arms (nb's in-process oracle, its directives
-  prepended by `Runner.OraclePrefix`); `Runner.Start` refuses an oracle suite
-  with an `agent` arm until `project/plans/oracle-in-proctor.md` item 4
-  (ingest of the simulated user's record) lands, and a vendor arm beside an oracle task is refused for good (Harbor
-  leaves it no ATIF).
+  `oracle` runs on nb arms only: bare, as nb's in-process oracle (its
+  directives prepended by `Runner.OraclePrefix`); on Harbor, as
+  `Harbor/oracle_user.py`, the simulated user, whose record ingest lines up
+  with nb's trajectory (`Ingest.Oracle`). A vendor arm beside an oracle task
+  is refused: Harbor leaves it no ATIF.
 - **Snapshot tests** fail on any rendering change and leave a `.received` file
   (gitignored) beside the approved one. Review it, then approve with
   `PROCTOR_APPROVE=1`. Render to check: `google-chrome --headless=new

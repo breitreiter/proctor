@@ -130,10 +130,13 @@ The prompt can't reach nb as the program's `run`, because the user agent sends i
 
 For a cell with `oracle-user.json`:
 
-- **The trajectory's user steps.** After the first one, they must be the answers in
-  order, compared by text with trailing whitespace trimmed (acpx trims a prompt's).
-  Each gets `extra {source: "oracle", keys}`. A
-  count or text mismatch fails the cell as `adapter_unmapped`, by the strict rule.
+- **The trajectory's user steps.** Its last ones must be the prompts the simulated
+  user sent, the task and then the answers, in order, compared by text with trailing
+  whitespace trimmed (acpx trims a prompt's). Counted from the end, because the
+  program may hold fabricated user turns before the task. Each answer gets
+  `extra {source: "oracle", keys}`. A count or text mismatch fails the cell as
+  `adapter_unmapped`, by the strict rule. The one allowance: a trial killed with a
+  prompt in flight (no `stop_reason` in the record) may not have it in the trajectory.
 - **The exit reason.** The log's ending replaces the trajectory's reason when the
   ending is `oracle_miss` or `oracle_budget`. An `agent` ending (the turn didn't
   end `ok`, so it wasn't judged), `ok`, or none at all (the trial was killed
@@ -221,12 +224,25 @@ Each is a commit with its tests, and `main` stays green after each.
      excludes it. The agent can still see it in the checkout, a known difference.
    - **The judge defaults to the arm's provider**, passed explicitly: `nb --judge` alone
      would judge with the config's `ActiveProvider`.
-   - **`oracle-user.json`** is `{ending, answers: [{text, keys}], judgements: [nb --judge's
-     JSON], prompts: [{stop_reason, exit_reason, error}], error?}`. `ending` is one of `ok`,
-     `oracle_miss`, `oracle_budget`, `judge_error`, `agent`, or null if the trial was
-     killed mid-loop.
+   - **`oracle-user.json`** is `{ending, prompts: [{text, keys?, stop_reason, exit_reason,
+     error}], judgements: [nb --judge's JSON], error?}`. The first prompt is the task; each
+     later one is an answer, with its sheet `keys`. A prompt goes in before it is sent, so
+     one in flight shows with no `stop_reason`. `ending` is one of `ok`, `oracle_miss`,
+     `oracle_budget`, `judge_error`, `agent`, or null if the trial was killed mid-loop.
+     (Item 4 changed this from separate `answers` and `prompts` lists, so ingest can
+     match every prompt by its text.)
 4. Ingest: marking, endings, and the judge's usage in the manifest. These are
-   `HarborTests` on a recorded trial.
+   tests on a recorded trial. **Done 2026-10-29** (`Ingest.Oracle`, tested in
+   `OracleHarborTests` on `Proctor.Tests/fixtures/nb-bridged`: `oracle_user.py` driving
+   `nb --acp` on Mock through acpx 0.11.2 on the host, recorded by its `capture.sh`).
+   `Runner.Start` no longer refuses an nb agent arm beside an oracle task. What the
+   build settled:
+   - **Bridged nb has no JSONL, stderr or exit code** of its own; it is the ACP server
+     Harbor started. The trajectory is the run, and one missing outside a timeout fails
+     the cell ("nb answered no prompt over the bridge").
+   - **The manifest's `oracle`** is `{ending, answers, judge_input_tokens,
+     judge_output_tokens}`, the answers counted as sent. It is reset on each attempt.
+   - **The simulated user's logs** are copied into the cell's `user-agent/`.
 5. The gate, then the plan, docs and CHANGELOG.
 
 ## Interop with nb

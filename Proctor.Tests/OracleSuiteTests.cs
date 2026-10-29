@@ -132,17 +132,4 @@ public class OracleSuiteTests
         bridged.Write("gate/program.nb", "# a comment\nprovider {{provider}}\nsystem one \\\nrun two\n\nrun {{prompt}}\n# trailing\n");
         Assert.Empty(bridged.Problems("gate"));
     }
-
-    // Until the oracle's run paths land, a suite that names a sheet loads but does not run without its oracle.
-    [Fact]
-    public void Running_AnOracleSuite_IsNotYet()
-    {
-        using var repo = GateWithOracle();
-        var suite = repo.LoadSuite("gate");
-        var config = Suite.LoadConfig(repo.Root, new List<Problem>());
-
-        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null));
-        Assert.StartsWith("not yet: task plain names an answer sheet", e.Message);
-        Assert.False(Directory.Exists(Path.Combine(repo.Root, "runs")));
-    }
 }

@@ -103,13 +103,13 @@ class Loop(unittest.TestCase):
             acpx("Deploying to staging. MOCK:oracle=DONE"),
         ])
         self.assertEqual("ok", record["ending"])
-        self.assertEqual(1, len(record["answers"]))
-        answer = record["answers"][0]
+        task, answer = record["prompts"]
+        self.assertEqual({"text": "Deploy the service.", "stop_reason": "end_turn", "exit_reason": "ok", "error": None}, task)
         self.assertEqual(["deploy-target"], answer["keys"])
         self.assertIn("Staging only.", answer["text"])
+        self.assertEqual("end_turn", answer["stop_reason"])
         self.assertEqual(["hit", "done"], [j["verdict"] for j in record["judgements"]])
         self.assertIn("usage", record["judgements"][0])
-        self.assertEqual(2, len(record["prompts"]))
         # The task went first, then the answer, each on stdin.
         self.assertEqual(f"printf '%s' {shlex.quote('Deploy the service.')} | acpx --format json prompt --file -", environment.commands[0])
         self.assertIn(shlex.quote(answer["text"]), environment.commands[1])
@@ -118,7 +118,7 @@ class Loop(unittest.TestCase):
     def test_a_miss_ends_oracle_miss(self):
         record, _, _ = run_user([acpx("What is the password? MOCK:oracle=MISS")])
         self.assertEqual("oracle_miss", record["ending"])
-        self.assertEqual([], record["answers"])
+        self.assertEqual(["Deploy the service."], [p["text"] for p in record["prompts"]])
 
     def test_a_hit_with_the_answers_spent_ends_oracle_budget(self):
         record, environment, _ = run_user([
@@ -126,7 +126,7 @@ class Loop(unittest.TestCase):
             acpx("Which region? MOCK:oracle=region"),
         ], turns=1, judge="MockB")
         self.assertEqual("oracle_budget", record["ending"])
-        self.assertEqual(1, len(record["answers"]))
+        self.assertEqual([None, ["deploy-target"]], [p.get("keys") for p in record["prompts"]])
         self.assertEqual(2, len(environment.commands))
 
     def test_a_turn_that_did_not_end_ok_is_not_judged(self):
@@ -135,6 +135,19 @@ class Loop(unittest.TestCase):
         self.assertEqual([], record["judgements"])
         self.assertEqual("budget_exhausted", record["prompts"][0]["exit_reason"])
         self.assertEqual({"oracle_ending": "agent", "oracle_turns": 0}, context.metadata)
+
+    def test_a_prompt_in_flight_is_in_the_record_without_an_ending(self):
+        with tempfile.TemporaryDirectory() as d:
+            user = OracleUser(logs_dir=d, sheet=os.devnull, nb=os.environ["NB_PATH"])
+
+            class Killed:
+                async def exec(self, command, **kwargs):
+                    raise asyncio.CancelledError()
+
+            with self.assertRaises(asyncio.CancelledError):
+                asyncio.run(user.run("Deploy the service.\n<<<PROCTOR-BRIDGE>>>\n", Killed(), SimpleNamespace(metadata=None)))
+            record = json.loads(Path(d, oracle_user.LOG).read_text())
+        self.assertEqual({"ending": None, "prompts": [{"text": "Deploy the service."}], "judgements": []}, record)
 
     def test_a_judge_that_fails_ends_judge_error(self):
         record, _, _ = run_user([acpx("Which target? MOCK:oracle=deploy-target")], judge="NoSuchEntry")

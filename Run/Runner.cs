@@ -57,6 +57,8 @@ record Manifest
     public int? NbExitCode { get; set; }
     /// <summary>An agent arm's run: the agent as the trial reported it, its settings, the Harbor that ran it, and what it used.</summary>
     public AgentRun? Agent { get; set; }
+    /// <summary>An oracle cell's simulated user on the Harbor path (<see cref="Ingest"/>); absent on the bare path, where nb's oracle is in the run.</summary>
+    public OracleRun? Oracle { get; set; }
 }
 
 record TranscriptRef(string File, string Format);
@@ -79,10 +81,6 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     /// <summary>Create a new experiment directory from a suite and run it.</summary>
     public static string Start(string root, Suite suite, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
-        // The bare path runs nb's in-process oracle; the Harbor path's simulated user lands with plans/oracle-in-proctor.md
-        // items 3-4. Until then, refuse rather than run an nb agent arm without its oracle.
-        if (suite.Tasks.FirstOrDefault(c => c.Oracle is not null) is { } oracleTask && suite.Arms.FirstOrDefault(a => a.IsAgent) is { } agentArm)
-            throw new ProctorException($"not yet: task {oracleTask.Id} names an answer sheet, and arm {agentArm.Id} runs through Harbor, whose oracle is not built yet (plans/oracle-in-proctor.md)");
         var nb = ResolveNb(root, suite, config, nbOverride, runnerOverride);
         foreach (var arm in suite.Arms.Where(a => a.IsAgent)) Route(root, config, nb, arm);   // a missing endpoint fails before anything is made
         var id = Layout.NewExperimentId(suite.Id, DateTime.UtcNow);
@@ -309,6 +307,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         var nb = program is null ? null : new NbCell(Path.Combine(cellDir, Layout.CompiledProgramFile), experiment.Nb.Config);
         var oracle = OracleCellOf(arm, c);
         manifest.Agent = new AgentRun(arm.Agent!, null, arm.Model ?? "", HarborCompile.AgentKwargs(arm, route, nb), HarborCompile.AgentEnv(arm, route), experiment.Harbor!.Version, null);
+        manifest.Oracle = null;
         manifest.Attempts++;
         manifest.Started = Now();
         manifest.Ended = null;
@@ -327,7 +326,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         }
         if (failure is null)
             (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, experiment.Harbor.Engine, cellDir, arm, taskDir, route, suite.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb, oracle);
-        if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, arm, manifest, arm.IsVendor ? arm.AgentVersion! : experiment.Versions["nb"]);
+        if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, arm, manifest, arm.IsVendor ? arm.AgentVersion! : experiment.Versions["nb"], bridged: oracle is not null);
         stopwatch.Stop();
 
         manifest.Ended = Now();

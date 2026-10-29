@@ -1,0 +1,47 @@
+{
+ "ending": "ok",
+ "prompts": [
+  {
+   "text": "MOCK:response=Which deploy target? MOCK:oracle=deploy-target",
+   "stop_reason": "end_turn",
+   "exit_reason": "ok",
+   "error": null
+  },
+  {
+   "text": "MOCK:response=Deployed to staging. MOCK:oracle=DONE",
+   "keys": [
+    "deploy-target"
+   ],
+   "stop_reason": "end_turn",
+   "exit_reason": "ok",
+   "error": null
+  }
+ ],
+ "judgements": [
+  {
+   "verdict": "hit",
+   "keys": [
+    "deploy-target"
+   ],
+   "answer": "MOCK:response=Deployed to staging. MOCK:oracle=DONE",
+   "raw": "deploy-target",
+   "usage": {
+    "input": 10,
+    "output": 5,
+    "total": 15
+   },
+   "warnings": []
+  },
+  {
+   "verdict": "done",
+   "keys": [],
+   "raw": "DONE",
+   "usage": {
+    "input": 10,
+    "output": 5,
+    "total": 15
+   },
+   "warnings": []
+  }
+ ]
+}

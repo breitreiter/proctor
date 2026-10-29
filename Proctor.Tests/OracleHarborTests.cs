@@ -4,7 +4,8 @@ using Proctor;
 namespace Proctor.Tests;
 
 // The oracle on the Harbor path, short of running Harbor: the simulated user compiled beside the agents, an oracle cell's
-// job and its run-less program, and OracleUser's loop itself (plans/oracle-in-proctor.md, work item 3).
+// job and its run-less program, OracleUser's loop itself, and ingest of a bridged trial (plans/oracle-in-proctor.md,
+// work items 3 and 4).
 public class OracleHarborTests
 {
     /// <summary>The gate suite with its plain task naming a sheet: one bare nb arm and one through Harbor.</summary>
@@ -89,5 +90,141 @@ public class OracleHarborTests
         });
         Assert.True(result.Started, $"python3 did not start: {result.Stderr}");
         Assert.True(result.ExitCode == 0, result.Stderr);
+    }
+
+    // A bridged trial as Harbor 0.24 writes one, around fixtures/nb-bridged: a recorded run of oracle_user.py driving
+    // nb --acp on Mock (its capture.sh). The task asks; the sheet's answer is the second prompt; the judge calls it done.
+
+    static JsonObject Bridged(string file) => JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "nb-bridged", file)))!.AsObject();
+
+    static string WriteBridgedTrial(string dir, Action<JsonObject>? record = null, string? exception = null, bool trajectory = true)
+    {
+        foreach (var d in new[] { "agent", "user-agent", "verifier", Path.Combine("artifacts", "logs", "artifacts") }) Directory.CreateDirectory(Path.Combine(dir, d));
+        File.WriteAllText(Path.Combine(dir, "result.json"), new JsonObject
+        {
+            ["agent_info"] = new JsonObject { ["name"] = "nb", ["version"] = "0.9.0" },
+            ["agent_execution"] = new JsonObject { ["started_at"] = "2026-10-29T10:00:00Z", ["finished_at"] = "2026-10-29T10:00:02Z" },
+            ["exception_info"] = exception is null ? null : new JsonObject { ["exception_type"] = exception, ["exception_message"] = "timed out" },
+        }.ToJsonString());
+        if (trajectory) File.WriteAllText(Path.Combine(dir, "agent", "trajectory.json"), Bridged("trajectory.json").ToJsonString());
+        var log = Bridged("oracle-user.json");
+        record?.Invoke(log);
+        File.WriteAllText(Path.Combine(dir, "user-agent", "oracle-user.json"), log.ToJsonString());
+        File.WriteAllText(Path.Combine(dir, "artifacts", "logs", "artifacts", "diff.patch"), "");
+        File.WriteAllText(Path.Combine(dir, "verifier", "reward.json"), "{}\n");
+        return dir;
+    }
+
+    static Manifest NbManifest() => new()
+    {
+        RunId = "r", Experiment = "e", Arm = "nb-harbor", Task = "plain", Sample = 1, Host = "h", Versions = [], SuiteHash = "s", ProgramHash = "p",
+        Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null),
+    };
+
+    static JsonObject ReadJson(string file) => JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+
+    [Fact]
+    public void Ingest_ABridgedTrial_MarksTheAnswers_AndRecordsTheJudgeApart()
+    {
+        using var repo = new TestRepo();
+        var trial = WriteBridgedTrial(Path.Combine(repo.Root, "trial"));
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var manifest = NbManifest();
+
+        Assert.Null(Ingest.Trial(trial, cell, NbArm, manifest, "0.9.0", bridged: true));
+        Assert.True(File.Exists(Path.Combine(cell, "user-agent", "oracle-user.json")));
+        Assert.Null(manifest.NbExitCode);   // nb over the bridge has no exit of its own
+
+        // The task stays a plain user step; the answer is marked as the bare path marks it.
+        var steps = ReadJson(Path.Combine(cell, "trajectory.json"))["steps"]!.AsArray();
+        Assert.Null(steps[1]!["extra"]);
+        Assert.Equal("""{"source":"oracle","keys":["deploy-target"]}""", steps[3]!["extra"]!.ToJsonString());
+        var t = Transcript.Read(cell);
+        Assert.Equal([new UserTurn("MOCK:response=Which deploy target? MOCK:oracle=deploy-target", null),
+            new UserTurn("MOCK:response=Deployed to staging. MOCK:oracle=DONE", "oracle", ["deploy-target"])], t.UserTurns);
+
+        // The counted core is nb's two prompts; the judge's two calls are in the manifest, not in it.
+        var core = ReadJson(Path.Combine(cell, "core.json"));
+        Assert.Equal("ok", core["exit_reason"]!.GetValue<string>());
+        Assert.Equal(2, core["turns"]!.GetValue<int>());
+        Assert.Equal(20, core["input_tokens"]!.GetValue<long>());
+        Assert.Equal(new OracleRun("ok", 1, 20, 10), manifest.Oracle);
+    }
+
+    [Theory]
+    [InlineData("oracle_miss", "oracle_miss")]
+    [InlineData("oracle_budget", "oracle_budget")]
+    [InlineData("ok", "ok")]
+    [InlineData("agent", "ok")]   // the turn did not end ok, so it was not judged: nb's own ending stands
+    [InlineData(null, "ok")]      // killed mid-loop, between prompts
+    public void Ingest_ABridgedTrial_TakesTheSimulatedUsersEnding_OnlyWhereNbsPromptNeverSawIt(string? ending, string exitReason)
+    {
+        using var repo = new TestRepo();
+        var trial = WriteBridgedTrial(Path.Combine(repo.Root, "trial"), r => r["ending"] = ending);
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+
+        Assert.Null(Ingest.Trial(trial, cell, NbArm, NbManifest(), "0.9.0", bridged: true));
+        Assert.Equal(exitReason, ReadJson(Path.Combine(cell, "core.json"))["exit_reason"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Ingest_ABridgedTrial_ComparesWithTrailingWhitespaceTrimmed_AndForgivesOnlyAKilledPromptInFlight()
+    {
+        using var repo = new TestRepo();
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var n = 0;
+        string? Ingested(Action<JsonObject> record) => Ingest.Trial(WriteBridgedTrial(Path.Combine(repo.Root, $"t{++n}"), record), cell, NbArm, NbManifest(), "0.9.0", bridged: true);
+        JsonObject InFlight() => new() { ["text"] = "MOCK:response=us-east.", ["keys"] = new JsonArray("region") };
+
+        // acpx trims a prompt's trailing whitespace before nb sees it.
+        Assert.Null(Ingested(r => r["prompts"]![1]!["text"] = "MOCK:response=Deployed to staging. MOCK:oracle=DONE\n\n"));
+
+        // Killed with a third prompt sent and not answered: the trajectory may not have it.
+        Assert.Null(Ingested(r => { r["ending"] = null; r["prompts"]!.AsArray().Add(InFlight()); }));
+        Assert.Equal(["deploy-target"], Transcript.Read(cell).UserTurns.Single(u => u.Source == "oracle").Keys);
+
+        // Anything else that does not line up is the strict rule's.
+        const string unmapped = "adapter_unmapped: the trajectory's last user steps are not the ";
+        Assert.StartsWith(unmapped + "2 prompts", Ingested(r => r["prompts"]![1]!["text"] = "Staging, please."));
+        Assert.StartsWith(unmapped + "3 prompts", Ingested(r => r["prompts"]!.AsArray().Add(InFlight())));   // the ending says it finished
+        Assert.StartsWith(unmapped + "3 prompts", Ingested(r =>
+        {
+            r["ending"] = null;
+            var answered = InFlight();
+            answered["stop_reason"] = "end_turn";
+            r["prompts"]!.AsArray().Add(answered);
+        }));
+    }
+
+    [Fact]
+    public void Ingest_ABridgedTrial_Fails_OnABrokenJudge_OrAMissingRecord_OrNoPromptAnswered()
+    {
+        using var repo = new TestRepo();
+        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+
+        var manifest = NbManifest();
+        var judgeError = WriteBridgedTrial(Path.Combine(repo.Root, "t1"), r =>
+        {
+            r["ending"] = "judge_error";
+            r["error"] = "nb --judge exited 1: no such provider";
+        });
+        Assert.Equal("judge_error: nb --judge exited 1: no such provider", Ingest.Trial(judgeError, cell, NbArm, manifest, "0.9.0", bridged: true));
+        Assert.Equal("judge_error", manifest.Oracle!.Ending);
+
+        var noRecord = WriteBridgedTrial(Path.Combine(repo.Root, "t2"));
+        File.Delete(Path.Combine(noRecord, "user-agent", "oracle-user.json"));
+        Assert.Equal("the simulated user left no user-agent/oracle-user.json", Ingest.Trial(noRecord, cell, NbArm, NbManifest(), "0.9.0", bridged: true));
+
+        Assert.Equal("nb answered no prompt over the bridge (no agent/trajectory.json)",
+            Ingest.Trial(WriteBridgedTrial(Path.Combine(repo.Root, "t3"), trajectory: false), cell, NbArm, NbManifest(), "0.9.0", bridged: true));
+        // Out of time with the task still in flight: a completed run with nothing in it, as on the direct path.
+        var timedOut = WriteBridgedTrial(Path.Combine(repo.Root, "t4"), r =>
+        {
+            r["ending"] = null;
+            r["prompts"] = new JsonArray(new JsonObject { ["text"] = "MOCK:response=Which deploy target? MOCK:oracle=deploy-target" });
+            r["judgements"] = new JsonArray();
+        }, exception: "AgentTimeoutError", trajectory: false);
+        Assert.Null(Ingest.Trial(timedOut, cell, NbArm, NbManifest(), "0.9.0", bridged: true));
+        Assert.Equal("time_budget", ReadJson(Path.Combine(cell, "core.json"))["exit_reason"]!.GetValue<string>());
     }
 }

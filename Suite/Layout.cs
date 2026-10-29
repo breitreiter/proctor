@@ -44,6 +44,8 @@ static class Layout
     public const string CoreFile = "core.json";
     public const string RewardFile = "reward.json";
     public const string AgentLogsDir = "agent";
+    public const string UserAgentLogsDir = "user-agent";
+    public const string OracleUserFile = "oracle-user.json";
     public const string VerifierDir = "verifier";
 
     public const string ResultsFile = "results.jsonl";

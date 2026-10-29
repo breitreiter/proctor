@@ -7,6 +7,13 @@ record AgentRun(string Name, string? Version, string Model, Dictionary<string, s
     long? InputTokens = null, long? CachedTokens = null, long? OutputTokens = null, double? CostUsd = null);
 
 /// <summary>
+/// An oracle cell's simulated user on the Harbor path, in the manifest: its ending (oracle-user.json's, null when the
+/// trial was killed mid-loop), the answers it sent, and the judge's tokens. The judge is a separate process, so they are
+/// not in the counted core; on the bare path nb charges them to the run.
+/// </summary>
+record OracleRun(string? Ending, int Answers, long? JudgeInputTokens, long? JudgeOutputTokens);
+
+/// <summary>
 /// core.json: proctor's own count of a run, by its own definitions, from the ATIF steps, never the agent's own count.
 /// A turn is one agent step (one model response); a tool call is one entry of a step's tool_calls, subagents' included;
 /// kinds tally the calls by proctor's normalised tool kind; the duration is the agent's phase alone.
@@ -79,12 +86,14 @@ static class Ingest
 
     /// <summary>
     /// Lift the trial into the cell and fill the manifest. Null when the cell completed; otherwise why it failed
-    /// (infrastructure only). The version is the arm's pin for a vendor agent, the host nb's for nb.
+    /// (infrastructure only). The version is the arm's pin for a vendor agent, the host nb's for nb. A bridged trial is an
+    /// oracle cell's: nb served over ACP, driven by the simulated user (<see cref="Oracle"/>).
     /// </summary>
-    public static string? Trial(string trialDir, string cellDir, Arm arm, Manifest manifest, string expectedVersion)
+    public static string? Trial(string trialDir, string cellDir, Arm arm, Manifest manifest, string expectedVersion, bool bridged = false)
     {
         var result = JsonNode.Parse(File.ReadAllText(Path.Combine(trialDir, "result.json")))!.AsObject();
         CopyTree(Path.Combine(trialDir, "agent"), Path.Combine(cellDir, Layout.AgentLogsDir));
+        CopyTree(Path.Combine(trialDir, Layout.UserAgentLogsDir), Path.Combine(cellDir, Layout.UserAgentLogsDir));
         CopyTree(Path.Combine(trialDir, "verifier"), Path.Combine(cellDir, Layout.VerifierDir));
         // Harbor mirrors a collected container path under artifacts/: the verifier's collect step wrote /logs/artifacts/diff.patch.
         var diff = Path.Combine(trialDir, "artifacts", "logs", "artifacts", Layout.DiffFile);
@@ -120,7 +129,7 @@ static class Ingest
                 : $"agent_version_mismatch: the image ran nb {manifest.Agent.Version ?? "unknown"}, the host nb that compiled the program is {expectedVersion}";
         if (!arm.IsVendor)
         {
-            if (Nb(trialDir, cellDir, exceptionType, manifest) is { } nbFailure) return nbFailure;
+            if (Nb(trialDir, cellDir, exceptionType, manifest, bridged) is { } nbFailure) return nbFailure;
             hasTrajectory = true;
             trajectoryFile = Path.Combine(cellDir, Layout.TrajectoryFile);
         }
@@ -131,10 +140,18 @@ static class Ingest
 
         if (arm.IsVendor) File.Copy(trajectoryFile, Path.Combine(cellDir, Layout.TrajectoryFile), overwrite: true);
         var trajectory = JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject();
+        string? ending = null;
+        if (bridged)
+        {
+            if (Oracle(trialDir, trajectory, manifest, out ending) is { } oracleFailure) return oracleFailure;
+            Runner.WriteJson(trajectoryFile, trajectory);
+        }
         var exitReason = exceptionType switch
         {
             "AgentTimeoutError" => "time_budget",
             "NonZeroAgentExitCodeError" => "agent_error",
+            // The simulated user's ending, which nb's prompt never saw, as nb names it on the bare path.
+            _ when ending is "oracle_miss" or "oracle_budget" => ending,
             // nb names its own ending, as on the bare path.
             _ => trajectory["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok",
         };
@@ -159,17 +176,21 @@ static class Ingest
     /// <summary>
     /// nb's own trajectory (agent/trajectory.json, which nb wrote with --trajectory beside its JSONL, stderr and exit
     /// code) as the cell's. Failed as on the bare path: nb that ends without one before its time is up did not run.
-    /// Out of time is a completed run with nothing written: nb writes both files when the run ends.
+    /// Out of time is a completed run with nothing written: nb writes both files when the run ends. Bridged, nb is the
+    /// ACP server Harbor started, with no JSONL, stderr or exit code of its own, and rewrites the trajectory after each
+    /// prompt.
     /// </summary>
-    static string? Nb(string trialDir, string cellDir, string? exceptionType, Manifest manifest)
+    static string? Nb(string trialDir, string cellDir, string? exceptionType, Manifest manifest, bool bridged)
     {
         var logs = Path.Combine(trialDir, "agent");
         if (int.TryParse(ReadOr(Path.Combine(logs, "nb.exit")).Trim(), out var exit)) manifest.NbExitCode = exit;
         var stderr = FirstLine(ReadOr(Path.Combine(logs, "nb.stderr.log")));
-        if (!File.Exists(Path.Combine(logs, Layout.NbLogFile))) return $"nb did not run in the trial (no agent/{Layout.NbLogFile}){(exceptionType is null ? "" : $": {exceptionType}")}";
+        if (!bridged && !File.Exists(Path.Combine(logs, Layout.NbLogFile))) return $"nb did not run in the trial (no agent/{Layout.NbLogFile}){(exceptionType is null ? "" : $": {exceptionType}")}";
         var trajectory = ReadOr(Path.Combine(logs, Layout.TrajectoryFile)) is { Length: > 0 } text ? JsonNode.Parse(text)!.AsObject() : null;
         if (trajectory is null && exceptionType != "AgentTimeoutError")
-            return $"nb exited {manifest.NbExitCode?.ToString() ?? "?"} without a trajectory: {stderr}";
+            return bridged
+                ? $"nb answered no prompt over the bridge (no agent/{Layout.TrajectoryFile}){(exceptionType is null ? "" : $": {exceptionType}")}"
+                : $"nb exited {manifest.NbExitCode?.ToString() ?? "?"} without a trajectory: {stderr}";
         trajectory ??= new JsonObject
         {
             ["schema_version"] = "ATIF-v1.7",
@@ -179,6 +200,42 @@ static class Ingest
         Runner.WriteJson(Path.Combine(cellDir, Layout.TrajectoryFile), trajectory);
         return null;
     }
+
+    /// <summary>
+    /// An oracle cell's simulated user (user-agent/oracle-user.json, from Harbor/oracle_user.py) against nb's trajectory.
+    /// The trajectory's last user steps must be the prompts it sent, in order, compared with trailing whitespace trimmed
+    /// (acpx trims a prompt's); the answers among them are marked as the bare path's are, extra {source: oracle, keys}.
+    /// Strict: any other shape is adapter_unmapped. A judge that failed fails the cell, since the run then measures the
+    /// judge, not the agent. Null when it lines up, with the ending out and the manifest's <see cref="OracleRun"/> filled.
+    /// </summary>
+    static string? Oracle(string trialDir, JsonObject trajectory, Manifest manifest, out string? ending)
+    {
+        ending = null;
+        var file = Path.Combine(trialDir, Layout.UserAgentLogsDir, Layout.OracleUserFile);
+        if (!File.Exists(file)) return $"the simulated user left no {Layout.UserAgentLogsDir}/{Layout.OracleUserFile}";
+        var record = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+        ending = record["ending"]?.GetValue<string>();
+        var prompts = (record["prompts"]?.AsArray() ?? []).OfType<JsonObject>().ToList();
+        var usage = (record["judgements"]?.AsArray() ?? []).Select(j => j?["usage"]).OfType<JsonObject>().ToList();
+        long? Judge(string field) => usage.Count == 0 ? null : usage.Sum(u => Long(u[field]) ?? 0);
+        manifest.Oracle = new OracleRun(ending, prompts.Count(p => p["keys"] is not null), Judge("input"), Judge("output"));
+        if (ending == "judge_error") return $"judge_error: {record["error"]?.GetValue<string>()}";
+
+        var users = (trajectory["steps"]?.AsArray() ?? []).OfType<JsonObject>().Where(s => s["source"]?.GetValue<string>() == "user").ToList();
+        bool Sent(int n) => users.Count >= n && Enumerable.Range(0, n).All(i => Trimmed(users[users.Count - n + i]["message"]) == Trimmed(prompts[i]["text"]));
+        var sent = prompts.Count;
+        if (!Sent(sent))
+        {
+            // A prompt still in flight when the trial was killed has no stop_reason, and may not have reached the trajectory.
+            if (ending is null && sent > 0 && !prompts[^1].ContainsKey("stop_reason") && Sent(sent - 1)) sent--;
+            else return $"adapter_unmapped: the trajectory's last user steps are not the {sent} prompts the simulated user sent ({Layout.UserAgentLogsDir}/{Layout.OracleUserFile})";
+        }
+        for (var i = 1; i < sent; i++)
+            users[users.Count - sent + i]["extra"] = new JsonObject { ["source"] = "oracle", ["keys"] = prompts[i]["keys"]?.DeepClone() };
+        return null;
+    }
+
+    static string Trimmed(JsonNode? text) => (text?.GetValue<string>() ?? "").TrimEnd();
 
     static string ReadOr(string file) => File.Exists(file) ? File.ReadAllText(file) : "";
 
