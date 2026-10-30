@@ -7,6 +7,17 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- `suites/oracle-change`: the oracle on a real model. code-change's
+  `add-retry-flag` with the semantics left out of the prompt; the answer
+  sheet holds them, each deliberately not the conventional choice, and the
+  acceptance tests check them, so an agent that guesses fails. nb on Haiku,
+  bare and through Harbor, judged by Haiku.
+
+- `checks/acceptance.sh` (code-change, oracle-change) removes the
+  acceptance tests it copies into the work tree when it exits. Left in place,
+  the fixture's own `tests-pass` ran them too, so the two checks failed
+  together.
+
 - The oracle has a gate: `suites/gate-oracle` and `OracleGateTests` run
   one Mock arm bare and through Harbor on three oracle tasks, one per ending,
   and assert the same counted core (apart from the judge's tokens), user

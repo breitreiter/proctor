@@ -1,0 +1,12 @@
+{
+  "id": "add-retry-flag",
+  "description": "Add a --retry flag to a small CLI, its semantics only in the answer sheet",
+  "labels": { "kind": "feature" },
+  "fixture": "fetchcli",
+  "prompt": "Add a `--retry <n>` flag to fetchcli, so a fetch that fails can be retried. `Options` gains an `int Retry` property for it, and `Fetcher.RunAsync` does the retrying. Update the usage line in Program.cs and the README.\n\nExisting tests must keep passing. Add tests for the new behaviour in tests/FetchCli.Tests.",
+  "oracle": "oracle/add-retry-flag.md",
+  "expect": {
+    "oracle_hit": ["attempts"],
+    "files_touched": { "paths": ["src/FetchCli/**", "tests/FetchCli.Tests/**", "README.md"], "mode": "at_most" }
+  }
+}

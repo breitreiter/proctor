@@ -4,6 +4,10 @@ set -uo pipefail
 acceptance="$PROCTOR_SUITE_DIR/acceptance/$PROCTOR_TASK"
 [ -d "$acceptance" ] || { echo "no acceptance tests for this task"; exit 0; }
 proj=$(find "$PROCTOR_WORK" -name '*.Tests.csproj' | head -1)
+# Removed again on exit: left in place, the fixture's own tests-pass would run them too.
+copied=()
+for f in "$acceptance"/*.cs; do copied+=("$(dirname "$proj")/$(basename "$f")"); done
+trap 'rm -f "${copied[@]}"' EXIT
 cp "$acceptance"/*.cs "$(dirname "$proj")/"
 out=$(cd "$PROCTOR_WORK" && dotnet test "$proj" --nologo 2>&1)
 summary=$(grep -E '^(Passed|Failed)!' <<<"$out" | tail -1)

@@ -1,0 +1,24 @@
+{
+  "id": "oracle-change",
+  "description": "Does the agent ask when a change is underspecified, and does the answer get it right? code-change's add-retry-flag with the semantics left out of the prompt: only the answer sheet has them, and the acceptance tests check them. nb on Anthropic, bare (nb's in-process oracle) and through Harbor (the simulated user over the ACP bridge), judged by Haiku.",
+  "labels": { "area": "coding/oracle", "stack": "dotnet" },
+  "arms": [
+    { "id": "haiku-bare", "description": "nb on Haiku, bare on the host, its oracle in-process", "runner": "nb", "harness": "nb", "provider": "anthropic-haiku", "model": "claude-haiku-5-5", "samples": 5 },
+    { "id": "haiku-harbor", "description": "nb on Haiku through Harbor, driven by the simulated user", "agent": "nb", "harness": "nb", "provider": "anthropic-haiku", "model": "claude-haiku-5-5", "samples": 5 }
+  ],
+  "harbor": { "version": "0.24.0" },
+  "limits": { "wall_ms": 1800000 },
+  "oracle": { "judge": "anthropic-haiku", "turns": 4 },
+  "grading": {
+    "checks": {
+      "exit_ok":      { "exit_reason": "ok" },
+      "no_denials":   { "denied_calls": { "max": 0 } },
+      "acceptance":   { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" },
+      "asked":        { "oracle_hit": "@expect", "description": "the agent asked about the semantics the prompt left out" },
+      "no_misses":    { "oracle_misses": { "max": 0 }, "description": "the agent asked nothing the sheet lacks" },
+      "few_turns":    { "oracle_turns": { "max": 4 } },
+      "diff-in-scope": { "files_touched": "@expect" }
+    },
+    "pass": ["exit_ok", "builds", "tests-pass", "acceptance"]
+  }
+}
