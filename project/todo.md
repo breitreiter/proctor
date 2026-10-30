@@ -120,6 +120,17 @@ Worked around in the machine's `proctor.json` by spelling Codex's route
 pins the host's address in the task (an `extra_hosts`-style entry, if Harbor
 allows one) so the spelling does not matter.
 
+## Drop the pasta AppArmor workaround when Ubuntu fixes it
+
+`docs/podman.md` §6 has Ubuntu 26.04 users add an include line and a
+signal rule to pasta's AppArmor profile, without which every sidecar and
+its network leaks (#7, closed with that workaround). Watch
+[LP#2154379](https://bugs.launchpad.net/bugs/2154379). Once a passt
+update ships a profile that lets podman signal pasta, say from which
+version §6 is no longer needed. If more people trip on it first,
+`HarborRun.CheckPodman` could warn when pasta's profile and its local
+file have no `signal` rule; both files are world-readable.
+
 ## An oracle for vendor arms, the hokey way, if the refusal starts costing us
 
 A task with an `oracle` is refused on Claude Code, Codex and Qwen Code arms

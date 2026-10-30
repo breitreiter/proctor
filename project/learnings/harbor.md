@@ -408,9 +408,16 @@ oracle agent on a probe task with an `allowlist` phase, no model.
   with `compose down` failing on it (`rootless netns: kill network process:
   permission denied`), leaving an exited sidecar container and the
   project's network; the trial's reward was unaffected and `podman rm -f`
-  removed them afterwards. Not explained: the run was inside a bubblewrap
-  sandbox (podman as a remote client of the socket), and no AppArmor denial
-  was visible. Repeat outside the sandbox before treating it as podman's.
+  removed them afterwards. Explained on 2026-10-29 (#7): Ubuntu 26.04's
+  AppArmor profile for pasta allows it no signals, and the kernel log shows
+  `operation="signal" profile="pasta" signal=term peer="podman"` denied.
+  No denial was visible at first only because `dmesg_restrict=1` hides the
+  kernel log from a non-root account. The sandbox played no part. The fix
+  is an AppArmor rule (`docs/podman.md` §6), plus an include line, because
+  pasta's packaged profile, unlike most of Ubuntu's, never reads
+  `local/usr.bin.pasta`; a rule there alone does nothing. Verified
+  2026-10-30: with both, `podman unshare --rootless-netns true` succeeds
+  and a container on its own network tears down leaving nothing.
 
 ### Conformance on podman (2026-10-27)
 
@@ -434,5 +441,5 @@ Both conformance tests on the same machine, Harbor run through a sandboxed
 - **The sidecar leak (#7) is per environment, not per trial.** The
   separate verifier is `no-network`, so it has a sidecar too: each cell
   left two exited sidecars and two networks (`…__env_default`,
-  `…__verifier__trial_default`), 18 of each per run. Still only seen with
-  Harbor sandboxed.
+  `…__verifier__trial_default`), 18 of each per run. The cause is
+  AppArmor, not the sandbox (above).

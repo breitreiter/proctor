@@ -89,21 +89,41 @@ mapped, every service on the host's loopback is open to every trial, not
 just the gateway. Prefer a gateway on a LAN address the allowlist can name
 on its own.
 
-## 6. Leftover sidecars (issue #7)
+## 6. Ubuntu 26.04: let podman stop pasta (issue #7)
 
-Every environment with a sidecar, the trial's and the verifier's, ends
-with Harbor's `compose down` failing on it (`rootless netns: kill network
-process: permission denied`) and leaves an exited sidecar container and
-the project's network behind: two of each per cell. The cell is
-unaffected. Until #7 is resolved, clear them after an experiment:
+```bash
+sudo sed -i 's|^  include <abstractions/pasta>$|&\n  include if exists <local/usr.bin.pasta>|' /etc/apparmor.d/usr.bin.pasta
+echo 'signal (receive) set=(term) peer=podman,' | sudo tee -a /etc/apparmor.d/local/usr.bin.pasta
+sudo apparmor_parser -r /etc/apparmor.d/usr.bin.pasta
+podman unshare --rootless-netns true     # fails with "kill network process" until the rule applies
+```
+
+Ubuntu confines pasta with an AppArmor profile that allows it no signals,
+and podman stops the rootless network by sending pasta `SIGTERM`. The
+kernel refuses the signal, so every environment with a sidecar (the
+trial's and the verifier's) ends with Harbor's `compose down` failing on
+it: `rootless netns: kill network process: permission denied`. Each cell
+then leaves an exited sidecar container and a network behind, two of each
+per cell. The cell's results are unaffected, but the networks hold
+subnets from a finite pool. The denial is visible only in the kernel log,
+which needs root on Ubuntu:
+
+```bash
+sudo journalctl -k | grep 'apparmor="DENIED"' | grep 'profile="pasta"'
+```
+
+The rule allows only `SIGTERM`, and only from podman, rather than
+disabling the profile. It lives in the local override file, but unlike
+most Ubuntu profiles, pasta's does not include that file. The first line
+adds the include; run it once. A passt upgrade will therefore ask about
+the changed profile, and that upgrade is probably how Ubuntu's fix will
+arrive. Ubuntu's bug is [LP#2154379](https://bugs.launchpad.net/bugs/2154379).
+To clear what an earlier run left behind:
 
 ```bash
 podman ps -aq --filter name=egress-control-sidecar | xargs -r podman rm -f
 podman network ls --format '{{.Name}}' | grep -E '__env_default$|__trial_default$' | xargs -r podman network rm
 ```
-
-So far this has been seen only with Harbor in the sandbox below; whether
-it happens without one is #7's open question.
 
 ## 7. Checking a machine: conformance
 
