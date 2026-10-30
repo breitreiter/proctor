@@ -25,6 +25,10 @@ approval bash cd * && rg *
 approval bash cd * && head *
 approval bash cd * && tail *
 approval bash cd * && wc *
+# A loop over files is how Haiku reads several at once. `*` already spans `;`, so this
+# widens nothing `cat *` does not.
+approval bash for *
+approval bash cd * && for *
 loop 3
 budget tool_calls 60
 budget wall_ms 1800000
