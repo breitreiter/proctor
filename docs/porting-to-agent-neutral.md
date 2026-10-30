@@ -104,6 +104,19 @@ committed; nothing else of the fixture enters the image the agent runs in.
   model. This is the change most likely to move numbers: its first run is a
   new baseline for that arm. It is not optional: nb refuses the costume names
   since 2026-10-28, so an unported arm fails at compile with the same redirect.
+- **An oracle task keeps its sheet on an nb arm, and loses its vendor arms.**
+  On `agent: nb` the oracle is a simulated user that drives nb over Harbor's
+  ACP bridge, so the template must end in exactly `run {{prompt}}`, which the
+  user sends. A vendor arm beside an oracle task is refused. Three things
+  differ from the bare run, and a ported suite's numbers can show them:
+  - **`budget tool_calls` and the loop detector count per answer.** Each
+    answer is a new ACP prompt, not a continuation of one `run`, so the
+    budget starts again on every answer.
+  - **The judge's tokens are not in the run's.** Bare, nb charges them to the
+    run. Bridged, they're the manifest's `oracle` (`judge_input_tokens`,
+    `judge_output_tokens`), so an oracle arm's `input_tokens` drops by them.
+  - **The agent can see the bridge's `.acpxrc.json` in its checkout.** The
+    diff leaves it out.
 
 ## 7. Baselines
 

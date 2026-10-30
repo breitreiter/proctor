@@ -1,6 +1,7 @@
 # The oracle in proctor
 
-Status: accepted 2026-10-29. Step 7 of `agent-neutral-runs.md`, decision 9.
+Status: implemented 2026-10-29 (work items 1–5; the gate is `OracleGateTests`, green on
+podman). Step 7 of `agent-neutral-runs.md`, decision 9.
 `learnings/scope.md` (*The consequence: the oracle moves up*) asked for this plan
 before building, and its four questions are settled below.
 
@@ -243,18 +244,34 @@ Each is a commit with its tests, and `main` stays green after each.
    - **The manifest's `oracle`** is `{ending, answers, judge_input_tokens,
      judge_output_tokens}`, the answers counted as sent. It is reset on each attempt.
    - **The simulated user's logs** are copied into the cell's `user-agent/`.
-5. The gate, then the plan, docs and CHANGELOG.
+5. The gate, then the plan, docs and CHANGELOG. **Done 2026-10-29**: `suites/gate-oracle`
+   and `OracleGateTests`, green on podman in about 3.5 minutes (`PROCTOR_GATE_ENGINE=podman`,
+   new; the gate had run only on Docker before). As built:
+   - **Three tasks, one per ending**, not one task with three variants: `asks-twice`
+     (two answers, then done: `ok`), `misses` (`oracle_miss`) and `over-budget` (a hit on
+     every turn with `oracle.turns` 2: `oracle_budget`). Each sheet entry scripts the
+     next turn with `MOCK:response=… MOCK:oracle=…`.
+   - **The assertion** is equal counted cores once the judge's tokens are taken out of the
+     bare side (the manifest's `oracle` gives them exactly), equal user turns (text, source,
+     keys), and equal `checks.json`. It also asserts that each Harbor cell reached the ending
+     its task scripts, after the scripted number of answers, so two runs that are alike but
+     wrong don't pass.
+   - **Turns agree as they are.** The bare path's judge calls are side calls, not agent
+     steps, so the core's `turns` needs no adjustment.
+   - **The bridge installs acpx** with the environment's network at setup, on podman too; the
+     agent phase stays `no-network` on Mock.
 
 ## Interop with nb
 
-Nothing here changes nb. Proctor depends on things nb already has:
+Nothing here changes nb's behaviour. Proctor depends on things nb already has:
 - `nb --judge`'s JSON and exit codes;
 - `--acp`'s `_meta.nb.exit_reason`;
 - the oracle's ATIF shape (`extra.source`/`keys`);
 - `MOCK:oracle=`.
 
-`../nb/nb.Tests/ProctorContractTests.cs` should gain those as tripwires, so a change
-on nb's side names this file. The one optional nb change is the judge's usage on the
+`../nb/nb.Tests/ProctorContractTests.cs` pins them as tripwires (2026-10-29), so a change
+on nb's side names this file: `--judge`'s fields, the ACP stop reasons `judged` relies on,
+and an oracle turn's ATIF `extra`. `MOCK:oracle=` is exercised by all three and by the gate. The one optional nb change is the judge's usage on the
 trailer (*Known differences*).
 
 ## Open questions

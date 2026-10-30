@@ -1,0 +1,20 @@
+{
+  "id": "gate-oracle",
+  "description": "The oracle's deterministic gate: one Mock arm run bare (nb's in-process oracle) and the same arm through Harbor (the simulated user over the ACP bridge) must give the same counted cores, oracle turns and checks, apart from timings and the judge's tokens.",
+  "arms": [
+    { "id": "nb-bare", "description": "nb on the Mock provider, run bare on the host, its oracle in-process.", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock" },
+    { "id": "nb-harbor", "description": "The same nb on the same Mock provider, as a Harbor agent driven by the simulated user.", "agent": "nb", "harness": "nb", "provider": "Mock", "model": "mock" }
+  ],
+  "harbor": { "version": "0.24.0" },
+  "limits": { "wall_ms": 120000 },
+  "oracle": { "turns": 2 },
+  "grading": {
+    "checks": {
+      "exit":        { "exit_reason": "@expect" },
+      "asked":       { "oracle_hit": "@expect" },
+      "turns":       { "oracle_turns": { "max": 2 } },
+      "no-misses":   { "oracle_misses": { "max": 0 } }
+    },
+    "pass": ["exit"]
+  }
+}

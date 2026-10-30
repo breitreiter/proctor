@@ -1,0 +1,8 @@
+{
+  "id": "asks-twice",
+  "description": "The model asks twice; each answer scripts its next turn, and the second ends the run",
+  "fixture": "note",
+  "prompt": "MOCK:response=Which deploy target? MOCK:oracle=deploy-target",
+  "oracle": "oracle/asks-twice.md",
+  "expect": { "exit_reason": "ok", "oracle_hit": ["deploy-target", "region"] }
+}

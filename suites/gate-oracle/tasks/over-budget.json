@@ -1,0 +1,8 @@
+{
+  "id": "over-budget",
+  "description": "The model keeps asking until the answers run out",
+  "fixture": "note",
+  "prompt": "MOCK:response=Again? MOCK:oracle=again",
+  "oracle": "oracle/over-budget.md",
+  "expect": { "exit_reason": "oracle_budget", "oracle_hit": ["again"] }
+}

@@ -7,6 +7,12 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- The oracle has a gate: `suites/gate-oracle` and `OracleGateTests` run
+  one Mock arm bare and through Harbor on three oracle tasks, one per ending,
+  and assert the same counted core (apart from the judge's tokens), user
+  turns and checks. The gate tests take `PROCTOR_GATE_ENGINE` (`docker`, the
+  default, or `podman`); both gates are green on podman.
+
 - The oracle runs on nb agent arms through Harbor
   (`project/plans/oracle-in-proctor.md`, work items 3 and 4), so `run` no
   longer refuses an oracle suite with an nb `agent` arm. Vendor arms beside

@@ -84,6 +84,7 @@ in the order the verbs run them. Every file is one concern:
 | `suites/smoke/` | proctor's own suite: every task scripts nb's Mock provider |
 | `suites/code-change/` | the first real suite: three tasks on three fixtures, acceptance tests, reference solutions; four agent arms through Harbor (nb, Qwen Code, Claude Code, Codex) |
 | `suites/gate/` | the deterministic gate: one Mock arm bare and the same arm as a Harbor agent; `GateTests` (with `PROCTOR_GATE`) asserts they agree |
+| `suites/gate-oracle/` | the oracle's gate: the same pair on three oracle tasks, one per ending (`ok`, `oracle_miss`, `oracle_budget`); `OracleGateTests` (with `PROCTOR_GATE`) asserts the in-process oracle and the bridged simulated user agree, apart from the judge's tokens |
 | `suites/conformance/` | Harbor conformance at $0: every vendor agent at its pin against `fixtures/stub`'s scripted model, tasks `ok`, `fail`, `hang`; `ConformanceTests` (with `PROCTOR_CONFORMANCE`, `1` or a `proctor.json` whose `harbor` block to run on) asserts each cell came back as scripted. The plan and its benchmark are `project/plans/harbor-conformance.md` |
 | `suites/suite-authoring/` | the demo project: an agent writes suites, graded by running them against planted good and bad runs (`trial/`); a run's report is meant to be copied into `report/`, which has none yet |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/` |
@@ -180,7 +181,10 @@ The directories are for reading, not for namespaces: everything is
   holds every `fixtures/nb-run` pair to reading the same both ways. The gate
   (`suites/gate`, `GateTests`, decision 12) is opt-in:
   `PROCTOR_GATE=<publish dir> dotnet test --no-build --filter GateTests`,
-  about ten minutes, Docker (or podman) and uv needed.
+  about ten minutes, Docker (or podman, with `PROCTOR_GATE_ENGINE=podman`)
+  and uv needed. The filter takes `OracleGateTests` too (`suites/gate-oracle`,
+  about four minutes). The publish must have `--acp`, so republish after an nb
+  change the bridge sees.
 - **Harbor's engine is the machine's.** `proctor.json` `harbor.engine`
   (`docker`, the default, or `podman`) is Harbor's `environment.type` in
   every cell's job file and the CLI nb's layer is built with; podman's

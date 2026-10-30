@@ -259,7 +259,9 @@ total over five cc trials, 18 gateway requests.
   off, since it hangs rootless) or `podman-compose --in-pod=false`, and the
   same egress sidecar (its docs list `allowlist` and per-phase policy for
   podman, nftables permitting). Proctor selects it with `harbor.engine`;
-  as of 2026-10-20 no gate or conformance run has been on podman.
+  as of 2026-10-20 no gate or conformance run has been on podman. On
+  2026-10-29 both gates ran green on podman (`GateTests` in 8.7 minutes,
+  `OracleGateTests`, with the ACP bridge, in 3.5); conformance still hasn't.
 - **Model names go bare.** With `ANTHROPIC_BASE_URL` set, Harbor passes `-m`
   through verbatim, so `anthropic/claude-haiku-5-5` reaches the gateway with
   its prefix and 404s. Compile must write `claude-haiku-5-5`.

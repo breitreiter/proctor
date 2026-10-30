@@ -241,9 +241,12 @@ the agent asked for something the sheet lacks, the run ends `oracle_miss`.
 default 8, then `oracle_budget`) and which nb config entry judges (`judge`;
 by default the arm's own provider). The checks are `oracle_hit` (a list of
 entry ids the oracle must have answered with), `oracle_turns {max}` and
-`oracle_misses {max}`. A bare nb arm runs nb's own oracle; an `agent: nb` arm
-is not yet supported, and a vendor agent arm beside an oracle task is
-refused, because Harbor leaves a bridged vendor agent no trajectory to grade
+`oracle_misses {max}`. A bare nb arm runs nb's own oracle. An `agent: nb` arm
+runs in Harbor with a simulated user on the host, which sends the task and
+each answer to nb over Harbor's ACP bridge and judges with the host's nb, so
+the sheet never enters the container; its program must end in exactly
+`run {{prompt}}`. A vendor agent arm beside an oracle task is refused, because
+Harbor leaves a bridged vendor agent no trajectory to grade
 (`project/plans/oracle-in-proctor.md`).
 
 A built-in check describes itself from its spec

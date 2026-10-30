@@ -1,0 +1,8 @@
+{
+  "id": "misses",
+  "description": "The model asks something the sheet lacks",
+  "fixture": "note",
+  "prompt": "MOCK:response=What is the root password? MOCK:oracle=MISS",
+  "oracle": "oracle/misses.md",
+  "expect": { "exit_reason": "oracle_miss", "oracle_hit": [] }
+}

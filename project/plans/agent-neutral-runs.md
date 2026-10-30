@@ -414,7 +414,9 @@ Harbor path. `nb.runner` and `nb.mounts` go (Retires).
 ### 7. Oracle (`Harbor/oracle_user.py` + `nb --judge`)
 
 Planned in `oracle-in-proctor.md` (2026-10-29), which settles the sheet, the judge, the
-ATIF shape and the refusal of vendor targets.
+ATIF shape and the refusal of vendor targets. **Done 2026-10-29** for nb arms, bare and
+through Harbor; the Mock gate is `OracleGateTests` (`suites/gate-oracle`). Vendor arms
+beside an oracle task stay refused.
 
 Decision 9. Gate: on the Mock provider, the oracle as a simulated user over
 an nb arm and nb's own in-process oracle loop produce the same counted core
@@ -470,7 +472,7 @@ draft guide, and treating where it stalls as the edits. Short by design:
    Checking proctor's layer over Harbor is `harbor-conformance.md`, at $0.
 6. Limits (decision 6) end to end; `max_cost` stops being stubbed and the
    report's "Cost is not shown" goes.
-7. Oracle (7). nb ships `--judge` since 2026-10-29.
+7. Oracle (7). nb ships `--judge` since 2026-10-29. Done 2026-10-29 for nb arms.
 8. Refuse `harness` in validation, in the same week nb retires the costumes
    (nb plan, staging 5). Not before step 5 has run a real suite: retiring
    the old route before the new one works leaves none.

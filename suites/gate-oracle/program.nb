@@ -1,0 +1,6 @@
+# The oracle's gate: every task and sheet entry scripts nb's Mock provider and its judge,
+# so the bare and bridged runs can be compared exactly. On the bridge the run is the
+# simulated user's, so the template ends in its one run.
+provider {{provider}}
+harness {{harness}}
+run {{prompt}}
