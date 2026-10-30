@@ -1,30 +1,77 @@
 # proctor
 
-Runs a suite's arms, grades the transcripts with declared checks, computes
-the statistics once, and renders one self-contained HTML report plus a
-markdown twin.
+Proctor is a grading and reporting tool for evals of AI agents. You
+describe a set of tasks and the checks that say whether each was done,
+proctor runs them against the agents and models you name, grades the
+transcripts, and writes a report.
 
-An arm is either [nb](https://github.com/breitreiter/nb) run bare on this
-machine, or an agent run in a container by
-[Harbor](https://github.com/harbor-framework/harbor). Harbor's agents are
-Claude Code, Codex, Qwen Code, and nb itself.
+It runs locally. There is no cloud service: the suite definitions, the
+transcripts, the verdicts and the reports are files on your filesystem,
+and the only network traffic is the agents' own model calls and, if you
+use one, the judge's.
 
-**Proctor leans on Harbor and ATIF.** Harbor runs a trial and returns its
-evidence; proctor decides what that evidence means across a suite. Every
-trial comes back as an ATIF trajectory (Harbor's agent trajectory format,
-v1.7), and ATIF is the format the grader reads. An nb cell under Harbor has
-its JSONL converted to ATIF. A bare nb cell is still read from its JSONL,
-and a test holds every captured transcript to reading the same either way.
-A shared format is not yet comparability, so proctor counts turns, tool
-calls, denials and how the run ended itself, by its own definitions, from
-the ATIF steps. It never takes an agent's word for its own numbers.
+## What runs the agent
 
-The direction is anything with tools through Harbor. The bare path is for
-tool-less programs and for shaking a suite down, where it needs no
-container and no Python. nb is to write ATIF itself, which would make the
-two paths identical by construction. The reasoning, and the costs accepted
-for it (a Python dependency and a fast-moving upstream), are in
-`project/plans/agent-neutral-runs.md`.
+Proctor runs an agent in one of two ways.
+
+Through [Harbor](https://github.com/harbor-framework/harbor), an agent runs
+in a container against a checkout of the fixture repository. Harbor
+isolates and runs Claude Code, Codex, Qwen Code, and
+[nb](https://github.com/breitreiter/nb), and in general any harness that
+speaks ACP. Use Harbor when the model needs tools that are unsafe on your
+own machine, such as a shell, or when the question is about a particular
+agent product rather than the model behind it.
+
+Bare, nb runs on this machine with no container. nb is a small runner for
+conversation programs: a scripted exchange with a model, with whatever
+system prompt and tool surface you give it. It is there for the cases
+where there is no CLI agent to test and you are not going to write one:
+a chatbot embedded in your product, a model's raw comprehension of a data
+structure or a tool definition, a prompt or a document on its own. Use
+bare nb for those; use Harbor for anything with a shipped agent in it.
+
+## Checks
+
+A check is one yes-or-no question asked of a finished run. Proctor has
+three kinds:
+
+- **Static checks** read the transcript and the work directory without a
+  model: how the run ended, turns and tool calls taken, denials, wall
+  time, whether the answer matched, and script checks that run your own
+  tests against the result.
+- **LLM-as-judge checks** send a model a named window of the transcript and
+  a question. The judge must answer with quoted evidence, every quote is
+  verified against the window, and several samples must agree.
+- **Classifier checks** send the window to a Jev typed classifier and read
+  a label with a probability against a threshold.
+
+Every verdict is cached beside the evidence, so a new check or a different
+judge is a regrade, not a rerun.
+
+## Oracles
+
+For multi-turn tasks, a task can carry an oracle: an answer sheet that
+plays the user when the agent stops to ask a question. The oracle answers
+from the sheet, judges whether the agent's question was answered by it,
+and records every exchange, so a check can require that the agent asked
+and was told a given thing, or cap how many answers it needed. Oracles run
+on nb arms, bare or through Harbor, where nb's ACP bridge carries the
+exchange; the vendor agents leave no record the oracle could use.
+
+## Reports
+
+`proctor report` writes one self-contained HTML page and a markdown twin.
+Every rate carries a 95% interval and its counts. Arms are compared
+pairwise on the tasks they share, with an interval and a fixed verdict
+word. The minimum detectable effect is stated, so an underpowered result
+cannot read as "no difference". A run can be pinned as a baseline and a
+later report can fail on regression against it. No model writes any part
+of the report; a judge's role ends at a label and a quote.
+
+Proctor counts turns, tool calls, denials and how a run ended itself, from
+the trajectory Harbor returns (ATIF, Harbor's agent trajectory format) or
+from nb's own log, by its own definitions. It never takes an agent's word
+for its own numbers.
 
 ## Install
 
