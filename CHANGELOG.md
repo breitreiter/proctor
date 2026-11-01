@@ -7,6 +7,14 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- A Harbor trial that proctor kills for outrunning its wall limit is torn
+  down: the containers, networks and images of its compose projects, found
+  by their `com.docker.compose.project` label. Harbor's own `compose down
+  --rmi local` is what a kill skipped, so a timed-out cell used to leave
+  the agent's container running with two images behind it, and the
+  failure only said to look. `docs/podman.md` §6b says what a trial leaves
+  behind and who removes it.
+
 - `suites/oracle-change`: the oracle on a real model. code-change's
   `add-retry-flag` with the semantics left out of the prompt; the answer
   sheet holds them, each deliberately not the conventional choice, and the

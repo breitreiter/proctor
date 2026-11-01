@@ -118,12 +118,51 @@ most Ubuntu profiles, pasta's does not include that file. The first line
 adds the include; run it once. A passt upgrade will therefore ask about
 the changed profile, and that upgrade is probably how Ubuntu's fix will
 arrive. Ubuntu's bug is [LP#2154379](https://bugs.launchpad.net/bugs/2154379).
-To clear what an earlier run left behind:
+To clear what runs before the rule left behind (the trial images are the
+bulk of it: two per cell, about 1.15 GB each, and `compose down --rmi
+local` is what would have removed them):
 
 ```bash
-podman ps -aq --filter name=egress-control-sidecar | xargs -r podman rm -f
-podman network ls --format '{{.Name}}' | grep -E '__env_default$|__trial_default$' | xargs -r podman network rm
+podman ps -a --format '{{.Names}}' | grep -E '__env-|__verifier__trial-' | xargs -r podman rm -f
+podman network ls --format '{{.Name}}' | grep -E '__env_default$|__trial_default$' | xargs -r -n1 podman network rm
+podman images --format '{{.Repository}}' | grep -E '__env-main$|__verifier__trial-main$' | xargs -r podman image rm
 ```
+
+One `podman network rm` per name, because a network that still has a
+container attached fails the call, and a single call over the whole list
+would then remove nothing.
+Images go by name, not id: trials of one fixture build identical images,
+so one id carries many trials' tags, and `image rm` on the id (or any
+`--filter reference=` listing, which lists by id) would take a running
+trial's tag with it. Untagging removes the image with its last tag.
+
+## 6b. What a trial leaves behind, and who removes it
+
+Harbor ends every trial with `compose down --rmi local --volumes
+--remove-orphans`, for the environment and again for the verifier: the
+containers, the network and the image each built are gone. With the pasta
+rule in place a finished cell leaves nothing in the engine (checked
+2026-11-01: `gate-oracle` on a clean podman, no container, no network, no
+new image afterwards).
+
+Two things skip that `down`:
+
+- **A killed Harbor.** When a cell outruns its wall limit plus the overhead
+  allowed for image builds, proctor kills the Harbor process tree, and no
+  `compose down` runs: the agent's container may still be running, with its
+  sidecar, network and images. Proctor then removes them itself, by the
+  trial's compose project labels (`com.docker.compose.project`:
+  `<trial>__env` and `<trial>__verifier__trial`, lower-cased), so a cell
+  running beside it is untouched. The cell's failure says what was removed.
+  A Harbor killed by anything other than proctor (an interrupted hand run,
+  `kill -9` on the host) leaves the same set; the lines above clear it.
+- **A failed `down`**, which is what the pasta denial above causes: one
+  exited sidecar, one network and one image per environment, two per cell.
+  That is the machine's fault, not proctor's, so proctor does not sweep for
+  it; fix the rule, then run the lines above once.
+
+Networks matter more than their size suggests: each holds a subnet from a
+finite pool.
 
 ## 7. Checking a machine: conformance
 

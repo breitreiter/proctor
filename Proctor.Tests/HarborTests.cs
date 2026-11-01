@@ -90,6 +90,21 @@ public class HarborTests
     }
 
     [Fact]
+    public void AKilledTrial_IsTornDownByItsComposeProjects()
+    {
+        // docker-compose lower-cases the project name; the trial directory keeps Harbor's mixed-case id.
+        Assert.Equal(["misses__ol6ktta__env", "misses__ol6ktta__verifier__trial"], HarborRun.TrialProjects("misses__oL6KTTA"));
+
+        using var repo = new TestRepo();
+        var jobs = Path.Combine(repo.Root, "jobs");
+        Assert.Equal("No trial had started, so nothing was left in the engine.", HarborRun.TearDown("false", jobs));
+        Directory.CreateDirectory(Path.Combine(jobs, "job", "misses__oL6KTTA"));
+        File.WriteAllText(Path.Combine(jobs, "job", "config.json"), "{}");
+        // An engine that lists nothing: the summary still names the trial and counts zero of each.
+        Assert.Equal("Removed what trial misses__oL6KTTA left in true: 0 containers, 0 networks, 0 images.", HarborRun.TearDown("true", jobs));
+    }
+
+    [Fact]
     public void Podman_NeedsDockerComposeAndAShortNameRegistry()
     {
         Assert.Empty(HarborRun.PodmanProblems("Docker Compose version 2.40.3+ds1-0ubuntu1", """{"search":["docker.io"]}"""));

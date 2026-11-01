@@ -101,7 +101,7 @@ static class HarborRun
         var result = Subprocess.Run(uv, UvArgs(version), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);
         if (!result.Started) return (null, $"could not start Harbor: {result.Stderr} (suites/proctor.json harbor.uv)");
-        if (result.TimedOut) return (null, $"Harbor did not finish within {timeout.TotalMinutes:0} minutes; killed (its containers may need `{engine} ps` and removing)");
+        if (result.TimedOut) return (null, $"Harbor did not finish within {timeout.TotalMinutes:0} minutes; killed. {TearDown(engine, jobsDir)}");
 
         var trial = Directory.Exists(Path.Combine(jobsDir, "job"))
             ? Directory.GetDirectories(Path.Combine(jobsDir, "job")).FirstOrDefault(d => File.Exists(Path.Combine(d, "result.json")))
@@ -112,5 +112,50 @@ static class HarborRun
             return (null, $"Harbor exited {result.ExitCode} without a trial: {stderr}");
         }
         return (trial, null);
+    }
+
+    /// <summary>
+    /// The compose projects a trial runs: its environment and its verifier, named from the trial's directory the way
+    /// docker-compose names a project (lower case). Each labels what it creates `com.docker.compose.project`, and names
+    /// its network `&lt;project&gt;_default` and the image it builds `&lt;project&gt;-main`.
+    /// </summary>
+    public static string[] TrialProjects(string trialDirName)
+    {
+        var project = trialDirName.ToLowerInvariant();
+        return [$"{project}__env", $"{project}__verifier__trial"];
+    }
+
+    /// <summary>
+    /// Remove what a killed trial left in the engine. Harbor ends a trial with `compose down --rmi local --volumes`, and
+    /// a kill skips it, so the containers stay (the agent's possibly still running), with the network and the two images
+    /// the trial built. Everything is found by the trial's project labels and names, so a concurrent cell's resources
+    /// are untouched. Returns one line saying what was removed, for the cell's failure.
+    /// </summary>
+    public static string TearDown(string engine, string jobsDir)
+    {
+        var jobDir = Path.Combine(jobsDir, "job");
+        var trials = Directory.Exists(jobDir) ? Directory.GetDirectories(jobDir).Select(Path.GetFileName).Where(n => n!.Contains("__")).ToList() : [];
+        if (trials.Count == 0) return "No trial had started, so nothing was left in the engine.";
+        int containers = 0, networks = 0, images = 0;
+        foreach (var project in trials.SelectMany(t => TrialProjects(t!)))
+        {
+            containers += RemoveAll(engine, ["ps", "-aq", "--filter", $"label=com.docker.compose.project={project}"], ["rm", "-f"]);
+            networks += RemoveAll(engine, ["network", "ls", "-q", "--filter", $"label=com.docker.compose.project={project}"], ["network", "rm", "-f"]);
+            // By name, not id: trials of one fixture build identical images, so an id can carry another trial's tag too.
+            images += RemoveAll(engine, ["images", "--format", "{{.Repository}}", "--filter", $"reference={project}-main"], ["image", "rm"],
+                name => name == $"{project}-main" || name.EndsWith($"/{project}-main"));
+        }
+        return $"Removed what trial {string.Join(", ", trials)} left in {engine}: {containers} containers, {networks} networks, {images} images.";
+    }
+
+    /// <summary>List with one engine command, keep the lines wanted, remove them with another; how many were removed.</summary>
+    static int RemoveAll(string engine, string[] list, string[] remove, Func<string, bool>? keep = null)
+    {
+        var listed = Subprocess.Run(engine, list, Directory.GetCurrentDirectory());
+        if (!listed.Started || listed.ExitCode != 0) return 0;
+        var ids = listed.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().Where(keep ?? (_ => true)).ToArray();
+        if (ids.Length == 0) return 0;
+        var removed = Subprocess.Run(engine, [.. remove, .. ids], Directory.GetCurrentDirectory());
+        return removed.Started && removed.ExitCode == 0 ? ids.Length : 0;
     }
 }
