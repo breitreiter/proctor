@@ -155,3 +155,8 @@ Costs to weigh first:
 - **A tool call is not a halt.** A model that would have stopped and asked in prose may
   call the tool instead, or may not. Ingest would count `proctor_chat` calls as oracle
   turns, and the method section has to say this arm's oracle is a tool.
+
+## The wrap-up list for 2026-11-01
+
+Cross-repo checklist for tying up the agent-neutral and oracle arc:
+`../nb/plans/wrap-up-2026-11-01.md`. B3 of that list is this paragraph.

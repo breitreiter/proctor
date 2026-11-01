@@ -7,6 +7,8 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+## 0.3.6 — 2026-11-01
+
 - A Harbor trial that proctor kills for outrunning its wall limit is torn
   down: the containers, networks and images of its compose projects, found
   by their `com.docker.compose.project` label. Harbor's own `compose down

@@ -3,10 +3,18 @@ type: plan
 title: Agent-neutral runs — real harnesses through Harbor, tool-less nb bare, everything above the trial in proctor
 created: 2026-09-29
 revised: 2026-10-12 (Harbor replaces the container runner and the agent adapters; see learnings/harbor.md)
-status: draft; nb's half (`../nb/plans/agent-neutral-runs.md`) revised to match on 2026-10-14
+status: current — staging 1-5 and 7 done, 8 half done, 6, 9 and 10 open (2026-11-01)
 ---
 
 # Agent-neutral runs
+
+**Status (2026-11-01).** Staging steps 1-5 and 7 are done (dated below). Step 8 is half
+done: validation demands `harness` on nb arms and its message names the retired
+costumes, but a costume value passes validation and is refused by nb at run start,
+before any model call. Open: 6 (limits end to end; only `wall_ms` is enforced), 9 (the
+porting guide finished by a cold port) and 10 (the first deliberate cc version bump).
+Project shape stages 1 and 2 ran their cheap-model pass (2026-10-20, graded 2026-11-01;
+see *Project shape, after*). Next spend: stage 2 on each vendor's main model, cost-capped.
 
 ## Why this plan exists
 
@@ -441,6 +449,24 @@ green.
 | 3 | n fixtures × {cc, Codex, Qwen Code} × 3, report to PM; method section labels every arm. |
 | side | Public Harbor datasets (a Terminal-Bench 2.0 subset) as proctor suites, reported with intervals. Harbor's leaderboards show only means, so this is the demo. |
 
+**Stages 1 and 2, cheap-model pass: run 2026-10-20, graded 2026-11-01**
+(`runs/20261020-0239-code-change-f3h0`, `code-change`, 3 tasks, Harbor on docker).
+
+| Arm | Model | Runs | Passed | Agent cost | Median cell |
+|---|---|---|---|---|---|
+| `qwen` (Qwen Code, imp) | qwen3-coder-next | 9 | 9 | $0 | 133 s |
+| `cc-haiku` (Claude Code) | claude-haiku-5-5 | 3 | 3 | $0.013 | 15 s |
+| `codex-mini` (Codex) | gpt-5-mini | 3 | 3 | $0.022 | 52 s |
+| `floor` (nb, imp) | qwen3-coder-next | 9 | 7 | $0 | 49 s |
+
+Both floor failures are `provider_error` before the first turn, a harness reason: the
+local endpoint, not the model. The vendor route works end to end and a cheap pass costs
+cents, so the next spend is stage 2 on each vendor's main model. Three tasks confirm nothing
+statistically (the report needs ~200 for a 10-point change). Grading surfaced two
+report warts: `not_nudged` reports `error` on every non-nb arm instead of not
+applying, and the arms table prints `?` for an agent arm's harness and provider.
+
+
 ### 10. Porting guide (`docs/porting-to-agent-neutral.md`)
 
 Written last, by porting `suites/code-change` with an agent that has only the
@@ -460,22 +486,26 @@ draft guide, and treating where it stalls as the edits. Short by design:
 
 ## Staging
 
-1. Spike (0). Go or no-go for the plan.
+1. Spike (0). Go or no-go for the plan. Done 2026-10-15: go on all five steps.
 2. Subprocess timeout; compile (1), run (2), ingest (3) for a cc arm on Haiku,
-   one fixture.
+   one fixture. Done 2026-10-16 (01851f2).
 3. The grader on ATIF (4) and nb converted at ingest; the snapshot tests
-   unchanged.
+   unchanged. Done 2026-10-16 (7709d55); nb's own trajectory replaced the
+   conversion 2026-10-28 (8797b66).
 4. `Agents/Nb` in Harbor and the deterministic gate (5, 8). Nothing else
-   lands until green.
+   lands until green. Done 2026-10-18 (9fa4469).
 5. `Agents/Codex` and `Agents/QwenCode` (5); `code-change` on all four
    agents; the porting guide drafted from that move.
    Checking proctor's layer over Harbor is `harbor-conformance.md`, at $0.
+   Done 2026-10-20 (f11537f, 3a37e33, 5414ad5); conformance green on podman 2026-11-01.
 6. Limits (decision 6) end to end; `max_cost` stops being stubbed and the
    report's "Cost is not shown" goes.
 7. Oracle (7). nb ships `--judge` since 2026-10-29. Done 2026-10-29 for nb arms.
 8. Refuse `harness` in validation, in the same week nb retires the costumes
    (nb plan, staging 5). Not before step 5 has run a real suite: retiring
-   the old route before the new one works leaves none.
+   the old route before the new one works leaves none. Half done 2026-10-28
+   (f0cf4f6): the message names the retired costumes, but only an empty value is
+   refused; nb refuses a costume value at run start.
 9. Guide finished by an agent porting a suite cold.
 10. The first deliberate version bump of cc, run as a two-arm experiment
     (decision 11). This rehearses the compliance loop before it's needed in

@@ -5,6 +5,25 @@ podman). Step 7 of `agent-neutral-runs.md`, decision 9.
 `learnings/scope.md` (*The consequence: the oracle moves up*) asked for this plan
 before building, and its four questions are settled below.
 
+## Validation, and why `oracle-change` is shelved (2026-11-01)
+
+What needed proving was mechanical: a target ends a turn, the bridge notices, replies,
+and the target starts a new turn on the reply. The new part was Harbor and ACP, not the
+oracle, which nb had already validated. `suites/gate-oracle` proves that on Mock at no
+cost: bare and Harbor rows identical on all three endings
+(`runs/20261101-1303-gate-oracle-k6qm`, podman). It is the test.
+
+`suites/oracle-change` is kept as a model-behaviour benchmark for later (an Opus arm,
+bigger n), not as validation. Whether Haiku asks on an underspecified task teaches
+nothing about the bridge. Its two runs on 2026-10-31, as tabulated that day:
+- `runs/20261031-1152-oracle-change-zckt`, the suite as committed: 8 of 10 cells asked
+  the oracle and 3 of 10 passed. Every failure among askers was the one acceptance test
+  for the wrap message, a question they never asked. The four asking Harbor cells are
+  the one real-model confirmation of the bridge.
+- `runs/20261031-1139-oracle-change-iijs`, with the `for *` approvals removed to force
+  a denial: after it, 3 of 5 bare cells and 5 of 5 Harbor cells went back to bash, up
+  from 1 of 5 before nb's denial-text fix (nb issue #2, closed).
+
 ## Where things stand
 
 Proctor has no oracle. No suite field names a sheet. No arm attaches one. The
