@@ -15,7 +15,7 @@ before any model call. Open: 6 (limits end to end; only `wall_ms` is enforced), 
 porting guide finished by a cold port) and 10 (the first deliberate cc version bump).
 Project shape stages 1 and 2 ran their cheap-model pass (2026-10-20, graded 2026-11-01;
 see *Project shape, after*), Codex's half on the local qwen (step 5). Stage 2 on the main
-models (Claude Code on Sonnet 5.5, Codex on gpt-5.5): 2026-11-02.
+models ran 2026-11-02: Claude Code on Sonnet 5.5 and Codex on gpt-5.5 on OpenAI, 3 of 3 each.
 
 ## Why this plan exists
 
@@ -468,7 +468,28 @@ cents, so the next spend is stage 2 on each vendor's main model.
 OpenAI's route had a 10-call cap that day, so Codex ran on the local qwen through minrouter's
 `imp-qcoder` route, and this table had taken its label for a vendor run. Codex records the model
 it was configured with and Harbor prices that, so every file and the report said gpt-5-mini; the
-report has no way to say otherwise (issue #9). Codex on OpenAI ran first in stage 2. Three tasks confirm nothing
+report has no way to say otherwise (issue #9). Codex on OpenAI ran first in stage 2.
+
+**Stage 2, main models: run and graded 2026-11-02**
+(`runs/20261102-1143-code-change-jy0n`, `code-change`, 3 tasks, Harbor on podman, proctor 0.3.6
+plus the two wart fixes; Codex on minrouter's `openai` route, which its manifests record).
+
+| Arm | Model | Runs | Passed | Agent cost | Median cell |
+|---|---|---|---|---|---|
+| `cc-sonnet` (Claude Code) | claude-sonnet-5-5 | 3 | 3 | $0.18 | 62 s |
+| `codex` (Codex) | gpt-5.5 | 3 | 3 | $0.35 | 86 s |
+| `cc-haiku` (Claude Code) | claude-haiku-5-5 | 3 | 3 | $0.01 | 81 s |
+| `qwen` (Qwen Code, imp) | qwen3-coder-next | 9 | 9 | $0 | 184 s |
+| `floor` (nb, imp) | qwen3-coder-next | 9 | 8 | $0 | 114 s |
+
+The floor's one failure is again `provider_error` before the first turn. Both vendors' main
+models run end to end; three tasks confirm nothing (the report's MDE is ~81 points). Grading
+cost $2.79 on Cloudflare, most of it `change-fits` on glm, and 12 of its 27 verdicts are
+`error`: on `rename-module` glm quotes `Legacy_Widgets` for `Legacy.Widgets` (rightly
+discarded), on `add-retry-flag` it quotes added lines without the diff's `+` markers, which
+looks like the verbatim check's doing, not glm's (unconfirmed; `todo.md`). The gateway saw 4 OpenAI calls and $0 for Codex's 15
+turns, so its daily cap does not bound Codex yet; that is minrouter's to look at. Next:
+stage 3 needs more tasks before more samples. Three tasks confirm nothing
 statistically (the report needs ~200 for a 10-point change). Grading surfaced two
 report warts, both fixed 2026-11-02: `not_nudged` reported `error` on every non-nb arm
 (a vendor cell no longer carries a check that reads only the nudge, and one in `pass` or

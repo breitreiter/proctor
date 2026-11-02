@@ -156,6 +156,20 @@ Costs to weigh first:
   call the tool instead, or may not. Ingest would count `proctor_chat` calls as oracle
   turns, and the method section has to say this arm's oracle is a tool.
 
+## Find out why glm's multi-line diff quotes fail verification
+
+Stage 2's grade (`runs/20261102-1143-code-change-jy0n`) had `change-fits` on glm `error` in
+12 of 27 runs, every one a quote the verbatim check refused. On `add-retry-flag` the refused
+quotes span several added lines and drop the diff's `+` markers
+(`codex/add-retry-flag/1/verdicts/change-fits.glm.*.json` against its `diff.patch`), and a
+single-line quote from the same answer passes; since the check strips only whitespace, the
+markers alone would explain it, which would make it proctor's bug, not glm's. Unconfirmed:
+reproduce it in `JudgeTests` with that window and quote before deciding. If it holds, the
+likely fix is one more candidate form for a diff part (each side's lines with the marker cut,
+old and new kept apart so a quote cannot stitch them), and then it is an issue. The
+`rename-module` errors are a different thing: glm wrote `Legacy_Widgets` for
+`Legacy.Widgets`, a wrong quote rightly discarded.
+
 ## The wrap-up list for 2026-11-01
 
 Cross-repo checklist for tying up the agent-neutral and oracle arc:
