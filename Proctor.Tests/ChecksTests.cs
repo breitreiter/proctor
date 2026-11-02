@@ -92,7 +92,7 @@ public class ChecksTests
     [Theory]
     [InlineData("{\"max_duration_ms\": 1800000}", "finishes within 30 min")]
     [InlineData("{\"max_duration_ms\": 1500}", "finishes within 1500 ms")]
-    [InlineData("{\"not_exit_reason\": \"ok\"}", "not: nb exits with 'ok'")]
+    [InlineData("{\"not_exit_reason\": \"ok\"}", "not: the run ends with 'ok'")]
     [InlineData("{\"files_touched\": \"@expect\"}", "the files changed are the ones the task expects")]
     [InlineData("{\"files_touched\": {\"paths\": [\"src/**\", \"README.md\"], \"mode\": \"at_most\"}}", "changes stay within src/**, README.md")]
     [InlineData("{\"tool_sequence\": {\"names\": [\"read\", \"bash\"], \"mode\": \"exact\"}}", "calls read, bash and nothing else")]

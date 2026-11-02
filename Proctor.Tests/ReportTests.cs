@@ -54,6 +54,49 @@ public class ReportTests
         AssertSnapshot("summary.md", Report.Markdown(stats, rows, exp));
     }
 
+    /// <summary>Arms with different sample counts that lost nothing are not "unequal": the warning compares the share each arm decided.</summary>
+    [Fact]
+    public void Markdown_DifferentSampleCounts_LosingNothing_WarnsNothing()
+    {
+        var suite = WorkedExperiment.Suite();
+        var rows = WorkedExperiment.Rows().Where(r => r.Arm == "b" || r.Sample == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
+        var md = Report.Markdown(Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows), rows, WorkedExperiment.Experiment(suite));
+        Assert.DoesNotContain("lost runs unequally", md);
+    }
+
+    /// <summary>A check that errored is the check's weakness: out of its rate, not called a failure, and listed apart under Failures.</summary>
+    [Fact]
+    public void AnErroredCheck_IsOutOfItsRate_AndListedApartFromFailures()
+    {
+        var suite = WorkedExperiment.Suite();
+        var rows = WorkedExperiment.Rows().Select(r => r is { Arm: "b", Task: "uses-bash", Sample: 1 }
+            ? r with { Checks = new(r.Checks!) { ["used-bash"] = Verdict.Error }, Reasons = new() { ["used-bash"] = "judge: line one\nline two" } }
+            : r).ToList();
+        var stats = Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows);
+        var b = stats.Arms["b"];
+        Assert.Equal((2, 1), (b.Checks["used-bash"].NCells, b.Checks["used-bash"].Errors));
+        Assert.DoesNotContain(b.Failures, f => f.Check == "used-bash");
+        Assert.Equal(("used-bash", 1, 3), Assert.Single(b.Errored!) is var e ? (e.Check, e.Cells, e.Of) : default);
+        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(suite));
+        Assert.Contains("could not grade 1 of 3 runs", md);
+        // A reason over two lines stays in its table row.
+        Assert.Contains("judge: line one<br>line two", md);
+    }
+
+    /// <summary>An agent's reported cost reaches the Cost and effort table; an arm without one shows none.</summary>
+    [Fact]
+    public void Markdown_ShowsCost_WhenAnArmReportsIt()
+    {
+        var suite = WorkedExperiment.Suite();
+        var rows = WorkedExperiment.Rows().Select(r => r.Arm == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
+        var stats = Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows);
+        Assert.Equal((0.05, 0.45), (stats.Arms["b"].CostUsd!.Median, stats.Arms["b"].CostTotalUsd!.Value));
+        Assert.Null(stats.Arms["floor"].CostUsd);
+        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(suite));
+        Assert.Contains("| Cost: median | total |", md);
+        Assert.Contains("| $0.05 | $0.45 |", md);
+    }
+
     /// <summary>The page loads nothing: styles, script and logo are inline. Links out (the icon's credit) are only followed by a reader.</summary>
     [Fact]
     public void Html_LoadsNothingFromOutside_AndIsOneFile()

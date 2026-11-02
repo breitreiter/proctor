@@ -35,7 +35,7 @@ record Exclusion(string Cell, string Status, string Reason);
 record ArmStats(
     int Planned, int Attempted, int Completed, int Graded, int Analysed, int Decided, List<Exclusion> Excluded, List<Exclusion> Undecided,
     RateJson? Pass, Dictionary<string, RateJson> Checks, List<CheckFailure> Failures, Dictionary<string, int> ExitReasons,
-    Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated, Dictionary<string, TaskScore> Tasks);
+    Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated, Dictionary<string, TaskScore> Tasks, Summary? CostUsd = null, double? CostTotalUsd = null, List<CheckFailure>? Errored = null);
 
 /// <summary>One arm on one task: its score (the mean over its decided runs, null when none was decided) and the runs behind it.</summary>
 record TaskScore(double? Score, int Passed, int Decided);
@@ -159,7 +159,7 @@ static class Stats
         var methods = "Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. "
             + $"Per-arm rates use the Wilson 95% interval. Differences between arms, and against {vs}, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
             + $"The detectable difference assumes 80% power and a per-task paired-difference sd of {AssumedSdOfPairedDifference}. "
-            + "Durations are the run's wall time including hooks; tokens are what nb reported. "
+            + "Durations are the run's wall time including hooks; tokens are the run's own count. "
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
             + (baseline is null ? "" : $" The {(guard?.Against is null ? "baseline verdict" : "verdict against each arm's earlier run")} is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
 
@@ -188,10 +188,11 @@ static class Stats
         var checkRates = checks.ToDictionary(name => name, name =>
         {
             // A validity check's rate is over every graded run: it says how many counted. Other checks are over the runs that count.
-            // A run the check could not decide is out of its denominator on both sides, and counted beside the rate.
+            // A run the check could not decide, or could not grade at all (an error), is out of its denominator on both sides, and counted beside the rate:
+            // either is the check's weakness, not the arm's.
             var pool = validity.Contains(name) ? rows.Where(r => r.Checks is not null) : analysed;
             var graded = pool.Where(r => r.Checks!.ContainsKey(name)).ToList();
-            var decidedByCheck = graded.Where(r => r.Checks![name] != Verdict.NeedsJudge).ToList();
+            var decidedByCheck = graded.Where(r => r.Checks![name] is not (Verdict.NeedsJudge or Verdict.Error)).ToList();
             var rate = TaskRate(decidedByCheck, tasks, r => r.Checks![name] == Verdict.Pass);
             return rate is null ? null : rate with
             {
@@ -200,14 +201,17 @@ static class Stats
             };
         }).Where(k => k.Value is not null).ToDictionary(k => k.Key, k => k.Value!);
 
-        // Failures: over the counted runs, every non-validity check that failed or errored, most often first. A validity fail is an exclusion; an undecided check is listed apart.
-        var failures = checks.Where(name => !validity.Contains(name))
-            .Select(name => (name, cells: analysed.Where(r => r.Checks!.TryGetValue(name, out var v) && v is Verdict.Fail or Verdict.Error).ToList()))
+        // Failures: over the counted runs, every non-validity check that failed, most often first, out of the runs it decided. A validity fail is an exclusion;
+        // an undecided check is listed apart, and so is one that errored, out of the runs that carry it.
+        List<CheckFailure> Tally(string verdict, Func<string, bool> of) => checks.Where(name => !validity.Contains(name))
+            .Select(name => (name, cells: analysed.Where(r => r.Checks!.TryGetValue(name, out var v) && v == verdict).ToList()))
             .Where(x => x.cells.Count > 0)
             .OrderByDescending(x => x.cells.Count).ThenBy(x => checks.IndexOf(x.name))
-            .Select(x => new CheckFailure(x.name, x.cells.Count, analysed.Count(r => r.Checks!.TryGetValue(x.name, out var v) && v != Verdict.NeedsJudge),
+            .Select(x => new CheckFailure(x.name, x.cells.Count, analysed.Count(r => r.Checks!.TryGetValue(x.name, out var v) && of(v)),
                 tasks.Where(c => x.cells.Any(r => r.Task == c)).ToDictionary(c => c, c => x.cells.Count(r => r.Task == c))))
             .ToList();
+        var failures = Tally(Verdict.Fail, v => v is not (Verdict.NeedsJudge or Verdict.Error));
+        var errored = Tally(Verdict.Error, _ => true);
 
         var completed = rows.Where(r => r.Status == CellStatus.Completed).ToList();
         var exitReasons = completed.Where(r => r.ExitReason is not null).GroupBy(r => r.ExitReason!)
@@ -229,6 +233,9 @@ static class Stats
             DurationMs: Summarise(completed.Where(r => r.DurationMs is not null).Select(r => (double)r.DurationMs!)),
             TokensTotal: Summarise(completed.Where(r => r.Usage?.Total is not null).Select(r => (double)r.Usage!.Total!)),
             TokensEstimated: completed.Any(r => r.Usage?.Estimated == true),
+            CostUsd: Summarise(completed.Where(r => r.Usage?.CostUsd is not null).Select(r => r.Usage!.CostUsd!.Value), digits: 4),
+            CostTotalUsd: completed.Any(r => r.Usage?.CostUsd is not null) ? Math.Round(completed.Sum(r => r.Usage?.CostUsd ?? 0), 4) : null,
+            Errored: errored.Count > 0 ? errored : null,
             Tasks: tasks.ToDictionary(c => c, c =>
             {
                 var runs = decided.Where(r => r.Task == c).ToList();
@@ -326,11 +333,11 @@ static class Stats
         return new Mde(nPairs, points, rounded, sentence);
     }
 
-    public static Summary? Summarise(IEnumerable<double> values)
+    public static Summary? Summarise(IEnumerable<double> values, int digits = 0)
     {
         var v = values.Order().ToArray();
         if (v.Length == 0) return null;
-        return new Summary(v.Length, Median(v), Percentile(v, 0.9), Math.Round(v.Average()), v[0], v[^1]);
+        return new Summary(v.Length, Median(v), Percentile(v, 0.9), Math.Round(v.Average(), digits), v[0], v[^1]);
     }
 
     static double Median(double[] sorted) =>

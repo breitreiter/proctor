@@ -2,7 +2,7 @@
 type: plan
 title: The report, rebuilt for a reader who was not there
 created: 2026-09-22
-status: built 2026-09-22 as written, undecided runs out of the pass denominator; the snapshot is the worked example rendered by the code
+status: built 2026-09-22 as written, undecided runs out of the pass denominator; reviewed 2026-11-02 (below); the snapshot is the worked example rendered by the code
 ---
 
 # The report, rebuilt for a reader who was not there
@@ -29,6 +29,55 @@ consistently.** Five terms carry the whole report:
 Every heading gets one sentence under it saying what the section is for.
 Statistics stay, but move behind the plain result and get a plain name:
 "95% interval", never "CI".
+
+## Review, 2026-11-02
+
+Read fresh against `20261102-1143-code-change-jy0n` (5 arms, three of them agents,
+3 tasks) and `20261030-1514-oracle-change-n8hq` (the oracle, 1 task), rendered with
+headless Chrome.
+
+**Where the page has rightly moved past this plan.** The order below is now:
+the verdict card, then the about table (no *Result* row: the card is the result), Arms,
+Tasks, Results, Failures, What ran, Check pass rates, Cost and effort, Every run,
+Reproducibility and method. *Results by task* is gone as a section: each task's runs,
+score and baseline sit in its own block under Tasks, with the reason each failed run
+failed, which reads better than a matrix far from the task's sentence. What ran gains
+*Decided*. The card is the place for direction and confidence ("Worse (unconfirmed)"),
+the about table only for what ran.
+
+**Fixed in the same change** (CHANGELOG, Unreleased): a false "lost runs unequally"
+when arms have different sample counts; a failed run's reason naming a guardrail ahead
+of the headline check that failed it; `summary.md` rows split by multi-line reasons;
+"nb" wherever the page meant any harness; agent cost not shown though `core.json` has
+it; Failures calling a judge's `error` a failure; tables running off the page at five
+arms.
+
+**Decided.** A check's `error` is out of its rate on both sides, like `needs-judge`, and
+counted beside it: an error is the check's weakness, not the arm's. A headline check
+that errored still fails the run, so the pass rate is unchanged.
+
+**Next revision** (not built):
+
+- *Baseline verdicts for arms the baseline never saw.* `cc-sonnet` and `codex` are
+  "Unchanged" against a baseline pinned on 22 September, before either existed. The
+  baseline is per task, so the arithmetic holds, but the word reads as "no change
+  since then". Say "against the baseline's scores" for an arm with no pinned runs of
+  its own, or leave it out of the card.
+- *Repetition at many arms.* "Why unconfirmed" repeats "For the same reason, X passing
+  11 points more than floor is not a detectable difference" once per arm, and Results
+  has one near-identical comparison paragraph per arm. At five arms that's a wall: one
+  sentence naming every arm whose difference is below the MDE, and a comparison table
+  in place of the paragraphs.
+- *Per-task check lists.* Each task block lists every check it carries, 9 of 11 the
+  suite's, three times over. This plan listed only what was particular to the task;
+  go back to that, with the suite's checks once under Checks.
+- *"Each run 3 times or once per arm".* With mixed sample counts, say it per arm
+  ("3 runs per task for `floor` and `qwen`, 1 for the rest").
+
+**For the site, not the page.** The about table names the host (`sanjuro`) and the
+judge rows name the gateway (`library:8086`) because the machine's config spells them
+so. A report copied to the public site needs those scrubbed, or written as
+`${LLM_GATEWAY}` in the config that graded it.
 
 ## Reading order
 

@@ -28,7 +28,7 @@ public class SuiteTests
         repo.CopySuite("smoke");
         var described = repo.LoadSuite("smoke").CheckDescriptions();
         Assert.Equal("the last assistant message is not empty", described["answer-nonempty"]);
-        Assert.Equal("nb exits with 'ok'", described["exit_ok"]);
+        Assert.Equal("the run ends with 'ok'", described["exit_ok"]);
         Assert.Equal("no denied tool calls", described["no_denials"]);
         Assert.Equal("at most 3 tool calls and at most 100,000 tokens", described["under_budget"]);
         Assert.Equal("answer contains is what the task expects", described["says-expected"]);
@@ -107,7 +107,7 @@ public class SuiteTests
         var suite = repo.LoadSuite("smoke");
         Assert.Contains("own", suite.Grading.Pass!);
         Assert.False(suite.CheckDescriptions().ContainsKey("own"));   // three tasks, three criteria: no one sentence is the check's
-        Assert.Equal("nb exits with 'ok'", suite.ChecksFor(suite.Tasks.Single(t => t.Id == "loops")).Values.Select(k => Checks.Describe(k.Spec)).Last());
+        Assert.Equal("the run ends with 'ok'", suite.ChecksFor(suite.Tasks.Single(t => t.Id == "loops")).Values.Select(k => Checks.Describe(k.Spec)).Last());
         Assert.All(suite.Tasks, t => Assert.Equal("task", suite.ChecksFor(t)["own"].Level));
     }
 
@@ -118,7 +118,7 @@ public class SuiteTests
         repo.CopySuite("smoke");
         foreach (var task in new[] { "plain", "loops", "uses-bash" })
             repo.EditJson($"smoke/tasks/{task}.json", c => c["checks"] = JsonNode.Parse("{\"own\": {\"exit_reason\": \"ok\"}}"));
-        Assert.Equal("nb exits with 'ok'", repo.LoadSuite("smoke").CheckDescriptions()["own"]);
+        Assert.Equal("the run ends with 'ok'", repo.LoadSuite("smoke").CheckDescriptions()["own"]);
     }
 
     [Fact]

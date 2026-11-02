@@ -7,6 +7,26 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- The report review (`project/plans/report-structure.md`, 2026-11-02):
+  - A check's `error` is out of its rate, as `needs-judge` is, and counted
+    beside it; Failures lists it apart as "could not grade", where it said
+    "failed". `stats.json` gains a per-arm `errored` list. A headline check
+    that errored still fails the run, so pass rates do not move; guardrail
+    rates do (`code-change`'s `change-fits` read 44% for `floor` with 5 of
+    its 9 runs errored, and reads 100% of the 4 it graded).
+  - Agent arms' cost: `cost_usd` from `core.json` reaches `results.jsonl`
+    (`usage.cost_usd`), `stats.json` (`cost_usd`, `cost_total_usd`) and a
+    Cost column in Cost and effort. nb reports none.
+  - "Arms lost runs unequally" compares the share each arm decided, so arms
+    with different sample counts that lost nothing no longer warn.
+  - A failed run's reason leads with the headline check that failed it,
+    not the first check declared.
+  - `summary.md` keeps a multi-line reason in its table row (`<br>`).
+  - The report no longer says nb where it means any harness: `exit_reason`
+    reads "the run ends with 'ok'", "How each completed run ended", an
+    "Ended" column.
+  - A table wider than the page scrolls inside it.
+
 - Judges no longer assume Cloudflare. A `systemone` judge may name a
   `model`, which `decide` sends in the request (OpenRouter's
   `/alpha/decisions` serves every decision model from one path); one

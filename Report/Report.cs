@@ -120,7 +120,7 @@ static class Report
 
         // 5. Failures
         b.Add(new Heading("Failures", "failures"));
-        b.Add(new Para("For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run is listed apart: that is the check's weakness, not the arm's.", "explain"));
+        b.Add(new Para("For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check's weakness, not the arm's.", "explain"));
         foreach (var a in arms)
         {
             var s = stats.Arms[a];
@@ -129,6 +129,11 @@ static class Report
             b.Add(new Para(s.Failures.Count == 0 ? $"{who} failed no check in any of its {s.Analysed} counted run{(s.Analysed == 1 ? "" : "s")}." : $"{who} failed {s.Failures.Count} check{(s.Failures.Count == 1 ? "" : "s")}:"));
             if (s.Failures.Count > 0)
                 b.Add(new Bullets(s.Failures.Select(f => FailureText(stats, f)).ToList()));
+            if (s.Errored is { Count: > 0 } errored)
+            {
+                b.Add(new Para($"Apart from that, {(errored.Count == 1 ? "a check" : $"{errored.Count} checks")} could not grade some of {a}'s runs; each run's reason says why:"));
+                b.Add(new Bullets(errored.Select(f => FailureText(stats, f, "could not grade")).ToList()));
+            }
         }
         var undecided = arms.SelectMany(a => stats.Arms[a].Undecided).ToList();
         if (undecided.Count > 0 && undecided.Count <= 5)
@@ -142,7 +147,7 @@ static class Report
         // 6. What ran
         var unequal = UnequalLoss(stats);
         b.Add(new Heading("What ran", "what-ran", Flagged: unequal is not null));
-        b.Add(new Para("Every run planned by the matrix, and how far it got. *Attempted* runs started; *completed* runs ended with a transcript from nb; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.", "explain"));
+        b.Add(new Para("Every run planned by the matrix, and how far it got. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.", "explain"));
         b.Add(new Table(["Arm", "Planned", "Attempted", "Completed", "Graded", "Counted", "Decided"],
             arms.Select(a => { var s = stats.Arms[a]; return (List<Cell>)[Id(a), T($"{s.Planned}"), T($"{s.Attempted}"), T($"{s.Completed}"), T($"{s.Graded}"), T($"{s.Analysed}"), T($"{s.Decided}")]; }).ToList(),
             [1, 2, 3, 4, 5, 6]));
@@ -154,7 +159,7 @@ static class Report
             b.Add(new Para("Runs left out, and why:"));
             b.Add(new Bullets(excluded.Select(ex => $"{RunLink(rows, ex.Cell)}: {ExclusionText(ex)}").ToList()));
         }
-        b.Add(new Para("How nb ended each completed run, per arm. `ok` is a normal finish; anything else is nb stopping the run, which the checks then grade like any other.", "explain"));
+        b.Add(new Para("How each completed run ended, per arm. `ok` is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.", "explain"));
         var reasons = ExitReasons(stats).ToList();
         b.Add(new Table(["Arm", .. reasons.Select(r => $"`{r}`")],
             arms.Select(a => (List<Cell>)[Id(a), .. reasons.Select(r => T(ExitCell(stats.Arms[a], rows, a, r)))]).ToList(),
@@ -170,15 +175,18 @@ static class Report
         // 8. Cost and effort
         var unit = DurationUnit(stats);
         b.Add(new Heading("Cost and effort", "cost"));
-        b.Add(new Para($"Per completed run. Duration is wall time in {(unit == "min" ? "minutes" : "seconds")}, hooks included; tokens are what nb reported{(arms.Any(a => stats.Arms[a].TokensEstimated) ? ", and some counts are nb's estimate rather than the provider's" : "")}. Cost is not shown: nb does not report it.", "explain"));
-        b.Add(new Table(["Arm", $"Duration ({unit}): median", "p90", "mean", "range", "Tokens: median", "p90", "mean", "range"],
-            arms.Select(a => { var s = stats.Arms[a]; return (List<Cell>)[Id(a), .. SummaryText(s.DurationMs, v => Duration(v, unit)).Select(T), .. SummaryText(s.TokensTotal, Tokens).Select(T)]; }).ToList(),
-            Enumerable.Range(1, 8).ToHashSet()));
+        var costed = arms.Any(a => stats.Arms[a].CostUsd is not null);
+        b.Add(new Para($"Per completed run. Duration is wall time in {(unit == "min" ? "minutes" : "seconds")}, hooks included; tokens are the run's own count{(arms.Any(a => stats.Arms[a].TokensEstimated) ? ", and some counts are the harness's estimate rather than the provider's" : "")}. "
+            + (costed ? "Cost is what the agent reported for its runs (Claude Code its own count, Codex as Harbor priced its tokens); an arm whose harness reports none shows none." : "Cost is not shown: no arm's harness reports one."), "explain"));
+        b.Add(new Table(["Arm", $"Duration ({unit}): median", "p90", "mean", "range", "Tokens: median", "p90", "mean", "range", .. costed ? ["Cost: median", "total"] : Array.Empty<string>()],
+            arms.Select(a => { var s = stats.Arms[a]; return (List<Cell>)[Id(a), .. SummaryText(s.DurationMs, v => Duration(v, unit)).Select(T), .. SummaryText(s.TokensTotal, Tokens).Select(T),
+                .. costed ? [T(s.CostUsd is { } c ? Dollars(c.Median) : ""), T(s.CostTotalUsd is { } total ? Dollars(total) : "")] : Array.Empty<Cell>()]; }).ToList(),
+            Enumerable.Range(1, costed ? 10 : 8).ToHashSet()));
 
         // 9. Every run
         b.Add(new Heading("Every run", "every-run"));
         b.Add(new Para("Every run, failures first. *Reason* is the first check that did not hold and what it saw, or why the run never completed.", "explain"));
-        b.Add(new Table(["Arm", "Task", "Run", "Result", "nb ended", $"Duration ({unit})", "Tokens", "Reason"],
+        b.Add(new Table(["Arm", "Task", "Run", "Result", "Ended", $"Duration ({unit})", "Tokens", "Reason"],
             Ordered(rows).Select(r => (List<Cell>)[
                 new Cell($"`{r.Arm}`", Anchor: $"run-{r.RunId}"), Id(r.Task), T($"{r.Sample}"),
                 new Cell($"{Glyph(r)} {Outcome(r)}", $"<span class=\"{GlyphClass(r)}\" title=\"{E(r.RunId)}\">{Glyph(r)} {E(Outcome(r))}</span>"),
@@ -376,7 +384,8 @@ static class Report
 
     static string? UnequalLoss(StatsFile stats)
     {
-        if (stats.Arms.Values.Select(a => a.Decided).Distinct().Count() <= 1) return null;
+        // A share, not a count: arms with different sample counts lose nothing by deciding different numbers of runs.
+        if (stats.Arms.Values.Select(a => (double)a.Decided / Math.Max(1, a.Planned)).Distinct().Count() <= 1) return null;
         return "Arms lost runs unequally: " + string.Join(", ", stats.Arms.Select(a => $"`{a.Key}` decided {a.Value.Decided} of {a.Value.Planned}")) + ". The rates are over decided runs; the runs lost are listed here.";
     }
 
@@ -433,13 +442,13 @@ static class Report
         stats.TaskDetails?.GetValueOrDefault(task)?.Checks.FirstOrDefault(k => k.Name == check)?.Description;
 
     /// <summary>A failed check with the tasks it failed on; a check described per task carries each task's sentence beside the task.</summary>
-    static string FailureText(StatsFile stats, CheckFailure f)
+    static string FailureText(StatsFile stats, CheckFailure f, string verb = "failed in")
     {
         var perTask = PerTask(stats, f.Check);
         var head = perTask ? $"**`{f.Check}`** ({Role(stats, f.Check)})" : $"**{CheckText(stats, f.Check)}** (`{f.Check}`, {Role(stats, f.Check)})";
         var on = f.Tasks.OrderByDescending(c => c.Value).Select(c =>
             $"{Times(c.Value)} on {TaskLink(c.Key)}" + (perTask && TaskCheckText(stats, c.Key, f.Check) is { } text ? $" ({text})" : ""));
-        return $"{head} failed in {f.Cells} of {f.Of} run{(f.Of == 1 ? "" : "s")}: {string.Join(", ", on)}.";
+        return $"{head} {verb} {f.Cells} of {f.Of} run{(f.Of == 1 ? "" : "s")}: {string.Join(", ", on)}.";
     }
 
     static string TaskText(StatsFile stats, string c) => stats.Descriptions.Tasks.GetValueOrDefault(c, c);
@@ -497,6 +506,7 @@ static class Report
 
     static string Duration(double ms, string unit) => unit == "min" ? $"{ms / 60_000:F1}" : $"{ms / 1000:F1}";
     static string Tokens(double n) => ((long)n).ToString("N0");
+    static string Dollars(double d) => d < 0.01 ? $"${d:0.0000}" : $"${d:0.00}";
     static string Pct(double p) => $"{Points(p)}%";
     static string Points(double p) => $"{Math.Round(100 * p, MidpointRounding.AwayFromZero):F0}";
     static string Signed(int points) => points > 0 ? $"+{points}" : points < 0 ? $"−{-points}" : "0";
@@ -596,7 +606,8 @@ static class Report
                 sb.Append($"<h4>{E(l.Text)}</h4>\n");
                 break;
             case Table t:
-                sb.Append($"<table{Class(t.Class)}>\n<thead><tr>");
+                // A wide table (many arms) scrolls within the column rather than running off the page.
+                sb.Append($"<div class=\"table-wrap\"><table{Class(t.Class)}>\n<thead><tr>");
                 foreach (var (h, i) in t.Header.Select((h, i) => (h, i))) sb.Append($"<th{(t.Numeric.Contains(i) ? " class=\"num\"" : "")}>{Inline(h)}</th>");
                 sb.Append("</tr></thead>\n<tbody>\n");
                 foreach (var row in t.Rows)
@@ -607,7 +618,7 @@ static class Report
                         sb.Append($"<td{(t.Numeric.Contains(i) ? " class=\"num\"" : "")}>{c.Html ?? Inline(c.Text)}</td>");
                     sb.Append("</tr>\n");
                 }
-                sb.Append("</tbody>\n</table>\n");
+                sb.Append("</tbody>\n</table></div>\n");
                 break;
             case Card c:
                 sb.Append($"<div class=\"verdict\" role=\"region\" aria-label=\"Verdict\">\n<div class=\"kicker\">{E(c.Title)}</div>\n<div class=\"verdict-arms\">\n");
@@ -717,6 +728,7 @@ static class Report
         .rpt p { margin: .5rem 0; max-width: 52rem; }
         .rpt .explain { color: #6b6b6b; font-size: 14px; }
         .rpt table { border-collapse: collapse; margin: .75rem 0; font-variant-numeric: tabular-nums; }
+        .rpt .table-wrap { max-width: 100%; overflow-x: auto; }
         .rpt th, .rpt td { padding: .3rem .7rem; border-bottom: 1px solid #d8d8d8; text-align: left; vertical-align: top; }
         .rpt th { font-weight: 600; font-size: .85rem; color: #595959; }
         .rpt td { max-width: 32rem; }
@@ -851,5 +863,5 @@ static class Report
     }
 
     static string Md(string s) => Regex.Replace(Regex.Replace(s, @"\[([^\]]+)\]\(#[^)\s]+\)", "$1"), "``([^`]+?)``", "`$1`");
-    static string MdCell(string s) => Md(s).Replace("|", "\\|");
+    static string MdCell(string s) => Md(s).Replace("|", "\\|").ReplaceLineEndings("<br>");
 }

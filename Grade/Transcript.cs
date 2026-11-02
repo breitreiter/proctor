@@ -11,7 +11,7 @@ record Trailer(
     string ExitReason,
     long? Input, long? Output, long? Total, bool Estimated,
     int? Turns, int? ToolCalls, long? DurationMs,
-    string? Provider, string? Harness, int Denied, int OracleTurns);
+    string? Provider, string? Harness, int Denied, int OracleTurns, double? CostUsd = null);
 
 record ToolCall(string Id, string Name, JsonObject? Arguments, string? Approved, string? ApprovalReason)
 {
@@ -125,7 +125,7 @@ sealed class Transcript
                 core.Turns, core.ToolCalls, core.DurationMs,
                 Provider: own is null ? null : Str(own, "provider"),
                 Harness: nb ? (own is null ? null : Str(own, "harness")) ?? Arm.Nb : Str(trajectory["agent"] as JsonObject ?? [], "name"),
-                core.Denied, OracleTurns: (int?)Num(own, "oracle_turns") ?? 0);
+                core.Denied, OracleTurns: (int?)Num(own, "oracle_turns") ?? 0, CostUsd: core.CostUsd);
         }
         return t;
     }

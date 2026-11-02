@@ -24,6 +24,7 @@ b { font-weight: 600; }
 .rpt p { margin: .5rem 0; max-width: 52rem; }
 .rpt .explain { color: #6b6b6b; font-size: 14px; }
 .rpt table { border-collapse: collapse; margin: .75rem 0; font-variant-numeric: tabular-nums; }
+.rpt .table-wrap { max-width: 100%; overflow-x: auto; }
 .rpt th, .rpt td { padding: .3rem .7rem; border-bottom: 1px solid #d8d8d8; text-align: left; vertical-align: top; }
 .rpt th { font-weight: 600; font-size: .85rem; color: #595959; }
 .rpt td { max-width: 32rem; }
@@ -149,13 +150,13 @@ b { font-weight: 600; }
 <section id="arms">
 <h2>Arms</h2>
 <p class="explain">An arm is one configuration under test: a harness, a provider and a model, run over every task. The first arm is the reference the others are compared with.</p>
-<table>
+<div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th>What it is</th><th>Harness</th><th>Provider</th><th>Model</th><th class="num">Runs per task</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td>the local floor</td><td>nb</td><td>local-qcoder</td><td>qwen-coder</td><td class="num">3</td></tr>
 <tr><td><span class="id">b</span></td><td></td><td>nb</td><td>local-glm</td><td>glm</td><td class="num">3</td></tr>
 </tbody>
-</table>
+</table></div>
 </section>
 
 <section id="tasks">
@@ -174,22 +175,22 @@ b { font-weight: 600; }
 <p class="prompt">The model repeats a bash command until nb nudges it out of the loop</p>
 <div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>3 checks</b>: 3 from the suite, none of its own</span></div>
 <h4>Checks</h4>
-<table class="checks">
+<div class="table-wrap"><table class="checks">
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>Declared by</th></tr></thead>
 <tbody>
-<tr><td>exit_ok</td><td>nb exits with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>exit_ok</td><td>the run ends with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
 <tr><td>builds</td><td>the repository builds after the change</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
 <tr><td>no_denials</td><td>no denied tool calls</td><td><span class="role role-validity">validity</span></td><td><span class="src">suite</span></td></tr>
 </tbody>
-</table>
+</table></div>
 <h4>Results</h4>
-<table class="results">
+<div class="table-wrap"><table class="results">
 <thead><tr><th>Arm</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
 <tbody>
 <tr><td>floor</td><td><span class="marks"><a href="#run-fl10000000000000" class="pass" title="run 1: passed (fl10000000000000)">●</a><a href="#run-fl20000000000000" class="pass" title="run 2: passed (fl20000000000000)">●</a><a href="#run-fl30000000000000" class="fail" title="run 3: failed — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
 <tr><td>b</td><td><span class="marks"><a href="#run-bl10000000000000" class="pass" title="run 1: passed (bl10000000000000)">●</a><a href="#run-bl20000000000000" class="pass" title="run 2: passed (bl20000000000000)">●</a><a href="#run-bl30000000000000" class="pass" title="run 3: passed (bl30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
 </tbody>
-</table>
+</table></div>
 <ul class="why">
 <li><a href="#run-fl30000000000000">floor run 3</a> failed: exit_ok: exit_reason=max_tool_calls</li>
 </ul>
@@ -199,22 +200,22 @@ b { font-weight: 600; }
 <p class="prompt">The model answers in one turn with no tools</p>
 <div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>3 checks</b>: 3 from the suite, none of its own</span></div>
 <h4>Checks</h4>
-<table class="checks">
+<div class="table-wrap"><table class="checks">
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>Declared by</th></tr></thead>
 <tbody>
-<tr><td>exit_ok</td><td>nb exits with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>exit_ok</td><td>the run ends with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
 <tr><td>builds</td><td>the repository builds after the change</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
 <tr><td>no_denials</td><td>no denied tool calls</td><td><span class="role role-validity">validity</span></td><td><span class="src">suite</span></td></tr>
 </tbody>
-</table>
+</table></div>
 <h4>Results</h4>
-<table class="results">
+<div class="table-wrap"><table class="results">
 <thead><tr><th>Arm</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
 <tbody>
 <tr><td>floor</td><td><span class="marks"><a href="#run-fp10000000000000" class="pass" title="run 1: passed (fp10000000000000)">●</a><a href="#run-fp20000000000000" class="pass" title="run 2: passed (fp20000000000000)">●</a><a href="#run-fp30000000000000" class="skip" title="run 3: not counted — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></span></td><td class="num"><b>100%</b></td><td class="num">2 of 2</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
 <tr><td>b</td><td><span class="marks"><a href="#run-bp10000000000000" class="pass" title="run 1: passed (bp10000000000000)">●</a><a href="#run-bp20000000000000" class="pass" title="run 2: passed (bp20000000000000)">●</a><a href="#run-bp30000000000000" class="pass" title="run 3: passed (bp30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
 </tbody>
-</table>
+</table></div>
 <ul class="why">
 <li><a href="#run-fp30000000000000">floor run 3</a> not counted: no_denials: 1 denied call: bash (no-match)</li>
 </ul>
@@ -224,23 +225,23 @@ b { font-weight: 600; }
 <p class="prompt">The model runs one bash command and answers</p>
 <div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>4 checks</b>: 3 from the suite, 1 of its own</span></div>
 <h4>Checks</h4>
-<table class="checks">
+<div class="table-wrap"><table class="checks">
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>Declared by</th></tr></thead>
 <tbody>
 <tr><td><b>used-bash</b></td><td>uses bash</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">this task</span></td></tr>
-<tr><td>exit_ok</td><td>nb exits with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>exit_ok</td><td>the run ends with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
 <tr><td>builds</td><td>the repository builds after the change</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
 <tr><td>no_denials</td><td>no denied tool calls</td><td><span class="role role-validity">validity</span></td><td><span class="src">suite</span></td></tr>
 </tbody>
-</table>
+</table></div>
 <h4>Results</h4>
-<table class="results">
+<div class="table-wrap"><table class="results">
 <thead><tr><th>Arm</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (33%)</th><th>Verdict</th></tr></thead>
 <tbody>
 <tr><td>floor</td><td><span class="marks"><a href="#run-fu10000000000000" class="fail" title="run 1: failed — builds: 2 of 41 tests failed (fu10000000000000)">○</a><a href="#run-fu20000000000000" class="skip" title="run 2: never completed — sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed (fu20000000000000)">×</a><a href="#run-fu30000000000000" class="fail" title="run 3: failed — builds: 2 of 41 tests failed (fu30000000000000)">○</a></span></td><td class="num"><b>0%</b></td><td class="num">0 of 2</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
 <tr><td>b</td><td><span class="marks"><a href="#run-bu10000000000000" class="pass" title="run 1: passed (bu10000000000000)">●</a><a href="#run-bu20000000000000" class="fail" title="run 2: failed — builds: 2 of 41 tests failed (bu20000000000000)">○</a><a href="#run-bu30000000000000" class="pass" title="run 3: passed (bu30000000000000)">●</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">+33 points</td><td><b class="vgood">better</b></td></tr>
 </tbody>
-</table>
+</table></div>
 <ul class="why">
 <li><a href="#run-fu10000000000000">floor run 1</a> failed: builds: 2 of 41 tests failed</li>
 <li><a href="#run-fu20000000000000">floor run 2</a> never completed: sample setup hook failed: <code class="code">hooks/reset-fixture.sh</code> exited 1: clone failed</li>
@@ -253,33 +254,33 @@ b { font-weight: 600; }
 <section id="results">
 <h2>Results</h2>
 <p class="explain">Pass rate is the share of counted runs in which every headline check held, averaged task by task so that one task with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 tasks it is wide.</p>
-<table>
+<div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th class="num">Pass rate</th><th class="num">95% interval</th><th class="num">Passed / decided runs</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td class="num">56%</td><td class="num">15% to 90%</td><td class="num">4 / 7</td></tr>
 <tr><td><span class="id">b</span></td><td class="num">89%</td><td class="num">35% to 99%</td><td class="num">8 / 9</td></tr>
 </tbody>
-</table>
+</table></div>
 <p><b><span class="id">b</span> against <span class="id">floor</span>.</b> <span class="id">b</span> passed 33 points more of its runs than <span class="id">floor</span>. The 95% interval on that difference runs from −31 to +75 points, so with 3 tasks the difference could be noise: no detectable difference. Task by task, <span class="id">b</span> did better on 2, worse on 0, the same on 1.</p>
 <p>With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.</p>
 <p class="explain"><b>Against the baseline.</b> The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each arm&#39;s score with it and calls anything more than 10 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.</p>
-<table>
+<div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th class="num">Difference from baseline</th><th class="num">95% interval</th><th class="num">Tasks better / worse / same</th><th>Verdict</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td class="num">−22 points</td><td class="num">−67 to +39</td><td class="num">0 / 2 / 1</td><td><b class="vbad">Worse</b> (unconfirmed)</td></tr>
 <tr><td><span class="id">b</span></td><td class="num">+11 points</td><td class="num">−46 to +63</td><td class="num">1 / 0 / 2</td><td><b class="vgood">Better</b> (unconfirmed)</td></tr>
 </tbody>
-</table>
+</table></div>
 <p class="explain">How each task scored against its baseline, and why runs failed, is shown with the task under <a href="#tasks">Tasks</a>.</p>
 </section>
 
 <section id="failures">
 <h2>Failures</h2>
-<p class="explain">For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run is listed apart: that is the check&#39;s weakness, not the arm&#39;s.</p>
+<p class="explain">For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check&#39;s weakness, not the arm&#39;s.</p>
 <p><b><span class="id">floor</span></b> (the local floor) failed 2 checks:</p>
 <ul>
 <li><b>the repository builds after the change</b> (<span class="id">builds</span>, headline) failed in 3 of 7 runs: twice on <a href="#task-uses-bash">uses-bash</a>, once on <a href="#task-loops">loops</a>.</li>
-<li><b>nb exits with &#39;ok&#39;</b> (<span class="id">exit_ok</span>, headline) failed in 1 of 7 runs: once on <a href="#task-loops">loops</a>.</li>
+<li><b>the run ends with &#39;ok&#39;</b> (<span class="id">exit_ok</span>, headline) failed in 1 of 7 runs: once on <a href="#task-loops">loops</a>.</li>
 </ul>
 <p><b><span class="id">b</span></b> failed 1 check:</p>
 <ul>
@@ -289,61 +290,61 @@ b { font-weight: 600; }
 
 <section id="what-ran">
 <h2>What ran</h2>
-<p class="explain">Every run planned by the matrix, and how far it got. <i>Attempted</i> runs started; <i>completed</i> runs ended with a transcript from nb; <i>graded</i> runs have their checks; <i>counted</i> runs are graded and passed every validity check; <i>decided</i> runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.</p>
-<table>
+<p class="explain">Every run planned by the matrix, and how far it got. <i>Attempted</i> runs started; <i>completed</i> runs ended with a transcript; <i>graded</i> runs have their checks; <i>counted</i> runs are graded and passed every validity check; <i>decided</i> runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.</p>
+<div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th class="num">Planned</th><th class="num">Attempted</th><th class="num">Completed</th><th class="num">Graded</th><th class="num">Counted</th><th class="num">Decided</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td class="num">9</td><td class="num">9</td><td class="num">8</td><td class="num">8</td><td class="num">7</td><td class="num">7</td></tr>
 <tr><td><span class="id">b</span></td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td></tr>
 </tbody>
-</table>
+</table></div>
 <p class="warning">Arms lost runs unequally: <span class="id">floor</span> decided 7 of 9, <span class="id">b</span> decided 9 of 9. The rates are over decided runs; the runs lost are listed here.</p>
 <p>Runs left out, and why:</p>
 <ul>
 <li><a href="#run-fp30000000000000">floor/plain/3</a>: not counted, failed a validity check. no_denials: 1 denied call: bash (no-match)</li>
 <li><a href="#run-fu20000000000000">floor/uses-bash/2</a>: never completed. sample setup hook failed: <code class="code">hooks/reset-fixture.sh</code> exited 1: clone failed</li>
 </ul>
-<p class="explain">How nb ended each completed run, per arm. <span class="id">ok</span> is a normal finish; anything else is nb stopping the run, which the checks then grade like any other.</p>
-<table>
+<p class="explain">How each completed run ended, per arm. <span class="id">ok</span> is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.</p>
+<div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th class="num"><span class="id">ok</span></th><th class="num"><span class="id">max_tool_calls</span></th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td class="num">7</td><td class="num">1 (<span class="id">loops</span> run 3)</td></tr>
 <tr><td><span class="id">b</span></td><td class="num">9</td><td class="num">0</td></tr>
 </tbody>
-</table>
+</table></div>
 </section>
 
 <section id="check-rates">
 <h2>Check pass rates</h2>
 <p class="explain">How often each check held, per arm, over the runs it applies to. Headline and guardrail checks are over counted runs; a validity check is over every graded run, because it says how many were counted. A run the check could not decide is out of its rate and counted beside it.</p>
-<table>
+<div class="table-wrap"><table>
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th class="num"><span class="id">floor</span></th><th class="num"><span class="id">b</span></th></tr></thead>
 <tbody>
-<tr><td><span class="id">exit_ok</span></td><td>nb exits with &#39;ok&#39;</td><td>headline</td><td class="num">89% (6/7)</td><td class="num">100% (9/9)</td></tr>
+<tr><td><span class="id">exit_ok</span></td><td>the run ends with &#39;ok&#39;</td><td>headline</td><td class="num">89% (6/7)</td><td class="num">100% (9/9)</td></tr>
 <tr><td><span class="id">builds</span></td><td>the repository builds after the change</td><td>headline</td><td class="num">56% (4/7)</td><td class="num">89% (8/9)</td></tr>
 <tr><td><span class="id">no_denials</span></td><td>no denied tool calls</td><td>validity</td><td class="num">89% (7/8)</td><td class="num">100% (9/9)</td></tr>
 <tr><td><span class="id">used-bash</span></td><td>uses bash</td><td>guardrail</td><td class="num">100% (2/2)</td><td class="num">100% (3/3)</td></tr>
 </tbody>
-</table>
+</table></div>
 </section>
 
 <section id="cost">
 <h2>Cost and effort</h2>
-<p class="explain">Per completed run. Duration is wall time in minutes, hooks included; tokens are what nb reported. Cost is not shown: nb does not report it.</p>
-<table>
+<p class="explain">Per completed run. Duration is wall time in minutes, hooks included; tokens are the run&#39;s own count. Cost is not shown: no arm&#39;s harness reports one.</p>
+<div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th class="num">Duration (min): median</th><th class="num">p90</th><th class="num">mean</th><th class="num">range</th><th class="num">Tokens: median</th><th class="num">p90</th><th class="num">mean</th><th class="num">range</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td class="num">16.9</td><td class="num">23.5</td><td class="num">17.7</td><td class="num">13.5–23.5</td><td class="num">47,200</td><td class="num">67,200</td><td class="num">51,700</td><td class="num">41,200–67,200</td></tr>
 <tr><td><span class="id">b</span></td><td class="num">17.3</td><td class="num">18.2</td><td class="num">17.3</td><td class="num">16.5–18.2</td><td class="num">63,000</td><td class="num">65,000</td><td class="num">63,000</td><td class="num">61,000–65,000</td></tr>
 </tbody>
-</table>
+</table></div>
 </section>
 
 <section id="every-run">
 <h2>Every run</h2>
 <p class="explain">Every run, failures first. <i>Reason</i> is the first check that did not hold and what it saw, or why the run never completed.</p>
-<table>
-<thead><tr><th>Arm</th><th>Task</th><th class="num">Run</th><th>Result</th><th>nb ended</th><th class="num">Duration (min)</th><th class="num">Tokens</th><th>Reason</th></tr></thead>
+<div class="table-wrap"><table>
+<thead><tr><th>Arm</th><th>Task</th><th class="num">Run</th><th>Result</th><th>Ended</th><th class="num">Duration (min)</th><th class="num">Tokens</th><th>Reason</th></tr></thead>
 <tbody>
 <tr id="run-bu20000000000000"><td><span class="id">b</span></td><td><span class="id">uses-bash</span></td><td class="num">2</td><td><span class="fail" title="bu20000000000000">○ failed</span></td><td><span class="id">ok</span></td><td class="num">17.3</td><td class="num">63,000</td><td>builds: 2 of 41 tests failed</td></tr>
 <tr id="run-fl30000000000000"><td><span class="id">floor</span></td><td><span class="id">loops</span></td><td class="num">3</td><td><span class="fail" title="fl30000000000000">○ failed</span></td><td><span class="id">max_tool_calls</span></td><td class="num">23.5</td><td class="num">47,200</td><td>exit_ok: exit_reason=max_tool_calls</td></tr>
@@ -364,7 +365,7 @@ b { font-weight: 600; }
 <tr id="run-fp10000000000000"><td><span class="id">floor</span></td><td><span class="id">plain</span></td><td class="num">1</td><td><span class="pass" title="fp10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">13.5</td><td class="num">61,200</td><td></td></tr>
 <tr id="run-fp20000000000000"><td><span class="id">floor</span></td><td><span class="id">plain</span></td><td class="num">2</td><td><span class="pass" title="fp20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">15.2</td><td class="num">64,200</td><td></td></tr>
 </tbody>
-</table>
+</table></div>
 </section>
 
 <section id="method">
@@ -379,7 +380,7 @@ b { font-weight: 600; }
 <dt>command</dt><dd><code class="code">proctor run smoke</code></dd>
 <dt>created</dt><dd>2026-09-17T14:32:00Z</dd>
 </dl>
-<p class="explain">Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run&#39;s wall time including hooks; tokens are what nb reported. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each arm and each task; an arm&#39;s verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).</p>
+<p class="explain">Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run&#39;s wall time including hooks; tokens are the run&#39;s own count. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each arm and each task; an arm&#39;s verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).</p>
 </section>
 <footer>
 <img src="data:image/svg+xml;base64,PCEtLSAiUG9pbnR5IGhhdCIgYnkgTG9yYywgaHR0cHM6Ly9nYW1lLWljb25zLm5ldC8xeDEvbG9yYy9wb2ludHktaGF0Lmh0bWwsIENDIEJZIDMuMCBodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvMy4wLyA7IGFkYXB0ZWQgKHJlc2NhbGVkIGFuZCByZXN0eWxlZCkuIC0tPgo8c3ZnIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMzkuMDExNyAzLjk3NTU1QzMzLjYxNCA0LjAxODM5IDI5LjE4MDggNi4zOTQ2OCAyNS40MzU1IDEwLjA1NzZDMjEuNDk5NSAxMy45MDcyIDE4LjQwNDMgMTkuMjA4NSAxNi4wNjA1IDI0LjYzNTdDMTYuMTMzNiAyNS4wNTc5IDE2LjM0NzQgMjUuNDc0NCAxNi43MjU2IDI1LjkxNjFDMTcuMjA5MSAyNi40ODA5IDE3Ljk2MTUgMjcuMDUxNyAxOC44OTk0IDI3LjU2NTVDMjAuNzc1NCAyOC41OTMyIDIzLjM3OTggMjkuMzk3OCAyNS45Nzc2IDI5Ljg1OTZDMjguNTc1NCAzMC4zMjEzIDMxLjE4MTIgMzAuNDQxNyAzMy4wMjM0IDMwLjE4MTlDMzMuOTQ0NSAzMC4wNTE5IDM0LjY2NzYgMjkuODE1MyAzNS4wNjg0IDI5LjU2NjZDMzUuNDY5MSAyOS4zMTc5IDM1LjUyOTMgMjkuMTk1NiAzNS41MTk1IDI4Ljk0NTVMMzUuNTg3IDI4Ljk0MjdDMzUuMjY3NSAyNC45Mjc2IDM1LjAyNDUgMjAuNjE4IDM1LjU5NTcgMTYuNTczM0MzNS44NiAxNC43MDA5IDM2LjMxNDUgMTIuODc2NCAzNy4wMjI1IDExLjE3MTFDMzQuMDYyNiAxNC4xMTg2IDMxLjEyNCAxNy4zMDQ2IDI4Ljg4MDkgMjAuMDUxMUMzMi4yMDEzIDEzLjQ2OTggMzYuOTYyMiA4LjY2OTk5IDQyLjExMTQgNC4yMTAxMUM0MS4wNDQ5IDQuMDQ5OCA0MC4wMDk1IDMuOTY3ODYgMzkuMDExNyAzLjk3NTc0VjMuOTc1NTVaTTE0LjU1MDkgMjIuNDA1N0MxNC4xMzQyIDIyLjQwMjkgMTMuNzE3NSAyMi40MDcgMTMuMzAwOSAyMi40MThDMTEuMTMxNyAyMi40NzE5IDkuMTU0NTkgMjIuNjkwOCA3LjUgMjMuMDkxOEM1LjI5Mzg4IDIzLjYyNjUgMy43MDYzMSAyNC40ODc2IDIuOTI2ODggMjUuNTMyMUMyLjE0NzE2IDI2LjU3NjkgMS45ODE4OCAyNy44NDQ3IDIuODM1OTQgMjkuODAwOEM1LjkxNjU2IDM2Ljg1NjcgMTMuODIyIDQyLjAxMjYgMjIuMzIxMyA0My43MzE1QzMwLjgyMDcgNDUuNDQ5OSAzOS43Njg5IDQzLjc0NTIgNDUuMDM1MSAzNy40NzM2QzQ2LjMwOTEgMzUuOTU2MyA0Ni40NjkyIDM0LjcyNTYgNDUuOTY2OCAzMy40MjE4QzQ1LjQ2NDQgMzIuMTE3OSA0NC4xMzA2IDMwLjcxNDUgNDIuMTQzNiAyOS40MTRDNDAuNzYxMyAyOC41MDkzIDM5LjA3OTYgMjcuNjU3NCAzNy4xOTgzIDI2Ljg3OTlDMzcuMzM5NSAyOC45OTc3IDM3LjUzMTYgMzEuMDg3MSAzNy42Nzg3IDMzLjA2NDNWMzMuMDg0OEMzNy43MzU2IDM0LjE1MzggMzcuMTY0IDM1LjEwODQgMzYuMzMzOSAzNS43MDRDMzUuNTA0IDM2LjI5OTYgMzQuNDMzOCAzNi42NDkgMzMuMTk5MiAzNi44NjcxQzMwLjczMDEgMzcuMzAzNCAyNy41NzE4IDM3LjE4NTYgMjQuNDQ4MiAzNi42NjJDMjEuMzI0OCAzNi4xMzg0IDE4LjI1MjggMzUuMjEyIDE1Ljk4NDUgMzMuOTE0QzE0Ljg1MDQgMzMuMjY0OSAxMy45MDg0IDMyLjUyMTggMTMuMjc3NCAzMS42MTk5QzEyLjY0NjUgMzAuNzE4MyAxMi4zNjI0IDI5LjU5OTIgMTIuNjU5MyAyOC40OTExTDEyLjY2ODIgMjguNDU1OUwxMi42Nzk5IDI4LjQyMDlDMTMuMzk1OCAyNi40MzI4IDE0LjIwODggMjQuNDA5MyAxNS4xMjYyIDIyLjQxMjFDMTQuOTM0NSAyMi40MDkgMTQuNzQyOSAyMi40MDY5IDE0LjU1MTIgMjIuNDA1N0gxNC41NTA5Wk0xNS4xNzI5IDI2Ljc4MDJDMTQuODg2NiAyNy41MDU2IDE0LjYxMTIgMjguMjM1MiAxNC4zNDY3IDI4Ljk2ODdDMTQuMTk3MSAyOS41NTQzIDE0LjMwOTIgMzAuMDM4MSAxNC43MTI5IDMwLjYxNTNDMTUuMTIzIDMxLjIwMTIgMTUuODY0MiAzMS44MjY4IDE2Ljg1NDYgMzIuMzkzNUMxOC44MzUzIDMzLjUyNyAyMS43NjcxIDM0LjQzNTQgMjQuNzM4NSAzNC45MzM3QzI3LjcwOTggMzUuNDMxOSAzMC43NCAzNS41MjI0IDMyLjg5NDcgMzUuMTQxOEMzMy45NzIxIDM0Ljk1MTMgMzQuODE5NCAzNC42MzM3IDM1LjMxMTYgMzQuMjgwMkMzNS44MDM4IDMzLjkyNzIgMzUuOTU1MSAzMy42NDk3IDM1LjkyOTkgMzMuMTc1OUMzNS44ODE0IDMyLjUyNjIgMzUuODI3OSAzMS44NjA4IDM1Ljc3MTYgMzEuMTgzN0MzNS4wNzM0IDMxLjU2MTUgMzQuMjI3NiAzMS43ODA2IDMzLjI2NjggMzEuOTE2MUMzMS4xMzU3IDMyLjIxNjcgMjguNDExNSAzMi4wNzIyIDI1LjY3MDMgMzEuNTg1QzIyLjkyODggMzEuMDk3OSAyMC4xODU5IDMwLjI2NzQgMTguMDU1OSAyOS4xMDA2QzE2Ljk5MDkgMjguNTE3MyAxNi4wNzU3IDI3Ljg1IDE1LjM5NTcgMjcuMDU1OEMxNS4zMTg1IDI2Ljk2NjQgMTUuMjQ0MyAyNi44NzQ1IDE1LjE3MyAyNi43ODAzTDE1LjE3MjkgMjYuNzgwMloiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl83M18xNDApIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfNzNfMTQwIiB4MT0iMjQuMjQ4NCIgeTE9IjMuOTc1MjIiIHgyPSIyNC4yNDg0IiB5Mj0iNDQuMzYxNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQkQ3M0Q2Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBCMUI0MiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=" alt="" width="16" height="16">

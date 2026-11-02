@@ -399,6 +399,9 @@ public class HarborTests
         Assert.Equal("ok", row.ExitReason);
         Assert.Equal(1, row.ToolCalls);
         Assert.Equal(15, row.Usage!.Total);
+        Assert.Equal(0.001, row.Usage.CostUsd);
+        // The failed headline check leads the reasons, ahead of the guardrail the suite declares first.
+        Assert.Equal(["tests-pass", "diff-in-scope"], row.Reasons!.Keys);
     }
 
     /// <summary>An agent cell as ingest leaves it, graded on its own: script verdicts from the verifier, the rest from the trajectory and the diff.</summary>

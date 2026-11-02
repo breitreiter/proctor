@@ -136,7 +136,7 @@ static class Checks
         {
             _ when fromCase && name == "files_touched" => "the files changed are the ones the task expects",
             _ when fromCase => $"{name.Replace('_', ' ')} is what the task expects",
-            "exit_reason" => $"nb exits with '{v}'",
+            "exit_reason" => $"the run ends with '{v}'",
             "max_tool_calls" => $"at most {v} tool calls",
             "max_tokens" => $"at most {v!.GetValue<long>():N0} tokens",
             "max_duration_ms" => $"finishes within {DescribeMs(v!.GetValue<long>())}",

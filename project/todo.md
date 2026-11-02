@@ -188,6 +188,25 @@ The judges are on OpenRouter (CHANGELOG, Unreleased). What is left of the item:
   `openai/gpt-6-luna-decisions` 0.10; `GET /x/openrouter/v1/models?output_modalities=decisions`
   lists them. Recalibrating a new decision model is the bench's job (`jev-trial.md`).
 
+## A GitHub Pages site to show off the reports
+
+Proctor has no public place where someone can see what a report looks like
+without running it. Build a GitHub Pages site for the repository: what
+proctor is for (the README's opening), how a suite, task, arm and check fit
+together, and a handful of real `report.html` pages from `reports/data/`
+linked from it, so the first thing a sceptical reader meets is a finished
+report rather than a config file. The bar is the brief's: it reads as done
+properly at a glance and holds up to an expert who opens the intervals.
+Pick the showcased experiments deliberately (a `code-change` run across
+agent arms, an `oracle-change` run, a baseline comparison), and read each
+before it goes up: no machine names, no employer, endpoints as written.
+The wizard hat is CC BY 3.0, so its credit goes on the site
+(`assets/`). Decide whether it is a plain static page beside copied
+reports or the first cut of the report site the entries above describe;
+the cheap one first is fine if it does not paint the data contract into a
+corner. The review is done (`plans/report-structure.md`, *Review, 2026-11-02*); before a
+report goes up, scrub the host and gateway names it records there.
+
 ## The wrap-up list for 2026-11-01
 
 Cross-repo checklist for tying up the agent-neutral and oracle arc:

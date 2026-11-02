@@ -256,8 +256,10 @@ The directories are for reading, not for namespaces: everything is
   (`Checks.Describe`). Suite, arm and task descriptions are optional; a task
   falls back to the first prompt line (`Suite.Describe`). They travel in
   `stats.json` as `descriptions`, with a per-arm `failures` list (each
-  non-validity check that failed or errored in a counted cell, most often
-  first, with its tasks), which the Failures section renders.
+  non-validity check that failed in a counted cell, most often first, with
+  its tasks, out of the cells it decided) and an `errored` list beside it
+  (each that errored, out of the cells that carry it), which the Failures
+  section renders apart: "could not grade", never "failed".
   `descriptions.checks` holds a check only when it says one thing
   everywhere (`Suite.CheckDescriptions`); a check each task declares in its
   own words is absent there, and its sentence is per task in
@@ -291,7 +293,9 @@ The directories are for reading, not for namespaces: everything is
   check's rate, listed under Failures when there are at most five, and a
   warning band when a check is undecided in more than five runs or 5% of
   the runs it applies to (`stats.json` `undecided_checks`). A check that
-  cannot decide is the check's weakness, not the arm's.
+  cannot decide is the check's weakness, not the arm's. So is one that
+  errored: an `error` is out of that check's rate too, counted beside it
+  ("· 5 error"), though a headline check that errored still fails the run.
 - **Every number is computed once, in `Stats.cs`.** The renderers format; they
   never compute. If a number looks wrong, fix it in `stats.json` first.
 - **Each task is scored as its mean over its counted, decided samples**, so `n` in

@@ -55,7 +55,7 @@ Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, n
 
 | Check | What it tests | Role | Declared by |
 |---|---|---|---|
-| exit_ok | nb exits with 'ok' | headline | suite |
+| exit_ok | the run ends with 'ok' | headline | suite |
 | builds | the repository builds after the change | headline | suite |
 | no_denials | no denied tool calls | validity | suite |
 
@@ -78,7 +78,7 @@ Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, n
 
 | Check | What it tests | Role | Declared by |
 |---|---|---|---|
-| exit_ok | nb exits with 'ok' | headline | suite |
+| exit_ok | the run ends with 'ok' | headline | suite |
 | builds | the repository builds after the change | headline | suite |
 | no_denials | no denied tool calls | validity | suite |
 
@@ -102,7 +102,7 @@ Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the suite, 1
 | Check | What it tests | Role | Declared by |
 |---|---|---|---|
 | **used-bash** | uses bash | guardrail | this task |
-| exit_ok | nb exits with 'ok' | headline | suite |
+| exit_ok | the run ends with 'ok' | headline | suite |
 | builds | the repository builds after the change | headline | suite |
 | no_denials | no denied tool calls | validity | suite |
 
@@ -142,12 +142,12 @@ How each task scored against its baseline, and why runs failed, is shown with th
 
 ## Failures
 
-For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run is listed apart: that is the check's weakness, not the arm's.
+For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check's weakness, not the arm's.
 
 **`floor`** (the local floor) failed 2 checks:
 
 - **the repository builds after the change** (`builds`, headline) failed in 3 of 7 runs: twice on uses-bash, once on loops.
-- **nb exits with 'ok'** (`exit_ok`, headline) failed in 1 of 7 runs: once on loops.
+- **the run ends with 'ok'** (`exit_ok`, headline) failed in 1 of 7 runs: once on loops.
 
 **`b`** failed 1 check:
 
@@ -155,7 +155,7 @@ For each arm, the checks that failed in at least one counted run, most frequent 
 
 ## What ran
 
-Every run planned by the matrix, and how far it got. *Attempted* runs started; *completed* runs ended with a transcript from nb; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.
+Every run planned by the matrix, and how far it got. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.
 
 | Arm | Planned | Attempted | Completed | Graded | Counted | Decided |
 |---|---|---|---|---|---|---|
@@ -169,7 +169,7 @@ Runs left out, and why:
 - floor/plain/3: not counted, failed a validity check. no_denials: 1 denied call: bash (no-match)
 - floor/uses-bash/2: never completed. sample setup hook failed: `hooks/reset-fixture.sh` exited 1: clone failed
 
-How nb ended each completed run, per arm. `ok` is a normal finish; anything else is nb stopping the run, which the checks then grade like any other.
+How each completed run ended, per arm. `ok` is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.
 
 | Arm | `ok` | `max_tool_calls` |
 |---|---|---|
@@ -182,14 +182,14 @@ How often each check held, per arm, over the runs it applies to. Headline and gu
 
 | Check | What it tests | Role | `floor` | `b` |
 |---|---|---|---|---|
-| `exit_ok` | nb exits with 'ok' | headline | 89% (6/7) | 100% (9/9) |
+| `exit_ok` | the run ends with 'ok' | headline | 89% (6/7) | 100% (9/9) |
 | `builds` | the repository builds after the change | headline | 56% (4/7) | 89% (8/9) |
 | `no_denials` | no denied tool calls | validity | 89% (7/8) | 100% (9/9) |
 | `used-bash` | uses bash | guardrail | 100% (2/2) | 100% (3/3) |
 
 ## Cost and effort
 
-Per completed run. Duration is wall time in minutes, hooks included; tokens are what nb reported. Cost is not shown: nb does not report it.
+Per completed run. Duration is wall time in minutes, hooks included; tokens are the run's own count. Cost is not shown: no arm's harness reports one.
 
 | Arm | Duration (min): median | p90 | mean | range | Tokens: median | p90 | mean | range |
 |---|---|---|---|---|---|---|---|---|
@@ -200,7 +200,7 @@ Per completed run. Duration is wall time in minutes, hooks included; tokens are 
 
 Every run, failures first. *Reason* is the first check that did not hold and what it saw, or why the run never completed.
 
-| Arm | Task | Run | Result | nb ended | Duration (min) | Tokens | Reason |
+| Arm | Task | Run | Result | Ended | Duration (min) | Tokens | Reason |
 |---|---|---|---|---|---|---|---|
 | `b` | `uses-bash` | 2 | ○ failed | `ok` | 17.3 | 63,000 | builds: 2 of 41 tests failed |
 | `floor` | `loops` | 3 | ○ failed | `max_tool_calls` | 23.5 | 47,200 | exit_ok: exit_reason=max_tool_calls |
@@ -235,4 +235,4 @@ What produced this report, so it can be run again, and how the numbers were comp
 | command | `proctor run smoke` |
 | created | 2026-09-17T14:32:00Z |
 
-Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run's wall time including hooks; tokens are what nb reported. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).
+Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run's wall time including hooks; tokens are the run's own count. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).

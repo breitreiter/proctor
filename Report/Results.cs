@@ -19,7 +19,8 @@ record ResultRow(
     public bool Decided => Analysed && Pass is not null;
 }
 
-record UsageRow(long? Input, long? Output, long? Total, bool Estimated);
+/// <param name="CostUsd">What the agent reported its run cost (Claude Code its own count, Codex as Harbor priced it); nb reports none.</param>
+record UsageRow(long? Input, long? Output, long? Total, bool Estimated, double? CostUsd = null);
 
 static class Results
 {
@@ -42,13 +43,15 @@ static class Results
                 Status: status,
                 StatusReason: manifest?.StatusReason ?? (checks is null && status == CellStatus.Completed ? "not graded" : null),
                 ExitReason: trailer?.ExitReason,
-                Usage: trailer is null ? null : new UsageRow(trailer.Input, trailer.Output, trailer.Total, trailer.Estimated),
+                Usage: trailer is null ? null : new UsageRow(trailer.Input, trailer.Output, trailer.Total, trailer.Estimated, trailer.CostUsd),
                 ToolCalls: trailer?.ToolCalls,
                 DeniedCalls: trailer is null ? null : trailer.Denied,
                 DurationMs: manifest?.DurationMs,
                 Checks: checks?.ToDictionary(k => k.Key, k => k.Value.Result),
                 Pass: checks is null ? null : Grade.Pass(checks, suite.Grading.Pass!),
-                Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
+                // The headline checks lead, so a failed run's first reason is what failed it, not a guardrail declared before it.
+                Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).OrderBy(k => !suite.Grading.Pass!.Contains(k.Key))
+                    .ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
                 Invalid: checks is null ? null : Grade.Invalid(checks, suite.Grading.Validity),
                 Labels: suite.LabelsFor(c) is { Count: > 0 } labels ? labels : null,
                 Undecided: checks is null ? null : Grade.Undecided(checks, suite.Grading.Pass!)));
