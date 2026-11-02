@@ -96,8 +96,8 @@ public class JudgeTests
     static string Answer(string label, params string[] evidence) =>
         $"<thinking>because</thinking>\n```json\n{new JsonObject { ["label"] = label, ["evidence"] = new JsonArray(evidence.Select(e => (JsonNode)e).ToArray()) }.ToJsonString()}\n```";
 
-    const string Noul = "{\"state\":\"Completed\",\"result\":{\"model\":\"jev-1.13.0\",\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":P}},\"usage\":{\"input_tokens\":287,\"output_tokens\":21}}}";
-    const string Choice = "{\"result\":{\"model\":\"jev-1.13.0\",\"answers\":{\"q\":{\"type\":\"choice\",\"choice\":\"complete\",\"probabilities\":{\"complete\":0.97,\"asked\":0.02,\"blocked\":0.01}}}}}";
+    const string Noul = "{\"model\":\"jev-1.13.0\",\"answers\":{\"q\":{\"type\":\"noul\",\"noul\":P}},\"usage\":{\"input_tokens\":287,\"output_tokens\":21}}";
+    const string Choice = "{\"model\":\"jev-1.13.0\",\"answers\":{\"q\":{\"type\":\"choice\",\"choice\":\"complete\",\"probabilities\":{\"complete\":0.97,\"asked\":0.02,\"blocked\":0.01}}}}";
 
     // ---- windows ----
 
@@ -180,13 +180,36 @@ public class JudgeTests
     }
 
     [Fact]
+    public void Decide_SendsTheJudgesModel_AndReadsOpenRoutersAnswer()
+    {
+        var captured = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "openrouter-decisions.json")))!;
+        var http = new ScriptedHttp(HttpStatusCode.OK, captured["response"]!.ToJsonString());
+        var client = new JudgeClient { Defs = new() { ["jev"] = Jev with { Model = "typesafe/jev-1.14" } }, Http = new HttpClient(http) };
+        var dir = Directory.CreateTempSubdirectory("proctor-judge").FullName;
+
+        var v = Suite("{\"decide\": {\"ask\": \"Is it done?\", \"window\": \"answer\"}}", Fixture("plain"), client, cellDir: dir, name: "done");
+        Assert.Equal(("pass", "yes p=0.99"), v.Deconstruct());
+        var sent = JsonNode.Parse(http.LastBody!)!.AsObject();
+        Assert.Equal("typesafe/jev-1.14", sent["model"]!.GetValue<string>());
+        Assert.Equal(captured["request"]!.AsObject().Select(p => p.Key), sent.Select(p => p.Key));
+
+        var written = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(Directory.GetFiles(Path.Combine(dir, Layout.VerdictsDir)).Single()), Proctor.Suite.JsonOptions)!;
+        Assert.Equal("typesafe/jev-1.14-20261014", written.Model);
+
+        // a judge without a model sends none, so its verdict files keep their hashes
+        var bare = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.98"));
+        Suite("{\"decide\": {\"ask\": \"Is it done?\", \"window\": \"answer\"}}", Fixture("plain"), Client(bare));
+        Assert.Null(JsonNode.Parse(bare.LastBody!)!["model"]);
+    }
+
+    [Fact]
     public void Decide_EndpointFailuresAreErrorsNeverFails()
     {
         var down = Suite("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Client(new ScriptedHttp(HttpStatusCode.BadGateway, "upstream gone")));
         Assert.Equal("error", down.Result);
         Assert.Contains("HTTP 502", down.Reason);
 
-        var odd = Suite("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Client(new ScriptedHttp(HttpStatusCode.OK, "{\"result\": {\"answers\": {}}}")));
+        var odd = Suite("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Client(new ScriptedHttp(HttpStatusCode.OK, "{\"answers\": {}}")));
         Assert.Equal(("error", "decide: jev returned no noul answer"), odd.Deconstruct());
 
         var empty = Suite("{\"decide\": {\"ask\": \"?\", \"window\": \"diff\"}}", Fixture("plain"), Client(new ScriptedHttp(HttpStatusCode.OK, Noul)));
@@ -443,14 +466,16 @@ public class JudgeTests
         repo.CopySuite("smoke");
         repo.WriteProctorConfig(new
         {
-            jev = new { kind = "systemone", endpoint = "http://judge.test/systemone", model = "should-not-be-here" },
+            jev = new { kind = "systemone", endpoint = "http://judge.test/systemone", model = "typesafe/jev-1.14" },
+            blank = new { kind = "systemone", endpoint = "http://judge.test/systemone", model = " " },
             glm = new { kind = "chat", endpoint = "not a url" },
             gw = new { kind = "chat", endpoint = "${SOME_GATEWAY}/v1", model = "m" },
             odd = new { kind = "oracle", endpoint = "http://x/" },
         });
         var problems = new List<Problem>();
         Proctor.Suite.LoadConfig(repo.Root, problems);
-        Assert.Contains(problems, p => p.Field == "judges.jev.model" && p.Message.Contains("endpoint's"));
+        Assert.DoesNotContain(problems, p => p.Field == "judges.jev.model");
+        Assert.Contains(problems, p => p.Field == "judges.blank.model");
         Assert.Contains(problems, p => p.Field == "judges.glm.model" && p.Message.Contains("required"));
         Assert.Contains(problems, p => p.Field == "judges.glm.endpoint");
         Assert.DoesNotContain(problems, p => p.Field == "judges.gw.endpoint");

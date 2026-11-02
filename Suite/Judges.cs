@@ -5,7 +5,9 @@ namespace Proctor;
 /// <summary>
 /// One entry of suites/proctor.json's judges block: an endpoint proctor's own checks call at grade time. The question is
 /// the suite's (a decide or judge check); the endpoint is the machine's, like nb.path. Kind is the wire shape, never a
-/// vendor: systemone (POST /v1/systemone, typed questions with probabilities) or chat (OpenAI-dialect chat completions).
+/// vendor: systemone (the System One request, typed questions with probabilities: TypeSafe's /v1/systemone, OpenRouter's
+/// /alpha/decisions, a local server) or chat (OpenAI-dialect chat completions). A systemone model is sent in the request
+/// when given; an endpoint that serves one model needs none.
 /// </summary>
 record JudgeDef(string? Kind, string? Endpoint, string? Model, string? ApiKey, string? Family, int? MaxWindow)
 {
@@ -21,7 +23,7 @@ record JudgeDef(string? Kind, string? Endpoint, string? Model, string? ApiKey, s
 
     /// <summary>
     /// The URL actually posted to. The endpoint as written may reference the environment the same way the key does
-    /// (`${LLM_GATEWAY}/cf/compat`), so the committed config names no machine; the verdict files and the report keep
+    /// (`${LLM_GATEWAY}/openrouter/v1`), so the committed config names no machine; the verdict files and the report keep
     /// the template, which is the same on every machine that runs the suite.
     /// </summary>
     public string ResolvedEndpoint(string judge) => Resolve(Endpoint!, judge, "endpoint");
@@ -47,7 +49,7 @@ static class Judges
             switch (def.Kind)
             {
                 case JudgeDef.SystemOne:
-                    if (def.Model is not null) add($"{f}.model", "a systemone endpoint's model is the endpoint's; leave it out");
+                    if (def.Model is not null && string.IsNullOrWhiteSpace(def.Model)) add($"{f}.model", "a model name, or leave it out when the endpoint serves one");
                     break;
                 case JudgeDef.Chat:
                     if (string.IsNullOrWhiteSpace(def.Model)) add($"{f}.model", "required for a chat judge: the model name the endpoint serves");

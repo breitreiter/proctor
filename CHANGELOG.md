@@ -7,6 +7,18 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- Judges no longer assume Cloudflare. A `systemone` judge may name a
+  `model`, which `decide` sends in the request (OpenRouter's
+  `/alpha/decisions` serves every decision model from one path); one
+  without a `model` sends none, as before. The answer is read unwrapped
+  (`{model, answers, usage}`); the Cloudflare gateway's `result` envelope
+  is no longer read. `suites/proctor.example.json` routes all three judges
+  through `${LLM_GATEWAY}/openrouter`: `typesafe/jev-1.14`, `z-ai/glm-5.3`
+  and `moonshotai/kimi-k2.6`. A new judge model or endpoint changes every
+  verdict hash, so the first `grade` after switching asks every model check
+  again (decision models bill input only; the chat judges bill as
+  OpenRouter prices them).
+
 - A vendor agent's cell no longer carries a check that reads only nb's
   loop nudge (`loop_nudged` alone, or with a `description`): `checks.json`
   has no entry for it and its rate is over nb's cells, where it used to be

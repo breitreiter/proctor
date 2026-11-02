@@ -265,10 +265,13 @@ outside the family of, every arm it grades (`learnings/prior-art.md` §3), and
 that will usually mean a hosted model. The judge's cost is small because it
 reads a window, not the run.
 
-**The judge's home is the Cloudflare Workers AI subscription.** It is a flat
-monthly fee already being paid, it serves Kimi K2 and GLM, and neither is in
-the family of any arm we run or any harness a customer uses. That is the
-profile the judge literature asks for, and it is what weaver chose in July.
+**The judge's home is OpenRouter, through the gateway.** Since 2026-11-02;
+until then it was a Cloudflare Workers AI subscription, whose flat fee had
+stopped being the argument (stage 2's grade cost $2.79 on it). OpenRouter
+serves GLM and Kimi for `judge` and the decision models for `decide`, billed
+per call; GLM and Kimi are in the family of no arm we run and no harness a
+customer uses. That is the profile the judge literature asks for, and it is
+what weaver chose in July.
 Calibrate it against human labels before trusting it; the oracle bench is a
 small version of that exercise already run against GLM.
 

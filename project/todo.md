@@ -170,6 +170,24 @@ old and new kept apart so a quote cannot stitch them), and then it is an issue. 
 `rename-module` errors are a different thing: glm wrote `Legacy_Widgets` for
 `Legacy.Widgets`, a wrong quote rightly discarded.
 
+## After dropping Cloudflare (done 2026-11-02)
+
+The judges are on OpenRouter (CHANGELOG, Unreleased). What is left of the item:
+
+- **minrouter holds about $1 per decision call** (`X-Minrouter-Charged-Usd: 0.9616` for a
+  call that settled at $0.000016): decision models are not in its price table, so it reserves
+  its top rate until the call settles. Calls are sequential today, so the $5 wallet admits them;
+  give minrouter a row for decision models before grading in parallel.
+- **Families:** Clef, Baseten's joey/elephant/mammoth, Kev and Tev1 are Qwen fine-tunes, so
+  they are not off-family for qwen arms. If one becomes a judge, set its `family` to `qwen` so
+  `SameFamilyNotes` warns.
+- **Kind names** stay `systemone` and `chat`: they name the wire shapes, not Cloudflare.
+- **Candidates** (input $/M; decision models bill no output): `typesafe/jev-1.14` 0.042 (the
+  judge now), `perplexity/pplx-decider-v1.2` 0.02, `liquid/d1.1` 0.02, `upstage/solar-decide`
+  0.05, `inception/mercury-decide` 0.02, `microsoft/microsoft-decision-1` 0.042,
+  `openai/gpt-6-luna-decisions` 0.10; `GET /x/openrouter/v1/models?output_modalities=decisions`
+  lists them. Recalibrating a new decision model is the bench's job (`jev-trial.md`).
+
 ## The wrap-up list for 2026-11-01
 
 Cross-repo checklist for tying up the agent-neutral and oracle arc:

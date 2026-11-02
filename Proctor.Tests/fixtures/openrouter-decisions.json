@@ -1,0 +1,53 @@
+{
+  "//": "One exchange with OpenRouter's decision endpoint through minrouter, 2026-11-02: POST ${LLM_GATEWAY}/openrouter/alpha/decisions, Bearer key, application/json. The System One request plus model; the answer unwrapped (no result envelope), the model as dated by the provider.",
+  "request": {
+    "model": "typesafe/jev-1.14",
+    "state": {
+      "answer": {
+        "what_this_is": "the assistant's final answer",
+        "content": "I added a --retry flag that retries three times."
+      }
+    },
+    "questions": {
+      "q": {
+        "type": "noul",
+        "instructions": "Does the answer say a retry flag was added?"
+      },
+      "c": {
+        "type": "choice",
+        "instructions": "How many retries does the answer state?",
+        "criteria": {
+          "none": "no count stated",
+          "three": "three retries",
+          "other": "some other count"
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "typesafe/jev-1.14-20261014",
+    "answers": {
+      "q": {
+        "type": "noul",
+        "noul": 0.99
+      },
+      "c": {
+        "type": "choice",
+        "choice": "three",
+        "probabilities": {
+          "none": 0,
+          "three": 1,
+          "other": 0
+        },
+        "confidence": 1
+      }
+    },
+    "usage": {
+      "input_tokens": 379,
+      "output_tokens": 54,
+      "cost": 1.5918e-05
+    },
+    "id": "gen-dec-1793646924-q75RhuCL0hU8N5RhSrpa",
+    "provider": "TypeSafe"
+  }
+}

@@ -52,8 +52,8 @@ pairwise, score clustering on Likert, a judge that argues itself into a verdict
 Three more fits, in descending order of how much they matter:
 
 1. **It is off-family.** Our judge-hosting note requires a judge from a
-   different family than the arm under test; today that is a paid Cloudflare
-   Workers AI model. TypeSafe is nobody's family. A Jev judge is off-family for
+   different family than the arm under test; when this was written that was a
+   paid Cloudflare Workers AI model (OpenRouter since 2026-11-02). TypeSafe is nobody's family. A Jev judge is off-family for
    Claude Code, Codex and qwen arms simultaneously.
 2. **The three outcomes already line up.** Proctor's check contract is
    0/1/2 = pass/fail/needs-judge, and `Verdict` has `NeedsJudge` as a first
@@ -131,6 +131,11 @@ That is a genuinely stronger evidence guarantee than any generative judge can
 offer, and it is the most promising thing in this pass.
 
 ## Running it ourselves, and who hosts it
+
+*Update 2026-11-02: proctor no longer uses Cloudflare. Jev is reached on
+OpenRouter's decision endpoint (`POST /api/alpha/decisions`, the System One
+body plus `model`, answered unwrapped), pinned as `typesafe/jev-1.14`; the
+Cloudflare route below is history.*
 
 **Cloudflare: already done, as a partner model.** Jev is in Cloudflare's AI
 catalogue as `typesafe/jev`, callable from a Worker as

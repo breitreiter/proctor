@@ -275,6 +275,7 @@ static class Judge
         if (options is not null) question["criteria"] = new JsonObject(options.Select(o => KeyValuePair.Create(o.Key, (JsonNode?)o.Value)));
         var state = new JsonObject(call.Parts.Select(p => KeyValuePair.Create(p.Key, (JsonNode?)new JsonObject { ["what_this_is"] = Window.Known[p.Key], ["content"] = p.Value })));
         var request = new JsonObject { ["state"] = state, ["questions"] = new JsonObject { ["q"] = question } };
+        if (call.Def.Model is { } wanted) request.Insert(0, "model", wanted);
         var hash = Hash(call.Def.Kind!, call.Def.Endpoint!, request.ToJsonString(), threshold.ToString("R"), expected);
 
         if (Cached(call, hash) is { } cached) return cached;
@@ -292,7 +293,7 @@ static class Judge
                 Verdict.Err($"decide: {call.Judge} did not answer: {FirstLine(e.Message)}"));
         }
 
-        var result = response["result"] as JsonObject ?? response as JsonObject;
+        var result = response as JsonObject;
         var answer = result?["answers"]?["q"];
         var model = result?["model"]?.GetValue<string>();
         var usage = result?["usage"] is JsonObject u ? new JudgeUsage(u["input_tokens"]?.GetValue<long>(), u["output_tokens"]?.GetValue<long>()) : null;
@@ -313,7 +314,7 @@ static class Judge
 
     static async Task<JsonNode> PostSystemOne(Call call, JsonObject request)
     {
-        // A bare media type: Cloudflare's AI Gateway answers "Required value missing: input" to application/json; charset=utf-8.
+        // A bare media type: some gateways refuse application/json; charset=utf-8.
         using var message = new HttpRequestMessage(HttpMethod.Post, call.Def.ResolvedEndpoint(call.Judge)) { Content = new StringContent(request.ToJsonString(), new MediaTypeHeaderValue("application/json")) };
         if (call.Def.ResolvedKey(call.Judge) is { } key) message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
         using var response = await call.Client.Http.SendAsync(message);

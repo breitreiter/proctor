@@ -26,21 +26,22 @@
   "judges": {
     "jev": {
       "kind": "systemone",
-      "endpoint": "${LLM_GATEWAY}/cf/workers-ai/run/typesafe/jev",
+      "endpoint": "${LLM_GATEWAY}/openrouter/alpha/decisions",
+      "model": "typesafe/jev-1.14",
       "api_key": "${LLM_GATEWAY_KEY}",
       "family": "typesafe"
     },
     "glm": {
       "kind": "chat",
-      "endpoint": "${LLM_GATEWAY}/cf/compat",
-      "model": "workers-ai/@cf/zai-org/glm-5.2",
+      "endpoint": "${LLM_GATEWAY}/openrouter/v1",
+      "model": "z-ai/glm-5.3",
       "api_key": "${LLM_GATEWAY_KEY}",
       "family": "glm"
     },
     "k2": {
       "kind": "chat",
-      "endpoint": "${LLM_GATEWAY}/cf/compat",
-      "model": "workers-ai/@cf/moonshotai/kimi-k2.6",
+      "endpoint": "${LLM_GATEWAY}/openrouter/v1",
+      "model": "moonshotai/kimi-k2.6",
       "api_key": "${LLM_GATEWAY_KEY}",
       "family": "kimi"
     }

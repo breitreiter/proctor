@@ -125,9 +125,11 @@ Without it, `nb` is taken from `PATH` and nb resolves its own config.
 
 The same file names the judges that the model checks call at grade time,
 by wire shape rather than vendor. A `systemone` judge answers typed
-questions with probabilities (`POST /v1/systemone`: Jev on Cloudflare, or
-anything that speaks it); a `chat` judge is an OpenAI-dialect chat
-completions endpoint with a model name. Endpoints and keys may be `${VAR}`
+questions with probabilities in the System One request shape (TypeSafe's
+`/v1/systemone`, OpenRouter's `/alpha/decisions`, or a local server that
+speaks it), with a `model` sent in the request when the endpoint serves
+several; a `chat` judge is an OpenAI-dialect chat completions endpoint with
+a model name. Endpoints and keys may be `${VAR}`
 references, resolved only when `grade` runs. This repository commits only
 `suites/proctor.example.json`, which expects `LLM_GATEWAY`, the base URL of
 an OpenAI-dialect gateway that serves the routes it names, and
@@ -139,8 +141,8 @@ in its own config, which is how `suites/nb.json` reaches the same gateway.
 {
   "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb.json" },
   "judges": {
-    "jev": { "kind": "systemone", "endpoint": "${LLM_GATEWAY}/cf/workers-ai/run/typesafe/jev", "api_key": "${LLM_GATEWAY_KEY}", "family": "typesafe" },
-    "glm": { "kind": "chat", "endpoint": "${LLM_GATEWAY}/cf/compat", "model": "workers-ai/@cf/zai-org/glm-5.2", "api_key": "${LLM_GATEWAY_KEY}", "family": "glm" }
+    "jev": { "kind": "systemone", "endpoint": "${LLM_GATEWAY}/openrouter/alpha/decisions", "model": "typesafe/jev-1.14", "api_key": "${LLM_GATEWAY_KEY}", "family": "typesafe" },
+    "glm": { "kind": "chat", "endpoint": "${LLM_GATEWAY}/openrouter/v1", "model": "z-ai/glm-5.3", "api_key": "${LLM_GATEWAY_KEY}", "family": "glm" }
   }
 }
 ```

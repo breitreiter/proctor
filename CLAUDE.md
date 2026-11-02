@@ -323,8 +323,14 @@ The directories are for reading, not for namespaces: everything is
   multi-line prompt stays one directive. A prompt line that itself ends in a
   backslash cannot be expressed.
 - **The judge is proctor's own client, never nb.** `decide` posts to a
-  `systemone` endpoint (Jev on Cloudflare through a local gateway today; the
-  wire format is the seam, not the vendor); `judge` goes through
+  `systemone` endpoint (the System One request, its `model` sent when the
+  judge names one; Jev on OpenRouter's `/alpha/decisions` through a local
+  gateway today; the wire format is the seam, not the vendor). Its answer
+  is read unwrapped, `{model, answers, usage}`, as
+  `Proctor.Tests/fixtures/openrouter-decisions.json` captured it, and its
+  POST is hand-rolled on purpose: Microsoft.Extensions.AI has no decision
+  abstraction and no .NET System One client is worth the dependency.
+  `judge` goes through
   Microsoft.Extensions.AI's `IChatClient` over an OpenAI-dialect endpoint,
   so a provider change is a config line. Both are `Verdict`s like any
   check. The question is the suite's (the check spec), the endpoint is the
