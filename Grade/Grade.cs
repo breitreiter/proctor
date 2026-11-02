@@ -82,7 +82,7 @@ static class Grade
     /// <summary>Grade one cell and write its checks.json. Returns the verdict map.</summary>
     public static Dictionary<string, Verdict> Cell(CellContext cell, Suite suite, Transcript transcript)
     {
-        var verdicts = suite.ChecksFor(cell.Task).ToDictionary(k => k.Key, k => Checks.Evaluate(k.Value, cell, transcript, k.Key));
+        var verdicts = suite.ChecksFor(cell.Task).Where(k => !(cell.Vendor && Checks.NbOnly(k.Value.Spec))).ToDictionary(k => k.Key, k => Checks.Evaluate(k.Value, cell, transcript, k.Key));
         Runner.WriteJson(Path.Combine(cell.CellDir, Layout.ChecksFile), verdicts);
         return verdicts;
     }

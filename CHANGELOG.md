@@ -7,6 +7,24 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- A vendor agent's cell no longer carries a check that reads only nb's
+  loop nudge (`loop_nudged` alone, or with a `description`): `checks.json`
+  has no entry for it and its rate is over nb's cells, where it used to be
+  `error` on every Claude Code, Codex and Qwen Code run. Combined with
+  other fields it stays, the nudge part an `error` as before. Such a check
+  in `grading.pass` or `grading.validity` beside a vendor arm is a problem,
+  since those runs could never pass it. A cell graded before keeps its
+  `error` until it is graded again.
+
+- The report's arms table names an agent arm's harness as the agent at its
+  pin (`claude-code 2.1.301`) and its provider as "—", where it printed
+  `?` for both: the route an agent reached is the machine's and the
+  experiment does not record it yet (#9).
+
+- `suites/code-change`: stage 2's arms, `cc-sonnet` (Claude Code on
+  claude-sonnet-5-5) and `codex` (Codex on gpt-5.5) on OpenAI's own route.
+  `codex-mini` is gone; its October cells ran on the local qwen.
+
 ## 0.3.6 — 2026-11-01
 
 - A Harbor trial that proctor kills for outrunning its wall limit is torn

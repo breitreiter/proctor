@@ -453,13 +453,31 @@ public class HarborTests
         {
             e["grading"]!["checks"]!["few-calls"] = JsonNode.Parse("{\"max_tool_calls\": 2}");
             e["grading"]!["checks"]!["exit-ok"] = JsonNode.Parse("{\"exit_reason\": \"ok\"}");
-            e["grading"]!["checks"]!["not-nudged"] = JsonNode.Parse("{\"loop_nudged\": false}");
+            e["grading"]!["checks"]!["not-nudged"] = JsonNode.Parse("{\"loop_nudged\": false, \"description\": \"no nudge\"}");
+            e["grading"]!["checks"]!["quiet"] = JsonNode.Parse("{\"loop_nudged\": false, \"tool_errors\": {\"max\": 5}}");
             e["grading"]!["checks"]!["answered"] = JsonNode.Parse("{\"answer_contains\": \"6 of 6\"}");
         });
         Assert.Equal(new Verdict(Verdict.Fail, "3 tool calls (max 2)"), checks["few-calls"]);
         Assert.Equal(Verdict.Pass, checks["exit-ok"].Result);
         Assert.Equal(Verdict.Pass, checks["answered"].Result);
-        Assert.Equal(new Verdict(Verdict.Error, "loop_nudged is nb's nudge; a vendor agent has none to fire"), checks["not-nudged"]);
+        Assert.False(checks.ContainsKey("not-nudged"));
+        Assert.Equal(Verdict.Error, checks["quiet"].Result);
+        Assert.StartsWith("loop_nudged is nb's nudge; a vendor agent has none to fire", checks["quiet"].Reason);
+    }
+
+    [Theory]
+    [InlineData("pass")]
+    [InlineData("validity")]
+    public void Validate_ANudgeOnlyCheckInTheHeadline_BesideAVendorArm_IsAProblem(string list)
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        repo.EditJson("harbor-unit/suite.json", e =>
+        {
+            e["grading"]!["checks"]!["not-nudged"] = JsonNode.Parse("{\"loop_nudged\": false}");
+            e["grading"]![list] = new JsonArray([.. (e["grading"]![list]?.AsArray().Select(n => n!.DeepClone()) ?? []), "not-nudged"]);
+        });
+        Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == $"grading.{list}" && p.Message.Contains("loop nudge"));
     }
 
     [Fact]

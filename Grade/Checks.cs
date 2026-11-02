@@ -214,6 +214,10 @@ static class Checks
         static bool IsRegex(string p) { try { _ = new Regex(p); return true; } catch (ArgumentException) { return false; } }
     }
 
+    /// <summary>A check that reads only nb's own behaviour (the loop nudge): a vendor agent's cell does not carry it, so its rate is over nb's cells.
+    /// Combined with anything else it stays, and the nudge part is an error on a vendor cell.</summary>
+    public static bool NbOnly(JsonObject spec) => spec.Where(f => f.Key != Description).Select(f => f.Key).SequenceEqual(["loop_nudged"]);
+
     /// <summary>Evaluate a declared check over one cell. A spec with several fields is their conjunction. The name is what a model check's verdict file and @expect are keyed by.</summary>
     public static Verdict Evaluate(CheckDef check, CellContext cell, Transcript t, string name = "check")
     {

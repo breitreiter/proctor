@@ -76,7 +76,7 @@ static class Report
         b.Add(new Para("An arm is one configuration under test: a harness, a provider and a model, run over every task." + (arms.Count > 1 ? " The first arm is the reference the others are compared with." : ""), "explain"));
         var bundles = exp.Bundles is { Count: > 0 };
         b.Add(new Table(["Arm", "What it is", "Harness", "Provider", "Model", "Runs per task", .. bundles ? ["Bundle"] : Array.Empty<string>()],
-            arms.Select(a => (List<Cell>)[Id(a), T(d.Arms.GetValueOrDefault(a, "")), T(ArmField(exp, a, "harness")), T(ArmField(exp, a, "provider")), T(ArmField(exp, a, "model")), T(Samples(exp, a).ToString()),
+            arms.Select(a => (List<Cell>)[Id(a), T(d.Arms.GetValueOrDefault(a, "")), T(Harness(exp, a)), T(ArmField(exp, a, "provider", "—")), T(ArmField(exp, a, "model")), T(Samples(exp, a).ToString()),
                 .. bundles ? [T(exp.BundleOf(a) is { } bu ? $"``{bu.Source}``" : "")] : Array.Empty<Cell>()]).ToList(),
             [5]));
 
@@ -455,8 +455,12 @@ static class Report
     static IEnumerable<string> ExitReasons(StatsFile stats) =>
         stats.Arms.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
 
-    static string ArmField(Experiment exp, string arm, string field) =>
-        exp.SuiteDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?[field]?.GetValue<string>() ?? "?";
+    static string ArmField(Experiment exp, string arm, string field, string missing = "?") =>
+        exp.SuiteDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?[field]?.GetValue<string>() ?? missing;
+
+    /// <summary>nb's harness on an nb arm; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the experiment does not record.</summary>
+    static string Harness(Experiment exp, string arm) =>
+        ArmField(exp, arm, "harness", "") is { Length: > 0 } h ? h : $"{ArmField(exp, arm, "agent")} {ArmField(exp, arm, "agent_version", "")}".TrimEnd();
 
     static int Samples(Experiment exp, string arm) =>
         exp.SuiteDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?["samples"]?.GetValue<int>() ?? 1;

@@ -553,12 +553,19 @@ sealed class Suite
         foreach (var name in def.Grading.Pass ?? [])
             if (name is null) Add("grading.pass", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.pass", why);
+            else if (NbOnlyBesideVendor(name)) Add("grading.pass", $"'{name}' reads only nb's loop nudge, which a vendor agent arm's runs do not carry, so they could never pass; make it a guardrail");
         foreach (var name in def.Grading.Validity ?? [])
         {
             if (name is null) Add("grading.validity", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.validity", why);
             else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the sample counts, not both");
+            else if (NbOnlyBesideVendor(name)) Add("grading.validity", $"'{name}' reads only nb's loop nudge, which a vendor agent arm's runs do not carry; make it a guardrail");
         }
+
+        bool NbOnlyBesideVendor(string name) =>
+            def.Arms?.Any(a => a?.IsVendor == true) == true
+            && (def.Grading.Checks.TryGetValue(name, out var spec) ? [spec] : tasks.Select(c => c.Checks?.GetValueOrDefault(name) ?? (c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture)?.Checks.GetValueOrDefault(name))))
+                .Any(s => s is not null && Checks.NbOnly(s));
     }
 
     /// <summary>

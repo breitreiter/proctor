@@ -14,7 +14,8 @@ costumes, but a costume value passes validation and is refused by nb at run star
 before any model call. Open: 6 (limits end to end; only `wall_ms` is enforced), 9 (the
 porting guide finished by a cold port) and 10 (the first deliberate cc version bump).
 Project shape stages 1 and 2 ran their cheap-model pass (2026-10-20, graded 2026-11-01;
-see *Project shape, after*). Next spend: stage 2 on each vendor's main model, cost-capped.
+see *Project shape, after*), Codex's half on the local qwen (step 5). Stage 2 on the main
+models (Claude Code on Sonnet 5.5, Codex on gpt-5.5): 2026-11-02.
 
 ## Why this plan exists
 
@@ -456,15 +457,23 @@ green.
 |---|---|---|---|---|---|
 | `qwen` (Qwen Code, imp) | qwen3-coder-next | 9 | 9 | $0 | 133 s |
 | `cc-haiku` (Claude Code) | claude-haiku-5-5 | 3 | 3 | $0.013 | 15 s |
-| `codex-mini` (Codex) | gpt-5-mini | 3 | 3 | $0.022 | 52 s |
+| `codex-mini` (Codex) | asked gpt-5-mini; got qwen3-coder-next (imp) | 3 | 3 | $0 (Harbor priced it $0.022 as gpt-5-mini) | 52 s |
 | `floor` (nb, imp) | qwen3-coder-next | 9 | 7 | $0 | 49 s |
 
 Both floor failures are `provider_error` before the first turn, a harness reason: the
-local endpoint, not the model. The vendor route works end to end and a cheap pass costs
-cents, so the next spend is stage 2 on each vendor's main model. Three tasks confirm nothing
+local endpoint, not the model. The Anthropic route works end to end and a cheap pass costs
+cents, so the next spend is stage 2 on each vendor's main model.
+
+**Correction (2026-11-02).** The `codex-mini` row is the plumbing detour step 5 records:
+OpenAI's route had a 10-call cap that day, so Codex ran on the local qwen through minrouter's
+`imp-qcoder` route, and this table had taken its label for a vendor run. Codex records the model
+it was configured with and Harbor prices that, so every file and the report said gpt-5-mini; the
+report has no way to say otherwise (issue #9). Codex on OpenAI ran first in stage 2. Three tasks confirm nothing
 statistically (the report needs ~200 for a 10-point change). Grading surfaced two
-report warts: `not_nudged` reports `error` on every non-nb arm instead of not
-applying, and the arms table prints `?` for an agent arm's harness and provider.
+report warts, both fixed 2026-11-02: `not_nudged` reported `error` on every non-nb arm
+(a vendor cell no longer carries a check that reads only the nudge, and one in `pass` or
+`validity` beside a vendor arm is a problem), and the arms table printed `?` for an agent
+arm's harness and provider (now the agent at its pin, and "—", since the route is unrecorded).
 
 
 ### 10. Porting guide (`docs/porting-to-agent-neutral.md`)

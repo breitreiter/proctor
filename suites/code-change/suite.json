@@ -32,11 +32,19 @@
       "samples": 1
     },
     {
-      "id": "codex-mini",
-      "description": "Codex on GPT-5 mini, the cheapest OpenAI model",
+      "id": "cc-sonnet",
+      "description": "Claude Code on Sonnet, Anthropic's everyday model",
+      "agent": "claude-code",
+      "agent_version": "2.1.301",
+      "model": "claude-sonnet-5-5",
+      "samples": 1
+    },
+    {
+      "id": "codex",
+      "description": "Codex on GPT-5.5, OpenAI's everyday model",
       "agent": "codex",
       "agent_version": "0.163.0",
-      "model": "gpt-5-mini",
+      "model": "gpt-5.5",
       "samples": 1
     }
   ],
