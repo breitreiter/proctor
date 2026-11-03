@@ -8,6 +8,12 @@ formats or the vocabulary; a patch bump does not.
 ## Unreleased
 
 - The report review (`project/plans/report-structure.md`, 2026-11-02):
+  - The verdict card says why a verdict is unconfirmed once, for the run, from
+    its widest pairing (`stats.json` `mde` was the narrowest). With a baseline,
+    each arm's row says how it stands against the reference arm, where the
+    foot repeated "For the same reason" once per arm. An arm paired on fewer
+    tasks says its own reach on its row (`mde_points` on its comparison).
+  - *What ran* is *Run summary* (anchor `#run-summary`).
   - A check's `error` is out of its rate, as `needs-judge` is, and counted
     beside it; Failures lists it apart as "could not grade", where it said
     "failed". `stats.json` gains a per-arm `errored` list. A headline check

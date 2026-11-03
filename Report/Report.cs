@@ -144,10 +144,10 @@ static class Report
         else if (undecided.Count > 5)
             b.Add(new Para($"{undecided.Count} runs were undecided and are out of the pass rates; see the warning above. They are marked {Undecided} in the tables below."));
 
-        // 6. What ran
+        // 6. Run summary
         var unequal = UnequalLoss(stats);
-        b.Add(new Heading("What ran", "what-ran", Flagged: unequal is not null));
-        b.Add(new Para("Every run planned by the matrix, and how far it got. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.", "explain"));
+        b.Add(new Heading("Run summary", "run-summary", Flagged: unequal is not null));
+        b.Add(new Para("This is how far each run in the suite got before terminating. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.", "explain"));
         b.Add(new Table(["Arm", "Planned", "Attempted", "Completed", "Graded", "Counted", "Decided"],
             arms.Select(a => { var s = stats.Arms[a]; return (List<Cell>)[Id(a), T($"{s.Planned}"), T($"{s.Attempted}"), T($"{s.Completed}"), T($"{s.Graded}"), T($"{s.Analysed}"), T($"{s.Decided}")]; }).ToList(),
             [1, 2, 3, 4, 5, 6]));
@@ -217,9 +217,11 @@ static class Report
         if (stats.Baseline is { } bl)
         {
             title = bl.Against is null ? $"Against the baseline pinned {ShortDate(bl.Set)}" : $"Against {bl.Against}, arm by arm";
+            var vsFirst = stats.Comparisons.ToDictionary(c => c.Arm);
             rows = arms.Select(a => bl.Arms.TryGetValue(a, out var g)
                 ? new CardArm(a, a == first && arms.Count > 1, ArmWord(g.Verdict), ArmTone(g.Verdict), g.Confirmed, SignedPoints(g.DiffPoints), $"{Signed(g.Ci95[0])} to {Signed(g.Ci95[1])}",
-                    Drivers(g.Tasks.Select(t => (t.Key, t.Value.DiffPoints, t.Value.Verdict)), g.Verdict))
+                    Sentences(Drivers(g.Tasks.Select(t => (t.Key, t.Value.DiffPoints, t.Value.Verdict)), g.Verdict),
+                        vsFirst.TryGetValue(a, out var c) ? AgainstReference(c) : "", ShortReach(g.NPairs, g.MdePoints, stats.Mde.NPairs)))
                 : new CardArm(a, a == first && arms.Count > 1, Capital(Unpaired(bl, a)), null, true, "", "", "")).ToList();
         }
         else if (stats.Comparisons.Count > 0)
@@ -229,21 +231,18 @@ static class Report
             {
                 var verdict = GuardVerdict(c.DiffPoints);
                 return new CardArm(c.Arm, false, ArmWord(verdict), ArmTone(verdict), verdict != "held" && c.Verdict != "no-detectable-difference", SignedPoints(c.DiffPoints),
-                    $"{Signed(c.Ci95[0])} to {Signed(c.Ci95[1])}", Drivers(c.Tasks.Select(t => (t.Key, t.Value, GuardVerdict(t.Value))), verdict));
+                    $"{Signed(c.Ci95[0])} to {Signed(c.Ci95[1])}", Sentences(Drivers(c.Tasks.Select(t => (t.Key, t.Value, GuardVerdict(t.Value))), verdict), ShortReach(c.NPairs, c.MdePoints, stats.Mde.NPairs)));
             }).ToList();
         }
         else return null;
 
-        var between = stats.Baseline is null ? [] : stats.Comparisons;
         if (rows.Any(r => !r.Confirmed))
         {
             var m = stats.Mde;
             var why = m.NPairs == 0 ? m.Sentence
                 : $"with {m.NPairs} task{(m.NPairs == 1 ? "" : "s")} this run can only confirm a change of about {m.Points} points. Confirming a 10-point change takes about {m.TasksFor10Points} tasks.";
-            foot.Add(new Para($"**Why unconfirmed:** {why}" + string.Concat(between.Select(c => " " + Between(c, sameReason: true)))));
+            foot.Add(new Para($"**Why unconfirmed:** {why}"));
         }
-        else if (between.Count > 0)
-            foot.Add(new Para(string.Join(" ", between.Select(c => Between(c, sameReason: false)))));
         foreach (var a in Careful(stats))
             foot.Add(new Para(a, "caution"));
         return new Card(title, rows, foot);
@@ -271,17 +270,19 @@ static class Report
         return char.ToUpperInvariant(text[0]) + text[1..];
     }
 
-    /// <summary>A between-arms difference in the card's foot, which says why the verdicts above cannot be confirmed.</summary>
-    static string Between(Comparison c, bool sameReason)
-    {
-        if (c.DiffPoints == 0) return $"**{c.Arm}** and **{c.Vs}** passed the same share of their runs.";
-        var moved = $"**{c.Arm}** passing {Math.Abs(c.DiffPoints)} points {(c.DiffPoints > 0 ? "more" : "fewer")} than **{c.Vs}**";
-        return c.Verdict == "no-detectable-difference"
-            ? $"{(sameReason ? "For the same reason, " : "")}{moved} is not a detectable difference."
-            : $"{char.ToUpperInvariant(moved[0])}{moved[1..]} is a detectable difference.";
-    }
+    /// <summary>With a baseline, an arm's row also says how it stands against the reference arm.</summary>
+    static string AgainstReference(Comparison c) => c.DiffPoints == 0
+        ? $"Against **{c.Vs}**: the same share of runs passed."
+        : $"Against **{c.Vs}**: {SignedPoints(c.DiffPoints)}, {(c.Verdict == "no-detectable-difference" ? "not a detectable difference" : "a detectable difference")}.";
 
-    /// <summary>An arm that lost more of its runs than another rests on fewer of them; the card says so and points at What ran.</summary>
+    /// <summary>An arm paired on fewer tasks than the run reaches less far than the card's foot says; its row says how far.</summary>
+    static string ShortReach(int nPairs, int? mdePoints, int runPairs) => mdePoints is { } p
+        ? $"Paired on {nPairs} of {runPairs} tasks, so it can only confirm a change of about {p} points."
+        : "";
+
+    static string Sentences(params string[] parts) => string.Join(" ", parts.Where(p => p.Length > 0));
+
+    /// <summary>An arm that lost more of its runs than another rests on fewer of them; the card says so and points at Run summary.</summary>
     static IEnumerable<string> Careful(StatsFile stats)
     {
         if (UnequalLoss(stats) is null) yield break;
@@ -290,7 +291,7 @@ static class Report
         foreach (var (arm, n) in lost.Where(l => l.Value > least))
         {
             var others = Join(lost.Where(o => o.Key != arm).Select(o => $"{o.Key} lost {(o.Value == 0 ? "none" : o.Value.ToString())}"));
-            yield return $"**Read {arm} with care:** it lost {n} of its {stats.Arms[arm].Planned} runs and {others}, so {arm}'s rate rests on fewer runs. See [What ran](#what-ran).";
+            yield return $"**Read {arm} with care:** it lost {n} of its {stats.Arms[arm].Planned} runs and {others}, so {arm}'s rate rests on fewer runs. See [Run summary](#run-summary).";
         }
     }
 

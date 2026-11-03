@@ -83,6 +83,27 @@ public class ReportTests
         Assert.Contains("judge: line one<br>line two", md);
     }
 
+    /// <summary>
+    /// The card's foot gives the run's reach once; an arm paired on fewer tasks says its own on its row, and with a
+    /// baseline each row carries the arm against the reference rather than the foot repeating it.
+    /// </summary>
+    [Fact]
+    public void AnArmPairedOnFewerTasks_SaysItsOwnReach_OnItsRow()
+    {
+        var suite = WorkedExperiment.Suite();
+        var rows = WorkedExperiment.Rows().Where(r => !(r.Arm == "b" && r.Task == "plain")).ToList();
+        var stats = Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows, WorkedExperiment.Guard());
+        Assert.Equal(3, stats.Mde.NPairs);
+        Assert.Equal(2, stats.Baseline!.Arms["b"].NPairs);
+        Assert.NotNull(stats.Baseline.Arms["b"].MdePoints);
+        Assert.Null(stats.Baseline.Arms["floor"].MdePoints);
+        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(suite));
+        var bRow = md.Split('\n').Single(l => l.StartsWith("- **b**"));
+        Assert.Contains($"Paired on 2 of 3 tasks, so it can only confirm a change of about {stats.Baseline.Arms["b"].MdePoints} points.", bRow);
+        Assert.Contains("Against **floor**:", bRow);
+        Assert.DoesNotContain("For the same reason", md);
+    }
+
     /// <summary>An agent's reported cost reaches the Cost and effort table; an arm without one shows none.</summary>
     [Fact]
     public void Markdown_ShowsCost_WhenAnArmReportsIt()

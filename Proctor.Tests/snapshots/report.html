@@ -102,7 +102,7 @@ b { font-weight: 600; }
 <a href="#task-uses-bash" class="is-sub"><span>uses-bash</span></a>
 <a href="#results"><span>Results</span></a>
 <a href="#failures"><span>Failures</span></a>
-<a href="#what-ran"><span>What ran</span><span class="flag" title="Needs care" aria-label="Needs care"></span></a>
+<a href="#run-summary"><span>Run summary</span><span class="flag" title="Needs care" aria-label="Needs care"></span></a>
 <a href="#check-rates"><span>Check pass rates</span></a>
 <a href="#cost"><span>Cost and effort</span></a>
 <a href="#every-run"><span>Every run</span></a>
@@ -131,12 +131,12 @@ b { font-weight: 600; }
 <div class="varm">
 <div class="arm">b</div>
 <div class="vline vgood">Better <span class="unc" title="The 95% interval runs from −46 to +63 points">(unconfirmed)</span> +11 points</div>
-<p>Higher on <a href="#task-uses-bash">uses-bash</a> (+33); same on <a href="#task-loops">loops</a> and <a href="#task-plain">plain</a>.</p>
+<p>Higher on <a href="#task-uses-bash">uses-bash</a> (+33); same on <a href="#task-loops">loops</a> and <a href="#task-plain">plain</a>. Against <b>floor</b>: +33 points, not a detectable difference.</p>
 </div>
 </div>
 <div class="verdict-foot">
-<p><b>Why unconfirmed:</b> with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks. For the same reason, <b>b</b> passing 33 points more than <b>floor</b> is not a detectable difference.</p>
-<p class="caution"><b>Read floor with care:</b> it lost 2 of its 9 runs and b lost none, so floor&#39;s rate rests on fewer runs. See <a href="#what-ran">What ran</a>.</p>
+<p><b>Why unconfirmed:</b> with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.</p>
+<p class="caution"><b>Read floor with care:</b> it lost 2 of its 9 runs and b lost none, so floor&#39;s rate rests on fewer runs. See <a href="#run-summary">Run summary</a>.</p>
 </div>
 </div>
 <dl>
@@ -288,9 +288,9 @@ b { font-weight: 600; }
 </ul>
 </section>
 
-<section id="what-ran">
-<h2>What ran</h2>
-<p class="explain">Every run planned by the matrix, and how far it got. <i>Attempted</i> runs started; <i>completed</i> runs ended with a transcript; <i>graded</i> runs have their checks; <i>counted</i> runs are graded and passed every validity check; <i>decided</i> runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.</p>
+<section id="run-summary">
+<h2>Run summary</h2>
+<p class="explain">This is how far each run in the suite got before terminating. <i>Attempted</i> runs started; <i>completed</i> runs ended with a transcript; <i>graded</i> runs have their checks; <i>counted</i> runs are graded and passed every validity check; <i>decided</i> runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th class="num">Planned</th><th class="num">Attempted</th><th class="num">Completed</th><th class="num">Graded</th><th class="num">Counted</th><th class="num">Decided</th></tr></thead>
 <tbody>

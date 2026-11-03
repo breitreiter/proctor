@@ -58,7 +58,8 @@ record TaskCheck(string Name, string Level, string Description);
 record RateJson(double Rate, Interval Ci95, int N, int KCells, int NCells, int? Errors = null, int? NeedsJudge = null);
 
 /// <summary>One arm against another, paired by task; <c>Tasks</c> is the difference on each shared task, in points.</summary>
-record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, int> Tasks);
+/// <summary><c>MdePoints</c> is set only when this pair rests on fewer tasks than the run's widest: the change it alone can confirm.</summary>
+record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, int> Tasks, int? MdePoints = null);
 
 record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
@@ -74,7 +75,7 @@ record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<
 /// <c>Confirmed</c> says the whole 95% interval lies in the region the verdict names: beyond the tolerance on
 /// that side for <c>regressed</c> or <c>improved</c>, within it for <c>held</c>.
 /// </summary>
-record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, bool Confirmed, Dictionary<string, BaselineTask> Tasks);
+record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, bool Confirmed, Dictionary<string, BaselineTask> Tasks, int? MdePoints = null);
 
 /// <summary>One task against its pinned score, with the same tolerance on the difference.</summary>
 record BaselineTask(double Baseline, double Arm, int DiffPoints, string Verdict);
@@ -142,8 +143,14 @@ static class Stats
                 guard.Against, unpaired is { Count: > 0 } ? unpaired : null);
         }
 
-        var nPairs = comparisons.Count > 0 ? comparisons.Min(c => c.NPairs) : tasks.Count(c => byArm[arms[0]].Any(r => r.Task == c && r.Decided));
+        // The run's reach is its widest pairing; a pair on fewer tasks carries its own, smaller reach.
+        var pairs = comparisons.Select(c => c.NPairs).Concat(baseline?.Arms.Values.Select(g => g.NPairs) ?? []).ToList();
+        var nPairs = pairs.Count > 0 ? pairs.Max() : tasks.Count(c => byArm[arms[0]].Any(r => r.Task == c && r.Decided));
         var mde = Mde(nPairs);
+        int? Short(int n) => n < nPairs ? Mde(n).Points : null;
+        comparisons = comparisons.Select(c => c with { MdePoints = Short(c.NPairs) }).ToList();
+        if (baseline is not null)
+            baseline = baseline with { Arms = baseline.Arms.ToDictionary(g => g.Key, g => g.Value with { MdePoints = Short(g.Value.NPairs) }) };
 
         var matrix = arms.ToDictionary(a => a, a => tasks.ToDictionary(c => c,
             c => byArm[a].Where(r => r.Task == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));

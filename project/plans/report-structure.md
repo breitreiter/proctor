@@ -38,10 +38,10 @@ headless Chrome.
 
 **Where the page has rightly moved past this plan.** The order below is now:
 the verdict card, then the about table (no *Result* row: the card is the result), Arms,
-Tasks, Results, Failures, What ran, Check pass rates, Cost and effort, Every run,
+Tasks, Results, Failures, Run summary (was *What ran*), Check pass rates, Cost and effort, Every run,
 Reproducibility and method. *Results by task* is gone as a section: each task's runs,
 score and baseline sit in its own block under Tasks, with the reason each failed run
-failed, which reads better than a matrix far from the task's sentence. What ran gains
+failed, which reads better than a matrix far from the task's sentence. Run summary gains
 *Decided*. The card is the place for direction and confidence ("Worse (unconfirmed)"),
 the about table only for what ran.
 
@@ -63,16 +63,27 @@ that errored still fails the run, so the pass rate is unchanged.
   baseline is per task, so the arithmetic holds, but the word reads as "no change
   since then". Say "against the baseline's scores" for an arm with no pinned runs of
   its own, or leave it out of the card.
-- *Repetition at many arms.* "Why unconfirmed" repeats "For the same reason, X passing
-  11 points more than floor is not a detectable difference" once per arm, and Results
-  has one near-identical comparison paragraph per arm. At five arms that's a wall: one
-  sentence naming every arm whose difference is below the MDE, and a comparison table
-  in place of the paragraphs.
+- *Repetition at many arms in Results.* Results has one near-identical comparison
+  paragraph per arm; at five arms a comparison table should replace them. (The card's
+  half of this is done; see below.)
 - *Per-task check lists.* Each task block lists every check it carries, 9 of 11 the
   suite's, three times over. This plan listed only what was particular to the task;
   go back to that, with the suite's checks once under Checks.
 - *"Each run 3 times or once per arm".* With mixed sample counts, say it per arm
   ("3 runs per task for `floor` and `qwen`, 1 for the rest").
+
+**Reviewed by the user, 2026-11-02, and built.**
+
+- *Why unconfirmed* is the run's, not an arm's: the interval's width rests on the task
+  count, which every arm shares, so the foot says it once ("with 3 tasks this run can
+  only confirm a change of about 81 points"), from the run's widest pairing. With a
+  baseline, each arm's row carries its own standing against the reference ("Against
+  **floor**: +11 points, not a detectable difference") where the foot repeated it per
+  arm. An arm paired on fewer tasks than the run (every run on a task lost or
+  undecided) says its own reach on its row; `stats.json` carries it as `mde_points` on
+  that comparison.
+- *What ran* is *Run summary*, opening "This is how far each run in the suite got
+  before terminating."
 
 **For the site, not the page.** The about table names the host (`sanjuro`) and the
 judge rows name the gateway (`library:8086`) because the machine's config spells them
@@ -87,7 +98,7 @@ so. A report copied to the public site needs those scrubbed, or written as
 4. **Checks** (defines the term and the three roles, lists them with what each tests and which tasks carry each)
 5. **Results** (pass rate per arm, the comparison, the baseline; the verdict in words)
 6. **Failures** (per arm, the checks that failed and on which tasks, in the words from 3 and 4)
-7. **What ran** (planned, attempted, completed, graded, analysed; what was excluded and why; how nb ended each run, per arm)
+7. **Run summary** (planned, attempted, completed, graded, analysed; what was excluded and why; how nb ended each run, per arm)
 8. **Results by task** (the glyph matrix, now that arm, task and run are defined)
 9. **Check pass rates** (the checks table with per-arm rates)
 10. **Cost and effort**
@@ -237,7 +248,7 @@ sentence beside the task: **`answer`** (headline) failed in 2 of 9 runs:
 once on `lookup-semantic` (the answer gives `#fbedef`), once on
 `fanout-no-guidance` (the answer gives 120).
 
-## What ran
+## Run summary
 
 Every run planned by the matrix, and how far it got. *Attempted* runs
 started; *completed* runs ended with a transcript from nb; *graded* runs

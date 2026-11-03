@@ -7,11 +7,11 @@ Can a local coder model make a small change to a .NET repository so that it buil
 **Against the baseline pinned 14 Sep 2026**
 
 - **floor** (reference): **Worse** (unconfirmed) −22 points; 95% interval −67 to +39 points. Lower on loops (−33) and uses-bash (−33); same on plain.
-- **b**: **Better** (unconfirmed) +11 points; 95% interval −46 to +63 points. Higher on uses-bash (+33); same on loops and plain.
+- **b**: **Better** (unconfirmed) +11 points; 95% interval −46 to +63 points. Higher on uses-bash (+33); same on loops and plain. Against **floor**: +33 points, not a detectable difference.
 
-**Why unconfirmed:** with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks. For the same reason, **b** passing 33 points more than **floor** is not a detectable difference.
+**Why unconfirmed:** with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.
 
-**Read floor with care:** it lost 2 of its 9 runs and b lost none, so floor's rate rests on fewer runs. See What ran.
+**Read floor with care:** it lost 2 of its 9 runs and b lost none, so floor's rate rests on fewer runs. See Run summary.
 
 | | |
 |---|---|
@@ -153,9 +153,9 @@ For each arm, the checks that failed in at least one counted run, most frequent 
 
 - **the repository builds after the change** (`builds`, headline) failed in 1 of 9 runs: once on uses-bash.
 
-## What ran
+## Run summary
 
-Every run planned by the matrix, and how far it got. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.
+This is how far each run in the suite got before terminating. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.
 
 | Arm | Planned | Attempted | Completed | Graded | Counted | Decided |
 |---|---|---|---|---|---|---|
