@@ -89,6 +89,8 @@ because build, tests and diff cannot decide them:
 "validity": ["stays-in-work"]
 ```
 
+*Updated 2026-11-02: the judges moved from Cloudflare to OpenRouter; the routes and models below are today's (`suites/proctor.example.json`), the shape is unchanged. A `systemone` judge may name a `model`.*
+
 `evals/proctor.json`, the machine's side, gains a `judges` block beside `nb`:
 
 ```json
@@ -96,9 +98,9 @@ because build, tests and diff cannot decide them:
   "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb.json" },
   "judges": {
     "default": "glm",
-    "glm": { "kind": "chat",      "endpoint": "${LLM_GATEWAY}/cf/compat/v1", "model": "@cf/zai-org/glm-4.7",
+    "glm": { "kind": "chat",      "endpoint": "${LLM_GATEWAY}/openrouter/v1", "model": "z-ai/glm-5.3",
              "api_key": "${LLM_GATEWAY_KEY}", "family": "glm" },
-    "jev": { "kind": "systemone", "endpoint": "${LLM_GATEWAY}/cf/workers-ai/run/typesafe/jev",
+    "jev": { "kind": "systemone", "endpoint": "${LLM_GATEWAY}/openrouter/alpha/decisions", "model": "typesafe/jev-1.14",
              "api_key": "${LLM_GATEWAY_KEY}", "family": "typesafe" },
     "gemma": { "kind": "logprobs", "endpoint": "${LLM_GATEWAY}/gemma/v1", "model": "gemma-3-12b-it",
              "api_key": "${LLM_GATEWAY_KEY}", "family": "gemma" }

@@ -137,6 +137,15 @@ OpenRouter's decision endpoint (`POST /api/alpha/decisions`, the System One
 body plus `model`, answered unwrapped), pinned as `typesafe/jev-1.14`; the
 Cloudflare route below is history.*
 
+*Other decision models on OpenRouter, 2026-11-02* (input $/M; decision models bill no
+output; `GET /x/openrouter/v1/models?output_modalities=decisions` lists them):
+`typesafe/jev-1.14` 0.042 (the judge), `perplexity/pplx-decider-v1.2` 0.02, `liquid/d1.1`
+0.02, `upstage/solar-decide` 0.05, `inception/mercury-decide` 0.02,
+`microsoft/microsoft-decision-1` 0.042, `openai/gpt-6-luna-decisions` 0.10. Clef, Baseten's
+joey/elephant/mammoth, Kev and Tev1 are Qwen fine-tunes, so not off-family for qwen arms: a
+judge made of one takes `family: qwen`, so `SameFamilyNotes` warns. Recalibrating any of them
+is the bench's job (`jev-trial.md`).
+
 **Cloudflare: already done, as a partner model.** Jev is in Cloudflare's AI
 catalogue as `typesafe/jev`, callable from a Worker as
 `env.AI.run('typesafe/jev', { state, questions })` with no separate TypeSafe

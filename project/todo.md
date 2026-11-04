@@ -170,23 +170,25 @@ old and new kept apart so a quote cannot stitch them), and then it is an issue. 
 `rename-module` errors are a different thing: glm wrote `Legacy_Widgets` for
 `Legacy.Widgets`, a wrong quote rightly discarded.
 
-## After dropping Cloudflare (done 2026-11-02)
+## Two loose ends of the move to OpenRouter
 
-The judges are on OpenRouter (CHANGELOG, Unreleased). What is left of the item:
+Cloudflare is gone (CHANGELOG, Unreleased): code, both configs and the docs are on
+OpenRouter, and the candidate decision models are in `project/learnings/jev-judges.md`.
 
+- **The judges are new models.** The move pinned `typesafe/jev-1.14` (served as
+  `typesafe/jev-1.14-20261014`) and `z-ai/glm-5.3` where Cloudflare served `jev-1.13.0`
+  and `@cf/zai-org/glm-5.2`, as each verdict file's `model` records. Stage 2's verdicts
+  (`20261102-1143-code-change-jy0n`) and every bench number in `jev-trial.md` are the old
+  models'. No threshold was ever set by calibration (`jev-trial.md` is open), so nothing
+  in `grading.pass` rests on them, but a regrade asks the new models afresh (the model is
+  in the verdict hash) and can move guardrail rates. Say which models in any comparison
+  across the move. A one-cell regrade (2026-11-04, `cc-sonnet/fix-null-deref/1`) went
+  through both paths on OpenRouter and agreed with the old verdicts: `ran-tests` yes
+  p=0.99 (was 0.98), `stance` complete p=1.00, `change-fits` yes 3/3.
 - **minrouter holds about $1 per decision call** (`X-Minrouter-Charged-Usd: 0.9616` for a
-  call that settled at $0.000016): decision models are not in its price table, so it reserves
-  its top rate until the call settles. Calls are sequential today, so the $5 wallet admits them;
-  give minrouter a row for decision models before grading in parallel.
-- **Families:** Clef, Baseten's joey/elephant/mammoth, Kev and Tev1 are Qwen fine-tunes, so
-  they are not off-family for qwen arms. If one becomes a judge, set its `family` to `qwen` so
-  `SameFamilyNotes` warns.
-- **Kind names** stay `systemone` and `chat`: they name the wire shapes, not Cloudflare.
-- **Candidates** (input $/M; decision models bill no output): `typesafe/jev-1.14` 0.042 (the
-  judge now), `perplexity/pplx-decider-v1.2` 0.02, `liquid/d1.1` 0.02, `upstage/solar-decide`
-  0.05, `inception/mercury-decide` 0.02, `microsoft/microsoft-decision-1` 0.042,
-  `openai/gpt-6-luna-decisions` 0.10; `GET /x/openrouter/v1/models?output_modalities=decisions`
-  lists them. Recalibrating a new decision model is the bench's job (`jev-trial.md`).
+  call that settled at $0.000016): decision models are not in its price table, so it
+  reserves its top rate until the call settles. Sequential grading fits the $5 wallet; give
+  minrouter a row for decision models (minrouter's repository) before grading in parallel.
 
 ## A GitHub Pages site to show off the reports
 
