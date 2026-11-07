@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>code-change — 2 Nov 2026 — proctor</title>
+<link rel="icon" href="data:image/svg+xml;base64,PCEtLSAiUG9pbnR5IGhhdCIgYnkgTG9yYywgaHR0cHM6Ly9nYW1lLWljb25zLm5ldC8xeDEvbG9yYy9wb2ludHktaGF0Lmh0bWwsIENDIEJZIDMuMCBodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvMy4wLyA7IGFkYXB0ZWQgKHJlc2NhbGVkIGFuZCByZXN0eWxlZCkuIC0tPgo8c3ZnIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMzkuMDExNyAzLjk3NTU1QzMzLjYxNCA0LjAxODM5IDI5LjE4MDggNi4zOTQ2OCAyNS40MzU1IDEwLjA1NzZDMjEuNDk5NSAxMy45MDcyIDE4LjQwNDMgMTkuMjA4NSAxNi4wNjA1IDI0LjYzNTdDMTYuMTMzNiAyNS4wNTc5IDE2LjM0NzQgMjUuNDc0NCAxNi43MjU2IDI1LjkxNjFDMTcuMjA5MSAyNi40ODA5IDE3Ljk2MTUgMjcuMDUxNyAxOC44OTk0IDI3LjU2NTVDMjAuNzc1NCAyOC41OTMyIDIzLjM3OTggMjkuMzk3OCAyNS45Nzc2IDI5Ljg1OTZDMjguNTc1NCAzMC4zMjEzIDMxLjE4MTIgMzAuNDQxNyAzMy4wMjM0IDMwLjE4MTlDMzMuOTQ0NSAzMC4wNTE5IDM0LjY2NzYgMjkuODE1MyAzNS4wNjg0IDI5LjU2NjZDMzUuNDY5MSAyOS4zMTc5IDM1LjUyOTMgMjkuMTk1NiAzNS41MTk1IDI4Ljk0NTVMMzUuNTg3IDI4Ljk0MjdDMzUuMjY3NSAyNC45Mjc2IDM1LjAyNDUgMjAuNjE4IDM1LjU5NTcgMTYuNTczM0MzNS44NiAxNC43MDA5IDM2LjMxNDUgMTIuODc2NCAzNy4wMjI1IDExLjE3MTFDMzQuMDYyNiAxNC4xMTg2IDMxLjEyNCAxNy4zMDQ2IDI4Ljg4MDkgMjAuMDUxMUMzMi4yMDEzIDEzLjQ2OTggMzYuOTYyMiA4LjY2OTk5IDQyLjExMTQgNC4yMTAxMUM0MS4wNDQ5IDQuMDQ5OCA0MC4wMDk1IDMuOTY3ODYgMzkuMDExNyAzLjk3NTc0VjMuOTc1NTVaTTE0LjU1MDkgMjIuNDA1N0MxNC4xMzQyIDIyLjQwMjkgMTMuNzE3NSAyMi40MDcgMTMuMzAwOSAyMi40MThDMTEuMTMxNyAyMi40NzE5IDkuMTU0NTkgMjIuNjkwOCA3LjUgMjMuMDkxOEM1LjI5Mzg4IDIzLjYyNjUgMy43MDYzMSAyNC40ODc2IDIuOTI2ODggMjUuNTMyMUMyLjE0NzE2IDI2LjU3NjkgMS45ODE4OCAyNy44NDQ3IDIuODM1OTQgMjkuODAwOEM1LjkxNjU2IDM2Ljg1NjcgMTMuODIyIDQyLjAxMjYgMjIuMzIxMyA0My43MzE1QzMwLjgyMDcgNDUuNDQ5OSAzOS43Njg5IDQzLjc0NTIgNDUuMDM1MSAzNy40NzM2QzQ2LjMwOTEgMzUuOTU2MyA0Ni40NjkyIDM0LjcyNTYgNDUuOTY2OCAzMy40MjE4QzQ1LjQ2NDQgMzIuMTE3OSA0NC4xMzA2IDMwLjcxNDUgNDIuMTQzNiAyOS40MTRDNDAuNzYxMyAyOC41MDkzIDM5LjA3OTYgMjcuNjU3NCAzNy4xOTgzIDI2Ljg3OTlDMzcuMzM5NSAyOC45OTc3IDM3LjUzMTYgMzEuMDg3MSAzNy42Nzg3IDMzLjA2NDNWMzMuMDg0OEMzNy43MzU2IDM0LjE1MzggMzcuMTY0IDM1LjEwODQgMzYuMzMzOSAzNS43MDRDMzUuNTA0IDM2LjI5OTYgMzQuNDMzOCAzNi42NDkgMzMuMTk5MiAzNi44NjcxQzMwLjczMDEgMzcuMzAzNCAyNy41NzE4IDM3LjE4NTYgMjQuNDQ4MiAzNi42NjJDMjEuMzI0OCAzNi4xMzg0IDE4LjI1MjggMzUuMjEyIDE1Ljk4NDUgMzMuOTE0QzE0Ljg1MDQgMzMuMjY0OSAxMy45MDg0IDMyLjUyMTggMTMuMjc3NCAzMS42MTk5QzEyLjY0NjUgMzAuNzE4MyAxMi4zNjI0IDI5LjU5OTIgMTIuNjU5MyAyOC40OTExTDEyLjY2ODIgMjguNDU1OUwxMi42Nzk5IDI4LjQyMDlDMTMuMzk1OCAyNi40MzI4IDE0LjIwODggMjQuNDA5MyAxNS4xMjYyIDIyLjQxMjFDMTQuOTM0NSAyMi40MDkgMTQuNzQyOSAyMi40MDY5IDE0LjU1MTIgMjIuNDA1N0gxNC41NTA5Wk0xNS4xNzI5IDI2Ljc4MDJDMTQuODg2NiAyNy41MDU2IDE0LjYxMTIgMjguMjM1MiAxNC4zNDY3IDI4Ljk2ODdDMTQuMTk3MSAyOS41NTQzIDE0LjMwOTIgMzAuMDM4MSAxNC43MTI5IDMwLjYxNTNDMTUuMTIzIDMxLjIwMTIgMTUuODY0MiAzMS44MjY4IDE2Ljg1NDYgMzIuMzkzNUMxOC44MzUzIDMzLjUyNyAyMS43NjcxIDM0LjQzNTQgMjQuNzM4NSAzNC45MzM3QzI3LjcwOTggMzUuNDMxOSAzMC43NCAzNS41MjI0IDMyLjg5NDcgMzUuMTQxOEMzMy45NzIxIDM0Ljk1MTMgMzQuODE5NCAzNC42MzM3IDM1LjMxMTYgMzQuMjgwMkMzNS44MDM4IDMzLjkyNzIgMzUuOTU1MSAzMy42NDk3IDM1LjkyOTkgMzMuMTc1OUMzNS44ODE0IDMyLjUyNjIgMzUuODI3OSAzMS44NjA4IDM1Ljc3MTYgMzEuMTgzN0MzNS4wNzM0IDMxLjU2MTUgMzQuMjI3NiAzMS43ODA2IDMzLjI2NjggMzEuOTE2MUMzMS4xMzU3IDMyLjIxNjcgMjguNDExNSAzMi4wNzIyIDI1LjY3MDMgMzEuNTg1QzIyLjkyODggMzEuMDk3OSAyMC4xODU5IDMwLjI2NzQgMTguMDU1OSAyOS4xMDA2QzE2Ljk5MDkgMjguNTE3MyAxNi4wNzU3IDI3Ljg1IDE1LjM5NTcgMjcuMDU1OEMxNS4zMTg1IDI2Ljk2NjQgMTUuMjQ0MyAyNi44NzQ1IDE1LjE3MyAyNi43ODAzTDE1LjE3MjkgMjYuNzgwMloiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl83M18xNDApIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfNzNfMTQwIiB4MT0iMjQuMjQ4NCIgeTE9IjMuOTc1MjIiIHgyPSIyNC4yNDg0IiB5Mj0iNDQuMzYxNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQkQ3M0Q2Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBCMUI0MiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=">
+<style>
+html { scroll-behavior: smooth; background: #fff; }
+body { margin: 0; color: #1b1b1b; font: 15px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; background: #fff; }
+a { color: #5a3e9e; } a:hover { color: #3f2a78; }
+b { font-weight: 600; }
+.page { width: 100%; min-height: 100vh; box-sizing: border-box; display: flex; justify-content: center; gap: 48px; padding: 0 24px; }
+.rpt { flex-grow: 1; min-width: 0; max-width: 64rem; padding: 2rem 0 4rem; }
+.kicker { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #595959; }
+.rpt header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.rpt header .when { font-size: 20px; font-weight: 500; margin-top: 4px; }
+.rpt header .time { font-size: 14px; color: #595959; margin-top: -6px; }
+.rpt h1 { font-size: 2.5rem; line-height: 1.1; font-weight: 650; letter-spacing: -.01em; margin: 0; }
+.rpt h2 { font-size: 1.625rem; line-height: 1.2; font-weight: 650; letter-spacing: -.005em; margin: 3rem 0 .75rem; padding-top: 1rem; border-top: 1px solid #d8d8d8; }
+.rpt h3 { font-size: 1.0625rem; line-height: 1.3; font-weight: 600; margin: 0; }
+.rpt h4 { font-size: .8rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #595959; margin: 1.1rem 0 0; }
+.rpt section, .rpt tr { scroll-margin-top: 24px; }
+.rpt p { margin: .5rem 0; max-width: 52rem; }
+.rpt .explain { color: #6b6b6b; font-size: 14px; }
+.rpt table { border-collapse: collapse; margin: .75rem 0; font-variant-numeric: tabular-nums; }
+.rpt .table-wrap { max-width: 100%; overflow-x: auto; }
+.rpt th, .rpt td { padding: .3rem .7rem; border-bottom: 1px solid #d8d8d8; text-align: left; vertical-align: top; }
+.rpt th { font-weight: 600; font-size: .85rem; color: #595959; }
+.rpt td { max-width: 32rem; }
+.rpt .num { text-align: right; white-space: nowrap; }
+.rpt .marks { white-space: nowrap; }
+.rpt .marks a { text-decoration: none; letter-spacing: .2em; font-size: 1.25em; }
+.rpt tr:target { background: #eef4f0; }
+.rpt ul { margin: .3rem 0 .6rem 1.2rem; padding: 0; max-width: 52rem; }
+.rpt li { margin: .15rem 0; }
+.rpt dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; max-width: 52rem; margin: .75rem 0; }
+.rpt dt { color: #595959; } .rpt dd { margin: 0; overflow-wrap: anywhere; }
+.id { white-space: nowrap; }
+.code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .88em; background: #f4f4f2; padding: 1px 4px; border-radius: 3px; overflow-wrap: anywhere; }
+.pass { color: #1f6f43; } .fail { color: #c2361b; } .skip { color: #9a5b00; } .undecided { color: #595959; }
+.vbad { color: #a52d15; } .vgood { color: #17603a; } .vsame { color: #595959; }
+.role { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.role-headline { color: #1b1b1b; } .role-validity { color: #9a5b00; } .role-guardrail { color: #595959; }
+.src { color: #595959; white-space: nowrap; }
+.warning { background: #fff4d6; color: #5c3d00; padding: .5rem .75rem; margin: 1rem 0; border-radius: 4px; }
+.verdict { margin: 1.25rem 0 1rem; max-width: 52rem; box-sizing: border-box; border: 1px solid #d8d8d8; border-radius: 10px; padding: 24px 28px 20px; display: flex; flex-direction: column; gap: 20px; background: #fbfbf9; }
+.verdict-arms { display: flex; flex-direction: column; gap: 22px; padding: 4px 0; }
+.varm { display: flex; flex-direction: column; gap: 2px; }
+.varm .arm { font-weight: 600; }
+.varm .ref { font-weight: 400; color: #595959; }
+.varm .vline { font-weight: 600; font-variant-numeric: tabular-nums; }
+.varm .vsame { color: #1b1b1b; }
+.varm .unc { font-weight: 400; }
+.rpt .varm p { margin: 0; max-width: 40rem; }
+.verdict-foot { border-top: 1px solid #e4e4e0; padding-top: 16px; }
+.rpt .verdict-foot p { margin: 0 0 .5rem; }
+.rpt .verdict .caution { color: #5c3d00; }
+.rpt .task { margin-top: 1.75rem; padding: 1rem 1.25rem 1.1rem; border: 1px solid #d8d8d8; border-radius: 8px; max-width: 52rem; box-sizing: border-box; }
+.rpt .task .prompt { margin: .25rem 0 .5rem; }
+.rpt .task .facts { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 13.5px; color: #595959; }
+.rpt .task .facts b { color: #1b1b1b; }
+.rpt .task table { width: 100%; margin: .35rem 0 0; }
+.rpt .task th { white-space: nowrap; }
+.rpt .task tr:last-child td { border-bottom: 0; }
+.rpt ul.why { margin: .6rem 0 0 1.1rem; }
+.rpt dl.explain .role { font-size: 12.5px; }
+.rpt footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #d8d8d8; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #6b6b6b; }
+.rpt footer img, .brand img { display: block; }
+.toc-rail { position: sticky; top: 0; align-self: flex-start; flex-shrink: 0; width: 220px; max-height: 100vh; overflow-y: auto; box-sizing: border-box; padding: 32px 0 24px; display: flex; flex-direction: column; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid #e4e4e0; }
+.brand span { font-weight: 600; color: #3b2f6e; letter-spacing: .01em; }
+.rail-suite { display: flex; flex-direction: column; gap: 2px; }
+.rail-suite .name { font-size: 15px; font-weight: 650; }
+.rail-suite .date { font-size: 12.5px; color: #595959; }
+.rail-toc { display: flex; flex-direction: column; gap: 6px; }
+.rail-toc .kicker { font-size: 11px; }
+.toc { display: flex; flex-direction: column; border-left: 1px solid #d8d8d8; }
+.toc a { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 12px; margin-left: -1px; border-left: 2px solid transparent; color: #595959; text-decoration: none; font-size: 13.5px; line-height: 1.35; }
+.toc a:hover { color: #1b1b1b; border-left-color: #bdbdbd; }
+.toc a.is-active { color: #1b1b1b; font-weight: 600; border-left-color: #5a3e9e; }
+.toc a.is-sub { padding-left: 26px; font-size: 13px; }
+.toc a:focus-visible { outline: 2px solid #5a3e9e; outline-offset: 2px; border-radius: 2px; }
+.toc .flag { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: #d9a400; }
+.to-top { font-size: 12.5px; color: #595959; text-decoration: none; display: flex; align-items: center; gap: 6px; min-height: 28px; }
+@media (max-width: 900px) { .toc-rail { display: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="toc-rail" aria-label="Report sections">
+<div class="brand"><img src="data:image/svg+xml;base64,PCEtLSAiUG9pbnR5IGhhdCIgYnkgTG9yYywgaHR0cHM6Ly9nYW1lLWljb25zLm5ldC8xeDEvbG9yYy9wb2ludHktaGF0Lmh0bWwsIENDIEJZIDMuMCBodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvMy4wLyA7IGFkYXB0ZWQgKHJlc2NhbGVkIGFuZCByZXN0eWxlZCkuIC0tPgo8c3ZnIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMzkuMDExNyAzLjk3NTU1QzMzLjYxNCA0LjAxODM5IDI5LjE4MDggNi4zOTQ2OCAyNS40MzU1IDEwLjA1NzZDMjEuNDk5NSAxMy45MDcyIDE4LjQwNDMgMTkuMjA4NSAxNi4wNjA1IDI0LjYzNTdDMTYuMTMzNiAyNS4wNTc5IDE2LjM0NzQgMjUuNDc0NCAxNi43MjU2IDI1LjkxNjFDMTcuMjA5MSAyNi40ODA5IDE3Ljk2MTUgMjcuMDUxNyAxOC44OTk0IDI3LjU2NTVDMjAuNzc1NCAyOC41OTMyIDIzLjM3OTggMjkuMzk3OCAyNS45Nzc2IDI5Ljg1OTZDMjguNTc1NCAzMC4zMjEzIDMxLjE4MTIgMzAuNDQxNyAzMy4wMjM0IDMwLjE4MTlDMzMuOTQ0NSAzMC4wNTE5IDM0LjY2NzYgMjkuODE1MyAzNS4wNjg0IDI5LjU2NjZDMzUuNDY5MSAyOS4zMTc5IDM1LjUyOTMgMjkuMTk1NiAzNS41MTk1IDI4Ljk0NTVMMzUuNTg3IDI4Ljk0MjdDMzUuMjY3NSAyNC45Mjc2IDM1LjAyNDUgMjAuNjE4IDM1LjU5NTcgMTYuNTczM0MzNS44NiAxNC43MDA5IDM2LjMxNDUgMTIuODc2NCAzNy4wMjI1IDExLjE3MTFDMzQuMDYyNiAxNC4xMTg2IDMxLjEyNCAxNy4zMDQ2IDI4Ljg4MDkgMjAuMDUxMUMzMi4yMDEzIDEzLjQ2OTggMzYuOTYyMiA4LjY2OTk5IDQyLjExMTQgNC4yMTAxMUM0MS4wNDQ5IDQuMDQ5OCA0MC4wMDk1IDMuOTY3ODYgMzkuMDExNyAzLjk3NTc0VjMuOTc1NTVaTTE0LjU1MDkgMjIuNDA1N0MxNC4xMzQyIDIyLjQwMjkgMTMuNzE3NSAyMi40MDcgMTMuMzAwOSAyMi40MThDMTEuMTMxNyAyMi40NzE5IDkuMTU0NTkgMjIuNjkwOCA3LjUgMjMuMDkxOEM1LjI5Mzg4IDIzLjYyNjUgMy43MDYzMSAyNC40ODc2IDIuOTI2ODggMjUuNTMyMUMyLjE0NzE2IDI2LjU3NjkgMS45ODE4OCAyNy44NDQ3IDIuODM1OTQgMjkuODAwOEM1LjkxNjU2IDM2Ljg1NjcgMTMuODIyIDQyLjAxMjYgMjIuMzIxMyA0My43MzE1QzMwLjgyMDcgNDUuNDQ5OSAzOS43Njg5IDQzLjc0NTIgNDUuMDM1MSAzNy40NzM2QzQ2LjMwOTEgMzUuOTU2MyA0Ni40NjkyIDM0LjcyNTYgNDUuOTY2OCAzMy40MjE4QzQ1LjQ2NDQgMzIuMTE3OSA0NC4xMzA2IDMwLjcxNDUgNDIuMTQzNiAyOS40MTRDNDAuNzYxMyAyOC41MDkzIDM5LjA3OTYgMjcuNjU3NCAzNy4xOTgzIDI2Ljg3OTlDMzcuMzM5NSAyOC45OTc3IDM3LjUzMTYgMzEuMDg3MSAzNy42Nzg3IDMzLjA2NDNWMzMuMDg0OEMzNy43MzU2IDM0LjE1MzggMzcuMTY0IDM1LjEwODQgMzYuMzMzOSAzNS43MDRDMzUuNTA0IDM2LjI5OTYgMzQuNDMzOCAzNi42NDkgMzMuMTk5MiAzNi44NjcxQzMwLjczMDEgMzcuMzAzNCAyNy41NzE4IDM3LjE4NTYgMjQuNDQ4MiAzNi42NjJDMjEuMzI0OCAzNi4xMzg0IDE4LjI1MjggMzUuMjEyIDE1Ljk4NDUgMzMuOTE0QzE0Ljg1MDQgMzMuMjY0OSAxMy45MDg0IDMyLjUyMTggMTMuMjc3NCAzMS42MTk5QzEyLjY0NjUgMzAuNzE4MyAxMi4zNjI0IDI5LjU5OTIgMTIuNjU5MyAyOC40OTExTDEyLjY2ODIgMjguNDU1OUwxMi42Nzk5IDI4LjQyMDlDMTMuMzk1OCAyNi40MzI4IDE0LjIwODggMjQuNDA5MyAxNS4xMjYyIDIyLjQxMjFDMTQuOTM0NSAyMi40MDkgMTQuNzQyOSAyMi40MDY5IDE0LjU1MTIgMjIuNDA1N0gxNC41NTA5Wk0xNS4xNzI5IDI2Ljc4MDJDMTQuODg2NiAyNy41MDU2IDE0LjYxMTIgMjguMjM1MiAxNC4zNDY3IDI4Ljk2ODdDMTQuMTk3MSAyOS41NTQzIDE0LjMwOTIgMzAuMDM4MSAxNC43MTI5IDMwLjYxNTNDMTUuMTIzIDMxLjIwMTIgMTUuODY0MiAzMS44MjY4IDE2Ljg1NDYgMzIuMzkzNUMxOC44MzUzIDMzLjUyNyAyMS43NjcxIDM0LjQzNTQgMjQuNzM4NSAzNC45MzM3QzI3LjcwOTggMzUuNDMxOSAzMC43NCAzNS41MjI0IDMyLjg5NDcgMzUuMTQxOEMzMy45NzIxIDM0Ljk1MTMgMzQuODE5NCAzNC42MzM3IDM1LjMxMTYgMzQuMjgwMkMzNS44MDM4IDMzLjkyNzIgMzUuOTU1MSAzMy42NDk3IDM1LjkyOTkgMzMuMTc1OUMzNS44ODE0IDMyLjUyNjIgMzUuODI3OSAzMS44NjA4IDM1Ljc3MTYgMzEuMTgzN0MzNS4wNzM0IDMxLjU2MTUgMzQuMjI3NiAzMS43ODA2IDMzLjI2NjggMzEuOTE2MUMzMS4xMzU3IDMyLjIxNjcgMjguNDExNSAzMi4wNzIyIDI1LjY3MDMgMzEuNTg1QzIyLjkyODggMzEuMDk3OSAyMC4xODU5IDMwLjI2NzQgMTguMDU1OSAyOS4xMDA2QzE2Ljk5MDkgMjguNTE3MyAxNi4wNzU3IDI3Ljg1IDE1LjM5NTcgMjcuMDU1OEMxNS4zMTg1IDI2Ljk2NjQgMTUuMjQ0MyAyNi44NzQ1IDE1LjE3MyAyNi43ODAzTDE1LjE3MjkgMjYuNzgwMloiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl83M18xNDApIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfNzNfMTQwIiB4MT0iMjQuMjQ4NCIgeTE9IjMuOTc1MjIiIHgyPSIyNC4yNDg0IiB5Mj0iNDQuMzYxNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQkQ3M0Q2Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBCMUI0MiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=" alt="" width="22" height="22"><span>proctor</span></div>
+<div class="rail-suite"><div class="name">code-change</div><div class="date">2 Nov 2026</div></div>
+<div class="rail-toc">
+<div class="kicker">On this page</div>
+<div class="toc">
+<a href="#summary"><span>Summary</span></a>
+<a href="#arms"><span>Arms</span></a>
+<a href="#tasks"><span>Tasks</span></a>
+<a href="#task-add-retry-flag" class="is-sub"><span>add-retry-flag</span></a>
+<a href="#task-fix-null-deref" class="is-sub"><span>fix-null-deref</span></a>
+<a href="#task-rename-module" class="is-sub"><span>rename-module</span></a>
+<a href="#results"><span>Results</span></a>
+<a href="#failures"><span>Failures</span></a>
+<a href="#run-summary"><span>Run summary</span></a>
+<a href="#check-rates"><span>Check pass rates</span></a>
+<a href="#cost"><span>Cost and effort</span></a>
+<a href="#every-run"><span>Every run</span></a>
+<a href="#method"><span>Reproducibility and method</span></a>
+</div>
+</div>
+<a class="to-top" href="#top"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10V2M2.5 5.5L6 2l3.5 3.5"></path></svg>Back to top</a>
+</nav>
+<main class="rpt" id="top">
+<section id="summary">
+<header>
+<div class="kicker">Suite</div>
+<h1>code-change</h1>
+<div class="when">Monday, 2 November 2026</div>
+<div class="time">Started 11:43 UTC</div>
+</header>
+<p>Can the agent make a small, well-specified change to a .NET repository so that it builds, the tests pass and nothing outside the task is touched?</p>
+<div class="verdict" role="region" aria-label="Verdict">
+<div class="kicker">Against the baseline pinned 22 Sep 2026</div>
+<div class="verdict-arms">
+<div class="varm">
+<div class="arm">floor <span class="ref">(reference)</span></div>
+<div class="vline vbad">Worse <span class="unc" title="The 95% interval runs from −65 to +46 points">(unconfirmed)</span> −11 points</div>
+<p>Lower on <a href="#task-add-retry-flag">add-retry-flag</a> (−33); same on <a href="#task-fix-null-deref">fix-null-deref</a> and <a href="#task-rename-module">rename-module</a>.</p>
+</div>
+<div class="varm">
+<div class="arm">qwen</div>
+<div class="vline vsame">Unchanged <span class="unc" title="The 95% interval runs from −56 to +56 points">(unconfirmed)</span> &#177;0 points</div>
+<p>Same on <a href="#task-add-retry-flag">add-retry-flag</a>, <a href="#task-fix-null-deref">fix-null-deref</a> and <a href="#task-rename-module">rename-module</a>. Against <b>floor</b>: +11 points, not a detectable difference.</p>
+</div>
+<div class="varm">
+<div class="arm">cc-haiku</div>
+<div class="vline vsame">Unchanged <span class="unc" title="The 95% interval runs from −56 to +56 points">(unconfirmed)</span> &#177;0 points</div>
+<p>Same on <a href="#task-add-retry-flag">add-retry-flag</a>, <a href="#task-fix-null-deref">fix-null-deref</a> and <a href="#task-rename-module">rename-module</a>. Against <b>floor</b>: +11 points, not a detectable difference.</p>
+</div>
+<div class="varm">
+<div class="arm">cc-sonnet</div>
+<div class="vline vsame">Unchanged <span class="unc" title="The 95% interval runs from −56 to +56 points">(unconfirmed)</span> &#177;0 points</div>
+<p>Same on <a href="#task-add-retry-flag">add-retry-flag</a>, <a href="#task-fix-null-deref">fix-null-deref</a> and <a href="#task-rename-module">rename-module</a>. Against <b>floor</b>: +11 points, not a detectable difference.</p>
+</div>
+<div class="varm">
+<div class="arm">codex</div>
+<div class="vline vsame">Unchanged <span class="unc" title="The 95% interval runs from −56 to +56 points">(unconfirmed)</span> &#177;0 points</div>
+<p>Same on <a href="#task-add-retry-flag">add-retry-flag</a>, <a href="#task-fix-null-deref">fix-null-deref</a> and <a href="#task-rename-module">rename-module</a>. Against <b>floor</b>: +11 points, not a detectable difference.</p>
+</div>
+</div>
+<div class="verdict-foot">
+<p><b>Why unconfirmed:</b> with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.</p>
+</div>
+</div>
+<dl>
+<dt>Host</dt><dd>workstation</dd>
+<dt>Arms</dt><dd>5: <span class="id">floor</span> (the reference), <span class="id">qwen</span>, <span class="id">cc-haiku</span>, <span class="id">cc-sonnet</span>, <span class="id">codex</span></dd>
+<dt>Tasks</dt><dd>3, each run 3 times or once per arm</dd>
+<dt>Runs</dt><dd>27 planned, 27 counted</dd>
+</dl>
+</section>
+
+<section id="arms">
+<h2>Arms</h2>
+<p class="explain">An arm is one configuration under test: a harness, a provider and a model, run over every task. The first arm is the reference the others are compared with.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Arm</th><th>What it is</th><th>Harness</th><th>Provider</th><th>Model</th><th class="num">Runs per task</th></tr></thead>
+<tbody>
+<tr><td><span class="id">floor</span></td><td>the local floor: nb on qwen3-coder-next</td><td>nb</td><td>local-qcoder</td><td>qwen3-coder-next</td><td class="num">3</td></tr>
+<tr><td><span class="id">qwen</span></td><td>Qwen Code on the same local model</td><td>qwen-code 0.25.2</td><td>—</td><td>qwen3-coder-next</td><td class="num">3</td></tr>
+<tr><td><span class="id">cc-haiku</span></td><td>Claude Code on Haiku, the cheapest Anthropic model</td><td>claude-code 2.1.301</td><td>—</td><td>claude-haiku-5-5</td><td class="num">1</td></tr>
+<tr><td><span class="id">cc-sonnet</span></td><td>Claude Code on Sonnet, Anthropic&#39;s everyday model</td><td>claude-code 2.1.301</td><td>—</td><td>claude-sonnet-5-5</td><td class="num">1</td></tr>
+<tr><td><span class="id">codex</span></td><td>Codex on GPT-5.5, OpenAI&#39;s everyday model</td><td>codex 0.163.0</td><td>—</td><td>gpt-5.5</td><td class="num">1</td></tr>
+</tbody>
+</table></div>
+</section>
+
+<section id="tasks">
+<h2>Tasks</h2>
+<p class="explain">A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run several times per arm, so a score is not one lucky or unlucky attempt.</p>
+<p class="explain">A check is one yes-or-no test over a finished run. Every task carries the checks the suite declares; a fixture or the task itself can add more. A check&#39;s role decides what it does to a run:</p>
+<dl class="explain">
+<dt><span class="role role-headline">headline</span></dt><dd>Together, the headline checks decide whether a run passed.</dd>
+<dt><span class="role role-validity">validity</span></dt><dd>Decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure.</dd>
+<dt><span class="role role-guardrail">guardrail</span></dt><dd>Reported, not part of the pass.</dd>
+</dl>
+<p class="explain">A check that cannot decide a run leaves that run out of its rate on both sides.</p>
+<p class="explain">Each task&#39;s results show one mark per run: ● passed, ○ failed, ? undecided, &#215; not counted. Hover a mark for the reason; click it for the run. A task scores its mean over its counted, decided runs, and is called better or worse than its baseline on any difference.</p>
+<section id="task-add-retry-flag" class="task">
+<h3>add-retry-flag</h3>
+<p class="prompt">Add a --retry flag to a small CLI, with tests and a README line</p>
+<div class="facts"><span>Fixture <b>fetchcli</b></span><span>Run <b>3 times or once</b> per arm</span><span><b>11 checks</b>: 9 from the suite, 2 from its fixture, none of its own</span></div>
+<h4>Checks</h4>
+<div class="table-wrap"><table class="checks">
+<thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>Declared by</th></tr></thead>
+<tbody>
+<tr><td><b>builds</b></td><td>the repository builds</td><td><span class="role role-headline">headline</span></td><td><span class="src">its fixture</span></td></tr>
+<tr><td><b>tests-pass</b></td><td>the repository&#39;s own tests pass</td><td><span class="role role-headline">headline</span></td><td><span class="src">its fixture</span></td></tr>
+<tr><td>exit_ok</td><td>the run ends with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>no_denials</td><td>no denied tool calls</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>not_nudged</td><td>the loop nudge does not fire</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>under_budget</td><td>at most 60 tool calls and finishes within 30 min</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>acceptance</td><td>the task&#39;s acceptance tests pass against the changed repository</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>diff-in-scope</td><td>the files changed are the ones the task expects</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>stance</td><td>the closing message claims the task is complete, not that it asked or gave up</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>ran-tests</td><td>the tests were run before completion was claimed</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>change-fits</td><td>the change is the one the prompt asked for and nothing else</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+</tbody>
+</table></div>
+<h4>Results</h4>
+<div class="table-wrap"><table class="results">
+<thead><tr><th>Arm</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>floor</td><td><span class="marks"><a href="#run-8f0742295367c0c2" class="fail" title="run 1: failed — exit_ok: exit_reason=provider_error; acceptance: tests did not run: error CS1061: &#39;Options&#39; does not contain a definition for &#39;Retry&#39; and no accessible extension method &#39;Retry&#39; accepting a; stance: decide: window &#39;answer&#39; is empty; ran-tests: decide: window &#39;tool_calls&#39; is empty; change-fits: judge: window &#39;diff&#39; is empty (8f0742295367c0c2)">○</a><a href="#run-e7b64f01de7458aa" class="pass" title="run 2: passed (e7b64f01de7458aa)">●</a><a href="#run-081c62cf4b99f06c" class="pass" title="run 3: passed — change-fits: judge: 1 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;public async Task&lt;string&gt; RunAsync(Options options)
+    {
+        var attempts =…&quot; (081c62cf4b99f06c)">●</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
+<tr><td>qwen</td><td><span class="marks"><a href="#run-01c918bde738ff73" class="pass" title="run 1: passed — change-fits: judge: 1 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;public async Task&lt;string&gt; RunAsync(Options options)
+    {
+        var attempts =…&quot; (01c918bde738ff73)">●</a><a href="#run-c38cea4423180cbb" class="pass" title="run 2: passed (c38cea4423180cbb)">●</a><a href="#run-45b5aa28bb38af21" class="pass" title="run 3: passed (45b5aa28bb38af21)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>cc-haiku</td><td><span class="marks"><a href="#run-7aaf5741e3df2c52" class="pass" title="run 1: passed — stance: complete p=0.76 (below 0.95) (7aaf5741e3df2c52)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>cc-sonnet</td><td><span class="marks"><a href="#run-0c63e78c620752ba" class="pass" title="run 1: passed — ran-tests: no p=0.87 (below 0.90), expected yes (0c63e78c620752ba)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>codex</td><td><span class="marks"><a href="#run-a1f7fa277c6d859f" class="pass" title="run 1: passed — change-fits: judge: 1 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;public async Task&lt;string&gt; RunAsync(Options options)
+    {
+        for (var attem…&quot; (a1f7fa277c6d859f)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+</tbody>
+</table></div>
+<ul class="why">
+<li><a href="#run-8f0742295367c0c2">floor run 1</a> failed: exit_ok: exit_reason=provider_error</li>
+</ul>
+</section>
+<section id="task-fix-null-deref" class="task">
+<h3>fix-null-deref</h3>
+<p class="prompt">Fix the one failing test in a statement parser without touching the tests</p>
+<div class="facts"><span>Fixture <b>ledger</b></span><span>Run <b>3 times or once</b> per arm</span><span><b>11 checks</b>: 9 from the suite, 2 from its fixture, none of its own</span></div>
+<h4>Checks</h4>
+<div class="table-wrap"><table class="checks">
+<thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>Declared by</th></tr></thead>
+<tbody>
+<tr><td><b>builds</b></td><td>the repository builds</td><td><span class="role role-headline">headline</span></td><td><span class="src">its fixture</span></td></tr>
+<tr><td><b>tests-pass</b></td><td>the repository&#39;s own tests pass</td><td><span class="role role-headline">headline</span></td><td><span class="src">its fixture</span></td></tr>
+<tr><td>exit_ok</td><td>the run ends with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>no_denials</td><td>no denied tool calls</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>not_nudged</td><td>the loop nudge does not fire</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>under_budget</td><td>at most 60 tool calls and finishes within 30 min</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>acceptance</td><td>the task&#39;s acceptance tests pass against the changed repository</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>diff-in-scope</td><td>the files changed are the ones the task expects</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>stance</td><td>the closing message claims the task is complete, not that it asked or gave up</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>ran-tests</td><td>the tests were run before completion was claimed</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>change-fits</td><td>the change is the one the prompt asked for and nothing else</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+</tbody>
+</table></div>
+<h4>Results</h4>
+<div class="table-wrap"><table class="results">
+<thead><tr><th>Arm</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>floor</td><td><span class="marks"><a href="#run-6e6e6a8b97634b4c" class="pass" title="run 1: passed (6e6e6a8b97634b4c)">●</a><a href="#run-bbdfd211abfd4bbd" class="pass" title="run 2: passed (bbdfd211abfd4bbd)">●</a><a href="#run-785b47bb14cd5424" class="pass" title="run 3: passed (785b47bb14cd5424)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>qwen</td><td><span class="marks"><a href="#run-9136239b72ae4a0e" class="pass" title="run 1: passed (9136239b72ae4a0e)">●</a><a href="#run-68fbd52044e6e207" class="pass" title="run 2: passed (68fbd52044e6e207)">●</a><a href="#run-67c3fb75c49a19b7" class="pass" title="run 3: passed (67c3fb75c49a19b7)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>cc-haiku</td><td><span class="marks"><a href="#run-b015b891feb89a79" class="pass" title="run 1: passed (b015b891feb89a79)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>cc-sonnet</td><td><span class="marks"><a href="#run-aa403de911fe45ba" class="pass" title="run 1: passed (aa403de911fe45ba)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>codex</td><td><span class="marks"><a href="#run-afe2714528e175c8" class="pass" title="run 1: passed (afe2714528e175c8)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+</tbody>
+</table></div>
+</section>
+<section id="task-rename-module" class="task">
+<h3>rename-module</h3>
+<p class="prompt">Rename a namespace across source, project file and tests</p>
+<div class="facts"><span>Fixture <b>widgets</b></span><span>Run <b>3 times or once</b> per arm</span><span><b>11 checks</b>: 9 from the suite, 2 from its fixture, none of its own</span></div>
+<h4>Checks</h4>
+<div class="table-wrap"><table class="checks">
+<thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>Declared by</th></tr></thead>
+<tbody>
+<tr><td><b>builds</b></td><td>the repository builds</td><td><span class="role role-headline">headline</span></td><td><span class="src">its fixture</span></td></tr>
+<tr><td><b>tests-pass</b></td><td>the repository&#39;s own tests pass</td><td><span class="role role-headline">headline</span></td><td><span class="src">its fixture</span></td></tr>
+<tr><td>exit_ok</td><td>the run ends with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>no_denials</td><td>no denied tool calls</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>not_nudged</td><td>the loop nudge does not fire</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>under_budget</td><td>at most 60 tool calls and finishes within 30 min</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>acceptance</td><td>the task&#39;s acceptance tests pass against the changed repository</td><td><span class="role role-headline">headline</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>diff-in-scope</td><td>the files changed are the ones the task expects</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>stance</td><td>the closing message claims the task is complete, not that it asked or gave up</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>ran-tests</td><td>the tests were run before completion was claimed</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+<tr><td>change-fits</td><td>the change is the one the prompt asked for and nothing else</td><td><span class="role role-guardrail">guardrail</span></td><td><span class="src">suite</span></td></tr>
+</tbody>
+</table></div>
+<h4>Results</h4>
+<div class="table-wrap"><table class="results">
+<thead><tr><th>Arm</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>floor</td><td><span class="marks"><a href="#run-fc87540f68f47d02" class="pass" title="run 1: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot; (fc87540f68f47d02)">●</a><a href="#run-1e1b7a308cb44d23" class="pass" title="run 2: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme.Widgets;&quot;; evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot; (1e1b7a308cb44d23)">●</a><a href="#run-f50008947e7ef767" class="pass" title="run 3: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme.Widgets;&quot;; evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot; (f50008947e7ef767)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>qwen</td><td><span class="marks"><a href="#run-8b22142ad051bc6b" class="pass" title="run 1: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot; (8b22142ad051bc6b)">●</a><a href="#run-a43c7535411f116b" class="pass" title="run 2: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot; (a43c7535411f116b)">●</a><a href="#run-f111bcc7e4830ff5" class="pass" title="run 3: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot; (f111bcc7e4830ff5)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>cc-haiku</td><td><span class="marks"><a href="#run-8e97e5eb93b946c5" class="pass" title="run 1: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;; evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme.Widgets;&quot; (8e97e5eb93b946c5)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>cc-sonnet</td><td><span class="marks"><a href="#run-321a1cf3cf2ebab2" class="pass" title="run 1: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot; (321a1cf3cf2ebab2)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>codex</td><td><span class="marks"><a href="#run-e28dfa5e17bef04c" class="pass" title="run 1: passed — change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot; (e28dfa5e17bef04c)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">1 of 1</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+</tbody>
+</table></div>
+</section>
+</section>
+
+<section id="results">
+<h2>Results</h2>
+<p class="explain">Pass rate is the share of counted runs in which every headline check held, averaged task by task so that one task with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 tasks it is wide.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Arm</th><th class="num">Pass rate</th><th class="num">95% interval</th><th class="num">Passed / decided runs</th></tr></thead>
+<tbody>
+<tr><td><span class="id">floor</span></td><td class="num">89%</td><td class="num">35% to 99%</td><td class="num">8 / 9</td></tr>
+<tr><td><span class="id">qwen</span></td><td class="num">100%</td><td class="num">44% to 100%</td><td class="num">9 / 9</td></tr>
+<tr><td><span class="id">cc-haiku</span></td><td class="num">100%</td><td class="num">44% to 100%</td><td class="num">3 / 3</td></tr>
+<tr><td><span class="id">cc-sonnet</span></td><td class="num">100%</td><td class="num">44% to 100%</td><td class="num">3 / 3</td></tr>
+<tr><td><span class="id">codex</span></td><td class="num">100%</td><td class="num">44% to 100%</td><td class="num">3 / 3</td></tr>
+</tbody>
+</table></div>
+<p><b><span class="id">qwen</span> against <span class="id">floor</span>.</b> <span class="id">qwen</span> passed 11 points more of its runs than <span class="id">floor</span>. The 95% interval on that difference runs from −46 to +65 points, so with 3 tasks the difference could be noise: no detectable difference. Task by task, <span class="id">qwen</span> did better on 1, worse on 0, the same on 2.</p>
+<p><b><span class="id">cc-haiku</span> against <span class="id">floor</span>.</b> <span class="id">cc-haiku</span> passed 11 points more of its runs than <span class="id">floor</span>. The 95% interval on that difference runs from −46 to +65 points, so with 3 tasks the difference could be noise: no detectable difference. Task by task, <span class="id">cc-haiku</span> did better on 1, worse on 0, the same on 2.</p>
+<p><b><span class="id">cc-sonnet</span> against <span class="id">floor</span>.</b> <span class="id">cc-sonnet</span> passed 11 points more of its runs than <span class="id">floor</span>. The 95% interval on that difference runs from −46 to +65 points, so with 3 tasks the difference could be noise: no detectable difference. Task by task, <span class="id">cc-sonnet</span> did better on 1, worse on 0, the same on 2.</p>
+<p><b><span class="id">codex</span> against <span class="id">floor</span>.</b> <span class="id">codex</span> passed 11 points more of its runs than <span class="id">floor</span>. The 95% interval on that difference runs from −46 to +65 points, so with 3 tasks the difference could be noise: no detectable difference. Task by task, <span class="id">codex</span> did better on 1, worse on 0, the same on 2.</p>
+<p>With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.</p>
+<p class="explain"><b>Against the baseline.</b> The baseline is the score pinned for each task on 2026-09-22, scores recomputed. The verdict compares each arm&#39;s score with it and calls anything more than 0 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Arm</th><th class="num">Difference from baseline</th><th class="num">95% interval</th><th class="num">Tasks better / worse / same</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td><span class="id">floor</span></td><td class="num">−11 points</td><td class="num">−65 to +46</td><td class="num">0 / 1 / 2</td><td><b class="vbad">Worse</b> (unconfirmed)</td></tr>
+<tr><td><span class="id">qwen</span></td><td class="num">&#177;0 points</td><td class="num">−56 to +56</td><td class="num">0 / 0 / 3</td><td><b class="vsame">Unchanged</b> (unconfirmed)</td></tr>
+<tr><td><span class="id">cc-haiku</span></td><td class="num">&#177;0 points</td><td class="num">−56 to +56</td><td class="num">0 / 0 / 3</td><td><b class="vsame">Unchanged</b> (unconfirmed)</td></tr>
+<tr><td><span class="id">cc-sonnet</span></td><td class="num">&#177;0 points</td><td class="num">−56 to +56</td><td class="num">0 / 0 / 3</td><td><b class="vsame">Unchanged</b> (unconfirmed)</td></tr>
+<tr><td><span class="id">codex</span></td><td class="num">&#177;0 points</td><td class="num">−56 to +56</td><td class="num">0 / 0 / 3</td><td><b class="vsame">Unchanged</b> (unconfirmed)</td></tr>
+</tbody>
+</table></div>
+<p class="explain">How each task scored against its baseline, and why runs failed, is shown with the task under <a href="#tasks">Tasks</a>.</p>
+</section>
+
+<section id="failures">
+<h2>Failures</h2>
+<p class="explain">For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check&#39;s weakness, not the arm&#39;s.</p>
+<p><b><span class="id">floor</span></b> (the local floor: nb on qwen3-coder-next) failed 2 checks:</p>
+<ul>
+<li><b>the run ends with &#39;ok&#39;</b> (<span class="id">exit_ok</span>, headline) failed in 1 of 9 runs: once on <a href="#task-add-retry-flag">add-retry-flag</a>.</li>
+<li><b>the task&#39;s acceptance tests pass against the changed repository</b> (<span class="id">acceptance</span>, headline) failed in 1 of 9 runs: once on <a href="#task-add-retry-flag">add-retry-flag</a>.</li>
+</ul>
+<p>Apart from that, 3 checks could not grade some of floor&#39;s runs; each run&#39;s reason says why:</p>
+<ul>
+<li><b>the change is the one the prompt asked for and nothing else</b> (<span class="id">change-fits</span>, guardrail) could not grade 5 of 9 runs: 3 times on <a href="#task-rename-module">rename-module</a>, twice on <a href="#task-add-retry-flag">add-retry-flag</a>.</li>
+<li><b>the closing message claims the task is complete, not that it asked or gave up</b> (<span class="id">stance</span>, guardrail) could not grade 1 of 9 runs: once on <a href="#task-add-retry-flag">add-retry-flag</a>.</li>
+<li><b>the tests were run before completion was claimed</b> (<span class="id">ran-tests</span>, guardrail) could not grade 1 of 9 runs: once on <a href="#task-add-retry-flag">add-retry-flag</a>.</li>
+</ul>
+<p><b><span class="id">qwen</span></b> (Qwen Code on the same local model) failed no check in any of its 9 counted runs.</p>
+<p>Apart from that, a check could not grade some of qwen&#39;s runs; each run&#39;s reason says why:</p>
+<ul>
+<li><b>the change is the one the prompt asked for and nothing else</b> (<span class="id">change-fits</span>, guardrail) could not grade 4 of 9 runs: 3 times on <a href="#task-rename-module">rename-module</a>, once on <a href="#task-add-retry-flag">add-retry-flag</a>.</li>
+</ul>
+<p><b><span class="id">cc-haiku</span></b> (Claude Code on Haiku, the cheapest Anthropic model) failed no check in any of its 3 counted runs.</p>
+<p>Apart from that, a check could not grade some of cc-haiku&#39;s runs; each run&#39;s reason says why:</p>
+<ul>
+<li><b>the change is the one the prompt asked for and nothing else</b> (<span class="id">change-fits</span>, guardrail) could not grade 1 of 3 runs: once on <a href="#task-rename-module">rename-module</a>.</li>
+</ul>
+<p><b><span class="id">cc-sonnet</span></b> (Claude Code on Sonnet, Anthropic&#39;s everyday model) failed no check in any of its 3 counted runs.</p>
+<p>Apart from that, a check could not grade some of cc-sonnet&#39;s runs; each run&#39;s reason says why:</p>
+<ul>
+<li><b>the change is the one the prompt asked for and nothing else</b> (<span class="id">change-fits</span>, guardrail) could not grade 1 of 3 runs: once on <a href="#task-rename-module">rename-module</a>.</li>
+</ul>
+<p><b><span class="id">codex</span></b> (Codex on GPT-5.5, OpenAI&#39;s everyday model) failed no check in any of its 3 counted runs.</p>
+<p>Apart from that, a check could not grade some of codex&#39;s runs; each run&#39;s reason says why:</p>
+<ul>
+<li><b>the change is the one the prompt asked for and nothing else</b> (<span class="id">change-fits</span>, guardrail) could not grade 2 of 3 runs: once on <a href="#task-add-retry-flag">add-retry-flag</a>, once on <a href="#task-rename-module">rename-module</a>.</li>
+</ul>
+</section>
+
+<section id="run-summary">
+<h2>Run summary</h2>
+<p class="explain">This is how far each run in the suite got before terminating. <i>Attempted</i> runs started; <i>completed</i> runs ended with a transcript; <i>graded</i> runs have their checks; <i>counted</i> runs are graded and passed every validity check; <i>decided</i> runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Arm</th><th class="num">Planned</th><th class="num">Attempted</th><th class="num">Completed</th><th class="num">Graded</th><th class="num">Counted</th><th class="num">Decided</th></tr></thead>
+<tbody>
+<tr><td><span class="id">floor</span></td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td></tr>
+<tr><td><span class="id">qwen</span></td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td></tr>
+<tr><td><span class="id">cc-haiku</span></td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td></tr>
+<tr><td><span class="id">cc-sonnet</span></td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td></tr>
+<tr><td><span class="id">codex</span></td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td></tr>
+</tbody>
+</table></div>
+<p>No run was left out.</p>
+<p class="explain">How each completed run ended, per arm. <span class="id">ok</span> is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Arm</th><th class="num"><span class="id">ok</span></th><th class="num"><span class="id">provider_error</span></th></tr></thead>
+<tbody>
+<tr><td><span class="id">floor</span></td><td class="num">8</td><td class="num">1 (<span class="id">add-retry-flag</span> run 1)</td></tr>
+<tr><td><span class="id">qwen</span></td><td class="num">9</td><td class="num">0</td></tr>
+<tr><td><span class="id">cc-haiku</span></td><td class="num">3</td><td class="num">0</td></tr>
+<tr><td><span class="id">cc-sonnet</span></td><td class="num">3</td><td class="num">0</td></tr>
+<tr><td><span class="id">codex</span></td><td class="num">3</td><td class="num">0</td></tr>
+</tbody>
+</table></div>
+</section>
+
+<section id="check-rates">
+<h2>Check pass rates</h2>
+<p class="explain">How often each check held, per arm, over the runs it applies to. Headline and guardrail checks are over counted runs; a validity check is over every graded run, because it says how many were counted. A run the check could not decide is out of its rate and counted beside it.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th class="num"><span class="id">floor</span></th><th class="num"><span class="id">qwen</span></th><th class="num"><span class="id">cc-haiku</span></th><th class="num"><span class="id">cc-sonnet</span></th><th class="num"><span class="id">codex</span></th></tr></thead>
+<tbody>
+<tr><td><span class="id">exit_ok</span></td><td>the run ends with &#39;ok&#39;</td><td>headline</td><td class="num">89% (8/9)</td><td class="num">100% (9/9)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">builds</span></td><td>the repository builds</td><td>headline</td><td class="num">100% (9/9)</td><td class="num">100% (9/9)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">tests-pass</span></td><td>the repository&#39;s own tests pass</td><td>headline</td><td class="num">100% (9/9)</td><td class="num">100% (9/9)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">acceptance</span></td><td>the task&#39;s acceptance tests pass against the changed repository</td><td>headline</td><td class="num">89% (8/9)</td><td class="num">100% (9/9)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">no_denials</span></td><td>no denied tool calls</td><td>guardrail</td><td class="num">100% (9/9)</td><td class="num">100% (9/9)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">not_nudged</span></td><td>the loop nudge does not fire</td><td>guardrail</td><td class="num">100% (9/9)</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+<tr><td><span class="id">under_budget</span></td><td>at most 60 tool calls and finishes within 30 min</td><td>guardrail</td><td class="num">100% (9/9)</td><td class="num">100% (9/9)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">diff-in-scope</span></td><td>the files changed are the ones the task expects</td><td>guardrail</td><td class="num">100% (9/9)</td><td class="num">100% (9/9)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">stance</span></td><td>the closing message claims the task is complete, not that it asked or gave up</td><td>guardrail</td><td class="num">100% (8/8) &#183; 1 error</td><td class="num">100% (9/9)</td><td class="num">100% (2/2) &#183; 1 undecided</td><td class="num">100% (3/3)</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">ran-tests</span></td><td>the tests were run before completion was claimed</td><td>guardrail</td><td class="num">100% (8/8) &#183; 1 error</td><td class="num">100% (9/9)</td><td class="num">100% (3/3)</td><td class="num">100% (2/2) &#183; 1 undecided</td><td class="num">100% (3/3)</td></tr>
+<tr><td><span class="id">change-fits</span></td><td>the change is the one the prompt asked for and nothing else</td><td>guardrail</td><td class="num">100% (4/4) &#183; 5 error</td><td class="num">100% (5/5) &#183; 4 error</td><td class="num">100% (2/2) &#183; 1 error</td><td class="num">100% (2/2) &#183; 1 error</td><td class="num">100% (1/1) &#183; 2 error</td></tr>
+</tbody>
+</table></div>
+</section>
+
+<section id="cost">
+<h2>Cost and effort</h2>
+<p class="explain">Per completed run. Duration is wall time in minutes, hooks included; tokens are the run&#39;s own count. Cost is what the agent reported for its runs (Claude Code its own count, Codex as Harbor priced its tokens); an arm whose harness reports none shows none.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Arm</th><th class="num">Duration (min): median</th><th class="num">p90</th><th class="num">mean</th><th class="num">range</th><th class="num">Tokens: median</th><th class="num">p90</th><th class="num">mean</th><th class="num">range</th><th class="num">Cost: median</th><th class="num">total</th></tr></thead>
+<tbody>
+<tr><td><span class="id">floor</span></td><td class="num">1.9</td><td class="num">3.0</td><td class="num">2.1</td><td class="num">1.3–3.0</td><td class="num">124,198</td><td class="num">178,793</td><td class="num">119,283</td><td class="num">63,347–178,793</td><td class="num"></td><td class="num"></td></tr>
+<tr><td><span class="id">qwen</span></td><td class="num">3.1</td><td class="num">4.2</td><td class="num">3.3</td><td class="num">2.6–4.2</td><td class="num">68,390</td><td class="num">236,671</td><td class="num">104,622</td><td class="num">65,809–236,671</td><td class="num"></td><td class="num"></td></tr>
+<tr><td><span class="id">cc-haiku</span></td><td class="num">1.4</td><td class="num">1.6</td><td class="num">1.4</td><td class="num">1.3–1.6</td><td class="num">133,959</td><td class="num">200,852</td><td class="num">145,316</td><td class="num">101,137–200,852</td><td class="num">$0.0033</td><td class="num">$0.01</td></tr>
+<tr><td><span class="id">cc-sonnet</span></td><td class="num">1.0</td><td class="num">1.4</td><td class="num">1.1</td><td class="num">1.0–1.4</td><td class="num">94,912</td><td class="num">132,351</td><td class="num">99,339</td><td class="num">70,754–132,351</td><td class="num">$0.03</td><td class="num">$0.18</td></tr>
+<tr><td><span class="id">codex</span></td><td class="num">1.4</td><td class="num">1.8</td><td class="num">1.5</td><td class="num">1.4–1.8</td><td class="num">42,748</td><td class="num">62,669</td><td class="num">45,681</td><td class="num">31,627–62,669</td><td class="num">$0.09</td><td class="num">$0.35</td></tr>
+</tbody>
+</table></div>
+</section>
+
+<section id="every-run">
+<h2>Every run</h2>
+<p class="explain">Every run, failures first. <i>Reason</i> is the first check that did not hold and what it saw, or why the run never completed.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Arm</th><th>Task</th><th class="num">Run</th><th>Result</th><th>Ended</th><th class="num">Duration (min)</th><th class="num">Tokens</th><th>Reason</th></tr></thead>
+<tbody>
+<tr id="run-8f0742295367c0c2"><td><span class="id">floor</span></td><td><span class="id">add-retry-flag</span></td><td class="num">1</td><td><span class="fail" title="8f0742295367c0c2">○ failed</span></td><td><span class="id">provider_error</span></td><td class="num">1.3</td><td class="num"></td><td>exit_ok: exit_reason=provider_error; acceptance: tests did not run: error CS1061: &#39;Options&#39; does not contain a definition for &#39;Retry&#39; and no accessible extension method &#39;Retry&#39; accepting a; stance: decide: window &#39;answer&#39; is empty; ran-tests: decide: window &#39;tool_calls&#39; is empty; change-fits: judge: window &#39;diff&#39; is empty</td></tr>
+<tr id="run-7aaf5741e3df2c52"><td><span class="id">cc-haiku</span></td><td><span class="id">add-retry-flag</span></td><td class="num">1</td><td><span class="pass" title="7aaf5741e3df2c52">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.6</td><td class="num">200,852</td><td>stance: complete p=0.76 (below 0.95)</td></tr>
+<tr id="run-b015b891feb89a79"><td><span class="id">cc-haiku</span></td><td><span class="id">fix-null-deref</span></td><td class="num">1</td><td><span class="pass" title="b015b891feb89a79">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.3</td><td class="num">101,137</td><td></td></tr>
+<tr id="run-8e97e5eb93b946c5"><td><span class="id">cc-haiku</span></td><td><span class="id">rename-module</span></td><td class="num">1</td><td><span class="pass" title="8e97e5eb93b946c5">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.4</td><td class="num">133,959</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;; evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme.Widgets;&quot;</td></tr>
+<tr id="run-0c63e78c620752ba"><td><span class="id">cc-sonnet</span></td><td><span class="id">add-retry-flag</span></td><td class="num">1</td><td><span class="pass" title="0c63e78c620752ba">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.4</td><td class="num">132,351</td><td>ran-tests: no p=0.87 (below 0.90), expected yes</td></tr>
+<tr id="run-aa403de911fe45ba"><td><span class="id">cc-sonnet</span></td><td><span class="id">fix-null-deref</span></td><td class="num">1</td><td><span class="pass" title="aa403de911fe45ba">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.0</td><td class="num">94,912</td><td></td></tr>
+<tr id="run-321a1cf3cf2ebab2"><td><span class="id">cc-sonnet</span></td><td><span class="id">rename-module</span></td><td class="num">1</td><td><span class="pass" title="321a1cf3cf2ebab2">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.0</td><td class="num">70,754</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;</td></tr>
+<tr id="run-a1f7fa277c6d859f"><td><span class="id">codex</span></td><td><span class="id">add-retry-flag</span></td><td class="num">1</td><td><span class="pass" title="a1f7fa277c6d859f">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.8</td><td class="num">62,669</td><td>change-fits: judge: 1 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;public async Task&lt;string&gt; RunAsync(Options options)
+    {
+        for (var attem…&quot;</td></tr>
+<tr id="run-afe2714528e175c8"><td><span class="id">codex</span></td><td><span class="id">fix-null-deref</span></td><td class="num">1</td><td><span class="pass" title="afe2714528e175c8">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.4</td><td class="num">42,748</td><td></td></tr>
+<tr id="run-e28dfa5e17bef04c"><td><span class="id">codex</span></td><td><span class="id">rename-module</span></td><td class="num">1</td><td><span class="pass" title="e28dfa5e17bef04c">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.4</td><td class="num">31,627</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;</td></tr>
+<tr id="run-e7b64f01de7458aa"><td><span class="id">floor</span></td><td><span class="id">add-retry-flag</span></td><td class="num">2</td><td><span class="pass" title="e7b64f01de7458aa">● passed</span></td><td><span class="id">ok</span></td><td class="num">3.0</td><td class="num">146,081</td><td></td></tr>
+<tr id="run-081c62cf4b99f06c"><td><span class="id">floor</span></td><td><span class="id">add-retry-flag</span></td><td class="num">3</td><td><span class="pass" title="081c62cf4b99f06c">● passed</span></td><td><span class="id">ok</span></td><td class="num">3.0</td><td class="num">178,793</td><td>change-fits: judge: 1 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;public async Task&lt;string&gt; RunAsync(Options options)
+    {
+        var attempts =…&quot;</td></tr>
+<tr id="run-6e6e6a8b97634b4c"><td><span class="id">floor</span></td><td><span class="id">fix-null-deref</span></td><td class="num">1</td><td><span class="pass" title="6e6e6a8b97634b4c">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.8</td><td class="num">66,997</td><td></td></tr>
+<tr id="run-bbdfd211abfd4bbd"><td><span class="id">floor</span></td><td><span class="id">fix-null-deref</span></td><td class="num">2</td><td><span class="pass" title="bbdfd211abfd4bbd">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.9</td><td class="num">135,818</td><td></td></tr>
+<tr id="run-785b47bb14cd5424"><td><span class="id">floor</span></td><td><span class="id">fix-null-deref</span></td><td class="num">3</td><td><span class="pass" title="785b47bb14cd5424">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.5</td><td class="num">63,347</td><td></td></tr>
+<tr id="run-fc87540f68f47d02"><td><span class="id">floor</span></td><td><span class="id">rename-module</span></td><td class="num">1</td><td><span class="pass" title="fc87540f68f47d02">● passed</span></td><td><span class="id">ok</span></td><td class="num">2.3</td><td class="num">124,319</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;</td></tr>
+<tr id="run-1e1b7a308cb44d23"><td><span class="id">floor</span></td><td><span class="id">rename-module</span></td><td class="num">2</td><td><span class="pass" title="1e1b7a308cb44d23">● passed</span></td><td><span class="id">ok</span></td><td class="num">1.9</td><td class="num">114,830</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme.Widgets;&quot;; evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;</td></tr>
+<tr id="run-f50008947e7ef767"><td><span class="id">floor</span></td><td><span class="id">rename-module</span></td><td class="num">3</td><td><span class="pass" title="f50008947e7ef767">● passed</span></td><td><span class="id">ok</span></td><td class="num">2.1</td><td class="num">124,078</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme.Widgets;&quot;; evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;</td></tr>
+<tr id="run-01c918bde738ff73"><td><span class="id">qwen</span></td><td><span class="id">add-retry-flag</span></td><td class="num">1</td><td><span class="pass" title="01c918bde738ff73">● passed</span></td><td><span class="id">ok</span></td><td class="num">3.8</td><td class="num">113,074</td><td>change-fits: judge: 1 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;public async Task&lt;string&gt; RunAsync(Options options)
+    {
+        var attempts =…&quot;</td></tr>
+<tr id="run-c38cea4423180cbb"><td><span class="id">qwen</span></td><td><span class="id">add-retry-flag</span></td><td class="num">2</td><td><span class="pass" title="c38cea4423180cbb">● passed</span></td><td><span class="id">ok</span></td><td class="num">4.2</td><td class="num">236,671</td><td></td></tr>
+<tr id="run-45b5aa28bb38af21"><td><span class="id">qwen</span></td><td><span class="id">add-retry-flag</span></td><td class="num">3</td><td><span class="pass" title="45b5aa28bb38af21">● passed</span></td><td><span class="id">ok</span></td><td class="num">4.2</td><td class="num">188,810</td><td></td></tr>
+<tr id="run-9136239b72ae4a0e"><td><span class="id">qwen</span></td><td><span class="id">fix-null-deref</span></td><td class="num">1</td><td><span class="pass" title="9136239b72ae4a0e">● passed</span></td><td><span class="id">ok</span></td><td class="num">2.7</td><td class="num">65,922</td><td></td></tr>
+<tr id="run-68fbd52044e6e207"><td><span class="id">qwen</span></td><td><span class="id">fix-null-deref</span></td><td class="num">2</td><td><span class="pass" title="68fbd52044e6e207">● passed</span></td><td><span class="id">ok</span></td><td class="num">2.7</td><td class="num">65,809</td><td></td></tr>
+<tr id="run-67c3fb75c49a19b7"><td><span class="id">qwen</span></td><td><span class="id">fix-null-deref</span></td><td class="num">3</td><td><span class="pass" title="67c3fb75c49a19b7">● passed</span></td><td><span class="id">ok</span></td><td class="num">2.6</td><td class="num">66,090</td><td></td></tr>
+<tr id="run-8b22142ad051bc6b"><td><span class="id">qwen</span></td><td><span class="id">rename-module</span></td><td class="num">1</td><td><span class="pass" title="8b22142ad051bc6b">● passed</span></td><td><span class="id">ok</span></td><td class="num">3.3</td><td class="num">68,604</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;</td></tr>
+<tr id="run-a43c7535411f116b"><td><span class="id">qwen</span></td><td><span class="id">rename-module</span></td><td class="num">2</td><td><span class="pass" title="a43c7535411f116b">● passed</span></td><td><span class="id">ok</span></td><td class="num">3.1</td><td class="num">68,390</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;</td></tr>
+<tr id="run-f111bcc7e4830ff5"><td><span class="id">qwen</span></td><td><span class="id">rename-module</span></td><td class="num">3</td><td><span class="pass" title="f111bcc7e4830ff5">● passed</span></td><td><span class="id">ok</span></td><td class="num">3.0</td><td class="num">68,230</td><td>change-fits: judge: 0 of 3 usable answers from glm: evidence not found verbatim in the material: &quot;-namespace Legacy_Widgets;
++namespace Acme_Widgets;&quot;</td></tr>
+</tbody>
+</table></div>
+</section>
+
+<section id="method">
+<h2>Reproducibility and method</h2>
+<p class="explain">What produced this report, so it can be run again, and how the numbers were computed.</p>
+<dl>
+<dt>run id</dt><dd>20261102-1143-code-change-jy0n</dd>
+<dt>proctor</dt><dd>0.3.6</dd>
+<dt>nb</dt><dd>0.9.0 at <code class="code">~/repos/nb/bin/Debug/net10.0/nb</code></dd>
+<dt>suite hash</dt><dd>sha256:74aef626cd2ddcb3707b27ee170a96f427f6e3fbcd7f6e2d2608031718bcd4b0</dd>
+<dt>judge glm</dt><dd>chat workers-ai/@cf/zai-org/glm-5.2 at <code class="code">${LLM_GATEWAY}/cf/compat</code>; graded change-fits</dd>
+<dt>judge glm</dt><dd>chat z-ai/glm-5.3 at <code class="code">${LLM_GATEWAY}/openrouter/v1</code>; graded change-fits</dd>
+<dt>judge jev</dt><dd>systemone jev-1.13.0 at <code class="code">${LLM_GATEWAY}/cf-decide/typesafe/jev</code>; graded ran-tests, stance</dd>
+<dt>judge jev</dt><dd>systemone typesafe/jev-1.14-20261014 at <code class="code">${LLM_GATEWAY}/openrouter/alpha/decisions</code>; graded ran-tests, stance</dd>
+<dt>repository</dt><dd>42e80d11c08249b5216df3aca8f645e1d3a27ced (dirty)</dd>
+<dt>command</dt><dd><code class="code">~/repos/proctor/bin/Debug/net10.0/proctor.dll run code-change</code></dd>
+<dt>created</dt><dd>2026-11-02T11:43:35Z</dd>
+</dl>
+<p class="explain">Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run&#39;s wall time including hooks; tokens are the run&#39;s own count. No multiplicity adjustment; 4 comparisons shown. The baseline verdict is the point estimate against a tolerance of 0 points, for each arm and each task; an arm&#39;s verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).</p>
+</section>
+<footer>
+<img src="data:image/svg+xml;base64,PCEtLSAiUG9pbnR5IGhhdCIgYnkgTG9yYywgaHR0cHM6Ly9nYW1lLWljb25zLm5ldC8xeDEvbG9yYy9wb2ludHktaGF0Lmh0bWwsIENDIEJZIDMuMCBodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvMy4wLyA7IGFkYXB0ZWQgKHJlc2NhbGVkIGFuZCByZXN0eWxlZCkuIC0tPgo8c3ZnIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMzkuMDExNyAzLjk3NTU1QzMzLjYxNCA0LjAxODM5IDI5LjE4MDggNi4zOTQ2OCAyNS40MzU1IDEwLjA1NzZDMjEuNDk5NSAxMy45MDcyIDE4LjQwNDMgMTkuMjA4NSAxNi4wNjA1IDI0LjYzNTdDMTYuMTMzNiAyNS4wNTc5IDE2LjM0NzQgMjUuNDc0NCAxNi43MjU2IDI1LjkxNjFDMTcuMjA5MSAyNi40ODA5IDE3Ljk2MTUgMjcuMDUxNyAxOC44OTk0IDI3LjU2NTVDMjAuNzc1NCAyOC41OTMyIDIzLjM3OTggMjkuMzk3OCAyNS45Nzc2IDI5Ljg1OTZDMjguNTc1NCAzMC4zMjEzIDMxLjE4MTIgMzAuNDQxNyAzMy4wMjM0IDMwLjE4MTlDMzMuOTQ0NSAzMC4wNTE5IDM0LjY2NzYgMjkuODE1MyAzNS4wNjg0IDI5LjU2NjZDMzUuNDY5MSAyOS4zMTc5IDM1LjUyOTMgMjkuMTk1NiAzNS41MTk1IDI4Ljk0NTVMMzUuNTg3IDI4Ljk0MjdDMzUuMjY3NSAyNC45Mjc2IDM1LjAyNDUgMjAuNjE4IDM1LjU5NTcgMTYuNTczM0MzNS44NiAxNC43MDA5IDM2LjMxNDUgMTIuODc2NCAzNy4wMjI1IDExLjE3MTFDMzQuMDYyNiAxNC4xMTg2IDMxLjEyNCAxNy4zMDQ2IDI4Ljg4MDkgMjAuMDUxMUMzMi4yMDEzIDEzLjQ2OTggMzYuOTYyMiA4LjY2OTk5IDQyLjExMTQgNC4yMTAxMUM0MS4wNDQ5IDQuMDQ5OCA0MC4wMDk1IDMuOTY3ODYgMzkuMDExNyAzLjk3NTc0VjMuOTc1NTVaTTE0LjU1MDkgMjIuNDA1N0MxNC4xMzQyIDIyLjQwMjkgMTMuNzE3NSAyMi40MDcgMTMuMzAwOSAyMi40MThDMTEuMTMxNyAyMi40NzE5IDkuMTU0NTkgMjIuNjkwOCA3LjUgMjMuMDkxOEM1LjI5Mzg4IDIzLjYyNjUgMy43MDYzMSAyNC40ODc2IDIuOTI2ODggMjUuNTMyMUMyLjE0NzE2IDI2LjU3NjkgMS45ODE4OCAyNy44NDQ3IDIuODM1OTQgMjkuODAwOEM1LjkxNjU2IDM2Ljg1NjcgMTMuODIyIDQyLjAxMjYgMjIuMzIxMyA0My43MzE1QzMwLjgyMDcgNDUuNDQ5OSAzOS43Njg5IDQzLjc0NTIgNDUuMDM1MSAzNy40NzM2QzQ2LjMwOTEgMzUuOTU2MyA0Ni40NjkyIDM0LjcyNTYgNDUuOTY2OCAzMy40MjE4QzQ1LjQ2NDQgMzIuMTE3OSA0NC4xMzA2IDMwLjcxNDUgNDIuMTQzNiAyOS40MTRDNDAuNzYxMyAyOC41MDkzIDM5LjA3OTYgMjcuNjU3NCAzNy4xOTgzIDI2Ljg3OTlDMzcuMzM5NSAyOC45OTc3IDM3LjUzMTYgMzEuMDg3MSAzNy42Nzg3IDMzLjA2NDNWMzMuMDg0OEMzNy43MzU2IDM0LjE1MzggMzcuMTY0IDM1LjEwODQgMzYuMzMzOSAzNS43MDRDMzUuNTA0IDM2LjI5OTYgMzQuNDMzOCAzNi42NDkgMzMuMTk5MiAzNi44NjcxQzMwLjczMDEgMzcuMzAzNCAyNy41NzE4IDM3LjE4NTYgMjQuNDQ4MiAzNi42NjJDMjEuMzI0OCAzNi4xMzg0IDE4LjI1MjggMzUuMjEyIDE1Ljk4NDUgMzMuOTE0QzE0Ljg1MDQgMzMuMjY0OSAxMy45MDg0IDMyLjUyMTggMTMuMjc3NCAzMS42MTk5QzEyLjY0NjUgMzAuNzE4MyAxMi4zNjI0IDI5LjU5OTIgMTIuNjU5MyAyOC40OTExTDEyLjY2ODIgMjguNDU1OUwxMi42Nzk5IDI4LjQyMDlDMTMuMzk1OCAyNi40MzI4IDE0LjIwODggMjQuNDA5MyAxNS4xMjYyIDIyLjQxMjFDMTQuOTM0NSAyMi40MDkgMTQuNzQyOSAyMi40MDY5IDE0LjU1MTIgMjIuNDA1N0gxNC41NTA5Wk0xNS4xNzI5IDI2Ljc4MDJDMTQuODg2NiAyNy41MDU2IDE0LjYxMTIgMjguMjM1MiAxNC4zNDY3IDI4Ljk2ODdDMTQuMTk3MSAyOS41NTQzIDE0LjMwOTIgMzAuMDM4MSAxNC43MTI5IDMwLjYxNTNDMTUuMTIzIDMxLjIwMTIgMTUuODY0MiAzMS44MjY4IDE2Ljg1NDYgMzIuMzkzNUMxOC44MzUzIDMzLjUyNyAyMS43NjcxIDM0LjQzNTQgMjQuNzM4NSAzNC45MzM3QzI3LjcwOTggMzUuNDMxOSAzMC43NCAzNS41MjI0IDMyLjg5NDcgMzUuMTQxOEMzMy45NzIxIDM0Ljk1MTMgMzQuODE5NCAzNC42MzM3IDM1LjMxMTYgMzQuMjgwMkMzNS44MDM4IDMzLjkyNzIgMzUuOTU1MSAzMy42NDk3IDM1LjkyOTkgMzMuMTc1OUMzNS44ODE0IDMyLjUyNjIgMzUuODI3OSAzMS44NjA4IDM1Ljc3MTYgMzEuMTgzN0MzNS4wNzM0IDMxLjU2MTUgMzQuMjI3NiAzMS43ODA2IDMzLjI2NjggMzEuOTE2MUMzMS4xMzU3IDMyLjIxNjcgMjguNDExNSAzMi4wNzIyIDI1LjY3MDMgMzEuNTg1QzIyLjkyODggMzEuMDk3OSAyMC4xODU5IDMwLjI2NzQgMTguMDU1OSAyOS4xMDA2QzE2Ljk5MDkgMjguNTE3MyAxNi4wNzU3IDI3Ljg1IDE1LjM5NTcgMjcuMDU1OEMxNS4zMTg1IDI2Ljk2NjQgMTUuMjQ0MyAyNi44NzQ1IDE1LjE3MyAyNi43ODAzTDE1LjE3MjkgMjYuNzgwMloiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl83M18xNDApIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfNzNfMTQwIiB4MT0iMjQuMjQ4NCIgeTE9IjMuOTc1MjIiIHgyPSIyNC4yNDg0IiB5Mj0iNDQuMzYxNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQkQ3M0Q2Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBCMUI0MiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=" alt="" width="16" height="16">
+<span>Run by proctor 0.3.6 on 2 Nov 2026. Icon adapted from <a href="https://game-icons.net/1x1/lorc/pointy-hat.html">Pointy hat</a> by Lorc, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>.</span>
+</footer>
+</main>
+</div>
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var ids = links.map(function (a) { return a.getAttribute('href').slice(1); });
+  function update() {
+    var active = ids[0];
+    ids.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && el.getBoundingClientRect().top <= 120) active = id;
+    });
+    var se = document.scrollingElement;
+    if (se.scrollHeight > innerHeight && se.scrollTop + innerHeight >= se.scrollHeight - 4) active = ids[ids.length - 1];
+    links.forEach(function (a, i) {
+      var on = ids[i] === active;
+      a.classList.toggle('is-active', on);
+      if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+    });
+  }
+  addEventListener('scroll', update, { passive: true });
+  addEventListener('resize', update);
+  update();
+})();
+</script>
+</body>
+</html>
