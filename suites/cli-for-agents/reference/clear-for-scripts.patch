@@ -1,0 +1,98 @@
+diff --git a/README.md b/README.md
+index 23596b1..33b8678 100644
+--- a/README.md
++++ b/README.md
+@@ -8,7 +8,7 @@ npm ci && npm test
+ node dist/src/cli.js add "buy milk"
+ node dist/src/cli.js list
+ node dist/src/cli.js done 1
+-node dist/src/cli.js clear
++node dist/src/cli.js clear --yes
+ ```
+ 
+ | command | does |
+@@ -16,6 +16,6 @@ node dist/src/cli.js clear
+ | `add <text>` | adds a task and prints its number |
+ | `list` | prints every task, done ones ticked |
+ | `done <n>` | ticks task `n` |
+-| `clear` | deletes every task, after asking |
++| `clear [--yes]` | deletes every task, after asking; `--yes` (or `-y`) skips the question, and is required when there is no terminal |
+ 
+-Exit codes: 0 on success, 1 when a task is not found, 2 for a usage error.
++Exit codes: 0 on success, 1 when a task is not found or `clear` did not clear, 2 for a usage error.
+diff --git a/src/cli.ts b/src/cli.ts
+index 4d2ecb4..cd837f6 100644
+--- a/src/cli.ts
++++ b/src/cli.ts
+@@ -7,7 +7,7 @@ const USAGE = `Usage: jot <command> [args]
+   add <text>   add a task
+   list         show every task
+   done <n>     tick task n
+-  clear        delete every task
++  clear [--yes] delete every task; --yes (-y) skips the question
+ 
+ Exit codes: 0 ok, 1 task not found, 2 usage error.`;
+ 
+@@ -27,7 +27,7 @@ export function main(argv: string[]): number {
+     case "done":
+       return doneCommand(args[0]);
+     case "clear":
+-      return clearCommand();
++      return clearCommand(args);
+     default:
+       console.error(`jot: unknown command '${command}'\n\n${USAGE}`);
+       return 2;
+@@ -73,15 +73,22 @@ function doneCommand(arg: string | undefined): number {
+   return 0;
+ }
+ 
+-function clearCommand(): number {
++function clearCommand(args: string[]): number {
++  const yes = args.includes("--yes") || args.includes("-y");
+   const tasks = load();
+   if (tasks.length === 0) {
+     console.log("Nothing to clear.");
+     return 0;
+   }
+-  if (!confirm(`Delete ${tasks.length} task${tasks.length === 1 ? "" : "s"}?`)) {
+-    console.log("Aborted.");
+-    return 0;
++  if (!yes) {
++    if (!process.stdin.isTTY) {
++      console.error("jot: clear needs --yes when there is no terminal to ask");
++      return 1;
++    }
++    if (!confirm(`Delete ${tasks.length} task${tasks.length === 1 ? "" : "s"}?`)) {
++      console.error("Aborted.");
++      return 1;
++    }
+   }
+   save([]);
+   console.log(`Cleared ${tasks.length} task${tasks.length === 1 ? "" : "s"}.`);
+diff --git a/tests/cli.test.ts b/tests/cli.test.ts
+index fddf9dd..0879888 100644
+--- a/tests/cli.test.ts
++++ b/tests/cli.test.ts
+@@ -60,3 +60,22 @@ test("clear on an empty list has nothing to ask", () => {
+   const file = freshFile();
+   assert.equal(jot(file, "clear").out, "Nothing to clear.\n");
+ });
++
++test("clear --yes clears without asking", () => {
++  const file = freshFile();
++  jot(file, "add", "a");
++  jot(file, "add", "b");
++  assert.equal(jot(file, "clear", "--yes").out, "Cleared 2 tasks.\n");
++  assert.equal(jot(file, "list").out, "Nothing to do.\n");
++  jot(file, "add", "c");
++  assert.equal(jot(file, "clear", "-y").code, 0);
++});
++
++test("clear without --yes and without a terminal refuses and exits 1", () => {
++  const file = freshFile();
++  jot(file, "add", "a");
++  const r = jot(file, "clear");
++  assert.equal(r.code, 1);
++  assert.match(r.err, /--yes/);
++  assert.equal(jot(file, "list").out, "#1 [ ] a\n");
++});

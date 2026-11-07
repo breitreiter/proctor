@@ -1,0 +1,13 @@
+{
+  "id": "clear-for-scripts",
+  "description": "Make the CLI's destructive command usable from a script: a flag to skip the prompt, and a non-zero exit when nothing was cleared",
+  "labels": { "kind": "feature" },
+  "fixture": "jotcli",
+  "prompt": "`jot clear` cannot be used from a script. It asks `Delete N tasks? [y/N]` and waits for a keypress on the terminal, so `echo y | jot clear` does nothing, and when there is no terminal at all it waits, prints `Aborted.` and exits 0 as if it had succeeded.\n\nMake `clear` usable from a script or by another program:\n\n- Add a `--yes` flag (alias `-y`) that clears without asking.\n- Without the flag, when there is no interactive terminal to ask, do not wait: refuse, say why on stderr, and exit with a non-zero code.\n- Whenever `clear` does not clear, for any reason, the exit code must be non-zero.\n- Update the usage text and the README.\n\nExisting tests must keep passing. Add tests for the new behaviour in tests/.",
+  "expect": {
+    "files_touched": {
+      "paths": ["src/**", "tests/**", "README.md"],
+      "mode": "at_most"
+    }
+  }
+}

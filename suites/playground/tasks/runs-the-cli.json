@@ -1,0 +1,7 @@
+{
+  "id": "runs-the-cli",
+  "description": "The scripted model builds the CLI and runs it once with bash, then answers OK",
+  "fixture": "jotcli",
+  "prompt": "MOCK:tool=bash npm ci --silent --no-audit --no-fund && npm run -s build && node dist/src/cli.js list",
+  "expect": { "answer_contains": "OK" }
+}

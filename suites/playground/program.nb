@@ -1,0 +1,7 @@
+# playground: nb's Mock provider reads its script from the prompt, so no model answers here.
+provider {{provider}}
+harness {{harness}}
+approval bash *
+loop 2
+budget tool_calls 3
+run {{prompt}}

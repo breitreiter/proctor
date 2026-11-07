@@ -1,9 +1,13 @@
 # proctor
 
-Proctor is a grading and reporting tool for evals of AI agents. You
-describe a set of tasks and the checks that say whether each was done,
-proctor runs them against the agents and models you name, grades the
-transcripts, and writes a report.
+Proctor measures what coding agents do with what you built: an SDK, a
+CLI, a docs site, an MCP server, a skill, an assistant. You describe
+tasks and the checks that say whether each was done, proctor runs them
+against the agents and models you name (Claude Code, Codex, Qwen Code,
+or its own harness), grades the transcripts with checks you can read,
+and writes a report that says whether the change you shipped helped,
+with an interval. The first suite to run is `suites/playground`; the
+site is [breitreiter.github.io/proctor](https://breitreiter.github.io/proctor/).
 
 It runs locally. There is no cloud service: the suite definitions, the
 transcripts, the verdicts and the reports are files on your filesystem,

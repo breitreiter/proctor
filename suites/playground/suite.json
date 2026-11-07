@@ -1,0 +1,17 @@
+{
+  "id": "playground",
+  "description": "The first suite to run: two scripted tasks against a tiny TypeScript CLI, no model and no key, so the loop and the report can be seen before anything real is measured.",
+  "labels": { "purpose": "onboarding" },
+  "arms": [
+    { "id": "mock", "description": "nb on its Mock provider, which answers from a script in the prompt", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 2 }
+  ],
+  "grading": {
+    "checks": {
+      "exit_ok":      { "exit_reason": "ok" },
+      "no_denials":   { "denied_calls": { "max": 0 } },
+      "under_budget": { "max_tool_calls": 3, "max_tokens": 100000 },
+      "says":         { "answer_contains": "@expect" }
+    },
+    "pass": ["exit_ok", "says", "builds", "tests-pass"]
+  }
+}

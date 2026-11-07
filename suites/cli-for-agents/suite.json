@@ -1,0 +1,19 @@
+{
+  "id": "cli-for-agents",
+  "description": "Can an agent make a small CLI usable from a script or by another agent? One task on a tiny TypeScript CLI whose destructive command waits for a keypress.",
+  "labels": { "area": "coding/change", "stack": "node", "purpose": "onboarding" },
+  "arms": [
+    { "id": "local", "description": "nb bare on the local qwen3-coder model; the free floor", "runner": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next", "samples": 3 }
+  ],
+  "grading": {
+    "checks": {
+      "exit_ok":      { "exit_reason": "ok" },
+      "no_denials":   { "denied_calls": { "max": 0 } },
+      "not_nudged":   { "loop_nudged": false },
+      "under_budget": { "max_tool_calls": 60, "max_duration_ms": 1200000 },
+      "acceptance":   { "script": "checks/acceptance.sh", "description": "the task's acceptance script passes against the changed repository" },
+      "scope":        { "files_touched": "@expect" }
+    },
+    "pass": ["exit_ok", "acceptance", "builds", "tests-pass"]
+  }
+}

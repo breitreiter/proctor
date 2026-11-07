@@ -1,0 +1,15 @@
+{
+  "id": "jotcli",
+  "description": "A tiny TypeScript to-do CLI whose destructive command asks for a keypress from the terminal, with no flag to say yes",
+  "source": { "path": "repo", "exclude": ["node_modules", "dist", ".jot.json"] },
+  "stack": "node",
+  "image": {
+    "from": "node:22-bookworm-slim",
+    "env": { "NO_COLOR": "1", "NPM_CONFIG_UPDATE_NOTIFIER": "false", "NPM_CONFIG_FUND": "false" },
+    "run": ["npm ci --no-audit --no-fund"]
+  },
+  "checks": {
+    "builds":     { "script": "checks/builds.sh", "description": "the repository compiles" },
+    "tests-pass": { "script": "checks/tests-pass.sh", "description": "the repository's own tests pass" }
+  }
+}

@@ -212,21 +212,38 @@ report goes up, scrub the host and gateway names it records there.
 ## Do not enable Pages until the site's promises are kept
 
 `docs/index.html` is committed as a draft, and Pages stays off until every
-claim on it is true of the repository. Today three are not:
+claim on it is true of the repository. Today two are not:
 
 - **"Proctor ships with agent-friendly documentation, examples and skills"**
   ("How you use it", step 1). There is no suite-authoring skill and no
   guide written for a coding agent; `plans/onboarding.md` is the plan for
   them. Build them, or cut the sentence.
-- **"Get started" links to `suites/playground` and `suites/cli-for-agents`**
-  on GitHub. Neither is committed yet, so both links 404 until they are.
 - **README's opening links to the site** (`breitreiter.github.io/proctor`),
-  which does not exist until Pages is on. That README change is not
-  committed either; it goes in with the suites or with Pages.
+  which does not exist until Pages is on, so the README carries a dead
+  link until then. Do not push it to a public audience before Pages, or
+  drop the link for now.
+
+(The "Get started" links to `suites/playground` and `suites/cli-for-agents`
+were the third; both suites are committed now.)
 
 Before switching Pages on, read the page against the repository once more,
 line by line: every capability it names should be one a stranger can run
 from the README.
+
+## Charts at the top of the report
+
+The report's layout is clean, but its top is all tables and sentences: the
+reader has to read numbers to get the headline. Float the topline up with
+one or two charts above the fold. Which ones is open; think before
+building. Candidates to weigh: pass rate per arm with its 95% interval as
+a dot-and-whisker strip, the paired difference against the baseline on the
+same axis (held, improved, regressed at a glance), a task-by-arm matrix as
+a heatmap, and cost or tool calls against pass rate per arm. Constraints
+from what exists: every number still comes from `stats.json` (the renderer
+draws, it never computes), `summary.md` needs a text equivalent of each
+chart since the two renderings are one list of blocks, the page must work
+without script (inline SVG, not a chart library), colour stays semantic,
+and the snapshot tests will need new approvals.
 
 ## The wrap-up list for 2026-11-01
 

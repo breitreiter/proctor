@@ -1,0 +1,17 @@
+{
+  "name": "jot",
+  "version": "0.3.1",
+  "description": "A tiny to-do list for the terminal",
+  "type": "module",
+  "bin": { "jot": "dist/src/cli.js" },
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --test \"dist/tests/**/*.test.js\"",
+    "start": "node dist/src/cli.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0"
+  }
+}

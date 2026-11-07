@@ -1,0 +1,7 @@
+{
+  "id": "hello",
+  "description": "The scripted model answers in one turn; the repository's build and tests are checked afterwards",
+  "fixture": "jotcli",
+  "prompt": "MOCK:response=Nothing to do.",
+  "expect": { "answer_contains": "Nothing to do" }
+}
