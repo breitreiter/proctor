@@ -19,6 +19,8 @@ echo "proctor $rev built at $build"
 view="$root/.proctor/views/$rev/$PROCTOR_ARM"
 rm -rf "$view" && mkdir -p "$view/project/plans"
 cp "$PROCTOR_BUNDLE/README.md" "$view/"
+# The configuration reference left the README on 2026-11-08; a revision before that has none.
+[ -f "$PROCTOR_BUNDLE/docs/configuration.md" ] && mkdir -p "$view/docs" && cp "$PROCTOR_BUNDLE/docs/configuration.md" "$view/docs/"
 cp "$PROCTOR_BUNDLE"/project/plans/{on-disk-layout,fixtures-arms-baselines,containerised-runs,judge,report-structure}.md "$view/project/plans/"
 case "$PROCTOR_ARM" in
   docs) ;;
