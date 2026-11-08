@@ -121,6 +121,16 @@ public class SetupFilesTests : IDisposable
     }
 
     [Fact]
+    public void EnsureNb_CreatesOneWithMockOnly_AndLeavesAnExistingOneAlone()
+    {
+        SetupFiles.EnsureNb(suites);
+        Assert.Equal(["Mock"], Read("nb.json")["ChatProviders"]!.AsArray().Select(e => (string?)e!["Name"]));
+        File.WriteAllText(Path.Combine(suites, "nb.json"), "{\"ChatProviders\":[]}");
+        SetupFiles.EnsureNb(suites);
+        Assert.Equal("{\"ChatProviders\":[]}", File.ReadAllText(Path.Combine(suites, "nb.json")));
+    }
+
+    [Fact]
     public void EnsureGitIgnore_AddsWhatIsMissing_Once()
     {
         Directory.CreateDirectory(suites);

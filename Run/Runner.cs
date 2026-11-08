@@ -532,7 +532,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         var nb = config.NbOrDefault;
         var suitesDir = Layout.Suites(root);
         if (!File.Exists(Path.Combine(suitesDir, Layout.ProctorConfigFile)) && File.Exists(Path.Combine(suitesDir, "proctor.example.json")))
-            throw new ProctorException("no suites/proctor.json: copy suites/proctor.example.json (and nb.example.json beside it) and point them at your gateway");
+            throw new ProctorException("no suites/proctor.json: run `proctor setup` at a terminal, which writes it (skip every job for a config the playground runs on); or copy suites/proctor.example.json and nb.example.json beside themselves and point them at your gateway");
         var path = nbOverride ?? nb.Path;
         if (path.Contains(Path.DirectorySeparatorChar)) path = Path.GetFullPath(Path.Combine(nbOverride is null ? suitesDir : Directory.GetCurrentDirectory(), path));
         else if (FindOnPath(path) is { } found) path = found;

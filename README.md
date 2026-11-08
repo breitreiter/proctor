@@ -6,7 +6,7 @@ tasks and the checks that say whether each was done, proctor runs them
 against the agents and models you name (Claude Code, Codex, Qwen Code,
 or its own harness), grades the transcripts with checks you can read,
 and writes a report that says whether the change you shipped helped,
-with an interval. The first suite to run is `suites/playground`; the
+with an interval. The first suite to run is `suites/playground` ([getting started](docs/getting-started.md)); the
 site is [breitreiter.github.io/proctor](https://breitreiter.github.io/proctor/).
 
 It runs locally. There is no cloud service: the suite definitions, the
@@ -79,20 +79,24 @@ for its own numbers.
 
 ## Install
 
-Build nb first (`dotnet build` in its repo), then:
+[`docs/getting-started.md`](docs/getting-started.md) goes from a clone to a
+first report on a free hosted model in three steps. In short: build nb
+(`dotnet build` in its repo) and put its output directory on PATH, then:
 
 ```bash
 dotnet build
 alias proctor='dotnet /path/to/proctor/bin/Debug/net10.0/proctor.dll'
+proctor setup            # providers and keys for this machine, one job at a time
 ```
 
-To run this repository's own suites, copy `suites/proctor.example.json` to
-`suites/proctor.json` and `suites/nb.example.json` to `suites/nb.json`, and
-point their routes at your gateway ([`docs/configuration.md`](docs/configuration.md)). Both copies are gitignored,
-since they name your machine. Keys go in `~/.config/proctor/env` (`%LOCALAPPDATA%\proctor\env` on
-Windows), one
-`NAME=value` per line, which every verb loads; the config files name them as
-`${NAME}`.
+`proctor setup` asks for keys at a hidden prompt and writes them to
+`~/.config/proctor/env` (`%LOCALAPPDATA%\proctor\env` on Windows), one
+`NAME=value` per line, which every verb loads; the config files it writes
+in `suites/` name them as `${NAME}` and are gitignored. `proctor setup
+--check` prints what is set up, for you or your coding agent. To route
+through a gateway of your own instead, copy `suites/proctor.example.json`
+and `suites/nb.example.json` beside themselves without `.example`
+([`docs/configuration.md`](docs/configuration.md)).
 
 ## Configure
 

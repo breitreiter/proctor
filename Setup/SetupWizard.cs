@@ -124,6 +124,8 @@ static partial class SetupWizard
         if (SetupFiles.EnsureGitIgnore(w.SuitesDir)) w.Wrote(Path.Combine(w.SuitesDir, SetupFiles.GitIgnore), "setup's files excluded");
         var proctor = Path.Combine(w.SuitesDir, Layout.ProctorConfigFile);
         if (!File.Exists(proctor)) w.Wrote(SetupFiles.EnsureProctor(w.SuitesDir), "created: nb from PATH, nb.json beside it");
+        var nb = Path.Combine(w.SuitesDir, SetupFiles.NbFile);
+        if (!File.Exists(nb)) w.Wrote(SetupFiles.EnsureNb(w.SuitesDir), "created: nb's Mock provider, for the playground");
     }
 
     static async Task Job(Session w, string id, string heading)

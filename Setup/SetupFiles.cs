@@ -111,6 +111,14 @@ static class SetupFiles
         return path;
     }
 
+    /// <summary>nb.json exists, with Mock in it, so the playground runs before any provider is added; created fresh when missing.</summary>
+    public static string EnsureNb(string suitesDir)
+    {
+        var path = Path.Combine(suitesDir, NbFile);
+        if (!File.Exists(path)) Save(path, FreshNb());
+        return path;
+    }
+
     /// <summary>Adds to <c>suites/.gitignore</c> each of setup's files it does not already name. Returns whether it changed.</summary>
     public static bool EnsureGitIgnore(string suitesDir)
     {
