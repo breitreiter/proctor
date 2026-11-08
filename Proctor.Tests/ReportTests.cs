@@ -131,6 +131,23 @@ public class ReportTests
         Assert.DoesNotContain("The baseline is `", Report.Markdown(pinnedBoth, rows, WorkedExperiment.Experiment(suite)));
     }
 
+    /// <summary>A check that could not grade many runs is one warning with its count per arm, and leaves the per-arm failure lists.</summary>
+    [Fact]
+    public void ACheckThatErroredOften_IsOneWarning_NotALineUnderEachArm()
+    {
+        var suite = WorkedExperiment.Suite();
+        var rows = WorkedExperiment.Rows().Select(r => r.Task == "uses-bash" && r.Checks is not null
+            ? r with { Checks = new Dictionary<string, string>(r.Checks) { ["used-bash"] = Verdict.Error } } : r).ToList();
+        var stats = Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows);
+        var x = Assert.Single(stats.ErroredChecks!);
+        Assert.Equal("used-bash", x.Check);
+        Assert.Equal(x.Runs, x.Arms.Values.Sum());
+        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(suite));
+        Assert.Contains($"> **Warning.** The check `used-bash` (uses bash) could not grade {x.Runs} of the {x.Of} runs it applies to, on every arm", md);
+        Assert.DoesNotContain("could not grade some of", md);
+        Assert.Contains("`used-bash` could not grade many runs, and is left out of the lists above", md);
+    }
+
     /// <summary>An agent's reported cost reaches the Cost and effort table; an arm without one shows none.</summary>
     [Fact]
     public void Markdown_ShowsCost_WhenAnArmReportsIt()

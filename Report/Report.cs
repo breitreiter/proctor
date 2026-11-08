@@ -71,6 +71,14 @@ static class Report
         ]));
         foreach (var u in stats.UndecidedChecks)
             b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Runs} of the {u.Of} runs it applies to. Its pass rates below are over the {u.Of - u.Runs} runs it decided, and the check needs rewriting before this experiment is conclusive."));
+        foreach (var x in stats.ErroredChecks ?? [])
+        {
+            var headline = stats.PassChecks.Contains(x.Check);
+            var where = x.Arms.Count == arms.Count && arms.Count > 1 ? "on every arm" : $"on {Join(x.Arms.Keys.Select(a => $"`{a}`"))}";
+            b.Add(new Warning($"The check `{x.Check}` ({CheckText(stats, x.Check)}) could not grade {x.Runs} of the {x.Of} runs it applies to, {where} ({string.Join(", ", x.Arms.Select(a => $"`{a.Key}` {a.Value}"))}). "
+                + (headline ? "It is a headline check, so each of those runs counts as failed and the pass rates are lower by as much. " : $"Its rates below are over the {x.Of - x.Runs} runs it graded. ")
+                + "Each run's reason says why; the check needs fixing before its result means much."));
+        }
         foreach (var g in bl?.Gaps ?? [])
             b.Add(new Warning($"{(bl!.Against is null ? "The baseline's pinned runs" : "The earlier runs")}, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the {vs} is the score {(bl.Against is null ? "as pinned" : "that experiment gave")}, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the arm."));
 
@@ -146,12 +154,15 @@ static class Report
             b.Add(new Para(s.Failures.Count == 0 ? $"{who} failed no check in any of its {s.Analysed} counted run{(s.Analysed == 1 ? "" : "s")}." : $"{who} failed {s.Failures.Count} check{(s.Failures.Count == 1 ? "" : "s")}:"));
             if (s.Failures.Count > 0)
                 b.Add(new Bullets(s.Failures.Select(f => FailureText(stats, f)).ToList()));
-            if (s.Errored is { Count: > 0 } errored)
+            var warned = (stats.ErroredChecks ?? []).Select(x => x.Check).ToHashSet();
+            if (s.Errored?.Where(f => !warned.Contains(f.Check)).ToList() is { Count: > 0 } errored)
             {
                 b.Add(new Para($"Apart from that, {(errored.Count == 1 ? "a check" : $"{errored.Count} checks")} could not grade some of {a}'s runs; each run's reason says why:"));
                 b.Add(new Bullets(errored.Select(f => FailureText(stats, f, "could not grade")).ToList()));
             }
         }
+        if (stats.ErroredChecks is { Count: > 0 } erroredChecks)
+            b.Add(new Para($"{Join(erroredChecks.Select(x => $"`{x.Check}`"))} could not grade {(erroredChecks.Count == 1 ? "many runs" : "many runs each")}, and {(erroredChecks.Count == 1 ? "is" : "are")} left out of the lists above; see the warning at the top."));
         var undecided = arms.SelectMany(a => stats.Arms[a].Undecided).ToList();
         if (undecided.Count > 0 && undecided.Count <= 5)
         {

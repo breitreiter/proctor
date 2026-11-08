@@ -308,7 +308,10 @@ The directories are for reading, not for namespaces: everything is
   the runs it applies to (`stats.json` `undecided_checks`). A check that
   cannot decide is the check's weakness, not the arm's. So is one that
   errored: an `error` is out of that check's rate too, counted beside it
-  ("· 5 error"), though a headline check that errored still fails the run.
+  ("· 5 error"), though a headline check that errored still fails the run. A
+  check that errored in more than one run, and in more than 5 runs or 5% of
+  those it applies to, is one warning at the top with its count per arm
+  (`stats.json` `errored_checks`) and leaves the per-arm lists under Failures.
 - **Every number is computed once, in `Stats.cs`.** The renderers format; they
   never compute. If a number looks wrong, fix it in `stats.json` first.
 - **Each task is scored as its mean over its counted, decided samples**, so `n` in

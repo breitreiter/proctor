@@ -24,6 +24,11 @@ formats or the vocabulary; a patch bump does not.
 - Results' verdict against the reference uses the card's words (direction,
   then confirmed or not), where it said "no detectable difference" beside a
   card that said "better (unconfirmed)".
+- A check that could not grade more than one run, and more than 5 runs
+  or 5% of those it applies to, is one warning above the numbers with its
+  count per arm (`stats.json` `errored_checks`), and leaves the per-arm
+  lists under Failures. `code-change`'s `change-fits` (13 of 27 runs, on
+  every arm) had a near-identical block under each of five arms.
 - A one-arm run with no baseline no longer states a detectable difference.
 - A check whose value is `"@expect"` describes itself in a sentence ("the
   answer contains what the task expects", not "answer contains is what the

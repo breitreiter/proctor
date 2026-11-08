@@ -43,6 +43,9 @@ record TaskScore(double? Score, int Passed, int Decided);
 /// <summary>A check that could not decide too many of the runs it applies to, across arms: the check needs rewriting before the experiment is conclusive.</summary>
 record UndecidedCheck(string Check, int Runs, int Of);
 
+/// <summary>A check that could not grade more than a few of the runs it applies to, with how many per arm: the check's defect, said once above the numbers.</summary>
+record ErroredCheck(string Check, int Runs, int Of, Dictionary<string, int> Arms);
+
 /// <summary>Where an arm fell down: a check that did not pass in some analysed cells, most often first, with the tasks it happened in.</summary>
 record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Tasks);
 
@@ -86,7 +89,8 @@ record StatsFile(
     string Experiment, string Suite, int NTasks, bool Paired,
     Dictionary<string, ArmStats> Arms, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
-    Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null);
+    Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null,
+    List<ErroredCheck>? ErroredChecks = null);
 
 /// <summary>What the report knows about the baseline: the resolved per-task scores, where they came from, and the tolerance asked for.</summary>
 /// <summary>What the arms are compared with: one set of task scores for every arm, or with <c>PerArm</c> (report --against) each arm's own, and none for an arm it lacks.</summary>
@@ -165,6 +169,14 @@ static class Stats
             return new UndecidedCheck(name, counted.Count(r => r.Checks![name] == Verdict.NeedsJudge), counted.Count);
         }).Where(u => u.Runs > 5 || (u.Of > 0 && u.Runs > 0.05 * u.Of)).ToList();
 
+        // Likewise a check that could not grade them: one warning with the count per arm, not a line under every arm's failures.
+        var erroredChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
+        {
+            var counted = rows.Where(r => r.Analysed && r.Checks!.ContainsKey(name)).ToList();
+            var errors = counted.Where(r => r.Checks![name] == Verdict.Error).ToList();
+            return new ErroredCheck(name, errors.Count, counted.Count, arms.Where(a => errors.Any(r => r.Arm == a)).ToDictionary(a => a, a => errors.Count(r => r.Arm == a)));
+        }).Where(u => u.Runs > 1 && (u.Runs > 5 || u.Runs > 0.05 * u.Of)).ToList();   // one error is a blip, listed under its arm
+
         var vs = guard?.Against is null ? "the baseline" : "each arm's earlier run";
         var methods = "Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. "
             + $"Per-arm rates use the Wilson 95% interval. Differences between arms, and against {vs}, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
@@ -181,7 +193,8 @@ static class Stats
 
         var taskDetails = suite.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, suite.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
-        return new StatsFile(experiment.Id, suite.Id, tasks.Count, Paired: true, armStats, comparisons, mde, methods, tasks, matrix, suite.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails);
+        return new StatsFile(experiment.Id, suite.Id, tasks.Count, Paired: true, armStats, comparisons, mde, methods, tasks, matrix, suite.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
+            erroredChecks.Count > 0 ? erroredChecks : null);
     }
 
     static ArmStats ArmStats(List<ResultRow> rows, List<string> tasks, List<string> checks, List<string> validity)
