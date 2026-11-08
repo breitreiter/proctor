@@ -63,6 +63,41 @@ static class EnvFile
         return set;
     }
 
+    /// <summary>
+    /// Writes <c>NAME=value</c>, replacing the variable's line if the file has one and keeping every other line as it
+    /// was. The file is written whole to a sibling and moved over the old one; on Linux and macOS it is created mode
+    /// 600, and on Windows it inherits the profile's ACL (the user, SYSTEM and Administrators).
+    /// </summary>
+    public static void Set(string path, string name, string value)
+    {
+        if (!IsName(name)) throw new ArgumentException($"not a variable name: {name}");
+        if (value.Contains('\n') || value.Contains('\r')) throw new ProctorException($"{name}: a value cannot span lines");
+        var lines = File.Exists(path) ? File.ReadAllLines(path).ToList() : [];
+        var line = $"{name}={value}";
+        var at = lines.FindIndex(l => NameOf(l) == name);
+        if (at >= 0) lines[at] = line; else lines.Add(line);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        var temp = path + ".tmp";
+        var options = new FileStreamOptions { Mode = FileMode.Create, Access = FileAccess.Write };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using (var writer = new StreamWriter(temp, options)) foreach (var l in lines) writer.Write(l + "\n");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(temp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        File.Move(temp, path, overwrite: true);
+    }
+
+    /// <summary>The names the file sets, without reading a value into anything that prints. A missing file has none.</summary>
+    public static HashSet<string> Names(string path) =>
+        File.Exists(path) ? Parse(path).Select(v => v.Name).ToHashSet() : [];
+
+    static string? NameOf(string line)
+    {
+        var t = line.Trim();
+        if (t.StartsWith("export ")) t = t["export ".Length..].TrimStart();
+        var eq = t.IndexOf('=');
+        return eq > 0 ? t[..eq].Trim() : null;
+    }
+
     /// <summary>The file holds keys: say so when others can read it, as ssh does, but do not refuse.</summary>
     static void WarnIfShared(string path)
     {

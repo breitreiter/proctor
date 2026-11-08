@@ -89,6 +89,12 @@ static class Verbs
             ?? throw new ProctorException($"suite '{experiment.Suite}' no longer loads:\n" + string.Join("\n", problems));
         return (experiment, suite);
     }
+    /// <summary>The setup wizard at a terminal; with <c>--check</c>, what is set up, as plain lines an agent reads.</summary>
+    public static int Setup(string root, bool check, bool live) =>
+        check ? SetupCheck.RunAsync(root, live, Console.Out).GetAwaiter().GetResult()
+        : live ? throw new ProctorException("--live goes with --check")
+        : SetupWizard.RunAsync(root).GetAwaiter().GetResult();
+
     /// <summary>Pin an arm's analysed cells as the suite's baseline, per task; tasks the arm did not analyse keep their old pin.</summary>
     public static int Baseline(string root, string experimentId, List<string>? armIds, List<string>? taskIds)
     {

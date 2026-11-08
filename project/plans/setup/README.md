@@ -2,7 +2,7 @@
 type: plan
 title: proctor setup — mockups
 created: 2026-11-08
-status: mockups for review; nothing built
+status: built 2026-11-08 (Setup/); the mockups stay as the design record
 ---
 
 # proctor setup
@@ -168,6 +168,22 @@ as ready rather than "untested".
   proceed, never a fixed list of commands: routes differ by OS, distro,
   licence and what a work laptop allows, and resolving that takes a strong
   model talking to the user, not a static file. Gitignored too.
+
+## As built (2026-11-08)
+
+- Jobs: built-in harness, sandbox, Claude Code, Codex, classifier, judge.
+  Qwen Code is not a job: the catalogue knows which kinds serve it, and
+  the agent sets it up by hand.
+- A judge or classifier job records its provider only. A `judges` entry
+  needs a model, which is the suite's choice, so the agent writes it from
+  the list `--check` reports.
+- A fresh `proctor.json` is `{"nb":{"config":"nb.json"}}` and a fresh
+  `nb.json` holds nb's Mock provider, so the playground runs. The examples
+  are not copied, since they route through a gateway a new user lacks.
+- A key already exported in the shell can be used as it is; setup then
+  writes no key.
+- Not built yet: the live request for Azure (the provider is kept
+  "not checked"), and hosted sandboxes, which are recorded as intent.
 
 ## Open questions
 

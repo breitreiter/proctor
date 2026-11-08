@@ -10,13 +10,15 @@ record ProviderField(string Name, string Prompt, bool Secret = false, bool Requi
 /// A provider kind from setup's catalogue (<c>Setup/providers.json</c>). <see cref="Serves"/> names the jobs it
 /// can do, a trailing <c>?</c> marking a pairing never tried; <see cref="ByHand"/> the jobs it can do only with
 /// config setup does not write. <see cref="Base"/> is where the key check lists models; a kind without one has no
-/// key check.
+/// key check. <see cref="Agents"/> is the base URL written into proctor.json's <c>agents</c> block for each vendor
+/// agent the kind serves.
 /// </summary>
 record ProviderKind(
     string Kind, string Label, string Help, string Where, List<ProviderField> Fields, List<string> Serves,
     Dictionary<string, string> Nb, string? Blurb = null, string? Notice = null, string? Base = null,
     [property: JsonPropertyName("by_hand")] List<string>? ByHand = null,
-    [property: JsonPropertyName("completed_by_agent")] bool CompletedByAgent = false)
+    [property: JsonPropertyName("completed_by_agent")] bool CompletedByAgent = false,
+    Dictionary<string, string>? Agents = null)
 {
     /// <summary>The site page holding each kind's key-page links; the binary carries only this, never a vendor URL.</summary>
     public const string SiteBase = "https://breitreiter.github.io/proctor/";

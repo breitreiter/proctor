@@ -82,6 +82,11 @@ in the order the verbs run them. Every file is one concern:
 | `Setup/providers.json` | `proctor setup`'s provider catalogue, embedded: per kind its form fields (a secret's env variable), the jobs it `serves` (`?` untested) or serves `by_hand`, the site help anchor (never a vendor URL; an anchor once released is permanent), where it lists models. The plan and mockups are `project/plans/setup/` |
 | `Setup/Catalogue.cs` | the catalogue as records; `ProviderKind.Fit(job)` |
 | `Setup/KeyCheck.cs` | the key check: list a provider's models (no tokens), the ids sorted, or the provider's words with the key redacted and a reading that is the same for every kind; Azure, and an OpenAI-compatible entry with no endpoint yet, have none. `Proctor.Tests/fixtures/models/` are answers captured from each vendor, trimmed |
+| `Setup/SetupState.cs` | `suites/setup.json`: the providers setup knows (kind, key variable, last check, the models listed) and the answer per job (`set`, `later`, `by-hand`; the sandbox's place), intent included; the job order |
+| `Setup/SetupFiles.cs` | setup's writes in `suites/`: its own nb.json entries (the key as `${VAR}`, no `Model`), proctor.json `agents.<agent>` and `harbor.engine`, `suites/.gitignore`; read as a JSON tree and written back whole, so an entry setup did not write is never touched, and a file it cannot parse is refused, not overwritten |
+| `Setup/SetupWizard.cs` | `proctor setup`: the Spectre wizard, job by job (use a provider, add one, skip); the provider flow (pick, form, key check, name); the rerun menu; the summary. Refuses with exit 2 without a terminal. The only file that uses Spectre: `--check` and every other verb print plain lines |
+| `Setup/SetupCheck.cs` | `proctor setup --check`: plain lines for an agent, `problem:` lines and exit 1 for what to fix, never a value; `--live` repeats each key check |
+| `Setup/SandboxPlan.cs` | `suites/sandbox-plan.md`: what setup observed (OS, uv, docker, podman and its socket, compose, registries) and what proctor needs, written as a brief for the user's agent, never a list of commands |
 | `Report/Results.cs` | `results.jsonl` rows |
 | `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json` |
 | `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |
@@ -464,5 +469,10 @@ The directories are for reading, not for namespaces: everything is
   (gitignored) beside the approved one. Review it, then approve with
   `PROCTOR_APPROVE=1`. Render to check: `google-chrome --headless=new
   --screenshot=out.png --window-size=1100,2400 file://.../report.html`.
+- **Setup writes no model and no judge.** A model is the suite's choice, so
+  nb.json entries carry none and a judge or classifier job records only its
+  provider; the agent writes the `judges` entry from the models
+  `setup --check` lists. Keys go to the env file at a secret prompt and
+  never through an agent; Spectre is for interactive verbs only.
 - **The runner tests are slow** (nb takes ~2 s to start per cell); filter them
   out while iterating on anything else: `--filter 'FullyQualifiedName!~RunnerTests'`.

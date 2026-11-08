@@ -1,5 +1,5 @@
 {
-  "//": "proctor setup's provider catalogue: one entry per kind. plans/setup/README.md, 'The provider catalogue'. A help anchor, once released, is never removed or renamed.",
+  "//": "proctor setup's provider catalogue: one entry per kind. plans/setup/README.md, 'The provider catalogue'. agents: the base_url setup writes into proctor.json agents.<agent> when this kind serves that agent. A help anchor, once released, is never removed or renamed.",
   "kinds": [
     {
       "kind": "gemini",
@@ -26,7 +26,8 @@
       "fields": [
         { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "ANTHROPIC_API_KEY" }
       ],
-      "serves": ["nb", "claude-code", "judge?"]
+      "serves": ["nb", "claude-code", "judge?"],
+      "agents": { "claude-code": "https://api.anthropic.com" }
     },
     {
       "kind": "openai",
@@ -38,7 +39,8 @@
       "fields": [
         { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "OPENAI_API_KEY" }
       ],
-      "serves": ["nb", "codex", "judge"]
+      "serves": ["nb", "codex", "judge"],
+      "agents": { "codex": "https://api.openai.com/v1" }
     },
     {
       "kind": "openrouter",
@@ -53,7 +55,8 @@
         { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "OPENROUTER_API_KEY" }
       ],
       "serves": ["nb", "judge", "classifier", "claude-code?", "qwen-code?"],
-      "by_hand": ["codex"]
+      "by_hand": ["codex"],
+      "agents": { "claude-code": "https://openrouter.ai/api" }
     },
     {
       "kind": "openai-compatible",

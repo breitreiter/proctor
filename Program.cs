@@ -11,6 +11,7 @@ static class Program
           grade <experiment>  run the checks over every completed cell; a model check's verdict is kept in the cell
           report <experiment> write results.jsonl, stats.json, report.html and summary.md
           baseline <experiment> pin an arm's analysed cells as the suite's baseline, per task
+          setup                set up providers and keys for this machine, job by job (needs a terminal)
 
         --root <dir>          the repository root holding suites/ (default: current directory)
         --label <k[=glob]>    list: only suites carrying the label, or the label with a matching value (repeatable)
@@ -24,6 +25,8 @@ static class Program
         --tolerance <points>  report: how far below the baseline still counts as held (default 0)
         --fail-on regression  report: exit 1 when any arm regressed against the baseline
         --against <experiment> report: compare each arm with the arm of the same id in that experiment, in place of the baseline
+        --check               setup: print what is set up and what is missing, plain lines for an agent; exit 1 on a problem
+        --live                setup --check: repeat each provider's key check (lists models; no tokens)
         """;
 
     static int Main(string[] args)
@@ -33,6 +36,8 @@ static class Program
         List<string>? tasks = null, labels = null, judges = null, arms = null;
         var tolerance = 0;
         var rejudge = false;
+        var check = false;
+        var live = false;
         var positional = new List<string>();
         for (var i = 0; i < args.Length; i++)
         {
@@ -45,6 +50,8 @@ static class Program
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
                 case "--rejudge": rejudge = true; break;
+                case "--check": check = true; break;
+                case "--live": live = true; break;
                 case "--tasks" when i + 1 < args.Length: tasks = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
                 case "--tolerance" when i + 1 < args.Length && int.TryParse(args[i + 1], out var t) && t >= 0: tolerance = t; i++; break;
                 case "--against" when i + 1 < args.Length: against = args[++i]; break;
@@ -68,6 +75,7 @@ static class Program
                 ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge, arms, tasks),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn, against),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, arms, tasks),
+                ("setup", []) => Verbs.Setup(root, check, live),
                 _ => Fail(Usage),
             };
         }

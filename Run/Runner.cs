@@ -556,9 +556,15 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         return new ResolvedRunner(relative.StartsWith("..") ? path : relative, path, Sha256(File.ReadAllText(path)));
     }
 
-    static string? FindOnPath(string name) =>
-        (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
-            .Select(d => Path.Combine(d, name)).FirstOrDefault(File.Exists);
+    /// <summary>The first <paramref name="name"/> on PATH; on Windows also with each of PATHEXT's extensions (<c>uv.exe</c> for <c>uv</c>).</summary>
+    internal static string? FindOnPath(string name)
+    {
+        var names = OperatingSystem.IsWindows() && !Path.HasExtension(name)
+            ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE;.CMD;.BAT").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(e => name + e).Prepend(name)
+            : [name];
+        return (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .SelectMany(d => names.Select(n => Path.Combine(d, n))).FirstOrDefault(File.Exists);
+    }
 
     /// <summary>Proctor's own version and nb's, asked of the host binary so a wrapper or a self-contained publish reports the same as the DLL would.</summary>
     /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every experiment records.</summary>

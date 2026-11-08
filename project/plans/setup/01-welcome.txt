@@ -10,7 +10,7 @@ Setup will write files, some of which contain sensitive information:
   suites/nb.json                  AI providers for nb, proctor's built-in harness
   suites/setup.json               your choices from this wizard, minus keys
 
-Setup creates suites/.gitignore which excludes the three files in suites/.
+Setup creates suites/.gitignore which excludes setup's files.
 API keys are only written to your user profile, never to this repository.
 
 ─────────────────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ Setup will write files, some of which contain sensitive information:
   suites\nb.json                           AI providers for nb, proctor's built-in harness
   suites\setup.json                        your choices from this wizard, minus keys
 
-Setup creates suites\.gitignore which excludes the three files in suites\.
+Setup creates suites\.gitignore which excludes setup's files.
 API keys are only written to your user profile, never to this repository.
 
 # Notes

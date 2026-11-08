@@ -93,4 +93,28 @@ public class EnvFileTests : IDisposable
         }
         finally { Environment.SetEnvironmentVariable(EnvFile.OverrideVariable, before); }
     }
+
+    [Fact]
+    public void Set_CreatesTheFileOnlyTheUserCanRead()
+    {
+        var path = Path.Combine(dir, "nested", "env");
+        EnvFile.Set(path, "A_API_KEY", "secret-1");
+        Assert.Equal([("A_API_KEY", "secret-1")], EnvFile.Parse(path));
+        if (!OperatingSystem.IsWindows())
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
+        Assert.False(File.Exists(path + ".tmp"));
+    }
+
+    [Fact]
+    public void Set_ReplacesTheVariablesLine_AndKeepsEveryOtherLine()
+    {
+        var path = Write("# mine\nexport A_API_KEY=old\nB=2\n");
+        EnvFile.Set(path, "A_API_KEY", "new");
+        EnvFile.Set(path, "C_API_KEY", "3");
+        Assert.Equal("# mine\nA_API_KEY=new\nB=2\nC_API_KEY=3\n", File.ReadAllText(path));
+    }
+
+    [Fact]
+    public void Set_RefusesAValueOnTwoLines() =>
+        Assert.Throws<ProctorException>(() => EnvFile.Set(Path.Combine(dir, "env"), "A", "x\nB=y"));
 }
