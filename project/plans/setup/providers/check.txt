@@ -1,0 +1,64 @@
+Two checks, the same for every kind. Neither is shown as its own screen; they
+appear inside the form at the marked points.
+
+─────────────────────────────────────────────────────────────────────────
+1. The key check: list the models
+─────────────────────────────────────────────────────────────────────────
+
+Straight after the key (and the endpoint, if the kind has one), setup asks
+the provider for its model list. It costs nothing and uses no tokens, and it
+answers two questions at once: does the key work, and which models can it
+reach. Setup picks none of them; the ids go into setup.json for whoever plans
+a suite.
+
+  API key: ****************************************
+  Saved as GEMINI_API_KEY in /home/ana/.config/proctor/env
+  Checking the key ... ok, 41 models available to this key
+
+Where each kind lists its models:
+
+  Gemini              GET /v1beta/models
+  Anthropic           GET /v1/models
+  OpenAI              GET /v1/models
+  OpenRouter          GET /api/v1/models (needs no key; the key is checked with GET /api/v1/key)
+  OpenAI-compatible   GET <endpoint>/models (llama-server, Ollama, LM Studio and Groq answer it)
+  Azure OpenAI        none with a key alone: deployments are not listable, so the
+                      deployment name is typed and only the live request proves it
+  Azure AI Foundry    as Azure OpenAI
+
+When the key check fails, the provider's words, a plain reading of the status,
+and the choices:
+
+  Checking the key ... failed
+    Gemini: 400 API key not valid. Please pass a valid API key.
+    (the key was refused)
+
+  > Enter the key again
+    Keep it anyway (marked unchecked)
+    Back to the provider list
+
+  How a status reads, the same for every kind:
+    401, 403, "invalid key"         the key was refused
+    404 on the list                 this endpoint has no model list; type the model
+    429                             rate-limited or out of quota; the key itself may be fine
+    connection refused, DNS, TLS    could not reach <host>; is the endpoint right?
+
+─────────────────────────────────────────────────────────────────────────
+2. A live request: only where the list cannot prove anything
+─────────────────────────────────────────────────────────────────────────
+
+With no model chosen, setup has nothing to send a live request to, and the
+key check already proves the key for every kind but Azure. So a live request
+happens in exactly one case:
+
+  Azure OpenAI / Foundry   one short request to the deployment the user named,
+                           since that is the only proof the key and the
+                           deployment are right. Offered as recommended, its
+                           cost stated.
+
+Whether a gateway really speaks the dialect a job needs (an Anthropic-compatible
+endpoint for Claude Code, say) is not checked here; the first shakedown run of
+a suite on that arm is the check. --check says "untested" for such a pairing.
+
+`proctor setup --check` repeats nothing by default; `--check --live` repeats
+each provider's key check and prints one plain line each.

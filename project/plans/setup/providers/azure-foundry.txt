@@ -1,0 +1,17 @@
+Azure AI Foundry
+
+  Where to get a key: https://breitreiter.github.io/proctor/providers.html#azure-foundry
+                      (Azure AI Foundry portal → your project → Keys and Endpoint)
+
+  Endpoint: https://contoso-ai.cognitiveservices.azure.com/
+  API key: ****************************************
+  Saved as AZURE_FOUNDRY_API_KEY in /home/ana/.config/proctor/env
+
+  Model (as deployed in the project): gpt-5.3-codex
+
+  Foundry does not list models with a key, so neither the key nor the model is
+  checked until the live request.
+
+  Name for this provider in your suites [azure-foundry]:
+
+# Catalogue: serves nb ✓, judge ?.

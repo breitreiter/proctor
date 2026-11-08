@@ -1,0 +1,12 @@
+#. Judge model provider
+
+Proctor supports LLM-as-judge checks. These checks use a chat model judge to review part of a run and answer a question with evidence from the transcript.
+
+For best results, we recommend:
+  - Selecting provider that offers a model you're not already testing against. For example, if you're only testing against Claude, use an OpenAI model as a judge.
+  - Using a capable, frontier model as a judge
+
+> Add a provider
+  Skip for now                   You won't be able to create LLM-as-judge checks
+
+## Side quest to normal provider setup for add

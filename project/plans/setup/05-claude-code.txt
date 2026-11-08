@@ -1,0 +1,15 @@
+3. Claude Code
+
+Proctor can drive Claude Code instances. This means you can evaluate how your tools and documentation behave under Anthropic's preferred harness.
+
+For a number of reasons (Anthropic ToS, technical complexity) proctor does not use your Claude Code login. It instead requires an API key.
+
+> Anthropic API                  Use the same key you provided earlier
+  Add a provider
+  Skip for now                   You won't be able to test with Claude Code
+
+─────────────────────────────────────────────────────────────────────────
+
+[ providers/: pick (Anthropic-dialect kinds only), the form, the key check ]
+
+## Skip this step entirely if no sandbox is setup

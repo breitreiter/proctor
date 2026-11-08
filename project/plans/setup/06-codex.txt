@@ -1,0 +1,11 @@
+4. Codex
+
+Proctor can also drive OpenAI Codex instances.
+
+As with Claude Code, you'll need to supply an API key to use Codex.
+
+> Add a provider
+  Skip for now                   You won't be able to test with Codex
+
+## Side quest to normal provider setup for add
+## Skip this step entirely if no sandbox is setup

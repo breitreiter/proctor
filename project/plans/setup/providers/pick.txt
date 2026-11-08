@@ -1,0 +1,46 @@
+Which provider?                                       for: built-in harness
+
+  Set up already
+  > gemini              Gemini
+
+  Add a provider
+    Gemini (Google AI Studio)      free tier, no card; good for getting started
+    Anthropic
+    OpenAI
+    OpenRouter                     many models behind one key
+    OpenAI-compatible endpoint     llama-server, Ollama, LM Studio, Groq, …
+    Azure OpenAI
+    Azure AI Foundry
+    Something else                 a gateway of your own: set it up by hand
+
+─────────────────────────────────────────────────────────────────────────
+
+The same prompt for a job that needs a dialect (Claude Code arms). Kinds that
+cannot serve it are shown, dimmed, with why, so nobody wonders where OpenAI
+went; they cannot be selected.
+
+Which provider?                                       for: Claude Code arms
+                                                      needs: Anthropic Messages API
+
+  Set up already
+  > anthropic           Anthropic
+    gemini              Gemini                 can't: not the Anthropic dialect
+
+  Add a provider
+    Anthropic
+    OpenRouter                     untested: its Anthropic-compatible endpoint
+    A gateway of your own          any endpoint that speaks Messages: by hand
+    OpenAI, Gemini, Azure, …       can't: not the Anthropic dialect
+
+─────────────────────────────────────────────────────────────────────────
+
+LLM-as-judge adds a steer to the rows already in use elsewhere:
+
+  Set up already
+  > openrouter          OpenRouter
+    gemini              Gemini                 your nb runs use this family: not recommended
+
+# Rules
+# - Rows come from the catalogue's `serves`; "untested" is a `?` there.
+# - "Something else" / "by hand" records the intent and prints the file and the
+#   docs section to edit, as 06-codex.txt does.

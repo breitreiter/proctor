@@ -1,0 +1,26 @@
+OpenAI-compatible endpoint
+
+  Where to get a key: https://breitreiter.github.io/proctor/providers.html#openai-compatible
+                      (your server's own docs; many local servers need none)
+
+  Endpoint: http://localhost:11434/v1
+  API key (enter for none):
+  Checking the endpoint ... ok, 3 models
+
+  > Continue
+    More options                   context size, temperature, headers
+
+  Name for this provider in your suites [ollama]:
+
+─────────────────────────────────────────────────────────────────────────
+
+More options:
+
+  Context size in tokens (what the server was started with) [131072]: 32768
+  Temperature (blank for the server's default):
+
+# Context size matters: nb compacts against it, and a request past the
+# server's real limit ends the run as provider_error. Setup cannot learn it
+# from most servers, so it asks.
+# A key typed here goes to the env file as <NAME>_API_KEY (OLLAMA_API_KEY).
+# Catalogue: serves nb ✓, judge ✓, qwen-code ✓, codex by hand.

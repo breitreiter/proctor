@@ -1,0 +1,14 @@
+Gemini (Google AI Studio)
+
+  Where to get a key: https://breitreiter.github.io/proctor/providers.html#gemini
+                      (Google AI Studio → Get API key)
+  Free-tier requests may be used by Google to improve its models.
+
+  API key: ****************************************
+  Saved as GEMINI_API_KEY in /home/ana/.config/proctor/env
+  Checking the key ... ok, 41 models available to this key
+
+  Name for this provider in your suites [gemini]:
+
+# No optional fields, so no "More options" row.
+# Catalogue: serves nb ✓, judge ? (Gemini's OpenAI-compatible endpoint).

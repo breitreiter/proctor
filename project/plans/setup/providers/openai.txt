@@ -1,0 +1,15 @@
+OpenAI
+
+  Where to get a key: https://breitreiter.github.io/proctor/providers.html#openai
+                      (OpenAI Platform → API keys)
+
+  API key: ****************************************
+  Saved as OPENAI_API_KEY in /home/ana/.config/proctor/env
+  Checking the key ... ok, 58 models
+
+  > Continue
+    More options                   endpoint, headers (an organization or project id)
+
+  Name for this provider in your suites [openai]:
+
+# Catalogue: serves nb ✓, codex ✓, judge ✓.

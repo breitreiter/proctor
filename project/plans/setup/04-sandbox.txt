@@ -1,0 +1,48 @@
+2. Sandbox
+
+Coding harnesses, like Claude Code and Codex, expect rich filesystem access and the ability to run arbitrary commands. Running these bare on your local machine creates three types of hazards:
+  - Agents under test are intentionally stressed. They're often given vague, conflicting, or dangerous instructions to see how well they handle uncertainty. They may cause unwanted damage if run with your account permissions.
+  - Agents under your account have access to the same files as you, including test descriptions and answer keys. 
+  - They also have access to your memories and preferences, which may skew their baseline behavior.
+
+Proctor uses Harbor for sandboxing. Running Harbor on a cloud service requires an API key for that service.
+
+Running Harbor on your local machine requires installing several packages and performing extra configuration. Setup will create a plan for your coding agent to wire everything up.
+
+How would you prefer to run Harbor?
+
+> On this machine                Docker or podman, plus uv
+  A hosted sandbox service       Daytona, Modal, …: not supported yet
+  Skip for now                   You won't be able to test with Claude Code, Codex, etc
+
+─────────────────────────────────────────────────────────────────────────
+
+On this machine
+
+Setup looked at what is installed and wrote a plan for your coding agent:
+  suites/sandbox-plan.md
+
+Ask your agent to read it and help you finish the sandbox. Every machine
+(and every employer's rules about what you may install) is different, so the
+plan says what proctor needs and leaves the route to you and your agent.
+
+# The plan is a brief for the agent, not a checklist: what setup observed,
+# what the user chose, what proctor requires, and how to proceed (ask about
+# constraints first). Mockup: sandbox-plan.md. "On this machine" counts as a
+# sandbox for steps 3 and 4 even before the plan is carried out; only "Skip"
+# and a hosted service skip them.
+
+─────────────────────────────────────────────────────────────────────────
+
+A hosted sandbox service
+
+Proctor cannot run agent arms on a hosted service yet. Which would you use?
+
+> Daytona
+  Modal
+  E2B
+  Runloop
+  Another / not sure
+
+Recorded as wanted: hosted sandbox (Daytona). Until it is supported, agent
+arms need Docker or podman on this machine; nb runs need neither.

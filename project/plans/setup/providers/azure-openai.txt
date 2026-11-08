@@ -1,0 +1,18 @@
+Azure OpenAI
+
+  Where to get a key: https://breitreiter.github.io/proctor/providers.html#azure-openai
+                      (Azure portal → your Azure OpenAI resource → Keys and Endpoint)
+
+  Endpoint (the resource URL): https://contoso-ai.openai.azure.com/
+  API key: ****************************************
+  Saved as AZURE_OPENAI_API_KEY in /home/ana/.config/proctor/env
+
+  Deployment name (not the model name; the name you gave the deployment): o4-mini
+
+  Azure does not list deployments with a key, so neither the key nor the
+  deployment is checked until the live request.
+
+  Name for this provider in your suites [azure-openai]:
+
+# No key check, so the live request is offered as recommended rather than optional.
+# Catalogue: serves nb ✓, judge ?.

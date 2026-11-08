@@ -1,0 +1,19 @@
+OpenRouter
+
+  Where to get a key: https://breitreiter.github.io/proctor/providers.html#openrouter
+                      (openrouter.ai → Keys)
+  One key reaches many vendors' models. Free models (ids ending :free) are
+  rate-limited and their prompts may be logged by the serving vendor.
+
+  API key: ****************************************
+  Saved as OPENROUTER_API_KEY in /home/ana/.config/proctor/env
+  Checking the key ... ok, 312 models
+
+  > Continue
+    More options                   attribution headers (HTTP-Referer, X-Title)
+
+  Name for this provider in your suites [openrouter]:
+
+# Written as an OpenAI-compatible entry on https://openrouter.ai/api/v1 for nb and
+# chat judges; as a systemone judge on /alpha/decisions for classifier checks.
+# Catalogue: serves nb ✓, judge ✓, classifier ✓, claude-code ?, qwen-code ?.

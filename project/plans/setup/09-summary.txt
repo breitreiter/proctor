@@ -1,13 +1,13 @@
   Done
 
   Providers
-    gemini-lite    Gemini       gemini-flash-lite-latest   checked   GEMINI_API_KEY
-    anthropic      Anthropic    (per suite)                checked   ANTHROPIC_API_KEY
+    gemini         Gemini       41 models    checked   GEMINI_API_KEY
+    anthropic      Anthropic    12 models    checked   ANTHROPIC_API_KEY
 
   Jobs
-    Run nb                ready       gemini-lite
-    Claude Code arms      ready       anthropic; needs a sandbox
+    Run nb                ready       gemini
     Sandbox               ready       podman on this machine
+    Claude Code arms      ready       anthropic, in the sandbox
     LLM-as-judge          later
     Classifier checks     later
     Codex arms            not for me
@@ -16,7 +16,7 @@
 
   Written
     ~/.config/proctor/env           GEMINI_API_KEY, ANTHROPIC_API_KEY
-    suites/nb.json                  gemini-lite
+    suites/nb.json                  gemini
     suites/proctor.json             agents.claude-code, harbor.engine
     suites/setup.json               all of the above, with "later" and "wanted"
 

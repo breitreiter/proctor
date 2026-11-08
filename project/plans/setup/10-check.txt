@@ -1,11 +1,11 @@
 $ proctor setup --check
 setup: suites/setup.json (2026-11-08 14:12), suites/proctor.json, suites/nb.json
 env: ~/.config/proctor/env (mode 600); GEMINI_API_KEY set, ANTHROPIC_API_KEY set
-provider gemini-lite: gemini, model gemini-flash-lite-latest, key GEMINI_API_KEY, checked ok
-provider anthropic: anthropic, key ANTHROPIC_API_KEY, checked ok
-job nb: ready (gemini-lite)
-job claude-code: ready (anthropic)
+provider gemini: gemini, key GEMINI_API_KEY, checked ok, 41 models (suites/setup.json)
+provider anthropic: anthropic, key ANTHROPIC_API_KEY, checked ok, 12 models (suites/setup.json)
+job nb: ready (gemini)
 job sandbox: ready (podman; uv 0.9.4)
+job claude-code: ready (anthropic)
 job judge: later
 job classifier: later
 job codex: not wanted
@@ -23,7 +23,7 @@ $ echo $?
 
 $ proctor setup --check
 ...
-job nb: ready (gemini-lite)
+job nb: ready (gemini)
 problem: GEMINI_API_KEY is in suites/nb.json but not set (not in the environment or ~/.config/proctor/env)
 problem: harbor.engine is podman but podman.socket is not running (systemctl --user enable --now podman.socket)
 $ echo $?
