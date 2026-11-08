@@ -1,0 +1,5 @@
+{
+  "id": "empty",
+  "description": "No repository to speak of: for tasks where the model is given everything it needs in the prompt, such as questions about a document",
+  "source": { "path": "repo" }
+}

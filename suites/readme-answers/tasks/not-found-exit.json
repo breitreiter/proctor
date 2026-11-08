@@ -1,0 +1,7 @@
+{
+  "id": "not-found-exit",
+  "description": "The exit code for a task that does not exist; both READMEs say",
+  "fixture": "empty",
+  "prompt": "What exit code does `jot done 99` return when there is no task 99?",
+  "expect": { "answer_regex": "(?im)^ANSWER:\\W*1\\W*$" }
+}

@@ -1,0 +1,7 @@
+{
+  "id": "store-location",
+  "description": "Where the tasks are kept; both READMEs name the variable",
+  "fixture": "empty",
+  "prompt": "Which environment variable makes jot keep its tasks somewhere other than the current directory? Give just its name.",
+  "expect": { "answer_regex": "(?im)^ANSWER:\\W*JOT_FILE\\b" }
+}

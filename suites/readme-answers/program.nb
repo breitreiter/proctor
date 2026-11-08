@@ -1,0 +1,11 @@
+# readme-answers: the arm's README is the whole context; no tools, nothing else to read.
+# model before provider: nb builds the provider's client as soon as it reads `provider`, and
+# setup's entries name no Model.
+model {{model}}
+provider {{provider}}
+harness {{harness}}
+tools none
+system @{{bundle}}/README.md
+run {{prompt}} \
+  Reply in exactly two lines. The first is `ANSWER: ` followed by the answer alone. The second is `WHY: ` \
+  followed by one sentence saying where in the README the answer comes from, or that the README does not say and you guessed.

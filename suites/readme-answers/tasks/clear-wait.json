@@ -1,0 +1,7 @@
+{
+  "id": "clear-wait",
+  "description": "How long clear waits for a terminal before it gives up: 30 seconds; only the section for scripts says",
+  "fixture": "empty",
+  "prompt": "With no terminal attached, how many seconds does `jot clear` wait before it gives up? Give a number.",
+  "expect": { "answer_regex": "(?im)^ANSWER:\\D*30\\b" }
+}

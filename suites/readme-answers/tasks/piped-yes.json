@@ -1,0 +1,7 @@
+{
+  "id": "piped-yes",
+  "description": "Whether piping y into clear deletes the tasks: it does not; only the section for scripts says",
+  "fixture": "empty",
+  "prompt": "Does `echo y | jot clear` delete the tasks? Answer yes or no.",
+  "expect": { "answer_regex": "(?im)^ANSWER:\\W*no\\b" }
+}

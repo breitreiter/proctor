@@ -1,0 +1,7 @@
+{
+  "id": "add-a-task",
+  "description": "The command that adds a task; both READMEs show it",
+  "fixture": "empty",
+  "prompt": "Using jot, what exact command adds a task called \"buy milk\"?",
+  "expect": { "answer_regex": "(?im)^ANSWER:.*\\badd\\s+[\"']?buy milk" }
+}

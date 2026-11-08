@@ -1,0 +1,19 @@
+{
+  "id": "readme-answers",
+  "description": "Does a README tell a reader what they need to use jot from a script? Six questions answered from the README alone, under two versions of it: as shipped, and with a section for scripts.",
+  "labels": { "area": "docs", "purpose": "onboarding" },
+  "arms": [
+    { "id": "as-shipped", "description": "jot's README as it ships", "runner": "nb", "harness": "nb", "provider": "gemini", "model": "gemini-flash-lite-latest", "samples": 3, "bundle": { "path": "suites/readme-answers/bundles/as-shipped" } },
+    { "id": "for-scripts", "description": "the same README with a section on using jot from a script", "runner": "nb", "harness": "nb", "provider": "gemini", "model": "gemini-flash-lite-latest", "samples": 3, "bundle": { "path": "suites/readme-answers/bundles/for-scripts" } }
+  ],
+  "grading": {
+    "checks": {
+      "answered": { "exit_reason": "ok" },
+      "correct":  { "answer_regex": "@expect" },
+      "on_form":  { "answer_regex": "(?m)^ANSWER:.*\\n+WHY:", "description": "the reply is the two lines asked for, ANSWER then WHY" },
+      "brief":    { "answer_words": { "max": 80 } }
+    },
+    "pass": ["correct"],
+    "validity": ["answered"]
+  }
+}

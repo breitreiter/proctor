@@ -25,5 +25,6 @@ task on `jotcli` carries them. They run for real on the checkout after
 each sample, which is why the report's check reasons say `tsc: 0 errors`
 and `9 of 9 tests pass` even though no model touched anything.
 
-When the report reads, the next suite is `cli-for-agents`, where a real
-model is asked to change this same CLI.
+When the report reads, the next suite is `readme-answers`: a real model,
+on a free tier, answering questions about this same CLI from two versions
+of its README. It needs a key (`proctor setup`) and no sandbox.

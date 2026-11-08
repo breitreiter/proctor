@@ -1,0 +1,7 @@
+{
+  "id": "clear-exit-code",
+  "description": "What a script sees when clear has no terminal: exit 0, nothing deleted; only the section for scripts says",
+  "fixture": "empty",
+  "prompt": "A CI job runs `jot clear` with no terminal attached and nobody to answer. What exit code does the job see?",
+  "expect": { "answer_regex": "(?im)^ANSWER:\\W*0\\W*$" }
+}
