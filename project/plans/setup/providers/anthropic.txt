@@ -8,20 +8,9 @@ Anthropic
   Saved as ANTHROPIC_API_KEY in /home/ana/.config/proctor/env
   Checking the key ... ok, 12 models
 
-  > Continue
-    More options                   endpoint (a gateway in front of Anthropic), headers
-
   Name for this provider in your suites [anthropic]:
 
-─────────────────────────────────────────────────────────────────────────
-
-More options:
-
-  Endpoint [https://api.anthropic.com]: https://gateway.example.com/anthropic
-  Headers (NAME: value, blank line to finish; a secret value as ${VAR}):
-    cf-aig-authorization: Bearer ${CF_AIG_TOKEN}
-
-  CF_AIG_TOKEN is not set. Enter it now? It is saved to the env file.
-  Value: ****************************************
-
+# A gateway in front of Anthropic is not this kind: it is "A gateway of your own"
+# in pick.txt, set up like openai-compatible.txt (key here, the rest by your agent).
+# Bedrock, if ever, is a kind of its own: AWS credentials, not a key.
 # Catalogue: serves nb ✓, claude-code ✓, judge ? (Anthropic's OpenAI-compatible endpoint).

@@ -1,26 +1,26 @@
 OpenAI-compatible endpoint
 
-  Where to get a key: https://breitreiter.github.io/proctor/providers.html#openai-compatible
-                      (your server's own docs; many local servers need none)
+  For llama-server, Ollama, LM Studio, vLLM, Groq, or anything else that speaks
+  OpenAI's chat completions. These differ in what they need (an endpoint, a
+  context size, sometimes headers), so setup takes only the key, which is the
+  one part that must not pass through your coding agent. Ask your agent to fill
+  in the rest of the entry.
 
-  Endpoint: http://localhost:11434/v1
-  API key (enter for none):
-  Checking the endpoint ... ok, 3 models
+  Name for this provider in your suites: ollama
+  API key (enter if the server needs none): ****************************************
+  Saved as OLLAMA_API_KEY in /home/ana/.config/proctor/env
 
-  > Continue
-    More options                   context size, temperature, headers
+  Written:
+    suites/nb.json          provider "ollama" (LocalLlm, ApiKey ${OLLAMA_API_KEY});
+                            Endpoint and Model left for your agent
 
-  Name for this provider in your suites [ollama]:
+  Not checked: setup has no endpoint to ask. `proctor setup --check` reports
+  "ollama: incomplete (no Endpoint)" until the entry is filled in, then lists
+  its models like any other provider's.
 
-─────────────────────────────────────────────────────────────────────────
-
-More options:
-
-  Context size in tokens (what the server was started with) [131072]: 32768
-  Temperature (blank for the server's default):
-
-# Context size matters: nb compacts against it, and a request past the
-# server's real limit ends the run as provider_error. Setup cannot learn it
-# from most servers, so it asks.
-# A key typed here goes to the env file as <NAME>_API_KEY (OLLAMA_API_KEY).
+# The name comes first here, since the env variable is named from it
+# (<NAME>_API_KEY, uppercased, non-alphanumerics as _).
+# With no key, the entry gets no ApiKey and nothing goes to the env file.
+# The same pattern serves "A gateway of your own" (any dialect) and Codex's
+# by-hand route: setup captures the secret, the agent writes the rest.
 # Catalogue: serves nb ✓, judge ✓, qwen-code ✓, codex by hand.

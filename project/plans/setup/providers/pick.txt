@@ -32,15 +32,4 @@ Which provider?                                       for: Claude Code arms
     A gateway of your own          any endpoint that speaks Messages: by hand
     OpenAI, Gemini, Azure, …       can't: not the Anthropic dialect
 
-─────────────────────────────────────────────────────────────────────────
 
-LLM-as-judge adds a steer to the rows already in use elsewhere:
-
-  Set up already
-  > openrouter          OpenRouter
-    gemini              Gemini                 your nb runs use this family: not recommended
-
-# Rules
-# - Rows come from the catalogue's `serves`; "untested" is a `?` there.
-# - "Something else" / "by hand" records the intent and prints the file and the
-#   docs section to edit, as 06-codex.txt does.

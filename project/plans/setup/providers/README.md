@@ -23,6 +23,12 @@ reach), and whether the check passed. The job writes its own
 config entry from that (nb.json for the built-in harness, proctor.json
 `agents` or `judges` for the others).
 
+No form has optional fields. Anything unusual (a gateway, extra headers, an
+organization id, a context size) is the user's coding agent's to write into
+the config afterwards; setup's job is the secret, which must not pass
+through the agent. `openai-compatible.txt` is the extreme case: a name and a
+key, nothing else.
+
 Form layout, every kind:
 
 ```
@@ -34,9 +40,6 @@ Form layout, every kind:
 
   <required fields, in catalogue order; a model only for Azure>
   [key check]
-
-  > Continue
-    More options                   <the optional fields, named>   (only if any)
 
   Name for this provider in your suites [<default>]:
 ```

@@ -10,5 +10,4 @@ Gemini (Google AI Studio)
 
   Name for this provider in your suites [gemini]:
 
-# No optional fields, so no "More options" row.
 # Catalogue: serves nb ✓, judge ? (Gemini's OpenAI-compatible endpoint).

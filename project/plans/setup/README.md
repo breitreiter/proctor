@@ -95,22 +95,23 @@ any job shows that kind's form. A new kind is a catalogue entry, not a screen.
 in the docs is generated from it and cannot drift; `?` marks a pairing never
 tried, offered as "untested". The form, per field: a secret prompt for a
 secret (written to the env file under `env`, the config holding `${env}`),
-a text prompt otherwise; optional fields are behind one "More options" row
-(endpoint, headers). No kind asks for a model except Azure's two, whose
+a text prompt otherwise. There are no optional fields: anything unusual
+(a gateway, headers, a context size) is left for the user's coding agent to
+write, since only the secret needs setup's care. No kind asks for a model except Azure's two, whose
 deployment is something the user provisioned and setup cannot list. `models`
 is where the key check lists what the key can reach (`providers/check.txt`).
 
 The contracts, from nb's providers and proctor's judge and agent blocks:
 
-| kind | required | optional |
-|---|---|---|
-| Gemini | key, model | — |
-| Anthropic | key, model | endpoint (a gateway), headers |
-| OpenAI | key, model | endpoint, headers |
-| OpenRouter | key, model (written as an OpenAI-compatible entry on its URL) | attribution headers |
-| OpenAI-compatible | endpoint, model | key (Ollama takes none), context size |
-| Azure OpenAI | endpoint (the resource URL), key, deployment name (not a model) | — |
-| Azure AI Foundry | endpoint, key, model | — |
+| kind | setup asks |
+|---|---|
+| Gemini | key |
+| Anthropic | key |
+| OpenAI | key |
+| OpenRouter | key (written as an OpenAI-compatible entry on its URL) |
+| OpenAI-compatible, a gateway of your own | name, key (optional); the endpoint and the rest by the user's agent |
+| Azure OpenAI | endpoint (the resource URL), key, deployment name |
+| Azure AI Foundry | endpoint, key, model |
 
 **Help URLs.** The binary carries one link per kind, to a page on the
 project site, `https://breitreiter.github.io/proctor/providers.html#<kind>`,

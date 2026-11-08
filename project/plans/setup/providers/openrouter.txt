@@ -9,9 +9,6 @@ OpenRouter
   Saved as OPENROUTER_API_KEY in /home/ana/.config/proctor/env
   Checking the key ... ok, 312 models
 
-  > Continue
-    More options                   attribution headers (HTTP-Referer, X-Title)
-
   Name for this provider in your suites [openrouter]:
 
 # Written as an OpenAI-compatible entry on https://openrouter.ai/api/v1 for nb and

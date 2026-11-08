@@ -21,7 +21,8 @@ Where each kind lists its models:
   Anthropic           GET /v1/models
   OpenAI              GET /v1/models
   OpenRouter          GET /api/v1/models (needs no key; the key is checked with GET /api/v1/key)
-  OpenAI-compatible   GET <endpoint>/models (llama-server, Ollama, LM Studio and Groq answer it)
+  OpenAI-compatible   GET <endpoint>/models once the agent has filled in the endpoint;
+                      until then the entry is incomplete and unchecked
   Azure OpenAI        none with a key alone: deployments are not listable, so the
                       deployment name is typed and only the live request proves it
   Azure AI Foundry    as Azure OpenAI
