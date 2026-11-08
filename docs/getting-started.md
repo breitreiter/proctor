@@ -86,14 +86,20 @@ minutes because a free tier allows only a few requests a minute.
 ## 3. Your own suite
 
 What to measure is your project's question, so this step is a conversation
-with your coding agent. Ask it to read this repository's `README.md` and
-`docs/configuration.md`, then your project, and to help you decide what an
+with your coding agent. Proctor ships a skill for it,
+`skills/proctor-suite/`: copy that directory into your agent's skills
+directory (`~/.claude/skills/` for Claude Code, `~/.codex/skills/` for
+Codex), then, in your own repository, ask the agent to help you plan a
+proctor suite. It inventories your project with you, proposes what an
 agent should be able to do with what you built and how you would know it
-did. Two things it can read for itself:
+did, and builds the suite once you agree. Without the skill, ask it to
+read this repository's `README.md` and `docs/configuration.md` first.
+Two things it can read for itself:
 
 - `proctor setup --check` prints what is set up on this machine, which
-  providers you have, which models each key can reach, and what is
-  missing, in plain lines meant for an agent. It never prints a key.
+  providers you have and what is missing, in plain lines meant for an
+  agent; `suites/setup.json` beside it lists the models each key could
+  reach. Neither holds a key.
 - `suites/` holds worked examples: `readme-answers` for a question answered
   from a document, `cli-for-agents` for a code change checked by running
   the result, `suite-authoring` for an agent that writes suites.
