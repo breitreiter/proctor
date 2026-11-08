@@ -1,4 +1,7 @@
 # playground: nb's Mock provider reads its script from the prompt, so no model answers here.
+# model before provider: nb builds the provider's client as soon as it reads `provider`, and a provider
+# whose entry names no Model (setup writes none; the arm's model is the suite's choice) cannot be built without one.
+model {{model}}
 provider {{provider}}
 harness {{harness}}
 approval bash *

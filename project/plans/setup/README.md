@@ -213,7 +213,14 @@ as ready rather than "untested".
    (`suites/*/program.nb`) never say `model {{model}}`; they take the entry's
    model. Check that nb accepts an entry without `Model`, and have templates
    (and the suite-authoring skill) put `model {{model}}` under `provider`, the
-   arm's `model` then being required for nb arms. That is also where a dated
+   arm's `model` then being required for nb arms.
+   **Checked 2026-11-08 against nb's source and a run:** `model X` writes X over
+   the entry's `Model` before the client is built (`NbRuntime.ClientFactory`),
+   but `provider` builds a client the moment it is read. So on Gemini either
+   order works, and with no `model` nb silently runs `gemini-2.0-flash-exp`.
+   On LocalLlm (OpenRouter, OpenAI-compatible), `provider` before `model` fails
+   at startup ("missing configuration required by 'LocalLlm': Model"), and only
+   `model` before `provider` runs. That is also where a dated
    id versus an alias (`gemini-flash-lite-latest`, which exists: Gemini listed it on 2026-11-08) gets decided: on the arm,
    where the report records it.
 6. **Stale model lists.** `setup.json` keeps the ids a key could reach on the

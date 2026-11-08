@@ -167,6 +167,25 @@ checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout
 hooks/*.sh       arm and sample setup/teardown
 ```
 
+Put `model {{model}}` in the template, before `provider {{provider}}`:
+
+```
+model {{model}}
+provider {{provider}}
+harness {{harness}}
+```
+
+Then the arm's `model` is the model nb asks for, and what the report records
+is what ran. Without the line, nb uses the `Model` in the provider's nb.json
+entry and the arm's `model` is only a label. `proctor setup` writes entries
+with no `Model`, so they need the line. On those entries nb's Gemini provider
+otherwise falls back to an old default, and its LocalLlm provider (OpenRouter
+and other OpenAI-compatible servers) refuses to start. The order matters,
+because nb builds a provider's client as soon as it reads `provider`. With
+the line, the arm's `model` must be an id the provider serves (a gateway's
+route name, if that is what it takes); `proctor setup --check` lists the ids
+each key can reach.
+
 A fixture is the repository a task is run against, with what "done" looks
 like in it. Fixtures are repo-level, `fixtures/<id>/`, and reused across
 suites:
