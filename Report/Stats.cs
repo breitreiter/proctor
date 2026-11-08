@@ -73,9 +73,10 @@ record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<
 /// <summary>
 /// <c>Verdict</c> is the point estimate against the tolerance, and is what <c>--fail-on regression</c> reads.
 /// <c>Confirmed</c> says the whole 95% interval lies in the region the verdict names: beyond the tolerance on
-/// that side for <c>regressed</c> or <c>improved</c>, within it for <c>held</c>.
+/// that side for <c>regressed</c> or <c>improved</c>, within it for <c>held</c>. <c>Score</c> is the baseline's own
+/// score over the paired tasks (the mean of their pinned scores), which the report's chart marks beside the arm's rate.
 /// </summary>
-record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, bool Confirmed, Dictionary<string, BaselineTask> Tasks, int? MdePoints = null);
+record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, bool Confirmed, Dictionary<string, BaselineTask> Tasks, int? MdePoints = null, double? Score = null);
 
 /// <summary>One task against its pinned score, with the same tolerance on the difference.</summary>
 record BaselineTask(double Baseline, double Arm, int DiffPoints, string Verdict);
@@ -136,7 +137,8 @@ static class Stats
                     _ => c.Ci95[0] >= -tol && c.Ci95[1] <= tol,
                 };
                 var perTask = c.Tasks.ToDictionary(x => x.Key, x => new BaselineTask(Round3(theirs[x.Key]), Round3(scores[arm][x.Key]), x.Value, GuardVerdict(x.Value, tol)));
-                against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, confirmed, perTask);
+                against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, confirmed, perTask,
+                    Score: Round3(c.Tasks.Keys.Average(x => theirs[x])));
             }
             var unpaired = guard.PerArm is null ? null : arms.Where(a => !guard.PerArm.ContainsKey(a)).ToList();
             baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against, guard.Gaps is { Count: > 0 } ? guard.Gaps : null,

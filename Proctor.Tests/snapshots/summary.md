@@ -6,8 +6,14 @@ Can a local coder model make a small change to a .NET repository so that it buil
 
 **Against the baseline pinned 14 Sep 2026**
 
-- **floor** (reference): **Worse** (unconfirmed) −22 points; 95% interval −67 to +39 points. Lower on loops (−33) and uses-bash (−33); same on plain.
-- **b**: **Better** (unconfirmed) +11 points; 95% interval −46 to +63 points. Higher on uses-bash (+33); same on loops and plain. Against **floor**: +33 points, not a detectable difference.
+| Arm | Passed | 95% interval | Change against the baseline | 95% interval |
+|---|---|---|---|---|
+| floor (reference) | 56% | 15% to 90% | −22 points, **worse** (unconfirmed) | −67 to +39 |
+| b | 89% | 35% to 99% | +11 points, **better** (unconfirmed) | −46 to +63 |
+
+**floor**: lower on loops (−33) and uses-bash (−33); same on plain.
+
+**b**: higher on uses-bash (+33); same on loops and plain.
 
 **Why unconfirmed:** with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.
 

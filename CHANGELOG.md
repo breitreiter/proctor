@@ -7,6 +7,15 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- The verdict card opens with a chart (inline SVG, no script): each arm's
+  pass rate on its 95% interval, the baseline's own score marked beside it,
+  and each arm's change in points with its interval, hollow when not
+  confirmed. Below it, a line for each arm that moved and one for every arm
+  that did not, where it had a paragraph per arm; `summary.md` has the same
+  numbers as a table. A one-arm run with no baseline gets the card too (its
+  *Result* row is gone). `stats.json` gains `score` on each baseline arm:
+  the mean of the baseline's pinned scores over the tasks it was paired on.
+  The arm-against-reference sentence leaves the card; Results has it.
 - The report review (`project/plans/report-structure.md`, 2026-11-02):
   - The verdict card says why a verdict is unconfirmed once, for the run, from
     its widest pairing (`stats.json` `mde` was the narrowest). With a baseline,

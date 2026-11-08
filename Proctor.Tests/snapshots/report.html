@@ -45,14 +45,20 @@ b { font-weight: 600; }
 .src { color: #595959; white-space: nowrap; }
 .warning { background: #fff4d6; color: #5c3d00; padding: .5rem .75rem; margin: 1rem 0; border-radius: 4px; }
 .verdict { margin: 1.25rem 0 1rem; max-width: 52rem; box-sizing: border-box; border: 1px solid #d8d8d8; border-radius: 10px; padding: 24px 28px 20px; display: flex; flex-direction: column; gap: 20px; background: #fbfbf9; }
-.verdict-arms { display: flex; flex-direction: column; gap: 22px; padding: 4px 0; }
-.varm { display: flex; flex-direction: column; gap: 2px; }
-.varm .arm { font-weight: 600; }
-.varm .ref { font-weight: 400; color: #595959; }
-.varm .vline { font-weight: 600; font-variant-numeric: tabular-nums; }
-.varm .vsame { color: #1b1b1b; }
-.varm .unc { font-weight: 400; }
-.rpt .varm p { margin: 0; max-width: 40rem; }
+.chart { display: block; max-width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: inherit; }
+.chart .ch { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
+.chart .cs { font-size: 12px; font-weight: 400; fill: #595959; }
+.chart .ax { font-size: 11.5px; fill: #595959; font-variant-numeric: tabular-nums; }
+.chart .arm { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
+.chart .val { font-size: 13px; font-weight: 600; fill: #1b1b1b; font-variant-numeric: tabular-nums; }
+.chart .grid { stroke: #e4e4e0; } .chart .zero { stroke: #9a9a9a; }
+.chart .bar { stroke: #595959; stroke-width: 2; stroke-linecap: round; }
+.chart .dot { fill: #1b1b1b; stroke: #fff; stroke-width: 2; }
+.chart .ddot { stroke-width: 2; }
+.chart .mark { stroke: #1b1b1b; stroke-width: 1.5; stroke-dasharray: 3 2; }
+.verdict-lines { display: flex; flex-direction: column; gap: 6px; }
+.rpt .verdict-lines p { margin: 0; max-width: 44rem; }
 .verdict-foot { border-top: 1px solid #e4e4e0; padding-top: 16px; }
 .rpt .verdict-foot p { margin: 0 0 .5rem; }
 .rpt .verdict .caution { color: #5c3d00; }
@@ -122,17 +128,32 @@ b { font-weight: 600; }
 <p>Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?</p>
 <div class="verdict" role="region" aria-label="Verdict">
 <div class="kicker">Against the baseline pinned 14 Sep 2026</div>
-<div class="verdict-arms">
-<div class="varm">
-<div class="arm">floor <span class="ref">(reference)</span></div>
-<div class="vline vbad">Worse <span class="unc" title="The 95% interval runs from −67 to +39 points">(unconfirmed)</span> −22 points</div>
-<p>Lower on <a href="#task-loops">loops</a> (−33) and <a href="#task-uses-bash">uses-bash</a> (−33); same on <a href="#task-plain">plain</a>.</p>
-</div>
-<div class="varm">
-<div class="arm">b</div>
-<div class="vline vgood">Better <span class="unc" title="The 95% interval runs from −46 to +63 points">(unconfirmed)</span> +11 points</div>
-<p>Higher on <a href="#task-uses-bash">uses-bash</a> (+33); same on <a href="#task-loops">loops</a> and <a href="#task-plain">plain</a>. Against <b>floor</b>: +33 points, not a detectable difference.</p>
-</div>
+<svg class="chart" viewBox="0 0 746 170" width="746" height="170" role="img" aria-label="Pass rate per arm with its 95% interval, and each arm&#39;s change against the baseline in points">
+<text x="130" y="16" class="ch">Pass rate</text><text x="130" y="33" class="cs">dot: share of runs passed · bar: 95% interval</text>
+<text x="450" y="16" class="ch">Change against the baseline</text><text x="450" y="33" class="cs">points · hollow: not confirmed</text>
+<line x1="130" x2="130" y1="64" y2="140" class="grid"/><text x="130" y="157" class="ax" text-anchor="middle">0%</text>
+<line x1="192.5" x2="192.5" y1="64" y2="140" class="grid"/><text x="192.5" y="157" class="ax" text-anchor="middle">25%</text>
+<line x1="255" x2="255" y1="64" y2="140" class="grid"/><text x="255" y="157" class="ax" text-anchor="middle">50%</text>
+<line x1="317.5" x2="317.5" y1="64" y2="140" class="grid"/><text x="317.5" y="157" class="ax" text-anchor="middle">75%</text>
+<line x1="380" x2="380" y1="64" y2="140" class="grid"/><text x="380" y="157" class="ax" text-anchor="middle">100%</text>
+<line x1="450" x2="450" y1="64" y2="140" class="grid"/><text x="450" y="157" class="ax" text-anchor="middle">−100</text>
+<line x1="500" x2="500" y1="64" y2="140" class="grid"/><text x="500" y="157" class="ax" text-anchor="middle">−50</text>
+<line x1="550" x2="550" y1="64" y2="140" class="zero"/><text x="550" y="157" class="ax" text-anchor="middle">0</text>
+<line x1="600" x2="600" y1="64" y2="140" class="grid"/><text x="600" y="157" class="ax" text-anchor="middle">+50</text>
+<line x1="650" x2="650" y1="64" y2="140" class="grid"/><text x="650" y="157" class="ax" text-anchor="middle">+100</text>
+<text x="324.5" y="58" class="ax" text-anchor="middle">baseline 78%</text>
+<text x="0" y="94" class="arm">floor <tspan class="cs">reference</tspan></text>
+<line x1="324.5" x2="324.5" y1="76" y2="102" class="mark"><title>The baseline&#39;s score: 78%</title></line>
+<g><title>floor: 56% of runs passed (4 of 7); 95% interval 15% to 90% over 3 tasks</title><rect x="161.8" y="76" width="198.8" height="26" fill="transparent"/><line x1="167.8" x2="354.5" y1="89" y2="89" class="bar"/><circle cx="269" cy="89" r="5" class="dot"/></g><text x="390" y="94" class="val">56%</text>
+<g><title>floor: −22 points; 95% interval −67 to +39; worse, not confirmed</title><rect x="477" y="76" width="118" height="26" fill="transparent"/><line x1="483" x2="589" y1="89" y2="89" class="bar" style="stroke:#a52d15"/><circle cx="528" cy="89" r="5" class="ddot" style="stroke:#a52d15;fill:#fff"/></g><text x="660" y="94" class="val" style="fill:#a52d15">−22 worse</text>
+<text x="0" y="128" class="arm">b</text>
+<line x1="324.5" x2="324.5" y1="110" y2="136" class="mark"><title>The baseline&#39;s score: 78%</title></line>
+<g><title>b: 89% of runs passed (8 of 9); 95% interval 35% to 99% over 3 tasks</title><rect x="211.3" y="110" width="172.8" height="26" fill="transparent"/><line x1="217.3" x2="378" y1="123" y2="123" class="bar"/><circle cx="352.3" cy="123" r="5" class="dot"/></g><text x="390" y="128" class="val">89%</text>
+<g><title>b: +11 points; 95% interval −46 to +63; better, not confirmed</title><rect x="498" y="110" width="121" height="26" fill="transparent"/><line x1="504" x2="613" y1="123" y2="123" class="bar" style="stroke:#17603a"/><circle cx="561" cy="123" r="5" class="ddot" style="stroke:#17603a;fill:#fff"/></g><text x="660" y="128" class="val" style="fill:#17603a">+11 better</text>
+</svg>
+<div class="verdict-lines">
+<p><b>floor</b>: lower on <a href="#task-loops">loops</a> (−33) and <a href="#task-uses-bash">uses-bash</a> (−33); same on <a href="#task-plain">plain</a>.</p>
+<p><b>b</b>: higher on <a href="#task-uses-bash">uses-bash</a> (+33); same on <a href="#task-loops">loops</a> and <a href="#task-plain">plain</a>.</p>
 </div>
 <div class="verdict-foot">
 <p><b>Why unconfirmed:</b> with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.</p>

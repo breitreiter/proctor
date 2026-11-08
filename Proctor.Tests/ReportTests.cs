@@ -98,10 +98,24 @@ public class ReportTests
         Assert.NotNull(stats.Baseline.Arms["b"].MdePoints);
         Assert.Null(stats.Baseline.Arms["floor"].MdePoints);
         var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(suite));
-        var bRow = md.Split('\n').Single(l => l.StartsWith("- **b**"));
+        var bRow = md.Split('\n').Single(l => l.StartsWith("**b**:"));
         Assert.Contains($"Paired on 2 of 3 tasks, so it can only confirm a change of about {stats.Baseline.Arms["b"].MdePoints} points.", bRow);
-        Assert.Contains("Against **floor**:", bRow);
         Assert.DoesNotContain("For the same reason", md);
+    }
+
+    /// <summary>The chart marks the baseline's own score beside each arm's rate: the mean of its pinned task scores, from stats.json.</summary>
+    [Fact]
+    public void Chart_MarksTheBaselinesScore_FromStats()
+    {
+        var suite = WorkedExperiment.Suite();
+        var rows = WorkedExperiment.Rows();
+        var guard = WorkedExperiment.Guard();
+        var stats = Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows, guard);
+        var expected = Math.Round(guard.Scores.Values.Average(), 3);
+        Assert.Equal(expected, stats.Baseline!.Arms["floor"].Score);
+        var html = Report.Html(stats, rows, WorkedExperiment.Experiment(suite));
+        Assert.Contains("class=\"mark\"", html);
+        Assert.Contains($"baseline {Math.Round(expected * 100):F0}%", html);
     }
 
     /// <summary>An agent's reported cost reaches the Cost and effort table; an arm without one shows none.</summary>

@@ -27,8 +27,9 @@ static class Report
     record Pairs(List<(string Key, string Value)> Items, string? Class = null) : Block;  // "roles": the keys are check roles
     record Table(List<string> Header, List<List<Cell>> Rows, HashSet<int> Numeric, string? Class = null) : Block;
     record Label(string Text) : Block;                                             // a small heading inside a task card
-    record Card(string Title, List<CardArm> Arms, List<Block> Foot) : Block;       // the verdict
-    record CardArm(string Arm, bool Reference, string Word, string? Tone, bool Confirmed, string Points, string Interval, string Drivers);
+    record Card(string Title, string? DiffTitle, List<CardArm> Arms, List<Block> Lines, List<Block> Foot) : Block;  // the verdict: a chart, then what moved
+    record CardArm(string Arm, bool Reference, RateJson? Pass, double? Mark, CardDiff? Diff);                      // one chart row; Mark is the baseline's own score
+    record CardDiff(int Points, int Lo, int Hi, string Word, string? Tone, bool Confirmed);
     record TaskCard(string Name, string Prompt, List<string> Facts, List<Block> Body) : Block;
     /// <summary>A table cell: the text both renderings show, and the HTML to use instead when the page can carry a link or a hover.</summary>
     record Cell(string Text, string? Html = null, string? Anchor = null);
@@ -55,7 +56,7 @@ static class Report
         var created = When(exp.Created);
         b.Add(new Title(stats.Suite, created.ToString("dddd, d MMMM yyyy"), created.ToString("HH:mm")));
         if (d.Suite is { } about) b.Add(new Para(about));
-        if (VerdictCard(stats) is { } card) b.Add(card);
+        b.Add(VerdictCard(stats));
         var samplesPerTask = arms.Select(a => Samples(exp, a)).Distinct().ToList();
         var runsPerArm = samplesPerTask.Count == 1 ? Times(samplesPerTask[0]) : string.Join(" or ", samplesPerTask.Select(Times));
         b.Add(new Pairs(
@@ -64,7 +65,6 @@ static class Report
             ("Arms", $"{arms.Count}: " + string.Join(", ", arms.Select(a => a == first && arms.Count > 1 ? $"`{a}` (the reference)" : $"`{a}`"))),
             ("Tasks", $"{stats.NTasks}, each run {runsPerArm} per arm"),
             ("Runs", $"{stats.Arms.Values.Sum(a => a.Planned)} planned, {stats.Arms.Values.Sum(a => a.Analysed)} counted"),
-            .. arms.Count == 1 && bl is null ? [("Result", stats.Arms[first].Pass is { } p ? $"`{first}` passed {Pct(p.Rate)} of its runs" : $"`{first}` has no decided run")] : Array.Empty<(string, string)>(),
         ]));
         foreach (var u in stats.UndecidedChecks)
             b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Runs} of the {u.Of} runs it applies to. Its pass rates below are over the {u.Of - u.Runs} runs it decided, and the check needs rewriting before this experiment is conclusive."));
@@ -204,39 +204,79 @@ static class Report
     // ---- The verdict card ----
 
     /// <summary>
-    /// One block per arm: direction, whether the interval confirms it, and the tasks that drove it. Against the
-    /// baseline when there is one, every arm; otherwise every arm against the reference. None with one arm and no baseline.
+    /// The chart (each arm's pass rate with its interval; with a baseline, or several arms, each arm's change with its
+    /// interval), then a line for each arm that moved, one for every arm that did not, and the foot.
+    /// Against the baseline when there is one, every arm; otherwise every arm against the reference.
     /// </summary>
-    static Card? VerdictCard(StatsFile stats)
+    static Card VerdictCard(StatsFile stats)
     {
         var arms = stats.Arms.Keys.ToList();
         var first = arms[0];
         var foot = new List<Block>();
-        List<CardArm> rows;
+        var lines = new List<Block>();
+        var same = new List<string>();
+        var confirmedAll = true;
         string title;
+        string? diffTitle = null;
+        var rows = new List<CardArm>();
+
+        void Moved(string arm, string drivers, string reach, bool allHeld)
+        {
+            if (allHeld && reach.Length == 0) { same.Add(arm); return; }
+            var text = drivers.Length > 0 ? char.ToLowerInvariant(drivers[0]) + drivers[1..] : "";
+            lines.Add(new Para(Sentences($"**{arm}**: {text}", reach)));
+        }
+
         if (stats.Baseline is { } bl)
         {
             title = bl.Against is null ? $"Against the baseline pinned {ShortDate(bl.Set)}" : $"Against {bl.Against}, arm by arm";
-            var vsFirst = stats.Comparisons.ToDictionary(c => c.Arm);
-            rows = arms.Select(a => bl.Arms.TryGetValue(a, out var g)
-                ? new CardArm(a, a == first && arms.Count > 1, ArmWord(g.Verdict), ArmTone(g.Verdict), g.Confirmed, SignedPoints(g.DiffPoints), $"{Signed(g.Ci95[0])} to {Signed(g.Ci95[1])}",
-                    Sentences(Drivers(g.Tasks.Select(t => (t.Key, t.Value.DiffPoints, t.Value.Verdict)), g.Verdict),
-                        vsFirst.TryGetValue(a, out var c) ? AgainstReference(c) : "", ShortReach(g.NPairs, g.MdePoints, stats.Mde.NPairs)))
-                : new CardArm(a, a == first && arms.Count > 1, Capital(Unpaired(bl, a)), null, true, "", "", "")).ToList();
+            diffTitle = bl.Against is null ? "Change against the baseline" : $"Change against {bl.Against}";
+            foreach (var a in arms)
+            {
+                var reference = a == first && arms.Count > 1;
+                if (!bl.Arms.TryGetValue(a, out var g))
+                {
+                    rows.Add(new CardArm(a, reference, stats.Arms[a].Pass, null, null));
+                    lines.Add(new Para($"**{a}**: {Unpaired(bl, a)}."));
+                    continue;
+                }
+                rows.Add(new CardArm(a, reference, stats.Arms[a].Pass, g.Score, new CardDiff(g.DiffPoints, g.Ci95[0], g.Ci95[1], TaskWord(g.Verdict), ArmTone(g.Verdict), g.Confirmed)));
+                confirmedAll &= g.Confirmed;
+                Moved(a, Drivers(g.Tasks.Select(t => (t.Key, t.Value.DiffPoints, t.Value.Verdict)), g.Verdict),
+                    ShortReach(g.NPairs, g.MdePoints, stats.Mde.NPairs), g.Tasks.Values.All(t => t.Verdict == "held"));
+            }
+            if (same.Count > 0) lines.Add(new Para($"{Join(same.Select(s => $"**{s}**"))}: same as the {Vs(bl)} on every task."));
         }
-        else if (stats.Comparisons.Count > 0)
+        else if (arms.Count > 1)
         {
             title = $"Against the reference arm, {first}";
-            rows = stats.Comparisons.Select(c =>
+            diffTitle = $"Change against {first}";
+            var byArm = stats.Comparisons.ToDictionary(c => c.Arm);
+            foreach (var a in arms)
             {
+                if (!byArm.TryGetValue(a, out var c))
+                {
+                    rows.Add(new CardArm(a, a == first, stats.Arms[a].Pass, null, null));
+                    if (a != first) lines.Add(new Para($"**{a}**: no task decided on both sides."));
+                    continue;
+                }
                 var verdict = GuardVerdict(c.DiffPoints);
-                return new CardArm(c.Arm, false, ArmWord(verdict), ArmTone(verdict), verdict != "held" && c.Verdict != "no-detectable-difference", SignedPoints(c.DiffPoints),
-                    $"{Signed(c.Ci95[0])} to {Signed(c.Ci95[1])}", Sentences(Drivers(c.Tasks.Select(t => (t.Key, t.Value, GuardVerdict(t.Value))), verdict), ShortReach(c.NPairs, c.MdePoints, stats.Mde.NPairs)));
-            }).ToList();
+                var confirmed = verdict != "held" && c.Verdict != "no-detectable-difference";
+                rows.Add(new CardArm(a, false, stats.Arms[a].Pass, null, new CardDiff(c.DiffPoints, c.Ci95[0], c.Ci95[1], TaskWord(verdict), ArmTone(verdict), confirmed)));
+                confirmedAll &= confirmed;
+                Moved(a, Drivers(c.Tasks.Select(t => (t.Key, t.Value, GuardVerdict(t.Value))), verdict),
+                    ShortReach(c.NPairs, c.MdePoints, stats.Mde.NPairs), c.Tasks.Values.All(v => v == 0));
+            }
+            if (same.Count > 0) lines.Add(new Para($"{Join(same.Select(s => $"**{s}**"))}: same as **{first}** on every task."));
         }
-        else return null;
+        else
+        {
+            title = "Result";
+            rows.Add(new CardArm(first, false, stats.Arms[first].Pass, null, null));
+            if (stats.Arms[first].Pass is null) lines.Add(new Para($"**{first}** has no decided run."));
+        }
 
-        if (rows.Any(r => !r.Confirmed))
+        if (!confirmedAll)
         {
             var m = stats.Mde;
             var why = m.NPairs == 0 ? m.Sentence
@@ -245,7 +285,7 @@ static class Report
         }
         foreach (var a in Careful(stats))
             foot.Add(new Para(a, "caution"));
-        return new Card(title, rows, foot);
+        return new Card(title, diffTitle, rows, lines, foot);
     }
 
     /// <summary>What an arm is compared with, in a sentence: the suite's pinned baseline, or with report --against, its earlier run.</summary>
@@ -529,6 +569,76 @@ static class Report
 
     // ---- HTML ----
 
+    // ---- The chart ----
+
+    /// <summary>
+    /// The verdict card's chart as inline SVG: a row per arm, its pass rate as a dot on its 95% interval over 0–100%
+    /// (with the baseline's own score as a dashed tick), and beside it the change in points with its interval over
+    /// −100 to +100, filled when confirmed. It draws what stats.json holds and computes nothing; the hover is a title.
+    /// </summary>
+    static string ChartSvg(Card c)
+    {
+        const int Row = 34, Rate = 250, Gap = 70, Diff = 200, Value = 96;
+        var diff = c.DiffTitle is not null;
+        var anyRef = c.Arms.Any(a => a.Reference);
+        var label = Math.Clamp(c.Arms.Max(a => a.Arm.Length) * 8 + (anyRef ? 74 : 0) + 16, 90, 240);
+        var top = c.Arms.Any(a => a.Mark is not null) ? 72 : 56;
+        var bottom = top + Row * c.Arms.Count;
+        var width = diff ? label + Rate + Gap + Diff + Value : label + Rate + 60;
+        var height = bottom + 30;
+        double X1(double r) => label + r * Rate;
+        double X2(double p) => label + Rate + Gap + (Math.Clamp(p, -100, 100) + 100) / 200 * Diff;
+        static string F(double v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        static string Tone(string? tone) => tone switch { "bad" => "#a52d15", "good" => "#17603a", _ => "#1b1b1b" };
+
+        var sb = new StringBuilder();
+        var aria = diff ? $"Pass rate per arm with its 95% interval, and each arm's {c.DiffTitle!.ToLowerInvariant()} in points" : "Pass rate with its 95% interval";
+        sb.Append($"<svg class=\"chart\" viewBox=\"0 0 {width} {height}\" width=\"{width}\" height=\"{height}\" role=\"img\" aria-label=\"{E(aria)}\">\n");
+        sb.Append($"<text x=\"{label}\" y=\"16\" class=\"ch\">Pass rate</text><text x=\"{label}\" y=\"33\" class=\"cs\">dot: share of runs passed · bar: 95% interval</text>\n");
+        if (diff)
+            sb.Append($"<text x=\"{F(X2(-100))}\" y=\"16\" class=\"ch\">{E(c.DiffTitle!)}</text><text x=\"{F(X2(-100))}\" y=\"33\" class=\"cs\">points · hollow: not confirmed</text>\n");
+        foreach (var r in new[] { 0, .25, .5, .75, 1 })
+            sb.Append($"<line x1=\"{F(X1(r))}\" x2=\"{F(X1(r))}\" y1=\"{top - 8}\" y2=\"{bottom}\" class=\"grid\"/><text x=\"{F(X1(r))}\" y=\"{bottom + 17}\" class=\"ax\" text-anchor=\"middle\">{F(r * 100)}%</text>\n");
+        if (diff)
+            foreach (var p in new[] { -100, -50, 0, 50, 100 })
+                sb.Append($"<line x1=\"{F(X2(p))}\" x2=\"{F(X2(p))}\" y1=\"{top - 8}\" y2=\"{bottom}\" class=\"{(p == 0 ? "zero" : "grid")}\"/><text x=\"{F(X2(p))}\" y=\"{bottom + 17}\" class=\"ax\" text-anchor=\"middle\">{Signed(p)}</text>\n");
+
+        var marks = c.Arms.Where(a => a.Mark is not null).Select(a => a.Mark!.Value).Distinct().ToList();
+        if (marks.Count == 1)
+            sb.Append($"<text x=\"{F(X1(marks[0]))}\" y=\"{top - 14}\" class=\"ax\" text-anchor=\"middle\">baseline {Pct(marks[0])}</text>\n");
+        foreach (var (a, i) in c.Arms.Select((a, i) => (a, i)))
+        {
+            var y = top + Row * i + Row / 2;
+            sb.Append($"<text x=\"0\" y=\"{y + 5}\" class=\"arm\">{E(a.Arm)}{(a.Reference ? " <tspan class=\"cs\">reference</tspan>" : "")}</text>\n");
+            if (a.Mark is { } m)
+                sb.Append($"<line x1=\"{F(X1(m))}\" x2=\"{F(X1(m))}\" y1=\"{y - 13}\" y2=\"{y + 13}\" class=\"mark\"><title>{E(Capital(BaselineWord(c)))}: {Pct(m)}</title></line>\n");
+            if (a.Pass is { } p)
+            {
+                sb.Append($"<g><title>{E(a.Arm)}: {Pct(p.Rate)} of runs passed ({p.KCells} of {p.NCells}); 95% interval {E(IntervalText(p))} over {p.N} task{(p.N == 1 ? "" : "s")}</title>");
+                sb.Append($"<rect x=\"{F(X1(p.Ci95.Lo) - 6)}\" y=\"{y - 13}\" width=\"{F(X1(p.Ci95.Hi) - X1(p.Ci95.Lo) + 12)}\" height=\"26\" fill=\"transparent\"/>");
+                sb.Append($"<line x1=\"{F(X1(p.Ci95.Lo))}\" x2=\"{F(X1(p.Ci95.Hi))}\" y1=\"{y}\" y2=\"{y}\" class=\"bar\"/>");
+                sb.Append($"<circle cx=\"{F(X1(p.Rate))}\" cy=\"{y}\" r=\"5\" class=\"dot\"/></g>");
+                sb.Append($"<text x=\"{F(X1(1) + 10)}\" y=\"{y + 5}\" class=\"val\">{Pct(p.Rate)}</text>\n");
+            }
+            else sb.Append($"<text x=\"{F(X1(0))}\" y=\"{y + 5}\" class=\"cs\">no decided run</text>\n");
+            if (a.Diff is { } d)
+            {
+                var colour = Tone(d.Tone);
+                sb.Append($"<g><title>{E(a.Arm)}: {E(SignedPoints(d.Points))}; 95% interval {Signed(d.Lo)} to {Signed(d.Hi)}; {d.Word}, {(d.Confirmed ? "confirmed" : "not confirmed")}</title>");
+                sb.Append($"<rect x=\"{F(X2(d.Lo) - 6)}\" y=\"{y - 13}\" width=\"{F(X2(d.Hi) - X2(d.Lo) + 12)}\" height=\"26\" fill=\"transparent\"/>");
+                sb.Append($"<line x1=\"{F(X2(d.Lo))}\" x2=\"{F(X2(d.Hi))}\" y1=\"{y}\" y2=\"{y}\" class=\"bar\" style=\"stroke:{colour}\"/>");
+                sb.Append($"<circle cx=\"{F(X2(d.Points))}\" cy=\"{y}\" r=\"5\" class=\"ddot\" style=\"stroke:{colour};fill:{(d.Confirmed ? colour : "#fff")}\"/></g>");
+                sb.Append($"<text x=\"{F(X2(100) + 10)}\" y=\"{y + 5}\" class=\"val\" style=\"fill:{colour}\">{(d.Points == 0 ? "±0" : Signed(d.Points))} {d.Word}</text>\n");
+            }
+        }
+        sb.Append("</svg>\n");
+        return sb.ToString();
+    }
+
+    static string BaselineWord(Card c) => c.DiffTitle is { } d && d.StartsWith("Change against ") ? d["Change against ".Length..] + "'s score" : "the baseline's score";
+
+    // ---- HTML ----
+
     static string RenderHtml(List<Block> blocks, StatsFile stats, Experiment exp)
     {
         var created = When(exp.Created);
@@ -622,17 +732,14 @@ static class Report
                 sb.Append("</tbody>\n</table></div>\n");
                 break;
             case Card c:
-                sb.Append($"<div class=\"verdict\" role=\"region\" aria-label=\"Verdict\">\n<div class=\"kicker\">{E(c.Title)}</div>\n<div class=\"verdict-arms\">\n");
-                foreach (var a in c.Arms)
+                sb.Append($"<div class=\"verdict\" role=\"region\" aria-label=\"Verdict\">\n<div class=\"kicker\">{E(c.Title)}</div>\n");
+                sb.Append(ChartSvg(c));
+                if (c.Lines.Count > 0)
                 {
-                    sb.Append($"<div class=\"varm\">\n<div class=\"arm\">{E(a.Arm)}{(a.Reference ? " <span class=\"ref\">(reference)</span>" : "")}</div>\n");
-                    sb.Append(a.Interval.Length == 0
-                        ? $"<div class=\"vline\">{E(a.Word)}</div>\n"
-                        : $"<div class=\"vline {ToneClass(a.Tone)}\">{E(a.Word)} <span class=\"unc\" title=\"The 95% interval runs from {E(a.Interval)} points\">{Confirmation(a.Confirmed)}</span> {E(a.Points)}</div>\n");
-                    if (a.Drivers.Length > 0) sb.Append($"<p>{Inline(a.Drivers)}</p>\n");
+                    sb.Append("<div class=\"verdict-lines\">\n");
+                    foreach (var l in c.Lines) Html(sb, l);
                     sb.Append("</div>\n");
                 }
-                sb.Append("</div>\n");
                 if (c.Foot.Count > 0)
                 {
                     sb.Append("<div class=\"verdict-foot\">\n");
@@ -750,14 +857,20 @@ static class Report
         .src { color: #595959; white-space: nowrap; }
         .warning { background: #fff4d6; color: #5c3d00; padding: .5rem .75rem; margin: 1rem 0; border-radius: 4px; }
         .verdict { margin: 1.25rem 0 1rem; max-width: 52rem; box-sizing: border-box; border: 1px solid #d8d8d8; border-radius: 10px; padding: 24px 28px 20px; display: flex; flex-direction: column; gap: 20px; background: #fbfbf9; }
-        .verdict-arms { display: flex; flex-direction: column; gap: 22px; padding: 4px 0; }
-        .varm { display: flex; flex-direction: column; gap: 2px; }
-        .varm .arm { font-weight: 600; }
-        .varm .ref { font-weight: 400; color: #595959; }
-        .varm .vline { font-weight: 600; font-variant-numeric: tabular-nums; }
-        .varm .vsame { color: #1b1b1b; }
-        .varm .unc { font-weight: 400; }
-        .rpt .varm p { margin: 0; max-width: 40rem; }
+        .chart { display: block; max-width: 100%; height: auto; overflow: visible; }
+        .chart text { font-family: inherit; }
+        .chart .ch { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
+        .chart .cs { font-size: 12px; font-weight: 400; fill: #595959; }
+        .chart .ax { font-size: 11.5px; fill: #595959; font-variant-numeric: tabular-nums; }
+        .chart .arm { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
+        .chart .val { font-size: 13px; font-weight: 600; fill: #1b1b1b; font-variant-numeric: tabular-nums; }
+        .chart .grid { stroke: #e4e4e0; } .chart .zero { stroke: #9a9a9a; }
+        .chart .bar { stroke: #595959; stroke-width: 2; stroke-linecap: round; }
+        .chart .dot { fill: #1b1b1b; stroke: #fff; stroke-width: 2; }
+        .chart .ddot { stroke-width: 2; }
+        .chart .mark { stroke: #1b1b1b; stroke-width: 1.5; stroke-dasharray: 3 2; }
+        .verdict-lines { display: flex; flex-direction: column; gap: 6px; }
+        .rpt .verdict-lines p { margin: 0; max-width: 44rem; }
         .verdict-foot { border-top: 1px solid #e4e4e0; padding-top: 16px; }
         .rpt .verdict-foot p { margin: 0 0 .5rem; }
         .rpt .verdict .caution { color: #5c3d00; }
@@ -846,14 +959,19 @@ static class Report
                 break;
             case Card c:
                 sb.Append($"**{c.Title}**\n\n");
+                var diffs = c.DiffTitle is not null;
+                sb.Append(diffs ? $"| Arm | Passed | 95% interval | {c.DiffTitle} | 95% interval |\n|---|---|---|---|---|\n" : "| Arm | Passed | 95% interval |\n|---|---|---|\n");
                 foreach (var a in c.Arms)
                 {
-                    var who = $"**{a.Arm}**{(a.Reference ? " (reference)" : "")}";
-                    sb.Append(a.Interval.Length == 0
-                        ? $"- {who}: {a.Word}\n"
-                        : $"- {who}: **{a.Word}** {Confirmation(a.Confirmed)} {a.Points}; 95% interval {a.Interval} points. {Md(a.Drivers)}".TrimEnd() + "\n");
+                    sb.Append($"| {a.Arm}{(a.Reference ? " (reference)" : "")} | {RatePct(a.Pass)} | {IntervalText(a.Pass)} |");
+                    if (diffs)
+                        sb.Append(a.Diff is { } d
+                            ? $" {(d.Points == 0 ? "±0" : Signed(d.Points))} points, **{d.Word}** {Confirmation(d.Confirmed)} | {Signed(d.Lo)} to {Signed(d.Hi)} |"
+                            : " — | — |");
+                    sb.Append('\n');
                 }
                 sb.Append('\n');
+                foreach (var l in c.Lines) Markdown(sb, l);
                 foreach (var f in c.Foot) Markdown(sb, f);
                 break;
             case TaskCard tc:
