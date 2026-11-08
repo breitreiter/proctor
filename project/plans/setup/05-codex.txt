@@ -1,0 +1,40 @@
+  Codex arms                                                        (not picked)
+
+  You did not pick this job. Do you want it eventually?
+
+  > Later              recorded as wanted
+    Not for me
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  If picked:
+
+  Codex arms                                                        (if picked)
+
+  Proctor runs Codex at a pinned version in a container. Its model calls
+  need OpenAI's Responses API. Codex arms also need a sandbox.
+
+  How will Codex reach its model?
+
+  > OpenAI, with an API key
+    OpenRouter, a local model, or a gateway
+    Later
+    Not for me
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  If not OpenAI:
+
+  Codex against anything but OpenAI usually needs settings of its own (for
+  a llama-server, for example: function tools only, no web search). Setup
+  will not guess them. Recorded as wanted, set up by hand.
+
+  What to do:
+    1. Add your endpoint as agents.codex.base_url in suites/proctor.json,
+       its key as ${YOUR_VAR} (add the value to ~/.config/proctor/env).
+    2. Put Codex's own settings in a config.toml and name it in
+       agents.codex.config.
+    3. Run `proctor setup --check`.
+  See docs/configuration.md, "Agent arms".
+
+  Press enter to continue.

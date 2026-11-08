@@ -1,0 +1,46 @@
+$ proctor setup
+
+🧙 Proctor 0.9.6
+
+Proctor is highly configurable. This wizard will walk you through initial setup. You can run it again later to fill in any sections you skip.
+
+Setup will write files, some of which contain sensitive information:
+  /home/ana/.config/proctor/env   your API keys (only you can read it)
+  suites/proctor.json             proctor's config for this machine
+  suites/nb.json                  AI providers for nb, proctor's built-in harness
+  suites/setup.json               your choices from this wizard, minus keys
+
+Setup creates suites/.gitignore which excludes the three files in suites/.
+API keys are only written to your user profile, never to this repository.
+
+─────────────────────────────────────────────────────────────────────────────
+
+The same screen on Windows (PowerShell or cmd). Setup prints the paths it
+will actually write, resolved for the platform it runs on, never a `~` or a
+forward slash a Windows user would have to translate:
+
+PS C:\src\my-product> proctor setup
+
+🧙 Proctor 0.9.6
+
+Proctor is highly configurable. This wizard will walk you through initial setup. You can run it again later to fill in any sections you skip.
+
+Setup will write files, some of which contain sensitive information:
+  C:\Users\Ana\AppData\Local\proctor\env   your API keys (only you can read it)
+  suites\proctor.json                      proctor's config for this machine
+  suites\nb.json                           AI providers for nb, proctor's built-in harness
+  suites\setup.json                        your choices from this wizard, minus keys
+
+Setup creates suites\.gitignore which excludes the three files in suites\.
+API keys are only written to your user profile, never to this repository.
+
+# Notes
+# - The env file is under %LOCALAPPDATA% (local), not %APPDATA% (roaming), so
+#   a key never syncs to a domain profile server.
+# - "Only you can read it": on Linux and macOS setup creates the file mode 600;
+#   on Windows a file under the user's profile inherits an ACL that admits the
+#   user, SYSTEM and Administrators, which is the platform's normal for user
+#   secrets, so setup sets nothing further.
+# - Repository paths are shown relative to the current directory with the
+#   platform's separator; the env file's path is shown in full, since it is the
+#   one a user may need to find by hand.

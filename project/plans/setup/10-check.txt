@@ -1,0 +1,39 @@
+$ proctor setup --check
+setup: suites/setup.json (2026-11-08 14:12), suites/proctor.json, suites/nb.json
+env: ~/.config/proctor/env (mode 600); GEMINI_API_KEY set, ANTHROPIC_API_KEY set
+provider gemini-lite: gemini, model gemini-flash-lite-latest, key GEMINI_API_KEY, checked ok
+provider anthropic: anthropic, key ANTHROPIC_API_KEY, checked ok
+job nb: ready (gemini-lite)
+job claude-code: ready (anthropic)
+job sandbox: ready (podman; uv 0.9.4)
+job judge: later
+job classifier: later
+job codex: not wanted
+job qwen-code: not wanted
+want: hosted sandbox (daytona), not supported yet
+missing: none for the jobs marked ready
+$ echo $?
+0
+
+# --check makes no model calls unless --live is given, and never prints a
+# value. With --live it repeats each provider's check call and reports
+# "checked ok" or the provider's words.
+
+# A problem is a line beginning "problem:" and a non-zero exit:
+
+$ proctor setup --check
+...
+job nb: ready (gemini-lite)
+problem: GEMINI_API_KEY is in suites/nb.json but not set (not in the environment or ~/.config/proctor/env)
+problem: harbor.engine is podman but podman.socket is not running (systemctl --user enable --now podman.socket)
+$ echo $?
+1
+
+# ─────────────────────────────────────────────────────────────────────────
+# setup without a terminal, as when a coding agent runs it:
+
+$ proctor setup < /dev/null
+proctor setup asks for API keys, so it needs a person at a terminal.
+Ask the user to run `proctor setup` themselves. To see what is already set up, run `proctor setup --check`.
+$ echo $?
+2

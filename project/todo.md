@@ -226,6 +226,11 @@ claim on it is true of the repository. Today two are not:
 (The "Get started" links to `suites/playground` and `suites/cli-for-agents`
 were the third; both suites are committed now.)
 
+`proctor setup` will print links to `docs/providers.html#<kind>` on the site
+(`plans/setup/README.md`, "The provider catalogue"), so setup cannot ship
+before Pages is on and that page exists, with an anchor for every kind in
+the catalogue. Once released, those anchors are permanent.
+
 Before switching Pages on, read the page against the repository once more,
 line by line: every capability it names should be one a stranger can run
 from the README.
@@ -249,3 +254,24 @@ and the snapshot tests will need new approvals.
 
 Cross-repo checklist for tying up the agent-neutral and oracle arc:
 `../nb/plans/wrap-up-2026-11-01.md`. B3 of that list is this paragraph.
+
+## Thin the onboarding once binaries ship
+
+When #6 (prebuilt binaries for macOS and Linux, no .NET needed) lands,
+revisit the README's Install, `docs/getting-started.md` and the onboarding
+skill: no .NET SDK, no sibling nb checkout and build, no `alias` to a dll.
+The install step becomes a download, and the guide should get shorter by
+about that much.
+
+## Hosted sandboxes for agent arms
+
+For users with a budget who would rather not run Docker or podman on their
+own machine (and for CI), run agent arms in a hosted sandbox. Harbor's
+`environment.type` is believed to cover several hosted services already
+(Daytona, E2B, Modal, Runloop; verify at the pinned version), and proctor
+writes that field from `proctor.json` `harbor.engine`, so the first question
+is whether this is mostly a validation and docs change: credentials
+reaching Harbor's process, the nb layer image living in a registry the
+service can pull rather than the local store, the egress allowlist on each
+service, and what the report records about where a cell ran. Intermediate
+term, after onboarding and the usability sessions.

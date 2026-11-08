@@ -1,0 +1,38 @@
+$ proctor setup
+
+  proctor setup                                  last run 2026-11-08 14:12
+
+  Which job do you want to change?
+
+  > Run nb                  ready       gemini-lite
+    Claude Code arms        ready       anthropic
+    Codex arms              not for me
+    Qwen Code arms          not for me
+    LLM-as-judge            later
+    Classifier checks       later
+    Sandbox                 ready       podman
+    Providers               2           add, re-check, change a key, remove
+    Done
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  Providers
+
+  > gemini-lite    Gemini       checked 2026-11-08
+    anthropic      Anthropic    checked 2026-11-08
+    Add a provider
+
+  gemini-lite
+
+  > Check again
+    Change the key
+    Change the model
+    Remove               used by: Run nb
+    Back
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  A config file changed by hand since the last run:
+
+  suites/nb.json has entries setup did not write (local-qcoder). Setup
+  leaves them alone and edits only its own (gemini-lite).

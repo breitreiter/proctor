@@ -1,0 +1,80 @@
+1. Built-in harness
+
+Proctor includes a built-in, highly-configurable agent harness. This is how proctor tests agents that don't run in a standard coding harness, like chatbots or headless analysis jobs.
+
+No AI providers are set up yet.
+
+> Add a provider
+  Skip for now
+
+─────────────────────────────────────────────────────────────────────────
+
+Which provider?
+
+> Gemini (Google AI Studio)      free tier, no card; good for getting started
+  Anthropic
+  OpenAI
+  OpenRouter                     many models behind one key
+  OpenAI-compatible endpoint     llama-server, Ollama, LM Studio, Groq, …
+  Azure OpenAI / Azure AI Foundry
+  Something else                 a gateway of your own: set it up by hand
+
+─────────────────────────────────────────────────────────────────────────
+
+Gemini (Google AI Studio)
+
+  Where to get a key: https://breitreiter.github.io/proctor/providers.html#gemini
+                      (Google AI Studio → Get API key)
+  Free-tier requests may be used by Google to improve its models.
+
+  API key: ****************************************
+  Saved as GEMINI_API_KEY in ~/.config/proctor/env
+
+  Model:
+  > gemini-flash-lite-latest
+    gemini-flash-latest
+    Type a value
+
+  (Gemini has no optional fields, so there is no "More options" row.)
+
+  Name for this provider in your suites [gemini-lite]:
+
+  Check it now? This sends one short request (free on the free tier).
+  > Yes
+    No, I'll check later
+
+  Asking gemini-lite to say OK ... Gemini answered in 0.6 s.
+
+  Written:
+    suites/nb.json          provider "gemini-lite" (Gemini, gemini-flash-lite-latest,
+                            ApiKey ${GEMINI_API_KEY})
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  If the check fails, the provider's own words, then the choices:
+
+  Asking gemini-lite to say OK ... failed.
+    Gemini: 400 API key not valid. Please pass a valid API key.
+
+  > Enter the key again
+    Keep it anyway (marked unchecked)
+    Remove this provider
+
+─────────────────────────────────────────────────────────────────────────
+
+The same form for another kind, to show it is one form. OpenAI-compatible
+(an Ollama on this machine):
+
+OpenAI-compatible endpoint
+
+  Where to get a key: https://breitreiter.github.io/proctor/providers.html#openai-compatible
+                      (your server's own docs; many local servers need none)
+
+  Endpoint: http://localhost:11434/v1
+  API key (enter for none):
+  Model: qwen3:8b
+
+  > Continue
+    More options                   context size, headers
+
+  Name for this provider in your suites [ollama]:

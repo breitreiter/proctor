@@ -1,0 +1,74 @@
+  Sandbox                                                           job 3 of 3
+
+  Agent arms (Claude Code, Codex, Qwen Code, nb with tools) run in a
+  container, because the agent runs whatever commands it decides to.
+  Proctor uses Harbor for this. Where should the containers run?
+
+  > On this machine                Docker or podman, plus uv
+    A hosted sandbox service       Daytona, Modal, …: not supported yet
+    Later
+    Not for me                     only suites with no agent (nb runs)
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  On this machine
+
+  Checking ...
+    uv              0.9.4                     ok
+    docker          not found
+    podman          5.6.1                     ok
+    podman.socket   running                   ok
+    podman compose  docker-compose 2.40.0     ok
+    registries      docker.io in search list  ok
+    compose banner  off                       ok
+
+  Use podman.
+  Written:
+    suites/proctor.json     harbor.engine: podman
+
+  A full check that runs every vendor agent against a stub model takes about
+  half an hour and costs nothing:
+      PROCTOR_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
+  (Run it yourself when you have the time; setup does not.)
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  When something is missing:
+
+    podman.socket   not running               systemctl --user enable --now podman.socket
+    compose banner  on                        add compose_warning_logs = false to
+                                              ~/.config/containers/containers.conf
+  docs/podman.md explains each step.
+
+  > Check again
+    Save what I have; I'll fix these later
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  A hosted sandbox service
+
+  Proctor cannot run agent arms on a hosted service yet. Which would you use?
+
+  > Daytona
+    Modal
+    E2B
+    Runloop
+    Another / not sure
+
+  Recorded as wanted: hosted sandbox (Daytona). Until it is supported, agent
+  arms need Docker or podman on this machine; nb runs need neither.
+
+  ─────────────────────────────────────────────────────────────────────────
+
+  On Windows (until Harbor on a Windows host is verified):
+
+  On this machine
+
+  Checking ...
+    uv              0.9.4                     ok
+    docker          Docker Desktop 4.48       ok (WSL2 backend)
+
+  Agent arms on Windows have not been verified yet. Docker Desktop with the
+  WSL2 backend is the likely path; running proctor inside WSL2 is the other.
+  Recorded: sandbox on this machine (docker, Windows, unverified).
+  Suites with no agent (nb runs) work on Windows today.
