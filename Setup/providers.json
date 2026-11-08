@@ -1,0 +1,99 @@
+{
+  "//": "proctor setup's provider catalogue: one entry per kind. plans/setup/README.md, 'The provider catalogue'. A help anchor, once released, is never removed or renamed.",
+  "kinds": [
+    {
+      "kind": "gemini",
+      "label": "Gemini (Google AI Studio)",
+      "blurb": "free tier, no card; good for getting started",
+      "help": "providers.html#gemini",
+      "where": "Google AI Studio → Get API key",
+      "notice": "Free-tier requests may be used by Google to improve its models.",
+      "base": "https://generativelanguage.googleapis.com",
+      "nb": { "Provider": "Gemini" },
+      "fields": [
+        { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "GEMINI_API_KEY" }
+      ],
+      "serves": ["nb", "judge?"]
+    },
+    {
+      "kind": "anthropic",
+      "label": "Anthropic",
+      "help": "providers.html#anthropic",
+      "where": "Claude Console → API keys",
+      "notice": "This is an API key, billed per request. A Claude subscription login is not used.",
+      "base": "https://api.anthropic.com",
+      "nb": { "Provider": "Anthropic" },
+      "fields": [
+        { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "ANTHROPIC_API_KEY" }
+      ],
+      "serves": ["nb", "claude-code", "judge?"]
+    },
+    {
+      "kind": "openai",
+      "label": "OpenAI",
+      "help": "providers.html#openai",
+      "where": "OpenAI Platform → API keys",
+      "base": "https://api.openai.com",
+      "nb": { "Provider": "OpenAI" },
+      "fields": [
+        { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "OPENAI_API_KEY" }
+      ],
+      "serves": ["nb", "codex", "judge"]
+    },
+    {
+      "kind": "openrouter",
+      "label": "OpenRouter",
+      "blurb": "many models behind one key",
+      "help": "providers.html#openrouter",
+      "where": "openrouter.ai → Keys",
+      "notice": "Free models (ids ending :free) are rate-limited and their prompts may be logged by the serving vendor.",
+      "base": "https://openrouter.ai/api",
+      "nb": { "Provider": "LocalLlm", "Endpoint": "https://openrouter.ai/api/v1" },
+      "fields": [
+        { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "OPENROUTER_API_KEY" }
+      ],
+      "serves": ["nb", "judge", "classifier", "claude-code?", "qwen-code?"],
+      "by_hand": ["codex"]
+    },
+    {
+      "kind": "openai-compatible",
+      "label": "OpenAI-compatible endpoint",
+      "blurb": "llama-server, Ollama, LM Studio, Groq, …",
+      "help": "providers.html#openai-compatible",
+      "where": "your server's own docs; many local servers need none",
+      "nb": { "Provider": "LocalLlm" },
+      "fields": [
+        { "name": "ApiKey", "prompt": "API key (enter if the server needs none)", "secret": true, "required": false }
+      ],
+      "serves": ["nb", "judge", "qwen-code"],
+      "by_hand": ["codex"],
+      "completed_by_agent": true
+    },
+    {
+      "kind": "azure-openai",
+      "label": "Azure OpenAI",
+      "help": "providers.html#azure-openai",
+      "where": "Azure portal → your Azure OpenAI resource → Keys and Endpoint",
+      "nb": { "Provider": "AzureOpenAI" },
+      "fields": [
+        { "name": "Endpoint", "prompt": "Endpoint (the resource URL)", "required": true },
+        { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "AZURE_OPENAI_API_KEY" },
+        { "name": "ChatDeploymentName", "prompt": "Deployment name (the name you gave the deployment, not the model's)", "required": true }
+      ],
+      "serves": ["nb", "judge?"]
+    },
+    {
+      "kind": "azure-foundry",
+      "label": "Azure AI Foundry",
+      "help": "providers.html#azure-foundry",
+      "where": "Azure AI Foundry portal → your project → Keys and Endpoint",
+      "nb": { "Provider": "AzureFoundry" },
+      "fields": [
+        { "name": "Endpoint", "prompt": "Endpoint", "required": true },
+        { "name": "ApiKey", "prompt": "API key", "secret": true, "required": true, "env": "AZURE_FOUNDRY_API_KEY" },
+        { "name": "Model", "prompt": "Model (as deployed in the project)", "required": true }
+      ],
+      "serves": ["nb", "judge?"]
+    }
+  ]
+}

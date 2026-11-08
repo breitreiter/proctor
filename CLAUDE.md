@@ -79,6 +79,9 @@ in the order the verbs run them. Every file is one concern:
 | `Grade/Window.cs` | what a model check sees: named extractions from the transcript, joined with `+`, compiled into labelled fences |
 | `Grade/Judge.cs` | `JudgeClient` (the transports), the `decide` check over systemone, the `judge` check over chat, the verdict file as cache, the report's judge provenance |
 | `Grade/Grade.cs` | checks over a cell into `checks.json`; the headline pass |
+| `Setup/providers.json` | `proctor setup`'s provider catalogue, embedded: per kind its form fields (a secret's env variable), the jobs it `serves` (`?` untested) or serves `by_hand`, the site help anchor (never a vendor URL; an anchor once released is permanent), where it lists models. The plan and mockups are `project/plans/setup/` |
+| `Setup/Catalogue.cs` | the catalogue as records; `ProviderKind.Fit(job)` |
+| `Setup/KeyCheck.cs` | the key check: list a provider's models (no tokens), the ids sorted, or the provider's words with the key redacted and a reading that is the same for every kind; Azure, and an OpenAI-compatible entry with no endpoint yet, have none. `Proctor.Tests/fixtures/models/` are answers captured from each vendor, trimmed |
 | `Report/Results.cs` | `results.jsonl` rows |
 | `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json` |
 | `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results |

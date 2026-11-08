@@ -198,7 +198,7 @@ as ready rather than "untested".
    model. Check that nb accepts an entry without `Model`, and have templates
    (and the suite-authoring skill) put `model {{model}}` under `provider`, the
    arm's `model` then being required for nb arms. That is also where a dated
-   id versus an alias (`gemini-flash-lite-latest`) gets decided: on the arm,
+   id versus an alias (`gemini-flash-lite-latest`, which exists: Gemini listed it on 2026-11-08) gets decided: on the arm,
    where the report records it.
 6. **Stale model lists.** `setup.json` keeps the ids a key could reach on the
    day of the check. `--check --live` refreshes them; whoever plans a suite

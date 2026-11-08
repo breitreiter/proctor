@@ -1,0 +1,26 @@
+{
+ "object": "list",
+ "data": [
+  {
+   "id": "tts-1",
+   "object": "model",
+   "created": 1681940951,
+   "owned_by": "openai-internal",
+   "shutdown_date": "2027-01-06"
+  },
+  {
+   "id": "gpt-5-mini",
+   "object": "model",
+   "created": 1754425928,
+   "owned_by": "system",
+   "shutdown_date": "2026-12-11"
+  },
+  {
+   "id": "gpt-5-mini-2025-08-07",
+   "object": "model",
+   "created": 1754425867,
+   "owned_by": "system",
+   "shutdown_date": "2026-12-11"
+  }
+ ]
+}
