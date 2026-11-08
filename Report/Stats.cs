@@ -66,9 +66,10 @@ record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 /// <summary>
 /// The guard comparison: every arm against the suite's pinned baseline, with a tolerance on the point estimate.
 /// With <c>Against</c> (report --against), each arm against the arm of the same id in that experiment instead, and
-/// <c>Set</c> is when it was created; <c>Unpaired</c> are the arms it does not have.
+/// <c>Set</c> is when it was created; <c>Unpaired</c> are the arms it does not have. <c>Pinned</c> are the arms
+/// the suite's baseline pinned its runs from, so the report can say whose scores every arm is compared with.
 /// </summary>
-record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms, List<BaselineGap>? Gaps = null, string? Against = null, List<string>? Unpaired = null);
+record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms, List<BaselineGap>? Gaps = null, string? Against = null, List<string>? Unpaired = null, List<string>? Pinned = null);
 
 /// <summary>
 /// <c>Verdict</c> is the point estimate against the tolerance, and is what <c>--fail-on regression</c> reads.
@@ -90,7 +91,7 @@ record StatsFile(
 /// <summary>What the report knows about the baseline: the resolved per-task scores, where they came from, and the tolerance asked for.</summary>
 /// <summary>What the arms are compared with: one set of task scores for every arm, or with <c>PerArm</c> (report --against) each arm's own, and none for an arm it lacks.</summary>
 record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints, List<BaselineGap>? Gaps = null,
-    string? Against = null, Dictionary<string, Dictionary<string, double>>? PerArm = null)
+    string? Against = null, Dictionary<string, Dictionary<string, double>>? PerArm = null, List<string>? Pinned = null)
 {
     public Dictionary<string, double>? ScoresFor(string arm) => PerArm is null ? Scores : PerArm.GetValueOrDefault(arm);
 }
@@ -142,7 +143,7 @@ static class Stats
             }
             var unpaired = guard.PerArm is null ? null : arms.Where(a => !guard.PerArm.ContainsKey(a)).ToList();
             baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against, guard.Gaps is { Count: > 0 } ? guard.Gaps : null,
-                guard.Against, unpaired is { Count: > 0 } ? unpaired : null);
+                guard.Against, unpaired is { Count: > 0 } ? unpaired : null, guard.Pinned);
         }
 
         // The run's reach is its widest pairing; a pair on fewer tasks carries its own, smaller reach.

@@ -85,6 +85,17 @@ that errored still fails the run, so the pass rate is unchanged.
 - *What ran* is *Run summary*, opening "This is how far each run in the suite got
   before terminating."
 
+**Built, 2026-11-08** (the four items under *Next revision*, and the todo's
+charts). The card opens with a chart: each arm's pass rate on its interval with
+the baseline's own score marked, and its change in points with its interval,
+hollow when not confirmed (inline SVG from `stats.json`, a table in
+`summary.md`). Under it, a line per arm that moved and one for the rest. An arm
+the baseline never ran gets a sentence saying whose runs the baseline is.
+Results compares against the reference in one table. The suite's checks are
+listed once in Tasks, each task only its own. Mixed sample counts are said per
+arm. The heatmap and cost-against-pass-rate candidates were not built: the
+task blocks carry the per-task view, and nb reports no cost.
+
 **For the site, not the page.** The about table names the host (`sanjuro`) and the
 judge rows name the gateway (`library:8086`) because the machine's config spells them
 so. A report copied to the public site needs those scrubbed, or written as

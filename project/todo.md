@@ -238,21 +238,6 @@ Before switching Pages on, read the page against the repository once more,
 line by line: every capability it names should be one a stranger can run
 from the README.
 
-## Charts at the top of the report
-
-The report's layout is clean, but its top is all tables and sentences: the
-reader has to read numbers to get the headline. Float the topline up with
-one or two charts above the fold. Which ones is open; think before
-building. Candidates to weigh: pass rate per arm with its 95% interval as
-a dot-and-whisker strip, the paired difference against the baseline on the
-same axis (held, improved, regressed at a glance), a task-by-arm matrix as
-a heatmap, and cost or tool calls against pass rate per arm. Constraints
-from what exists: every number still comes from `stats.json` (the renderer
-draws, it never computes), `summary.md` needs a text equivalent of each
-chart since the two renderings are one list of blocks, the page must work
-without script (inline SVG, not a chart library), colour stays semantic,
-and the snapshot tests will need new approvals.
-
 ## The wrap-up list for 2026-11-01
 
 Cross-repo checklist for tying up the agent-neutral and oracle arc:

@@ -16,6 +16,16 @@ formats or the vocabulary; a patch bump does not.
   *Result* row is gone). `stats.json` gains `score` on each baseline arm:
   the mean of the baseline's pinned scores over the tasks it was paired on.
   The arm-against-reference sentence leaves the card; Results has it.
+- With a baseline, the card says whose runs it pinned when an arm was
+  never among them (`stats.json` `baseline.pinned`), so an arm newer than
+  the baseline does not read as "unchanged since then".
+- Results compares each arm with the reference in one table, where it had a
+  paragraph per arm.
+- The suite's checks are listed once, in Tasks; each task lists only the
+  checks its fixture or its own file adds.
+- With different sample counts per arm, the about table says which arm ran
+  each task how many times, and the Tasks explainer no longer says every
+  score averages several runs.
 - The report review (`project/plans/report-structure.md`, 2026-11-02):
   - The verdict card says why a verdict is unconfirmed once, for the run, from
     its widest pairing (`stats.json` `mde` was the narrowest). With a baseline,

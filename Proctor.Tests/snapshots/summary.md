@@ -49,6 +49,14 @@ A check is one yes-or-no test over a finished run. Every task carries the checks
 
 A check that cannot decide a run leaves that run out of its rate on both sides.
 
+**Checks the suite declares, carried by every task**
+
+| Check | What it tests | Role |
+|---|---|---|
+| exit_ok | the run ends with 'ok' | headline |
+| builds | the repository builds after the change | headline |
+| no_denials | no denied tool calls | validity |
+
 Each task's results show one mark per run: ● passed, ○ failed, ? undecided, × not counted. Hover a mark for the reason; click it for the run. A task scores its mean over its counted, decided runs, and is called better or worse than its baseline beyond 10 points either way.
 
 ### loops
@@ -56,14 +64,6 @@ Each task's results show one mark per run: ● passed, ○ failed, ? undecided, 
 The model repeats a bash command until nb nudges it out of the loop
 
 Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, none of its own
-
-**Checks**
-
-| Check | What it tests | Role | Declared by |
-|---|---|---|---|
-| exit_ok | the run ends with 'ok' | headline | suite |
-| builds | the repository builds after the change | headline | suite |
-| no_denials | no denied tool calls | validity | suite |
 
 **Results**
 
@@ -80,14 +80,6 @@ The model answers in one turn with no tools
 
 Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, none of its own
 
-**Checks**
-
-| Check | What it tests | Role | Declared by |
-|---|---|---|---|
-| exit_ok | the run ends with 'ok' | headline | suite |
-| builds | the repository builds after the change | headline | suite |
-| no_denials | no denied tool calls | validity | suite |
-
 **Results**
 
 | Arm | Runs | Score | Passed / decided | vs baseline (100%) | Verdict |
@@ -103,14 +95,11 @@ The model runs one bash command and answers
 
 Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the suite, 1 of its own
 
-**Checks**
+**Checks beyond the suite's**
 
 | Check | What it tests | Role | Declared by |
 |---|---|---|---|
-| **used-bash** | uses bash | guardrail | this task |
-| exit_ok | the run ends with 'ok' | headline | suite |
-| builds | the repository builds after the change | headline | suite |
-| no_denials | no denied tool calls | validity | suite |
+| used-bash | uses bash | guardrail | this task |
 
 **Results**
 
@@ -133,7 +122,11 @@ Pass rate is the share of counted runs in which every headline check held, avera
 | `floor` | 56% | 15% to 90% | 4 / 7 |
 | `b` | 89% | 35% to 99% | 8 / 9 |
 
-**`b` against `floor`.** `b` passed 33 points more of its runs than `floor`. The 95% interval on that difference runs from −31 to +75 points, so with 3 tasks the difference could be noise: no detectable difference. Task by task, `b` did better on 2, worse on 0, the same on 1.
+**Against the reference arm, `floor`.** Each arm's pass rate minus `floor`'s, task by task. It is better or worse only when the whole 95% interval is above or below zero; otherwise, with 3 tasks, the difference could be noise.
+
+| Arm | Difference from `floor` | 95% interval | Tasks better / worse / same | Verdict |
+|---|---|---|---|---|
+| `b` | +33 points | −31 to +75 | 2 / 0 / 1 | no detectable difference |
 
 With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.
 

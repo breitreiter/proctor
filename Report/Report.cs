@@ -57,13 +57,16 @@ static class Report
         b.Add(new Title(stats.Suite, created.ToString("dddd, d MMMM yyyy"), created.ToString("HH:mm")));
         if (d.Suite is { } about) b.Add(new Para(about));
         b.Add(VerdictCard(stats));
-        var samplesPerTask = arms.Select(a => Samples(exp, a)).Distinct().ToList();
-        var runsPerArm = samplesPerTask.Count == 1 ? Times(samplesPerTask[0]) : string.Join(" or ", samplesPerTask.Select(Times));
+        var bySamples = arms.GroupBy(a => Samples(exp, a)).ToList();
+        var tasksLine = bySamples.Count == 1 ? $"{stats.NTasks}, each run {Times(bySamples[0].Key)} per arm"
+            : $"{stats.NTasks}, each run " + string.Join("; ", bySamples.Select(g => $"{Times(g.Key)} by {Join(g.Select(a => $"`{a}`"))}"));
+        var runsPerArm = bySamples.Count == 1 ? $"Run **{Times(bySamples[0].Key)}** per arm"
+            : $"Run **{string.Join("** or **", bySamples.Select(g => Times(g.Key)))}** per arm, as [Arms](#arms) lists";
         b.Add(new Pairs(
         [
             ("Host", exp.Host),
             ("Arms", $"{arms.Count}: " + string.Join(", ", arms.Select(a => a == first && arms.Count > 1 ? $"`{a}` (the reference)" : $"`{a}`"))),
-            ("Tasks", $"{stats.NTasks}, each run {runsPerArm} per arm"),
+            ("Tasks", tasksLine),
             ("Runs", $"{stats.Arms.Values.Sum(a => a.Planned)} planned, {stats.Arms.Values.Sum(a => a.Analysed)} counted"),
         ]));
         foreach (var u in stats.UndecidedChecks)
@@ -82,7 +85,7 @@ static class Report
 
         // 3. Tasks: what each asks, what it is checked for, and how every arm did on it
         b.Add(new Heading("Tasks", "tasks"));
-        b.Add(new Para($"A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run {(samplesPerTask.Count == 1 ? Times(samplesPerTask[0]) : "several times")} per arm, so a score is not one lucky or unlucky attempt.", "explain"));
+        b.Add(new Para($"A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(bySamples.Count == 1 ? (bySamples[0].Key == 1 ? "Each task is run once per arm, so one attempt decides its score." : $"Each task is run {Times(bySamples[0].Key)} per arm, so a score is not one lucky or unlucky attempt.") : "Each arm runs each task the number of times Arms lists; a task run more than once scores the mean of its runs, so one lucky or unlucky attempt does not decide it.")}", "explain"));
         b.Add(new Para("A check is one yes-or-no test over a finished run. Every task carries the checks the suite declares; a fixture or the task itself can add more. A check's role decides what it does to a run:", "explain"));
         b.Add(new Pairs(
         [
@@ -91,6 +94,13 @@ static class Report
             ("guardrail", "Reported, not part of the pass."),
         ], "roles"));
         b.Add(new Para("A check that cannot decide a run leaves that run out of its rate on both sides.", "explain"));
+        var suiteChecks = (stats.TaskDetails ?? []).Values.SelectMany(td => td.Checks).Where(k => k.Level == "suite").DistinctBy(k => k.Name).ToList();
+        if (suiteChecks.Count > 0)
+        {
+            b.Add(new Label("Checks the suite declares, carried by every task"));
+            b.Add(new Table(["Check", "What it tests", "Role"],
+                suiteChecks.Select(k => (List<Cell>)[new(k.Name), new(CheckText(stats, k.Name)), RoleCell(stats, k.Name)]).ToList(), [], "checks"));
+        }
         b.Add(new Para($"Each task's results show one mark per run: {Pass} passed, {Fail} failed, {Undecided} undecided, {NotCounted} not counted. Hover a mark for the reason; click it for the run. A task scores its mean over its counted, decided runs"
             + (bl is null ? "." : bl.TolerancePoints == 0 ? $", and is called better or worse than its {vs} on any difference." : $", and is called better or worse than its {vs} beyond {bl.TolerancePoints} points either way."), "explain"));
         foreach (var task in stats.Tasks) b.Add(TaskBlock(stats, rows, task, runsPerArm));
@@ -101,7 +111,19 @@ static class Report
         b.Add(new Table(["Arm", "Pass rate", "95% interval", "Passed / decided runs"],
             arms.Select(a => (List<Cell>)[Id(a), T(RatePct(stats.Arms[a].Pass)), T(IntervalText(stats.Arms[a].Pass)), T(stats.Arms[a].Pass is { } p ? $"{p.KCells} / {p.NCells}" : "—")]).ToList(),
             [1, 2, 3]));
-        foreach (var c in stats.Comparisons) b.Add(new Para(ComparisonParagraph(c)));
+        if (stats.Comparisons.Count > 0)
+        {
+            b.Add(new Para($"**Against the reference arm, `{first}`.** Each arm's pass rate minus `{first}`'s, task by task. It is better or worse only when the whole 95% interval is above or below zero; otherwise, with {stats.Mde.NPairs} task{(stats.Mde.NPairs == 1 ? "" : "s")}, the difference could be noise.", "explain"));
+            b.Add(new Table(["Arm", $"Difference from `{first}`", "95% interval", "Tasks better / worse / same", "Verdict"],
+                stats.Comparisons.Select(c => (List<Cell>)[Id(c.Arm), T(SignedPoints(c.DiffPoints)), T($"{Signed(c.Ci95[0])} to {Signed(c.Ci95[1])}"), T($"{c.Won} / {c.Lost} / {c.Tied}"),
+                    c.Verdict switch
+                    {
+                        "better" => new Cell("**Better**", "<b class=\"vgood\">Better</b>"),
+                        "worse" => new Cell("**Worse**", "<b class=\"vbad\">Worse</b>"),
+                        _ => T("no detectable difference"),
+                    }]).ToList(),
+                [1, 2, 3]));
+        }
         b.Add(new Para(stats.Mde.Sentence));
         if (bl is not null)
         {
@@ -246,6 +268,8 @@ static class Report
                     ShortReach(g.NPairs, g.MdePoints, stats.Mde.NPairs), g.Tasks.Values.All(t => t.Verdict == "held"));
             }
             if (same.Count > 0) lines.Add(new Para($"{Join(same.Select(s => $"**{s}**"))}: same as the {Vs(bl)} on every task."));
+            if (bl.Pinned is { Count: > 0 } pinned && arms.Any(a => bl.Arms.ContainsKey(a) && !pinned.Contains(a)))
+                lines.Add(new Para($"The baseline is {Join(pinned.Select(a => $"`{a}`"))}'s runs from {ShortDate(bl.Set)}; every arm is compared with those scores, including arms the baseline never ran.", "explain"));
         }
         else if (arms.Count > 1)
         {
@@ -310,11 +334,6 @@ static class Report
         return char.ToUpperInvariant(text[0]) + text[1..];
     }
 
-    /// <summary>With a baseline, an arm's row also says how it stands against the reference arm.</summary>
-    static string AgainstReference(Comparison c) => c.DiffPoints == 0
-        ? $"Against **{c.Vs}**: the same share of runs passed."
-        : $"Against **{c.Vs}**: {SignedPoints(c.DiffPoints)}, {(c.Verdict == "no-detectable-difference" ? "not a detectable difference" : "a detectable difference")}.";
-
     /// <summary>An arm paired on fewer tasks than the run reaches less far than the card's foot says; its row says how far.</summary>
     static string ShortReach(int nPairs, int? mdePoints, int runPairs) => mdePoints is { } p
         ? $"Paired on {nPairs} of {runPairs} tasks, so it can only confirm a change of about {p} points."
@@ -360,16 +379,19 @@ static class Report
 
         var facts = new List<string>();
         if (FixtureOf(stats, task) is { } fixture) facts.Add($"Fixture **{fixture}**");
-        facts.Add($"Run **{runsPerArm}** per arm");
+        facts.Add(runsPerArm);
         facts.Add($"**{checks.Count} check{(checks.Count == 1 ? "" : "s")}**: {string.Join(", ", where)}");
 
-        var body = new List<Block> { new Label("Checks") };
-        body.Add(new Table(["Check", "What it tests", "Role", "Declared by"],
-            checks.Select(k => (List<Cell>)[
-                new(k.Level == "suite" ? k.Name : $"**{k.Name}**"), new(k.Description),
-                new(Role(stats, k.Name), $"<span class=\"role role-{Role(stats, k.Name)}\">{Role(stats, k.Name)}</span>"),
-                new(Declared(k.Level), $"<span class=\"src\">{Declared(k.Level)}</span>")]).ToList(),
-            [], "checks"));
+        var body = new List<Block>();
+        var particular = checks.Where(k => k.Level != "suite").ToList();
+        if (particular.Count > 0)
+        {
+            body.Add(new Label(fromSuite > 0 ? "Checks beyond the suite's" : "Checks"));
+            body.Add(new Table(["Check", "What it tests", "Role", "Declared by"],
+                particular.Select(k => (List<Cell>)[new(k.Name), new(k.Description), RoleCell(stats, k.Name),
+                    new(Declared(k.Level), $"<span class=\"src\">{Declared(k.Level)}</span>")]).ToList(),
+                [], "checks"));
+        }
 
         var baseline = bl?.Against is null ? bl?.Arms.Values.Select(a => a.Tasks.GetValueOrDefault(task)).FirstOrDefault(x => x is not null)?.Baseline : null;
         body.Add(new Label("Results"));
@@ -399,29 +421,11 @@ static class Report
         return new TaskCard(task, TaskText(stats, task), facts, body);
     }
 
+    static Cell RoleCell(StatsFile stats, string check) => new(Role(stats, check), $"<span class=\"role role-{Role(stats, check)}\">{Role(stats, check)}</span>");
+
     static string Declared(string level) => level switch { "task" => "this task", "fixture" => "its fixture", _ => "suite" };
 
     // ---- Sentences ----
-
-    static string ComparisonParagraph(Comparison c)
-    {
-        var sb = new StringBuilder($"**`{c.Arm}` against `{c.Vs}`.** ");
-        sb.Append(c.DiffPoints switch
-        {
-            > 0 => $"`{c.Arm}` passed {c.DiffPoints} points more of its runs than `{c.Vs}`. ",
-            < 0 => $"`{c.Arm}` passed {-c.DiffPoints} points fewer of its runs than `{c.Vs}`. ",
-            _ => $"`{c.Arm}` and `{c.Vs}` passed the same share of their runs. ",
-        });
-        sb.Append($"The 95% interval on that difference runs from {Signed(c.Ci95[0])} to {Signed(c.Ci95[1])} points, so ");
-        sb.Append(c.Verdict switch
-        {
-            "better" => $"`{c.Arm}` is better: the whole interval is above zero. ",
-            "worse" => $"`{c.Arm}` is worse: the whole interval is below zero. ",
-            _ => $"with {c.NPairs} task{(c.NPairs == 1 ? "" : "s")} the difference could be noise: no detectable difference. ",
-        });
-        sb.Append($"Task by task, `{c.Arm}` did better on {c.Won}, worse on {c.Lost}, the same on {c.Tied}.");
-        return sb.ToString();
-    }
 
     static string? UnequalLoss(StatsFile stats)
     {

@@ -118,6 +118,19 @@ public class ReportTests
         Assert.Contains($"baseline {Math.Round(expected * 100):F0}%", html);
     }
 
+    /// <summary>An arm the baseline never ran is compared with the pinned arm's scores, and the card says whose they are.</summary>
+    [Fact]
+    public void Card_SaysWhoseRunsTheBaselineIs_WhenAnArmWasNeverPinned()
+    {
+        var suite = WorkedExperiment.Suite();
+        var rows = WorkedExperiment.Rows();
+        var stats = Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows, WorkedExperiment.Guard() with { Pinned = ["floor"] });
+        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(suite));
+        Assert.Contains("The baseline is `floor`'s runs from", md);
+        var pinnedBoth = Stats.Compute(WorkedExperiment.Experiment(suite), suite, rows, WorkedExperiment.Guard() with { Pinned = ["floor", "b"] });
+        Assert.DoesNotContain("The baseline is `", Report.Markdown(pinnedBoth, rows, WorkedExperiment.Experiment(suite)));
+    }
+
     /// <summary>An agent's reported cost reaches the Cost and effort table; an arm without one shows none.</summary>
     [Fact]
     public void Markdown_ShowsCost_WhenAnArmReportsIt()
@@ -192,7 +205,7 @@ public class ReportTests
         var md = Report.Markdown(stats, rows, exp);
         var plain = md.Split("### plain")[1].Split("### uses-bash")[0];
         Assert.Contains("**3 checks**: 2 from the suite, 1 of its own", plain);
-        Assert.Contains("| **builds** | the answer gives `#fbedef` | headline | this task |", plain);
+        Assert.Contains("| builds | the answer gives `#fbedef` | headline | this task |", plain);
         Assert.Contains("| `builds` | per task; see Tasks | headline |", md);
         Assert.Contains("**`builds`** (headline) failed in", md);
         Assert.Contains("on uses-bash (the answer gives 120)", md);

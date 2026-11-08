@@ -140,7 +140,7 @@ static class Verbs
         else if (Proctor.Baseline.Load(suite) is { } baseline)
         {
             var (scores, source, gaps) = baseline.Resolve(root, suite);
-            guard = new GuardInput(baseline.Set, source, scores, tolerancePoints, gaps);
+            guard = new GuardInput(baseline.Set, source, scores, tolerancePoints, gaps, Pinned: baseline.Tasks.Values.Select(p => p.Arm).Distinct().ToList());
         }
         var stats = Stats.Compute(experiment, suite, rows, guard);
         Runner.WriteJson(Path.Combine(outDir, Layout.StatsFile), stats);
