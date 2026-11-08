@@ -89,7 +89,10 @@ alias proctor='dotnet /path/to/proctor/bin/Debug/net10.0/proctor.dll'
 To run this repository's own suites, copy `suites/proctor.example.json` to
 `suites/proctor.json` and `suites/nb.example.json` to `suites/nb.json`, and
 point their routes at your gateway ([`docs/configuration.md`](docs/configuration.md)). Both copies are gitignored,
-since they name your machine.
+since they name your machine. Keys go in `~/.config/proctor/env` (`%LOCALAPPDATA%\proctor\env` on
+Windows), one
+`NAME=value` per line, which every verb loads; the config files name them as
+`${NAME}`.
 
 ## Configure
 

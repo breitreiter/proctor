@@ -61,6 +61,7 @@ in the order the verbs run them. Every file is one concern:
 | `Suite/Layout.cs` | paths and file names, nothing else |
 | `Suite/Suite.cs` | `proctor.json` (the host binary and its config), `suite.json` (arms, the `nb` block with the runner and mounts, hooks, grading), tasks, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per task |
 | `Suite/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
+| `Suite/EnvFile.cs` | the user's env file (`~/.config/proctor/env`, `%LOCALAPPDATA%\proctor\env` on Windows, or `PROCTOR_ENV_FILE`): `NAME=value` lines `Program.Main` loads into the process environment before any verb, the real environment winning, so every `${VAR}` resolver and child process sees them |
 | `Suite/Judges.cs` | `proctor.json`'s `judges` block: an endpoint per name by wire shape (`systemone`, `chat`), key resolution, which judge a check gets |
 | `Suite/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
 | `Suite/Baseline.cs` | `suites/<suite>/baseline.json`: pinned cells per task; scores recomputed from the cells while they exist |

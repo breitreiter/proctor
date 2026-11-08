@@ -394,7 +394,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
 
     static string ResolveEnv(string value, string field) =>
         System.Text.RegularExpressions.Regex.Replace(value, @"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", m => Environment.GetEnvironmentVariable(m.Groups[1].Value)
-            ?? throw new ProctorException($"{m.Groups[1].Value} is not set in the environment (suites/proctor.json {field})"));
+            ?? throw new ProctorException($"{m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} (suites/proctor.json {field})"));
 
     /// <summary>
     /// `nb --compile` on the host binary, in the suite directory so `@file` includes resolve against the suite: the

@@ -59,6 +59,7 @@ static class Program
 
         try
         {
+            EnvFile.Load(EnvFile.DefaultPath());
             return (positional[0], positional.Skip(1).ToList()) switch
             {
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels),

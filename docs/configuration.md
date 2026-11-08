@@ -66,6 +66,21 @@ in its own config, which is how `suites/nb.json` reaches the same gateway.
 }
 ```
 
+Keys belong in your env file, `~/.config/proctor/env` (`$XDG_CONFIG_HOME/proctor/env`
+if that is set; `%LOCALAPPDATA%\proctor\env` on Windows; `PROCTOR_ENV_FILE` names
+another), one `NAME=value` per line, `#` comments allowed. Every verb loads it at
+startup, so a `${VAR}` in `proctor.json` or nb's config resolves without an
+export, in nb, the judges, Harbor and your hooks alike; a variable already in the
+environment wins. Keep it readable only by you (`chmod 600`; proctor warns
+otherwise). It lives outside every repository on purpose: a key in it can be
+neither committed nor copied into a work directory.
+
+```
+GEMINI_API_KEY=...
+LLM_GATEWAY=http://gateway.example:8086/x
+LLM_GATEWAY_KEY=...
+```
+
 `family` is only for the reminder `grade` prints when an arm's model
 carries a judge's family name; a judge should be off-family from every arm
 it grades. `max_window` (characters, default 24,000) caps what a judge is
