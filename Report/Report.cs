@@ -113,18 +113,13 @@ static class Report
             [1, 2, 3]));
         if (stats.Comparisons.Count > 0)
         {
-            b.Add(new Para($"**Against the reference arm, `{first}`.** Each arm's pass rate minus `{first}`'s, task by task. It is better or worse only when the whole 95% interval is above or below zero; otherwise, with {stats.Mde.NPairs} task{(stats.Mde.NPairs == 1 ? "" : "s")}, the difference could be noise.", "explain"));
+            b.Add(new Para($"**Against the reference arm, `{first}`.** Each arm's pass rate minus `{first}`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with {stats.Mde.NPairs} task{(stats.Mde.NPairs == 1 ? "" : "s")}, it could be noise.", "explain"));
             b.Add(new Table(["Arm", $"Difference from `{first}`", "95% interval", "Tasks better / worse / same", "Verdict"],
                 stats.Comparisons.Select(c => (List<Cell>)[Id(c.Arm), T(SignedPoints(c.DiffPoints)), T($"{Signed(c.Ci95[0])} to {Signed(c.Ci95[1])}"), T($"{c.Won} / {c.Lost} / {c.Tied}"),
-                    c.Verdict switch
-                    {
-                        "better" => new Cell("**Better**", "<b class=\"vgood\">Better</b>"),
-                        "worse" => new Cell("**Worse**", "<b class=\"vbad\">Worse</b>"),
-                        _ => T("no detectable difference"),
-                    }]).ToList(),
+                    ComparisonVerdict(c)]).ToList(),
                 [1, 2, 3]));
         }
-        b.Add(new Para(stats.Mde.Sentence));
+        if (stats.Comparisons.Count > 0 || bl is not null) b.Add(new Para(stats.Mde.Sentence));
         if (bl is not null)
         {
             b.Add(new Para((bl.Against is null
@@ -419,6 +414,16 @@ static class Report
         if (missed.Count > 0)
             body.Add(new Bullets(missed.Select(r => $"[{r.Arm} run {r.Sample}](#run-{r.RunId}) {Outcome(r)}: {Paths(FirstReason(r))}").ToList(), "why"));
         return new TaskCard(task, TaskText(stats, task), facts, body);
+    }
+
+    /// <summary>An arm against the reference in the card's words: the direction, and whether the interval confirms it.</summary>
+    static Cell ComparisonVerdict(Comparison c)
+    {
+        var verdict = GuardVerdict(c.DiffPoints);
+        if (verdict == "held") return new("same");
+        var word = TaskWord(verdict);
+        var confirmed = Confirmation(c.Verdict != "no-detectable-difference");
+        return new($"**{word}** {confirmed}", $"<b class=\"{ToneClass(ArmTone(verdict))}\">{word}</b> {confirmed}");
     }
 
     static Cell RoleCell(StatsFile stats, string check) => new(Role(stats, check), $"<span class=\"role role-{Role(stats, check)}\">{Role(stats, check)}</span>");

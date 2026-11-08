@@ -135,7 +135,14 @@ static class Checks
         var phrase = name switch
         {
             _ when fromCase && name == "files_touched" => "the files changed are the ones the task expects",
-            _ when fromCase => $"{name.Replace('_', ' ')} is what the task expects",
+            _ when fromCase => name switch
+            {
+                "answer_contains" => "the answer contains what the task expects",
+                "answer_equals" => "the answer is exactly what the task expects",
+                "answer_regex" => "the answer matches the pattern the task expects",
+                "exit_reason" => "the run ends the way the task expects",
+                _ => $"{name.Replace('_', ' ')} is what the task expects",
+            },
             "exit_reason" => $"the run ends with '{v}'",
             "max_tool_calls" => $"at most {v} tool calls",
             "max_tokens" => $"at most {v!.GetValue<long>():N0} tokens",

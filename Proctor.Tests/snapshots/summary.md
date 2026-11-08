@@ -122,11 +122,11 @@ Pass rate is the share of counted runs in which every headline check held, avera
 | `floor` | 56% | 15% to 90% | 4 / 7 |
 | `b` | 89% | 35% to 99% | 8 / 9 |
 
-**Against the reference arm, `floor`.** Each arm's pass rate minus `floor`'s, task by task. It is better or worse only when the whole 95% interval is above or below zero; otherwise, with 3 tasks, the difference could be noise.
+**Against the reference arm, `floor`.** Each arm's pass rate minus `floor`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with 3 tasks, it could be noise.
 
 | Arm | Difference from `floor` | 95% interval | Tasks better / worse / same | Verdict |
 |---|---|---|---|---|
-| `b` | +33 points | −31 to +75 | 2 / 0 / 1 | no detectable difference |
+| `b` | +33 points | −31 to +75 | 2 / 0 / 1 | **better** (unconfirmed) |
 
 With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.
 

@@ -21,6 +21,13 @@ formats or the vocabulary; a patch bump does not.
   the baseline does not read as "unchanged since then".
 - Results compares each arm with the reference in one table, where it had a
   paragraph per arm.
+- Results' verdict against the reference uses the card's words (direction,
+  then confirmed or not), where it said "no detectable difference" beside a
+  card that said "better (unconfirmed)".
+- A one-arm run with no baseline no longer states a detectable difference.
+- A check whose value is `"@expect"` describes itself in a sentence ("the
+  answer contains what the task expects", not "answer contains is what the
+  task expects").
 - The suite's checks are listed once, in Tasks; each task lists only the
   checks its fixture or its own file adds.
 - With different sample counts per arm, the about table says which arm ran

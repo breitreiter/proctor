@@ -31,7 +31,7 @@ public class SuiteTests
         Assert.Equal("the run ends with 'ok'", described["exit_ok"]);
         Assert.Equal("no denied tool calls", described["no_denials"]);
         Assert.Equal("at most 3 tool calls and at most 100,000 tokens", described["under_budget"]);
-        Assert.Equal("answer contains is what the task expects", described["says-expected"]);
+        Assert.Equal("the answer contains what the task expects", described["says-expected"]);
         Assert.Equal("changes touch all of note.txt", described["touches-note"]);
     }
 

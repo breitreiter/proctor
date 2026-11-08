@@ -270,11 +270,11 @@ b { font-weight: 600; }
 <tr><td><span class="id">b</span></td><td class="num">89%</td><td class="num">35% to 99%</td><td class="num">8 / 9</td></tr>
 </tbody>
 </table></div>
-<p class="explain"><b>Against the reference arm, <span class="id">floor</span>.</b> Each arm&#39;s pass rate minus <span class="id">floor</span>&#39;s, task by task. It is better or worse only when the whole 95% interval is above or below zero; otherwise, with 3 tasks, the difference could be noise.</p>
+<p class="explain"><b>Against the reference arm, <span class="id">floor</span>.</b> Each arm&#39;s pass rate minus <span class="id">floor</span>&#39;s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with 3 tasks, it could be noise.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th class="num">Difference from <span class="id">floor</span></th><th class="num">95% interval</th><th class="num">Tasks better / worse / same</th><th>Verdict</th></tr></thead>
 <tbody>
-<tr><td><span class="id">b</span></td><td class="num">+33 points</td><td class="num">−31 to +75</td><td class="num">2 / 0 / 1</td><td>no detectable difference</td></tr>
+<tr><td><span class="id">b</span></td><td class="num">+33 points</td><td class="num">−31 to +75</td><td class="num">2 / 0 / 1</td><td><b class="vgood">better</b> (unconfirmed)</td></tr>
 </tbody>
 </table></div>
 <p>With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.</p>
