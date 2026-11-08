@@ -215,9 +215,10 @@ report goes up, scrub the host and gateway names it records there.
 claim on it is true of the repository. Today two are not:
 
 - **"Proctor ships with agent-friendly documentation, examples and skills"**
-  ("How you use it", step 1). There is no suite-authoring skill and no
-  guide written for a coding agent; `plans/onboarding.md` is the plan for
-  them. Build them, or cut the sentence.
+  ("How you use it", step 1). Since 2026-11-08 there is a skill
+  (`skills/proctor-suite/`) and a guide (`docs/getting-started.md`); read
+  the sentence against them before Pages, and measure the docs with the
+  onboarding suite (`plans/onboarding.md`) when it exists.
 - **README's opening links to the site** (`breitreiter.github.io/proctor`),
   which does not exist until Pages is on, so the README carries a dead
   link until then. Do not push it to a public audience before Pages, or
@@ -226,10 +227,12 @@ claim on it is true of the repository. Today two are not:
 (The "Get started" links to `suites/playground` and `suites/cli-for-agents`
 were the third; both suites are committed now.)
 
-`proctor setup` will print links to `docs/providers.html#<kind>` on the site
-(`plans/setup/README.md`, "The provider catalogue"), so setup cannot ship
-before Pages is on and that page exists, with an anchor for every kind in
-the catalogue. Once released, those anchors are permanent.
+`proctor setup` prints links to `docs/providers.html#<kind>` on the site
+(`plans/setup/README.md`, "The provider catalogue"). The page exists
+(2026-11-08; `SetupTests` holds it to an anchor per catalogue kind), but
+until Pages is on, every link setup prints is dead, so a public release
+of setup waits for Pages. Once released, those anchors are permanent. Add
+the weekly lychee check over its vendor links when Pages goes on.
 
 Before switching Pages on, read the page against the repository once more,
 line by line: every capability it names should be one a stranger can run

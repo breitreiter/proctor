@@ -51,6 +51,14 @@ public class SetupTests
     }
 
     [Fact]
+    public void EveryKind_HasItsSectionOnTheProvidersPage()
+    {
+        var page = File.ReadAllText(Path.Combine(TestRepo.SourceRoot, "docs", "providers.html"));
+        foreach (var kind in Catalogue.Kinds)
+            Assert.Contains($"<section id=\"{kind.Kind}\">", page);
+    }
+
+    [Fact]
     public void Catalogue_NamesEverySecretsVariable_ExceptTheKindTheAgentCompletes()
     {
         foreach (var field in Catalogue.Kinds.Where(k => !k.CompletedByAgent).SelectMany(k => k.Fields).Where(f => f.Secret))

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>proctor — AI providers: where to get a key</title>
+<meta name="description" content="Where to get an API key for each AI provider proctor setup offers, and what to know before you use it.">
+<link rel="icon" href="pointy-hat.svg">
+<!--
+  proctor setup links here: https://breitreiter.github.io/proctor/providers.html#<kind>, one
+  section per kind in Setup/providers.json. An anchor, once released, is permanent: never remove
+  or rename a section's id; a retired kind's section stays and says so. Vendor links live here,
+  not in the binary, so a vendor moving its console is fixed by editing this page.
+-->
+<style>
+html { background: #fff; }
+body { margin: 0; color: #1b1b1b; font: 15px/1.5 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; background: #fff; }
+a { color: #5a3e9e; } a:hover { color: #3f2a78; }
+.page { max-width: 46rem; margin: 0 auto; padding: 0 24px 4rem; }
+.brand { display: flex; align-items: center; justify-content: space-between; padding: 22px 0 14px; border-bottom: 1px solid #e4e4e0; }
+.brand .name { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #3b2f6e; letter-spacing: .01em; text-decoration: none; }
+.brand img { display: block; width: 28px; height: 28px; }
+.brand nav a { color: #595959; text-decoration: none; font-size: 13.5px; } .brand nav a:hover { color: #1b1b1b; }
+h1 { font-size: 2rem; line-height: 1.15; font-weight: 650; margin: 2.5rem 0 .75rem; }
+h2 { font-size: 1.375rem; line-height: 1.2; font-weight: 650; margin: 2.5rem 0 .5rem; padding-top: 1rem; border-top: 1px solid #d8d8d8; }
+p { margin: .5rem 0; }
+ul { margin: .4rem 0 .6rem 1.2rem; padding: 0; }
+li { margin: .3rem 0; }
+.quiet { color: #6b6b6b; font-size: 14px; }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .88em; background: #f4f4f2; padding: 1px 4px; border-radius: 3px; }
+.toc { columns: 2; margin: 1rem 0 0 1.2rem; }
+.toc li { margin: 0 0 .3rem; break-inside: avoid; }
+footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid #d8d8d8; display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: #6b6b6b; }
+footer img { width: 20px; height: 20px; display: block; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="brand">
+  <a class="name" href="index.html"><img src="pointy-hat.svg" alt=""> proctor</a>
+  <nav><a href="https://github.com/breitreiter/proctor">GitHub</a></nav>
+</div>
+
+<h1>AI providers: where to get a key</h1>
+<p><code>proctor setup</code> links to this page when it asks for a key. Each
+section says where the provider issues keys and what to know before you use
+one. Setup keeps the key in a file in your user profile, never in your
+repository, and checks it by listing the models it can reach, which costs
+nothing.</p>
+<ul class="toc">
+  <li><a href="#gemini">Gemini (Google AI Studio)</a></li>
+  <li><a href="#anthropic">Anthropic</a></li>
+  <li><a href="#openai">OpenAI</a></li>
+  <li><a href="#openrouter">OpenRouter</a></li>
+  <li><a href="#openai-compatible">OpenAI-compatible endpoint</a></li>
+  <li><a href="#azure-openai">Azure OpenAI</a></li>
+  <li><a href="#azure-foundry">Azure AI Foundry</a></li>
+</ul>
+
+<section id="gemini">
+  <h2>Gemini (Google AI Studio)</h2>
+  <ul>
+    <li>Get a key: <a href="https://aistudio.google.com/apikey">Google AI Studio → Get API key</a>. The free tier needs no card.</li>
+    <li>The free tier's limits are a few requests a minute and a daily cap, varying by model; nb waits and retries when it is throttled. See Google's <a href="https://ai.google.dev/gemini-api/docs/rate-limits">rate limits</a>.</li>
+    <li>Free-tier prompts and responses may be used by Google to improve its products; paid-tier ones are not. Keep confidential material off the free tier. See Google's <a href="https://ai.google.dev/gemini-api/docs/pricing">pricing page</a>.</li>
+    <li>Proctor's first real suite, <code>readme-answers</code>, runs on Gemini Flash-Lite's free tier.</li>
+  </ul>
+</section>
+
+<section id="anthropic">
+  <h2>Anthropic</h2>
+  <ul>
+    <li>Get a key: <a href="https://platform.claude.com/settings/keys">Claude Console → Settings → API keys</a>.</li>
+    <li>This is an API key, billed per request. A Claude subscription (Pro, Max) and its Claude Code login are separate and are not used.</li>
+    <li>Serves nb's built-in harness and Claude Code arms.</li>
+  </ul>
+</section>
+
+<section id="openai">
+  <h2>OpenAI</h2>
+  <ul>
+    <li>Get a key: <a href="https://platform.openai.com/api-keys">OpenAI Platform → API keys</a>.</li>
+    <li>Billed per request; a ChatGPT subscription is separate and is not used. See <a href="https://platform.openai.com/docs/guides/your-data">how OpenAI treats API data</a>.</li>
+    <li>Serves nb's built-in harness, Codex arms and LLM-as-judge checks.</li>
+  </ul>
+</section>
+
+<section id="openrouter">
+  <h2>OpenRouter</h2>
+  <ul>
+    <li>Get a key: <a href="https://openrouter.ai/settings/keys">openrouter.ai → Keys</a>. A key can carry a credit limit; set one.</li>
+    <li>One key reaches many vendors' models. Models whose ids end in <code>:free</code> cost nothing, are rate-limited, and their prompts may be logged by the vendor serving them. See OpenRouter's <a href="https://openrouter.ai/settings/privacy">privacy settings</a>.</li>
+    <li>Serves nb's built-in harness, LLM-as-judge and classifier checks. Claude Code and Qwen Code arms through it are untested; Codex through it is set up by hand.</li>
+  </ul>
+</section>
+
+<section id="openai-compatible">
+  <h2>OpenAI-compatible endpoint</h2>
+  <ul>
+    <li>For llama-server, Ollama, LM Studio, vLLM, Groq, a gateway of your own, or anything else that speaks OpenAI's chat completions.</li>
+    <li>The key, if the server needs one, comes from the server's own documentation; many local servers need none.</li>
+    <li>Setup takes only the name and the key. Ask your coding agent to fill in the rest of the entry in <code>suites/nb.json</code> (the endpoint, the context size, any headers) from the server's documentation; <code>proctor setup --check</code> reports the entry as incomplete until it has an endpoint.</li>
+  </ul>
+</section>
+
+<section id="azure-openai">
+  <h2>Azure OpenAI</h2>
+  <ul>
+    <li>Get a key: in the <a href="https://portal.azure.com/">Azure portal</a>, open your Azure OpenAI resource, then <em>Keys and Endpoint</em>. The endpoint is the resource URL shown there.</li>
+    <li>Setup also asks for the deployment name: the name you gave the deployment, not the model's name.</li>
+    <li>Azure does not list deployments with a key, so setup cannot check the key; the first run of a suite on it is the check.</li>
+  </ul>
+</section>
+
+<section id="azure-foundry">
+  <h2>Azure AI Foundry</h2>
+  <ul>
+    <li>Get a key: in the <a href="https://ai.azure.com/">Azure AI Foundry portal</a>, open your project, then <em>Keys and Endpoint</em>.</li>
+    <li>Setup also asks for the model as deployed in the project.</li>
+    <li>As with Azure OpenAI, setup cannot check the key; the first run of a suite on it is the check.</li>
+  </ul>
+</section>
+
+<p class="quiet">A provider missing here is set up by hand: see
+<a href="https://github.com/breitreiter/proctor/blob/master/docs/configuration.md">docs/configuration.md</a>.</p>
+
+<footer>
+  <img src="pointy-hat.svg" alt="">
+  <span>proctor is MIT licensed. The hat is adapted from Lorc’s <a href="https://game-icons.net/1x1/lorc/pointy-hat.html">“Pointy hat”</a> (game-icons.net), <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>.</span>
+</footer>
+
+</div>
+</body>
+</html>
