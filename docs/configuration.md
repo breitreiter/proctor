@@ -42,6 +42,15 @@ relative to `suites/`:
 Without it, `nb` is taken from `PATH` and nb resolves its own config.
 `--nb <path>` overrides either.
 
+`--config <file>` on `list`, `run`, `resume` and `grade` reads another
+machine file in place of `suites/proctor.json`, with the same fields and
+its relative paths still resolved against `suites/`. A suite is the
+question and this file is the machine, so the same suite runs somewhere
+else by naming a different file: `proctor run code-change --config
+suites/proctor.modal.json`. `resume` needs the `--config` the experiment
+was run with. Files named `suites/proctor.*.json` and `suites/nb.*.json`
+are gitignored, apart from the `*.example.json` ones.
+
 The same file names the judges that the model checks call at grade time,
 by wire shape rather than vendor. A `systemone` judge answers typed
 questions with probabilities in the System One request shape (TypeSafe's
@@ -358,6 +367,10 @@ Harbor, and a container engine, set by `harbor.engine` in
   behind `podman compose`, and three lines of user config. The setup,
   and why each step is there, is [`podman.md`](podman.md);
   `run` checks what it can before it starts.
+- **Modal**, no engine on this machine at all: each cell's containers run
+  as sandboxes on your Modal account. The agent's model must be on the
+  internet, and a fixture with `image.services` cannot run there. Setting
+  it up, and what it costs, is [`modal.md`](modal.md).
 
 The same file says where each vendor agent's model calls go and where nb's
 self-contained linux-x64 publish is, for an `agent: nb` arm:

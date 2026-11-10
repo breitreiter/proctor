@@ -7,6 +7,16 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- Agent arms run on Modal: `harbor.engine: modal` puts each cell's
+  containers in Modal sandboxes on your Modal login, with no Docker or
+  podman on the machine (`docs/modal.md`). `--config <file>` on `list`,
+  `run`, `resume` and `grade` reads another machine file in place of
+  `suites/proctor.json`, so a suite tried locally runs on Modal by naming
+  `suites/proctor.modal.json` (`proctor.modal.example.json` is committed).
+  On Modal, `run` refuses an agent arm whose model is on this network and
+  a fixture with `image.services`, before anything starts. nb's layer for
+  an `agent: nb` arm is copied into the task on Modal rather than built
+  locally; on docker and podman nothing changed.
 - The verdict card opens with a chart (inline SVG, no script): each arm's
   pass rate on its 95% interval, the baseline's own score marked beside it,
   and each arm's change in points with its interval, hollow when not

@@ -529,7 +529,8 @@ public class HarborTests
 
         Engine("docker");
         var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("the container engine (suites/proctor.json harbor.engine) has changed", e.Message);
+        Assert.Contains("the engine (suites/proctor.json harbor.engine) is docker, and experiment", e.Message);
+        Assert.Contains("resume with the --config it was run with", e.Message);
     }
 
     [Fact]
@@ -540,6 +541,145 @@ public class HarborTests
         repo.WriteProctorConfig();
         var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
         Assert.Contains("no agents.claude-code", e.Message);
+        Assert.False(Directory.Exists(Path.Combine(repo.Root, "runs")));
+    }
+
+    // Modal: the same Harbor tasks on Modal's sandboxes, from a second machine file.
+
+    const string PublicUrl = "https://api.anthropic.com";
+
+    [Theory]
+    [InlineData("api.anthropic.com", null)]
+    [InlineData("openrouter.ai", null)]
+    [InlineData("203.0.113.7", null)]
+    [InlineData("2606:4700::6810:85e5", null)]
+    [InlineData("localhost", "loopback")]
+    [InlineData("127.0.0.1", "loopback")]
+    [InlineData("::1", "loopback")]
+    [InlineData("10.1.2.3", "a private address")]
+    [InlineData("172.20.0.5", "a private address")]
+    [InlineData("192.168.1.40", "a private address")]
+    [InlineData("100.101.102.103", "a private address")]
+    [InlineData("fd12:3456::1", "a private address")]
+    [InlineData("169.254.169.254", "a link-local address")]
+    [InlineData("library", "a name without a domain, which only this network resolves")]
+    [InlineData("imp.local", "a .local name, which only this network resolves")]
+    [InlineData("gpu.lan", "a .lan name, which only this network resolves")]
+    public void Unreachable_IsWhatOnlyThisMachineOrNetworkCanReach(string host, string? why) =>
+        Assert.Equal(why, HarborRun.Unreachable(host));
+
+    [Fact]
+    public void Modal_NeedsALogin_FromTheEnvironmentOrTheSdksFile()
+    {
+        var none = new Dictionary<string, string>();
+        Assert.Contains("run `uvx modal token new`", HarborRun.ModalProblem(v => none.GetValueOrDefault(v), _ => false));
+        Assert.Null(HarborRun.ModalProblem(v => none.GetValueOrDefault(v), f => f.EndsWith(".modal.toml")));
+        var tokens = new Dictionary<string, string> { ["MODAL_TOKEN_ID"] = "ak-1", ["MODAL_TOKEN_SECRET"] = "as-1" };
+        Assert.Null(HarborRun.ModalProblem(v => tokens.GetValueOrDefault(v), _ => false));
+        var named = new Dictionary<string, string> { ["MODAL_CONFIG_PATH"] = "/etc/modal.toml" };
+        Assert.Null(HarborRun.ModalProblem(v => named.GetValueOrDefault(v), f => f == "/etc/modal.toml"));
+        Assert.Contains("/etc/modal.toml", HarborRun.ModalProblem(v => named.GetValueOrDefault(v), _ => false));
+    }
+
+    [Fact]
+    public void Job_OnModal_GivesEachSandboxTheCellsLifetime_AndAnIdleLimit_AndHarborItsModalExtra()
+    {
+        var job = HarborCompile.Job(CcArm, "/t", "/j", new AgentRoute(PublicUrl, "sk"), engine: "modal", lifetime: TimeSpan.FromMinutes(70));
+        Assert.Equal("""{"type":"modal","kwargs":{"sandbox_timeout_secs":4200,"sandbox_idle_timeout_secs":600}}""", job["environment"]!.ToJsonString());
+        Assert.Equal("""{"type":"podman"}""", HarborCompile.Job(CcArm, "/t", "/j", new AgentRoute(PublicUrl, "sk"), engine: "podman")["environment"]!.ToJsonString());
+
+        Assert.Equal("tool run --exclude-newer 7 days harbor[modal]@0.24.0 run --config job.json", string.Join(" ", HarborRun.UvArgs("0.24.0", "modal")));
+        Assert.Equal("tool run --exclude-newer 7 days harbor@0.24.0 run --config job.json", string.Join(" ", HarborRun.UvArgs("0.24.0", "docker")));
+        // Nothing to remove on this machine: the sandbox ends itself.
+        Assert.StartsWith("A sandbox it left on Modal ends itself within 10 minutes", HarborRun.TearDown("modal", "/nowhere"));
+    }
+
+    [Fact]
+    public void Compile_NbArm_OnARemoteEngine_CarriesNbsPublishInTheBuildContext()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("gate");
+        var publish = Directory.CreateDirectory(Path.Combine(repo.Root, "publish")).FullName;
+        File.WriteAllText(Path.Combine(publish, "nb"), "#!/bin/sh\necho nb\n");
+        File.SetUnixFileMode(Path.Combine(publish, "nb"), (UnixFileMode)0b111_101_101);
+        var expDir = Path.Combine(repo.Root, "runs", "exp");
+        HarborCompile.Tasks(expDir, repo.LoadSuite("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef", publish);
+        var environment = Path.Combine(Layout.HarborTask(expDir, "nb-harbor", "writes"), "environment");
+
+        Assert.Contains("COPY proctor-nb /opt/nb\nENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1\nRUN /opt/nb/nb --version\n", File.ReadAllText(Path.Combine(environment, "Dockerfile")));
+        Assert.DoesNotContain("--from=", File.ReadAllText(Path.Combine(environment, "Dockerfile")));
+        var nb = Path.Combine(environment, "proctor-nb", "nb");
+        Assert.Equal("#!/bin/sh\necho nb\n", File.ReadAllText(nb));
+        Assert.True(File.GetUnixFileMode(nb).HasFlag(UnixFileMode.UserExecute));
+    }
+
+    /// <summary>harbor-unit on Modal, from a machine file of its own beside suites/proctor.json, with a login in the environment.</summary>
+    static (TestRepo Repo, string ConfigFile) ModalRepo(string baseUrl, string? uv = null)
+    {
+        var (repo, keyVar) = AgentRepo(uv);
+        Environment.SetEnvironmentVariable("MODAL_TOKEN_ID", "ak-test");
+        Environment.SetEnvironmentVariable("MODAL_TOKEN_SECRET", "as-test");
+        var file = Path.Combine(repo.Root, "suites", "proctor.modal.json");
+        File.WriteAllText(file, JsonSerializer.Serialize(new
+        {
+            nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
+            agents = new Dictionary<string, object> { ["claude-code"] = new { base_url = baseUrl, api_key = "${" + keyVar + "}" } },
+            harbor = new { uv = uv ?? "uv", engine = "modal" },
+        }));
+        return (repo, file);
+    }
+
+    [Fact]
+    public void Config_FromAnotherFile_IsTheMachine_AndMessagesNameIt()
+    {
+        var (repo, file) = ModalRepo(PublicUrl);
+        using var _r = repo;
+        var config = Suite.LoadConfig(repo.Root, [], file);
+        Assert.Equal("modal", config.HarborOrDefault.Engine);
+        Assert.True(config.HarborOrDefault.Remote);
+        Assert.Equal(Path.Combine("suites", "proctor.modal.json"), config.Source);
+        Assert.Equal("docker", Suite.LoadConfig(repo.Root, []).HarborOrDefault.Engine);
+        Assert.Equal(Path.Combine("suites", "proctor.json"), Suite.LoadConfig(repo.Root, []).Source);
+        Assert.Contains("--config nowhere.json: no such file", Assert.Throws<ProctorException>(() => Suite.LoadConfig(repo.Root, [], "nowhere.json")).Message);
+    }
+
+    [Fact]
+    public void Run_OnModal_HandsHarborTheSandboxsLifetime_AndResumeNeedsTheSameConfig()
+    {
+        using var scratch = new TestRepo();
+        var (repo, file) = ModalRepo(PublicUrl, FakeUv(scratch, GoodTrial));
+        using var _r = repo;
+        var id = Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null);
+        var expDir = Layout.Experiment(repo.Root, id);
+        Assert.Equal("modal", ReadJson(Path.Combine(expDir, "experiment.json"))["harbor"]!["engine"]!.GetValue<string>());
+        var cell = Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1);
+        Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
+        var job = ReadJson(Path.Combine(cell, "harbor", "job.json"));
+        Assert.Equal("modal", job["environment"]!["type"]!.GetValue<string>());
+        // The suite's 900 s wall limit and the build, verifier and start overhead.
+        Assert.Equal(900 + 3300, job["environment"]!["kwargs"]!["sandbox_timeout_secs"]!.GetValue<int>());
+        Assert.Equal("tool run --exclude-newer 7 days harbor[modal]@0.24.0 run --config job.json", File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
+        Assert.Contains("allowed_hosts = [\"api.anthropic.com\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), "task.toml")));
+
+        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
+        Assert.Contains("is docker, and experiment", e.Message);
+        Runner.Resume(repo.Root, id, null, null, TextWriter.Null, file);
+    }
+
+    [Fact]
+    public void Run_OnModal_RefusesAModelOnThisNetwork_AndAFixtureWithServices_BeforeAnythingIsMade()
+    {
+        var (repo, file) = ModalRepo(BaseUrl);
+        using var _r = repo;
+        var services = Directory.CreateDirectory(Path.Combine(repo.Root, "fixtures", "ledger", "services")).FullName;
+        File.WriteAllText(Path.Combine(services, "docker-compose.yaml"), "services: {}\n");
+        repo.EditJson("../fixtures/ledger/fixture.json", f => f["image"]!["services"] = "services");
+
+        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null));
+        Assert.Equal([
+            "arm 'cc-haiku': its model is at library, a name without a domain, which only this network resolves, which a sandbox on modal cannot reach; run it on a local engine, or point suites/proctor.modal.json agents.claude-code at a public endpoint",
+            "fixture 'ledger' runs services beside the agent (image.services), and modal cannot confine the network of a task with services; its tasks run on docker or podman only",
+        ], e.Message.Split('\n'));
         Assert.False(Directory.Exists(Path.Combine(repo.Root, "runs")));
     }
 
@@ -580,8 +720,9 @@ public class HarborTests
     [Theory]
     [InlineData("docker", null)]
     [InlineData("podman", null)]
-    [InlineData("nerdctl", "unknown engine 'nerdctl'; known: docker, podman")]
-    public void Config_KnowsDockerAndPodman(string engine, string? message)
+    [InlineData("modal", null)]
+    [InlineData("nerdctl", "unknown engine 'nerdctl'; known: docker, podman, modal")]
+    public void Config_KnowsDockerPodmanAndModal(string engine, string? message)
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;

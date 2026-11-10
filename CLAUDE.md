@@ -103,7 +103,7 @@ in the order the verbs run them. Every file is one concern:
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/`. `jotcli` is a tiny TypeScript CLI whose `clear` reads its confirmation from `/dev/tty` with no `--yes` and exits 0 when it gives up, planted on purpose (its README says why); the only non-.NET fixture. `empty` holds nothing, for tasks whose whole context is in the prompt |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one run (`capture.sh` regenerates them); `snapshots/` are the approved renderings; `suites/` is test data `TestRepo.CopySuite` finds after `suites/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never a suite to run; `python/` is `oracle_user.py`'s unittest suite, on stub `harbor` modules and captured `acpx` output, which `OracleHarborTests` runs with `python3` |
-| `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own suite with your agent); `configuration.md`, the reference for suite, fixture, task, arm and `proctor.json` (moved out of the README; `suite-authoring`'s arm view copies it); `porting-to-agent-neutral.md`, how a suite moves to agent arms (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor |
+| `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own suite with your agent); `configuration.md`, the reference for suite, fixture, task, arm and `proctor.json` (moved out of the README; `suite-authoring`'s arm view copies it); `porting-to-agent-neutral.md`, how a suite moves to agent arms (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor; `modal.md`, agent arms on Modal's sandboxes from a second machine file (`--config`), what it costs and what cannot run there |
 | `skills/proctor-suite/` | the onboarding skill a user copies into their agent's skills directory: plan a suite with the user (inventory, tasks, checks, arms, cost; a `PLAN.md` approved), then build it and prove its checks for free; only what a frontier model would not guess and proctor's gotchas, pointing at `docs/configuration.md` and the example suites for the rest |
 | `project/` | the brief, the plans, the research notes and the loose ends |
 
@@ -215,6 +215,28 @@ The directories are for reading, not for namespaces: everything is
   machine's setup is `docs/podman.md`; what was seen is
   `project/learnings/harbor.md`.
   The bare path's hooks pick their own engine (`command -v podman`).
+- **Modal is an engine off the machine, picked by a second machine file.**
+  `harbor.engine: modal` (`HarborConfig.Remote`) runs each cell as Modal
+  sandboxes on the user's login (`~/.modal.toml` or `MODAL_TOKEN_*`,
+  inherited by Harbor's process; `HarborRun.Preflight` checks it), Harbor
+  with its `modal` extra (`harbor[modal]@<pin>`). `--config <file>` on
+  `list`, `run`, `resume` and `grade` reads that file in place of
+  `suites/proctor.json` (relative paths still against `suites/`;
+  `ProctorConfig.Source` is what messages call it), so a suite shaken down
+  locally is promoted by naming another file. On a remote engine nb's layer
+  is not built: compile copies the publish into each nb task's context
+  (`environment/proctor-nb/`, `COPY proctor-nb /opt/nb`), the tag kept as
+  the publish's identity. Each job gives Modal's sandboxes the cell's
+  lifetime and a ten-minute idle limit (`HarborCompile.ModalIdle`), since
+  Harbor's default is a day with none, so a killed trial costs minutes and
+  `TearDown` has nothing to remove. `run` refuses, before anything is
+  made, an agent arm whose model host a sandbox cannot reach
+  (`HarborRun.Unreachable`: loopback, private, dotless or `.local`-style
+  names) and a fixture with `image.services`: Harbor's Modal environment
+  runs a compose task as docker-in-docker with no allowlist and refuses it.
+  So conformance and the oracle gate stay local; the gate runs on Modal
+  (`PROCTOR_GATE_ENGINE=modal`). The plan and its three spikes are
+  `project/plans/modal-runs.md`; the user's guide is `docs/modal.md`.
 - **A check of the layer costs nothing.** Proctor checks that it drives
   Harbor and reads back what Harbor wrote, never Harbor itself and never a
   model: the unit tests, the gate (nb on Mock) and conformance (each vendor

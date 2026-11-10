@@ -61,13 +61,14 @@ static class HarborCompile
 
     /// <summary>
     /// Every agent arm's tasks, under the experiment, and proctor's own Harbor agents beside them for the arms that use one. Returns the
-    /// tree's hash, which the experiment records and a resume checks. The nb image is the tag of proctor's nb layer.
+    /// tree's hash, which the experiment records and a resume checks. The nb image is the tag of proctor's nb layer; on a
+    /// remote engine, which cannot see a local image, nb's publish directory comes too and is copied into each nb task.
     /// </summary>
-    public static string Tasks(string experimentDir, Suite suite, string experimentId, Func<Arm, AgentRoute> route, string? nbImage = null)
+    public static string Tasks(string experimentDir, Suite suite, string experimentId, Func<Arm, AgentRoute> route, string? nbImage = null, string? nbPublish = null)
     {
         foreach (var arm in suite.Arms.Where(a => a.IsAgent))
             foreach (var c in suite.Tasks)
-                Task(Layout.HarborTask(experimentDir, arm.Id!, c.Id!), suite, arm, c, experimentId, route(arm), nbImage);
+                Task(Layout.HarborTask(experimentDir, arm.Id!, c.Id!), suite, arm, c, experimentId, route(arm), nbImage, nbPublish);
         var files = suite.Arms.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
         var oracle = HasOracle(suite);
         if (oracle) files.Add(OracleUserFile);
@@ -98,7 +99,7 @@ static class HarborCompile
     }
 
     /// <summary>One Harbor task directory: instruction.md, task.toml, environment/ (the image) and tests/ (the verifier).</summary>
-    public static void Task(string dir, Suite suite, Arm arm, TaskDef c, string experimentId, AgentRoute route, string? nbImage = null)
+    public static void Task(string dir, Suite suite, Arm arm, TaskDef c, string experimentId, AgentRoute route, string? nbImage = null, string? nbPublish = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         var fixture = suite.FixtureOf(c)!;
@@ -106,7 +107,9 @@ static class HarborCompile
         File.WriteAllText(Path.Combine(dir, "instruction.md"), c.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
         File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(suite, c, route, bridged: c.Oracle is not null));
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
-        File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, arm, nbImage));
+        var nbInContext = arm.Agent == Arm.Nb && nbPublish is not null;
+        if (nbInContext) CopyTree(nbPublish!, Path.Combine(dir, "environment", NbContextDir), []);
+        File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, arm, nbImage, nbInContext));
         if (fixture.Def.Image!.Services is { } services) CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
 
         var tests = Path.Combine(dir, "tests");
@@ -119,13 +122,20 @@ static class HarborCompile
     }
 
     /// <summary>
+    /// How long a Modal sandbox may sit with nothing running in it. Harbor's Modal environment otherwise keeps a sandbox
+    /// for a day with no idle limit, so a trial Harbor never closed would bill for a day.
+    /// </summary>
+    public static readonly TimeSpan ModalIdle = TimeSpan.FromMinutes(10);
+
+    /// <summary>
     /// Harbor's job for one cell: one trial of one task by one agent. Every setting Harbor would otherwise default is
     /// stated: the container engine, the pinned version, the permission mode, each model alias (Harbor maps them all to one model on a custom
     /// base URL; proctor says so rather than inherits it), no retries (a retry is proctor's attempt), one trial at a time.
     /// The key is not here: it goes in the environment of the one Harbor process. proctor's own agents (nb, Qwen
-    /// Code) are named by import path; nb's kwargs carry the cell's host-compiled program and nb's config.
+    /// Code) are named by import path; nb's kwargs carry the cell's host-compiled program and nb's config. On Modal each
+    /// sandbox lives no longer than the cell may take (<paramref name="lifetime"/>) and ends after <see cref="ModalIdle"/> idle.
     /// </summary>
-    public static JsonObject Job(Arm arm, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null, string engine = "docker", OracleCell? oracle = null)
+    public static JsonObject Job(Arm arm, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null, string engine = "docker", OracleCell? oracle = null, TimeSpan? lifetime = null)
     {
         var agent = new JsonObject();
         if (OwnAgents.TryGetValue(arm.Agent!, out var own)) agent["import_path"] = own.Import;
@@ -141,7 +151,17 @@ static class HarborCompile
             ["n_concurrent_trials"] = 1,
             ["quiet"] = true,
             ["retry"] = new JsonObject { ["max_retries"] = 0 },
-            ["environment"] = new JsonObject { ["type"] = engine },
+            ["environment"] = engine == HarborConfig.Modal
+                ? new JsonObject
+                {
+                    ["type"] = engine,
+                    ["kwargs"] = new JsonObject
+                    {
+                        ["sandbox_timeout_secs"] = (int)(lifetime ?? TimeSpan.FromHours(1)).TotalSeconds,
+                        ["sandbox_idle_timeout_secs"] = (int)ModalIdle.TotalSeconds,
+                    },
+                }
+                : new JsonObject { ["type"] = engine },
             ["agents"] = new JsonArray(agent),
             ["tasks"] = new JsonArray(new JsonObject { ["path"] = taskDir }),
         };
@@ -257,7 +277,10 @@ static class HarborCompile
     /// The fixture as a commit in the work directory, so the diff after the agent is the change; the fixture's own
     /// setup after it; then the arm's agent, pinned, so a trial installs nothing and needs no network to start.
     /// </summary>
-    static string Dockerfile(Fixture fixture, Arm arm, string? nbImage)
+    /// <summary>Where nb's publish sits in an nb task's build context on a remote engine.</summary>
+    const string NbContextDir = "proctor-nb";
+
+    static string Dockerfile(Fixture fixture, Arm arm, string? nbImage, bool nbInContext = false)
     {
         var image = fixture.Def.Image!;
         var sb = new StringBuilder();
@@ -270,15 +293,19 @@ static class HarborCompile
         sb.Append($"WORKDIR {Workdir}\n");
         sb.Append($"RUN git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm {Shell($"fixture {fixture.Id} {fixture.Hash}")}\n");
         foreach (var command in image.Run ?? []) sb.Append($"RUN {command}\n");
-        sb.Append(AgentInstall(arm, nbImage));
+        sb.Append(AgentInstall(arm, nbInContext ? NbContextDir : $"--from={nbImage} /opt/nb"));
         return sb.ToString();
     }
 
-    /// <summary>The agent at its pin. nb comes from proctor's nb layer (the publish proctor.json names, tagged by its hash), so the image holds that binary and nothing it was built from.</summary>
-    static string AgentInstall(Arm arm, string? nbImage) => arm.Agent switch
+    /// <summary>
+    /// The agent at its pin. nb comes from proctor's nb layer (the publish proctor.json names, tagged by its hash), so the
+    /// image holds that binary and nothing it was built from: <paramref name="nbSource"/> is `--from=&lt;tag&gt; /opt/nb` on a
+    /// local engine, the publish's directory in the build context on a remote one.
+    /// </summary>
+    static string AgentInstall(Arm arm, string nbSource) => arm.Agent switch
     {
         Arm.Nb => $"""
-            COPY --from={nbImage} /opt/nb /opt/nb
+            COPY {nbSource} /opt/nb
             ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
             RUN /opt/nb/nb --version
 

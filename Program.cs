@@ -14,6 +14,7 @@ static class Program
           setup                set up providers and keys for this machine, job by job (needs a terminal)
 
         --root <dir>          the repository root holding suites/ (default: current directory)
+        --config <file>       list, run, resume, grade: this machine's config in place of suites/proctor.json, such as one for Modal
         --label <k[=glob]>    list: only suites carrying the label, or the label with a matching value (repeatable)
         --nb <path>           the nb binary (default: suites/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per cell (default: the suite's nb.runner); none runs nb bare
@@ -32,7 +33,7 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, failOn = null, against = null;
+        string? nbPath = null, runner = null, failOn = null, against = null, configFile = null;
         List<string>? tasks = null, labels = null, judges = null, arms = null;
         var tolerance = 0;
         var rejudge = false;
@@ -45,6 +46,7 @@ static class Program
             {
                 case "--root" when i + 1 < args.Length: root = Path.GetFullPath(args[++i]); break;
                 case "--nb" when i + 1 < args.Length: nbPath = args[++i]; break;
+                case "--config" when i + 1 < args.Length: configFile = args[++i]; break;
                 case "--runner" when i + 1 < args.Length: runner = args[++i]; break;
                 case "--arm" when i + 1 < args.Length: (arms ??= []).Add(args[++i]); break;
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
@@ -69,10 +71,10 @@ static class Program
             EnvFile.Load(EnvFile.DefaultPath());
             return (positional[0], positional.Skip(1).ToList()) switch
             {
-                ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels),
-                ("run", [var suite]) => Verbs.Run(root, suite, nbPath, runner),
-                ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner),
-                ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge, arms, tasks),
+                ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels, configFile),
+                ("run", [var suite]) => Verbs.Run(root, suite, nbPath, runner, configFile),
+                ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner, configFile),
+                ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge, arms, tasks, configFile),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn, against),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, arms, tasks),
                 ("setup", []) => Verbs.Setup(root, check, live),

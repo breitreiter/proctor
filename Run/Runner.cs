@@ -92,18 +92,22 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
             Bundles: ResolveBundles(root, suite));
-        if (suite.HasAgentArms && (config.Harbor ?? new HarborConfig()).Engine == "podman") HarborRun.CheckPodman();
+        if (suite.HasAgentArms)
+        {
+            HarborRun.Preflight(config.HarborOrDefault);
+            if (config.HarborOrDefault.Remote) RequireReachable(suite, config, arm => Route(root, config, nb, arm));
+        }
         var dir = Layout.Experiment(root, id);
         Directory.CreateDirectory(dir);
         if (suite.HasAgentArms)
         {
             var version = suite.Def.Harbor!.Version!;
-            var engine = (config.Harbor ?? new HarborConfig()).Engine;
+            var engine = config.HarborOrDefault.Engine;
             var nbImage = suite.Arms.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, experiment.Versions["nb"]) : null;
             experiment = experiment with
             {
                 Versions = new(experiment.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(root, config, nb, arm), nbImage), nbImage, engine),
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(root, config, nb, arm), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null), nbImage, engine),
             };
         }
         WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);
@@ -112,11 +116,11 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     }
 
     /// <summary>Run whatever an existing experiment has not completed.</summary>
-    public static void Resume(string root, string experimentId, string? nbOverride, string? runnerOverride, TextWriter log)
+    public static void Resume(string root, string experimentId, string? nbOverride, string? runnerOverride, TextWriter log, string? configFile = null)
     {
         var experiment = LoadExperiment(root, experimentId);
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(root, problems);
+        var config = Suite.LoadConfig(root, problems, configFile);
         var suite = Suite.Load(root, experiment.Suite, problems)
             ?? throw new ProctorException($"suite '{experiment.Suite}' no longer loads:\n" + string.Join("\n", problems));
         if (suite.Hash != experiment.SuiteHash)
@@ -129,11 +133,12 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             throw new ProctorException($"the runner has changed since experiment {experimentId} was created ({Describe(runner)} vs {Describe(experiment.Nb.Runner)}); a changed runner is a new experiment");
         if (experiment.Harbor is { } harbor && HarborCompile.TreeHash(Layout.Experiment(root, experimentId)) != harbor.TasksHash)
             throw new ProctorException($"the Harbor tasks compiled for experiment {experimentId} have changed on disk ({Layout.HarborDir}/tasks); a changed task is a new experiment");
-        if (experiment.Harbor is { } recorded && (config.Harbor ?? new HarborConfig()).Engine is var engine && engine != recorded.Engine)
-            throw new ProctorException($"the container engine (suites/proctor.json harbor.engine) has changed since experiment {experimentId} was created ({engine} vs {recorded.Engine}); a changed engine is a new experiment");
-        if (experiment.Harbor?.NbImage is { } image && NbImage(root, config, experiment.Versions["nb"]) is var now && now != image)
-            throw new ProctorException($"nb's publish (suites/proctor.json harbor.nb) has changed since experiment {experimentId} was created ({now} vs {image}); a changed nb is a new experiment");
-        if (experiment.Harbor?.Engine == "podman") HarborRun.CheckPodman();
+        if (experiment.Harbor is { } recorded && config.HarborOrDefault.Engine is var engine && engine != recorded.Engine)
+            throw new ProctorException($"the engine ({config.Source} harbor.engine) is {engine}, and experiment {experimentId} was created on {recorded.Engine}: resume with the --config it was run with; a changed engine is a new experiment");
+        // An experiment from before the layer left the local store recorded podman's tag with its localhost/ prefix; the hash is what identifies the publish.
+        if (experiment.Harbor?.NbImage is { } image && NbImage(root, config, experiment.Versions["nb"]) is var now && now.Replace("localhost/", "") != image.Replace("localhost/", ""))
+            throw new ProctorException($"nb's publish ({config.Source} harbor.nb) has changed since experiment {experimentId} was created ({now} vs {image}); a changed nb is a new experiment");
+        if (experiment.Harbor is not null) HarborRun.Preflight(config.HarborOrDefault);
         if (nbOverride is not null) experiment = experiment with { Nb = experiment.Nb with { Path = Path.GetFullPath(nbOverride) } };
         new Runner(root, experiment, suite, config, log).RunPending();
 
@@ -357,12 +362,30 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     {
         if (!arm.IsVendor) return NbRoute(nb, arm);
         var endpoint = config.Agents?.GetValueOrDefault(arm.Agent!)
-            ?? throw new ProctorException($"suites/proctor.json has no agents.{arm.Agent} (arm '{arm.Id}'): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
-        var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"agents.{arm.Agent}.base_url").TrimEnd('/');
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"suites/proctor.json agents.{arm.Agent}.base_url: '{baseUrl}' is not a URL");
+            ?? throw new ProctorException($"{config.Source} has no agents.{arm.Agent} (arm '{arm.Id}'): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
+        var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"{config.Source} agents.{arm.Agent}.base_url").TrimEnd('/');
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"{config.Source} agents.{arm.Agent}.base_url: '{baseUrl}' is not a URL");
         var agentConfig = endpoint.Config is null ? null : Path.GetFullPath(Path.Combine(Layout.Suites(root), endpoint.Config));
-        if (agentConfig is not null && !File.Exists(agentConfig)) throw new ProctorException($"suites/proctor.json agents.{arm.Agent}.config: {agentConfig} not found");
-        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"agents.{arm.Agent}.api_key"), HarborCompile.KeyEnv(arm.Agent!), Config: agentConfig);
+        if (agentConfig is not null && !File.Exists(agentConfig)) throw new ProctorException($"{config.Source} agents.{arm.Agent}.config: {agentConfig} not found");
+        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"{config.Source} agents.{arm.Agent}.api_key"), HarborCompile.KeyEnv(arm.Agent!), Config: agentConfig);
+    }
+
+    /// <summary>
+    /// On a remote engine, every agent arm must reach its model from the internet, and no task may have a service beside
+    /// it: Harbor's Modal environment runs a compose task as docker-in-docker with no allowlist, and refuses it rather
+    /// than run it unconfined. Everything wrong is said at once, before anything is made.
+    /// </summary>
+    static void RequireReachable(Suite suite, ProctorConfig config, Func<Arm, AgentRoute> route)
+    {
+        var engine = config.HarborOrDefault.Engine;
+        var problems = new List<string>();
+        foreach (var arm in suite.Arms.Where(a => a.IsAgent))
+            if (route(arm).Host is { } host && HarborRun.Unreachable(host) is { } why)
+                problems.Add($"arm '{arm.Id}': its model is at {host}, {why}, which a sandbox on {engine} cannot reach; run it on a local engine, or point {(arm.IsVendor ? $"{config.Source} agents.{arm.Agent}" : $"nb's config {arm.Provider}")} at a public endpoint");
+        foreach (var fixture in suite.Tasks.Select(suite.FixtureOf).OfType<Fixture>().DistinctBy(f => f.Id))
+            if (fixture.Def.Image?.Services is not null)
+                problems.Add($"fixture '{fixture.Id}' runs services beside the agent (image.services), and {engine} cannot confine the network of a task with services; its tasks run on docker or podman only");
+        if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
     }
 
     static readonly System.Text.RegularExpressions.Regex EnvRef = new(@"\$\{([A-Za-z_][A-Za-z0-9_]*)\}");
@@ -385,16 +408,19 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     /// <summary>nb's layer from proctor.json harbor.nb, which must be the same nb as the host binary that compiles the programs and runs the bare arms.</summary>
     static string NbImage(string root, ProctorConfig config, string hostVersion)
     {
-        var publish = config.Harbor?.Nb ?? throw new ProctorException("an nb arm runs through Harbor on nb's self-contained linux-x64 publish: set harbor.nb in suites/proctor.json to its directory");
-        var (tag, version) = HarborRun.NbImage(Path.GetFullPath(Path.Combine(Layout.Suites(root), publish)), (config.Harbor ?? new HarborConfig()).Engine);
+        var publish = config.Harbor?.Nb ?? throw new ProctorException($"an nb arm runs through Harbor on nb's self-contained linux-x64 publish: set harbor.nb in {config.Source} to its directory");
+        var (tag, version) = HarborRun.NbImage(NbPublish(root, config), config.HarborOrDefault);
         if (version != hostVersion)
-            throw new ProctorException($"nb's publish (suites/proctor.json harbor.nb) is {version}, the host nb is {hostVersion}: publish the same nb, so the program compiled on the host is the program the image runs");
+            throw new ProctorException($"nb's publish ({config.Source} harbor.nb) is {version}, the host nb is {hostVersion}: publish the same nb, so the program compiled on the host is the program the image runs");
         return tag;
     }
 
+    /// <summary>The directory of nb's publish, proctor.json harbor.nb resolved against suites/; compile copies it into each nb task's image on a remote engine.</summary>
+    static string NbPublish(string root, ProctorConfig config) => Path.GetFullPath(Path.Combine(Layout.Suites(root), config.Harbor!.Nb!));
+
     static string ResolveEnv(string value, string field) =>
         System.Text.RegularExpressions.Regex.Replace(value, @"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", m => Environment.GetEnvironmentVariable(m.Groups[1].Value)
-            ?? throw new ProctorException($"{m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} (suites/proctor.json {field})"));
+            ?? throw new ProctorException($"{m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} ({field})"));
 
     /// <summary>
     /// `nb --compile` on the host binary, in the suite directory so `@file` includes resolve against the suite: the
@@ -531,15 +557,15 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     {
         var nb = config.NbOrDefault;
         var suitesDir = Layout.Suites(root);
-        if (!File.Exists(Path.Combine(suitesDir, Layout.ProctorConfigFile)) && File.Exists(Path.Combine(suitesDir, "proctor.example.json")))
+        if (!File.Exists(Path.Combine(root, config.Source)) && File.Exists(Path.Combine(suitesDir, "proctor.example.json")))
             throw new ProctorException("no suites/proctor.json: run `proctor setup` at a terminal, which writes it (skip every job for a config the playground runs on); or copy suites/proctor.example.json and nb.example.json beside themselves and point them at your gateway");
         var path = nbOverride ?? nb.Path;
         if (path.Contains(Path.DirectorySeparatorChar)) path = Path.GetFullPath(Path.Combine(nbOverride is null ? suitesDir : Directory.GetCurrentDirectory(), path));
         else if (FindOnPath(path) is { } found) path = found;
-        else throw new ProctorException($"nb not found: '{path}' is not on PATH; set nb.path in suites/proctor.json or pass --nb");
+        else throw new ProctorException($"nb not found: '{path}' is not on PATH; set nb.path in {config.Source} or pass --nb");
         if (!File.Exists(path)) throw new ProctorException($"nb not found at {path}");
         var configPath = nb.Config is null ? null : Path.GetFullPath(Path.Combine(suitesDir, nb.Config));
-        if (configPath is not null && !File.Exists(configPath)) throw new ProctorException($"nb config not found at {configPath} (suites/proctor.json nb.config){(File.Exists(Path.ChangeExtension(configPath, ".example.json")) ? $"; copy {Path.GetFileName(Path.ChangeExtension(configPath, ".example.json"))} beside it" : "")}");
+        if (configPath is not null && !File.Exists(configPath)) throw new ProctorException($"nb config not found at {configPath} ({config.Source} nb.config){(File.Exists(Path.ChangeExtension(configPath, ".example.json")) ? $"; copy {Path.GetFileName(Path.ChangeExtension(configPath, ".example.json"))} beside it" : "")}");
         var runner = ResolveRunner(root, suite, runnerOverride);
         return new ResolvedNb(path, configPath, runner, runner is null ? null : suite.Def.Nb?.Mounts);
     }

@@ -27,29 +27,73 @@ static class HarborRun
     /// </summary>
     const string Cooldown = "7 days";
 
-    /// <summary>uv's arguments for `harbor run` on the job file in the working directory.</summary>
-    public static string[] UvArgs(string version) =>
-        ["tool", "run", "--exclude-newer", Cooldown, $"harbor@{version}", "run", "--config", Layout.HarborJobFile];
+    /// <summary>uv's arguments for `harbor run` on the job file in the working directory. Modal's SDK is Harbor's `modal` extra.</summary>
+    public static string[] UvArgs(string version, string engine = "docker") =>
+        ["tool", "run", "--exclude-newer", Cooldown, engine == HarborConfig.Modal ? $"harbor[modal]@{version}" : $"harbor@{version}", "run", "--config", Layout.HarborJobFile];
 
     /// <summary>
     /// nb's layer: the self-contained publish proctor.json harbor.nb names, as a local image holding only /opt/nb,
     /// tagged by the publish's content hash and built once in the engine's store. An nb arm's image copies it, so the
     /// binary that runs is the one hashed, and its version is asked of it here. Podman keeps a local image under
-    /// localhost/, so the tag says so rather than leave a build to resolve a short name.
+    /// localhost/, so the tag says so rather than leave a build to resolve a short name. A remote engine cannot see a
+    /// local image, so there is nothing to build: compile copies the publish into each nb task's build context, and the
+    /// tag is only the publish's identity.
     /// </summary>
-    public static (string Tag, string Version) NbImage(string publishDir, string engine)
+    public static (string Tag, string Version) NbImage(string publishDir, HarborConfig harbor)
     {
+        var engine = harbor.Engine;
         var binary = Path.Combine(publishDir, "nb");
         if (!File.Exists(binary)) throw new ProctorException($"no nb binary in {publishDir} (suites/proctor.json harbor.nb): publish one with `dotnet publish nb.csproj -c Release -r linux-x64 --self-contained -o <dir>` in nb's repository");
         var asked = Subprocess.Run(binary, ["--version"], publishDir, new Dictionary<string, string> { ["NO_COLOR"] = "1" });
         if (!asked.Started || asked.ExitCode != 0) throw new ProctorException($"{binary} --version failed: {(asked.Started ? asked.FirstStderrLine : asked.Stderr)}");
         var tag = (engine == "podman" ? "localhost/" : "") + "proctor-nb:" + Tree.Hash(publishDir, new HashSet<string>()).Split(':')[1][..16];
-        if (Subprocess.Run(engine, ["image", "inspect", tag], publishDir) is not { Started: true, ExitCode: 0 })
+        if (!harbor.Remote && Subprocess.Run(engine, ["image", "inspect", tag], publishDir) is not { Started: true, ExitCode: 0 })
         {
             var built = Subprocess.Run(engine, ["build", "-q", "-t", tag, "-f", "-", "."], publishDir, stdin: "FROM scratch\nCOPY . /opt/nb\n");
             if (!built.Started || built.ExitCode != 0) throw new ProctorException($"could not build nb's layer {tag} from {publishDir}: {(built.Started ? built.FirstStderrLine : built.Stderr)}");
         }
         return (tag, asked.Stdout.Trim().Split('+')[0]);
+    }
+
+    /// <summary>What each engine needs of the machine, checked before the first cell: podman's setup, Modal's login.</summary>
+    public static void Preflight(HarborConfig harbor)
+    {
+        if (harbor.Engine == "podman") CheckPodman();
+        if (harbor.Engine == HarborConfig.Modal && ModalProblem(Environment.GetEnvironmentVariable, File.Exists) is { } problem) throw new ProctorException(problem);
+    }
+
+    /// <summary>
+    /// Modal's login, where its SDK looks: MODAL_TOKEN_ID and MODAL_TOKEN_SECRET, else the file MODAL_CONFIG_PATH names,
+    /// else ~/.modal.toml. Harbor's process inherits proctor's environment, so the login reaches it as it is.
+    /// </summary>
+    public static string? ModalProblem(Func<string, string?> env, Func<string, bool> exists)
+    {
+        if (env("MODAL_TOKEN_ID") is { Length: > 0 } && env("MODAL_TOKEN_SECRET") is { Length: > 0 }) return null;
+        var file = env("MODAL_CONFIG_PATH") is { Length: > 0 } named ? named : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".modal.toml");
+        return exists(file) ? null : $"harbor.engine is modal, but there is no Modal login ({file}, or MODAL_TOKEN_ID and MODAL_TOKEN_SECRET): run `uvx modal token new`";
+    }
+
+    /// <summary>
+    /// Why a sandbox on Modal could not reach this host, or null when it could: loopback, a private, shared or
+    /// link-local address, a name without a dot (a LAN name such as imp), or a .local, .lan, .internal or .home name.
+    /// Harbor's allowlist on Modal admits names and IPv4 addresses, so the host is never looked up here.
+    /// </summary>
+    public static string? Unreachable(string host)
+    {
+        host = host.Trim('[', ']').ToLowerInvariant();
+        if (host == "localhost" || host.EndsWith(".localhost")) return "loopback";
+        if (System.Net.IPAddress.TryParse(host, out var ip))
+        {
+            if (System.Net.IPAddress.IsLoopback(ip)) return "loopback";
+            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                return ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6UniqueLocal ? "a private address" : null;
+            var b = ip.GetAddressBytes();
+            return b[0] == 10 || (b[0] == 172 && b[1] is >= 16 and <= 31) || (b[0] == 192 && b[1] == 168) || (b[0] == 100 && b[1] is >= 64 and <= 127)
+                ? "a private address"
+                : b[0] == 169 && b[1] == 254 ? "a link-local address" : b[0] == 0 ? "not an address a sandbox can reach" : null;
+        }
+        if (!host.Contains('.')) return "a name without a domain, which only this network resolves";
+        return new[] { ".local", ".lan", ".internal", ".home", ".home.arpa" }.FirstOrDefault(host.EndsWith) is { } suffix ? $"a {suffix} name, which only this network resolves" : null;
     }
 
     /// <summary>
@@ -91,14 +135,14 @@ static class HarborRun
         if (Directory.Exists(harborDir)) Directory.Delete(harborDir, recursive: true);   // a resumed cell starts clean
         Directory.CreateDirectory(harborDir);
         var jobsDir = Path.Combine(harborDir, "jobs");
-        Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), HarborCompile.Job(arm, taskDir, jobsDir, route, nb, engine, oracle));
+        var timeout = TimeSpan.FromMilliseconds(wallMs) + Overhead;
+        Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), HarborCompile.Job(arm, taskDir, jobsDir, route, nb, engine, oracle, timeout));
 
         var env = new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" };
         if (route is { KeyEnv: { } name, ApiKey: { } key }) env[name] = key;
         // nb's and Qwen Code's agents, and the oracle's simulated user, are proctor's own, imported from the experiment's harbor/agents/.
         if (HarborCompile.IsOwnAgent(arm) || oracle is not null) env["PYTHONPATH"] = agentsDir;
-        var timeout = TimeSpan.FromMilliseconds(wallMs) + Overhead;
-        var result = Subprocess.Run(uv, UvArgs(version), harborDir, env,
+        var result = Subprocess.Run(uv, UvArgs(version, engine), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);
         if (!result.Started) return (null, $"could not start Harbor: {result.Stderr} (suites/proctor.json harbor.uv)");
         if (result.TimedOut) return (null, $"Harbor did not finish within {timeout.TotalMinutes:0} minutes; killed. {TearDown(engine, jobsDir)}");
@@ -133,6 +177,8 @@ static class HarborRun
     /// </summary>
     public static string TearDown(string engine, string jobsDir)
     {
+        // A sandbox on Modal ends itself: the job gives it the cell's lifetime and an idle limit (HarborCompile.Job).
+        if (engine == HarborConfig.Modal) return $"A sandbox it left on Modal ends itself within {HarborCompile.ModalIdle.TotalMinutes:0} minutes of going idle.";
         var jobDir = Path.Combine(jobsDir, "job");
         var trials = Directory.Exists(jobDir) ? Directory.GetDirectories(jobDir).Select(Path.GetFileName).Where(n => n!.Contains("__")).ToList() : [];
         if (trials.Count == 0) return "No trial had started, so nothing was left in the engine.";

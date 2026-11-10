@@ -31,6 +31,10 @@ record NbMounts(string? Work = null, string? Bundle = null);
 record ProctorConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, Dictionary<string, AgentEndpoint>? Agents = null, HarborConfig? Harbor = null)
 {
     public NbConfig NbOrDefault => Nb ?? new NbConfig();
+    public HarborConfig HarborOrDefault => Harbor ?? new HarborConfig();
+
+    /// <summary>The file this was read from, as messages name it: suites/proctor.json, or what --config named.</summary>
+    [JsonIgnore] public string Source { get; init; } = "suites/proctor.json";
 }
 
 /// <summary>
@@ -44,11 +48,16 @@ record AgentEndpoint(string? BaseUrl, string? ApiKey, string? Config = null);
 /// <summary>
 /// proctor.json's harbor block: the uv that runs the suite's pinned Harbor (default: uv on PATH), nb's self-contained
 /// linux-x64 publish directory, which an nb arm's image carries (relative to suites/, like nb.path), and the container
-/// engine Harbor drives, its environment type: docker (the default) or podman.
+/// engine Harbor drives, its environment type: docker (the default) or podman on this machine, or modal, Modal's
+/// sandboxes on the user's Modal login.
 /// </summary>
 record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker")
 {
-    public static readonly string[] Engines = ["docker", "podman"];
+    public const string Modal = "modal";
+    public static readonly string[] Engines = ["docker", "podman", Modal];
+
+    /// <summary>Whether the cells run off this machine: a remote builder cannot see a local image, and a sandbox there reaches only public hosts.</summary>
+    [JsonIgnore] public bool Remote => Engine == Modal;
 }
 
 /// <summary>
@@ -251,9 +260,14 @@ sealed class Suite
         AllowTrailingCommas = true,
     };
 
-    public static ProctorConfig LoadConfig(string root, List<Problem> problems)
+    /// <summary>
+    /// The machine's config: suites/proctor.json, or the file --config names (resolved against the working directory),
+    /// which must exist. Relative paths inside either resolve against suites/, wherever the file is.
+    /// </summary>
+    public static ProctorConfig LoadConfig(string root, List<Problem> problems, string? configFile = null)
     {
-        var file = Path.Combine(Layout.Suites(root), Layout.ProctorConfigFile);
+        var file = configFile is null ? Path.Combine(Layout.Suites(root), Layout.ProctorConfigFile) : Path.GetFullPath(configFile);
+        if (configFile is not null && !File.Exists(file)) throw new ProctorException($"--config {configFile}: no such file");
         if (!File.Exists(file)) return new ProctorConfig(null);
         var config = ReadJson<ProctorConfig>(file, problems);
         // The runner and its mounts moved to suite.json (they are the suite's, with its hooks); a leftover here would be silently ignored.
@@ -270,7 +284,7 @@ sealed class Suite
             else if (string.IsNullOrWhiteSpace(endpoint?.BaseUrl)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.base_url", "required: where the agent's model calls go"));
             if (endpoint?.Config is not null && name != Arm.Codex) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.config", $"not yet: only {Arm.Codex} takes a native config"));
         }
-        return config ?? new ProctorConfig(null);
+        return (config ?? new ProctorConfig(null)) with { Source = Path.GetRelativePath(root, file) };
     }
 
     /// <summary>

@@ -1,0 +1,22 @@
+{
+  "//": "Copy to proctor.modal.json (gitignored) and run with `proctor run <suite> --config suites/proctor.modal.json`. The same suites run on Modal's sandboxes, on your Modal login (`uvx modal token new`), with nothing on this machine but proctor, nb and uv: no Docker, no podman. A sandbox reaches only public hosts, so every agent arm's model must be on the internet: here the vendors' own APIs, the keys from the environment or ~/.config/proctor/env. A route to a LAN name, a private address or localhost is refused before anything starts, as is a fixture with image.services (Modal cannot confine a task with services). Bare arms (no agent) still run on this machine, so a local model stays usable there. nb and its config are the host's, as in proctor.json; an `agent: nb` arm reads its provider's endpoint from nb's config, which must then be public too. harbor.nb is nb's self-contained linux-x64 publish, copied into each nb task's image. See docs/modal.md.",
+  "nb": {
+    "path": "../../nb/bin/Debug/net10.0/nb",
+    "config": "nb.json"
+  },
+  "agents": {
+    "claude-code": {
+      "base_url": "https://api.anthropic.com",
+      "api_key": "${ANTHROPIC_API_KEY}"
+    },
+    "codex": {
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "${OPENAI_API_KEY}"
+    }
+  },
+  "harbor": {
+    "uv": "uv",
+    "engine": "modal",
+    "nb": "../../nb/artifacts/linux-x64"
+  }
+}

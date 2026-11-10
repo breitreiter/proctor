@@ -4,10 +4,10 @@ namespace Proctor;
 static class Verbs
 {
     /// <summary>Validate and print. A label filter keeps the suites whose labels, or whose tasks' labels, match every filter.</summary>
-    public static int List(string root, string? suiteId, List<string>? labelFilters = null)
+    public static int List(string root, string? suiteId, List<string>? labelFilters = null, string? configFile = null)
     {
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(root, problems);
+        var config = Suite.LoadConfig(root, problems, configFile);
         var suiteIds = suiteId is not null ? [suiteId] : Directory.Exists(Layout.Suites(root))
             ? Directory.GetDirectories(Layout.Suites(root)).Where(d => File.Exists(Layout.SuiteFileIn(d))).Select(d => Path.GetFileName(d)!).Order(StringComparer.Ordinal).ToArray()
             : [];
@@ -31,10 +31,10 @@ static class Verbs
         return exit;
     }
 
-    public static int Run(string root, string suiteId, string? nbPath, string? runner)
+    public static int Run(string root, string suiteId, string? nbPath, string? runner, string? configFile = null)
     {
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(root, problems);
+        var config = Suite.LoadConfig(root, problems, configFile);
         var suite = Suite.Load(root, suiteId, problems, config.Judges ?? []);
         if (suite is null || problems.Count > 0)
         {
@@ -46,17 +46,17 @@ static class Verbs
         return 0;
     }
 
-    public static int Resume(string root, string experimentId, string? nbPath, string? runner)
+    public static int Resume(string root, string experimentId, string? nbPath, string? runner, string? configFile = null)
     {
-        Runner.Resume(root, experimentId, nbPath, runner, Console.Out);
+        Runner.Resume(root, experimentId, nbPath, runner, Console.Out, configFile);
         return 0;
     }
-    public static int Grade(string root, string experimentId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? armIds = null, List<string>? taskIds = null)
+    public static int Grade(string root, string experimentId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? armIds = null, List<string>? taskIds = null, string? configFile = null)
     {
         var (experiment, suite) = LoadExperiment(root, experimentId);
         RequireKnown(suite, armIds, taskIds);
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(root, problems);
+        var config = Suite.LoadConfig(root, problems, configFile);
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
         var judges = suite.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge, Console.WriteLine) : null;
         var grades = Proctor.Grade.Experiment(root, experiment, suite, Console.Out, judges, armIds, taskIds);
