@@ -182,7 +182,7 @@ static partial class SetupWizard
             .UseConverter(c => c switch
             {
                 "local" => $"{"On this machine",-30} [grey]Docker or podman, plus uv[/]",
-                "hosted" => $"{"A hosted sandbox service",-30} [grey]Daytona, Modal, …: not supported yet[/]",
+                "hosted" => $"{"A hosted sandbox service",-30} [grey]Modal (experimental); others not yet[/]",
                 _ => $"{"Skip for now",-30} [grey]You won't be able to measure Claude Code, Codex, etc[/]",
             }));
 
@@ -190,10 +190,12 @@ static partial class SetupWizard
         if (pick == "hosted")
         {
             var service = AnsiConsole.Prompt(new SelectionPrompt<string>()
-                .Title("Proctor cannot run agent arms on a hosted service yet. Which would you use?")
-                .AddChoices("Daytona", "Modal", "E2B", "Runloop", "Another / not sure"));
+                .Title("Which service?")
+                .AddChoices("Modal", "Daytona", "E2B", "Runloop", "Another / not sure")
+                .UseConverter(c => c == "Modal" ? $"{"Modal",-20} [grey]experimental[/]" : $"{c,-20} [grey]not supported yet[/]"));
+            if (service == "Modal") { Modal(w); return; }
             w.State.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: service.StartsWith("Another") ? null : service.ToLowerInvariant());
-            AnsiConsole.WriteLine($"\nRecorded as wanted: hosted sandbox ({service}). Until it is supported, agent arms need Docker or podman on this machine; nb runs need neither.");
+            AnsiConsole.WriteLine($"\nRecorded as wanted: hosted sandbox ({service}). Until it is supported, agent arms need Modal, or Docker or podman on this machine; nb runs need neither.");
             return;
         }
 
@@ -211,11 +213,24 @@ static partial class SetupWizard
         AnsiConsole.WriteLine("Ask your agent to read it and help you finish the sandbox. Every machine (and every employer's rules about what you may install) is different, so the plan says what proctor needs and leaves the route to you and your agent.");
     }
 
+    static void Modal(Session w)
+    {
+        w.Wrote(SetupFiles.PutEngine(w.SuitesDir, HarborConfig.Modal), $"harbor.engine {HarborConfig.Modal}");
+        w.State.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: HarborConfig.Modal, Engine: HarborConfig.Modal);
+        AnsiConsole.WriteLine("\nModal support is experimental: it has run proctor's own checks, not yet a hosted model's agent. Each agent cell runs in a Modal sandbox on your account, billed by the second; nb runs stay on this machine.");
+        AnsiConsole.WriteLine("Two limits: the agent's model must be on the internet (a vendor's API, not a model on your network), and a fixture with services cannot run there.");
+        if (HarborRun.ModalProblem(Environment.GetEnvironmentVariable, File.Exists) is not null)
+            AnsiConsole.MarkupLine("\n[yellow]No Modal login yet.[/] Run [bold]uvx modal token new[/] (it opens your browser).");
+        if (Runner.FindOnPath("uv") is null)
+            AnsiConsole.MarkupLine("[yellow]uv is not installed;[/] proctor runs Harbor with it.");
+        AnsiConsole.WriteLine("See docs/modal.md.");
+    }
+
     static async Task Agent(Session w, string id)
     {
         if (!w.State.HasSandbox)
         {
-            AnsiConsole.MarkupLine($"[grey]Skipped: {Esc(Title(id))} runs only in a sandbox, and none is set up (step 2). Run setup again once one is.[/]");
+            AnsiConsole.MarkupLine($"[grey]Skipped: {Esc(Title(id))} runs only in a sandbox, and none is set up (step 2: this machine or Modal). Run setup again once one is.[/]");
             return;
         }
         if (id == "claude-code")
@@ -514,6 +529,7 @@ static partial class SetupWizard
         { State: SetupJob.Later } => "later",
         { State: SetupJob.ByHand } => "by hand",
         { Where: "local" } => "this machine",
+        { Engine: HarborConfig.Modal } => "Modal (experimental)",
         { Where: "hosted" } => "wanted",
         _ => "set",
     };
@@ -556,6 +572,7 @@ static partial class SetupWizard
             var detail = job switch
             {
                 { Where: "local" } => $"{job.Engine ?? "no engine yet"} on this machine; see {SetupCheck.Shown(Path.Combine(w.SuitesDir, SetupFiles.SandboxPlan))}",
+                { Engine: HarborConfig.Modal } => "agent cells on your Modal account; see docs/modal.md",
                 { Where: "hosted" } => $"{job.Service ?? "hosted"} (not supported yet)",
                 _ => string.Join(", ", job?.Providers ?? []),
             };

@@ -367,7 +367,7 @@ Harbor, and a container engine, set by `harbor.engine` in
   behind `podman compose`, and three lines of user config. The setup,
   and why each step is there, is [`podman.md`](podman.md);
   `run` checks what it can before it starts.
-- **Modal**, no engine on this machine at all: each cell's containers run
+- **Modal** (experimental), no engine on this machine at all: each cell's containers run
   as sandboxes on your Modal account. The agent's model must be on the
   internet, and a fixture with `image.services` cannot run there. Setting
   it up, and what it costs, is [`modal.md`](modal.md).

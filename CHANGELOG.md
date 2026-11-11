@@ -17,6 +17,10 @@ formats or the vocabulary; a patch bump does not.
   a fixture with `image.services`, before anything starts. nb's layer for
   an `agent: nb` arm is copied into the task on Modal rather than built
   locally; on docker and podman nothing changed.
+- `proctor setup` offers Modal as an experimental sandbox: choosing it
+  writes `harbor.engine: modal` into `suites/proctor.json`, checks the
+  Modal login, and goes on to the Claude Code and Codex steps. Daytona,
+  E2B and Runloop are still recorded as intent only.
 - The verdict card opens with a chart (inline SVG, no script): each arm's
   pass rate on its 95% interval, the baseline's own score marked beside it,
   and each arm's change in points with its interval, hollow when not

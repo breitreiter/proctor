@@ -18,7 +18,8 @@ record SetupProvider(string Name, string Kind, string? Env, string Check, DateOn
 /// <summary>
 /// The answer for one job. <see cref="State"/> is <c>set</c> (a provider, or for the sandbox a place), <c>later</c>
 /// (skipped for now) or <c>by-hand</c> (the provider is chosen, the config is the user's agent's to write).
-/// <see cref="Where"/> is the sandbox's: <c>local</c> or <c>hosted</c>, the hosted service in <see cref="Service"/>.
+/// <see cref="Where"/> is the sandbox's: <c>local</c> or <c>hosted</c>, the hosted service in <see cref="Service"/>;
+/// Modal, the one hosted service proctor runs on, also has <see cref="Engine"/> <c>modal</c>.
 /// </summary>
 record SetupJob(string State, List<string>? Providers = null, string? Where = null, string? Service = null, string? Engine = null)
 {
@@ -75,6 +76,9 @@ record SetupState(DateTime Updated, List<SetupProvider> Providers, Dictionary<st
     public List<string> JobsUsing(string provider) =>
         Jobs.Where(j => j.Value.Providers?.Contains(provider) == true).Select(j => j.Key).ToList();
 
-    /// <summary>A sandbox on this machine counts for the agent jobs before its plan is carried out; hosted or skipped does not.</summary>
-    [JsonIgnore] public bool HasSandbox => Job("sandbox") is { State: SetupJob.Set, Where: "local" };
+    /// <summary>
+    /// A sandbox on this machine counts for the agent jobs before its plan is carried out, and so does Modal before its
+    /// login; another hosted service (intent only) or a skip does not.
+    /// </summary>
+    [JsonIgnore] public bool HasSandbox => Job("sandbox") is { State: SetupJob.Set, Where: "local" } or { State: SetupJob.Set, Engine: HarborConfig.Modal };
 }

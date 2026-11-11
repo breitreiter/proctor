@@ -58,7 +58,7 @@ static class SetupCheck
         var config = ReadConfig(proctorPath);
         foreach (var (id, _) in SetupState.JobOrder)
             output.WriteLine($"job {id}: {JobLine(id, state, suitesDir, config, problems)}");
-        if (state.Job("sandbox") is { Where: "hosted" } hosted)
+        if (state.Job("sandbox") is { Where: "hosted", Engine: not HarborConfig.Modal } hosted)
             output.WriteLine($"want: hosted sandbox ({hosted.Service ?? "not sure which"}), not supported yet");
 
         foreach (var problem in problems) output.WriteLine($"problem: {problem}");
@@ -102,6 +102,15 @@ static class SetupCheck
         switch (id)
         {
             case "sandbox":
+                if (job.Engine == HarborConfig.Modal)
+                {
+                    if (HarborRun.ModalProblem(Environment.GetEnvironmentVariable, File.Exists) is { } login)
+                        problems.Add($"{login} (the user runs it: it opens their browser)");
+                    if (Runner.FindOnPath("uv") is null) problems.Add("sandbox is Modal, but uv is not installed; proctor runs Harbor with it");
+                    if ((string?)config?["harbor"]?["engine"] is not HarborConfig.Modal)
+                        problems.Add("sandbox is Modal, but suites/proctor.json harbor.engine is not modal; ask the user to rerun `proctor setup`, or pass a Modal machine file with --config (docs/modal.md)");
+                    return "Modal (experimental): agent cells run as sandboxes on the user's Modal account; their models must be public endpoints and fixtures with image.services cannot run there (docs/modal.md)";
+                }
                 if (job.Where == "hosted") return $"wanted: hosted ({job.Service ?? "not sure which"}), not supported yet";
                 var engine = (string?)config?["harbor"]?["engine"] ?? "docker";
                 var uv = Runner.FindOnPath("uv");

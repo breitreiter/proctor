@@ -17,9 +17,16 @@ without your setup can run it too. Arms without an agent (bare nb) still
 run on the machine you start proctor on, so a suite can keep a bare arm on
 a local model while its agent arms run on Modal.
 
-Checked on 2026-11-10 with Harbor 0.24.0 (Modal SDK 1.5 and later):
-a `code-change` task through Harbor's verifier, the allowlist from inside
-a sandbox, and the gate (`PROCTOR_GATE_ENGINE=modal`).
+Modal support is **experimental**. Checked on 2026-11-10 with Harbor
+0.24.0 (Modal SDK 1.5 and later): a `code-change` task through Harbor's
+verifier, the allowlist from inside a sandbox, and the gate
+(`PROCTOR_GATE_ENGINE=modal`). No hosted model's agent has run there yet,
+nor the oracle's simulated user.
+
+If Modal is the only place your agent arms will run, `proctor setup` can
+choose it instead (the sandbox step, "A hosted sandbox service", then
+Modal): it writes `harbor.engine: modal` into `suites/proctor.json`
+itself, and you need no second file and no `--config`.
 
 ## 1. A Modal login
 

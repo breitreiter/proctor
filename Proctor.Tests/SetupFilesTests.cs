@@ -164,6 +164,16 @@ public class SetupFilesTests : IDisposable
         Assert.Equal(["nb"], back.JobsUsing("gemini"));
     }
 
+    [Fact]
+    public void Modal_CountsAsASandbox_AnotherHostedServiceIsOnlyIntent()
+    {
+        var state = SetupState.Empty();
+        state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: "modal", Engine: "modal");
+        Assert.True(state.HasSandbox);
+        state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: "daytona");
+        Assert.False(state.HasSandbox);
+    }
+
     // ── setup --check ──
 
     async Task<(int Exit, string Output)> Check()
@@ -185,6 +195,24 @@ public class SetupFilesTests : IDisposable
         state.Jobs["sandbox"] = new SetupJob(SetupJob.Later);
         state.Jobs["judge"] = new SetupJob(SetupJob.Set, [providers[0].Name]);
         state.Save(suites);
+    }
+
+    [Fact]
+    public async Task Check_Modal_IsExperimental_AndNamesAProctorJsonOnAnotherEngine()
+    {
+        WriteState(Provider("gem", "gemini", "GEM_KEY"));
+        var state = SetupState.Load(suites)!;
+        state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: "modal", Engine: "modal");
+        state.Save(suites);
+
+        var (exit, output) = await Check();
+        Assert.Equal(1, exit);
+        Assert.Contains("job sandbox: Modal (experimental)", output);
+        Assert.DoesNotContain("not supported yet", output);
+        Assert.Contains("problem: sandbox is Modal, but suites/proctor.json harbor.engine is not modal", output);
+
+        SetupFiles.PutEngine(suites, "modal");
+        Assert.DoesNotContain("harbor.engine is not modal", (await Check()).Output);
     }
 
     [Fact]

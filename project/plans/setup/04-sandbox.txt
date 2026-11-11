@@ -12,7 +12,7 @@ Running Harbor on your local machine requires installing several packages and pe
 How would you prefer to run Harbor?
 
 > On this machine                Docker or podman, plus uv
-  A hosted sandbox service       Daytona, Modal, …: not supported yet
+  A hosted sandbox service       Modal (experimental); others not yet
   Skip for now                   You won't be able to test with Claude Code, Codex, etc
 
 ─────────────────────────────────────────────────────────────────────────
@@ -36,13 +36,16 @@ plan says what proctor needs and leaves the route to you and your agent.
 
 A hosted sandbox service
 
-Proctor cannot run agent arms on a hosted service yet. Which would you use?
+Which service?
 
-> Daytona
-  Modal
-  E2B
-  Runloop
-  Another / not sure
+> Modal                experimental
+  Daytona              not supported yet
+  E2B                  not supported yet
+  Runloop              not supported yet
+  Another / not sure   not supported yet
+
+# Modal writes harbor.engine modal into proctor.json, checks the login and
+# counts as a sandbox for steps 3 and 4; the others are recorded as intent.
 
 Recorded as wanted: hosted sandbox (Daytona). Until it is supported, agent
-arms need Docker or podman on this machine; nb runs need neither.
+arms need Modal, or Docker or podman on this machine; nb runs need neither.
