@@ -1,12 +1,13 @@
-diff --git a/nb.Core/ConversationManager.cs b/nb.Core/ConversationManager.cs
-index d058082..9be4d00 100644
---- a/nb.Core/ConversationManager.cs
-+++ b/nb.Core/ConversationManager.cs
-@@ -302,7 +302,6 @@ public class ConversationManager
-         var response = await client.GetResponseAsync(messages, options, cancellationToken);
-         var (input, output, total, _) = MeasureOrEstimateUsage(response, options.Tools);
-         ChargeCost(input, output);
--        _sessionInputTokens += input;
-         _sessionOutputTokens += output;
-         _sessionTotalTokens += total;
-         _sessionHadUsage = true;
+diff --git a/nb.Core/Transcript/RunJournal.cs b/nb.Core/Transcript/RunJournal.cs
+index d12ce42..ed90674 100644
+--- a/nb.Core/Transcript/RunJournal.cs
++++ b/nb.Core/Transcript/RunJournal.cs
+@@ -44,7 +44,7 @@ public sealed class RunJournal
+     /// </summary>
+     public void Append(ChatMessage message, RoundMetrics? round = null, string? source = null, OracleAnswer? oracle = null, string? thinking = null)
+     {
+-        if (message.Role != ChatRole.Tool && _started) _turn++;
++        if (message.Role != ChatRole.Tool && source is null && _started) _turn++;
+         _started = true;
+ 
+         var at = DateTimeOffset.UtcNow;

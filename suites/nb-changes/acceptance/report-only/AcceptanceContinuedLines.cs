@@ -23,15 +23,6 @@ public class AcceptanceContinuedLines
     }
 
     [Fact]
-    public void BlankLineInsideAContinuedPrompt_EndsIt()
-    {
-        var events = ProgramParser.Parse("user first \\\n\nrun hello");
-        Assert.Equal(2, events.Count);
-        Assert.StartsWith("first", Assert.IsType<UserEvent>(events[0]).Text);
-        Assert.Equal("hello", Assert.IsType<RunEvent>(events[1]).Prompt);
-    }
-
-    [Fact]
     public void CommentsAndBlankLinesBetweenDirectives_AreStillSkipped()
     {
         var events = ProgramParser.Parse("#!/usr/bin/env nb\n\n# the prompt\nsystem be brief\n\n   # and the question\nrun hello\n");

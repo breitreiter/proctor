@@ -1,6 +1,6 @@
 {
   "id": "nb-far-cause",
-  "description": "nb at a pinned revision with one defect planted in its token accounting, far from where the wrong number shows and caught by none of nb's tests",
+  "description": "nb at a pinned revision with one defect planted in how a run's transcript numbers its turns, which shows only when the transcript is replayed and is caught by none of nb's tests",
   "source": {
     "git": "https://github.com/breitreiter/nb.git",
     "rev": "0e11b218f1a3da09f71417f9e9e1b63b6d4d6286"
@@ -19,7 +19,7 @@
     },
     "run": [
       "apt-get update -q && apt-get install -y -q --no-install-recommends jq >/dev/null && rm -rf /var/lib/apt/lists/*",
-      "echo ZGlmZiAtLWdpdCBhL25iLkNvcmUvQ29udmVyc2F0aW9uTWFuYWdlci5jcyBiL25iLkNvcmUvQ29udmVyc2F0aW9uTWFuYWdlci5jcwppbmRleCBkMDU4MDgyLi45YmU0ZDAwIDEwMDY0NAotLS0gYS9uYi5Db3JlL0NvbnZlcnNhdGlvbk1hbmFnZXIuY3MKKysrIGIvbmIuQ29yZS9Db252ZXJzYXRpb25NYW5hZ2VyLmNzCkBAIC0zMDIsNyArMzAyLDYgQEAgcHVibGljIGNsYXNzIENvbnZlcnNhdGlvbk1hbmFnZXIKICAgICAgICAgdmFyIHJlc3BvbnNlID0gYXdhaXQgY2xpZW50LkdldFJlc3BvbnNlQXN5bmMobWVzc2FnZXMsIG9wdGlvbnMsIGNhbmNlbGxhdGlvblRva2VuKTsKICAgICAgICAgdmFyIChpbnB1dCwgb3V0cHV0LCB0b3RhbCwgXykgPSBNZWFzdXJlT3JFc3RpbWF0ZVVzYWdlKHJlc3BvbnNlLCBvcHRpb25zLlRvb2xzKTsKICAgICAgICAgQ2hhcmdlQ29zdChpbnB1dCwgb3V0cHV0KTsKLSAgICAgICAgX3Nlc3Npb25JbnB1dFRva2VucyArPSBpbnB1dDsKICAgICAgICAgX3Nlc3Npb25PdXRwdXRUb2tlbnMgKz0gb3V0cHV0OwogICAgICAgICBfc2Vzc2lvblRvdGFsVG9rZW5zICs9IHRvdGFsOwogICAgICAgICBfc2Vzc2lvbkhhZFVzYWdlID0gdHJ1ZTsK | base64 -d | git apply && rm -rf .git && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm 'nb'",
+      "echo ZGlmZiAtLWdpdCBhL25iLkNvcmUvVHJhbnNjcmlwdC9SdW5Kb3VybmFsLmNzIGIvbmIuQ29yZS9UcmFuc2NyaXB0L1J1bkpvdXJuYWwuY3MKaW5kZXggZDEyY2U0Mi4uZWQ5MDY3NCAxMDA2NDQKLS0tIGEvbmIuQ29yZS9UcmFuc2NyaXB0L1J1bkpvdXJuYWwuY3MKKysrIGIvbmIuQ29yZS9UcmFuc2NyaXB0L1J1bkpvdXJuYWwuY3MKQEAgLTQ0LDcgKzQ0LDcgQEAgcHVibGljIHNlYWxlZCBjbGFzcyBSdW5Kb3VybmFsCiAgICAgLy8vIDwvc3VtbWFyeT4KICAgICBwdWJsaWMgdm9pZCBBcHBlbmQoQ2hhdE1lc3NhZ2UgbWVzc2FnZSwgUm91bmRNZXRyaWNzPyByb3VuZCA9IG51bGwsIHN0cmluZz8gc291cmNlID0gbnVsbCwgT3JhY2xlQW5zd2VyPyBvcmFjbGUgPSBudWxsLCBzdHJpbmc/IHRoaW5raW5nID0gbnVsbCkKICAgICB7Ci0gICAgICAgIGlmIChtZXNzYWdlLlJvbGUgIT0gQ2hhdFJvbGUuVG9vbCAmJiBfc3RhcnRlZCkgX3R1cm4rKzsKKyAgICAgICAgaWYgKG1lc3NhZ2UuUm9sZSAhPSBDaGF0Um9sZS5Ub29sICYmIHNvdXJjZSBpcyBudWxsICYmIF9zdGFydGVkKSBfdHVybisrOwogICAgICAgICBfc3RhcnRlZCA9IHRydWU7CiAKICAgICAgICAgdmFyIGF0ID0gRGF0ZVRpbWVPZmZzZXQuVXRjTm93Owo= | base64 -d | git apply && rm -rf .git && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm 'nb'",
       "dotnet build nb.sln -nologo -v q"
     ]
   }

@@ -873,3 +873,51 @@ five defect tasks on nb at `0e11b21`, one fixture each, and the feature task
 - **Proven in the images** (2026-11-11): Harbor's oracle agent with each
   reference as the solution scores every script check 1 on all six tasks,
   in podman, verifier offline. The pass is a scratch script, not a test.
+
+## `nb-changes` on Haiku: the defects are too easy to press on the cut (2026-11-12)
+
+Experiment `20261112-0020-nb-changes-h7at`, Claude Code on Haiku, one run a
+task: 5 of 6 passed, $0.86 by `core.json` ($0.81 of it the feature task),
+47 minutes.
+
+| Task | Calls | Strip | Shape wanted | Shape got |
+|---|---|---|---|---|
+| `red-test` | 5 | `o3 A` | a try before any write | yes: `dotnet test` in orient, then one write |
+| `report-only` | 11 | `o4 A! R` | a scratch reproduction first | a regression test first, then the fix; failed acceptance |
+| `two-causes` | 13 | `o5 A! R! R` | the first fix does not clear it | yes, in three short iterations |
+| `far-cause` | 17 | `o12 A! R .` | long diagnosis, logging added and removed | found by reading in 12 calls; no logging |
+| `not-a-bug` | 5 | `o5` | no write | yes: one beat |
+| `ask-user-question` | 93 | `o30 A! R! R! R!` | (feature) | a 23-write advance, then three repairs |
+
+Against the failure list in `project/plans/debugging-suite.md`:
+
+- **Test-first reads as advance then repair.** In `report-only`,
+  `far-cause` and `two-causes` the agent wrote a failing test, saw it fail,
+  then wrote the fix. The cut calls the test "advance" and the fix "repair",
+  because the beat before met an error. The error was the point. This is the
+  listed `report-only` failure, on three tasks.
+- **No orient beat reached 30 calls on a defect**, so "reproduce inside
+  orient" was not pressed. The feature's orient is 30 calls and one beat.
+- **`not-a-bug` is one beat**; the timeline says "20 reads, 9 of the docs"
+  and quotes the agent, and nothing else.
+- **The feature's first iteration is 23 writes in one beat**: the "split"
+  fault the blind read found.
+- "Other" is 0%.
+
+What to change before a Sonnet arm:
+
+- **`far-cause` is not far.** Reading from the trailer back to the side call
+  took 12 calls. A longer chain, or a cause that reading does not show, is
+  needed for an instrumented diagnosis.
+- **`report-only`'s acceptance asks for more than the report.** The plant
+  also stops a blank line ending a continued prompt; the report mentions
+  only headings; the agent fixed headings and failed
+  `BlankLineInsideAContinuedPrompt_EndsIt`. Either the report mentions it or
+  the test goes.
+- **`observe.py` counted coloured `PASS` lines and "0 failed" as errors**
+  (ANSI codes hid them from the quiet rule). Fixed; nb's own compiler
+  warnings still count as an error met.
+
+Done 2026-11-12: `far-cause` has a new plant (the journal's turn numbering,
+seen only on seed replay of a nudged run), and `report-only` lost the
+blank-line test. Both shaken down three ways. Neither has met a model.

@@ -1,11 +1,11 @@
 {
   "id": "far-cause",
-  "description": "A cost report whose input and output tokens do not add up to the total on some runs; the defect is several calls upstream of the number and shows only under a condition the report does not name",
+  "description": "A report that some transcripts replay as seeds with a message out of place; the defect is in a different module from the one that replays, and shows only for runs the report does not characterise",
   "labels": {
     "kind": "defect"
   },
   "fixture": "nb-far-cause",
-  "prompt": "Our cost report is off. It reads the `usage` block of the result trailer of each nb run (`--output jsonl`), and on some runs input plus output comes to less than total. I haven't found the pattern. Two from yesterday's batch, same model, same config:\n\n```\n\"usage\": {\"input\": 18412, \"output\": 1266, \"total\": 19678}\n\"usage\": {\"input\": 41907, \"output\": 3518, \"total\": 47633}\n```\n\nThe first adds up. The second is 2,208 short. Total looks like the right one: it matches what the provider billed us.\n\nnb's tests and evals all pass. Can you find where the tokens go missing and fix it? Don't change the existing tests.",
+  "prompt": "We keep the transcript of every nb run (`--output jsonl`) and often continue one the next day by replaying it as a seed (`--seed run.jsonl`) with a follow-up prompt. On some of them the model behaves oddly after the replay, as though it had been told off before it did anything. A colleague compared what was sent to the provider and says one user message sits earlier in the replayed conversation than it did in the original run. Most transcripts replay exactly; I haven't worked out what the bad ones have in common, and I can't share them.\n\nnb's tests and evals all pass. Can you find what's wrong and fix it? Don't change the existing tests.",
   "expect": {
     "files_touched": {
       "paths": [
@@ -15,6 +15,6 @@
       ],
       "mode": "at_most"
     },
-    "answer_regex": "ConversationManager"
+    "answer_regex": "RunJournal|TranscriptLoader"
   }
 }

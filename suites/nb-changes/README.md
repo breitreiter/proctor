@@ -12,7 +12,7 @@ Tasks carry `labels.kind`, `defect` or `feature`. Read the pass rate per kind.
 | `red-test` | defect | "the build is red" | 5 fail |
 | `report-only` | defect | a user's report with a program and what it compiles to | all pass |
 | `two-causes` | defect | a user's report; a second defect shows once the first is fixed | 10 fail, then 1 |
-| `far-cause` | defect | two `usage` blocks, one that does not add up | all pass |
+| `far-cause` | defect | a report that some transcripts replay as seeds with a message out of place | all pass |
 | `not-a-bug` | defect | a report of documented behaviour | all pass |
 | `ask-user-question` | feature | an eight-point contract for a new tool | all pass |
 

@@ -118,20 +118,29 @@ showed follows the list.
 - **Why this one.** The second defect cannot be seen until the first is
   fixed, so a run that stops at "it applies now" fails acceptance.
 
-### 4. `far-cause`: input and output tokens do not add up to the total
+### 4. `far-cause`: a replayed transcript has a message out of place
 
-- **Plant.** `nb.Core/ConversationManager.cs`, `SideCallAsync`: the line
-  `_sessionInputTokens += input` goes.
-- **Symptom.** On a run where the oracle answered, the result trailer's
-  `usage.input + usage.output` is less than `usage.total`. Runs with no
-  oracle are right.
-- **Prompt.** "Our cost report is off. Some trailers have input plus output
-  below total; I have not found the pattern." Two trailers attached, one
-  right, one wrong, without saying which runs used an oracle.
-- **Why this one.** The number is wrong in the serialized trailer; the cause
-  is four hops back (trailer, `UsageInfo`, `TotalUsage`, the side call), and
-  it shows only under a condition the report does not name. Expect logging
-  added and removed.
+Replaced 2026-11-12. The first plant (a side call's input tokens left out
+of the session sum) was found by reading in 12 calls on Haiku: the missing
+line sat beside its two siblings. It is kept outside the repository.
+
+- **Plant.** `nb.Core/Transcript/RunJournal.cs`, `Append`: the turn counter
+  no longer advances for a message nb injected (`source` set: the loop
+  reminder, the todo reminder), so the reminder takes the turn of the tool
+  round before it.
+- **Symptom.** Nothing in the run. When its transcript is replayed with
+  `--seed`, the loader rebuilds each turn as user messages, then the
+  assistant message, then the tool message, so the reminder lands before
+  the call it followed. Only transcripts of runs that were nudged do it.
+- **Prompt.** "Some transcripts replay with a user message earlier than it
+  was; most replay exactly; I can't share them." No transcript, no mention
+  of reminders.
+- **Why this one.** The wrong thing happens in the loader, the cause is in
+  the journal, and the condition is in the conversation loop that injects
+  reminders. Reproducing it needs a run that loops. The line reads as
+  deliberate, so the agent has to decide which side is wrong; the class
+  comment still states the right rule. Acceptance tests the round trip, so
+  a fix in the loader that restores the order would pass too.
 
 ### 5. `not-a-bug`: `@file` in the middle of a prompt is not included
 
@@ -156,7 +165,7 @@ tests and its 154 integration evals (`evals/run.sh --skip-llm`).
 | `red-test` | 5 in `DoomLoopDetectorTests` | did not finish in 280 s | not needed |
 | `report-only` | none | 154 pass | yes: `nb --compile` drops `# Rules` and `# Tone` from a continued `system` |
 | `two-causes` | 10 with both or with A alone (5 `SeekSequenceTests`, 5 `PatchApplierTests`); 1 with B alone (`Apply_PreservesCrlfLineEndings`) | not run | not needed |
-| `far-cause` | none | 154 pass | yes: an oracle run's trailer reads input 20, output 20, total 60; unplanted, 40, 20, 60 |
+| `far-cause` (as replaced) | none | 154 pass | yes: a run nudged for looping, replayed as a seed, has the reminder before the third call |
 
 What this changes:
 
@@ -232,7 +241,7 @@ All script checks, run by Harbor's offline verifier. No judge.
 | Check | Role | What it asks |
 |---|---|---|
 | `builds` | `pass` | The solution builds. |
-| `acceptance` | `pass` | Hidden tests for this task's defect pass. They live in the suite (`acceptance/<task>/`), which only the verifier sees. For `far-cause`: a script reads the trailer of an oracle run on Mock. For `not-a-bug`: the diff touches nothing but `.md` files. |
+| `acceptance` | `pass` | Hidden tests for this task's defect pass. They live in the suite (`acceptance/<task>/`), which only the verifier sees. For `not-a-bug`: the diff touches nothing but `.md` files. |
 | `suite-green` | `pass` | nb's own tests still pass. |
 | `planted-present` | `validity` | The defect is in the checkout the agent was given (the patch applied). |
 | `tests-untouched` | guardrail | No existing test was deleted or weakened. |

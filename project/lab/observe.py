@@ -46,7 +46,7 @@ NET_FAIL = re.compile(r'curl: \(\d+\)[^\n]*|ECONNREFUSED|ENOTFOUND|getaddrinfo[^
 STATUS = re.compile(r'HTTP/[\d.]+ (\d{3})|"status(?:Code|_code)?":\s*(\d{3})')
 EDIT_FAIL = re.compile(r'(?i)^\s*(error|failed)|not found|no match|not unique|did not (find|match)|0 occurrences')
 ERRLINE = re.compile(r'(?i)\b(error|failed|failure|exception|traceback|denied|refused|unauthorized|forbidden|not found|timed? ?out|cannot|could not|unable to|invalid|missing)\b|warning [A-Z]+\d+|HTTP/[\d.]+ [45]\d\d')
-QUIET = re.compile(r'Passed!|\b0 (Error|Warning|error|failed|failures)|Error: \(none\)|^\s*(Error Message:|Stack Trace:)\s*$')
+QUIET = re.compile(r'Passed!|^\s*PASS\b|\b0 (Error|Warning|error|failed|failures)|Error: \(none\)|^\s*(Error Message:|Stack Trace:)\s*$')
 SKIP = set('cd echo printf which true false export set unset sleep pwd source . for do done if then fi else elif while in head tail wc sort uniq cut tr jq column less more xargs tee wait read local return exit test [ { } ( )'.split())
 PREFIX = set('sudo time nohup env exec'.split())
 EXPLORE = set('cat sed nl bat awk rg grep egrep find ls tree fd stat file diff strings od xxd basename dirname realpath readlink'.split())
@@ -308,8 +308,12 @@ def load_run(cell, decl, unknown, unparsed):
     run['beats'], run['plans'] = cut(run)
     return run
 
+ANSI = re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
+
 def err_lines(res):
-    return [' '.join(l.split())[:200] for l in res.splitlines() if len(l) < 2000 and ERRLINE.search(l) and not QUIET.search(l) and not HELP.search(l)]
+    # Colour codes go first: "\x1b[0;31m0 failed" is not "0 failed" to QUIET until they do.
+    lines = [ANSI.sub('', l) for l in res.splitlines() if len(l) < 2000]
+    return [' '.join(l.split())[:200] for l in lines if ERRLINE.search(l) and not QUIET.search(l) and not HELP.search(l)]
 
 def try_name(e):
     t = e['tg'][0] if e['tg'] else e['kind']
