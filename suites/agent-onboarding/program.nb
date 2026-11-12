@@ -1,0 +1,3 @@
+# agent-onboarding: every arm is a vendor agent, which takes the task's prompt as its instruction
+# and sees no program; an nb arm would use this.
+run {{prompt}}

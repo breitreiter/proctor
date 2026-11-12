@@ -1,0 +1,322 @@
+diff --git a/Providers/Mock/MockProvider.cs b/Providers/Mock/MockProvider.cs
+index 509ea36..78dbc25 100644
+--- a/Providers/Mock/MockProvider.cs
++++ b/Providers/Mock/MockProvider.cs
+@@ -233,6 +233,8 @@ public class MockChatClient : IChatClient
+             "write_file" => new() { ["path"] = arg, ["content"] = "scripted by MockProvider\n" },
+             "read_file" => new() { ["path"] = arg },
+             "list_dir" => new() { ["path"] = arg },
++            // The question may carry a MOCK:oracle= rider: it is what the oracle call is shown.
++            "ask_user_question" => new() { ["question"] = arg },
+ 
+             _ => new() { ["input"] = arg },
+         };
+diff --git a/docs/conversation-program-cli.md b/docs/conversation-program-cli.md
+index 2c80c24..b4f2fc5 100644
+--- a/docs/conversation-program-cli.md
++++ b/docs/conversation-program-cli.md
+@@ -216,6 +216,25 @@ Staging only. Never touch prod during this exercise.
+ Acme Logistics.
+ ```
+ 
++**Asking through a tool.** While a sheet is attached the model is also offered
++`ask_user_question`, with one string argument, `question`. The same judge reads the
++question against the sheet, in the same side call, and its tokens count the same way.
++
++- On a hit the tool result is the selected entries, verbatim, and the run goes on. The
++  `tool_result` event carries `source: "oracle"` and the selected ids as `keys`, and the
++  trailer's `oracle_turns` counts it.
++- With no entry to give, the result is `The user has no answer to that question. Proceed
++  on your own judgement.` and the run goes on. This is not `oracle_miss`: the model
++  called a tool and is still working, so there is no halt to label. The event carries
++  `source: "oracle"` and no ids.
++- A hit spends one of `budget oracle_turns`, shared with end-of-turn resolutions. A
++  question that has an answer after the budget is spent gets `The user is no longer
++  answering questions in this run.` and the run ends `oracle_budget`.
++
++A program with no `oracle` never offers the tool: a question nobody can answer would be
++a trap. On Mock, `MOCK:tool=ask_user_question <text>` sends `<text>` as the question,
++and a `MOCK:oracle=` rider in it scripts the verdict.
++
+ **Authoring a sheet.** Key entries by topic, not by question; models phrase one question
+ ten ways. Write each body as the full answer a real user would give, with enough detail
+ to satisfy the question however the model asks it. The judge reads the sheet as the user
+@@ -296,6 +315,8 @@ apply to the cleared set.
+   +read_file` allows just that one. `todo` is a steering aid (a task-tracking tool
+   plus a pending-todos nudge for models prone to abandoning work); `tools -todo`
+   removes it, which also silences the nudge (no todos can be created without it).
++  `ask_user_question` is on the list but is offered only while an `oracle` is attached
++  (§4.1, *On `oracle`*); `tools -ask_user_question` removes it there too.
+   These are nb's canonical names. Another harness's name for the same tool (`Edit`,
+   `shell_command`) is an error, not a no-op, so the mistake surfaces at `--validate`
+   time rather than as a tool you thought you had removed.
+diff --git a/nb.Core/AskUserTool.cs b/nb.Core/AskUserTool.cs
+new file mode 100644
+index 0000000..c546ef7
+--- /dev/null
++++ b/nb.Core/AskUserTool.cs
+@@ -0,0 +1,51 @@
++using Microsoft.Extensions.AI;
++
++namespace nb;
++
++/// <summary>What the oracle said to a question the model asked through <c>ask_user_question</c>.</summary>
++/// <param name="Text">The tool result, exactly as the model reads it.</param>
++/// <param name="Keys">The sheet entries selected; empty when nothing on the sheet answered.</param>
++/// <param name="BudgetSpent">The question had an answer but <c>budget oracle_turns</c> is spent: the run ends <c>oracle_budget</c>.</param>
++public sealed record AskAnswer(string Text, IReadOnlyList<string> Keys, bool BudgetSpent = false)
++{
++    public static AskAnswer Miss { get; } = new(AskUserTool.NoAnswer, Array.Empty<string>());
++    public static AskAnswer Spent { get; } = new(AskUserTool.BudgetSpent, Array.Empty<string>(), BudgetSpent: true);
++}
++
++/// <summary>
++/// The tool a model asks its user with. nb has no user, so the tool exists only while a
++/// program has an <c>oracle</c> attached, and the answer sheet is who answers: the same
++/// judge call that reads an end-of-turn ask reads the question
++/// (<see cref="ProgramEvaluator"/>). A tool no one can answer would be a trap, so a
++/// program without a sheet never advertises it.
++/// </summary>
++public static class AskUserTool
++{
++    public const string Name = "ask_user_question";
++
++    /// <summary>
++    /// The result when nothing on the sheet answers. The run goes on: unlike an
++    /// end-of-turn ask, the model has not stopped, so there is no halt to label.
++    /// </summary>
++    public const string NoAnswer = "The user has no answer to that question. Proceed on your own judgement.";
++
++    /// <summary>The result of the question that found <c>budget oracle_turns</c> spent. The run ends with it.</summary>
++    public const string BudgetSpent = "The user is no longer answering questions in this run.";
++
++    public static AIFunction Create()
++    {
++        var ask = (string question) => "";  // never invoked: ConversationManager routes the call to the oracle
++        return AIFunctionFactory.Create(
++            ask,
++            name: Name,
++            description: """
++                Ask the user one question and wait for the answer. Use it when you need a fact or a
++                decision only the user has, and cannot proceed sensibly without it. Ask one thing per
++                call. The result is the user's reply; if the user has no answer, it says so, and you
++                should proceed on your own judgement.
++
++                Parameters:
++                - question: the question, in a full sentence
++                """);
++    }
++}
+diff --git a/nb.Core/ConversationManager.cs b/nb.Core/ConversationManager.cs
+index d058082..9ff9328 100644
+--- a/nb.Core/ConversationManager.cs
++++ b/nb.Core/ConversationManager.cs
+@@ -112,6 +112,7 @@ public class ConversationManager
+     {
+         "bash", "read_file", "write_file", "edit_file",
+         "find_files", "grep", "list_dir", "apply_patch", "fetch_url", "search_web", "todo",
++        AskUserTool.Name,
+     };
+ 
+     public ConversationManager(
+@@ -264,10 +265,11 @@ public class ConversationManager
+     }
+ 
+     // Every message enters the model's view and the record together.
+-    private void Append(AIChatMessage message, RoundMetrics? round = null, string? source = null, OracleAnswer? oracle = null, string? thinking = null)
++    private void Append(AIChatMessage message, RoundMetrics? round = null, string? source = null, OracleAnswer? oracle = null, string? thinking = null,
++        IReadOnlyDictionary<string, IReadOnlyList<string>>? asked = null)
+     {
+         _conversationHistory.Add(message);
+-        Journal.Append(message, round, source, oracle, thinking);
++        Journal.Append(message, round, source, oracle, thinking, asked);
+     }
+ 
+     // ---- Oracle seams (plans/oracle-resolver.md). The loop itself lives in
+@@ -289,6 +291,15 @@ public class ConversationManager
+     /// </summary>
+     public void SetOracleAvailable(bool available) => _oracleAvailable = available;
+ 
++    private Func<string, CancellationToken, Task<AskAnswer>>? _askUser;
++
++    /// <summary>
++    /// Who answers <c>ask_user_question</c>, or null when no one can. The tool is advertised
++    /// only while this is set (and the surface allows it), so a program with no oracle
++    /// never offers a question that cannot be answered.
++    /// </summary>
++    public void SetAskUser(Func<string, CancellationToken, Task<AskAnswer>>? answer) => _askUser = answer;
++
+     /// <summary>
+     /// A model call OUTSIDE the conversation, on the current client — the oracle
+     /// verdict. Same move as the summarisation call: its own message list, nothing
+@@ -463,6 +474,7 @@ public class ConversationManager
+             }
+ 
+             mcpTools.AddRange(_harness.CreateTools(_toolSurface));
++            if (_askUser is not null && _toolSurface.AllowsNative(AskUserTool.Name)) mcpTools.Add(AskUserTool.Create());
+ 
+             var allTools = _fakeToolManager.IntegrateWithMcpTools(mcpTools);
+             if (allTools.Count > 0)
+@@ -567,6 +579,9 @@ public class ConversationManager
+ 
+                 // Collect all tool results in a single list
+                 var allToolResults = new List<ToolOutcome>();
++                // The questions the oracle was asked this round, by call id, with the entries it selected.
++                var asked = new Dictionary<string, IReadOnlyList<string>>();
++                var askBudgetSpent = false;
+ 
+                 // Execute tool calls
+                 foreach (var message in response.Messages)
+@@ -596,8 +611,25 @@ public class ConversationManager
+                             }
+ 
+ 
++                            // A question for the user goes to the oracle, which is the only user a run has.
++                            if (wireCall.Name == AskUserTool.Name && _askUser is { } askUser)
++                            {
++                                var question = wireCall.Arguments is { } a && a.TryGetValue("question", out var q) ? q?.ToString() ?? "" : "";
++                                if (string.IsNullOrWhiteSpace(question))
++                                {
++                                    allToolResults.Add(ToolOutcome.Fail(wireCall.CallId, "Error: question is required"));
++                                }
++                                else
++                                {
++                                    var answer = await askUser(question, cancellationToken);
++                                    asked[wireCall.CallId] = answer.Keys;
++                                    askBudgetSpent |= answer.BudgetSpent;
++                                    allToolResults.Add(ToolOutcome.Ok(wireCall.CallId, answer.Text));
++                                    _harness.LogToolCall(wireCall.Name, wireCall.Arguments, answer.Text);
++                                }
++                            }
+                             // Check if this is a native resource tool (always auto-approve, read-only)
+-                            if (wireCall.Name.StartsWith("nb_"))
++                            else if (wireCall.Name.StartsWith("nb_"))
+                             {
+                                 // Handle native resource tools - no approval needed
+                                 var resourceTool = mcpTools.FirstOrDefault(t => t.Name == wireCall.Name);
+@@ -769,11 +801,14 @@ public class ConversationManager
+                 {
+                     var toolContents = allToolResults.Select(o => (AIContent)o.Content).ToList();
+                     var hoisted = HoistImagesOutOfToolResults(allToolResults);
+-                    Append(new AIChatMessage(ChatRole.Tool, toolContents));
++                    Append(new AIChatMessage(ChatRole.Tool, toolContents), asked: asked);
+                     if (hoisted.Count > 0)
+                         Append(new AIChatMessage(ChatRole.User, hoisted));
+                 }
+ 
++                // A question past `budget oracle_turns` ends the run, as an end-of-turn ask past it does.
++                if (askBudgetSpent) return Transcript.ExitReasons.OracleBudget;
++
+                 // A stop lands here as itself, before the failures it caused count as tool errors.
+                 cancellationToken.ThrowIfCancellationRequested();
+ 
+diff --git a/nb.Core/ProgramEvaluator.cs b/nb.Core/ProgramEvaluator.cs
+index 74043f7..8607433 100644
+--- a/nb.Core/ProgramEvaluator.cs
++++ b/nb.Core/ProgramEvaluator.cs
+@@ -154,6 +154,7 @@ public sealed class ProgramEvaluator
+                     if (_sheet.Entries.Count == 0)
+                         _warnings.Add("oracle: the answer sheet has no headed entries — nothing can be selected, so every ask will be a miss");
+                     _conversation.SetOracleAvailable(true);
++                    _conversation.SetAskUser(AnswerAskAsync);
+                 }
+                 break;
+             case SurfaceDirectiveEvent sd:
+@@ -246,6 +247,28 @@ public sealed class ProgramEvaluator
+         }
+     }
+ 
++    // The same judge, asked through the tool instead of at the end of a turn: the question
++    // stands where the model's last message would. A hit spends one of `budget oracle_turns`,
++    // which the two routes share. Anything else is "no answer" and the run goes on: the
++    // model called a tool and is still working, so there is no halt to end as oracle_miss.
++    private async Task<AskAnswer> AnswerAskAsync(string question, CancellationToken cancellationToken)
++    {
++        var options = OracleResolver.Options(_temperatureFor?.Invoke(OracleProvider ?? Provider));
++        var reply = await _conversation.SideCallAsync(OracleResolver.BuildPrompt(_sheet!, question), options, cancellationToken, OracleClient());
++        var verdict = OracleResolver.ParseVerdict(reply, _sheet!, _warnings);
++        OracleVerdict = verdict.Raw;
++
++        if (verdict.Kind != OracleVerdictKind.Hit) return AskAnswer.Miss;
++        if (OracleTurnsUsed >= OracleTurns)
++        {
++            _warnings.Add($"oracle: {OracleTurns} resolutions spent and the model asked again — the run ended as oracle_budget");
++            return AskAnswer.Spent;
++        }
++
++        OracleTurnsUsed++;
++        return new AskAnswer(_sheet!.Compose(verdict.Keys), verdict.Keys);
++    }
++
+     // A program that names no harness runs on nb's own surface, unless config names one,
+     // which is then checked like a directive: a config written before the costumes retired
+     // fails with the redirect rather than silently running bare.
+diff --git a/nb.Core/Transcript/RunJournal.cs b/nb.Core/Transcript/RunJournal.cs
+index d12ce42..fe483d1 100644
+--- a/nb.Core/Transcript/RunJournal.cs
++++ b/nb.Core/Transcript/RunJournal.cs
+@@ -40,9 +40,12 @@ public sealed class RunJournal
+     /// authored). <paramref name="source"/> tags a user message nb injected (<c>loop</c>,
+     /// <c>todo</c>); <paramref name="oracle"/> marks the oracle's answer.
+     /// <paramref name="thinking"/> is the round's reasoning, recorded before the message
+-    /// and at its turn; history does not carry it.
++    /// and at its turn; history does not carry it. <paramref name="asked"/> holds, by call
++    /// id, the sheet entries the oracle selected for each <c>ask_user_question</c> result
++    /// in a tool message (none for a question the sheet did not answer).
+     /// </summary>
+-    public void Append(ChatMessage message, RoundMetrics? round = null, string? source = null, OracleAnswer? oracle = null, string? thinking = null)
++    public void Append(ChatMessage message, RoundMetrics? round = null, string? source = null, OracleAnswer? oracle = null, string? thinking = null,
++        IReadOnlyDictionary<string, IReadOnlyList<string>>? asked = null)
+     {
+         if (message.Role != ChatRole.Tool && _started) _turn++;
+         _started = true;
+@@ -56,6 +59,7 @@ public sealed class RunJournal
+             {
+                 UserEvent u when oracle is not null => u with { Source = "oracle", Keys = oracle.Keys, Verdict = oracle.Verdict },
+                 UserEvent u when source is not null => u with { Source = source },
++                ToolResultEvent tr when asked is not null && asked.TryGetValue(tr.Id, out var keys) => tr with { Source = "oracle", Keys = keys },
+                 _ => e,
+             };
+             Add(new JournalEntry(tagged, at, round));
+diff --git a/nb.Core/Transcript/TranscriptEvent.cs b/nb.Core/Transcript/TranscriptEvent.cs
+index 7cc897c..818b8af 100644
+--- a/nb.Core/Transcript/TranscriptEvent.cs
++++ b/nb.Core/Transcript/TranscriptEvent.cs
+@@ -121,6 +121,15 @@ public sealed record ToolResultEvent : TranscriptEvent
+ 
+     /// <summary>Enrichment: structured mirror of <see cref="Output"/> (exit_code, entries, truncated, …). Ignored on seed-load.</summary>
+     public JsonObject? Result { get; init; }
++
++    /// <summary>
++    /// Enrichment: <c>"oracle"</c> when the answer sheet wrote this result, which it does for
++    /// <c>ask_user_question</c>. Omitted for every tool that ran. Ignored on seed-load.
++    /// </summary>
++    public string? Source { get; init; }
++
++    /// <summary>Enrichment: the sheet entry ids the oracle selected as the answer; empty when the sheet had none.</summary>
++    public IReadOnlyList<string>? Keys { get; init; }
+ }
+ 
+ /// <summary>Enrichment: the parsed final <c>```json</c> fence, a convenience over the canonical <see cref="AssistantTextEvent"/>. Ignored on seed-load.</summary>
+diff --git a/nb.Core/Transcript/TranscriptSerializer.cs b/nb.Core/Transcript/TranscriptSerializer.cs
+index 149217d..c4f8096 100644
+--- a/nb.Core/Transcript/TranscriptSerializer.cs
++++ b/nb.Core/Transcript/TranscriptSerializer.cs
+@@ -84,6 +84,8 @@ public static class TranscriptSerializer
+                 w.WriteString("id", tr.Id);
+                 w.WriteString("output", tr.Output);
+                 if (tr.Result is not null) { w.WritePropertyName("result"); tr.Result.WriteTo(w); }
++                if (tr.Source is not null) w.WriteString("source", tr.Source);
++                if (tr.Keys is not null) WriteStringArray(w, "keys", tr.Keys);
+                 break;
+             case AssistantJsonEvent aj:
+                 w.WritePropertyName("value");
+@@ -274,6 +276,8 @@ public static class TranscriptSerializer
+                     Id = RequireString(root, "id", lineNumber, type),
+                     Output = RequireString(root, "output", lineNumber, type),
+                     Result = ReadObject(root, "result"),
++                    Source = GetString(root, "source"),
++                    Keys = root.TryGetProperty("keys", out _) ? ReadStringArray(root, "keys") : null,
+                 };
+             case "assistant_json":
+                 return new AssistantJsonEvent { Turn = turn, Value = ReadNode(root, "value") };

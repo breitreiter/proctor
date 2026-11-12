@@ -1,0 +1,10 @@
+# member-answers: the bot as members meet it. Its system prompt and handbook come from the arm's bundle
+# (bot/), so a change to either is a new bundle; the member's question goes in as they would type it.
+# model before provider: nb builds the provider's client as soon as it reads `provider`.
+model {{model}}
+provider {{provider}}
+harness {{harness}}
+tools none
+system @{{bundle}}/system.md
+system @{{bundle}}/knowledge.md
+run {{prompt}}

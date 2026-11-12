@@ -1,0 +1,25 @@
+{
+  "id": "ask-user-question",
+  "description": "A new feature across nb's tool surface, oracle, budget and transcript: a tool the model asks its user with, answered from the answer sheet, to a written contract",
+  "labels": {
+    "kind": "feature"
+  },
+  "fixture": "nb-pinned",
+  "prompt": "nb has no user. When a model needs something from one, all it can do today is end its turn with a question, and the oracle (an answer sheet attached to the program; see *On `oracle`* in `docs/conversation-program-cli.md`) judges that last message. I'd like the model to be able to ask through a tool as well. Please add it, to this contract:\n\n1. A native tool named `ask_user_question`, with one required string argument, `question`.\n2. The tool is offered to the model only while the program has an `oracle` sheet attached. `tools -ask_user_question` removes it like any other native tool, so the name has to be valid in a `tools` directive. With no oracle, a call to it is refused the way any unadvertised tool is.\n3. A call is answered by the same oracle judgement an end-of-turn ask gets, with the question standing where the model's last message would. On a hit, the tool result is the selected sheet entries, verbatim, composed exactly as the end-of-turn answer is.\n4. If the sheet has no answer (the judge's verdict is anything but entry ids), the tool result is exactly `The user has no answer to that question. Proceed on your own judgement.` and the run goes on. This does not end the run and does not set `oracle_miss`.\n5. A hit counts against `budget oracle_turns`, the same counter end-of-turn resolutions use. A question that would be a hit when the budget is already spent gets the tool result `The user is no longer answering questions in this run.`, and the run then ends with exit reason `oracle_budget`.\n6. In the transcript this is an ordinary `tool_call` and `tool_result`. The `tool_result` event also carries `\"source\": \"oracle\"`, and on a hit `\"keys\"`, the selected entry ids. The trailer's `oracle_turns` counts hits from either route.\n7. The judge call's tokens count in the run's usage, as the end-of-turn judge call's do.\n8. So that it can be tested: on the Mock provider, `MOCK:tool=ask_user_question <text>` sends `<text>` as the `question` argument, and a `MOCK:oracle=<verdict>` rider inside the question scripts the judge's verdict, as it does for an end-of-turn ask.\n\nNothing that works today should change, the end-of-turn oracle included. Add tests for the new behaviour and bring the docs up to date.",
+  "expect": {
+    "files_touched": {
+      "paths": [
+        "nb.Core/**",
+        "nb.Tests/**",
+        "docs/**",
+        "Providers/**",
+        "evals/**",
+        "Program.cs",
+        "CLAUDE.md",
+        "README.md"
+      ],
+      "mode": "at_most"
+    },
+    "answer_regex": "ask_user_question"
+  }
+}

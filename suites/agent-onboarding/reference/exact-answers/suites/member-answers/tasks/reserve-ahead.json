@@ -1,0 +1,9 @@
+{
+  "id": "reserve-ahead",
+  "description": "How far ahead a tool can be reserved: 3 weeks",
+  "fixture": "bot-chat",
+  "prompt": "How far in advance can I reserve a tool?",
+  "expect": {
+    "answer_regex": "(?i)\\b3 weeks\\b"
+  }
+}

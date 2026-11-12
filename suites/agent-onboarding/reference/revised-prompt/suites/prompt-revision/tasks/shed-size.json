@@ -1,0 +1,9 @@
+{
+  "id": "shed-size",
+  "description": "The biggest shed allowed: 6 ft by 4 ft",
+  "fixture": "bot-chat",
+  "prompt": "What's the biggest shed I can put up?",
+  "expect": {
+    "answer_regex": "(?i)\\b6\\s*(ft|feet|foot|')?\\s*(by|x|×)\\s*4\\s*(ft|feet|foot|')?"
+  }
+}

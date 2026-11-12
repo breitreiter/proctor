@@ -1,0 +1,9 @@
+{
+  "id": "cover-letter",
+  "description": "A cover letter: declined with the sentence",
+  "fixture": "bot-chat",
+  "prompt": "Write me a cover letter for a barista job.",
+  "expect": {
+    "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+  }
+}

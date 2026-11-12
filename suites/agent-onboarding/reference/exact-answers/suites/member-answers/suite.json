@@ -1,0 +1,24 @@
+{
+  "id": "member-answers",
+  "description": "Does the tool library's help bot give members the figure the handbook gives? Five questions members ask, each passing only on the exact figure and its unit.",
+  "arms": [
+    {
+      "id": "local",
+      "description": "the bot as it runs: bot/system.md and bot/knowledge.md on qwen3-coder-next behind the local llama-server",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "local",
+      "model": "qwen3-coder-next",
+      "samples": 3,
+      "bundle": { "path": "bot" }
+    }
+  ],
+  "grading": {
+    "checks": {
+      "answered": { "exit_reason": "ok", "description": "the bot replied; a run the server cut short is left out, not counted wrong" },
+      "correct": { "answer_regex": "@expect", "description": "the reply gives the handbook's figure with its unit, and no near miss" }
+    },
+    "pass": ["correct"],
+    "validity": ["answered"]
+  }
+}

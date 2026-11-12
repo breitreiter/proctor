@@ -1,0 +1,19 @@
+{
+  "id": "not-a-bug",
+  "description": "A report of documented behaviour as a bug: the right outcome is no code change and an answer that says where the docs describe it",
+  "labels": {
+    "kind": "defect"
+  },
+  "fixture": "nb-pinned",
+  "prompt": "Bug: `@file` includes don't work in the middle of a prompt. With a program like\n\n```\nrun @notes.md and summarise it\n```\n\nnb sends the literal text `@notes.md and summarise it` to the model; the file is never included. `run @notes.md` on its own line works fine, so the include code is clearly there. Can you fix this?",
+  "expect": {
+    "files_touched": {
+      "paths": [
+        "docs/**",
+        "*.md"
+      ],
+      "mode": "at_most"
+    },
+    "answer_regex": "conversation-program-cli"
+  }
+}

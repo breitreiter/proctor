@@ -1,0 +1,9 @@
+{
+  "id": "waiting-list",
+  "description": "How long the waiting list is: 14 months for a half plot",
+  "fixture": "bot-chat",
+  "prompt": "How long is the waiting list at the moment?",
+  "expect": {
+    "answer_regex": "(?i)\\b14 months\\b"
+  }
+}

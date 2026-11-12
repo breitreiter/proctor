@@ -1,0 +1,13 @@
+diff --git a/nb.Core/DoomLoopDetector.cs b/nb.Core/DoomLoopDetector.cs
+index 58fa1a4..b885cf9 100644
+--- a/nb.Core/DoomLoopDetector.cs
++++ b/nb.Core/DoomLoopDetector.cs
+@@ -37,7 +37,7 @@ public class DoomLoopDetector
+     {
+         if (_signatures.Count < _threshold) return null;
+ 
+-        for (int patternLen = 1; patternLen <= _signatures.Count / _threshold; patternLen++)
++        for (int patternLen = 1; patternLen < _signatures.Count / _threshold; patternLen++)
+         {
+             int reps = CountTailRepetitions(patternLen);
+             if (reps >= _threshold) return reps;

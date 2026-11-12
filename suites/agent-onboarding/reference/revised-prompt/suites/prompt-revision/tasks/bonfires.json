@@ -1,0 +1,9 @@
+{
+  "id": "bonfires",
+  "description": "When bonfires are allowed: only in November",
+  "fixture": "bot-chat",
+  "prompt": "When am I allowed to have a bonfire?",
+  "expect": {
+    "answer_regex": "(?i)\\bNovember\\b"
+  }
+}

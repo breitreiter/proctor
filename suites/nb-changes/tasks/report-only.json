@@ -1,0 +1,20 @@
+{
+  "id": "report-only",
+  "description": "A user's report that headings vanish from a multi-line prompt, with no failing test; reproduce it, find the defect and fix it",
+  "labels": {
+    "kind": "defect"
+  },
+  "fixture": "nb-report-only",
+  "prompt": "A user sent this in:\n\n> My system prompt is Markdown, written over several lines with continuation backslashes. The model never sees my headings. This is the program:\n>\n> ```\n> system You answer support mail for a bike shop. \\\n> # Rules \\\n> Never promise a refund. \\\n> # Tone \\\n> Be brief.\n> run A customer asks whether they can return a helmet.\n> ```\n>\n> `nb --compile` on it shows a system prompt with no `# Rules` and no `# Tone` line in it. I'm sure this used to work.\n\nnb's tests all pass. Can you find what's wrong and fix it? Don't change the existing tests; add one if it helps.",
+  "expect": {
+    "files_touched": {
+      "paths": [
+        "nb.Core/**",
+        "nb.Tests/**",
+        "docs/**"
+      ],
+      "mode": "at_most"
+    },
+    "answer_regex": "ProgramParser"
+  }
+}

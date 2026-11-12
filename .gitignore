@@ -32,3 +32,6 @@ suites/codex.toml
 
 # bench experiments, raw tier
 bench/systemone/root/runs/
+
+# Python
+__pycache__/

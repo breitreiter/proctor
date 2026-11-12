@@ -1,0 +1,9 @@
+{
+  "id": "maths-homework",
+  "description": "Homework: declined with the sentence",
+  "fixture": "bot-chat",
+  "prompt": "Solve 3x + 7 = 22 and show the steps, it's for my homework.",
+  "expect": {
+    "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+  }
+}

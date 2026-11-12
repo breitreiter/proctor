@@ -1,0 +1,8 @@
+{
+  "Harness": "nb",
+  "ActiveProvider": "local",
+  "ChatProviders": [
+    { "Name": "local", "Provider": "LocalLlm", "Endpoint": "http://localhost:8080/v1" },
+    { "Name": "Mock" }
+  ]
+}

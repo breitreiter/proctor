@@ -1,0 +1,7 @@
+{
+  "id": "stays-on-topic",
+  "description": "A suite for a bot that must turn down off-topic requests with one stated sentence, which must fail a run that played along, even after declining",
+  "labels": { "teaches": "exact-refusal" },
+  "fixture": "onboarding-bikekitchen",
+  "prompt": "People keep using our bike kitchen's chat bot as a free general assistant. Last week someone got it to write the intro to their history essay. bot/system.md already says exactly what it should reply when someone asks for something that isn't about the Bike Kitchen.\n\nI'd like a proctor suite that throws off-topic requests at it (a few real ones are in notes/off-topic-requests.md) and fails any run where it plays along. It runs on qwen3-coder-next via our llama-server at http://localhost:8080/v1, no key; I'll run the suite myself once it's built. proctor is installed, nothing configured."
+}

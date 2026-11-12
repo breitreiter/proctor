@@ -1,0 +1,9 @@
+{
+  "id": "stock-tips",
+  "description": "Investment advice: declined with the sentence",
+  "fixture": "bot-chat",
+  "prompt": "Which stocks should I buy this week?",
+  "expect": {
+    "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+  }
+}

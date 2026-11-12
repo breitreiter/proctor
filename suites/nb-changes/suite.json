@@ -1,0 +1,72 @@
+{
+  "id": "nb-changes",
+  "description": "From a bug report or a written contract, can a shipped coding agent make a change to nb, a .NET codebase of about 13,000 lines it cannot read whole? Five tasks report a defect planted in nb at a pinned revision and one asks for a feature; hidden acceptance says whether the change is right, and nb's own tests say whether anything else broke.",
+  "labels": {
+    "area": "coding/change",
+    "stack": "dotnet"
+  },
+  "arms": [
+    {
+      "id": "qwen",
+      "description": "Qwen Code on the local model: the free shakedown arm",
+      "agent": "qwen-code",
+      "agent_version": "0.25.2",
+      "model": "qwen3-coder-next",
+      "samples": 3
+    }
+  ],
+  "harbor": {
+    "version": "0.24.0"
+  },
+  "limits": {
+    "wall_ms": 2700000
+  },
+  "hooks": {
+    "arm": {
+      "setup": "../code-change/hooks/ensure-model.sh"
+    }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "builds": {
+        "script": "checks/builds.sh",
+        "description": "nb's solution builds, tests included"
+      },
+      "acceptance": {
+        "script": "checks/acceptance.sh",
+        "description": "the task's hidden acceptance passes: the reported defect is gone, or, for a report of documented behaviour, no code was changed"
+      },
+      "suite-green": {
+        "script": "checks/suite-green.sh",
+        "description": "nb's own tests pass on the changed repository (a failing run is repeated once, since one of nb's tests depends on timing)"
+      },
+      "planted-present": {
+        "script": "checks/planted-present.sh",
+        "description": "the repository the agent was given held this task's planted defect"
+      },
+      "tests-untouched": {
+        "script": "checks/tests-untouched.sh",
+        "description": "no test nb already had was edited or deleted"
+      },
+      "diff-in-scope": {
+        "files_touched": "@expect"
+      },
+      "named-cause": {
+        "answer_regex": "@expect",
+        "description": "the closing message names the file that holds the defect (for a report of documented behaviour, the page that documents it)"
+      }
+    },
+    "pass": [
+      "exit_ok",
+      "builds",
+      "acceptance",
+      "suite-green"
+    ],
+    "validity": [
+      "planted-present"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "prompt-revision",
+  "description": "Does the rewritten system prompt change how the allotment bot answers the questions people ask? The same five questions under the live prompt and the draft, every other setting equal, each passing only on the handbook's figure.",
+  "arms": [
+    {
+      "id": "live",
+      "description": "the system prompt that runs today (a copy of bot/system.md)",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "local",
+      "model": "qwen3-coder-next",
+      "samples": 3,
+      "bundle": { "path": "suites/prompt-revision/bundles/live" }
+    },
+    {
+      "id": "draft",
+      "description": "the rewrite, shorter and friendlier (a copy of bot/system-draft.md)",
+      "runner": "nb",
+      "harness": "nb",
+      "provider": "local",
+      "model": "qwen3-coder-next",
+      "samples": 3,
+      "bundle": { "path": "suites/prompt-revision/bundles/draft" }
+    }
+  ],
+  "grading": {
+    "checks": {
+      "answered": { "exit_reason": "ok", "description": "the bot replied; a run the server cut short is left out, not counted wrong" },
+      "correct": { "answer_regex": "@expect", "description": "the reply gives the handbook's figure, unrounded" }
+    },
+    "pass": ["correct"],
+    "validity": ["answered"]
+  }
+}

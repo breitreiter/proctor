@@ -1,0 +1,27 @@
+{
+  "id": "onboarding-bikekitchen",
+  "description": "The Quarry Lane Bike Kitchen's chat bot: a system prompt that says how to turn down off-topic requests, an information sheet, and requests it should have turned down; proctor and nb are built into its image",
+  "source": {
+    "path": "repo"
+  },
+  "stack": "none",
+  "labels": {
+    "kind": "chatbot"
+  },
+  "image": {
+    "from": "mcr.microsoft.com/dotnet/sdk:10.0",
+    "env": {
+      "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+      "DOTNET_NOLOGO": "1",
+      "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
+    },
+    "run": [
+      "apt-get update -q && apt-get install -y -q --no-install-recommends jq >/dev/null && rm -rf /var/lib/apt/lists/*",
+      "git clone -q https://github.com/breitreiter/nb.git /opt/nb && git -C /opt/nb checkout -q 0e11b218f1a3da09f71417f9e9e1b63b6d4d6286 && cd /opt/nb && dotnet build -nologo -v q",
+      "git clone -q https://github.com/breitreiter/proctor.git /opt/proctor && cd /opt/proctor && git checkout -q 76494f192dc303d4b4bb5256702bb4fc1e04e7b2 && rm -rf .git suites/agent-onboarding fixtures/onboarding-* && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm 'proctor 76494f192dc303d4b4bb5256702bb4fc1e04e7b2' && dotnet build -nologo -v q",
+      "printf '#!/bin/sh\\nexec dotnet /opt/proctor/bin/Debug/net10.0/proctor.dll \"$@\"\\n' > /usr/local/bin/proctor && chmod +x /usr/local/bin/proctor && ln -s /opt/nb/bin/Debug/net10.0/nb /usr/local/bin/nb",
+      "for d in /root/.claude/skills /root/.qwen/skills; do mkdir -p $d && cp -r /opt/proctor/skills/proctor-suite $d/; done",
+      "proctor --version && nb --version"
+    ]
+  }
+}

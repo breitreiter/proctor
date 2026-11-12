@@ -1,0 +1,75 @@
+{
+  "about": "The allotment bot's five logged questions under its two system prompts. Which prompt a run carries is read from the program proctor compiled for it, so the suite must give each arm one version. In `same` the rewrite answers as well as the live prompt, and every run must pass; in `regressed` the rewrite gives the gist instead of the figures, and every run on it must fail. A task asking something else is answered and not counted.",
+  "versions": {
+    "live": ["Quote figures exactly as the handbook gives them", "Troughs can be used at any time"],
+    "draft": ["give them the gist rather than a wall of rules", "Troughs can be used at any time"]
+  },
+  "missing": {
+    "live": "no arm gives the bot the live system prompt (bot/system.md) with its handbook (bot/knowledge.md), so there is nothing to compare the rewrite with",
+    "draft": "no arm gives the bot the rewritten system prompt (bot/system-draft.md) with its handbook (bot/knowledge.md), so the suite cannot see the rewrite"
+  },
+  "compare": true,
+  "dodge": "I'm not sure. Please write to the site secretary.",
+  "questions": [
+    { "key": "waiting", "match": "wait" },
+    { "key": "bonfire", "match": "bonfire|burn|fire" },
+    { "key": "key", "match": "\\bkeys?\\b" },
+    { "key": "shed", "match": "\\bsheds?\\b" },
+    { "key": "rent", "match": "\\brent\\b|half.?plot|cost of a plot|plot cost" }
+  ],
+  "fallback": "*",
+  "unrecognised": "none of the written tasks asks one of the questions in docs/questions-log.md",
+  "variants": {
+    "same": {
+      "expect": "pass",
+      "by_version": {
+        "live": {
+          "answers": {
+            "rent": "Rent for a half plot is £38 a year, due on 1 October.",
+            "waiting": "The waiting list is currently 14 months for a half plot and 2 years for a full plot.",
+            "bonfire": "Bonfires are allowed only in November, and only for dry woody waste.",
+            "key": "A replacement gate key costs £15.",
+            "shed": "A shed may be at most 6 ft by 4 ft, and no taller than 7 ft.",
+            "*": "Half plots are £38 a year. The waiting list is 14 months. Bonfires only in November. Sheds at most 6 ft by 4 ft. A new key is £15."
+          }
+        },
+        "draft": {
+          "answers": {
+            "rent": "Great question! A half plot is £38 a year, paid on 1 October.",
+            "waiting": "It's about 14 months for a half plot and 2 years for a full plot right now, so do get your name down with the secretary!",
+            "bonfire": "Bonfires are fine in November, just dry woody stuff and never leave it alone!",
+            "key": "Oh no! A new gate key is £15, the secretary can sort you out.",
+            "shed": "You can put up a shed of up to 6 ft by 4 ft, and keep it under 7 ft tall!",
+            "*": "Half plots are £38 a year, the wait is about 14 months, bonfires are November only, sheds up to 6 ft by 4 ft, and a new key is £15!"
+          }
+        }
+      }
+    },
+    "regressed": {
+      "by_version": {
+        "live": {
+          "expect": "pass",
+          "answers": {
+            "rent": "Rent for a half plot is £38 a year, due on 1 October.",
+            "waiting": "The waiting list is currently 14 months for a half plot and 2 years for a full plot.",
+            "bonfire": "Bonfires are allowed only in November, and only for dry woody waste.",
+            "key": "A replacement gate key costs £15.",
+            "shed": "A shed may be at most 6 ft by 4 ft, and no taller than 7 ft.",
+            "*": "Half plots are £38 a year. The waiting list is 14 months. Bonfires only in November. Sheds at most 6 ft by 4 ft. A new key is £15."
+          }
+        },
+        "draft": {
+          "expect": "fail",
+          "answers": {
+            "rent": "It's around £40 a year for a half plot, so pretty reasonable!",
+            "waiting": "Roughly a year at the moment, so it's worth getting your name down!",
+            "bonfire": "Bonfires are fine in the autumn, just keep them small and stay with them!",
+            "key": "A new key is about a tenner, the secretary can sort you out!",
+            "shed": "Most sheds are fine as long as they're not huge, around 8 by 6 feet is typical!",
+            "*": "Plots are around £40 a year, the wait is roughly a year, bonfires are fine in autumn, and sheds around 8 by 6 feet are fine!"
+          }
+        }
+      }
+    }
+  }
+}

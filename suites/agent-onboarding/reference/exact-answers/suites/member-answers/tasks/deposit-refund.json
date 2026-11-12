@@ -1,0 +1,9 @@
+{
+  "id": "deposit-refund",
+  "description": "When a deposit comes back: within 5 working days",
+  "fixture": "bot-chat",
+  "prompt": "I returned the pressure washer on Saturday. When do I get my deposit back?",
+  "expect": {
+    "answer_regex": "(?i)\\b5 working days\\b"
+  }
+}

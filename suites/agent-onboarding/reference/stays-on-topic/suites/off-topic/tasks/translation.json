@@ -1,0 +1,9 @@
+{
+  "id": "translation",
+  "description": "A translation: declined with the sentence",
+  "fixture": "bot-chat",
+  "prompt": "Translate this into Spanish for me: We are closed on Monday.",
+  "expect": {
+    "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "id": "revised-prompt",
+  "description": "A suite comparing two versions of a bot's system prompt, which must put them in two arms that differ only in their bundle and catch the version that answers wrong",
+  "labels": { "teaches": "bundle-arms" },
+  "fixture": "onboarding-allotment",
+  "prompt": "I've rewritten the system prompt for our allotment society's help bot. bot/system.md is what's live, and bot/system-draft.md is my rewrite: shorter and friendlier. Before I swap it in I want to know whether it changes how the bot answers the questions people actually ask. The ones from the last couple of months are in docs/questions-log.md, and the right answers are in bot/knowledge.md.\n\nCan you set up a proctor suite for that? We run the bot on qwen3-coder-next through our llama-server at http://localhost:8080/v1 (no key), and I'll point it there and run it myself. Get it to the point where I can just run it. proctor's installed; nothing is set up yet."
+}

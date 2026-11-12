@@ -1,0 +1,26 @@
+diff --git a/nb.Core/Shell/ApplyPatch/PatchApplier.cs b/nb.Core/Shell/ApplyPatch/PatchApplier.cs
+index d5dad43..d1e3f6c 100644
+--- a/nb.Core/Shell/ApplyPatch/PatchApplier.cs
++++ b/nb.Core/Shell/ApplyPatch/PatchApplier.cs
+@@ -196,7 +196,7 @@ public static class PatchApplier
+ 
+         var sep = fileUsesCrlf ? "\r\n" : "\n";
+         var content = string.Join(sep, result);
+-        if (endsWithNewline) content += sep;
++        if (endsWithNewline) content += '\n';
+ 
+         return (content, oldLineCount, newLineCount);
+     }
+diff --git a/nb.Core/Shell/ApplyPatch/SeekSequence.cs b/nb.Core/Shell/ApplyPatch/SeekSequence.cs
+index f1a0dd6..ccc1792 100644
+--- a/nb.Core/Shell/ApplyPatch/SeekSequence.cs
++++ b/nb.Core/Shell/ApplyPatch/SeekSequence.cs
+@@ -22,7 +22,7 @@ public static class SeekSequence
+         // Each mode is stricter first; short-circuit as soon as one matches.
+         foreach (var mode in new[] { MatchMode.Exact, MatchMode.RTrim, MatchMode.FullTrim, MatchMode.FoldTrim })
+         {
+-            for (int i = start; i + pattern.Count <= hay.Count; i++)
++            for (int i = start; i + pattern.Count < hay.Count; i++)
+             {
+                 bool ok = true;
+                 for (int j = 0; j < pattern.Count; j++)

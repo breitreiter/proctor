@@ -1,0 +1,20 @@
+{
+  "id": "two-causes",
+  "description": "A user's report that apply_patch fails on the end of a CRLF file; two defects contribute, and the second shows only once the first is fixed",
+  "labels": {
+    "kind": "defect"
+  },
+  "fixture": "nb-two-causes",
+  "prompt": "Bug report from a Windows user:\n\n> `apply_patch` fails whenever the change is in the last function of a file. Our files have CRLF line endings. A file like this (every line ending in `\\r\\n`, the last one too):\n>\n> ```\n> int First()\n> {\n>     return 0;\n> }\n>\n> int Last()\n> {\n>     return 1;\n> }\n> ```\n>\n> with this patch:\n>\n> ```\n> *** Begin Patch\n> *** Update File: Tail.cs\n>  int Last()\n>  {\n> -    return 1;\n> +    return 2;\n>  }\n> *** End Patch\n> ```\n>\n> gives \"failed to locate chunk\". The patched file should differ from the original only in the changed line.\n\nPlease fix it. Don't change the existing tests.",
+  "expect": {
+    "files_touched": {
+      "paths": [
+        "nb.Core/**",
+        "nb.Tests/**",
+        "docs/**"
+      ],
+      "mode": "at_most"
+    },
+    "answer_regex": "(?s)(?=.*SeekSequence)(?=.*PatchApplier)"
+  }
+}

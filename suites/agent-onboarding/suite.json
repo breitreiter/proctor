@@ -1,0 +1,73 @@
+{
+  "id": "agent-onboarding",
+  "description": "Given only proctor's own onboarding surface (the proctor-suite skill, the docs and the CLI, at a pinned revision), can a shipped coding agent stage a working chat-only suite for a small chatbot project it has never seen? Each written suite is graded by running it against planted runs of its own tasks on nb's Mock provider: it must pass the right answers and fail the wrong ones.",
+  "labels": {
+    "area": "onboarding/agents",
+    "purpose": "report-study"
+  },
+  "arms": [
+    {
+      "id": "qwen",
+      "description": "Qwen Code on the local model: the free shakedown arm",
+      "agent": "qwen-code",
+      "agent_version": "0.25.2",
+      "model": "qwen3-coder-next",
+      "samples": 3
+    }
+  ],
+  "harbor": {
+    "version": "0.24.0"
+  },
+  "limits": {
+    "wall_ms": 2700000
+  },
+  "hooks": {
+    "arm": {
+      "setup": "../code-change/hooks/ensure-model.sh"
+    }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "surface-present": {
+        "script": "checks/surface-present.sh",
+        "description": "the image held proctor and nb at the pinned revisions, runnable, nb answering on its Mock provider, and the proctor-suite skill where the agent looks for skills"
+      },
+      "validates": {
+        "script": "checks/validates.sh",
+        "description": "the agent wrote one suite, and proctor's list loads it without a problem"
+      },
+      "accepts-correct": {
+        "script": "checks/accepts-correct.sh",
+        "description": "the written suite passes every planted run that gives the right reply"
+      },
+      "rejects-wrong": {
+        "script": "checks/rejects-wrong.sh",
+        "description": "the written suite fails every planted run that gives a wrong reply, by a check and not by breaking"
+      },
+      "chat-only": {
+        "script": "checks/chat-only.sh",
+        "description": "every arm of the written suite is bare nb and its program has no tools, so the bot only reads and answers"
+      },
+      "no-secrets": {
+        "script": "checks/no-secrets.sh",
+        "description": "no file the agent wrote holds a key or secret value; config names keys as ${VAR} only"
+      },
+      "describes-everything": {
+        "script": "checks/describes-everything.sh",
+        "description": "the written suite, each of its arms and each of its tasks carry a description for the report's reader"
+      }
+    },
+    "pass": [
+      "exit_ok",
+      "validates",
+      "accepts-correct",
+      "rejects-wrong"
+    ],
+    "validity": [
+      "surface-present"
+    ]
+  }
+}

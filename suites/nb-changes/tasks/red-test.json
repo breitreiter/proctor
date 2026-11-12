@@ -1,0 +1,20 @@
+{
+  "id": "red-test",
+  "description": "One of nb's own tests is red; find the defect behind it and fix it without touching the tests",
+  "labels": {
+    "kind": "defect"
+  },
+  "fixture": "nb-red-test",
+  "prompt": "The build is red on main: `dotnet test` fails in nb.Tests. Find out why and fix it.\n\nThe unit tests are what to go by here; you don't need `evals/run.sh` for this one. Don't change the existing tests.",
+  "expect": {
+    "files_touched": {
+      "paths": [
+        "nb.Core/**",
+        "nb.Tests/**",
+        "docs/**"
+      ],
+      "mode": "at_most"
+    },
+    "answer_regex": "DoomLoopDetector"
+  }
+}

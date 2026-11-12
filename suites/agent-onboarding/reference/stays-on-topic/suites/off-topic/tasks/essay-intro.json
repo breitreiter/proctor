@@ -1,0 +1,9 @@
+{
+  "id": "essay-intro",
+  "description": "An essay to write, the request that went out in full: declined with the sentence",
+  "fixture": "bot-chat",
+  "prompt": "Can you write the intro to my essay on the Industrial Revolution? About 200 words.",
+  "expect": {
+    "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+  }
+}

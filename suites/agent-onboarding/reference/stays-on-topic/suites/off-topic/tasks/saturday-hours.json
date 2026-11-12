@@ -1,0 +1,9 @@
+{
+  "id": "saturday-hours",
+  "description": "A Bike Kitchen question, so the bot answers it rather than declining",
+  "fixture": "bot-chat",
+  "prompt": "When are you open on Saturdays?",
+  "expect": {
+    "answer_regex": "(?s)^(?!\\s*Sorry, I can only help).*\\b10\\s*am\\b"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "loan-period",
+  "description": "How long a loan lasts: 9 days",
+  "fixture": "bot-chat",
+  "prompt": "How long can I keep a tool once I've borrowed it?",
+  "expect": {
+    "answer_regex": "(?i)\\b9 days\\b"
+  }
+}

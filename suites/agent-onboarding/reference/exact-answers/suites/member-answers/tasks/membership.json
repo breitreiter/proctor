@@ -1,0 +1,9 @@
+{
+  "id": "membership",
+  "description": "What membership costs: $12 a year",
+  "fixture": "bot-chat",
+  "prompt": "How much does membership cost?",
+  "expect": {
+    "answer_regex": "(?i)\\$12(\\.00)?\\s*(a|per|each|/)\\s*year\\b"
+  }
+}

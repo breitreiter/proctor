@@ -1,0 +1,9 @@
+{
+  "id": "gate-key",
+  "description": "What a replacement gate key costs: £15",
+  "fixture": "bot-chat",
+  "prompt": "I've lost my gate key. How much is a new one?",
+  "expect": {
+    "answer_regex": "£15\\b"
+  }
+}

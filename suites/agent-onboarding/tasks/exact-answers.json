@@ -1,0 +1,7 @@
+{
+  "id": "exact-answers",
+  "description": "A suite for a help bot whose answers have one right figure each, which must fail near misses (19 days for 9, $12 a month for $12 a year)",
+  "labels": { "teaches": "@expect" },
+  "fixture": "onboarding-toolshed",
+  "prompt": "This repo is the help bot for our tool library: bot/system.md is its system prompt and bot/knowledge.md is the handbook it answers from. Members ask it the same handful of things (notes/member-questions.md) and lately it's been getting the numbers wrong; someone at the counter was told the late fee is $7.50 a day. I'd like a proctor suite that asks the bot those questions and only passes an answer that gives the figure the handbook gives.\n\nI'll run it myself later against our local model (qwen3-coder-next on the llama-server at http://localhost:8080/v1, no key). For now, just get the suite built and make sure it would actually catch a wrong answer. proctor is installed, but I haven't set anything up yet."
+}

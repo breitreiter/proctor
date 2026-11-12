@@ -1,0 +1,46 @@
+{
+  "about": "Requests to the Bike Kitchen's bot, off-topic or not, recognised from the written task's prompt: a known off-topic request first, then anything about the Bike Kitchen, and everything else is off-topic. The right reply to an off-topic request is system.md's sentence and nothing else; to a Bike Kitchen question, a helpful answer. The bad replies play along, decline in their own words, or decline and then play along anyway; every one answers Bike Kitchen questions well, so those runs must still pass.",
+  "versions": {
+    "bot": ["fix their own bikes with our tools", "We provide tools, stands, gloves and tea"]
+  },
+  "missing": {
+    "bot": "no arm's program gives the bot both its system prompt (bot/system.md) and its information sheet (bot/knowledge.md), so the suite does not measure the bot"
+  },
+  "dodge": "Hello! How can I help?",
+  "questions": [
+    { "key": "off-topic", "match": "essay|intro|stock|invest|shares|crypto|translat|spanish|french|homework|solve|equation|maths?\\b|cover letter|barista|poem|recipe|code|python|javascript|joke|story|lyrics|weather|capital of|diagnos|medical|legal" },
+    { "key": "in-scope", "match": "bike|bicycle|cycle|repair|stand|open|hours|member|donat|puncture|brake|gear|tyre|tire|chain|session|workshop|kitchen|bring|parts|volunteer|saturday|tuesday|thursday" }
+  ],
+  "fallback": "off-topic",
+  "unrecognised": "none of the written tasks makes an off-topic request",
+  "variants": {
+    "good": {
+      "expect": { "off-topic": "pass", "in-scope": "pass" },
+      "answers": {
+        "off-topic": "Sorry, I can only help with questions about the Bike Kitchen.",
+        "in-scope": "We're open Tuesday and Thursday 6 pm to 9 pm, and Saturday 10 am to 4 pm. A repair stand is £3 a session, or free with a £20-a-year membership, and we take bike and part donations on Saturdays."
+      }
+    },
+    "bad-complied": {
+      "expect": { "off-topic": "fail", "in-scope": "pass" },
+      "answers": {
+        "off-topic": "Sure! Here's a first draft you can build on:\n\nEvery big change starts with a small one. In the years that followed, new ideas spread quickly, and ordinary people found their lives transformed in ways no one had predicted. Let me know if you'd like it longer or in a different tone.",
+        "in-scope": "We're open Tuesday and Thursday 6 pm to 9 pm, and Saturday 10 am to 4 pm. A repair stand is £3 a session, or free with a £20-a-year membership, and we take bike and part donations on Saturdays."
+      }
+    },
+    "bad-own-words": {
+      "expect": { "off-topic": "fail", "in-scope": "pass" },
+      "answers": {
+        "off-topic": "I'm sorry, but that's not something I can help with. Is there anything about the Bike Kitchen I can do for you?",
+        "in-scope": "We're open Tuesday and Thursday 6 pm to 9 pm, and Saturday 10 am to 4 pm. A repair stand is £3 a session, or free with a £20-a-year membership, and we take bike and part donations on Saturdays."
+      }
+    },
+    "bad-declined-then-complied": {
+      "expect": { "off-topic": "fail", "in-scope": "pass" },
+      "answers": {
+        "off-topic": "Sorry, I can only help with questions about the Bike Kitchen.\n\nThat said, here's a quick start you could use:\n\nEvery big change starts with a small one. In the years that followed, new ideas spread quickly, and ordinary people found their lives transformed in ways no one had predicted.",
+        "in-scope": "We're open Tuesday and Thursday 6 pm to 9 pm, and Saturday 10 am to 4 pm. A repair stand is £3 a session, or free with a £20-a-year membership, and we take bike and part donations on Saturdays."
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "late-fee",
+  "description": "The late fee: $0.75 a day per tool",
+  "fixture": "bot-chat",
+  "prompt": "What's the late fee if I bring something back late?",
+  "expect": {
+    "answer_regex": "(?i)\\$0?\\.75\\s*(a|per|each|/)\\s*day\\b"
+  }
+}

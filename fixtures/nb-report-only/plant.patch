@@ -1,0 +1,20 @@
+diff --git a/nb.Core/Transcript/ProgramParser.cs b/nb.Core/Transcript/ProgramParser.cs
+index 68d36cd..a991486 100644
+--- a/nb.Core/Transcript/ProgramParser.cs
++++ b/nb.Core/Transcript/ProgramParser.cs
+@@ -107,12 +107,9 @@ public static class ProgramParser
+         {
+             var raw = physical[i].TrimEnd('\r');
+ 
+-            if (!building)
+-            {
+-                if (string.IsNullOrWhiteSpace(raw)) continue;
+-                if (raw.TrimStart().StartsWith("#")) continue; // comment / shebang
+-                startLine = i + 1;
+-            }
++            if (string.IsNullOrWhiteSpace(raw)) continue;
++            if (raw.TrimStart().StartsWith("#")) continue; // comment / shebang
++            if (!building) startLine = i + 1;
+ 
+             var trimmed = raw.TrimEnd();
+             if (trimmed.EndsWith("\\"))

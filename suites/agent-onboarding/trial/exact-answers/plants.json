@@ -1,0 +1,76 @@
+{
+  "about": "The tool library's five member questions, each with one right figure and its unit. A planted run answers the question the written task asks, recognised from its prompt; a task asking something else gets the whole handbook in one reply and is not counted. The bad replies are near misses: an extra digit, the right number with the wrong unit, a dodge.",
+  "versions": {
+    "bot": ["a volunteer-run lending library for tools", "Every tool carries a yellow tag with its number"]
+  },
+  "missing": {
+    "bot": "no arm's program gives the bot both its system prompt (bot/system.md) and its handbook (bot/knowledge.md), so the suite does not measure the bot"
+  },
+  "dodge": "I'm not able to help with that. Please ask a volunteer at the counter.",
+  "questions": [
+    { "key": "refund", "match": "refund|deposit back|get (my|the|a) deposit|deposit.*(back|return)" },
+    { "key": "membership", "match": "member(ship)?[^?]*(cost|price|much|fee)|(cost|price|much)[^?]*member|join" },
+    { "key": "reserve", "match": "reserv|book|in advance|ahead" },
+    { "key": "fee", "match": "late|overdue|fine\\b|fee" },
+    { "key": "loan", "match": "how long|keep|loan|borrow" }
+  ],
+  "fallback": "*",
+  "unrecognised": "none of the written tasks asks one of the questions in notes/member-questions.md",
+  "variants": {
+    "good-terse": {
+      "expect": "pass",
+      "answers": {
+        "loan": "9 days.",
+        "fee": "$0.75 a day for each tool.",
+        "membership": "$12 a year.",
+        "reserve": "Up to 3 weeks ahead.",
+        "refund": "Within 5 working days.",
+        "*": "Loans are 9 days. The late fee is $0.75 a day for each tool. Membership is $12 a year. You can reserve up to 3 weeks ahead, power tools need a $40 deposit, and deposits are refunded within 5 working days."
+      }
+    },
+    "good-chatty": {
+      "expect": "pass",
+      "answers": {
+        "loan": "You can keep any tool for 9 days, large or small. If nobody has reserved it, you can renew once at the counter or by email.",
+        "fee": "The late fee is $0.75 per day for each tool, up to the tool's replacement cost. Fees are waived during the January stocktake.",
+        "membership": "Membership is $12 per year, and it runs from the month you join. Under-18s can borrow with a parent or guardian who is a member.",
+        "reserve": "You can reserve a tool up to 3 weeks ahead, and we hold it for 2 days after your pickup date.",
+        "refund": "Thanks for bringing it back! Your deposit is refunded to your card within 5 working days, as long as the tool came back undamaged.",
+        "*": "Happy to help! Loans are 9 days, the late fee is $0.75 per day for each tool, and membership is $12 per year. You can reserve up to 3 weeks ahead, and deposits come back within 5 working days."
+      }
+    },
+    "bad-extra-digit": {
+      "expect": "fail",
+      "answers": {
+        "loan": "You can keep a tool for 19 days. If nobody has reserved it, you can renew once.",
+        "fee": "The late fee is $7.50 a day for each tool.",
+        "membership": "Membership is $120 a year, and it runs from the month you join.",
+        "reserve": "You can reserve a tool up to 13 weeks ahead.",
+        "refund": "Your deposit is refunded to your card within 15 working days.",
+        "*": "Loans are 19 days. The late fee is $7.50 a day. Membership is $120 a year. You can reserve up to 13 weeks ahead, and deposits are refunded within 15 working days."
+      }
+    },
+    "bad-wrong-unit": {
+      "expect": "fail",
+      "answers": {
+        "loan": "You can keep a tool for 9 weeks. If nobody has reserved it, you can renew once.",
+        "fee": "The late fee is $0.75 a week for each tool.",
+        "membership": "Membership is $12 a month, and it runs from the month you join.",
+        "reserve": "You can reserve a tool up to 3 days ahead.",
+        "refund": "Your deposit is refunded to your card within 5 weeks.",
+        "*": "Loans are 9 weeks. The late fee is $0.75 a week. Membership is $12 a month. You can reserve up to 3 days ahead, and deposits are refunded within 5 weeks."
+      }
+    },
+    "bad-dodge": {
+      "expect": "fail",
+      "answers": {
+        "loan": "It depends on the tool. Please ask a volunteer at the counter.",
+        "fee": "There may be a small fee. Please ask a volunteer at the counter.",
+        "membership": "Membership is very affordable! Please ask a volunteer at the counter for the current price.",
+        "reserve": "Yes, you can reserve tools. Please ask a volunteer at the counter how far ahead.",
+        "refund": "Deposits are refunded once the tool is checked. Please ask a volunteer at the counter.",
+        "*": "Please ask a volunteer at the counter."
+      }
+    }
+  }
+}

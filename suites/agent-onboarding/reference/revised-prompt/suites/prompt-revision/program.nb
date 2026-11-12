@@ -1,0 +1,10 @@
+# prompt-revision: the arm's bundle is the system prompt under test, the only thing the arms change; the
+# handbook is the same for both and read from the project itself. The question goes in as people typed it.
+# model before provider: nb builds the provider's client as soon as it reads `provider`.
+model {{model}}
+provider {{provider}}
+harness {{harness}}
+tools none
+system @{{bundle}}/system.md
+system @../../bot/knowledge.md
+run {{prompt}}
