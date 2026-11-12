@@ -212,6 +212,13 @@ template as `{{bundle}}` and to hooks and checks as `PROCTOR_BUNDLE`, and
 records its identity in every manifest; what is inside it is the suite's
 business. Two arms with two bundles compare them in one experiment.
 
+On an agent arm the bundle stays on the host. Proctor hashes it, records
+it in every cell, hands it to the arm hooks as `PROCTOR_BUNDLE`, and
+refuses to `resume` once it has changed, exactly as on a bare arm. It is
+never copied into the agent's container, so an arm hook that serves it
+(over HTTP, say) is how the agent reaches it. An `agent: nb` arm with a
+bundle cannot name `{{bundle}}` in the program template.
+
 Proctor checks the fixture out into the work directory before each sample,
 commits it, and collects `diff.patch` afterwards.
 

@@ -7,6 +7,11 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- An agent arm may name a `bundle`. It is the host's: hashed when the
+  experiment starts, recorded in every cell's manifest, handed to arm
+  hooks as `PROCTOR_BUNDLE`, and a changed one refuses `resume`, as on a
+  bare arm. Nothing of it enters the agent's container; an `agent: nb`
+  arm with a bundle cannot use `{{bundle}}` in its template (#11).
 - A Qwen Code call through its `tool_call` wrapper (how 0.25 calls a tool
   it loads on demand, `web_fetch` among them) is counted and graded as the
   tool inside, with that tool's arguments: `core.json`'s kinds, the

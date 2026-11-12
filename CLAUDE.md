@@ -144,7 +144,9 @@ The directories are for reading, not for namespaces: everything is
   `.proctor/bundles/<rev>`) is resolved once per experiment and recorded
   by source, path and hash in `experiment.json` and every cell manifest;
   proctor never reads what is inside it. `resume` refuses a changed bundle
-  as it refuses a changed suite.
+  as it refuses a changed suite. On an agent arm the bundle is the host's
+  alone (the record, arm hooks, `resume`); no container holds it, so an
+  `agent: nb` arm with one cannot use `{{bundle}}`.
 - **An arm with an agent runs through Harbor; an arm without one is nb run
   bare.** `arm.agent` is a vendor agent (`claude-code` on Anthropic models,
   `codex` on OpenAI's, `qwen-code` on Qwen's), with a pinned

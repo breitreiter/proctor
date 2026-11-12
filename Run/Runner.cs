@@ -287,7 +287,8 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
 
     /// <summary>
     /// An agent arm's cell: one Harbor trial of the task compiled for the arm, then ingest. The checkout, the setup and
-    /// the diff are the image's and Harbor's; arm hooks still ran on the host around the arm's cells.
+    /// the diff are the image's and Harbor's; arm hooks still ran on the host around the arm's cells. The arm's bundle is
+    /// the host's too: recorded here and handed to those hooks, never put in the container.
     /// </summary>
     void RunAgentCell(Arm arm, TaskDef c, int sample)
     {
@@ -305,7 +306,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             {
                 RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample, Model = arm.Model,
                 Harness = arm.Harness, Provider = arm.Provider,
-                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
+                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = experiment.BundleOf(arm.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
                 Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash,
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };

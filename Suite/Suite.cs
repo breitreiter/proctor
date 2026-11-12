@@ -343,6 +343,9 @@ sealed class Suite
             foreach (Match m in Regex.Matches(template, @"\{\{\s*([^}]*?)\s*\}\}"))
                 if (!Placeholders.Contains(m.Groups[1].Value))
                     problems.Add(new Problem(rel(templateFile), m.Value, $"unknown placeholder; known: {string.Join(", ", Placeholders.Select(p => "{{" + p + "}}"))}"));
+            // An agent arm's bundle stays on the host (hooks, the hash, resume); its container never holds it.
+            if (Regex.IsMatch(template, @"\{\{\s*bundle\s*\}\}") && def.Arms?.FirstOrDefault(a => a is { IsAgent: true, IsVendor: false, Bundle: not null }) is { } nbAgent)
+                problems.Add(new Problem(rel(templateFile), "{{bundle}}", $"arm '{nbAgent.Id}' runs nb through Harbor, where its bundle is not in the container; serve it from an arm hook, or run the arm bare"));
             if (tasks.Any(c => c.Oracle is not null))
                 foreach (var problem in OracleTemplateProblems(template, def.Arms?.Any(a => a is { IsAgent: true, IsVendor: false }) == true))
                     problems.Add(new Problem(rel(templateFile), "", problem));
@@ -598,7 +601,6 @@ sealed class Suite
         if (vendor is null) { add($"{f}.agent", $"unknown agent '{arm.Agent}'; known: {Arm.Nb}, {string.Join(", ", Arm.Vendors)}"); return; }
         foreach (var (field, value) in new[] { ("runner", arm.Runner), ("harness", arm.Harness), ("provider", arm.Provider), ("command", arm.Command) })
             if (value is not null) add($"{f}.{field}", $"an nb field; an arm with agent {arm.Agent} is that agent, on the model it names");
-        if (arm.Bundle is not null) add($"{f}.bundle", "a bundle on an agent arm is not yet implemented");
         if (string.IsNullOrWhiteSpace(arm.Model)) add($"{f}.model", $"required for agent {arm.Agent}");
         else if (arm.Model.Contains('/')) add($"{f}.model", $"'{arm.Model}' has a provider prefix; name the model bare ({example}), as the gateway receives it");
         else if (!Regex.IsMatch(arm.Model, models!)) add($"{f}.model", $"'{arm.Model}' is not {vendor} model; {arm.Agent} runs {vendor[(vendor.IndexOf(' ') + 1)..]} models only, so the harness and the model are one vendor's");
@@ -617,7 +619,6 @@ sealed class Suite
         if (arm.AgentVersion is not null) add($"{f}.agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
         if (string.IsNullOrWhiteSpace(arm.Provider)) add($"{f}.provider", "required for agent nb (a provider entry name in nb's config)");
         if (string.IsNullOrWhiteSpace(arm.Harness)) add($"{f}.harness", "required for agent nb: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
-        if (arm.Bundle is not null) add($"{f}.bundle", "a bundle on an agent arm is not yet implemented");
         if (arm.Samples is < 1) add($"{f}.samples", "must be at least 1");
     }
 

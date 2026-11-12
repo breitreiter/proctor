@@ -680,15 +680,18 @@ memory with full marks on every outcome check. Nothing flagged the arm.
   declare the surface so reachability and use are checked; give each task one
   detail memory cannot supply.
 
-## An agent arm cannot carry a bundle
+## An agent arm's bundle never reaches its container
 
-2026-11-10. Found while scoping `agent-onboarding`.
+2026-11-10. Found while scoping `agent-onboarding`. 2026-11-12: #11 landed
+the host half.
 
-- **What is true today.** Validation refuses `bundle` on an agent arm, vendor
-  or nb: "a bundle on an agent arm is not yet implemented" (`Suite/Suite.cs`,
-  both agent-arm branches). `Harbor/Compile.cs` copies no bundle into a task's
-  image, and the verifier's contract sets `PROCTOR_BUNDLE` and
-  `PROCTOR_BUNDLE_MOUNT` empty. Only a bare nb arm sees `{{bundle}}`.
+- **What is true today.** An agent arm may name a `bundle`, but only the host
+  sees it: hashed, recorded per cell, `PROCTOR_BUNDLE` to arm hooks, `resume`
+  refused on a change (#11, for a corpus an arm hook serves over HTTP).
+  `Harbor/Compile.cs` copies no bundle into a task's image, the verifier's
+  contract sets `PROCTOR_BUNDLE` and `PROCTOR_BUNDLE_MOUNT` empty, and an
+  `agent: nb` arm with a bundle is refused `{{bundle}}` in its template. Only
+  a bare nb arm sees `{{bundle}}`.
 - **Why it matters.** `project/plans/lab.md` centres on two bundles under the
   same vendor agent, and its step 7 is a published experiment of exactly that.
   Proctor cannot run it. The site and the brief say the surface under test is

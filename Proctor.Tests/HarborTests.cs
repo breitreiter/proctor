@@ -512,6 +512,37 @@ public class HarborTests
         Assert.Contains("have changed on disk", e.Message);
     }
 
+    /// <summary>Issue #11: an agent arm's bundle is the host's, as on the bare path: hashed, recorded per cell, handed to arm hooks, guarded on resume; never in the task.</summary>
+    [Fact]
+    public void Run_AnAgentArmsBundle_IsRecorded_HandedToArmHooks_KeptOutOfTheTask_AndGuardsResume()
+    {
+        using var scratch = new TestRepo();
+        var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
+        using var _r = repo;
+        var bundleDir = Directory.CreateDirectory(Path.Combine(repo.Root, "bundles", "corpus")).FullName;
+        File.WriteAllText(Path.Combine(bundleDir, "page.html"), "<h1>corpus page</h1>\n");
+        repo.WriteScript("harbor-unit/hooks/serve.sh", $"#!/usr/bin/env bash\necho \"$PROCTOR_BUNDLE\" > \"{scratch.Root}/hook.bundle\"\n");
+        repo.EditJson("harbor-unit/suite.json", e =>
+        {
+            e["arms"]![0]!["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}""");
+            e["hooks"] = JsonNode.Parse("""{"arm": {"setup": "hooks/serve.sh"}}""");
+        });
+
+        var id = Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var expDir = Layout.Experiment(repo.Root, id);
+        var hash = ReadJson(Path.Combine(expDir, "experiment.json"))["bundles"]!["cc-haiku"]!["hash"]!.GetValue<string>();
+        Assert.StartsWith("sha256:", hash);
+        var manifest = ReadJson(Path.Combine(Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1), "manifest.json"));
+        Assert.Equal(hash, manifest["bundle"]!["hash"]!.GetValue<string>());
+        Assert.Equal(bundleDir, File.ReadAllText(Path.Combine(scratch.Root, "hook.bundle")).Trim());
+        Assert.DoesNotContain(Directory.GetFiles(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), "*", SearchOption.AllDirectories),
+            f => File.ReadAllText(f).Contains("corpus page"));
+
+        File.AppendAllText(Path.Combine(bundleDir, "page.html"), "rebuilt\n");
+        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
+        Assert.Contains("the bundle of arm 'cc-haiku'", e.Message);
+    }
+
     [Fact]
     public void Run_OnPodman_RecordsTheEngine_HandsItToHarbor_AndResumeRefusesAnother()
     {
@@ -863,7 +894,6 @@ public class HarborTests
     [InlineData("runner", "\"nb\"", "arms[1].runner", "bare path")]
     [InlineData("agent_version", "\"0.9.0\"", "arms[1].agent_version", "the binary's")]
     [InlineData("provider", "null", "arms[1].provider", "required for agent nb")]
-    [InlineData("bundle", "{\"path\": \"bundles/smoke\"}", "arms[1].bundle", "not yet")]
     [InlineData("id", "\"harbor\"", "arms[1].id", "compiled for Harbor")]
     public void NbAgentArm_IsValidated(string field, string value, string problemField, string message)
     {
@@ -871,6 +901,21 @@ public class HarborTests
         repo.CopySuite("gate");
         repo.EditJson("gate/suite.json", e => e["arms"]![1]![field] = JsonNode.Parse(value));
         Assert.Contains(repo.Problems("gate"), p => p.Field == problemField && p.Message.Contains(message));
+    }
+
+    [Fact]
+    public void NbAgentArm_TakesABundle_ButItsTemplateCannotNameIt()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("gate");
+        Directory.CreateDirectory(Path.Combine(repo.Root, "bundles", "corpus"));
+        repo.EditJson("gate/suite.json", e => e["arms"]![1]!["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}"""));
+        Assert.Empty(repo.Problems("gate"));
+
+        File.AppendAllText(Path.Combine(repo.Root, "suites", "gate", "program.nb"), "# corpus: {{bundle}}\n");
+        var problem = Assert.Single(repo.Problems("gate"));
+        Assert.Equal("{{bundle}}", problem.Field);
+        Assert.Contains("arm 'nb-harbor' runs nb through Harbor, where its bundle is not in the container", problem.Message);
     }
 
     [Fact]
