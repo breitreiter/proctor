@@ -51,6 +51,10 @@ public class ChecksTests
     [InlineData("{\"tool_args\": {\"name\": \"bash\", \"args\": {\"command\": \"echo hi\"}, \"mode\": \"exact\", \"ignore\": [\"desc*\"]}}", "tool-allowed", "pass")]
     [InlineData("{\"tool_args\": {\"name\": \"bash\", \"args\": {\"command\": \"echo bye\"}}}", "tool-allowed", "fail")]
     [InlineData("{\"tool_args\": {\"name\": \"grep\", \"args\": {}}}", "tool-allowed", "fail")]
+    [InlineData("{\"tool_args\": {\"name\": \"bash\", \"args\": {\"command\": \"^echo \"}, \"match\": \"regex\"}}", "tool-allowed", "pass")]
+    [InlineData("{\"tool_args\": {\"name\": \"bash\", \"args\": {\"command\": \"^echo$\"}, \"match\": \"regex\"}}", "tool-allowed", "fail")]
+    [InlineData("{\"tool_args\": {\"name\": \"bash\", \"args\": {\"command\": \"^echo \"}}}", "tool-allowed", "fail")]
+    [InlineData("{\"not_tool_args\": {\"name\": \"bash\", \"args\": {\"command\": \"^rm \"}, \"match\": \"regex\"}}", "tool-allowed", "pass")]
     [InlineData("{\"tool_sequence\": {\"names\": [\"bash\", \"bash\"], \"mode\": \"in_order\"}}", "loop-nudged", "pass")]
     [InlineData("{\"tool_sequence\": {\"names\": [\"bash\", \"bash\"], \"mode\": \"exact\"}}", "loop-nudged", "fail")]
     [InlineData("{\"tool_sequence\": {\"names\": [\"bash\", \"bash\", \"bash\"], \"mode\": \"exact\"}}", "loop-nudged", "pass")]
@@ -208,4 +212,19 @@ public class ChecksTests
     [InlineData("README.md", "README.md", true)]
     [InlineData("README.md", "docs/README.md", false)]
     public void Globs(string pattern, string path, bool expected) => Assert.Equal(expected, Glob.IsMatch(pattern, path));
+
+    [Theory]
+    [InlineData("{\"name\": \"web_fetch\", \"args\": {\"url\": \"^http://\"}, \"match\": \"regex\"}", null)]
+    [InlineData("{\"name\": \"web_fetch\", \"args\": {\"url\": \"(\"}, \"match\": \"regex\"}", "args.url is not a valid regular expression")]
+    [InlineData("{\"name\": \"web_fetch\", \"args\": {}, \"match\": \"glob\"}", "match is equals or regex")]
+    public void ToolArgs_MatchIsValidated(string spec, string? problem) =>
+        Assert.Equal(problem, Checks.ValidateSpec("tool_args", JsonNode.Parse(spec), "/nonexistent"));
+
+    [Fact]
+    public void ToolArgs_ABadPatternFromTheTask_IsAnError()
+    {
+        var v = Suite("{\"tool_args\": \"@expect\"}", Fixture("tool-allowed"),
+            JsonNode.Parse("{\"tool_args\": {\"name\": \"bash\", \"args\": {\"command\": \"(\"}, \"match\": \"regex\"}}")!.AsObject());
+        Assert.Equal(Verdict.Error, v.Result);
+    }
 }

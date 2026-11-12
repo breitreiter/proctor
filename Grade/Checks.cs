@@ -164,7 +164,7 @@ static class Checks
             },
             "tools_used" => $"uses {List(v)}",
             "tools_used_any" => $"uses at least one of {List(v)}",
-            "tool_args" => $"calls {v!["name"]} with the expected arguments",
+            "tool_args" => $"calls {v!["name"]} with {(v["match"]?.GetValue<string>() == "regex" ? "arguments matching the expected patterns" : "the expected arguments")}",
             "tool_sequence" => $"calls {List(v!["names"])} {(v["mode"]?.GetValue<string>() == "exact" ? "and nothing else" : "in that order")}",
             "files_touched" => v!["mode"]!.GetValue<string>() switch
             {
@@ -209,8 +209,12 @@ static class Checks
             "denied_calls" or "tool_errors" or "oracle_misses" or "oracle_turns" when value is not JsonObject o || o["max"] is null => "expects {max}",
             "oracle_hit" when value is not JsonArray a || a.Count == 0 => "expects a non-empty list of answer sheet entry ids",
             "answer_words" when value is not JsonObject || (value["min"] is null && value["max"] is null) => "expects {min} and/or {max}",
-            "tool_args" when value?["name"] is null => "expects {name, args, mode: partial|exact, ignore: [globs]}",
+            "tool_args" when value?["name"] is null => "expects {name, args, mode: partial|exact, match: equals|regex, ignore: [globs]}",
             "tool_args" when value["mode"] is JsonValue m && m.GetValue<string>() is not ("partial" or "exact") => "mode is partial or exact",
+            "tool_args" when value["match"] is JsonValue m && m.GetValue<string>() is not ("equals" or "regex") => "match is equals or regex",
+            "tool_args" when value["match"]?.GetValue<string>() == "regex" && value["args"] is JsonObject a
+                && a.FirstOrDefault(kv => kv.Value is JsonValue r && r.TryGetValue<string>(out var p) && !IsRegex(p)) is { Key: not null } bad
+                => $"args.{bad.Key} is not a valid regular expression",
             "tool_sequence" when value?["names"] is not JsonArray => "expects {names, mode: in_order|exact}",
             "tool_sequence" when value["mode"] is JsonValue m && m.GetValue<string>() is not ("in_order" or "exact") => "mode is in_order or exact",
             "files_touched" when value?["paths"] is not JsonArray => "expects {paths, mode: at_least|exactly|at_most}",
@@ -348,10 +352,13 @@ static class Checks
                 var toolName = v["name"]!.GetValue<string>();
                 var expected = v["args"] as JsonObject ?? new JsonObject();
                 var exact = v["mode"]?.GetValue<string>() == "exact";
+                var regex = v["match"]?.GetValue<string>() == "regex";
                 var ignore = (v["ignore"] as JsonArray)?.Select(n => n!.GetValue<string>()).ToList() ?? [];
                 var calls = t.ToolCalls.Where(c => c.Name == toolName).ToList();
                 if (calls.Count == 0) return new Verdict(Verdict.Fail, $"no call to {toolName}");
-                var matched = calls.Any(c => ArgsMatch(expected, c.Arguments ?? new JsonObject(), exact, ignore));
+                bool matched;
+                try { matched = calls.Any(c => ArgsMatch(expected, c.Arguments ?? new JsonObject(), exact, regex, ignore)); }
+                catch (ArgumentException e) { return Verdict.Err($"tool_args: {e.Message}"); } // a pattern from the task's expect is unchecked until now
                 return Verdict.Of(matched, matched ? $"{toolName} called with the expected args" : $"{calls.Count} call{(calls.Count == 1 ? "" : "s")} to {toolName}, none with the expected args");
             }
             case "tool_sequence":
@@ -383,13 +390,18 @@ static class Checks
         }
     }
 
-    private static bool ArgsMatch(JsonObject expected, JsonObject actual, bool exact, List<string> ignore)
+    /// <summary>In regex mode a string expectation is a pattern over a string argument; anything else compares as JSON.</summary>
+    private static bool ArgsMatch(JsonObject expected, JsonObject actual, bool exact, bool regex, List<string> ignore)
     {
         bool Ignored(string k) => ignore.Any(g => Glob.IsMatch(g, k));
         foreach (var (k, ev) in expected)
         {
             if (Ignored(k)) continue;
-            if (!actual.TryGetPropertyValue(k, out var av) || !JsonNode.DeepEquals(ev, av)) return false;
+            if (!actual.TryGetPropertyValue(k, out var av)) return false;
+            var ok = regex && ev is JsonValue pv && pv.TryGetValue<string>(out var pattern)
+                ? av is JsonValue a && a.TryGetValue<string>(out var text) && Regex.IsMatch(text, pattern)
+                : JsonNode.DeepEquals(ev, av);
+            if (!ok) return false;
         }
         return !exact || actual.All(a => Ignored(a.Key) || expected.ContainsKey(a.Key));
     }

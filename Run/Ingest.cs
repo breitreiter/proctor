@@ -255,11 +255,11 @@ static class Ingest
                 if (source is not ("system" or "user" or "agent")) { unmapped ??= $"step {step?["step_id"]} has source '{source}'"; continue; }
                 if (source != "agent") continue;
                 turns++;
-                foreach (var call in step!["tool_calls"]?.AsArray() ?? [])
+                foreach (var call in (step!["tool_calls"]?.AsArray() ?? []).OfType<JsonObject>())
                 {
-                    var name = call?["function_name"]?.GetValue<string>() ?? "";
+                    var (name, _) = Called(call);
                     calls++;
-                    if (call?["extra"]?["approved"]?.GetValue<string>() == "deny") denied++;
+                    if (call["extra"]?["approved"]?.GetValue<string>() == "deny") denied++;
                     if (kinds.TryGetValue(name, out var kind)) tally[kind] = tally.GetValueOrDefault(kind) + 1;
                     else unmapped ??= $"tool '{name}' has no kind for {agent}";
                 }
@@ -273,6 +273,27 @@ static class Ingest
         return (new CountedCore(exitReason, turns, calls, denied, tally,
             Long(metrics?["total_prompt_tokens"]), Long(metrics?["total_cached_tokens"]), Long(metrics?["total_completion_tokens"]),
             metrics?["total_cost_usd"]?.GetValue<double>()), null);
+    }
+
+    /// <summary>
+    /// The tool an ATIF call ran and its arguments. Qwen Code calls a tool it loads on demand (web_fetch among them) through
+    /// its `tool_call` wrapper, `{name, arguments}`, so the wrapper is unwrapped to the tool inside; the trajectory keeps it.
+    /// A wrapper without that shape is itself, a meta call.
+    /// </summary>
+    internal static (string Name, JsonObject? Arguments) Called(JsonObject call)
+    {
+        var name = call["function_name"]?.GetValue<string>() ?? "";
+        var args = call["arguments"] as JsonObject;
+        if (name == "tool_call" && args?["name"] is JsonValue inner && inner.TryGetValue<string>(out var innerName) && innerName.Length > 0)
+            return (innerName, args["arguments"] switch
+            {
+                JsonObject o => o,
+                JsonValue s when s.TryGetValue<string>(out var text) && TryObject(text) is { } parsed => parsed,
+                _ => null,
+            });
+        return (name, args);
+
+        static JsonObject? TryObject(string text) { try { return JsonNode.Parse(text) as JsonObject; } catch (System.Text.Json.JsonException) { return null; } }
     }
 
     static long? Long(JsonNode? node) => node?.GetValue<long>();

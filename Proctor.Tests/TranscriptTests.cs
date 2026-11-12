@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Proctor;
 
 namespace Proctor.Tests;
@@ -164,5 +165,43 @@ public class AtifTranscriptTests
         var t = Transcript.FromAtif(copy, null);
         Assert.True(t.ToolResults[0].IsError);
         Assert.Equal(1, t.ToolResults.Count(r => r.IsError));
+    }
+
+    /// <summary>Qwen Code 0.25's wrapper for a tool it loads on demand, as issue #10 quoted it, beside a tool search and a direct call.</summary>
+    static JsonObject QwenWrapped(JsonNode innerArguments) => new()
+    {
+        ["agent"] = new JsonObject { ["name"] = "qwen-code" },
+        ["steps"] = new JsonArray(new JsonObject
+        {
+            ["step_id"] = 1, ["source"] = "agent", ["message"] = "",
+            ["tool_calls"] = new JsonArray(
+                new JsonObject { ["tool_call_id"] = "a", ["function_name"] = "tool_search", ["arguments"] = new JsonObject { ["query"] = "fetch" } },
+                new JsonObject { ["tool_call_id"] = "b", ["function_name"] = "tool_call", ["arguments"] = new JsonObject { ["name"] = "web_fetch", ["arguments"] = innerArguments } },
+                new JsonObject { ["tool_call_id"] = "c", ["function_name"] = "read_file", ["arguments"] = new JsonObject { ["absolute_path"] = "/app/a" } }),
+        }),
+    };
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void QwenCodesToolCallWrapper_IsTheToolInside(bool argumentsAsString)
+    {
+        var inner = new JsonObject { ["url"] = "http://host.containers.internal:4194/data.json", ["prompt"] = "version" };
+        var trajectory = QwenWrapped(argumentsAsString ? JsonValue.Create(inner.ToJsonString()) : inner);
+        var (core, unmapped) = Ingest.Count(trajectory, "qwen-code", "ok");
+        Assert.Null(unmapped);
+        Assert.Equal(new Dictionary<string, int> { ["meta"] = 1, ["web"] = 1, ["read"] = 1 }, core!.Kinds);
+        var t = Transcript.FromAtif(trajectory, core);
+        Assert.Equal(["tool_search", "web_fetch", "read_file"], t.ToolCalls.Select(c => c.Name));
+        Assert.Equal("http://host.containers.internal:4194/data.json", t.ToolCalls[1].Arguments!["url"]!.GetValue<string>());
+        Assert.Equal("tool_call", trajectory["steps"]![0]!["tool_calls"]![1]!["function_name"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void QwenCodesToolCallWrapper_AroundAnUnknownTool_IsUnmapped()
+    {
+        var trajectory = QwenWrapped(new JsonObject());
+        trajectory["steps"]![0]!["tool_calls"]![1]!["arguments"]!["name"] = "figma_get";
+        Assert.Equal("tool 'figma_get' has no kind for qwen-code", Ingest.Count(trajectory, "qwen-code", "ok").Unmapped);
     }
 }

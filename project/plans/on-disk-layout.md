@@ -211,7 +211,7 @@ block (per task):
 | `answer_json_schema` | answer_json | path to a schema file beside the task |
 | `answer_words` | answer | `{min, max}` |
 | `tools_used`, `tools_used_any` | tool_calls | list of tool names |
-| `tool_args` | tool_calls | `{name, args, mode: partial \| exact, ignore: [globs]}`; `partial` means expected is a subset of actual |
+| `tool_args` | tool_calls | `{name, args, mode: partial \| exact, match: equals \| regex, ignore: [globs]}`; `partial` means expected is a subset of actual; `regex` makes each string in `args` a .NET pattern over the call's string argument (other values still compare equal). `not_tool_args` passes when no call matches |
 | `tool_sequence` | tool_calls | `{names, mode: in_order \| exact}`; `in_order` allows gaps |
 | `denied_calls` | tool_calls | `{max}` over `approved == deny`; `approval_reason == no-match` is "reached outside its surface" |
 | `tool_errors` | tool_results | `{max}` |

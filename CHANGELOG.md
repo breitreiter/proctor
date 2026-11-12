@@ -7,6 +7,16 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- A Qwen Code call through its `tool_call` wrapper (how 0.25 calls a tool
+  it loads on demand, `web_fetch` among them) is counted and graded as the
+  tool inside, with that tool's arguments: `core.json`'s kinds, the
+  `tool_calls` window and every `tool_*` check. Before, such a fetch
+  counted as `meta` and no check could see it. `trajectory.json` keeps the
+  wrapper. A cell ingested before this keeps its old `core.json`; a
+  regrade reads the calls anew (#10).
+- `tool_args` takes `match: regex`: each string in `args` is a .NET
+  pattern over the call's string argument, so a check can ask for any URL
+  under a base. `not_tool_args` with it asks that no call matches (#10).
 - Agent arms run on Modal: `harbor.engine: modal` puts each cell's
   containers in Modal sandboxes on your Modal login, with no Docker or
   podman on the machine (`docs/modal.md`). `--config <file>` on `list`,

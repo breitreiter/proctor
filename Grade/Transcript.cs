@@ -104,7 +104,8 @@ sealed class Transcript
                     foreach (var call in (step["tool_calls"]?.AsArray() ?? []).OfType<JsonObject>())
                     {
                         var approval = call["extra"] as JsonObject ?? [];
-                        t.ToolCalls.Add(new ToolCall(Str(call, "tool_call_id") ?? "", Str(call, "function_name") ?? "", call["arguments"]?.DeepClone() as JsonObject, Str(approval, "approved"), Str(approval, "approval_reason")));
+                        var (name, args) = Ingest.Called(call);
+                        t.ToolCalls.Add(new ToolCall(Str(call, "tool_call_id") ?? "", name, args?.DeepClone() as JsonObject, Str(approval, "approved"), Str(approval, "approval_reason")));
                     }
                     foreach (var result in (step["observation"]?["results"]?.AsArray() ?? []).OfType<JsonObject>())
                     {
