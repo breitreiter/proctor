@@ -253,16 +253,129 @@ about that much.
 
 ## Hosted sandboxes for agent arms
 
-For users with a budget who would rather not run Docker or podman on their
-own machine (and for CI), run agent arms in a hosted sandbox. Harbor's
-`environment.type` is believed to cover several hosted services already
-(Daytona, E2B, Modal, Runloop; verify at the pinned version), and proctor
-writes that field from `proctor.json` `harbor.engine`, so the first question
-is whether this is mostly a validation and docs change: credentials
-reaching Harbor's process, the nb layer image living in a registry the
-service can pull rather than the local store, the egress allowlist on each
-service, and what the report records about where a cell ran. Intermediate
-term, after onboarding and the usability sessions.
+Modal shipped as `harbor.engine: modal` (`docs/modal.md`,
+`project/plans/modal-runs.md`). Other hosted services wait for a user who
+needs one. Harbor's `environment.type` is believed to cover Daytona, E2B and
+Runloop too (verify at the pinned version), and Modal's work is the
+template for each:
+
+- credentials reaching Harbor's process, with a preflight check;
+- nb's publish copied into the task context, since the service cannot see a
+  local image;
+- whether its egress allowlist holds from inside a sandbox;
+- what `Unreachable` refuses;
+- sandbox lifetimes, so a killed run stops billing.
+
+Still open for every remote engine, Modal included: the report does not
+record where a cell ran.
+
+## Proctor as a hosted service, if anyone asks
+
+Not planned, and of no use to us. This is the answer to "what would it take to
+make proctor a product you could sell", written down on 2026-11-12. The
+assumption: the user brings their own Modal account and their own model keys,
+so we pay for neither inference nor containers, but we still orchestrate.
+
+**What the host does today.** Even on `harbor.engine: modal`, the machine that
+starts proctor runs these:
+
+- bare nb arms, with tools, in the work directory;
+- hooks, runner scripts and the script checks of bare cells;
+- `nb --compile`, whose `@file` includes resolve against the suite;
+- `oracle_user.py` and its `nb --judge`;
+- the judge calls;
+- Harbor itself, one `uv tool run` per cell.
+
+State is `runs/<id>/` on a local disk. `resume`, baselines (pinned cells read
+back by path) and `report --against` all need that tree to outlive the
+process. Cells run one at a time. On a shared host, the suite's code runs
+with our privileges.
+
+**The cheap shape: run proctor on the user's Modal too.** Make the orchestrator
+one long-running Modal function per experiment, its image holding the proctor
+CLI, nb's publish and Harbor's pin. Harbor should be able to start sandboxes
+from inside Modal with the user's token; that is the first thing to prove.
+Then the following holds:
+
+- hooks, bare arms, script checks and the oracle run in the user's account,
+  not ours;
+- we pay for no compute;
+- keys can be Modal Secrets in the user's workspace, reaching proctor as the
+  environment its `${VAR}` resolution already reads, so we never hold a model
+  key;
+- the host-nb-equals-image-nb check cannot fail, since we ship both.
+
+What remains is ours to build:
+
+- auth and accounts;
+- a secret store for the Modal token. A token is roughly the whole
+  workspace, which is the biggest trust question; users will want a
+  dedicated workspace.
+- getting the suite in: a GitHub app, or a pushed tarball;
+- durable storage for `runs/`, which can be a Modal Volume on the user's
+  account or object storage we own if we serve the reports. The on-disk
+  layout is already the contract, so a sync is enough.
+- the job lifecycle: start, cancel, progress, recovery. `resume` with its
+  suite-hash refusal is already "the function died, restart it". Sandbox
+  lifetimes and `ModalIdle` already make a killed run stop billing. Progress
+  is plain log lines today and a UI wants events.
+- a report host behind auth, since `report.html` is a static page;
+- onboarding: `setup` as a web form, with `setup --check --live` as "check
+  my keys".
+
+**What would bite.**
+
+- *Sequential cells.* Three arms by three tasks by five samples takes hours,
+  which is the first complaint a service gets. Running cells in parallel
+  touches the manifests, `resume` and the judge throttle, all written for
+  one cell at a time.
+- *Reachability.* BYOK works only for public endpoints. `HarborRun.Unreachable`
+  enforces that for agent arms, but judges and bare arms would meet it too.
+  A gateway on the LAN, or the user's own vLLM box, needs a public URL or a
+  tunnel.
+- *Fixtures with `image.services`* cannot run on Modal, so conformance stays
+  our CI. We would be promising vendor agent pins we have tested, and keeping
+  up with those pins is a standing cost.
+- *Image builds.* Harbor builds every task image on Modal from a context we
+  upload. Cold builds per experiment cost time, so cache fixture images
+  across experiments early.
+- *Spend.* "Agree the spend first" has to become a pre-run estimate and a hard
+  cap, since a runaway loop (Codex retrying an unreachable endpoint until the
+  timeout, an agent at its call budget on every sample) bills the user's keys.
+
+**The quality-of-life work underneath.** Most of a sellable product is here,
+not in the control plane. Every place a suite leans on the author's machine
+has to become portable. The largest part is tooling to stage a fixture
+portably, so that what `repo/`, `image` and its build need can be shipped to
+Modal and rebuilt there, not found on the author's disk. After that come
+hooks that assume a local engine (`command -v podman`), runner scripts and
+mounts, models on the LAN, and `suites/proctor.json` as the machine's file.
+Each of these is fine for one person on one box and a support ticket in a
+service.
+
+**Then the product pull.** Anyone shaping this as a product would bring Modal
+and inference in-house at once: no Modal account, no vendor keys, sign up and
+run. That simplifies onboarding a great deal and moves every cost onto us.
+The runaway experiment stops being the user's bill and becomes ours, across
+every tenant. That service needs:
+
+- metering and per-tenant budgets, enforced mid-experiment;
+- a kill switch that stops a cell's model calls, not only its sandbox;
+- abuse controls, since we would be selling arbitrary containers with an
+  attached LLM;
+- pricing that covers a suite whose cost nobody estimated.
+
+Proctor's own records help: `core.json` counts every call, and the sandbox
+lifetimes already end on their own. Estimating an experiment's cost before
+it runs, though, is a problem proctor has never had to solve.
+
+**Size.** The minimal version takes weeks: a "proctor in a box" Modal app the
+user deploys to their own workspace, started from the CLI or a webhook, with
+results on a Volume and no accounts or hosted UI. It proves the orchestrator
+can run on Modal, and "run it on your Modal, no Docker" is an adoption story
+on its own. The full BYOK service would take months, most of it the
+portability work above. The in-house version is a different business, one
+whose main risk is the cost control described in the previous section.
 
 ## Sample suites that demonstrate the site's thesis
 
@@ -924,3 +1037,12 @@ What to change before a Sonnet arm:
 Done 2026-11-12: `far-cause` has a new plant (the journal's turn numbering,
 seen only on seed replay of a nudged run), and `report-only` lost the
 blank-line test. Both shaken down three ways. Neither has met a model.
+
+## The feature task on Sonnet: four passes, about 46 calls each (2026-11-12)
+
+Experiment `20261112-0154-nb-changes-8707` (run from a root outside the
+repository), Claude Code on Sonnet, `ask-user-question` four times: 4 of 4
+passed, $3.15 by `core.json`, 45 to 48 calls, 7 to 16 minutes. Haiku took 93
+calls for the same pass. Strips: `o11 A! R A A! R! R! R! .`,
+`o13 A A! R! r .`, `o15 A A! R! R! R!`, `o12 A! R A A! R! R! R! .`. Not yet
+read against the cut.
