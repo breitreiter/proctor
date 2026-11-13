@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Shipments · Tern API</title></head>
+<body>
+<header><p><strong>Tern API</strong> · <a href="/">Home</a> · <a href="/quickstart">Quickstart</a> · <a href="/reference/quotes">Quotes</a> · <a href="/reference/shipments">Shipments</a> · <a href="/reference/statuses">Statuses</a> · <a href="/changelog">Changelog</a></p></header>
+<main>
+<h1>Shipments</h1>
+<h2>POST /v2/shipments</h2>
+<p>Book a parcel. Fields: <code>service</code>, <code>from_postcode</code>, <code>to_postcode</code>,
+<code>weight</code> (grams) and <code>reference</code>, your own reference for the order. The response is the
+shipment, status <code>booked</code>, with its <code>id</code>.</p>
+
+<h3>Retrying safely</h3>
+<p>Send an <code>Idempotency-Key</code> header with a value unique to the booking, such as your order reference.
+If the connection drops before you see the answer, send the same request with the same key: Tern returns the
+shipment it already booked rather than booking another. <strong>Without the header, every request books a new
+parcel.</strong></p>
+<pre>Idempotency-Key: order-LT-5123</pre>
+
+<h2>GET /v2/shipments</h2>
+<p>Your shipments, oldest first, twenty to a page. Parameters:</p>
+<table>
+<tr><td><code>created_since</code></td><td>A date, <code>YYYY-MM-DD</code>: only shipments created on or after it.</td></tr>
+<tr><td><code>cursor</code></td><td>The <code>next_cursor</code> from the previous page.</td></tr>
+</table>
+<p>The response holds <code>shipments</code> and <code>next_cursor</code>, which is <code>null</code> on the last
+page. Keep the same <code>created_since</code> when you follow a cursor.</p>
+
+<h2>GET /v2/shipments/{id}</h2>
+<p>One shipment: <code>id</code>, <code>reference</code>, <code>service</code>, <code>status</code> (see
+<a href="/reference/statuses">Statuses</a>) and <code>created_at</code>.</p>
+
+<h2>POST /v2/shipments/{id}/cancel</h2>
+<p>Cancel a shipment that has not been collected. The response is the shipment, status <code>cancelled</code>.
+Once the parcel is collected it can no longer be cancelled: the answer is <code>409</code> with
+<code>"error": "conflict"</code>.</p>
+</main>
+</body>
+</html>

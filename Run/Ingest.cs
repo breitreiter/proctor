@@ -23,7 +23,8 @@ record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dict
 /// <summary>
 /// A Harbor trial into a cell: the trajectory, the agent's native logs, the diff, the verifier's rewards and outputs,
 /// and the counted core. Strict: a step or tool the agent's mapping does not know fails the cell as adapter_unmapped
-/// rather than being dropped, so a vendor or Harbor format change shows on the first run after the bump.
+/// rather than being dropped, so a vendor or Harbor format change shows on the first run after the bump. The one
+/// exception is a tool name the model made up and the agent refused with an error result, counted as kind "none".
 /// </summary>
 static class Ingest
 {
@@ -235,6 +236,15 @@ static class Ingest
         return null;
     }
 
+    /// <summary>The kind of a call to a tool the agent does not have, which the agent refused with an error result.</summary>
+    public const string NoSuchTool = "none";
+
+    /// <summary>The ids of a step's calls whose results the agent marked as errors (Claude Code's is_error).</summary>
+    static HashSet<string> Refused(JsonNode step) =>
+        (step["observation"]?["results"]?.AsArray() ?? []).OfType<JsonObject>()
+            .Where(r => r["extra"]?["tool_result_metadata"]?["is_error"] is JsonValue v && v.TryGetValue<bool>(out var e) && e)
+            .Select(r => r["source_call_id"]?.GetValue<string>() ?? "").Where(id => id.Length > 0).ToHashSet();
+
     static string Trimmed(JsonNode? text) => (text?.GetValue<string>() ?? "").TrimEnd();
 
     static string ReadOr(string file) => File.Exists(file) ? File.ReadAllText(file) : "";
@@ -255,12 +265,15 @@ static class Ingest
                 if (source is not ("system" or "user" or "agent")) { unmapped ??= $"step {step?["step_id"]} has source '{source}'"; continue; }
                 if (source != "agent") continue;
                 turns++;
+                var refused = Refused(step!);
                 foreach (var call in (step!["tool_calls"]?.AsArray() ?? []).OfType<JsonObject>())
                 {
                     var (name, _) = Called(call);
                     calls++;
                     if (call["extra"]?["approved"]?.GetValue<string>() == "deny") denied++;
                     if (kinds.TryGetValue(name, out var kind)) tally[kind] = tally.GetValueOrDefault(kind) + 1;
+                    // A name the model made up, which the agent answered with an error: the model's slip, not a format change.
+                    else if (refused.Contains(call["tool_call_id"]?.GetValue<string>() ?? "")) tally[NoSuchTool] = tally.GetValueOrDefault(NoSuchTool) + 1;
                     else unmapped ??= $"tool '{name}' has no kind for {agent}";
                 }
             }

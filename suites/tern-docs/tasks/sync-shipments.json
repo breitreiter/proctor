@@ -1,0 +1,11 @@
+{
+  "id": "sync-shipments",
+  "description": "Every shipment since a date, all pages",
+  "labels": {
+    "needs": [
+      "D4 paging"
+    ]
+  },
+  "fixture": "tern-shop",
+  "prompt": "This is the backend of Larkspur Tea, a small online tea shop. We ship with Tern, a parcel carrier. Tern's API documentation is at http://localhost:8080/ and Tern's sandbox API is running at http://localhost:8081 (the test key is already in `shop/settings.py`).\n\nImplement `shipments_since` in `shop/shipping.py`: the nightly report needs every Tern shipment created on or after a given date, exactly as Tern describes them.\n\nKeep the shop's existing tests passing; add your own if you like."
+}

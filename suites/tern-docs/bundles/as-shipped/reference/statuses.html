@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Statuses · Tern API</title></head>
+<body>
+<header><p><strong>Tern API</strong> · <a href="/">Home</a> · <a href="/quickstart">Quickstart</a> · <a href="/reference/quotes">Quotes</a> · <a href="/reference/shipments">Shipments</a> · <a href="/reference/statuses">Statuses</a> · <a href="/changelog">Changelog</a></p></header>
+<main>
+<h1>Statuses</h1>
+<p>A shipment's <code>status</code> is one of these.</p>
+<table>
+<tr><th>Status</th><th>Meaning</th></tr>
+<tr><td><code>booked</code></td><td>Booked; not yet collected. It can still be cancelled.</td></tr>
+<tr><td><code>collected</code></td><td>Collected by a Tern driver. It is on its way.</td></tr>
+<tr><td><code>in_transit</code></td><td>Moving through Tern's network.</td></tr>
+<tr><td><code>held</code></td><td>At customs, waiting for clearance. This is normal for parcels to Northern Ireland, the
+Channel Islands and abroad, clears within two working days, and needs nothing from you: the parcel is still on its
+way.</td></tr>
+<tr><td><code>delivered</code></td><td>Delivered.</td></tr>
+<tr><td><code>returned</code></td><td>Could not be delivered and is coming back to you. Contact the customer.</td></tr>
+<tr><td><code>cancelled</code></td><td>Cancelled before collection.</td></tr>
+</table>
+</main>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Tern's sandbox API (the fixture's, the same in every arm) and its docs site (the arm's bundle, which proctor
+# copies to ./bundle; empty for an arm without one). No networks: with egress control on, Harbor puts a service
+# that declares none in the main container's network namespace, so the agent reaches them at localhost:8081 and
+# localhost:8080 and the host has no port.
+services:
+  tern:
+    image: python:3.13-alpine
+    command: ["python", "-u", "/tern/tern_api.py"]
+    volumes:
+      - ./tern_api.py:/tern/tern_api.py:ro
+  docs:
+    image: python:3.13-alpine
+    command: ["python", "-u", "/tern/docs_server.py"]
+    volumes:
+      - ./docs_server.py:/tern/docs_server.py:ro
+      - ./bundle:/srv/docs:ro

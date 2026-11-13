@@ -215,9 +215,20 @@ business. Two arms with two bundles compare them in one experiment.
 On an agent arm the bundle stays on the host. Proctor hashes it, records
 it in every cell, hands it to the arm hooks as `PROCTOR_BUNDLE`, and
 refuses to `resume` once it has changed, exactly as on a bare arm. It is
-never copied into the agent's container, so an arm hook that serves it
-(over HTTP, say) is how the agent reaches it. An `agent: nb` arm with a
+never copied into the agent's container. An `agent: nb` arm with a
 bundle cannot name `{{bundle}}` in the program template.
+
+The way an agent arm's bundle reaches the agent is through the fixture's
+services. A fixture's `image.services` names a directory beside `repo/`
+holding a `docker-compose.yaml`; its services run beside the agent's
+container and share its network, so the agent reaches them on
+`localhost`, and the model's host stays the only other name it can
+reach. Proctor copies the arm's bundle beside those services as
+`bundle/` (an empty directory for an arm with none), so a service can
+mount `./bundle` and serve it: a docs site, say, that the agent reads over
+HTTP and cannot grep. `fixtures/tern-shop` serves a docs bundle this way,
+and `suites/tern-docs` compares two versions of those docs with none.
+Services run on Docker and podman, not on Modal.
 
 Proctor checks the fixture out into the work directory before each sample,
 commits it, and collects `diff.patch` afterwards.

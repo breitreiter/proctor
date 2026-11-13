@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Quickstart with curl · Tern API</title></head>
+<body>
+<header><p><strong>Tern API</strong> · <a href="/">Home</a> · <a href="/quickstart/python">Python</a> · <a href="/quickstart/curl">curl</a> · <a href="/guides/booking">Booking guide</a> · <a href="/reference/quotes">Quotes</a> · <a href="/reference/shipments">Shipments</a> · <a href="/reference/statuses">Statuses</a></p></header>
+<main>
+<h1>Quickstart with curl</h1>
+<h2>Base URL and key</h2>
+<p>Production is <code>https://api.tern.example</code>. Your sandbox is at the URL in your dashboard; test keys start
+with <code>tern_test_</code>. Send the key as a bearer token on every request.</p>
+
+<h2>Your first quote</h2>
+<pre>curl -X POST "$TERN_API_URL/v2/quotes" \
+  -H "Authorization: Bearer $TERN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"from_postcode": "EH6 6QT", "to_postcode": "M1 1AE", "weight": 1200}'</pre>
+<p>Each quote has a <code>service</code>, an <code>amount</code> and <code>eta_days</code>. See
+<a href="/reference/quotes">Quotes</a> for every field.</p>
+</main>
+</body>
+</html>

@@ -799,9 +799,30 @@ public class HarborTests
         Assert.Contains("allowed_hosts = [\"localhost\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "codex", "ok"), "task.toml")));
     }
 
+    /// <summary>An agent arm's bundle reaches a fixture's services as environment/bundle/, and never the agent's image; an arm without one gets the directory empty, so a compose mount of ./bundle resolves.</summary>
+    [Fact]
+    public void Compile_PutsTheArmsBundle_BesideTheFixturesServices()
+    {
+        using var repo = new TestRepo();
+        repo.CopySuite("conformance");
+        var bundleDir = Directory.CreateDirectory(Path.Combine(repo.Root, "bundles", "docs", "guide")).FullName;
+        File.WriteAllText(Path.Combine(bundleDir, "index.html"), "<h1>docs page</h1>\n");
+        var suite = repo.LoadSuite("conformance");
+        var withBundle = suite.Arms.First(a => a.IsAgent).Id!;
+        var bundles = new Dictionary<string, ResolvedBundle> { [withBundle] = new("bundles/docs", Path.Combine(repo.Root, "bundles", "docs"), "sha256:x") };
+        var expDir = Path.Combine(repo.Root, "runs", "exp");
+        HarborCompile.Tasks(expDir, suite, "exp", _ => new AgentRoute("http://localhost:8765/v1", "stub"), bundles: bundles);
+
+        var environment = Path.Combine(Layout.HarborTask(expDir, withBundle, "ok"), "environment");
+        Assert.Equal("<h1>docs page</h1>\n", File.ReadAllText(Path.Combine(environment, "bundle", "guide", "index.html")));
+        Assert.DoesNotContain("bundle", File.ReadAllText(Path.Combine(environment, "Dockerfile")));
+        var without = suite.Arms.First(a => a.IsAgent && a.Id != withBundle).Id!;
+        Assert.Empty(Directory.GetFileSystemEntries(Path.Combine(Layout.HarborTask(expDir, without, "ok"), "environment", "bundle")));
+    }
+
     [Theory]
     [InlineData("nowhere", "no docker-compose.yaml in nowhere")]
-    [InlineData("clash", "Dockerfile and repo are the image's own names in environment/")]
+    [InlineData("clash", "Dockerfile, repo and bundle are the task's own names in environment/")]
     public void FixtureServices_AreValidated(string services, string message)
     {
         using var repo = new TestRepo();
@@ -871,6 +892,32 @@ public class HarborTests
         Assert.Null(unmapped);
         Assert.Equal(expected.Split(' ').Order(StringComparer.Ordinal), core!.Kinds.Select(k => $"{k.Key}:{k.Value}").Order(StringComparer.Ordinal));
         Assert.Equal($"tool 'Bash' has no kind for {agent}", Ingest.Count(JsonNode.Parse(Trajectory("Bash"))!.AsObject(), agent, "ok").Unmapped);
+    }
+
+    [Fact]
+    public void Count_AMadeUpToolTheAgentRefused_IsKindNone_ButAnUnknownToolThatRanIsUnmapped()
+    {
+        // Sonnet called `bash`; Claude Code 2.1.301 answered "No such tool available: bash" as an error result.
+        static JsonObject With(bool isError)
+        {
+            var t = JsonNode.Parse(Trajectory("Bash", "bash"))!.AsObject();
+            t["steps"]![1]!["observation"] = new JsonObject
+            {
+                ["results"] = new JsonArray(new JsonObject
+                {
+                    ["source_call_id"] = "c1",
+                    ["content"] = "<tool_use_error>Error: No such tool available: bash.</tool_use_error>",
+                    ["extra"] = new JsonObject { ["tool_result_metadata"] = new JsonObject { ["is_error"] = isError } },
+                }),
+            };
+            return t;
+        }
+        var (core, unmapped) = Ingest.Count(With(isError: true), Arm.ClaudeCode, "ok");
+        Assert.Null(unmapped);
+        Assert.Equal(2, core!.ToolCalls);
+        Assert.Equal(1, core.Kinds["shell"]);
+        Assert.Equal(1, core.Kinds[Ingest.NoSuchTool]);
+        Assert.Equal("tool 'bash' has no kind for claude-code", Ingest.Count(With(isError: false), Arm.ClaudeCode, "ok").Unmapped);
     }
 
     // nb as a Harbor agent: the gate suite's harbor arm.

@@ -12,6 +12,20 @@ formats or the vocabulary; a patch bump does not.
   hooks as `PROCTOR_BUNDLE`, and a changed one refuses `resume`, as on a
   bare arm. Nothing of it enters the agent's container; an `agent: nb`
   arm with a bundle cannot use `{{bundle}}` in its template (#11).
+- An agent arm's bundle reaches a fixture's services: when the fixture has
+  `image.services`, proctor copies the arm's bundle beside them as
+  `bundle/` (empty for an arm without one), so a compose service can
+  mount `./bundle` and serve it on the agent's `localhost`. The agent's
+  own container still holds none of it. A fixture's services directory
+  may no longer hold a `bundle` of its own.
+- Ingest no longer fails a cell over a tool name the model made up when
+  the agent refused the call with an error result (Sonnet calling `bash`
+  under Claude Code 2.1.301). The call is counted, as kind `none`; an
+  unknown tool that ran still fails the cell as `adapter_unmapped`.
+- `suites/tern-docs` on `fixtures/tern-shop`: Claude Code on Sonnet
+  implements six shipping functions against an invented carrier's API,
+  with its docs as shipped, restructured, or absent; the arms differ only
+  in the bundle.
 - A Qwen Code call through its `tool_call` wrapper (how 0.25 calls a tool
   it loads on demand, `web_fetch` among them) is counted and graded as the
   tool inside, with that tool's arguments: `core.json`'s kinds, the

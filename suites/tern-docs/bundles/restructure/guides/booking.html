@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Booking and tracking parcels · Tern API</title></head>
+<body>
+<header><p><strong>Tern API</strong> · <a href="/">Home</a> · <a href="/quickstart/python">Python</a> · <a href="/quickstart/curl">curl</a> · <a href="/guides/booking">Booking guide</a> · <a href="/reference/quotes">Quotes</a> · <a href="/reference/shipments">Shipments</a> · <a href="/reference/statuses">Statuses</a></p></header>
+<main>
+<h1>Booking and tracking parcels</h1>
+<p>Book a parcel with <code>POST /v2/shipments</code>, then follow it with <code>GET /v2/shipments/{id}</code>.
+Every field is in the <a href="/reference/shipments">Shipments</a> reference.</p>
+<h2>Retrying safely</h2>
+<p>Send an <code>Idempotency-Key</code> header with a value unique to the booking, such as your order reference.
+If the connection drops before you see the answer, send the same request with the same key: Tern returns the
+shipment it already booked rather than booking another. <strong>Without the header, every request books a new
+parcel.</strong></p>
+<h2>Following a parcel</h2>
+<p>A parcel's status moves from <code>booked</code> to <code>delivered</code>; the
+<a href="/reference/statuses">Statuses</a> page says what each step means.</p>
+</main>
+</body>
+</html>

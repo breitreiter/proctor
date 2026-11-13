@@ -63,12 +63,14 @@ static class HarborCompile
     /// Every agent arm's tasks, under the experiment, and proctor's own Harbor agents beside them for the arms that use one. Returns the
     /// tree's hash, which the experiment records and a resume checks. The nb image is the tag of proctor's nb layer; on a
     /// remote engine, which cannot see a local image, nb's publish directory comes too and is copied into each nb task.
+    /// The bundles are the experiment's resolved ones, which reach a task only through its fixture's services.
     /// </summary>
-    public static string Tasks(string experimentDir, Suite suite, string experimentId, Func<Arm, AgentRoute> route, string? nbImage = null, string? nbPublish = null)
+    public static string Tasks(string experimentDir, Suite suite, string experimentId, Func<Arm, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
+        IReadOnlyDictionary<string, ResolvedBundle>? bundles = null)
     {
         foreach (var arm in suite.Arms.Where(a => a.IsAgent))
             foreach (var c in suite.Tasks)
-                Task(Layout.HarborTask(experimentDir, arm.Id!, c.Id!), suite, arm, c, experimentId, route(arm), nbImage, nbPublish);
+                Task(Layout.HarborTask(experimentDir, arm.Id!, c.Id!), suite, arm, c, experimentId, route(arm), nbImage, nbPublish, bundles?.GetValueOrDefault(arm.Id!)?.Path);
         var files = suite.Arms.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
         var oracle = HasOracle(suite);
         if (oracle) files.Add(OracleUserFile);
@@ -98,8 +100,16 @@ static class HarborCompile
         return Directory.Exists(agents) ? $"{tasks}+{Tree.Hash(agents, new HashSet<string> { "__pycache__" })}" : tasks;
     }
 
-    /// <summary>One Harbor task directory: instruction.md, task.toml, environment/ (the image) and tests/ (the verifier).</summary>
-    public static void Task(string dir, Suite suite, Arm arm, TaskDef c, string experimentId, AgentRoute route, string? nbImage = null, string? nbPublish = null)
+    /// <summary>Where an arm's bundle sits beside the fixture's services in a task's environment/, for a compose file to mount as ./bundle.</summary>
+    public const string ServiceBundleDir = "bundle";
+
+    /// <summary>
+    /// One Harbor task directory: instruction.md, task.toml, environment/ (the image) and tests/ (the verifier). When the
+    /// fixture has services, the arm's bundle is copied beside them as environment/bundle/ (empty without one), so a
+    /// service can serve it, a docs site say, while the agent's own container never holds it.
+    /// </summary>
+    public static void Task(string dir, Suite suite, Arm arm, TaskDef c, string experimentId, AgentRoute route, string? nbImage = null, string? nbPublish = null,
+        string? bundleDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         var fixture = suite.FixtureOf(c)!;
@@ -110,7 +120,12 @@ static class HarborCompile
         var nbInContext = arm.Agent == Arm.Nb && nbPublish is not null;
         if (nbInContext) CopyTree(nbPublish!, Path.Combine(dir, "environment", NbContextDir), []);
         File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, arm, nbImage, nbInContext));
-        if (fixture.Def.Image!.Services is { } services) CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
+        if (fixture.Def.Image!.Services is { } services)
+        {
+            CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
+            var bundle = Directory.CreateDirectory(Path.Combine(dir, "environment", ServiceBundleDir)).FullName;
+            if (bundleDir is not null) CopyTree(bundleDir, bundle, []);
+        }
 
         var tests = Path.Combine(dir, "tests");
         CopyTree(suite.Dir, Path.Combine(tests, "suite"), []);

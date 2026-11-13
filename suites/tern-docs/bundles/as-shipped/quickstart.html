@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Quickstart · Tern API</title></head>
+<body>
+<header><p><strong>Tern API</strong> · <a href="/">Home</a> · <a href="/quickstart">Quickstart</a> · <a href="/reference/quotes">Quotes</a> · <a href="/reference/shipments">Shipments</a> · <a href="/reference/statuses">Statuses</a> · <a href="/changelog">Changelog</a></p></header>
+<main>
+<h1>Quickstart</h1>
+<h2>Base URL and key</h2>
+<p>Production is <code>https://api.tern.example</code>. Your sandbox is at the URL in your dashboard; test keys start
+with <code>tern_test_</code>. Send the key as a bearer token on every request:</p>
+<pre>Authorization: Bearer tern_test_...</pre>
+<p>Requests and responses are JSON.</p>
+
+<h2>Your first quote</h2>
+<pre>curl -X POST "$TERN_API_URL/v2/quotes" \
+  -H "Authorization: Bearer $TERN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"from_postcode": "EH6 6QT", "to_postcode": "M1 1AE", "weight": 1200}'</pre>
+<p><strong>Weights are in grams</strong>, as a whole number: the parcel above weighs 1.2 kg.
+<strong>Amounts are in pence</strong>, as a whole number.</p>
+<pre>{
+  "quotes": [
+    {"id": "qt_81", "service": "express",  "amount": 1295, "currency": "GBP", "eta_days": 1},
+    {"id": "qt_82", "service": "standard", "amount": 695,  "currency": "GBP", "eta_days": 3},
+    {"id": "qt_83", "service": "economy",  "amount": 495,  "currency": "GBP", "eta_days": 5}
+  ]
+}</pre>
+<p>Quotes are not returned in price order. Next: <a href="/reference/shipments">book a shipment</a>.</p>
+</main>
+</body>
+</html>

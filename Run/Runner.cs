@@ -107,7 +107,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
             experiment = experiment with
             {
                 Versions = new(experiment.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(root, config, nb, arm), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null), nbImage, engine),
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, suite, id, arm => Route(root, config, nb, arm), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, experiment.Bundles), nbImage, engine),
             };
         }
         WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);

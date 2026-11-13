@@ -793,35 +793,28 @@ memory with full marks on every outcome check. Nothing flagged the arm.
   declare the surface so reachability and use are checked; give each task one
   detail memory cannot supply.
 
-## An agent arm's bundle never reaches its container
+## An agent arm's bundle reaches a service, never the agent's container
 
 2026-11-10. Found while scoping `agent-onboarding`. 2026-11-12: #11 landed
-the host half.
+the host half; the same day, compile began copying the bundle beside the
+fixture's services (`environment/bundle/`), which `tern-docs` serves as a
+docs site.
 
-- **What is true today.** An agent arm may name a `bundle`, but only the host
-  sees it: hashed, recorded per cell, `PROCTOR_BUNDLE` to arm hooks, `resume`
-  refused on a change (#11, for a corpus an arm hook serves over HTTP).
-  `Harbor/Compile.cs` copies no bundle into a task's image, the verifier's
-  contract sets `PROCTOR_BUNDLE` and `PROCTOR_BUNDLE_MOUNT` empty, and an
-  `agent: nb` arm with a bundle is refused `{{bundle}}` in its template. Only
-  a bare nb arm sees `{{bundle}}`.
-- **Why it matters.** `project/plans/lab.md` centres on two bundles under the
-  same vendor agent, and its step 7 is a published experiment of exactly that.
-  Proctor cannot run it. The site and the brief say the surface under test is
-  the arm's; for the agents most users run, it cannot be.
-- **The workaround, and what it costs.** Put the surface in the fixture's
-  `image` (clone at a pinned revision). Then the surface is the fixture's, not
-  the arm's: two versions are two fixtures or two experiments, compared with
-  `report --against`, and the manifest records no bundle source or hash for
-  it. `agent-onboarding` does this.
-- **What delivery would need deciding.** Where the bundle lands in the
-  container and whether the agent is told (a vendor agent sees only the task's
-  prompt, no template); whether it is copied into the image per (arm, task) or
-  mounted; that the verifier must not see it change the diff; that `resume`
-  refuses a changed bundle as it does on the bare path; and how a skill or MCP
-  server in a bundle gets installed where the agent looks, which is per agent.
-- **Order.** This sits ahead of lab step 3 (the suite declares its surface)
-  and the no-surface arm: an empty bundle on an agent arm is the same feature.
+- **What is true today.** An agent arm's bundle is hashed, recorded per
+  cell, handed to arm hooks as `PROCTOR_BUNDLE`, guards `resume`, and is
+  copied beside the fixture's compose services when there are any. The
+  agent's own container never holds it; the verifier's `PROCTOR_BUNDLE` is
+  empty; an `agent: nb` arm with a bundle is refused `{{bundle}}`.
+- **What is still missing.** A bundle the agent should hold on disk: a
+  skill or an MCP server installed where each agent looks, or a docs tree
+  to grep. That is per agent, and it changes the condition measured (a
+  site read over HTTP against a tree it can search), so it waits for a
+  suite that needs it.
+- **An arm hook that serves the bundle on the host is not reachable from a
+  vendor agent's container**: the allowlist names the model's host only.
+  A suite that needs a host-served corpus (as #11's describes) should serve
+  it as a fixture service instead, or proctor needs a way for a suite to
+  add a host to the allowlist.
 
 ## Beats
 

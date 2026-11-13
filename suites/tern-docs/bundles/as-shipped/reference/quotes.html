@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Quotes · Tern API</title></head>
+<body>
+<header><p><strong>Tern API</strong> · <a href="/">Home</a> · <a href="/quickstart">Quickstart</a> · <a href="/reference/quotes">Quotes</a> · <a href="/reference/shipments">Shipments</a> · <a href="/reference/statuses">Statuses</a> · <a href="/changelog">Changelog</a></p></header>
+<main>
+<h1>Quotes</h1>
+<h2>POST /v2/quotes</h2>
+<p>Prices for one parcel on every service Tern offers between two postcodes.</p>
+<table>
+<tr><th>Field</th><th>Type</th><th></th></tr>
+<tr><td><code>from_postcode</code></td><td>string</td><td>Where the parcel is collected.</td></tr>
+<tr><td><code>to_postcode</code></td><td>string</td><td>Where it is delivered.</td></tr>
+<tr><td><code>weight</code></td><td>integer</td><td>The packed weight <strong>in grams</strong>. Up to 20,000.</td></tr>
+</table>
+<p>The response holds <code>quotes</code>, one per service (<code>economy</code>, <code>standard</code>,
+<code>express</code>), each with an <code>id</code>, its <code>amount</code> <strong>in pence</strong>, the
+<code>currency</code> and <code>eta_days</code>. They are in no particular order. A parcel over 20 kg is a
+<code>422</code> with <code>"error": "too_heavy"</code>.</p>
+</main>
+</body>
+</html>

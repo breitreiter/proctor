@@ -1,0 +1,22 @@
+{
+  "id": "tern-shop",
+  "description": "A small Python shop backend that ships with Tern, an invented carrier, beside Tern's sandbox API (localhost:8081) and a docs site that serves the arm's bundle (localhost:8080)",
+  "source": { "path": "repo" },
+  "stack": "python",
+  "image": {
+    "from": "python:3.13",
+    "env": { "PYTHONDONTWRITEBYTECODE": "1", "PIP_DISABLE_PIP_VERSION_CHECK": "1" },
+    "run": [ "pip install -q pytest==8.4.2" ],
+    "services": "services"
+  },
+  "checks": {
+    "tests-pass": {
+      "script": "checks/tests-pass.sh",
+      "description": "the shop's own tests pass (the ones it had; tests the agent added are not run, since they may need the sandbox)"
+    },
+    "tests-untouched": {
+      "script": "checks/tests-untouched.sh",
+      "description": "no test the shop already had was edited or deleted"
+    }
+  }
+}
