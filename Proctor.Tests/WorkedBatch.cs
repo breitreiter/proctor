@@ -3,8 +3,8 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>The work experiment's shape from project/plans/first-slice.md as fixed data: two variants, three tasks, three samples.</summary>
-static class WorkedExperiment
+/// <summary>The work batch's shape from project/plans/first-slice.md as fixed data: two variants, three tasks, three samples.</summary>
+static class WorkedBatch
 {
     public static Exam Exam(int samples = 3, bool twoVariants = true)
     {
@@ -25,7 +25,7 @@ static class WorkedExperiment
         return repo.LoadExam("smoke");
     }
 
-    public static Experiment Experiment(Exam exam) => new(
+    public static Batch Batch(Exam exam) => new(
         "20260917-1432-smoke-k7px", exam.Id, "sha256:9c1e0000", System.Text.Json.JsonSerializer.SerializeToNode(exam.Def, Proctor.Exam.JsonOptions)!.AsObject(),
         exam.Tasks.Select(c => c.Id!).ToList(), exam.PlannedCells, "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
         new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.0" }, new GitInfo("3f2c1e9a", Dirty: false), new ResolvedNb("/usr/local/bin/nb", null));

@@ -176,13 +176,13 @@ public class FrictionTests
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
-        var expDir = Layout.Experiment(repo.Root, id);
+        var expDir = Layout.Batch(repo.Root, id);
         File.WriteAllText(Path.Combine(Layout.Cell(expDir, "a", "loops", 1), "status"), "failed\n");
 
         // The exam's variant is renamed after the run: friction still reads what was run.
         repo.EditJson("smoke/exam.json", e => e["variants"]![0]!["id"] = "renamed");
 
-        var cells = Friction.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), repo.LoadExam("smoke"), TextWriter.Null);
+        var cells = Friction.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), repo.LoadExam("smoke"), TextWriter.Null);
 
         Assert.All(cells, c => Assert.Equal("a", c.Variant));
         Assert.Equal("not completed", cells.Single(c => c.Task == "loops").Skipped);

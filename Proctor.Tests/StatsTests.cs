@@ -114,14 +114,14 @@ public class StatsTests
     }
 
     static ResultRow Row(string variant, string task, int sample, bool? pass, string status = "completed", string exit = "ok", string? invalid = null) =>
-        WorkedExperiment.Row(variant, task, sample, pass, status, exit, reason: "hook failed", invalid: invalid);
+        WorkedBatch.Row(variant, task, sample, pass, status, exit, reason: "hook failed", invalid: invalid);
 
-    static Exam TwoVariantExam(int samples) => WorkedExperiment.Exam(samples);
+    static Exam TwoVariantExam(int samples) => WorkedBatch.Exam(samples);
 
-    static Experiment Exp(Exam exam) => WorkedExperiment.Experiment(exam);
+    static Batch Exp(Exam exam) => WorkedBatch.Batch(exam);
 
     [Fact]
-    public void Compute_TheWorkedExperimentShape()
+    public void Compute_TheWorkedBatchShape()
     {
         var exam = TwoVariantExam(samples: 3);   // tasks: loops, plain, uses-bash
         var rows = new List<ResultRow>();

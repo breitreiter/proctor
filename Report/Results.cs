@@ -24,14 +24,14 @@ record UsageRow(long? Input, long? Output, long? Total, bool Estimated, double? 
 
 static class Results
 {
-    /// <summary>Read every cell of an experiment into rows, in declared order. Grades come from checks.json; cells without one are not analysed.</summary>
-    public static List<ResultRow> Collect(string root, Experiment experiment, Exam exam)
+    /// <summary>Read every cell of a batch into rows, in declared order. Grades come from checks.json; cells without one are not analysed.</summary>
+    public static List<ResultRow> Collect(string root, Batch batch, Exam exam)
     {
-        var experimentDir = Layout.Experiment(root, experiment.Id);
+        var batchDir = Layout.Batch(root, batch.Id);
         var rows = new List<ResultRow>();
         foreach (var (variant, c, sample) in Runner.Cells(exam))
         {
-            var cellDir = Layout.Cell(experimentDir, variant.Id!, c.Id!, sample);
+            var cellDir = Layout.Cell(batchDir, variant.Id!, c.Id!, sample);
             var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
             var status = Runner.ReadStatus(cellDir);

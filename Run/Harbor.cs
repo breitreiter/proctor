@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace Proctor;
 
 /// <summary>
-/// An experiment's Harbor: the pinned release and the hash of the tasks compiled for it, which a resume must find
+/// A batch's Harbor: the pinned release and the hash of the tasks compiled for it, which a resume must find
 /// unchanged; with an nb variant, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
 /// engine every cell runs on (proctor.json harbor.engine), which holds that layer.
 /// </summary>
@@ -140,7 +140,7 @@ static class HarborRun
 
         var env = new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" };
         if (route is { KeyEnv: { } name, ApiKey: { } key }) env[name] = key;
-        // nb's and Qwen Code's agents, and the oracle's simulated user, are proctor's own, imported from the experiment's harbor/agents/.
+        // nb's and Qwen Code's agents, and the oracle's simulated user, are proctor's own, imported from the batch's harbor/agents/.
         if (HarborCompile.IsOwnAgent(variant) || oracle is not null) env["PYTHONPATH"] = agentsDir;
         var result = Subprocess.Run(uv, UvArgs(version, engine), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);

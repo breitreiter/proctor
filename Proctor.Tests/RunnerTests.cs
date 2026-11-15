@@ -23,7 +23,7 @@ public class RunnerTests
     const string Passthrough = "#!/usr/bin/env bash\nexec \"$PROCTOR_NB\" --output jsonl --config \"$PROCTOR_NB_CONFIG\" -\n";
 
     static string Cell(TestRepo repo, string id, string variant, string task, int sample) =>
-        Layout.Cell(Layout.Experiment(repo.Root, id), variant, task, sample);
+        Layout.Cell(Layout.Batch(repo.Root, id), variant, task, sample);
 
     static JsonObject ReadJson(string file) => JsonNode.Parse(File.ReadAllText(file))!.AsObject();
 
@@ -36,11 +36,11 @@ public class RunnerTests
             e["variants"]!.AsArray().RemoveAt(1);
             e["variants"]![0]!["samples"] = 1;
         });
-        var expDir = Layout.Experiment(repo.Root, id);
+        var expDir = Layout.Batch(repo.Root, id);
         Assert.Matches(@"^\d{8}-\d{4}-smoke-[a-z0-9]{4}$", id);
 
-        // Experiment level.
-        Assert.True(File.Exists(Path.Combine(expDir, "experiment.json")));
+        // Batch level.
+        Assert.True(File.Exists(Path.Combine(expDir, "batch.json")));
         Assert.True(File.Exists(Path.Combine(expDir, "status.json")));
         Assert.True(File.Exists(Path.Combine(expDir, "a", "hooks", "variant.setup.log")));
         var status = ReadJson(Path.Combine(expDir, "status.json"));
@@ -58,7 +58,7 @@ public class RunnerTests
 
         var manifest = ReadJson(Path.Combine(cell, "manifest.json"));
         Assert.Matches("^[0-9a-f]{16}$", manifest["run_id"]!.GetValue<string>());
-        Assert.Equal(id, manifest["experiment"]!.GetValue<string>());
+        Assert.Equal(id, manifest["batch"]!.GetValue<string>());
         Assert.Equal("a", manifest["variant"]!.GetValue<string>());
         Assert.Equal("plain", manifest["task"]!.GetValue<string>());
         Assert.Equal(1, manifest["sample"]!.GetValue<int>());
@@ -162,7 +162,7 @@ public class RunnerTests
 
         Assert.Equal("completed", Runner.ReadStatus(Cell(repo, id, "a", "loops", 1)));
         Assert.Equal("completed", Runner.ReadStatus(Cell(repo, id, "a", "uses-bash", 1)));
-        var counts = ReadJson(Path.Combine(Layout.Experiment(repo.Root, id), "status.json"))["counts"]!;
+        var counts = ReadJson(Path.Combine(Layout.Batch(repo.Root, id), "status.json"))["counts"]!;
         Assert.Equal(1, counts["failed"]!.GetValue<int>());
         Assert.Equal(2, counts["completed"]!.GetValue<int>());
     }
@@ -289,7 +289,7 @@ public class RunnerTests
         repo.CopyExam("smoke");
         var fixture = repo.LoadExam("smoke").Fixtures["note"];
         var work = Path.Combine(repo.Root, ".proctor/work/x");
-        var cell = Path.Combine(repo.Root, "runs/x");
+        var cell = Path.Combine(repo.Root, "attempts/x");
         Directory.CreateDirectory(cell);
 
         Assert.Null(Checkout.Materialise(fixture, work));
@@ -306,20 +306,20 @@ public class RunnerTests
     }
 
     [Fact]
-    public void Bundle_IsResolvedOncePerExperiment_RecordedPerCell_AndResumeRefusesWhenItChanged()
+    public void Bundle_IsResolvedOncePerBatch_RecordedPerCell_AndResumeRefusesWhenItChanged()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, e => { foreach (var variant in e["variants"]!.AsArray()) variant!["samples"] = 1; });
         var bundleDir = Path.Combine(repo.Root, "bundles", "smoke");
 
-        var experiment = ReadJson(Path.Combine(Layout.Experiment(repo.Root, id), "experiment.json"));
-        Assert.Null(experiment["bundles"]!["a"]);
-        Assert.Equal("bundles/smoke", experiment["bundles"]!["b"]!["source"]!.GetValue<string>());
-        Assert.Equal(bundleDir, experiment["bundles"]!["b"]!["path"]!.GetValue<string>());
-        Assert.StartsWith("sha256:", experiment["bundles"]!["b"]!["hash"]!.GetValue<string>());
+        var batch = ReadJson(Path.Combine(Layout.Batch(repo.Root, id), "batch.json"));
+        Assert.Null(batch["bundles"]!["a"]);
+        Assert.Equal("bundles/smoke", batch["bundles"]!["b"]!["source"]!.GetValue<string>());
+        Assert.Equal(bundleDir, batch["bundles"]!["b"]!["path"]!.GetValue<string>());
+        Assert.StartsWith("sha256:", batch["bundles"]!["b"]!["hash"]!.GetValue<string>());
 
         var b = Cell(repo, id, "b", "plain", 1);
-        Assert.Equal(experiment["bundles"]!["b"]!["hash"]!.GetValue<string>(), ReadJson(Path.Combine(b, "manifest.json"))["bundle"]!["hash"]!.GetValue<string>());
+        Assert.Equal(batch["bundles"]!["b"]!["hash"]!.GetValue<string>(), ReadJson(Path.Combine(b, "manifest.json"))["bundle"]!["hash"]!.GetValue<string>());
         Assert.Contains($"# bundle: {bundleDir}\n", File.ReadAllText(Path.Combine(b, "program.nb")));
         var a = Cell(repo, id, "a", "plain", 1);
         Assert.Null(ReadJson(Path.Combine(a, "manifest.json"))["bundle"]);
@@ -348,13 +348,13 @@ public class RunnerTests
             Assert.Equal(Directory.GetFileSystemEntries(a).Select(Path.GetFileName).Order(), Directory.GetFileSystemEntries(b).Select(Path.GetFileName).Order());
         }
 
-        // The manifest and the experiment say how nb was run; a bare run says nothing.
+        // The manifest and the batch say how nb was run; a bare run says nothing.
         var manifest = ReadJson(Path.Combine(Cell(repo, id, "a", "plain", 1), "manifest.json"));
         Assert.Equal("runners/passthrough.sh", manifest["nb"]!["runner"]!["script"]!.GetValue<string>());
         Assert.StartsWith("sha256:", manifest["nb"]!["runner"]!["hash"]!.GetValue<string>());
         Assert.Equal(TestRepo.NbPath, manifest["nb"]!["path"]!.GetValue<string>());
-        var experiment = ReadJson(Path.Combine(Layout.Experiment(repo.Root, id), "experiment.json"));
-        Assert.Equal(manifest["nb"]!["runner"]!["hash"]!.GetValue<string>(), experiment["nb"]!["runner"]!["hash"]!.GetValue<string>());
+        var batch = ReadJson(Path.Combine(Layout.Batch(repo.Root, id), "batch.json"));
+        Assert.Equal(manifest["nb"]!["runner"]!["hash"]!.GetValue<string>(), batch["nb"]!["runner"]!["hash"]!.GetValue<string>());
         Assert.Null(ReadJson(Path.Combine(Cell(bare, bareId, "a", "plain", 1), "manifest.json"))["nb"]!["runner"]);
 
         static string Timeless(string text) => System.Text.RegularExpressions.Regex.Replace(text, @"""(duration|provider)_ms"":\d+", "");
@@ -381,7 +381,7 @@ public class RunnerTests
         Assert.Contains("nocolor=1\n", stderr);
         // The hooks see the same runner and container name, so they can own a container nb is exec'd into.
         Assert.Contains($"proctor-{id}-a-plain-1", File.ReadAllText(Path.Combine(cell, "hooks", "sample.setup.log")));
-        Assert.Contains("runners/spy.sh", File.ReadAllText(Path.Combine(Layout.Experiment(repo.Root, id), "a", "hooks", "variant.setup.log")));
+        Assert.Contains("runners/spy.sh", File.ReadAllText(Path.Combine(Layout.Batch(repo.Root, id), "a", "hooks", "variant.setup.log")));
     }
 
     [Fact]
@@ -498,7 +498,7 @@ public class RunnerTests
         var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
         Assert.Contains("the runner has changed", e.Message);
 
-        // Dropping the runner is a change too; a bare resume of a runner experiment would run nb somewhere else.
+        // Dropping the runner is a change too; a bare resume of a runner batch would run nb somewhere else.
         var none = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, "none", TextWriter.Null));
         Assert.Contains("none vs runners/passthrough.sh", none.Message);
     }

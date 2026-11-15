@@ -30,7 +30,7 @@ for task_file in "$here"/tasks/*.json; do
   c=$(basename "$task_file" .json)
   [ "$only" = "  " ] || [[ "$only" == *" $c "* ]] || continue
   fixture="$root/fixtures/$(jq -r .fixture "$task_file")"
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$fixture" PROCTOR_EXPERIMENT=shakedown PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_SAMPLE=1
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$fixture" PROCTOR_BATCH=shakedown PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_SAMPLE=1
   export PROCTOR_CELL="$tmp/$c/cell" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/cell/diff.patch"
   export PROCTOR_TASK_JSON="$(cat "$task_file")" PROCTOR_EXPECT="{}" PROCTOR_TRANSCRIPT=""
   mkdir -p "$PROCTOR_CELL"; cp -r "$fixture/repo" "$PROCTOR_WORK"

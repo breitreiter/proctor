@@ -7,7 +7,7 @@ static class Layout
 {
     public const string ExamsDir = "exams";
     public const string FixturesDir = "fixtures";
-    public const string RunsDir = "runs";
+    public const string AttemptsDir = "attempts";
     public const string ReportsDir = "reports";
     public const string WorkDir = ".proctor/work";
     public const string BundlesDir = ".proctor/bundles";
@@ -19,7 +19,7 @@ static class Layout
     public const string BaselineFile = "baseline.json";
     public const string FixtureFile = "fixture.json";
 
-    public const string ExperimentFile = "experiment.json";
+    public const string BatchFile = "batch.json";
     public const string StatusCountsFile = "status.json";
     public const string HooksDir = "hooks";
 
@@ -36,7 +36,7 @@ static class Layout
     /// <summary>What a reader was sent and answered about a cell: friction-reading.&lt;judge&gt;.&lt;hash&gt;.json, the cache and the record.</summary>
     public const string ReadingPrefix = "friction-reading";
 
-    /// <summary>An agent variant's cells: the compiled Harbor tasks per experiment, Harbor's own job per cell, and what ingest lifts out of the trial.</summary>
+    /// <summary>An agent variant's cells: the compiled Harbor tasks per batch, Harbor's own job per cell, and what ingest lifts out of the trial.</summary>
     public const string HarborDir = "harbor";
     public const string HarborJobFile = "job.json";
     public const string HarborLogFile = "harbor.log";
@@ -59,20 +59,20 @@ static class Layout
     public static string ExamFileIn(string examDir) => Path.Combine(examDir, ExamFile);
     public static string TasksDirIn(string examDir) => Path.Combine(examDir, TasksDir);
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
-    public static string Experiment(string root, string experimentId) => Path.Combine(root, RunsDir, experimentId);
-    public static string Variant(string experimentDir, string variant) => Path.Combine(experimentDir, variant);
-    public static string Cell(string experimentDir, string variant, string task, int sample) =>
-        Path.Combine(experimentDir, variant, task, sample.ToString());
-    public static string Work(string root, string experimentId, string variant, string task, int sample) =>
-        Path.Combine(root, WorkDir, experimentId, variant, task, sample.ToString());
-    /// <summary>The Harbor task a variant runs a task as, compiled once per experiment.</summary>
-    public static string HarborTask(string experimentDir, string variant, string task) => Path.Combine(experimentDir, HarborDir, "tasks", variant, task);
+    public static string Batch(string root, string batchId) => Path.Combine(root, AttemptsDir, batchId);
+    public static string Variant(string batchDir, string variant) => Path.Combine(batchDir, variant);
+    public static string Cell(string batchDir, string variant, string task, int sample) =>
+        Path.Combine(batchDir, variant, task, sample.ToString());
+    public static string Work(string root, string batchId, string variant, string task, int sample) =>
+        Path.Combine(root, WorkDir, batchId, variant, task, sample.ToString());
+    /// <summary>The Harbor task a variant runs a task as, compiled once per batch.</summary>
+    public static string HarborTask(string batchDir, string variant, string task) => Path.Combine(batchDir, HarborDir, "tasks", variant, task);
     public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
-    public static string ReportData(string root, string experimentId) =>
-        Path.Combine(root, ReportsDir, "data", experimentId);
+    public static string ReportData(string root, string batchId) =>
+        Path.Combine(root, ReportsDir, "data", batchId);
 
     /// <summary>Date prefix so ls sorts, the exam id so a human can tell them apart, four random characters so it is an id.</summary>
-    public static string NewExperimentId(string examId, DateTime utcNow) =>
+    public static string NewBatchId(string examId, DateTime utcNow) =>
         $"{utcNow:yyyyMMdd-HHmm}-{examId}-{RandomSuffix(4)}";
 
     public static string NewRunId() => RandomSuffix(16);

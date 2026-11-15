@@ -5,8 +5,8 @@ using System.Text.Json.Nodes;
 
 namespace Proctor;
 
-/// <summary>runs/&lt;id&gt;/experiment.json: what is the same for every cell.</summary>
-record Experiment(
+/// <summary>attempts/&lt;id&gt;/batch.json: what is the same for every cell.</summary>
+record Batch(
     string Id, string Exam, string ExamHash, JsonObject ExamDef, List<string> Tasks, int Planned,
     string Created, string CommandLine, string Host,
     Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
@@ -15,7 +15,7 @@ record Experiment(
     public ResolvedBundle? BundleOf(string variant) => Bundles?.GetValueOrDefault(variant);
 }
 
-/// <summary>A variant's bundle as resolved for this experiment: where it was read from, the directory handed to the run, and its identity.</summary>
+/// <summary>A variant's bundle as resolved for this batch: where it was read from, the directory handed to the run, and its identity.</summary>
 record ResolvedBundle(string Source, string Path, string Hash);
 
 record GitInfo(string Commit, bool Dirty);
@@ -30,7 +30,7 @@ record ResolvedRunner(string Script, string Path, string Hash);
 record Manifest
 {
     public required string RunId { get; init; }
-    public required string Experiment { get; init; }
+    public required string Batch { get; init; }
     public required string Variant { get; init; }
     public required string Task { get; init; }
     public required int Sample { get; init; }
@@ -73,18 +73,18 @@ static class CellStatus
 }
 
 /// <summary>The matrix loop: variants, tasks, samples; hooks at variant and sample level; nb as a subprocess.</summary>
-sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig config, TextWriter log)
+sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, TextWriter log)
 {
-    readonly string experimentDir = Layout.Experiment(root, experiment.Id);
+    readonly string batchDir = Layout.Batch(root, batch.Id);
     readonly string examsDir = Layout.Exams(root);
 
-    /// <summary>Create a new experiment directory from an exam and run it.</summary>
+    /// <summary>Create a new batch directory from an exam and run it.</summary>
     public static string Start(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
         var nb = ResolveNb(root, exam, config, nbOverride, runnerOverride);
         foreach (var variant in exam.Variants.Where(a => a.IsAgent)) Route(root, config, nb, variant);   // a missing endpoint fails before anything is made
-        var id = Layout.NewExperimentId(exam.Id, DateTime.UtcNow);
-        var experiment = new Experiment(
+        var id = Layout.NewBatchId(exam.Id, DateTime.UtcNow);
+        var batch = new Batch(
             Id: id, Exam: exam.Id, ExamHash: exam.Hash,
             ExamDef: JsonNode.Parse(File.ReadAllText(Layout.ExamFileIn(exam.Dir)))!.AsObject(),
             Tasks: exam.Tasks.Select(c => c.Id!).ToList(),
@@ -97,59 +97,59 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
             HarborRun.Preflight(config.HarborOrDefault);
             if (config.HarborOrDefault.Remote) RequireReachable(exam, config, variant => Route(root, config, nb, variant));
         }
-        var dir = Layout.Experiment(root, id);
+        var dir = Layout.Batch(root, id);
         Directory.CreateDirectory(dir);
         if (exam.HasAgentVariants)
         {
             var version = exam.Def.Harbor!.Version!;
             var engine = config.HarborOrDefault.Engine;
-            var nbImage = exam.Variants.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, experiment.Versions["nb"]) : null;
-            experiment = experiment with
+            var nbImage = exam.Variants.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, batch.Versions["nb"]) : null;
+            batch = batch with
             {
-                Versions = new(experiment.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, id, variant => Route(root, config, nb, variant), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, experiment.Bundles), nbImage, engine),
+                Versions = new(batch.Versions) { ["harbor"] = version },
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, id, variant => Route(root, config, nb, variant), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, batch.Bundles), nbImage, engine),
             };
         }
-        WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);
-        new Runner(root, experiment, exam, config, log).RunPending();
+        WriteJson(Path.Combine(dir, Layout.BatchFile), batch);
+        new Runner(root, batch, exam, config, log).RunPending();
         return id;
     }
 
-    /// <summary>Run whatever an existing experiment has not completed.</summary>
-    public static void Resume(string root, string experimentId, string? nbOverride, string? runnerOverride, TextWriter log, string? configFile = null)
+    /// <summary>Run whatever an existing batch has not completed.</summary>
+    public static void Resume(string root, string batchId, string? nbOverride, string? runnerOverride, TextWriter log, string? configFile = null)
     {
-        var experiment = LoadExperiment(root, experimentId);
+        var batch = LoadBatch(root, batchId);
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(root, problems, configFile);
-        var exam = Exam.Load(root, experiment.Exam, problems)
-            ?? throw new ProctorException($"exam '{experiment.Exam}' no longer loads:\n" + string.Join("\n", problems));
-        if (exam.Hash != experiment.ExamHash)
-            throw new ProctorException($"exams/{exam.Id} has changed since experiment {experimentId} was created ({exam.Hash} vs {experiment.ExamHash}); a changed exam is a new experiment");
+        var exam = Exam.Load(root, batch.Exam, problems)
+            ?? throw new ProctorException($"exam '{batch.Exam}' no longer loads:\n" + string.Join("\n", problems));
+        if (exam.Hash != batch.ExamHash)
+            throw new ProctorException($"exams/{exam.Id} has changed since batch {batchId} was created ({exam.Hash} vs {batch.ExamHash}); a changed exam is a new batch");
         foreach (var (variant, bundle) in ResolveBundles(root, exam))
-            if (experiment.BundleOf(variant)?.Hash != bundle.Hash)
-                throw new ProctorException($"the bundle of variant '{variant}' ({bundle.Source}) has changed since experiment {experimentId} was created ({bundle.Hash} vs {experiment.BundleOf(variant)?.Hash ?? "none"}); a changed bundle is a new experiment");
+            if (batch.BundleOf(variant)?.Hash != bundle.Hash)
+                throw new ProctorException($"the bundle of variant '{variant}' ({bundle.Source}) has changed since batch {batchId} was created ({bundle.Hash} vs {batch.BundleOf(variant)?.Hash ?? "none"}); a changed bundle is a new batch");
         var runner = ResolveRunner(root, exam, runnerOverride);
-        if ((runner?.Script, runner?.Hash) != (experiment.Nb.Runner?.Script, experiment.Nb.Runner?.Hash))
-            throw new ProctorException($"the runner has changed since experiment {experimentId} was created ({Describe(runner)} vs {Describe(experiment.Nb.Runner)}); a changed runner is a new experiment");
-        if (experiment.Harbor is { } harbor && HarborCompile.TreeHash(Layout.Experiment(root, experimentId)) != harbor.TasksHash)
-            throw new ProctorException($"the Harbor tasks compiled for experiment {experimentId} have changed on disk ({Layout.HarborDir}/tasks); a changed task is a new experiment");
-        if (experiment.Harbor is { } recorded && config.HarborOrDefault.Engine is var engine && engine != recorded.Engine)
-            throw new ProctorException($"the engine ({config.Source} harbor.engine) is {engine}, and experiment {experimentId} was created on {recorded.Engine}: resume with the --config it was run with; a changed engine is a new experiment");
-        // An experiment from before the layer left the local store recorded podman's tag with its localhost/ prefix; the hash is what identifies the publish.
-        if (experiment.Harbor?.NbImage is { } image && NbImage(root, config, experiment.Versions["nb"]) is var now && now.Replace("localhost/", "") != image.Replace("localhost/", ""))
-            throw new ProctorException($"nb's publish ({config.Source} harbor.nb) has changed since experiment {experimentId} was created ({now} vs {image}); a changed nb is a new experiment");
-        if (experiment.Harbor is not null) HarborRun.Preflight(config.HarborOrDefault);
-        if (nbOverride is not null) experiment = experiment with { Nb = experiment.Nb with { Path = Path.GetFullPath(nbOverride) } };
-        new Runner(root, experiment, exam, config, log).RunPending();
+        if ((runner?.Script, runner?.Hash) != (batch.Nb.Runner?.Script, batch.Nb.Runner?.Hash))
+            throw new ProctorException($"the runner has changed since batch {batchId} was created ({Describe(runner)} vs {Describe(batch.Nb.Runner)}); a changed runner is a new batch");
+        if (batch.Harbor is { } harbor && HarborCompile.TreeHash(Layout.Batch(root, batchId)) != harbor.TasksHash)
+            throw new ProctorException($"the Harbor tasks compiled for batch {batchId} have changed on disk ({Layout.HarborDir}/tasks); a changed task is a new batch");
+        if (batch.Harbor is { } recorded && config.HarborOrDefault.Engine is var engine && engine != recorded.Engine)
+            throw new ProctorException($"the engine ({config.Source} harbor.engine) is {engine}, and batch {batchId} was created on {recorded.Engine}: resume with the --config it was run with; a changed engine is a new batch");
+        // A batch from before the layer left the local store recorded podman's tag with its localhost/ prefix; the hash is what identifies the publish.
+        if (batch.Harbor?.NbImage is { } image && NbImage(root, config, batch.Versions["nb"]) is var now && now.Replace("localhost/", "") != image.Replace("localhost/", ""))
+            throw new ProctorException($"nb's publish ({config.Source} harbor.nb) has changed since batch {batchId} was created ({now} vs {image}); a changed nb is a new batch");
+        if (batch.Harbor is not null) HarborRun.Preflight(config.HarborOrDefault);
+        if (nbOverride is not null) batch = batch with { Nb = batch.Nb with { Path = Path.GetFullPath(nbOverride) } };
+        new Runner(root, batch, exam, config, log).RunPending();
 
         static string Describe(ResolvedRunner? r) => r is null ? "none" : $"{r.Script} {r.Hash}";
     }
 
-    public static Experiment LoadExperiment(string root, string experimentId)
+    public static Batch LoadBatch(string root, string batchId)
     {
-        var file = Path.Combine(Layout.Experiment(root, experimentId), Layout.ExperimentFile);
-        if (!File.Exists(file)) throw new ProctorException($"no experiment {experimentId} under {Layout.Experiment(root, "")}");
-        return ReadJson<Experiment>(file)!;
+        var file = Path.Combine(Layout.Batch(root, batchId), Layout.BatchFile);
+        if (!File.Exists(file)) throw new ProctorException($"no batch {batchId} under {Layout.Batch(root, "")}");
+        return ReadJson<Batch>(file)!;
     }
 
     /// <summary>Every cell's coordinates, in declared order.</summary>
@@ -157,11 +157,11 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
         from variant in exam.Variants from c in exam.Tasks from s in Enumerable.Range(1, variant.SamplesOrOne) select (variant, c, s);
 
     /// <summary>Everything a hook or check needs to know about a cell, for the runner and the grader alike.</summary>
-    public static CellContext Context(string root, Experiment experiment, Exam exam, Variant variant, TaskDef c, int sample) =>
-        new(exam.Dir, Layout.Cell(Layout.Experiment(root, experiment.Id), variant.Id!, c.Id!, sample), Layout.Work(root, experiment.Id, variant.Id!, c.Id!, sample), experiment.Id, variant.Id!, c, sample)
-        { Expect = exam.ExpectFor(c), Fixture = exam.FixtureOf(c), BundleDir = experiment.BundleOf(variant.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", NbPath = experiment.Nb.Path, NbConfig = experiment.Nb.Config, Mounts = experiment.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor };
+    public static CellContext Context(string root, Batch batch, Exam exam, Variant variant, TaskDef c, int sample) =>
+        new(exam.Dir, Layout.Cell(Layout.Batch(root, batch.Id), variant.Id!, c.Id!, sample), Layout.Work(root, batch.Id, variant.Id!, c.Id!, sample), batch.Id, variant.Id!, c, sample)
+        { Expect = exam.ExpectFor(c), Fixture = exam.FixtureOf(c), BundleDir = batch.BundleOf(variant.Id!)?.Path, NbRunner = batch.Nb.Runner?.Script ?? "", NbPath = batch.Nb.Path, NbConfig = batch.Nb.Config, Mounts = batch.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor };
 
-    /// <summary>Each variant's bundle, once per experiment: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
+    /// <summary>Each variant's bundle, once per batch: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
     public static Dictionary<string, ResolvedBundle> ResolveBundles(string root, Exam exam)
     {
         var bundles = new Dictionary<string, ResolvedBundle>();
@@ -205,12 +205,12 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
         foreach (var variant in exam.Variants)
         {
             var pending = exam.Tasks.SelectMany(c => Enumerable.Range(1, variant.SamplesOrOne).Select(s => (c, s)))
-                .Where(x => ReadStatus(Layout.Cell(experimentDir, variant.Id!, x.c.Id!, x.s)) != CellStatus.Completed).ToList();
+                .Where(x => ReadStatus(Layout.Cell(batchDir, variant.Id!, x.c.Id!, x.s)) != CellStatus.Completed).ToList();
             if (pending.Count == 0) continue;
 
-            var variantDir = Layout.Variant(experimentDir, variant.Id!);
+            var variantDir = Layout.Variant(batchDir, variant.Id!);
             Directory.CreateDirectory(Path.Combine(variantDir, Layout.HooksDir));
-            var variantEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_VARIANT"] = variant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = experiment.BundleOf(variant.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = experiment.Nb.Runner?.Script ?? "" };
+            var variantEnv = new Dictionary<string, string> { ["PROCTOR_BATCH"] = batch.Id, ["PROCTOR_VARIANT"] = variant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = batch.BundleOf(variant.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = batch.Nb.Runner?.Script ?? "" };
             var setup = RunHook(exam.Def.Hooks?.Variant?.Setup, variantEnv, Path.Combine(variantDir, Layout.HooksDir, "variant.setup.log"));
             if (setup is not null)
             {
@@ -230,7 +230,7 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
 
     void RunCell(Variant variant, TaskDef c, int sample)
     {
-        var cell = Context(root, experiment, exam, variant, c, sample);
+        var cell = Context(root, batch, exam, variant, c, sample);
         var (cellDir, workDir) = (cell.CellDir, cell.WorkDir);
         Directory.CreateDirectory(Path.Combine(cellDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
@@ -241,11 +241,11 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Experiment = experiment.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample,
+                RunId = Layout.NewRunId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
                 Fixture = cell.Fixture is null ? null : new FixtureRef(cell.Fixture.Id, cell.Fixture.Hash),
-                Bundle = experiment.BundleOf(variant.Id!), Nb = experiment.Nb,
-                Host = experiment.Host, Versions = experiment.Versions, ExamHash = exam.Hash, ProgramHash = Sha256(program),
+                Bundle = batch.BundleOf(variant.Id!), Nb = batch.Nb,
+                Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash, ProgramHash = Sha256(program),
             };
         manifest.Tries++;
         manifest.Started = Now();
@@ -292,10 +292,10 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     /// </summary>
     void RunAgentCell(Variant variant, TaskDef c, int sample)
     {
-        var cellDir = Layout.Cell(experimentDir, variant.Id!, c.Id!, sample);
+        var cellDir = Layout.Cell(batchDir, variant.Id!, c.Id!, sample);
         Directory.CreateDirectory(cellDir);
-        var taskDir = Layout.HarborTask(experimentDir, variant.Id!, c.Id!);
-        var route = Route(root, config, experiment.Nb, variant);
+        var taskDir = Layout.HarborTask(batchDir, variant.Id!, c.Id!);
+        var route = Route(root, config, batch.Nb, variant);
         var fixture = exam.FixtureOf(c)!;
         // nb's program is compiled on the host as on the bare path, with the checkout where the image has it.
         var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, c, sample, HarborCompile.Workdir);
@@ -304,15 +304,15 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Experiment = experiment.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample, Model = variant.Model,
+                RunId = Layout.NewRunId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample, Model = variant.Model,
                 Harness = variant.Harness, Provider = variant.Provider,
-                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = experiment.BundleOf(variant.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
-                Host = experiment.Host, Versions = experiment.Versions, ExamHash = exam.Hash,
+                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = batch.BundleOf(variant.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
+                Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash,
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };
-        var nb = program is null ? null : new NbCell(Path.Combine(cellDir, Layout.CompiledProgramFile), experiment.Nb.Config);
+        var nb = program is null ? null : new NbCell(Path.Combine(cellDir, Layout.CompiledProgramFile), batch.Nb.Config);
         var oracle = OracleCellOf(variant, c);
-        manifest.Agent = new AgentRun(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, nb), HarborCompile.AgentEnv(variant, route), experiment.Harbor!.Version, null);
+        manifest.Agent = new AgentRun(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, nb), HarborCompile.AgentEnv(variant, route), batch.Harbor!.Version, null);
         manifest.Oracle = null;
         manifest.Tries++;
         manifest.Started = Now();
@@ -331,8 +331,8 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
             else if (oracle is not null) File.WriteAllText(nb!.Program, HarborCompile.WithoutRun(compiled!));
         }
         if (failure is null)
-            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, experiment.Harbor.Engine, cellDir, variant, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb, oracle);
-        if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : experiment.Versions["nb"], bridged: oracle is not null);
+            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, batch.Harbor.Version, batch.Harbor.Engine, cellDir, variant, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(batchDir), nb, oracle);
+        if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : batch.Versions["nb"], bridged: oracle is not null);
         stopwatch.Stop();
 
         manifest.Ended = Now();
@@ -349,8 +349,8 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     /// the exam names a judge, which is what nb's in-process oracle does on the bare path.
     /// </summary>
     OracleCell? OracleCellOf(Variant variant, TaskDef c) => exam.OracleOf(c) is { } sheet
-        ? new OracleCell(sheet, experiment.Nb.Path, experiment.Nb.Config, exam.Def.Oracle?.Judge ?? variant.Provider, exam.OracleTurns,
-            Path.Combine(HarborCompile.AgentsDir(experimentDir), HarborCompile.OracleTemplateFile))
+        ? new OracleCell(sheet, batch.Nb.Path, batch.Nb.Config, exam.Def.Oracle?.Judge ?? variant.Provider, exam.OracleTurns,
+            Path.Combine(HarborCompile.AgentsDir(batchDir), HarborCompile.OracleTemplateFile))
         : null;
 
     /// <summary>
@@ -431,7 +431,7 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     /// </summary>
     (string? Compiled, string? Error) Compile(string cellDir, string program)
     {
-        var nb = experiment.Nb;
+        var nb = batch.Nb;
         var args = new List<string> { "--compile" };
         if (nb.Config is not null) args.AddRange(["--config", nb.Config]);
         var result = Subprocess.Run(nb.Path, args, exam.Dir, new Dictionary<string, string> { ["NO_COLOR"] = "1" }, stdin: program);
@@ -448,7 +448,7 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     /// </summary>
     string? RunNb(string cellDir, string workDir, string program, IDictionary<string, string> cellEnv, Manifest manifest)
     {
-        var nb = experiment.Nb;
+        var nb = batch.Nb;
         var args = new List<string> { "--output", "jsonl" };
         if (nb.Config is not null) args.AddRange(["--config", nb.Config]);
         args.Add("-");
@@ -485,16 +485,16 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
 
     void MarkFailed(Variant variant, TaskDef c, int sample, string reason)
     {
-        var cellDir = Layout.Cell(experimentDir, variant.Id!, c.Id!, sample);
+        var cellDir = Layout.Cell(batchDir, variant.Id!, c.Id!, sample);
         Directory.CreateDirectory(cellDir);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Experiment = experiment.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample,
+                RunId = Layout.NewRunId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
-                Host = experiment.Host, Versions = experiment.Versions, ExamHash = exam.Hash, ProgramHash = "",
+                Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash, ProgramHash = "",
             };
         manifest.Tries++;
         manifest.StatusReason = reason;
@@ -512,8 +512,8 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     void WriteStatusCounts()
     {
         var counts = CellStatus.All.ToDictionary(s => s, _ => 0);
-        foreach (var (variant, c, s) in Cells(exam)) counts[ReadStatus(Layout.Cell(experimentDir, variant.Id!, c.Id!, s))]++;
-        WriteJson(Path.Combine(experimentDir, Layout.StatusCountsFile), new { planned = experiment.Planned, counts, updated = Now() });
+        foreach (var (variant, c, s) in Cells(exam)) counts[ReadStatus(Layout.Cell(batchDir, variant.Id!, c.Id!, s))]++;
+        WriteJson(Path.Combine(batchDir, Layout.StatusCountsFile), new { planned = batch.Planned, counts, updated = Now() });
     }
 
     static string? ExitReasonOf(string cellDir)
@@ -593,7 +593,7 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     }
 
     /// <summary>Proctor's own version and nb's, asked of the host binary so a wrapper or a self-contained publish reports the same as the DLL would.</summary>
-    /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every experiment records.</summary>
+    /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every batch records.</summary>
     public static string ProctorVersion =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0";
 

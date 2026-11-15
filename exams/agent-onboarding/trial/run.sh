@@ -7,7 +7,7 @@
 # It needs no network: proctor and nb from PATH, the bot on nb's Mock provider.
 #   env: TRIAL_TASK, TRIAL_OUT (a writable directory), WRITTEN_ROOT, WRITTEN_ID (checks/written.sh)
 #   writes: $TRIAL_OUT/trial.json {problems: [...], cells: [{plant, variant, task, key, version, expect, status, pass, failed}]},
-#   the logs, the records planted.sh made, and the graded experiment.
+#   the logs, the records planted.sh made, and the graded batch.
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 plants="$here/$TRIAL_TASK/plants.json"
@@ -19,7 +19,7 @@ mkdir -p "$out/records"
 root="$(mktemp -d)/root"
 cp -r "$WRITTEN_ROOT" "$root" || fail "could not copy the written exam"
 id=$WRITTEN_ID; dir="$root/exams/$id"; def="$dir/exam.json"
-rm -rf "$root/runs" "$root/reports" "$root/.proctor" "$dir/baseline.json"
+rm -rf "$root/attempts" "$root/reports" "$root/.proctor" "$dir/baseline.json"
 jq -e . "$def" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
 agents=$(jq -r '[.variants // [] | .[] | select(.agent != null) | .id] | join(", ")' "$def")
 [ -z "$agents" ] || fail "variant(s) $agents run an agent through Harbor; a chat exam's variants are bare nb"
@@ -52,12 +52,12 @@ jq -n --arg nb "$(command -v nb)" '{nb: {path: $nb, config: "trial-nb.json"}}' >
 export TRIAL_PLANTS="$plants" TRIAL_VARIANTS="$out/variants.json" TRIAL_RECORDS="$out/records"
 cd "$root"
 proctor run "$id" --root "$root" --runner "$here/planted.sh" >"$out/run.log" 2>&1 || fail "proctor run refused it: $(grep -v '^ ' "$out/run.log" | tail -1)"
-experiment=$(sed -n 's/^experiment //p' "$out/run.log" | head -1)
-[ -n "$experiment" ] || fail "proctor run printed no experiment: $(tail -1 "$out/run.log")"
-proctor grade "$experiment" --root "$root" >"$out/grade.log" 2>&1 || fail "proctor grade failed: $(tail -1 "$out/grade.log")"
-proctor report "$experiment" --root "$root" >"$out/report.log" 2>&1 || fail "proctor report failed: $(tail -1 "$out/report.log")"
-cp -r "runs/$experiment" "$out/experiment"
-cp "reports/data/$experiment/results.jsonl" "$out/results.jsonl"
+batch=$(sed -n 's/^batch //p' "$out/run.log" | head -1)
+[ -n "$batch" ] || fail "proctor run printed no batch: $(tail -1 "$out/run.log")"
+proctor grade "$batch" --root "$root" >"$out/grade.log" 2>&1 || fail "proctor grade failed: $(tail -1 "$out/grade.log")"
+proctor report "$batch" --root "$root" >"$out/report.log" 2>&1 || fail "proctor report failed: $(tail -1 "$out/report.log")"
+cp -r "attempts/$batch" "$out/batch"
+cp "reports/data/$batch/results.jsonl" "$out/results.jsonl"
 
 jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.json" \
   --slurpfile rec <(cat "$out"/records/*.json 2>/dev/null) --slurpfile res "$out/results.jsonl" '
@@ -88,4 +88,4 @@ jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.j
            status: ($row.status // "missing"), pass: $row.pass, invalid: $row.invalid,
            failed: [($row.checks // {}) | to_entries[] | select(.value != "pass") | "\(.key) \(.value)"]} ] }' >"$out/trial.json" \
   || fail "the trial could not read its own results: $(tail -1 "$out/results.jsonl" 2>/dev/null | cut -c1-120)"
-echo "trial $experiment: $(jq -r '"\(.cells | length) runs, \(.problems | length) problem(s)"' "$out/trial.json")"
+echo "trial $batch: $(jq -r '"\(.cells | length) runs, \(.problems | length) problem(s)"' "$out/trial.json")"

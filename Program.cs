@@ -6,12 +6,12 @@ static class Program
         usage: proctor <verb> [args] [--root <dir>]
 
           list [exam]         validate and print the cells that would run
-          run <exam>          run every cell of an exam into a new experiment
-          resume <experiment> run the cells of an experiment that have not completed
-          grade <experiment>  run the checks over every completed cell; a model check's verdict is kept in the cell
-          friction <experiment> write friction.json beside each completed cell's trajectory: where the run paid a cost the task did not ask for; rules only, no model
-          report <experiment> write results.jsonl, stats.json, report.html and summary.md
-          baseline <experiment> pin a variant's analysed cells as the exam's baseline, per task
+          run <exam>          run every cell of an exam into a new batch
+          resume <batch> run the cells of a batch that have not completed
+          grade <batch>  run the checks over every completed cell; a model check's verdict is kept in the cell
+          friction <batch> write friction.json beside each completed cell's trajectory: where the run paid a cost the task did not ask for; rules only, no model
+          report <batch> write results.jsonl, stats.json, report.html and summary.md
+          baseline <batch> pin a variant's analysed cells as the exam's baseline, per task
           setup                set up providers and keys for this machine, job by job (needs a terminal)
 
         --root <dir>          the repository root holding exams/ (default: current directory)
@@ -27,7 +27,7 @@ static class Program
         --version             print proctor's version (see CHANGELOG.md for what changed between versions)
         --tolerance <points>  report: how far below the baseline still counts as held (default 0)
         --fail-on regression  report: exit 1 when any variant regressed against the baseline
-        --against <experiment> report: compare each variant with the variant of the same id in that experiment, in place of the baseline
+        --against <batch> report: compare each variant with the variant of the same id in that batch, in place of the baseline
         --check               setup: print what is set up and what is missing, plain lines for an agent; exit 1 on a problem
         --live                setup --check: repeat each provider's key check (lists models; no tokens)
         """;

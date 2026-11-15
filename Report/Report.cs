@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 namespace Proctor;
 
 // report.html and summary.md: two renderings of one list of blocks built from stats.json, results.jsonl and
-// experiment.json. Neither computes a statistic. The structure is project/plans/report-structure.md: define a
+// batch.json. Neither computes a statistic. The structure is project/plans/report-structure.md: define a
 // term before using it, one sentence under every heading saying what the section is for, the answer in the
 // first six sections and the evidence after. Some readers open this daily and some once a quarter; for the
 // latter every time is the first time, which is why the explainers are here, muted, so the findings stand out.
@@ -38,10 +38,10 @@ static class Report
     // ``code`` as `code` (it has one code style, and doubled backticks read as noise raw), keeps the rest as they
     // are and drops the link to its text, since summary.md has no anchors.
 
-    public static string Html(StatsFile stats, List<ResultRow> rows, Experiment exp, List<JudgeUse>? judges = null) => RenderHtml(Blocks(stats, rows, exp, judges), stats, exp);
-    public static string Markdown(StatsFile stats, List<ResultRow> rows, Experiment exp, List<JudgeUse>? judges = null) => RenderMarkdown(Blocks(stats, rows, exp, judges));
+    public static string Html(StatsFile stats, List<ResultRow> rows, Batch exp, List<JudgeUse>? judges = null) => RenderHtml(Blocks(stats, rows, exp, judges), stats, exp);
+    public static string Markdown(StatsFile stats, List<ResultRow> rows, Batch exp, List<JudgeUse>? judges = null) => RenderMarkdown(Blocks(stats, rows, exp, judges));
 
-    static List<Block> Blocks(StatsFile stats, List<ResultRow> rows, Experiment exp, List<JudgeUse>? judges)
+    static List<Block> Blocks(StatsFile stats, List<ResultRow> rows, Batch exp, List<JudgeUse>? judges)
     {
         var variants = stats.Variants.Keys.ToList();
         var first = variants[0];
@@ -70,7 +70,7 @@ static class Report
             ("Runs", $"{stats.Variants.Values.Sum(a => a.Planned)} planned, {stats.Variants.Values.Sum(a => a.Analysed)} counted"),
         ]));
         foreach (var u in stats.UndecidedChecks)
-            b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Runs} of the {u.Of} runs it applies to. Its pass rates below are over the {u.Of - u.Runs} runs it decided, and the check needs rewriting before this experiment is conclusive."));
+            b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Runs} of the {u.Of} runs it applies to. Its pass rates below are over the {u.Of - u.Runs} runs it decided, and the check needs rewriting before this batch is conclusive."));
         foreach (var x in stats.ErroredChecks ?? [])
         {
             var headline = stats.PassChecks.Contains(x.Check);
@@ -80,7 +80,7 @@ static class Report
                 + "Each run's reason says why; the check needs fixing before its result means much."));
         }
         foreach (var g in bl?.Gaps ?? [])
-            b.Add(new Warning($"{(bl!.Against is null ? "The baseline's pinned runs" : "The earlier runs")}, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the {vs} is the score {(bl.Against is null ? "as pinned" : "that experiment gave")}, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the variant."));
+            b.Add(new Warning($"{(bl!.Against is null ? "The baseline's pinned runs" : "The earlier runs")}, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the {vs} is the score {(bl.Against is null ? "as pinned" : "that batch gave")}, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the variant."));
 
         // 2. Variants
         b.Add(new Heading("Variants", "variants"));
@@ -132,7 +132,7 @@ static class Report
         {
             b.Add(new Para((bl.Against is null
                 ? $"**Against the baseline.** The baseline is the score pinned for each task on {bl.Set[..10]}, scores {bl.Scores}."
-                : $"**Against ``{bl.Against}``.** Each variant is compared with its earlier run: the variant of the same id in experiment ``{bl.Against}``, from {bl.Set[..10]}, task by task, scores {bl.Scores}.")
+                : $"**Against ``{bl.Against}``.** Each variant is compared with its earlier run: the variant of the same id in batch ``{bl.Against}``, from {bl.Set[..10]}, task by task, scores {bl.Scores}.")
                 + $" The verdict compares each variant's score with it and calls anything more than {bl.TolerancePoints} point{(bl.TolerancePoints == 1 ? "" : "s")} either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.", "explain"));
             b.Add(new Table(["Variant", $"Difference from {vs}", "95% interval", "Tasks better / worse / same", "Verdict"],
                 variants.Select(a => bl.Variants.TryGetValue(a, out var g)
@@ -321,7 +321,7 @@ static class Report
     /// <summary>What a variant is compared with, in a sentence: the exam's pinned baseline, or with report --against, its earlier run.</summary>
     static string Vs(BaselineStats? bl) => bl?.Against is null ? "baseline" : "earlier run";
 
-    /// <summary>Why a variant has no row against the baseline: the other experiment has no such variant, or they share no task.</summary>
+    /// <summary>Why a variant has no row against the baseline: the other batch has no such variant, or they share no task.</summary>
     static string Unpaired(BaselineStats bl, string variant) => bl.Unpaired?.Contains(variant) == true ? $"not in {bl.Against}" : "no shared tasks";
 
     static string Capital(string s) => char.ToUpperInvariant(s[0]) + s[1..];
@@ -525,18 +525,18 @@ static class Report
     static IEnumerable<string> ExitReasons(StatsFile stats) =>
         stats.Variants.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
 
-    static string VariantField(Experiment exp, string variant, string field, string missing = "?") =>
+    static string VariantField(Batch exp, string variant, string field, string missing = "?") =>
         exp.ExamDef["variants"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == variant)?[field]?.GetValue<string>() ?? missing;
 
-    /// <summary>nb's harness on an nb variant; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the experiment does not record.</summary>
-    static string Harness(Experiment exp, string variant) =>
+    /// <summary>nb's harness on an nb variant; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the batch does not record.</summary>
+    static string Harness(Batch exp, string variant) =>
         VariantField(exp, variant, "harness", "") is { Length: > 0 } h ? h : $"{VariantField(exp, variant, "agent")} {VariantField(exp, variant, "agent_version", "")}".TrimEnd();
 
-    static int Samples(Experiment exp, string variant) =>
+    static int Samples(Batch exp, string variant) =>
         exp.ExamDef["variants"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == variant)?["samples"]?.GetValue<int>() ?? 1;
 
     /// <summary>Monospace only for what is typed or opened: the command, paths, endpoints.</summary>
-    static IEnumerable<(string, string)> ReproFacts(Experiment exp, List<JudgeUse>? judges)
+    static IEnumerable<(string, string)> ReproFacts(Batch exp, List<JudgeUse>? judges)
     {
         yield return ("run id", exp.Id);
         yield return ("proctor", exp.Versions.GetValueOrDefault("proctor", "unknown"));
@@ -659,7 +659,7 @@ static class Report
 
     // ---- HTML ----
 
-    static string RenderHtml(List<Block> blocks, StatsFile stats, Experiment exp)
+    static string RenderHtml(List<Block> blocks, StatsFile stats, Batch exp)
     {
         var created = When(exp.Created);
         var sb = new StringBuilder();

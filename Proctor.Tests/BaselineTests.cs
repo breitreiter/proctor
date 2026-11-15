@@ -16,7 +16,7 @@ public class BaselineTests
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
+        Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);
 
         // No baseline yet: the report has no baseline block and --fail-on has nothing to fail on.
         Assert.Equal(0, Verbs.Report(repo.Root, id, failOn: "regression"));
@@ -35,7 +35,7 @@ public class BaselineTests
         Assert.Equal(1.0, baseline["tasks"]!["plain"]!["score"]!.GetValue<double>());
         Assert.StartsWith("sha256:", loops["fixture"]!.GetValue<string>());
 
-        // The same experiment against its own baseline: no difference, held, scores recomputed from the cells.
+        // The same batch against its own baseline: no difference, held, scores recomputed from the cells.
         Assert.Equal(0, Verbs.Report(repo.Root, id, failOn: "regression"));
         var bl = JsonNode.Parse(File.ReadAllText(statsFile))!["baseline"]!;
         Assert.Equal("recomputed", bl["scores"]!.GetValue<string>());
@@ -71,7 +71,7 @@ public class BaselineTests
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
+        Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);
         Assert.Equal(0, Verbs.Baseline(repo.Root, id, null, null));
 
         // The pass list grows after pinning: the pinned cells were never graded on the new check. Rescoring them
@@ -101,19 +101,19 @@ public class BaselineTests
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var earlier = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, earlier), exam, TextWriter.Null);
+        Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, earlier), exam, TextWriter.Null);
 
         // Variant b did worse on plain last time; variant a did not. A single pin could not show both.
-        var cell = Layout.Cell(Layout.Experiment(repo.Root, earlier), "b", "plain", 1);
+        var cell = Layout.Cell(Layout.Batch(repo.Root, earlier), "b", "plain", 1);
         var checks = JsonNode.Parse(File.ReadAllText(Path.Combine(cell, "checks.json")))!;
         checks["says-expected"]!["result"] = "fail";
         File.WriteAllText(Path.Combine(cell, "checks.json"), checks.ToJsonString());
 
-        // The new experiment adds a variant the earlier one never had.
+        // The new batch adds a variant the earlier one never had.
         repo.EditJson("smoke/exam.json", e => e["variants"]!.AsArray().Add(JsonNode.Parse("""{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 1 }""")));
         exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
+        Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);
 
         Assert.Equal(0, Verbs.Report(repo.Root, id, againstId: earlier, failOn: "regression"));
         var bl = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "stats.json")))!["baseline"]!;
@@ -128,6 +128,6 @@ public class BaselineTests
         Assert.Contains($"Against {earlier}, variant by variant", summary);
         Assert.Contains($"not in {earlier}", summary);
 
-        Assert.Throws<ProctorException>(() => Verbs.Report(repo.Root, earlier, againstId: "no-such-experiment"));
+        Assert.Throws<ProctorException>(() => Verbs.Report(repo.Root, earlier, againstId: "no-such-batch"));
     }
 }

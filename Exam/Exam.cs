@@ -490,7 +490,7 @@ sealed class Exam
             if (string.IsNullOrWhiteSpace(variant.Id)) Add($"{f}.id", "required");
             else if (!seen.Add(variant.Id)) Add($"{f}.id", $"duplicate variant id '{variant.Id}'");
             else if (!Regex.IsMatch(variant.Id, "^[a-z0-9][a-z0-9-]*$")) Add($"{f}.id", "variant ids are path segments: lowercase letters, digits and hyphens");
-            else if (variant.Id == Layout.HarborDir) Add($"{f}.id", $"'{Layout.HarborDir}' is the experiment's directory for the tasks compiled for Harbor; name the variant something else");
+            else if (variant.Id == Layout.HarborDir) Add($"{f}.id", $"'{Layout.HarborDir}' is the batch's directory for the tasks compiled for Harbor; name the variant something else");
             if (variant.IsVendor) { ValidateAgentVariant(variant, f, Add); continue; }
             if (variant.IsAgent) { ValidateNbAgentVariant(variant, f, Add); continue; }
             switch (variant.Runner)

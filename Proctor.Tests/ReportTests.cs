@@ -5,7 +5,7 @@ using Proctor;
 namespace Proctor.Tests;
 
 /// <summary>
-/// Step 7: both renderings are snapshotted for the worked experiment. A changed rendering fails
+/// Step 7: both renderings are snapshotted for the worked batch. A changed rendering fails
 /// until it is reviewed and approved with PROCTOR_APPROVE=1, the record-review-approve loop from
 /// the test-framework learnings. The .received file beside the snapshot shows the diff.
 /// </summary>
@@ -13,11 +13,11 @@ public class ReportTests
 {
     static string SnapshotDir => Path.Combine(TestRepo.SourceRoot, "Proctor.Tests", "snapshots");
 
-    static (StatsFile Stats, List<ResultRow> Rows, Experiment Exp) Worked()
+    static (StatsFile Stats, List<ResultRow> Rows, Batch Exp) Worked()
     {
-        var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows();
-        return (Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows, WorkedExperiment.Guard()), rows, WorkedExperiment.Experiment(exam));
+        var exam = WorkedBatch.Exam();
+        var rows = WorkedBatch.Rows();
+        return (Stats.Compute(WorkedBatch.Batch(exam), exam, rows, WorkedBatch.Guard()), rows, WorkedBatch.Batch(exam));
     }
 
     static void AssertSnapshot(string name, string actual)
@@ -58,9 +58,9 @@ public class ReportTests
     [Fact]
     public void Markdown_DifferentSampleCounts_LosingNothing_WarnsNothing()
     {
-        var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Where(r => r.Variant == "b" || r.Sample == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
-        var md = Report.Markdown(Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows), rows, WorkedExperiment.Experiment(exam));
+        var exam = WorkedBatch.Exam();
+        var rows = WorkedBatch.Rows().Where(r => r.Variant == "b" || r.Sample == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
+        var md = Report.Markdown(Stats.Compute(WorkedBatch.Batch(exam), exam, rows), rows, WorkedBatch.Batch(exam));
         Assert.DoesNotContain("lost runs unequally", md);
     }
 
@@ -68,16 +68,16 @@ public class ReportTests
     [Fact]
     public void AnErroredCheck_IsOutOfItsRate_AndListedApartFromFailures()
     {
-        var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Select(r => r is { Variant: "b", Task: "uses-bash", Sample: 1 }
+        var exam = WorkedBatch.Exam();
+        var rows = WorkedBatch.Rows().Select(r => r is { Variant: "b", Task: "uses-bash", Sample: 1 }
             ? r with { Checks = new(r.Checks!) { ["used-bash"] = Verdict.Error }, Reasons = new() { ["used-bash"] = "judge: line one\nline two" } }
             : r).ToList();
-        var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows);
+        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows);
         var b = stats.Variants["b"];
         Assert.Equal((2, 1), (b.Checks["used-bash"].NCells, b.Checks["used-bash"].Errors));
         Assert.DoesNotContain(b.Failures, f => f.Check == "used-bash");
         Assert.Equal(("used-bash", 1, 3), Assert.Single(b.Errored!) is var e ? (e.Check, e.Cells, e.Of) : default);
-        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(exam));
+        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
         Assert.Contains("could not grade 1 of 3 runs", md);
         // A reason over two lines stays in its table row.
         Assert.Contains("judge: line one<br>line two", md);
@@ -90,14 +90,14 @@ public class ReportTests
     [Fact]
     public void AnVariantPairedOnFewerTasks_SaysItsOwnReach_OnItsRow()
     {
-        var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Where(r => !(r.Variant == "b" && r.Task == "plain")).ToList();
-        var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows, WorkedExperiment.Guard());
+        var exam = WorkedBatch.Exam();
+        var rows = WorkedBatch.Rows().Where(r => !(r.Variant == "b" && r.Task == "plain")).ToList();
+        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows, WorkedBatch.Guard());
         Assert.Equal(3, stats.Mde.NPairs);
         Assert.Equal(2, stats.Baseline!.Variants["b"].NPairs);
         Assert.NotNull(stats.Baseline.Variants["b"].MdePoints);
         Assert.Null(stats.Baseline.Variants["floor"].MdePoints);
-        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(exam));
+        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
         var bRow = md.Split('\n').Single(l => l.StartsWith("**b**:"));
         Assert.Contains($"Paired on 2 of 3 tasks, so it can only confirm a change of about {stats.Baseline.Variants["b"].MdePoints} points.", bRow);
         Assert.DoesNotContain("For the same reason", md);
@@ -107,13 +107,13 @@ public class ReportTests
     [Fact]
     public void Chart_MarksTheBaselinesScore_FromStats()
     {
-        var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows();
-        var guard = WorkedExperiment.Guard();
-        var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows, guard);
+        var exam = WorkedBatch.Exam();
+        var rows = WorkedBatch.Rows();
+        var guard = WorkedBatch.Guard();
+        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows, guard);
         var expected = Math.Round(guard.Scores.Values.Average(), 3);
         Assert.Equal(expected, stats.Baseline!.Variants["floor"].Score);
-        var html = Report.Html(stats, rows, WorkedExperiment.Experiment(exam));
+        var html = Report.Html(stats, rows, WorkedBatch.Batch(exam));
         Assert.Contains("class=\"mark\"", html);
         Assert.Contains($"baseline {Math.Round(expected * 100):F0}%", html);
     }
@@ -122,27 +122,27 @@ public class ReportTests
     [Fact]
     public void Card_SaysWhoseRunsTheBaselineIs_WhenAnVariantWasNeverPinned()
     {
-        var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows();
-        var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows, WorkedExperiment.Guard() with { Pinned = ["floor"] });
-        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(exam));
+        var exam = WorkedBatch.Exam();
+        var rows = WorkedBatch.Rows();
+        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows, WorkedBatch.Guard() with { Pinned = ["floor"] });
+        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
         Assert.Contains("The baseline is `floor`'s runs from", md);
-        var pinnedBoth = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows, WorkedExperiment.Guard() with { Pinned = ["floor", "b"] });
-        Assert.DoesNotContain("The baseline is `", Report.Markdown(pinnedBoth, rows, WorkedExperiment.Experiment(exam)));
+        var pinnedBoth = Stats.Compute(WorkedBatch.Batch(exam), exam, rows, WorkedBatch.Guard() with { Pinned = ["floor", "b"] });
+        Assert.DoesNotContain("The baseline is `", Report.Markdown(pinnedBoth, rows, WorkedBatch.Batch(exam)));
     }
 
     /// <summary>A check that could not grade many runs is one warning with its count per variant, and leaves the per-variant failure lists.</summary>
     [Fact]
     public void ACheckThatErroredOften_IsOneWarning_NotALineUnderEachVariant()
     {
-        var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Select(r => r.Task == "uses-bash" && r.Checks is not null
+        var exam = WorkedBatch.Exam();
+        var rows = WorkedBatch.Rows().Select(r => r.Task == "uses-bash" && r.Checks is not null
             ? r with { Checks = new Dictionary<string, string>(r.Checks) { ["used-bash"] = Verdict.Error } } : r).ToList();
-        var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows);
+        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows);
         var x = Assert.Single(stats.ErroredChecks!);
         Assert.Equal("used-bash", x.Check);
         Assert.Equal(x.Runs, x.Variants.Values.Sum());
-        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(exam));
+        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
         Assert.Contains($"> **Warning.** The check `used-bash` (uses bash) could not grade {x.Runs} of the {x.Of} runs it applies to, on every variant", md);
         Assert.DoesNotContain("could not grade some of", md);
         Assert.Contains("`used-bash` could not grade many runs, and is left out of the lists above", md);
@@ -152,12 +152,12 @@ public class ReportTests
     [Fact]
     public void Markdown_ShowsCost_WhenAnVariantReportsIt()
     {
-        var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Select(r => r.Variant == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
-        var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows);
+        var exam = WorkedBatch.Exam();
+        var rows = WorkedBatch.Rows().Select(r => r.Variant == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
+        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows);
         Assert.Equal((0.05, 0.45), (stats.Variants["b"].CostUsd!.Median, stats.Variants["b"].CostTotalUsd!.Value));
         Assert.Null(stats.Variants["floor"].CostUsd);
-        var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(exam));
+        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
         Assert.Contains("| Cost: median | total |", md);
         Assert.Contains("| $0.05 | $0.45 |", md);
     }
@@ -211,8 +211,8 @@ public class ReportTests
         foreach (var (task, criterion) in new[] { ("loops", "the loop ends within four turns"), ("plain", "the answer gives `#fbedef`"), ("uses-bash", "the answer gives 120") })
             repo.EditJson($"smoke/tasks/{task}.json", t => t["checks"] = JsonNode.Parse($"{{\"builds\": {{\"script\": \"checks/answer-nonempty.sh\", \"description\": \"{criterion}\"}}}}"));
         var exam = repo.LoadExam("smoke");
-        var rows = WorkedExperiment.Rows();
-        var exp = WorkedExperiment.Experiment(exam);
+        var rows = WorkedBatch.Rows();
+        var exp = WorkedBatch.Batch(exam);
         var stats = Stats.Compute(exp, exam, rows);
 
         var builds = stats.TaskDetails!["plain"].Checks.Single(k => k.Name == "builds");
@@ -234,7 +234,7 @@ public class ReportTests
     {
         var (stats, rows, exp) = Worked();
         rows[0] = rows[0] with { StatusReason = "<b>bold</b> & \"quoted\"", Status = "failed", Pass = null, Checks = null };
-        var html = Report.Html(Stats.Compute(exp, WorkedExperiment.Exam(), rows), rows, exp);
+        var html = Report.Html(Stats.Compute(exp, WorkedBatch.Exam(), rows), rows, exp);
         Assert.DoesNotContain("<b>bold</b>", html);
         Assert.Contains("&lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot;", html);
     }

@@ -24,5 +24,5 @@ for f in "$tmp"/exams/readme-answers/tasks/*.json; do
 done
 cd "$tmp" && git init -q
 "${proctor[@]}" run readme-answers > run.log
-experiment=$(sed -n 's/^experiment //p' run.log)
-"${proctor[@]}" grade "$experiment" | tail -1
+batch=$(sed -n 's/^batch //p' run.log)
+"${proctor[@]}" grade "$batch" | tail -1

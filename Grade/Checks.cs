@@ -13,7 +13,7 @@ record Verdict(string Result, string Reason)
 }
 
 /// <summary>Everything the runner and the grader need to know about one cell, without the transcript.</summary>
-record CellContext(string ExamDir, string CellDir, string WorkDir, string Experiment, string Variant, TaskDef Task, int Sample)
+record CellContext(string ExamDir, string CellDir, string WorkDir, string Batch, string Variant, TaskDef Task, int Sample)
 {
     /// <summary>What the task expects, its fixture's defaults included; the task's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Task.Expect;
@@ -40,14 +40,14 @@ record CellContext(string ExamDir, string CellDir, string WorkDir, string Experi
     public string? BundleMount => BundleDir is null ? null : Mounts?.Bundle ?? BundleDir;
 
     /// <summary>A container name for this cell, derived from its coordinates. Proctor never uses it; hooks and runners that own a container agree on it through this.</summary>
-    public string Container => $"proctor-{Experiment}-{Variant}-{Task.Id}-{Sample}";
+    public string Container => $"proctor-{Batch}-{Variant}-{Task.Id}-{Sample}";
 
     public IDictionary<string, string> Environment() => new Dictionary<string, string>
     {
         ["PROCTOR_EXAM_DIR"] = ExamDir,
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
         ["PROCTOR_BUNDLE"] = BundleDir ?? "",
-        ["PROCTOR_EXPERIMENT"] = Experiment,
+        ["PROCTOR_BATCH"] = Batch,
         ["PROCTOR_VARIANT"] = Variant,
         ["PROCTOR_TASK"] = Task.Id ?? "",
         ["PROCTOR_SAMPLE"] = Sample.ToString(),

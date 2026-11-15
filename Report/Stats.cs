@@ -40,7 +40,7 @@ record VariantStats(
 /// <summary>One variant on one task: its score (the mean over its decided runs, null when none was decided) and the runs behind it.</summary>
 record TaskScore(double? Score, int Passed, int Decided);
 
-/// <summary>A check that could not decide too many of the runs it applies to, across variants: the check needs rewriting before the experiment is conclusive.</summary>
+/// <summary>A check that could not decide too many of the runs it applies to, across variants: the check needs rewriting before the batch is conclusive.</summary>
 record UndecidedCheck(string Check, int Runs, int Of);
 
 /// <summary>A check that could not grade more than a few of the runs it applies to, with how many per variant: the check's defect, said once above the numbers.</summary>
@@ -68,7 +68,7 @@ record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
 /// <summary>
 /// The guard comparison: every variant against the exam's pinned baseline, with a tolerance on the point estimate.
-/// With <c>Against</c> (report --against), each variant against the variant of the same id in that experiment instead, and
+/// With <c>Against</c> (report --against), each variant against the variant of the same id in that batch instead, and
 /// <c>Set</c> is when it was created; <c>Unpaired</c> are the variants it does not have. <c>Pinned</c> are the variants
 /// the exam's baseline pinned its runs from, so the report can say whose scores every variant is compared with.
 /// </summary>
@@ -86,7 +86,7 @@ record BaselineVariant(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost
 record BaselineTask(double Baseline, double Variant, int DiffPoints, string Verdict);
 
 record StatsFile(
-    string Experiment, string Exam, int NTasks, bool Paired,
+    string Batch, string Exam, int NTasks, bool Paired,
     Dictionary<string, VariantStats> Variants, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
     Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null,
@@ -106,7 +106,7 @@ static class Stats
     const double ZPower = 2.801582;      // z_0.975 + z_0.80, for MDE at 80% power
     const double AssumedSdOfPairedDifference = 0.5;
 
-    public static StatsFile Compute(Experiment experiment, Exam exam, List<ResultRow> rows, GuardInput? guard = null)
+    public static StatsFile Compute(Batch batch, Exam exam, List<ResultRow> rows, GuardInput? guard = null)
     {
         var variants = exam.Variants.Select(a => a.Id!).ToList();
         var tasks = exam.Tasks.Select(c => c.Id!).ToList();
@@ -193,7 +193,7 @@ static class Stats
 
         var taskDetails = exam.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, exam.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
-        return new StatsFile(experiment.Id, exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
+        return new StatsFile(batch.Id, exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
             erroredChecks.Count > 0 ? erroredChecks : null);
     }
 
@@ -352,7 +352,7 @@ static class Stats
         var rounded = casesFor10 >= 100 ? (int)Math.Round(casesFor10 / 10.0) * 10 : casesFor10;
         var sentence = nPairs == 0
             ? "No paired tasks were analysed, so no difference can be detected."
-            : $"With {nPairs} paired task{(nPairs == 1 ? "" : "s")} this experiment can reliably detect a difference of about {points} points. To detect 10 points you need about {rounded} tasks.";
+            : $"With {nPairs} paired task{(nPairs == 1 ? "" : "s")} this batch can reliably detect a difference of about {points} points. To detect 10 points you need about {rounded} tasks.";
         return new Mde(nPairs, points, rounded, sentence);
     }
 

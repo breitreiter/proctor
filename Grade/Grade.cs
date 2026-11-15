@@ -10,25 +10,25 @@ static class Grade
 
     /// <param name="variants">Only these variants' cells, when given; the others are not read and their checks.json is left as it was.</param>
     /// <param name="tasks">Only these tasks' cells, when given, likewise.</param>
-    public static List<CellGrade> Experiment(string root, Experiment experiment, Exam exam, TextWriter log, JudgeClient? judges = null,
+    public static List<CellGrade> Batch(string root, Batch batch, Exam exam, TextWriter log, JudgeClient? judges = null,
         IReadOnlyCollection<string>? variants = null, IReadOnlyCollection<string>? tasks = null)
     {
         var cells = Runner.Cells(exam).Where(x => (variants is null || variants.Contains(x.Variant.Id!)) && (tasks is null || tasks.Contains(x.Task.Id!))).ToList();
-        if (judges is { Comparing: true }) return Compare(root, experiment, exam, cells, log, judges);
-        var experimentDir = Layout.Experiment(root, experiment.Id);
+        if (judges is { Comparing: true }) return Compare(root, batch, exam, cells, log, judges);
+        var batchDir = Layout.Batch(root, batch.Id);
         var grades = new List<CellGrade>();
         if (judges is not null)
             foreach (var note in Judge.SameFamilyNotes(exam, judges)) log.WriteLine($"  note: {note}");
         foreach (var (variant, c, sample) in cells)
         {
-            var cellDir = Layout.Cell(experimentDir, variant.Id!, c.Id!, sample);
+            var cellDir = Layout.Cell(batchDir, variant.Id!, c.Id!, sample);
             var status = Runner.ReadStatus(cellDir);
             if (status != CellStatus.Completed)
             {
                 grades.Add(new CellGrade(variant.Id!, c.Id!, sample, status, null, null, null));
                 continue;
             }
-            var cell = Runner.Context(root, experiment, exam, variant, c, sample) with { Judges = judges };
+            var cell = Runner.Context(root, batch, exam, variant, c, sample) with { Judges = judges };
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree. An agent cell's scripts ran in the verifier.
             if (!variant.IsAgent && cell.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(cell.Fixture, cell.WorkDir, cellDir) is { } error)
                 log.WriteLine($"  {variant.Id}/{c.Id}/{sample}  could not restore the checkout: {error}");
@@ -45,14 +45,14 @@ static class Grade
     /// A `--judge a=b` pass: only the checks whose declared judge is remapped are evaluated, by b, into b's verdict files
     /// beside a's; checks.json is read, compared against and never written. The grades returned are the ones on file.
     /// </summary>
-    static List<CellGrade> Compare(string root, Experiment experiment, Exam exam, List<(Variant Variant, TaskDef Task, int Sample)> cells, TextWriter log, JudgeClient judges)
+    static List<CellGrade> Compare(string root, Batch batch, Exam exam, List<(Variant Variant, TaskDef Task, int Sample)> cells, TextWriter log, JudgeClient judges)
     {
-        var experimentDir = Layout.Experiment(root, experiment.Id);
+        var batchDir = Layout.Batch(root, batch.Id);
         var grades = new List<CellGrade>();
         int compared = 0, agreed = 0;
         foreach (var (variant, c, sample) in cells)
         {
-            var cellDir = Layout.Cell(experimentDir, variant.Id!, c.Id!, sample);
+            var cellDir = Layout.Cell(batchDir, variant.Id!, c.Id!, sample);
             var status = Runner.ReadStatus(cellDir);
             var existing = status == CellStatus.Completed ? ReadChecks(cellDir) : null;
             if (existing is null)
@@ -61,7 +61,7 @@ static class Grade
                 if (status == CellStatus.Completed) log.WriteLine($"  {variant.Id}/{c.Id}/{sample}  no checks.json; run grade without --judge first");
                 continue;
             }
-            var cell = Runner.Context(root, experiment, exam, variant, c, sample) with { Judges = judges };
+            var cell = Runner.Context(root, batch, exam, variant, c, sample) with { Judges = judges };
             var transcript = Transcript.Read(cellDir);
             foreach (var (name, check) in exam.ChecksFor(c))
             {

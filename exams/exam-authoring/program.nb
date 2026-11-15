@@ -38,7 +38,7 @@ loop 3
 budget tool_calls 80
 budget wall_ms 1800000
 system You maintain the exams repository at {{work}}, which is your current directory. \
-Exams here are run by proctor, an experiment manager for coding agents. Its documentation \
+Exams here are run by proctor, a batch manager for coding agents. Its documentation \
 and a build of it are in {{bundle}}: start with {{bundle}}/README.md, and run it as \
 `dotnet {{bundle}}/proctor/proctor.dll <verb> --root .`. There is no model to run an exam \
 against here; `list` validates one. Write the exam described below as files under exams/ \

@@ -517,13 +517,13 @@ public class JudgeTests
         var config = Proctor.Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
-        var experiment = Runner.LoadExperiment(repo.Root, id);
+        var batch = Runner.LoadBatch(repo.Root, id);
 
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.99"));
         var chat = new ScriptedChat(Answer("yes", "OK"));
         var judges = new JudgeClient { Defs = JudgeClient.From(config, null, rejudge: false).Defs, Http = new HttpClient(http), ChatClient = (_, _) => chat };
         var log = new StringWriter();
-        var grades = Proctor.Grade.Experiment(repo.Root, experiment, exam, log, judges);
+        var grades = Proctor.Grade.Batch(repo.Root, batch, exam, log, judges);
 
         Assert.Contains("variant 'a' (glm-4.7) is in the family of judge 'glm' (glm)", log.ToString());
         var plain = grades.Single(g => g.Task == "plain");
@@ -536,7 +536,7 @@ public class JudgeTests
         Assert.Equal(3, http.Calls);
         Assert.Equal(6, chat.Calls);
 
-        var cell = Layout.Cell(Layout.Experiment(repo.Root, id), "a", "plain", 1);
+        var cell = Layout.Cell(Layout.Batch(repo.Root, id), "a", "plain", 1);
         Assert.Equal(2, Directory.GetFiles(Path.Combine(cell, Layout.VerdictsDir)).Length);
 
         // a comparison pass: k2 beside glm, checks.json untouched, k2's files not applied
@@ -544,27 +544,27 @@ public class JudgeTests
         var k2 = new ScriptedChat(Answer("no", "OK"));
         var compare = new JudgeClient { Defs = JudgeClient.From(Proctor.Exam.LoadConfig(repo.Root, problems), ["glm=k2"], false).Defs, Remap = new() { ["glm"] = "k2" }, Http = new HttpClient(http), ChatClient = (def, _) => def.Model == "k2" ? k2 : chat };
         var compareLog = new StringWriter();
-        var compared = Proctor.Grade.Experiment(repo.Root, experiment, exam, compareLog, compare);
+        var compared = Proctor.Grade.Batch(repo.Root, batch, exam, compareLog, compare);
         Assert.Equal(("pass", "yes 2/2 — \"OK\""), compared.Single(g => g.Task == "uses-bash").Checks!["sensible"].Deconstruct());
-        Assert.Equal("pass", Proctor.Grade.ReadChecks(Layout.Cell(Layout.Experiment(repo.Root, id), "a", "uses-bash", 1))!["sensible"].Result);
+        Assert.Equal("pass", Proctor.Grade.ReadChecks(Layout.Cell(Layout.Batch(repo.Root, id), "a", "uses-bash", 1))!["sensible"].Result);
         Assert.Contains("a/uses-bash/1  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2, expected yes — \"OK\")", compareLog.ToString());
         Assert.Contains("2 of 3 verdicts agree; checks.json unchanged", compareLog.ToString());   // plain and loops error under both judges ("OK" is not in their answers); uses-bash disagrees
         Assert.Equal(3, http.Calls);   // decides are not remapped, so not re-called
         Assert.Equal(6, chat.Calls);
         Assert.Equal(6, k2.Calls);
-        var k2File = Directory.GetFiles(Path.Combine(Layout.Cell(Layout.Experiment(repo.Root, id), "a", "uses-bash", 1), Layout.VerdictsDir), "sensible.k2.*").Single();
+        var k2File = Directory.GetFiles(Path.Combine(Layout.Cell(Layout.Batch(repo.Root, id), "a", "uses-bash", 1), Layout.VerdictsDir), "sensible.k2.*").Single();
         Assert.False(JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(k2File), Proctor.Exam.JsonOptions)!.Applied);
 
-        var uses = Judge.Uses(repo.Root, experiment, exam);
+        var uses = Judge.Uses(repo.Root, batch, exam);
         Assert.Equal(["glm", "jev"], uses.Select(u => u.Judge));
         Assert.Equal(["sensible"], uses[0].Checks);
         Assert.Equal(("systemone", "jev-1.13.0"), (uses[1].Kind, uses[1].Model));
 
-        var rows = Results.Collect(repo.Root, experiment, exam);
-        var stats = Stats.Compute(experiment, exam, rows);
-        var html = Report.Html(stats, rows, experiment, uses);
+        var rows = Results.Collect(repo.Root, batch, exam);
+        var stats = Stats.Compute(batch, exam, rows);
+        var html = Report.Html(stats, rows, batch, uses);
         Assert.Contains("<dt>judge jev</dt><dd>systemone jev-1.13.0 at <code class=\"code\">http://judge.test/systemone</code>; graded stance</dd>", html);
-        Assert.Contains("| judge glm | chat glm at `http://judge.test/v1`; graded sensible |", Report.Markdown(stats, rows, experiment, uses));
+        Assert.Contains("| judge glm | chat glm at `http://judge.test/v1`; graded sensible |", Report.Markdown(stats, rows, batch, uses));
     }
 }
 

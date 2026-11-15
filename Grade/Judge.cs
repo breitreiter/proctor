@@ -463,13 +463,13 @@ static class Judge
         return verdict;
     }
 
-    /// <summary>The judges whose verdicts the experiment's checks.json files hold, for the report's reproducibility section. A comparison pass's files are not counted.</summary>
-    public static List<JudgeUse> Uses(string root, Experiment experiment, Exam exam)
+    /// <summary>The judges whose verdicts the batch's checks.json files hold, for the report's reproducibility section. A comparison pass's files are not counted.</summary>
+    public static List<JudgeUse> Uses(string root, Batch batch, Exam exam)
     {
         var uses = new Dictionary<(string, string, string?, string), List<string>>();
         foreach (var (variant, c, sample) in Runner.Cells(exam))
         {
-            var dir = Path.Combine(Layout.Cell(Layout.Experiment(root, experiment.Id), variant.Id!, c.Id!, sample), Layout.VerdictsDir);
+            var dir = Path.Combine(Layout.Cell(Layout.Batch(root, batch.Id), variant.Id!, c.Id!, sample), Layout.VerdictsDir);
             if (!Directory.Exists(dir)) continue;
             foreach (var file in Directory.GetFiles(dir, "*.json").Order(StringComparer.Ordinal))
             {

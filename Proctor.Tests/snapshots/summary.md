@@ -128,7 +128,7 @@ Pass rate is the share of counted runs in which every headline check held, avera
 |---|---|---|---|---|
 | `b` | +33 points | −31 to +75 | 2 / 0 / 1 | **better** (unconfirmed) |
 
-With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.
+With 3 paired tasks this batch can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.
 
 **Against the baseline.** The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each variant's score with it and calls anything more than 10 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.
 

@@ -48,14 +48,14 @@ public class GateTests
         Assert.Empty(problems);
         var exam = repo.LoadExam(examId);
         var id = Runner.Start(repo.Root, exam, config, null, null, "gate", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
+        Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);
         return (exam, id);
     }
 
     /// <summary>Every way a Harbor cell differs from its bare twin, as "task/sample: what"; empty when the gate is green.</summary>
-    internal static List<string> Differences(string root, string experimentId, Exam exam)
+    internal static List<string> Differences(string root, string batchId, Exam exam)
     {
-        var expDir = Layout.Experiment(root, experimentId);
+        var expDir = Layout.Batch(root, batchId);
         var differences = new List<string>();
         var harbor = exam.Variants.Single(a => a.IsAgent);
         var bare = exam.Variants.Single(a => !a.IsAgent);
@@ -73,7 +73,7 @@ public class GateTests
                 }
 
                 // The checkout is at a host path bare and at /app in the image; a tool's output naming it is the one other expected difference.
-                var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(Layout.Work(root, experimentId, bare.Id!, c.Id!, sample), HarborCompile.Workdir));
+                var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(Layout.Work(root, batchId, bare.Id!, c.Id!, sample), HarborCompile.Workdir));
                 var harborJsonl = Untimed(File.ReadAllText(Path.Combine(h, Layout.AgentLogsDir, Layout.NbLogFile)));
                 if (bareJsonl != harborJsonl) differences.Add($"{at}: nb's transcript differs\n--- bare\n{bareJsonl}\n--- harbor\n{harborJsonl}");
 
@@ -119,9 +119,9 @@ public class OracleGateTests
     /// <summary>The answers each gate-oracle task's sheet scripts before its ending (oracle.turns is 2).</summary>
     static readonly Dictionary<string, int> Answers = new() { ["asks-twice"] = 2, ["misses"] = 0, ["over-budget"] = 2 };
 
-    internal static List<string> Differences(string root, string experimentId, Exam exam)
+    internal static List<string> Differences(string root, string batchId, Exam exam)
     {
-        var expDir = Layout.Experiment(root, experimentId);
+        var expDir = Layout.Batch(root, batchId);
         var differences = new List<string>();
         var harbor = exam.Variants.Single(a => a.IsAgent);
         var bare = exam.Variants.Single(a => !a.IsAgent);

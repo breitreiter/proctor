@@ -1,4 +1,4 @@
-"""nb as a Harbor agent, for proctor. Compiled into each experiment's harbor/agents/ and imported as nb_agent:NbAgent.
+"""nb as a Harbor agent, for proctor. Compiled into each batch's harbor/agents/ and imported as nb_agent:NbAgent.
 
 The image already holds the binary (/opt/nb, copied from proctor's nb layer), so setup installs nothing: it uploads the
 config the host's nb runs with and the program proctor compiled on the host for this cell, and asks the binary its

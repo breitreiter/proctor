@@ -56,7 +56,7 @@ public class ConformanceTests
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("conformance");
         var id = Runner.Start(repo.Root, exam, config, null, null, "conformance", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
+        Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);
 
         var misses = Misses(repo.Root, id, exam);
         Assert.True(misses.Count == 0, string.Join("\n", misses));
@@ -75,7 +75,7 @@ public class ConformanceTests
         var exam = repo.LoadExam("code-change");
         var variant = exam.Variants.First(a => a.IsVendor);
         var (uv, engine) = MachineHarbor();
-        var expDir = Path.Combine(repo.Root, "runs", "oracle");
+        var expDir = Path.Combine(repo.Root, "attempts", "oracle");
         HarborCompile.Tasks(expDir, exam, "oracle", _ => new AgentRoute(null, null));
 
         var misses = new List<string>();
@@ -104,9 +104,9 @@ public class ConformanceTests
     }
 
     /// <summary>Every way a cell differs from the stub's script, as "variant/task: what"; empty when conformance is green.</summary>
-    internal static List<string> Misses(string root, string experimentId, Exam exam)
+    internal static List<string> Misses(string root, string batchId, Exam exam)
     {
-        var expDir = Layout.Experiment(root, experimentId);
+        var expDir = Layout.Batch(root, batchId);
         var misses = new List<string>();
         foreach (var variant in exam.Variants)
         {

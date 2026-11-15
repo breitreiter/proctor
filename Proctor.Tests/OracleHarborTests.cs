@@ -22,7 +22,7 @@ public class OracleHarborTests
     public void Compile_AnOracleExam_BringsTheSimulatedUser_AndItsTemplate()
     {
         using var repo = GateWithOracle();
-        var expDir = Path.Combine(repo.Root, "runs", "exp");
+        var expDir = Path.Combine(repo.Root, "attempts", "exp");
         var hash = HarborCompile.Tasks(expDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
         var agents = HarborCompile.AgentsDir(expDir);
 
@@ -42,7 +42,7 @@ public class OracleHarborTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("gate");
-        var expDir = Path.Combine(repo.Root, "runs", "exp");
+        var expDir = Path.Combine(repo.Root, "attempts", "exp");
         HarborCompile.Tasks(expDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
         Assert.Equal(["nb_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(expDir)).Select(Path.GetFileName));
     }
@@ -117,7 +117,7 @@ public class OracleHarborTests
 
     static Manifest NbManifest() => new()
     {
-        RunId = "r", Experiment = "e", Variant = "nb-harbor", Task = "plain", Sample = 1, Host = "h", Versions = [], ExamHash = "s", ProgramHash = "p",
+        RunId = "r", Batch = "e", Variant = "nb-harbor", Task = "plain", Sample = 1, Host = "h", Versions = [], ExamHash = "s", ProgramHash = "p",
         Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null),
     };
 

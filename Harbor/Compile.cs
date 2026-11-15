@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 
 namespace Proctor;
 
-// An exam's agent variants as Harbor tasks: one task directory per variant and task, under the experiment, and one job file
+// An exam's agent variants as Harbor tasks: one task directory per variant and task, under the batch, and one job file
 // per cell. Only the fixture's repo/ enters the image the agent runs in; its checks, the exam and the expectations go
 // to tests/, which Harbor copies into the separate verifier container only.
 
@@ -36,7 +36,7 @@ static class HarborCompile
     /// <summary>What Harbor's verifier collect step writes and the verifier applies: the run's change against the fixture commit.</summary>
     const string DiffInContainer = "/logs/artifacts/diff.patch";
     /// <summary>
-    /// The agents proctor brings itself, as Harbor imports them from the experiment's harbor/agents/ on PYTHONPATH: nb,
+    /// The agents proctor brings itself, as Harbor imports them from the batch's harbor/agents/ on PYTHONPATH: nb,
     /// and Qwen Code, whose Harbor agent reinstalls from the network on every trial (proctor's checks the image's pin
     /// instead). Claude Code and Codex are Harbor's own, which skip the install when the image has the pin.
     /// </summary>
@@ -46,7 +46,7 @@ static class HarborCompile
         [Variant.QwenCode] = ("qwen_code_agent:QwenCodeAgent", "qwen_code_agent.py"),
     };
 
-    /// <summary>The oracle's simulated user (Harbor/oracle_user.py), compiled beside the agents for an experiment with an oracle task and an agent variant.</summary>
+    /// <summary>The oracle's simulated user (Harbor/oracle_user.py), compiled beside the agents for a batch with an oracle task and an agent variant.</summary>
     const string OracleUserImport = "oracle_user:OracleUser", OracleUserFile = "oracle_user.py";
 
     /// <summary>
@@ -56,25 +56,25 @@ static class HarborCompile
     public const string OracleTemplateFile = "oracle_user.j2";
     const string OracleTemplate = "{{ instruction }}\n<<<PROCTOR-BRIDGE>>>\n{{ bridge_instructions }}\n";
 
-    /// <summary>Whether Harbor imports this variant's agent from the experiment rather than naming one of its own.</summary>
+    /// <summary>Whether Harbor imports this variant's agent from the batch rather than naming one of its own.</summary>
     public static bool IsOwnAgent(Variant variant) => OwnAgents.ContainsKey(variant.Agent!);
 
     /// <summary>
-    /// Every agent variant's tasks, under the experiment, and proctor's own Harbor agents beside them for the variants that use one. Returns the
-    /// tree's hash, which the experiment records and a resume checks. The nb image is the tag of proctor's nb layer; on a
+    /// Every agent variant's tasks, under the batch, and proctor's own Harbor agents beside them for the variants that use one. Returns the
+    /// tree's hash, which the batch records and a resume checks. The nb image is the tag of proctor's nb layer; on a
     /// remote engine, which cannot see a local image, nb's publish directory comes too and is copied into each nb task.
-    /// The bundles are the experiment's resolved ones, which reach a task only through its fixture's services.
+    /// The bundles are the batch's resolved ones, which reach a task only through its fixture's services.
     /// </summary>
-    public static string Tasks(string experimentDir, Exam exam, string experimentId, Func<Variant, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
+    public static string Tasks(string batchDir, Exam exam, string batchId, Func<Variant, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
         IReadOnlyDictionary<string, ResolvedBundle>? bundles = null)
     {
         foreach (var variant in exam.Variants.Where(a => a.IsAgent))
             foreach (var c in exam.Tasks)
-                Task(Layout.HarborTask(experimentDir, variant.Id!, c.Id!), exam, variant, c, experimentId, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
+                Task(Layout.HarborTask(batchDir, variant.Id!, c.Id!), exam, variant, c, batchId, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
         var files = exam.Variants.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
         var oracle = HasOracle(exam);
         if (oracle) files.Add(OracleUserFile);
-        var agents = AgentsDir(experimentDir);
+        var agents = AgentsDir(batchDir);
         foreach (var file in files)
         {
             Directory.CreateDirectory(agents);
@@ -83,20 +83,20 @@ static class HarborCompile
             source.CopyTo(dest);
         }
         if (oracle) File.WriteAllText(Path.Combine(agents, OracleTemplateFile), OracleTemplate);
-        return TreeHash(experimentDir);
+        return TreeHash(batchDir);
     }
 
     /// <summary>Whether an exam's agent variants run with the oracle's simulated user: an agent variant beside a task with an answer sheet (validation keeps vendor variants out).</summary>
     public static bool HasOracle(Exam exam) => exam.Variants.Any(a => a.IsAgent) && exam.Tasks.Any(c => c.Oracle is not null);
 
     /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
-    public static string AgentsDir(string experimentDir) => Path.Combine(experimentDir, Layout.HarborDir, "agents");
+    public static string AgentsDir(string batchDir) => Path.Combine(batchDir, Layout.HarborDir, "agents");
 
-    /// <summary>The compiled tasks, plus the agents directory when there is one (an experiment of Harbor's own agents only hashes as before).</summary>
-    public static string TreeHash(string experimentDir)
+    /// <summary>The compiled tasks, plus the agents directory when there is one (a batch of Harbor's own agents only hashes as before).</summary>
+    public static string TreeHash(string batchDir)
     {
-        var tasks = Tree.Hash(Path.Combine(experimentDir, Layout.HarborDir, "tasks"), new HashSet<string> { ".git" });
-        var agents = AgentsDir(experimentDir);
+        var tasks = Tree.Hash(Path.Combine(batchDir, Layout.HarborDir, "tasks"), new HashSet<string> { ".git" });
+        var agents = AgentsDir(batchDir);
         return Directory.Exists(agents) ? $"{tasks}+{Tree.Hash(agents, new HashSet<string> { "__pycache__" })}" : tasks;
     }
 
@@ -108,7 +108,7 @@ static class HarborCompile
     /// fixture has services, the variant's bundle is copied beside them as environment/bundle/ (empty without one), so a
     /// service can serve it, a docs site say, while the agent's own container never holds it.
     /// </summary>
-    public static void Task(string dir, Exam exam, Variant variant, TaskDef c, string experimentId, AgentRoute route, string? nbImage = null, string? nbPublish = null,
+    public static void Task(string dir, Exam exam, Variant variant, TaskDef c, string batchId, AgentRoute route, string? nbImage = null, string? nbPublish = null,
         string? bundleDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
@@ -130,7 +130,7 @@ static class HarborCompile
         var tests = Path.Combine(dir, "tests");
         CopyTree(exam.Dir, Path.Combine(tests, "exam"), []);
         CopyTree(fixture.Dir, Path.Combine(tests, "fixture"), [Path.GetFullPath(fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo"))]);
-        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant, c, experimentId));
+        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant, c, batchId));
         var test = Path.Combine(tests, "test.sh");
         File.WriteAllText(test, TestScript(exam, c));
         File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
@@ -352,14 +352,14 @@ static class HarborCompile
     /// meaning there (the cell, the sample, nb, a runner) is empty. There is no transcript in the verifier: a check that
     /// reads one cannot run there yet.
     /// </summary>
-    static string VerifierEnv(Exam exam, Variant variant, TaskDef c, string experimentId)
+    static string VerifierEnv(Exam exam, Variant variant, TaskDef c, string batchId)
     {
         var values = new Dictionary<string, string>
         {
             ["PROCTOR_EXAM_DIR"] = "/tests/exam",
             ["PROCTOR_FIXTURE"] = "/tests/fixture",
             ["PROCTOR_BUNDLE"] = "",
-            ["PROCTOR_EXPERIMENT"] = experimentId,
+            ["PROCTOR_BATCH"] = batchId,
             ["PROCTOR_VARIANT"] = variant.Id!,
             ["PROCTOR_TASK"] = c.Id!,
             ["PROCTOR_SAMPLE"] = "",
