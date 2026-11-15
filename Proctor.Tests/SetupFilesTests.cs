@@ -179,7 +179,7 @@ public class SetupFilesTests : IDisposable
     async Task<(int Exit, string Output)> Check()
     {
         var output = new StringWriter();
-        var exit = await SetupCheck.RunAsync(root, live: false, output, envPath: env);
+        var exit = await SetupCheck.RunAsync(root, probe: false, output, envPath: env);
         return (exit, output.ToString());
     }
 

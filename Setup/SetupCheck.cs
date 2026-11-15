@@ -5,12 +5,12 @@ namespace Proctor;
 /// <summary>
 /// <c>proctor setup --check</c>: what is set up, read by a coding agent, so plain lines and no Spectre. One line per
 /// provider and per job; anything the agent should fix is a line starting <c>problem:</c> and makes the exit 1. It
-/// never prints a value, and calls no provider unless <c>--live</c>, which repeats each key check and records the
+/// never prints a value, and calls no provider unless <c>--probe</c>, which repeats each key check and records the
 /// result in setup.json.
 /// </summary>
 static class SetupCheck
 {
-    public static async Task<int> RunAsync(string root, bool live, TextWriter output, HttpClient? http = null, string? envPath = null)
+    public static async Task<int> RunAsync(string root, bool probe, TextWriter output, HttpClient? http = null, string? envPath = null)
     {
         var examsDir = Path.Combine(root, Layout.ExamsDir);
         envPath ??= EnvFile.DefaultPath();
@@ -40,7 +40,7 @@ static class SetupCheck
         {
             var p = provider;
             var kind = Catalogue.Get(p.Kind);
-            if (live && (p.Env is null || KeySource(p.Env, inFile) is not null))
+            if (probe && (p.Env is null || KeySource(p.Env, inFile) is not null))
             {
                 var endpoint = kind.CompletedByAgent ? NbEntryValue(nbPath, p.Name, "Endpoint") : null;
                 var result = await KeyCheck.RunAsync(kind, p.Env is null ? null : Environment.GetEnvironmentVariable(p.Env), endpoint, http);
@@ -53,7 +53,7 @@ static class SetupCheck
             if (p.Check == SetupProvider.CheckFailed && state.JobsUsing(p.Name).Count > 0)
                 problems.Add($"provider {p.Name}: the last key check failed ({p.Words}); ask the user to run `proctor setup` and change the key");
         }
-        if (live) state.Save(examsDir);
+        if (probe) state.Save(examsDir);
 
         var config = ReadConfig(proctorPath);
         foreach (var (id, _) in SetupState.JobOrder)

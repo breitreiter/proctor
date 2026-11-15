@@ -128,9 +128,9 @@ static class Verbs
         return (batch, exam);
     }
     /// <summary>The setup wizard at a terminal; with <c>--check</c>, what is set up, as plain lines an agent reads.</summary>
-    public static int Setup(string root, bool check, bool live) =>
-        check ? SetupCheck.RunAsync(root, live, Console.Out).GetAwaiter().GetResult()
-        : live ? throw new ProctorException("--live goes with --check")
+    public static int Setup(string root, bool check, bool probe) =>
+        check ? SetupCheck.RunAsync(root, probe, Console.Out).GetAwaiter().GetResult()
+        : probe ? throw new ProctorException("--probe goes with --check")
         : SetupWizard.RunAsync(root).GetAwaiter().GetResult();
 
     /// <summary>Pin a variant's analysed attempts as the exam's baseline, per task; tasks the variant did not analyse keep their old pin.</summary>

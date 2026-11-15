@@ -29,7 +29,7 @@ static class Program
         --fail-on regression  report: exit 1 when any variant regressed against the baseline
         --against <batch>     report: compare each variant with the variant of the same id in that batch, in place of the baseline
         --check               setup: print what is set up and what is missing, plain lines for an agent; exit 1 on a problem
-        --live                setup --check: repeat each provider's key check (lists models; no tokens)
+        --probe               setup --check: repeat each provider's key check (lists models; no tokens)
         """;
 
     static int Main(string[] args)
@@ -40,7 +40,7 @@ static class Program
         var tolerance = 0;
         var rejudge = false;
         var check = false;
-        var live = false;
+        var probe = false;
         var positional = new List<string>();
         for (var i = 0; i < args.Length; i++)
         {
@@ -56,7 +56,7 @@ static class Program
                 case "--rejudge": rejudge = true; break;
                 case "--reader" when i + 1 < args.Length: reader = args[++i]; break;
                 case "--check": check = true; break;
-                case "--live": live = true; break;
+                case "--probe": probe = true; break;
                 case "--tasks" when i + 1 < args.Length: tasks = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
                 case "--tolerance" when i + 1 < args.Length && int.TryParse(args[i + 1], out var t) && t >= 0: tolerance = t; i++; break;
                 case "--against" when i + 1 < args.Length: against = args[++i]; break;
@@ -81,7 +81,7 @@ static class Program
                 ("friction", [var id]) => Verbs.Friction(root, id, variants, tasks, reader, rejudge, configFile),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn, against),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, variants, tasks),
-                ("setup", []) => Verbs.Setup(root, check, live),
+                ("setup", []) => Verbs.Setup(root, check, probe),
                 _ => Fail(Usage),
             };
         }
