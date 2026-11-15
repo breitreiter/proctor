@@ -222,7 +222,18 @@ The directories are for reading, not for namespaces: everything is
   agent's) and the main agent's conversation as the windows (a subagent's
   calls are counted, not listed). A script check is not rerun on the host:
   its verdict is the attempt's `reward.json` key and its reason the first line
-  of `verifier/<check>.out`, a missing key `error`. `loop_nudged` is
+  of `verifier/<check>.out`, a missing key `error`. So it is fixed when the
+  attempt is made: `HarborCompile.Outdated` compares the batch's compiled
+  `tests/` (the check's `test.sh` line, every file of the exam and fixture
+  copies but `exam.json`, `live.json`, `tasks/*.json`, `variants/*.json`,
+  `fixture.json` and another check's script, and `PROCTOR_EXPECT` in
+  `env.sh`) with what compile would write now, and a difference, a check
+  the batch never compiled, or no compiled copy makes the verdict
+  `outdated` (`Verdict.Outdated`), whose reason ends "make the attempt
+  again". An outdated headline check makes the attempt undecided (`Grade.Pass`
+  null, `ResultRow.Outdated`), out of every rate like `needs-judge`; `grade`
+  prints `Grade.OutdatedSummary`, and `stats.json` `outdated_checks` is a
+  warning at the top of the report, always, with the batches to move aside. `loop_nudged` is
   `error` on a vendor agent's attempt, since only nb nudges; a script check
   that reads `PROCTOR_TRANSCRIPT` has none in the verifier.
 - **nb in Harbor is the host's nb.** `proctor.json` `harbor.nb` is nb's
@@ -569,7 +580,8 @@ The directories are for reading, not for namespaces: everything is
   in a new batch, compiling and resolving only what that batch makes.
   `grade`, `friction` and `report` read the current attempts and list the
   stale ones; a new or changed check is a regrade of every current attempt,
-  never a rerun.
+  never a rerun, except a script check on an agent variant, whose verdicts
+  go `outdated` (above) until the attempts are made again.
 - **Reports are stamped and kept.** `report <exam>` writes
   `reports/<exam>/explore/`; one already there is moved into a directory
   named by its build time beside it. `stats.json` `built_from` is the

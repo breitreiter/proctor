@@ -119,6 +119,26 @@ formats or the vocabulary; a patch bump does not.
   `agent-onboarding`'s reference variant `live` is `shipped`, and its
   trial's version key with it.
 
+- **A script check on an agent variant that changed since the attempt is
+  `outdated`, not silently the old verdict.** Its script ran in Harbor's
+  verifier when the attempt was made, and `grade` only reads what it
+  wrote, so an edited script returned the old script's verdict and a new
+  one was `error` ("the verifier did not run this check"), failing every
+  agent attempt when it was a headline check. Now `grade` compares the
+  batch's compiled copy (the check's line in `test.sh`, the files of the
+  exam and fixture copies but their definition files and other checks'
+  scripts, `PROCTOR_EXPECT`) with the check as it is, and a difference, a
+  check the batch never compiled, or no compiled copy is a new outcome in
+  `checks.json`, `outdated`, whose reason says which and ends "make the
+  attempt again". It is out of every rate like an undecided verdict,
+  never a fail: an outdated headline check makes the attempt undecided.
+  `grade` prints a line naming the attempts, the checks and the batches to
+  move out of `attempts/` before `proctor run`; `results.jsonl` rows carry
+  `outdated`, `stats.json` adds `outdated_checks` and a check rate's
+  `outdated` count, and the report warns at the top, shows "· N outdated"
+  beside a check's rate and "outdated" for such an attempt. Script checks
+  on nb variants, built-in and judged checks are regraded as before.
+
 Entries below this line, the unreleased ones above 0.3.6 included, use the
 earlier words: suite (exam), arm (variant), experiment (batch), sample,
 cell or run (attempt).

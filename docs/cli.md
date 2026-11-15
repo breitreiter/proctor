@@ -87,7 +87,15 @@ are listed with the hash that moved and never graded, read or counted.
 Grading is separate from running, and every model verdict is cached beside
 the evidence, so a new check or a different judge is a regrade, not a
 rerun. The checks and the expected values are the standard an attempt is
-graded by: change one and `grade` applies it to every current attempt. A
+graded by: change one and `grade` applies it to every current attempt. One
+exception: on an agent variant a script check runs in Harbor's verifier when
+the attempt is made, so its verdict is fixed then. Change the script, a file
+beside it, its expected values, or add a script check, and `grade` marks those
+attempts' verdicts for it `outdated`: out of every rate, never a fail, named
+in a line after the grade summary and in a warning at the top of the report.
+They stay outdated until the attempts are made again: move the batch that
+made them out of `attempts/` and `proctor run` the exam (continuing that
+batch would reuse the scripts it compiled). A
 task's hash covers only what the agent met (the prompt, the fixture, the
 answer sheet an oracle reads from, the program template and the hooks),
 and only a change there makes attempts stale.

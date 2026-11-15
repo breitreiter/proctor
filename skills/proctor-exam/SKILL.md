@@ -152,6 +152,11 @@ exam, task, attempt, check, variant, fixture, batch, live.
   the standard. Add or change one and `grade` applies it to every current
   attempt; nothing is attempted again. Adding a task leaves the other
   tasks' results alone; adding an exam-level check regrades all of them.
+  The exception is a script check on an agent variant: it runs when the
+  attempt is made, so change the script (or a file it reads, or its
+  expected values) and those verdicts are `outdated` until the attempts are
+  made again, out of every rate. Prove the scripts for free before an agent
+  batch, not after.
 - **After a crash, `proctor run <id>` again.** There is no resume verb: run
   continues the interrupted batch and says so, and `proctor list <id>`
   names an interrupted batch.

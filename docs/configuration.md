@@ -491,7 +491,10 @@ Everything after that is evidence: what ran and what was left out, check
 pass rates, cost, every attempt, and the method last. An attempt whose headline check
 could not decide (a script's exit 2, a split judge) is *undecided*: out of
 the pass rate on both sides, listed for review when there are a few, and
-flagged as a defect in the check when there are many.
+flagged as a defect in the check when there are many. An attempt whose
+headline script check is *outdated* (an agent variant's, changed since the
+attempt was made; see "Agent variants") is undecided the same way, shown as
+outdated, and named in a warning at the top with the batches to make again.
 
 ## Labels
 
@@ -603,7 +606,19 @@ self-contained linux-x64 publish is, for an `agent: nb` variant:
 ```
 
 While the agent works, its container reaches only the host of its model's
-base URL; the checks run afterwards with no network at all. A batch
+base URL; the checks run afterwards with no network at all.
+
+On an agent variant a script check runs in Harbor's verifier, a separate
+container, when the attempt is made, from a copy of the exam directory and
+the fixture compiled into the batch; `grade` reads the verdict it wrote and
+never runs the script again. So its verdict is fixed when the attempt is
+made. Change the script, any file beside it in the exam or the fixture, or
+the task's expected values, or add a script check, and `grade` marks those
+attempts' verdicts for it `outdated`: out of the check's rate and, for a
+headline check, out of the pass rate, never counted as a fail. They stay
+outdated until the attempts are made again (move the batch out of
+`attempts/` and `proctor run` the exam). Built-in and judged checks on the
+same attempts are graded afresh as on any variant. A batch
 keeps the engine it started on, and `run` continues it on no other. What
 a fixture's image needs and how an exam moves to agent variants is
 [`porting-to-agent-neutral.md`](porting-to-agent-neutral.md);
