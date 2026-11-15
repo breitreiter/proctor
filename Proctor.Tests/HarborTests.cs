@@ -404,21 +404,136 @@ public class HarborTests
         Assert.Equal(["tests-pass", "diff-in-scope"], row.Reasons!.Keys);
     }
 
-    /// <summary>An agent attempt as ingest leaves it, graded on its own: script verdicts from the verifier, the rest from the trajectory and the diff.</summary>
-    static Dictionary<string, Verdict> GradeAgentAttempt(Action<string> edit, Action<JsonObject>? editExam = null)
+    [Fact]
+    public void Grade_AScriptChangedBetweenBatches_LeavesTheOldBatchsVerdictsOutdated_WhetherContinuedOrNew()
+    {
+        using var scratch = new TestRepo();
+        var (repo, _) = AgentRepo(FakeUv(scratch, GoodTrial));
+        using var _r = repo;
+        var first = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
+        AppendTo(repo, "fixtures/ledger/checks/tests-pass.sh", "# stricter now\n");
+
+        // A second attempt is made in a new batch, which compiles the script as it is now.
+        repo.EditJson("harbor-unit/exam.json", e => e["attempts"] = 2);
+        var exam = repo.LoadExam("harbor-unit");
+        var second = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
+        Assert.NotEqual(first, second);
+        var grades = Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
+        Assert.Equal([(first, Verdict.Outdated), (second, Verdict.Fail)], grades.OrderBy(g => g.Attempt).Select(g => (g.Batch, g.Checks!["tests-pass"].Result)));
+        Assert.All(grades, g => Assert.Equal(Verdict.Pass, g.Checks!["builds"].Result));
+        Assert.Equal("1 attempt holds outdated verdicts for tests-pass: on an agent variant a script check runs when the attempt is made, and this check has changed or been added since, so those verdicts are left out of every rate. "
+            + $"Make the attempts again: move batch {first} out of attempts/ and run `proctor run harbor-unit`, which makes what is missing in a new batch with the checks as they are now.", Grade.OutdatedSummary(exam.Id, grades));
+
+        // An attempt of the first batch made again by continuing it runs the scripts that batch compiled, so it is outdated too.
+        Directory.Delete(Layout.Attempt(Layout.Batch(repo.Root, first), "cc-haiku", "fix-null-deref", 1), recursive: true);
+        Assert.Equal(first, Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
+        grades = Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
+        Assert.Equal([(first, Verdict.Outdated), (second, Verdict.Fail)], grades.OrderBy(g => g.Attempt).Select(g => (g.Batch, g.Checks!["tests-pass"].Result)));
+        var rows = Results.Collect(repo.Root, exam, Pool.Select(repo.Root, exam).Current);
+        Assert.Equal(["tests-pass: changed since the attempt was made: fixtures/ledger/checks/tests-pass.sh, so the verdict on file may not be this check's as it is now; make the attempt again", null],
+            rows.Select(r => r.Outdated));
+    }
+
+    /// <summary>
+    /// An agent attempt as ingest leaves it, graded on its own: script verdicts from the verifier, the rest from the trajectory
+    /// and the diff. Its Harbor task is compiled first, as `run` compiles it; <paramref name="afterwards"/> changes the
+    /// exam or fixture after the attempt was made, and grade reads them as they are then.
+    /// </summary>
+    static Dictionary<string, Verdict> GradeAgentAttempt(Action<string> edit, Action<JsonObject>? editExam = null, Action<TestRepo>? afterwards = null, bool compiled = true)
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
         if (editExam is not null) repo.EditJson("harbor-unit/exam.json", editExam);
         var exam = repo.LoadExam("harbor-unit");
+        var task = Path.Combine(repo.Root, "task");
+        if (compiled) HarborCompile.Task(task, exam, exam.Variants[0], exam.Tasks[0], "e", new AgentRoute(BaseUrl, "k"));
         var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
         File.WriteAllText(Path.Combine(trial, "verifier", "tests-pass.out"), "6 of 6 tests pass\n");
         Assert.Null(Ingest.Trial(trial, attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
         edit(attempt);
+        if (afterwards is not null) { afterwards(repo); exam = repo.LoadExam("harbor-unit"); }
         var context = new AttemptContext(exam.Dir, attempt, Path.Combine(repo.Root, "work"), "e", "cc-haiku", exam.Tasks[0], 1)
-            { Expect = exam.ExpectFor(exam.Tasks[0]), Fixture = exam.FixtureOf(exam.Tasks[0]), ScriptsInVerifier = true, Vendor = true };
+            { Expect = exam.ExpectFor(exam.Tasks[0]), Fixture = exam.FixtureOf(exam.Tasks[0]), ScriptsInVerifier = true, Vendor = true, VerifierTask = task };
         return Grade.Attempt(context, exam, Transcript.Read(attempt));
+    }
+
+    static void AppendTo(TestRepo repo, string path, string text) => File.AppendAllText(Path.Combine(repo.Root, path), text);
+
+    [Fact]
+    public void Grade_AnEditedScript_IsOutdated_AndOnlyItsOwnCheck()
+    {
+        var checks = GradeAgentAttempt(_ => { }, afterwards: repo => AppendTo(repo, "fixtures/ledger/checks/builds.sh", "# stricter now\n"));
+        Assert.Equal(new Verdict(Verdict.Outdated, "changed since the attempt was made: fixtures/ledger/checks/builds.sh, so the verdict on file may not be this check's as it is now; make the attempt again"), checks["builds"]);
+        Assert.Equal(new Verdict(Verdict.Pass, "6 of 6 tests pass"), checks["tests-pass"]);
+        Assert.Equal(Verdict.Pass, checks["diff-in-scope"].Result);   // a built-in is recomputed, as ever
+        Assert.Null(Grade.Pass(checks, ["builds", "tests-pass"]));
+        Assert.StartsWith("builds: changed since", Grade.Undecided(checks, ["builds", "tests-pass"]));
+        Assert.Equal(Grade.Undecided(checks, ["builds", "tests-pass"]), Grade.Outdated(checks, ["builds", "tests-pass"]));
+    }
+
+    [Fact]
+    public void Grade_AChangedFileBesideTheScripts_OutdatesEveryScriptCheck()
+    {
+        // An acceptance test, a service, a helper: whatever a script reads, from the exam or the fixture.
+        var checks = GradeAgentAttempt(_ => { }, afterwards: repo => repo.Write("harbor-unit/acceptance/fix-null-deref.cs", "// new acceptance\n"));
+        Assert.Equal(Verdict.Outdated, checks["builds"].Result);
+        Assert.Equal(Verdict.Outdated, checks["tests-pass"].Result);
+        Assert.StartsWith("changed since the attempt was made: exams/harbor-unit/acceptance/fix-null-deref.cs", checks["tests-pass"].Reason);
+    }
+
+    [Fact]
+    public void Grade_ANewScriptCheck_IsOutdated_NotAnError()
+    {
+        var checks = GradeAgentAttempt(_ => { }, afterwards: repo =>
+        {
+            repo.WriteScript("harbor-unit/checks/no-todo.sh", "#!/bin/bash\nexit 0\n");
+            repo.EditJson("harbor-unit/exam.json", e => e["grading"]!["checks"]!["no-todo"] = JsonNode.Parse("{\"script\": \"checks/no-todo.sh\", \"description\": \"no TODO left\"}"));
+        });
+        Assert.Equal(new Verdict(Verdict.Outdated, "this check did not exist when the attempt was made, so the verifier never ran it; make the attempt again"), checks["no-todo"]);
+        Assert.Equal(new Verdict(Verdict.Pass, "dotnet build: 0 errors"), checks["builds"]);   // a new check's script outdates no other check
+        Assert.Equal(Verdict.Pass, checks["tests-pass"].Result);
+    }
+
+    [Fact]
+    public void Grade_ACheckPointedAtAnotherScript_OrChangedExpectations_IsOutdated()
+    {
+        var checks = GradeAgentAttempt(_ => { }, afterwards: repo =>
+        {
+            File.Copy(Path.Combine(repo.Root, "fixtures/ledger/checks/builds.sh"), Path.Combine(repo.Root, "fixtures/ledger/checks/builds-release.sh"));
+            var fixture = Path.Combine(repo.Root, "fixtures/ledger/fixture.json");
+            File.WriteAllText(fixture, File.ReadAllText(fixture).Replace("checks/builds.sh", "checks/builds-release.sh"));
+        });
+        Assert.Equal(new Verdict(Verdict.Outdated, "this check ran another script when the attempt was made; make the attempt again"), checks["builds"]);
+        Assert.Equal(Verdict.Pass, checks["tests-pass"].Result);
+
+        checks = GradeAgentAttempt(_ => { }, afterwards: repo => repo.EditJson("harbor-unit/tasks/fix-null-deref.json", t => t["expect"]!["files_touched"]!["paths"] = new JsonArray("Ledger/**", "README.md")));
+        Assert.Equal(new Verdict(Verdict.Outdated, "the task's expected values changed since the attempt was made, and the verifier ran with the old ones; make the attempt again"), checks["builds"]);
+    }
+
+    [Fact]
+    public void Grade_AnUnchangedScript_KeepsItsVerdict_ThroughChangesOutsideIt()
+    {
+        // A variant added, a built-in check added, a description reworded: none is an input to a script's verdict.
+        var checks = GradeAgentAttempt(_ => { }, afterwards: repo =>
+        {
+            repo.AddVariant("harbor-unit", """{"id": "cc-sonnet", "agent": "claude-code", "agent_version": "2.1.301", "model": "claude-sonnet-5-5"}""");
+            repo.EditJson("harbor-unit/exam.json", e => e["grading"]!["checks"]!["few-calls"] = JsonNode.Parse("{\"max_tool_calls\": 2}"));
+            var fixture = Path.Combine(repo.Root, "fixtures/ledger/fixture.json");
+            File.WriteAllText(fixture, File.ReadAllText(fixture).Replace("the repository builds", "the solution builds"));
+        });
+        Assert.Equal(new Verdict(Verdict.Pass, "dotnet build: 0 errors"), checks["builds"]);
+        Assert.Equal(new Verdict(Verdict.Pass, "6 of 6 tests pass"), checks["tests-pass"]);
+        Assert.Equal(Verdict.Fail, checks["few-calls"].Result);
+    }
+
+    [Fact]
+    public void Grade_WithNoCompiledCopy_EveryScriptCheckIsOutdated()
+    {
+        var checks = GradeAgentAttempt(_ => { }, compiled: false);
+        Assert.Equal(new Verdict(Verdict.Outdated, "the batch kept no compiled copy of its script checks, so nothing shows this verdict is the check's as it is now; make the attempt again"), checks["builds"]);
+        Assert.Equal(Verdict.Outdated, checks["tests-pass"].Result);
+        Assert.Equal(Verdict.Pass, checks["diff-in-scope"].Result);
     }
 
     [Fact]

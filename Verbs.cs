@@ -103,9 +103,11 @@ static class Verbs
         var grades = Proctor.Grade.Attempts(root, exam, selection.Current, Console.Out, judges);
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
-        var undecided = grades.Count(g => g.Checks is not null && g.Invalid is null && g.Pass is null);
+        var undecided = grades.Where(g => g.Checks is not null && g.Invalid is null && g.Pass is null).ToList();
+        var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.Grading.Pass!) is not null);
         var untouched = batchId is null && variantIds is null && taskIds is null ? 0 : Pool.Select(root, exam).Current.Count - grades.Count;
-        Console.WriteLine($"graded {graded} of {grades.Count} attempts; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided > 0 ? $", {undecided} undecided" : "")}{(untouched > 0 ? $"; {untouched} outside --batch/--variant/--tasks left as they were" : "")}");
+        Console.WriteLine($"graded {graded} of {grades.Count} attempts; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --batch/--variant/--tasks left as they were" : "")}");
+        if (Proctor.Grade.OutdatedSummary(exam.Id, grades) is { } summary) Console.WriteLine(summary);
         foreach (var line in Pool.Describe(selection.Stale, "not graded")) Console.WriteLine(line);
         foreach (var (judge, reasons) in judges?.Errors ?? [])
         {

@@ -4,10 +4,14 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-/// <summary>A check's outcome. <c>error</c> means the check could not run; it is never folded into fail.</summary>
+/// <summary>
+/// A check's outcome. <c>error</c> means the check could not run; it is never folded into fail. <c>outdated</c> means the
+/// verdict on file was not produced by the check as it is now (a script check on an agent attempt, changed or added since
+/// the attempt was made), so it decides nothing until the attempt is made again.
+/// </summary>
 record Verdict(string Result, string Reason)
 {
-    public const string Pass = "pass", Fail = "fail", NeedsJudge = "needs-judge", Error = "error";
+    public const string Pass = "pass", Fail = "fail", NeedsJudge = "needs-judge", Error = "error", Outdated = "outdated";
     public static Verdict Of(bool ok, string reason) => new(ok ? Pass : Fail, reason);
     public static Verdict Err(string reason) => new(Error, reason);
 }
@@ -31,6 +35,8 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     public JudgeClient? Judges { get; init; }
     /// <summary>An agent attempt: its script checks already ran in Harbor's verifier, and grade reads their verdicts from the attempt.</summary>
     public bool ScriptsInVerifier { get; init; }
+    /// <summary>The Harbor task an agent attempt ran as: its tests/ hold the script checks as the verifier ran them, which grade compares with the checks as they are now.</summary>
+    public string? VerifierTask { get; init; }
     /// <summary>A vendor agent's attempt, not nb's: nb's own behaviour (the loop nudge) has nothing to read there.</summary>
     public bool Vendor { get; init; }
 

@@ -76,6 +76,13 @@ static class Report
                 + (headline ? "It is a headline check, so each of those attempts counts as failed and the pass rates are lower by as much. " : $"Its rates below are over the {x.Of - x.Attempts} attempts it graded. ")
                 + "Each attempt's reason says why; the check needs fixing before its result means much."));
         }
+        foreach (var o in stats.OutdatedChecks ?? [])
+        {
+            var where = o.Variants.Count == variants.Count && variants.Count > 1 ? "on every variant" : $"on {Join(o.Variants.Keys.Select(a => $"`{a}`"))}";
+            b.Add(new Warning($"The check `{o.Check}` ({CheckText(stats, o.Check)}) has changed or been added since {o.Attempts} of the {o.Of} attempts it applies to were made, {where} ({string.Join(", ", o.Variants.Select(a => $"`{a.Key}` {a.Value}"))}). "
+                + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates" + (stats.PassChecks.Contains(o.Check) ? " and, as a headline check, out of the pass rates" : "") + ". "
+                + $"Make those attempts again: move {(o.Batches.Count == 1 ? "batch" : "batches")} {Join(o.Batches.Select(id => $"``{Layout.AttemptsDir}/{id}``"))} out of ``{Layout.AttemptsDir}/`` and run ``proctor run {stats.Exam}``."));
+        }
         foreach (var (variant, mixed) in stats.BuiltFrom?.Mixed ?? [])
             b.Add(new Warning($"`{variant}`'s attempts were made under mixed conditions ({string.Join("; ", mixed)}), so part of any difference in its results may be the conditions and not the variant."));
         if (stats.Live is { NotReference: { } why } mark)
@@ -150,7 +157,9 @@ static class Report
         }
         if (stats.ErroredChecks is { Count: > 0 } erroredChecks)
             b.Add(new Para($"{Join(erroredChecks.Select(x => $"`{x.Check}`"))} could not grade {(erroredChecks.Count == 1 ? "many attempts" : "many attempts each")}, and {(erroredChecks.Count == 1 ? "is" : "are")} left out of the lists above; see the warning at the top."));
-        var undecided = variants.SelectMany(a => stats.Variants[a].Undecided).ToList();
+        var undecided = variants.SelectMany(a => stats.Variants[a].Undecided).Where(u => u.Status != Verdict.Outdated).ToList();
+        if (variants.Sum(a => stats.Variants[a].Undecided.Count) - undecided.Count is > 0 and var outdated)
+            b.Add(new Para($"{outdated} attempt{(outdated == 1 ? " is" : "s are")} undecided because a headline check's verdict is outdated; see the warning at the top. {(outdated == 1 ? "It is" : "They are")} marked {Undecided} outdated in the tables below."));
         if (undecided.Count > 0 && undecided.Count <= 5)
         {
             b.Add(new Para($"{undecided.Count} attempt{(undecided.Count == 1 ? " was" : "s were")} undecided, and can be reviewed top to bottom:"));
@@ -442,7 +451,7 @@ static class Report
         r.StatusReason ?? r.Invalid ?? r.Undecided ?? (r.Reasons?.FirstOrDefault() is { Key: not null } k ? $"{k.Key}: {k.Value}" : "");
 
     static string Outcome(ResultRow r) =>
-        r.Invalid is not null ? "not counted" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "passed", false => "failed", null => r.Status == AttemptStatus.Completed ? "not graded" : r.Status == AttemptStatus.Failed ? "never completed" : r.Status };
+        r.Invalid is not null ? "not counted" : r.Outdated is not null ? "outdated" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "passed", false => "failed", null => r.Status == AttemptStatus.Completed ? "not graded" : r.Status == AttemptStatus.Failed ? "never completed" : r.Status };
 
     static string Glyph(ResultRow r) => !r.Analysed ? NotCounted : r.Undecided is not null ? Undecided : r.Pass == true ? Pass : Fail;
     static string GlyphClass(ResultRow r) => !r.Analysed ? "skip" : r.Undecided is not null ? "undecided" : r.Pass == true ? "pass" : "fail";
@@ -530,7 +539,7 @@ static class Report
     static string CheckRateText(RateJson? r)
     {
         if (r is null) return "—";
-        var extra = new[] { r.NeedsJudge is > 0 ? $"{r.NeedsJudge} undecided" : null, r.Errors is > 0 ? $"{r.Errors} error" : null }.Where(s => s is not null);
+        var extra = new[] { r.NeedsJudge is > 0 ? $"{r.NeedsJudge} undecided" : null, r.Errors is > 0 ? $"{r.Errors} error" : null, r.Outdated is > 0 ? $"{r.Outdated} outdated" : null }.Where(s => s is not null);
         return $"{Pct(r.Rate)} ({r.KAttempts}/{r.NAttempts})" + (extra.Any() ? $" · {string.Join(", ", extra)}" : "");
     }
 

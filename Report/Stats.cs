@@ -46,6 +46,12 @@ record UndecidedCheck(string Check, int Attempts, int Of);
 /// <summary>A check that could not grade more than a few of the attempts it applies to, with how many per variant: the check's defect, said once above the numbers.</summary>
 record ErroredCheck(string Check, int Attempts, int Of, Dictionary<string, int> Variants);
 
+/// <summary>
+/// A check whose verdicts in some attempts are outdated (a script check on agent attempts, changed or added since they were
+/// made), with how many per variant and the batches that made them: the attempts to make again, said once above the numbers.
+/// </summary>
+record OutdatedCheck(string Check, int Attempts, int Of, Dictionary<string, int> Variants, List<string> Batches);
+
 /// <summary>Where a variant fell down: a check that did not pass in some analysed attempts, most often first, with the tasks it happened in.</summary>
 record CheckFailure(string Check, int Attempts, int Of, Dictionary<string, int> Tasks);
 
@@ -58,7 +64,7 @@ record TaskJson(string? Fixture, List<TaskCheck> Checks);
 record TaskCheck(string Name, string Level, string Description);
 
 /// <summary>What a rate looks like in stats.json: the rate and interval, with the task and attempt counts behind it.</summary>
-record RateJson(double Rate, Interval Ci95, int N, int KAttempts, int NAttempts, int? Errors = null, int? NeedsJudge = null);
+record RateJson(double Rate, Interval Ci95, int N, int KAttempts, int NAttempts, int? Errors = null, int? NeedsJudge = null, int? Outdated = null);
 
 /// <summary>One variant against another, paired by task; <c>Tasks</c> is the difference on each shared task, in points.</summary>
 /// <summary><c>MdePoints</c> is set only when this pair rests on fewer tasks than the report's widest: the change it alone can confirm.</summary>
@@ -77,7 +83,7 @@ record StatsFile(
     Dictionary<string, VariantStats> Variants, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
     Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, LiveStats? Live = null, Dictionary<string, TaskJson>? TaskDetails = null,
-    List<ErroredCheck>? ErroredChecks = null, BuiltFrom? BuiltFrom = null);
+    List<ErroredCheck>? ErroredChecks = null, BuiltFrom? BuiltFrom = null, List<OutdatedCheck>? OutdatedChecks = null);
 
 /// <summary>
 /// The report's stamp: when it was built, from which batches, each variant's and task's hash as the exam has them now, how
@@ -125,7 +131,7 @@ static class Stats
         comparisons = comparisons.Select(c => c with { MdePoints = c.NPairs < nPairs ? Mde(c.NPairs).Points : null }).ToList();
 
         var matrix = variants.ToDictionary(a => a, a => tasks.ToDictionary(c => c,
-            c => byVariant[a].Where(r => r.Task == c).OrderBy(r => r.Attempt).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
+            c => byVariant[a].Where(r => r.Task == c).OrderBy(r => r.Attempt).Select(r => r.Invalid is not null ? "invalid" : r.Outdated is not null ? "outdated" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
 
         // A check undecided in more than a few of the attempts it applies to is a defect in the check; the report says so above the numbers.
         var undecidedChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
@@ -141,6 +147,15 @@ static class Stats
             var errors = counted.Where(r => r.Checks![name] == Verdict.Error).ToList();
             return new ErroredCheck(name, errors.Count, counted.Count, variants.Where(a => errors.Any(r => r.Variant == a)).ToDictionary(a => a, a => errors.Count(r => r.Variant == a)));
         }).Where(u => u.Attempts > 1 && (u.Attempts > 5 || u.Attempts > 0.05 * u.Of)).ToList();   // one error is a blip, listed under its variant
+
+        // Outdated verdicts are no defect of the check or the variant: the attempts are older than the check. Every one is said, over the graded attempts that carry it.
+        var outdatedChecks = checks.Select(name =>
+        {
+            var carrying = rows.Where(r => r.Checks?.ContainsKey(name) == true).ToList();
+            var outdated = carrying.Where(r => r.Checks![name] == Verdict.Outdated).ToList();
+            return new OutdatedCheck(name, outdated.Count, carrying.Count, variants.Where(a => outdated.Any(r => r.Variant == a)).ToDictionary(a => a, a => outdated.Count(r => r.Variant == a)),
+                outdated.Select(r => r.Batch ?? "").Where(b => b.Length > 0).Distinct().Order(StringComparer.Ordinal).ToList());
+        }).Where(o => o.Attempts > 0).ToList();
 
         var methods = "Each task is scored as its mean over its counted, decided attempts, so n in every interval is the number of tasks. "
             + "Per-variant rates use the Wilson 95% interval. "
@@ -160,7 +175,7 @@ static class Stats
         var taskDetails = exam.Tasks.Where(c => tasks.Contains(c.Id!)).ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, exam.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
         return new StatsFile(exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, liveStats, taskDetails,
-            erroredChecks.Count > 0 ? erroredChecks : null, built);
+            erroredChecks.Count > 0 ? erroredChecks : null, built, outdatedChecks.Count > 0 ? outdatedChecks : null);
     }
 
     /// <summary>
@@ -204,21 +219,22 @@ static class Stats
                 : new Exclusion($"{r.Variant}/{r.Task}/{r.Attempt}", r.Status, r.StatusReason ?? "")).ToList();
 
         var decided = analysed.Where(r => r.Decided).ToList();
-        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Variant}/{r.Task}/{r.Attempt}", "undecided", r.Undecided!)).ToList();
+        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Variant}/{r.Task}/{r.Attempt}", r.Outdated is not null ? "outdated" : "undecided", r.Undecided!)).ToList();
         var pass = TaskRate(decided, tasks, r => r.Pass == true);
         var checkRates = checks.ToDictionary(name => name, name =>
         {
             // A validity check's rate is over every graded attempt: it says how many counted. Other checks are over the attempts that count.
             // An attempt the check could not decide, or could not grade at all (an error), is out of its denominator on both sides, and counted beside the rate:
-            // either is the check's weakness, not the variant's.
+            // either is the check's weakness, not the variant's. So is an outdated verdict, which no current check gave.
             var pool = validity.Contains(name) ? rows.Where(r => r.Checks is not null) : analysed;
             var graded = pool.Where(r => r.Checks!.ContainsKey(name)).ToList();
-            var decidedByCheck = graded.Where(r => r.Checks![name] is not (Verdict.NeedsJudge or Verdict.Error)).ToList();
+            var decidedByCheck = graded.Where(r => r.Checks![name] is not (Verdict.NeedsJudge or Verdict.Error or Verdict.Outdated)).ToList();
             var rate = TaskRate(decidedByCheck, tasks, r => r.Checks![name] == Verdict.Pass);
             return rate is null ? null : rate with
             {
                 Errors = graded.Count(r => r.Checks![name] == Verdict.Error),
                 NeedsJudge = graded.Count(r => r.Checks![name] == Verdict.NeedsJudge),
+                Outdated = graded.Count(r => r.Checks![name] == Verdict.Outdated) is > 0 and var o ? o : null,
             };
         }).Where(k => k.Value is not null).ToDictionary(k => k.Key, k => k.Value!);
 
@@ -231,7 +247,7 @@ static class Stats
             .Select(x => new CheckFailure(x.name, x.attempts.Count, analysed.Count(r => r.Checks!.TryGetValue(x.name, out var v) && of(v)),
                 tasks.Where(c => x.attempts.Any(r => r.Task == c)).ToDictionary(c => c, c => x.attempts.Count(r => r.Task == c))))
             .ToList();
-        var failures = Tally(Verdict.Fail, v => v is not (Verdict.NeedsJudge or Verdict.Error));
+        var failures = Tally(Verdict.Fail, v => v is not (Verdict.NeedsJudge or Verdict.Error or Verdict.Outdated));
         var errored = Tally(Verdict.Error, _ => true);
 
         var completed = rows.Where(r => r.Status == AttemptStatus.Completed).ToList();

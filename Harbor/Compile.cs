@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace Proctor;
 
@@ -130,7 +131,7 @@ static class HarborCompile
         var tests = Path.Combine(dir, "tests");
         CopyTree(exam.Dir, Path.Combine(tests, "exam"), []);
         CopyTree(fixture.Dir, Path.Combine(tests, "fixture"), [Path.GetFullPath(fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo"))]);
-        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant, task, batchId));
+        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant.Id!, task, batchId));
         var test = Path.Combine(tests, "test.sh");
         File.WriteAllText(test, TestScript(exam, task));
         File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
@@ -352,7 +353,7 @@ static class HarborCompile
     /// meaning there (the attempt's directory and number, nb, a runner) is empty. There is no transcript in the verifier: a check that
     /// reads one cannot run there yet.
     /// </summary>
-    static string VerifierEnv(Exam exam, Variant variant, TaskDef task, string batchId)
+    static string VerifierEnv(Exam exam, string variant, TaskDef task, string batchId)
     {
         var values = new Dictionary<string, string>
         {
@@ -360,7 +361,7 @@ static class HarborCompile
             ["PROCTOR_FIXTURE"] = "/tests/fixture",
             ["PROCTOR_BUNDLE"] = "",
             ["PROCTOR_BATCH"] = batchId,
-            ["PROCTOR_VARIANT"] = variant.Id!,
+            ["PROCTOR_VARIANT"] = variant,
             ["PROCTOR_TASK"] = task.Id!,
             ["PROCTOR_ATTEMPT"] = "",
             ["PROCTOR_ATTEMPT_DIR"] = "",
@@ -418,6 +419,82 @@ static class HarborCompile
 
             """);
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// For each script check the task carries now, why the verdict an attempt made from this compiled task holds for it may not
+    /// be the check's as it stands, keyed by check; a check missing from the result is current. The verifier ran what the batch
+    /// compiled into <paramref name="taskDir"/>/tests/, so that copy is compared with what compile would write today: the
+    /// check's line in test.sh (which script, from which level), every file the scripts could read (the exam directory and
+    /// the fixture beside its source, less the definition files proctor reads itself and hands over through the environment),
+    /// and the expected values env.sh exported. Any file counts, since a script reads what it likes (acceptance tests, a
+    /// service), except another check's script. With no compiled copy, every script check is reported, since nothing shows
+    /// its verdict is current.
+    /// </summary>
+    public static Dictionary<string, string> Outdated(string? taskDir, Exam exam, TaskDef task, string variant, string batchId)
+    {
+        var names = exam.ChecksFor(task).Where(k => k.Value.Spec.ContainsKey("script")).Select(k => k.Key).ToList();
+        var tests = taskDir is null ? null : Path.Combine(taskDir, "tests");
+        if (names.Count == 0) return [];
+        if (tests is null || !File.Exists(Path.Combine(tests, "test.sh")) || !File.Exists(Path.Combine(tests, "env.sh")))
+            return names.ToDictionary(n => n, _ => "the batch kept no compiled copy of its script checks, so nothing shows this verdict is the check's as it is now; make the attempt again");
+
+        var root = Path.GetDirectoryName(Path.GetDirectoryName(exam.Dir))!;
+        var fixture = exam.FixtureOf(task)!;
+        var changed = ChangedFiles(Path.Combine(tests, "exam"), exam.Dir, root, ExamDefinition)
+            .Concat(ChangedFiles(Path.Combine(tests, "fixture"), fixture.Dir, root, FixtureDefinition(fixture))).ToList();
+        string? Line(IEnumerable<string> lines, string prefix) => lines.FirstOrDefault(l => l.StartsWith(prefix, StringComparison.Ordinal));
+        var expectThen = Line(File.ReadLines(Path.Combine(tests, "env.sh")), "export PROCTOR_EXPECT=");
+        var expectNow = Line(VerifierEnv(exam, variant, task, batchId).Split('\n'), "export PROCTOR_EXPECT=");
+        var then = File.ReadAllLines(Path.Combine(tests, "test.sh"));
+        var now = TestScript(exam, task).Split('\n');
+
+        // Another check's script is that check's business: editing one script outdates its own check, not every check beside it.
+        string FromVerifier(string path) => Path.GetRelativePath(root, path.StartsWith("/tests/fixture/", StringComparison.Ordinal)
+            ? Path.Combine(fixture.Dir, path["/tests/fixture/".Length..]) : Path.Combine(exam.Dir, path["/tests/exam/".Length..])).Replace('\\', '/');
+        var scripts = then.Concat(now).Select(l => Regex.Match(l, @"^check '[^']*' '(/tests/(?:exam|fixture)/[^']*)'$")).Where(m => m.Success)
+            .Select(m => FromVerifier(m.Groups[1].Value)).ToHashSet();
+
+        var outdated = new Dictionary<string, string>();
+        foreach (var name in names)
+        {
+            var prefix = $"check {Shell(name)} ";
+            var (lineThen, lineNow) = (Line(then, prefix), Line(now, prefix));
+            var script = Regex.Match(lineNow!, @"'(/tests/(?:exam|fixture)/[^']*)'$") is { Success: true } m ? FromVerifier(m.Groups[1].Value) : "";
+            var relevant = changed.Where(f => f == script || !scripts.Contains(f)).OrderBy(f => f != script).ToList();
+            var why = lineThen is null ? "this check did not exist when the attempt was made, so the verifier never ran it"
+                : lineThen != lineNow ? "this check ran another script when the attempt was made"
+                : relevant.Count > 0 ? $"changed since the attempt was made: {Listed(relevant)}, so the verdict on file may not be this check's as it is now"
+                : expectThen != expectNow ? "the task's expected values changed since the attempt was made, and the verifier ran with the old ones"
+                : null;
+            if (why is not null) outdated[name] = $"{why}; make the attempt again";
+        }
+        return outdated;
+
+        static string Listed(List<string> files) => files.Count <= 3 ? string.Join(", ", files) : $"{string.Join(", ", files.Take(3))} and {files.Count - 3} more";
+    }
+
+    /// <summary>What proctor reads from an exam directory itself; a script sees its checks and expected values through the environment, and the rest is in the task's hash.</summary>
+    static bool ExamDefinition(string relative) =>
+        relative is Layout.ExamFile or Layout.LiveFile
+        || (relative.StartsWith(Layout.TasksDir + "/", StringComparison.Ordinal) || relative.StartsWith(Layout.VariantsDir + "/", StringComparison.Ordinal)) && relative.EndsWith(".json", StringComparison.Ordinal);
+
+    /// <summary>What proctor reads from a fixture directory itself, and its source, which reaches the verifier as the image's commit and not as a file under tests/.</summary>
+    static Func<string, bool> FixtureDefinition(Fixture fixture)
+    {
+        var source = Path.GetRelativePath(fixture.Dir, fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo")).Replace('\\', '/') + "/";
+        return relative => relative == Layout.FixtureFile || relative.StartsWith(source, StringComparison.Ordinal);
+    }
+
+    /// <summary>The files that differ between a compiled copy and the directory it was copied from, by content, added or removed, as paths from the repository root.</summary>
+    static IEnumerable<string> ChangedFiles(string copy, string dir, string root, Func<string, bool> skip)
+    {
+        var excluded = new HashSet<string> { ".git" };
+        var then = Directory.Exists(copy) ? Tree.Files(copy, excluded).Where(f => !skip(f.Relative)).ToDictionary(f => f.Relative, f => f.Full) : [];
+        var now = Tree.Files(dir, excluded).Where(f => !skip(f.Relative)).ToDictionary(f => f.Relative, f => f.Full);
+        return then.Keys.Union(now.Keys).Order(StringComparer.Ordinal)
+            .Where(f => !then.TryGetValue(f, out var a) || !now.TryGetValue(f, out var b) || !File.ReadAllBytes(a).AsSpan().SequenceEqual(File.ReadAllBytes(b)))
+            .Select(f => Path.GetRelativePath(root, Path.Combine(dir, f)).Replace('\\', '/'));
     }
 
     /// <summary>The fixture's source as a plain tree: no .git, since the image commits it itself, so an unchanged fixture is a cached layer.</summary>

@@ -160,6 +160,49 @@ public class ReportTests
         Assert.Contains("`used-bash` could not grade many attempts, and is left out of the lists above", md);
     }
 
+    /// <summary>
+    /// An outdated verdict (a script check on agent attempts, changed since they were made) is out of every rate, never a
+    /// failure, and said once at the top with the variants and the batches to make again; each attempt shows it by name.
+    /// </summary>
+    [Fact]
+    public void AnOutdatedVerdict_IsOutOfEveryRate_AndAWarningSaysWhatToMakeAgain()
+    {
+        var exam = WorkedBatch.Exam();
+        const string why = "changed since the attempt was made: fixtures/ledger/checks/builds.sh, so the verdict on file may not be this check's as it is now; make the attempt again";
+        var before = Stats.Compute(exam, WorkedBatch.Rows()).Variants["b"];
+        var rows = WorkedBatch.Rows().Select(r => r is { Variant: "b", Task: "plain" }
+            ? r with { Checks = new(r.Checks!) { ["builds"] = Verdict.Outdated }, Pass = null, Reasons = new() { ["builds"] = why }, Undecided = $"builds: {why}", Outdated = $"builds: {why}", Batch = "20261115-0900-smoke-ab12" }
+            : r).ToList();
+        var outdated = rows.Count(r => r.Outdated is not null);
+        Assert.True(outdated > 0);
+
+        var stats = Stats.Compute(exam, rows);
+        var b = stats.Variants["b"];
+        Assert.Equal((before.Checks["builds"].NAttempts - outdated, outdated), (b.Checks["builds"].NAttempts, b.Checks["builds"].Outdated));
+        Assert.Equal(before.Pass!.NAttempts - outdated, b.Pass!.NAttempts);
+        Assert.Equal(before.Decided - outdated, b.Decided);
+        Assert.Equal(before.Analysed, b.Analysed);
+        Assert.DoesNotContain(b.Failures, f => f.Check == "builds" && f.Tasks.ContainsKey("plain"));
+        Assert.Null(b.Errored);
+        Assert.Empty(stats.UndecidedChecks);
+        Assert.All(stats.Matrix["b"]["plain"], m => Assert.Equal("outdated", m));
+        var o = Assert.Single(stats.OutdatedChecks!);
+        Assert.Equal(("builds", outdated), (o.Check, o.Attempts));
+        Assert.Equal(["20261115-0900-smoke-ab12"], o.Batches);
+        Assert.Equal(new Dictionary<string, int> { ["b"] = outdated }, o.Variants);
+        Assert.Null(Stats.Compute(exam, WorkedBatch.Rows()).OutdatedChecks);
+
+        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
+        Assert.Contains($"> **Warning.** The check `builds` (the repository builds after the change) has changed or been added since {outdated} of the {o.Of} attempts it applies to were made, on `b` (`b` {outdated}). "
+            + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates and, as a headline check, out of the pass rates. "
+            + "Make those attempts again: move batch `attempts/20261115-0900-smoke-ab12` out of `attempts/` and run `proctor run smoke`.", md);
+        Assert.Contains($"· {outdated} outdated", md);
+        Assert.Contains($"{outdated} attempts are undecided because a headline check's verdict is outdated; see the warning at the top.", md);
+        Assert.DoesNotContain("undecided, and can be reviewed", md);
+        Assert.Contains("| `b` | `plain` | 1 | ? outdated |", md);
+        Assert.Contains($"builds: {why.Replace("fixtures/ledger/checks/builds.sh", "`fixtures/ledger/checks/builds.sh`")}", md);
+    }
+
     /// <summary>An agent's reported cost reaches the Cost and effort table; a variant without one shows none.</summary>
     [Fact]
     public void Markdown_ShowsCost_WhenAVariantReportsIt()

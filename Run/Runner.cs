@@ -266,7 +266,8 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// <summary>Everything a hook or check needs to know about an attempt, for the runner and the grader alike.</summary>
     public static AttemptContext Context(string root, Batch batch, Exam exam, Variant variant, TaskDef task, int n) =>
         new(exam.Dir, Layout.Attempt(Layout.Batch(root, batch.Id), variant.Id!, task.Id!, n), Layout.Work(root, batch.Id, variant.Id!, task.Id!, n), batch.Id, variant.Id!, task, n)
-        { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = batch.BundleOf(variant.Id!)?.Path, NbRunner = batch.Nb.Runner?.Script ?? "", NbPath = batch.Nb.Path, NbConfig = batch.Nb.Config, Mounts = batch.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor };
+        { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = batch.BundleOf(variant.Id!)?.Path, NbRunner = batch.Nb.Runner?.Script ?? "", NbPath = batch.Nb.Path, NbConfig = batch.Nb.Config, Mounts = batch.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
+          VerifierTask = variant.IsAgent ? Layout.HarborTask(Layout.Batch(root, batch.Id), variant.Id!, task.Id!) : null };
 
     /// <summary>
     /// Each variant's bundle, once per batch, for the variants it makes attempts of: a path is hashed in place; a git revision
