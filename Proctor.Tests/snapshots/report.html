@@ -166,6 +166,7 @@ b { font-weight: 600; }
 <dt>Tasks</dt><dd>3, each attempted 3 times per variant</dd>
 <dt>Attempts</dt><dd>18 planned, 16 counted</dd>
 </dl>
+<p class="warning"><span class="id">floor</span>&#39;s attempts were made under mixed conditions (nb 1.0.0, 1.0.1), so part of any difference in its results may be the conditions and not the variant.</p>
 </section>
 
 <section id="variants">
@@ -387,7 +388,13 @@ b { font-weight: 600; }
 <h2>Reproducibility and method</h2>
 <p class="explain">What produced this report, so it can be run again, and how the numbers were computed.</p>
 <dl>
-<dt>batch</dt><dd>20260917-1432-smoke-k7px</dd>
+<dt>built from</dt><dd>18 current attempts from 2 batches: <code class="code">20260916-0910-smoke-q2rd</code>, <code class="code">20260917-1432-smoke-k7px</code></dd>
+<dt>stale</dt><dd>2 attempts not counted, made under a variant or task that has changed: task plain changed (1a2b3c4d then, 5e6f7a8b now) (2)</dd>
+<dt>variant floor</dt><dd>sha256:4b1e00d2</dd>
+<dt>variant b</dt><dd>sha256:77a90c13</dd>
+<dt>task loops</dt><dd>sha256:0c3f9e01</dd>
+<dt>task plain</dt><dd>sha256:5e6f7a8b</dd>
+<dt>task uses-bash</dt><dd>sha256:d40b2c77</dd>
 <dt>proctor</dt><dd>0.1.0</dd>
 <dt>nb</dt><dd>1.0.0 at <code class="code">/usr/local/bin/nb</code></dd>
 <dt>exam hash</dt><dd>sha256:9c1e0000</dd>

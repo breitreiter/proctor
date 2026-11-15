@@ -7,11 +7,12 @@ using System.Text.RegularExpressions;
 namespace Proctor;
 
 // report.html and summary.md: two renderings of one list of blocks built from stats.json, results.jsonl and
-// batch.json. Neither computes a statistic. The structure is project/plans/report-structure.md: define a
+// the batch the report stands for (the latest its attempts came from, with the exam's variants as they are now).
+// Neither computes a statistic. The structure is project/plans/report-structure.md: define a
 // term before using it, one sentence under every heading saying what the section is for, the answer in the
 // first six sections and the evidence after. Some readers open this daily and some once a quarter; for the
 // latter every time is the first time, which is why the explainers are here, muted, so the findings stand out.
-// The page is built as one batch's variants side by side, until the two report layouts exist. Shape inherited from experiments; tolerated, not endorsed. See project/plans/exam-variant-attempt.md.
+// The page is built as the variants side by side, the first the reference, until the two report layouts exist. Shape inherited from experiments; tolerated, not endorsed. See project/plans/exam-variant-attempt.md.
 
 static class Report
 {
@@ -77,6 +78,8 @@ static class Report
                 + (headline ? "It is a headline check, so each of those attempts counts as failed and the pass rates are lower by as much. " : $"Its rates below are over the {x.Of - x.Attempts} attempts it graded. ")
                 + "Each attempt's reason says why; the check needs fixing before its result means much."));
         }
+        foreach (var (variant, mixed) in stats.BuiltFrom?.Mixed ?? [])
+            b.Add(new Warning($"`{variant}`'s attempts were made under mixed conditions ({string.Join("; ", mixed)}), so part of any difference in its results may be the conditions and not the variant."));
         foreach (var g in bl?.Gaps ?? [])
             b.Add(new Warning($"{(bl!.Against is null ? "The baseline's pinned runs" : "The earlier runs")}, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the {vs} is the score {(bl.Against is null ? "as pinned" : "that batch gave")}, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the variant."));
 
@@ -222,7 +225,7 @@ static class Report
         // 10. Reproducibility and method
         b.Add(new Heading("Reproducibility and method", "method"));
         b.Add(new Para("What produced this report, so it can be run again, and how the numbers were computed.", "explain"));
-        b.Add(new Pairs(ReproFacts(exp, judges).ToList()));
+        b.Add(new Pairs(ReproFacts(stats, exp, judges).ToList()));
         b.Add(new Para(stats.Methods, "explain"));
         return b;
     }
@@ -533,9 +536,19 @@ static class Report
     static int Attempts(Batch exp) => exp.ExamDef["attempts"]?.GetValue<int>() ?? 1;
 
     /// <summary>Monospace only for what is typed or opened: the command, paths, endpoints.</summary>
-    static IEnumerable<(string, string)> ReproFacts(Batch exp, List<JudgeUse>? judges)
+    static IEnumerable<(string, string)> ReproFacts(StatsFile stats, Batch exp, List<JudgeUse>? judges)
     {
-        yield return ("batch", exp.Id);
+        if (stats.BuiltFrom is { } built)
+        {
+            yield return ("built from", $"{Count(built.Current, "current attempt")} from {Count(built.Batches.Count, "batch", "batches")}: {string.Join(", ", built.Batches.Select(id => $"``{id}``"))}");
+            if (built.Narrowed is { } narrowed) yield return ("narrowed to", $"``{narrowed}``");
+            if (built.Stale > 0)
+                yield return ("stale", $"{Count(built.Stale, "attempt")} not counted, made under a variant or task that has changed: "
+                    + string.Join("; ", (built.StaleAttempts ?? []).GroupBy(x => x.Why).Select(g => $"{g.Key} ({g.Count()})")));
+            foreach (var (variant, hash) in built.Variants) yield return ($"variant {variant}", hash);
+            foreach (var (task, hash) in built.Tasks) yield return ($"task {task}", hash);
+        }
+        else yield return ("batch", exp.Id);
         yield return ("proctor", exp.Versions.GetValueOrDefault("proctor", "unknown"));
         yield return ("nb", $"{exp.Versions.GetValueOrDefault("nb", "unknown")} at ``{exp.Nb.Path}``");
         yield return ("exam hash", exp.ExamHash);
@@ -569,6 +582,7 @@ static class Report
     static string Points(double p) => $"{Math.Round(100 * p, MidpointRounding.AwayFromZero):F0}";
     static string Signed(int points) => points > 0 ? $"+{points}" : points < 0 ? $"−{-points}" : "0";
     static string SignedPoints(int points) => points == 0 ? "±0 points" : $"{Signed(points)} points";
+    static string Count(int n, string one, string? many = null) => $"{n} {(n == 1 ? one : many ?? one + "s")}";
     static string Times(int n) => n switch { 1 => "once", 2 => "twice", _ => $"{n} times" };
     static string Join(IEnumerable<string> items)
     {

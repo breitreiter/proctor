@@ -35,6 +35,14 @@ static class WorkedBatch
         exam.Tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(), (from v in exam.Variants from c in exam.Tasks from n in Enumerable.Range(1, exam.Attempts) select new AttemptRef(v.Id!, c.Id!, n)).ToList(), "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
         new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.0" }, new GitInfo("3f2c1e9a", Dirty: false), new ResolvedNb("/usr/local/bin/nb", null));
 
+    /// <summary>The worked report's stamp: two batches, the second filling what the first left, two attempts stale since plain changed, and the floor's attempts made on two nb versions. Fixed hashes, so the rendering does not move with the smoke exam's files.</summary>
+    public static BuiltFrom Built() => new("2026-09-17T15:02:00Z", ["20260916-0910-smoke-q2rd", "20260917-1432-smoke-k7px"],
+        new() { ["floor"] = "sha256:4b1e00d2", ["b"] = "sha256:77a90c13" },
+        new() { ["loops"] = "sha256:0c3f9e01", ["plain"] = "sha256:5e6f7a8b", ["uses-bash"] = "sha256:d40b2c77" },
+        Current: 18, Stale: 2,
+        StaleAttempts: [new("20260916-0910-smoke-q2rd", "floor/plain/1", "task plain changed (1a2b3c4d then, 5e6f7a8b now)"), new("20260916-0910-smoke-q2rd", "b/plain/1", "task plain changed (1a2b3c4d then, 5e6f7a8b now)")],
+        Mixed: new() { ["floor"] = ["nb 1.0.0, 1.0.1"] });
+
     /// <summary>Last week's floor, pinned: loops was perfect, plain was perfect, uses-bash was one in three.</summary>
     public static GuardInput Guard() =>
         new("2026-09-14T09:12:00Z", "as pinned", new() { ["loops"] = 1.0, ["plain"] = 1.0, ["uses-bash"] = 0.333 }, TolerancePoints: 10);

@@ -26,6 +26,8 @@ Can a local coder model make a small change to a .NET repository so that it buil
 | Tasks | 3, each attempted 3 times per variant |
 | Attempts | 18 planned, 16 counted |
 
+> **Warning.** `floor`'s attempts were made under mixed conditions (nb 1.0.0, 1.0.1), so part of any difference in its results may be the conditions and not the variant.
+
 ## Variants
 
 A variant is one configuration under test: a harness, a provider and a model, given every task. The first variant is the reference the others are compared with.
@@ -226,7 +228,13 @@ What produced this report, so it can be run again, and how the numbers were comp
 
 | | |
 |---|---|
-| batch | 20260917-1432-smoke-k7px |
+| built from | 18 current attempts from 2 batches: `20260916-0910-smoke-q2rd`, `20260917-1432-smoke-k7px` |
+| stale | 2 attempts not counted, made under a variant or task that has changed: task plain changed (1a2b3c4d then, 5e6f7a8b now) (2) |
+| variant floor | sha256:4b1e00d2 |
+| variant b | sha256:77a90c13 |
+| task loops | sha256:0c3f9e01 |
+| task plain | sha256:5e6f7a8b |
+| task uses-bash | sha256:d40b2c77 |
 | proctor | 0.1.0 |
 | nb | 1.0.0 at `/usr/local/bin/nb` |
 | exam hash | sha256:9c1e0000 |

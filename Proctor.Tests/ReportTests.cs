@@ -17,7 +17,7 @@ public class ReportTests
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows();
-        return (Stats.Compute(exam, rows, WorkedBatch.Guard()), rows, WorkedBatch.Batch(exam));
+        return (Stats.Compute(exam, rows, WorkedBatch.Guard(), WorkedBatch.Built()), rows, WorkedBatch.Batch(exam));
     }
 
     static void AssertSnapshot(string name, string actual)
