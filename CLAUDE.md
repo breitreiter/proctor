@@ -42,17 +42,17 @@ code, files, prose and the report, and no others for these things:
 | **live** | A mark on one variant: the one in use now, and the reference a change is compared with. |
 | **claim** | What should change between two variants, which checks and which way, said before the attempts are made. |
 
-**The words are done; the model is not.** Step 1 of
-`project/plans/exam-variant-attempt-removal.md` renamed everything, so the
-code, the files and this page say exam, variant, attempt and batch. What
-is still pending: step 2, variants out of `exam.json` into
-`variants/<id>.json` and `attempts` set on the exam rather than per
-variant; step 3, the pool (`run` fills what is missing, `grade`,
-`friction` and `report` take the exam, `resume` goes); step 4, `live`
-in place of the baseline (`baseline.json`, `proctor baseline`,
-`report --against`, "the first variant is the reference"). Until then the
-variants are inline in `exam.json`, attempts sit under the batch that
-made them, and those baseline and resume pieces still run. Write nothing
+**The words are done; the model is half done.** Steps 1 and 2 of
+`project/plans/exam-variant-attempt-removal.md` are built: everything says
+exam, variant, attempt and batch, each variant is its own file
+(`exams/<exam>/variants/<id>.json`) with its own hash, each task has a
+hash, and `attempts` is set on the exam. What is still pending: step 3,
+the pool (`run` fills what is missing, `grade`, `friction` and `report`
+take the exam, `resume` goes); step 4, `live` in place of the baseline
+(`baseline.json`, `proctor baseline`, `report --against`, "the first
+variant is the reference", which is the first variant file by name). Until
+then attempts sit under the batch that made them, and those baseline and
+resume pieces still run. Write nothing
 new in the earlier words; the grep gate below lists them and says where
 they may stay.
 
@@ -67,13 +67,13 @@ in the order the verbs run them. Every file is one concern:
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
 | `Verbs.cs` | one method per verb: `list`, `run`, `resume`, `grade`, `friction`, `report`, `baseline` |
 | `Exam/Layout.cs` | paths and file names, nothing else |
-| `Exam/Exam.cs` | `proctor.json` (the host binary and its config), `exam.json` (variants, the `nb` block with the runner and mounts, hooks, grading), tasks, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per task |
+| `Exam/Exam.cs` | `proctor.json` (the host binary and its config), `exam.json` (attempts, the `nb` block with the runner and mounts, hooks, grading), `variants/*.json`, tasks, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per task; the exam's, each variant's and each task's hash |
 | `Exam/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
 | `Exam/EnvFile.cs` | the user's env file (`~/.config/proctor/env`, `%LOCALAPPDATA%\proctor\env` on Windows, or `PROCTOR_ENV_FILE`): `NAME=value` lines `Program.Main` loads into the process environment before any verb, the real environment winning, so every `${VAR}` resolver and child process sees them |
 | `Exam/Judges.cs` | `proctor.json`'s `judges` block: an endpoint per name by wire shape (`systemone`, `chat`), key resolution, which judge a check gets |
 | `Exam/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
 | `Exam/Baseline.cs` | `exams/<exam>/baseline.json`: pinned attempts per task; scores recomputed from the attempts while they exist |
-| `Run/Runner.cs` | `batch.json` and attempt manifests, the matrix loop, hooks, nb as a subprocess, an agent attempt through Harbor, resume |
+| `Run/Runner.cs` | `batch.json` and attempt manifests, the matrix loop, hooks, nb as a subprocess, an agent attempt through Harbor, resume; bundles resolved (a git bundle's `paths` copied out of its clone); a changed variant under an id that made attempts refused |
 | `Harbor/Compile.cs` | an agent variant's task as a Harbor task (`instruction.md`, `task.toml`, the image, the verifier) and an attempt's job file |
 | `Harbor/nb_agent.py` | nb as a Harbor agent: uploads the attempt's program and nb's config, runs nb on stdin; embedded, compiled into `attempts/<batch>/harbor/agents/` (Python, not compiled into proctor) |
 | `Harbor/oracle_user.py` | the oracle as Harbor's simulated user, on the host: sends the task over the ACP bridge (`acpx`), judges each finished turn with the host's `nb --judge`, answers from the sheet, writes `oracle-user.json`; embedded and compiled like `nb_agent.py` with its template (`oracle_user.j2`) when an agent variant meets an oracle task |
@@ -108,7 +108,7 @@ in the order the verbs run them. Every file is one concern:
 | `exams/oracle-change/` | the oracle on a real model: `add-retry-flag` with its semantics only in the answer sheet, chosen to be unconventional so a guess fails acceptance; nb on Anthropic Haiku bare and through Harbor, judged by Haiku. Real API calls (about $1 a batch) |
 | `exams/conformance/` | Harbor conformance at $0: every vendor agent at its pin against `fixtures/stub`'s scripted model, tasks `ok`, `fail`, `hang`; `ConformanceTests` (with `PROCTOR_CONFORMANCE`, `1` or a `proctor.json` whose `harbor` block to run on) asserts each attempt came back as scripted. The plan and its benchmark are `project/archive/harbor-conformance.md` |
 | `exams/tern-docs/` | the bundle showcase: Claude Code on Sonnet implements six shipping functions in `fixtures/tern-shop` against Tern, an invented carrier, with its docs bundle as shipped, restructured or absent, served by the fixture's docs service; hidden acceptance runs against Tern's sandbox API started in the verifier; `reference/shakedown.sh` proves the checks for free (`--unsolved`, `--v1`, `--kilograms`). The plan is `project/archive/bundle-showcase.md` |
-| `exams/exam-authoring/` | the demo project: an agent writes exams, graded by running them against planted good and bad attempts (`trial/`); a batch's report is meant to be copied into `report/`, which has none yet. Its variants pin proctor at a GitHub revision as their bundle, which still documents the earlier layout until the pin moves |
+| `exams/exam-authoring/` | the demo project: an agent writes exams, graded by running them against planted good and bad attempts (`trial/`); a batch's report is meant to be copied into `report/`, which has none yet. Its variants pin proctor at a GitHub revision as their bundle, each naming the `paths` it shows (the docs; the docs and the examples); the pin predates the rename and has none of those paths, so the exam stops at bundle resolution until the pin moves |
 | `exams/playground/` | the first exam a new user runs: two scripted Mock tasks on `fixtures/jotcli`, no model and no key; the fixture's `builds` and `tests-pass` run for real on the checkout, so the first report is about a repository |
 | `exams/cli-for-agents/` | the first exam with a real model: one task on `jotcli` (`clear-for-scripts`: add `--yes`, refuse without a terminal, exit non-zero when nothing was cleared), nb bare on the local model; `acceptance/<task>.sh` runs the built CLI with no TTY under a ten-second limit; `reference/shakedown.sh` proves the checks solved and `--unsolved` without a model |
 | `exams/agent-onboarding/` | a shipped coding agent, given proctor's skill, docs and CLI at a pinned revision, stages a chat-only exam for a small bot project; each written exam is graded by a trial against planted attempts (`trial/<task>/plants.json`) |
@@ -118,7 +118,7 @@ in the order the verbs run them. Every file is one concern:
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/`. `jotcli` is a tiny TypeScript CLI whose `clear` reads its confirmation from `/dev/tty` with no `--yes` and exits 0 when it gives up, planted on purpose (its README says why); one of two non-.NET fixtures, with `tern-shop` (Python, beside two compose services: Tern's sandbox API and a docs site serving the variant's bundle). `empty` holds nothing, for tasks whose whole context is in the prompt |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one nb run (`capture.sh` regenerates them); `snapshots/` are the approved renderings; `exams/` is test data `TestRepo.CopyExam` finds after `exams/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never an exam to run; `python/` is `oracle_user.py`'s unittests, on stub `harbor` modules and captured `acpx` output, which `OracleHarborTests` runs with `python3` |
-| `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own exam with your agent); `cli.md`, every verb and flag, explore and guard mode, the report files (moved out of the README); `configuration.md`, the reference for exam, fixture, task, variant and `proctor.json` (moved out of the README; `exam-authoring`'s variant view copies it); `porting-to-agent-neutral.md`, how an exam moves to agent variants (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor; `modal.md`, agent variants on Modal's sandboxes from a second machine file (`--config`), what it costs and what cannot run there |
+| `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own exam with your agent); `cli.md`, every verb and flag, explore and guard mode, the report files (moved out of the README); `configuration.md`, the reference for exam, fixture, task, variant and `proctor.json` (moved out of the README; `exam-authoring`'s variants name it in their bundle's paths); `porting-to-agent-neutral.md`, how an exam moves to agent variants (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor; `modal.md`, agent variants on Modal's sandboxes from a second machine file (`--config`), what it costs and what cannot run there |
 | `skills/proctor-exam/` | the onboarding skill a user copies into their agent's skills directory: plan an exam with the user (inventory, tasks, checks, variants, cost; a `PLAN.md` approved), then build it and prove its checks for free; only what a frontier model would not guess and proctor's gotchas, pointing at `docs/configuration.md` and the example exams for the rest |
 | `project/` | the brief, the plans, the learnings and the loose ends (`todo.md`); `archive/` holds built and dropped plans and the old bug notes, in the earlier words |
 | `project/gate/` | `old-words.sh`, the grep gate for the old words, and `old-words.allow`, where each exception is listed with a reason |
@@ -175,10 +175,11 @@ The directories are for reading, not for namespaces: everything is
   the checkout (commit, then `diff.patch` after teardown) and restores
   fixture plus diff for a regrade whose checkout is gone. A variant's `bundle`
   (`{path}` under the repository root, or `{git, rev}` cloned under
-  `.proctor/bundles/<rev>`) is resolved once per batch and recorded
-  by source, path and hash in `batch.json` and every attempt manifest;
-  proctor never reads what is inside it. `resume` refuses a changed bundle
-  as it refuses a changed exam. On an agent variant the agent's container
+  `.proctor/bundles/<rev>`, with `paths` copied out of the clone into
+  `.proctor/bundles/<rev>-<hash>`) is resolved once per batch and recorded
+  by source, path and identity in `batch.json` and every attempt manifest;
+  proctor never reads what is inside it. A bundle's identity (a directory's
+  tree hash, or `git:<rev>[:<paths>]`) is part of its variant's hash. On an agent variant the agent's container
   never holds the bundle, so an `agent: nb` variant with one cannot use
   `{{bundle}}`; it reaches the agent only through the fixture's services,
   which compile hands it as `environment/bundle/` (empty without one) for
@@ -326,8 +327,8 @@ The directories are for reading, not for namespaces: everything is
 - **Every id in the report carries a sentence.** `description` is the one
   key in a check spec that is not a check (`Checks.Description`); a script
   check must declare one, a built-in derives one from its fields
-  (`Checks.Describe`). Exam, variant and task descriptions are optional; a task
-  falls back to the first prompt line (`Exam.Describe`). They travel in
+  (`Checks.Describe`). Exam and task descriptions and a variant's `note` are
+  optional; a task falls back to the first prompt line (`Exam.Describe`). They travel in
   `stats.json` as `descriptions`, with a per-variant `failures` list (each
   non-validity check that failed in a counted attempt, most often first, with
   its tasks, out of the attempts it decided) and an `errored` list beside it
@@ -523,8 +524,27 @@ The directories are for reading, not for namespaces: everything is
   then exam, then task, key by key. A `tags` field is reported as removed.
   Whether an exam is judged is `Exam.Judged`, derived from a check naming a
   `judge` (not yet a known check), not declared.
-- **`resume` refuses a changed exam.** The exam hash in `batch.json` must
-  match; a changed exam is a new batch.
+- **A variant is declared data in its own file, and its hash is its
+  identity.** `exams/<exam>/variants/<id>.json` holds agent or runner,
+  harness, provider, model, bundle and a free-text `note`; `exam.json`
+  holds no variants (one that lists them is refused, saying where they
+  go) and sets `attempts`, how many of each task every variant should
+  have. A variant's hash covers what it declares but its id and note,
+  its bundle by identity (`Exam.VariantHash`); a task's covers its file,
+  its answer sheet, its fixture's definition files, the scripts of its
+  checks and the exam's check specs, not the pass and validity lists
+  (`Exam.TaskHash`); the exam's covers every definition file but the
+  variants'. Each manifest records `exam`, `variant {id, hash}` and
+  `task {id, hash}`; `batch.json` keeps `exam_hash`, `exam_def`, each
+  variant as `{id, hash, def}` and each task as `{id, hash}`. `run`
+  refuses a variant whose id made attempts under another hash (D5), with
+  what changed field by field from the batch's copy of the file
+  (`Runner.RefuseChangedVariants`). A `batch.json` from before variant
+  files is refused, not read. Hooks are the exam's; one that branches on
+  `PROCTOR_VARIANT` to change what the agent sees hides it from the hash.
+- **`resume` refuses a changed exam or variant.** The exam hash and every
+  variant's hash in `batch.json` must match, and the batch's variants be
+  the exam's; a changed one is a new batch.
 - **Validation says "not yet" rather than silently skipping**: `command` variants,
   run- and task-level hooks, `answer_json_schema`, `max_cost`. A task's
   `oracle` runs on nb variants only: bare, as nb's in-process oracle (its

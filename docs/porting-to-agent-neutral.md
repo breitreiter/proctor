@@ -86,6 +86,11 @@ committed; nothing else of the fixture enters the image the agent runs in.
 
 ## 6. Variants
 
+Each variant is its own file, `variants/<id>.json`, and porting one edits it,
+which makes it a new variant: once the old one has made attempts, `run`
+refuses the edit under the same id, so the ported variant takes a new id
+(and a new file).
+
 - **An nb variant** keeps `harness`, `provider` and `model`, drops `runner`, and
   gains `"agent": "nb"`. Its provider entry in nb's config must name an
   `Endpoint` whose host the container may reach; `${VAR}`s in it go to the

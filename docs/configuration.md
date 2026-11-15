@@ -17,9 +17,9 @@ The words, which the report and every file use the same way:
 | **task** | One input and one desired outcome: a prompt against a fixture, with the checks that say whether the outcome was reached. |
 | **check** | One yes-or-no item on the checklist, asked of a finished attempt. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
 | **fixture** | The repository a task runs against and what "done" looks like in it; reused across exams. |
-| **variant** | What is under test: a harness, a provider, a model and a bundle, given every task. |
+| **variant** | What is under test: an agent or nb's harness and provider, a model and a bundle, as declared data, one file per variant. Its identity is its content. |
 | **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
-| **batch** | The attempts one `proctor run` made: every variant over every task, as many attempts as each variant asks for. |
+| **batch** | The attempts one `proctor run` made: every variant over every task, as many attempts as the exam asks for. |
 | **baseline** | Pinned attempts from an earlier batch, compared with as a virtual variant. |
 
 An exam is one business goal probed by many tasks. Every task in it is
@@ -161,20 +161,71 @@ Hooks and checks run on the host and keep `PROCTOR_WORK` and
 `PROCTOR_BUNDLE_MOUNT` are the paths the model was told, which fall back to
 the host paths when nothing is mounted, so a check such as `stays-in-work`
 reads one variable either way. A bare run ignores the mounts, which is what
-makes `--runner none` a shakedown of the exam on the host. The plan and the
-worked example are in `project/archive/containerised-runs.md`.
+makes `--runner none` a shakedown of the exam on the host. A runner script is given the whole attempt environment, `PROCTOR_EXPECT`
+(the answer key) included, so it must never forward its environment into
+the container wholesale: pass the variables nb needs by name
+(`-e LLM_GATEWAY`), as `exams/exam-authoring/hooks/attempt-setup.sh` does.
+Bare nb gets only `NO_COLOR`. A mount is an absolute path inside the
+container, and `runner` or `mounts` left in `proctor.json` is a problem, not
+ignored. Script checks run on the host after the attempt, so a check that
+needs a toolchain only the image has starts a container of that image
+itself. `PROCTOR_CONTAINER` is `proctor-<batch>-<variant>-<task>-<attempt>`.
 
 ## Exams, fixtures and tasks
 
 One exam is one directory, `exams/<id>/`:
 
 ```
-exam.json        description, labels, variants (each with its attempts), nb (runner, mounts), hooks, grading (checks, pass, validity)
+exam.json        description, labels, attempts, nb (runner, mounts), hooks, grading (checks, pass, validity)
+variants/*.json  one variant per file; the id is the file name; what is under test, as declared data (below)
 program.nb       the nb program template; {{prompt}}, {{task}}, {{work}}, {{bundle}}, {{provider}}, {{model}}, {{harness}}, {{variant}}, {{attempt}}
 tasks/*.json     one task per file; the id is the file name; names a fixture and adds the prompt, a description, labels, expect and its own checks
 checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason); each needs a description
 hooks/*.sh       variant and attempt setup/teardown
 ```
+
+`attempts` in `exam.json` is how many attempts of each task every variant
+should have (1 if absent). A variant is one file, `variants/<id>.json`,
+and holds only what is under test:
+
+```json
+{
+  "id": "as-shipped",
+  "note": "Claude Code on Sonnet with Tern's docs as shipped",
+  "agent": "claude-code",
+  "agent_version": "2.1.301",
+  "model": "claude-sonnet-5-5",
+  "bundle": { "path": "exams/tern-docs/bundles/as-shipped" }
+}
+```
+
+A bare nb variant has `runner: nb`, `harness` and `provider` in place of
+`agent` and `agent_version`; [Agent variants](#agent-variants) has the rest.
+`note` is free text for the report's reader, saying what is different about
+the variant; it is never a prediction. `exam.json` holds no variants, and
+one that still lists them is refused, as is a variant with `attempts` (the
+exam's) or `description` (its `note`).
+
+A variant's identity is a hash of everything it declares but its id and
+note, its bundle by content. Each attempt's manifest records it, so
+editing a variant's file or its bundle makes a different variant under the
+same name, which `proctor run` refuses once that id has made attempts:
+
+```
+exams/tern-docs/variants/as-shipped.json: this is not the as-shipped that made 12 attempts
+  (bundle a2ed391d then, 77c0e5aa now). A changed variant is a new variant: give it a new id.
+```
+
+Give the changed one a new id (a new file) and keep the old file while its
+attempts are wanted.
+
+Hooks are the exam's, not a variant's, and prepare the machine: load the
+model, build a tool, start a container. A variant hook runs once before and
+after each variant's attempts and is told which variant in
+`PROCTOR_VARIANT`. A hook that branches on it to change what the agent
+sees is hiding part of the variant from proctor, which cannot hash it; put
+that difference in the bundle, whose `paths` can show two variants
+different parts of one revision.
 
 Put `model {{model}}` in the template, before `provider {{provider}}`:
 
@@ -207,15 +258,26 @@ repo/            the checkout source; the only thing copied into the work direct
 
 A variant may name a `bundle`, the pinned version of whatever it puts under
 test: `{ "path": "bundles/x" }` under the repository root, or
-`{ "git": url, "rev": sha }`. Proctor hands its directory to the program
+`{ "git": url, "rev": sha }`, optionally with `"paths"`, the files and
+directories of that revision to hand over and nothing else:
+
+```json
+"bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "1e71808b…",
+            "paths": ["README.md", "docs/configuration.md", "exams/smoke"] }
+```
+
+A git bundle is cloned under `.proctor/bundles/`, and its paths copied out of
+the clone into a directory of their own; a path the revision does not have
+stops the batch. Proctor hands the bundle's directory to the program
 template as `{{bundle}}` and to hooks and checks as `PROCTOR_BUNDLE`, and
-records its identity in every manifest; what is inside it is the exam's
-business. Two variants with two bundles compare them in one batch.
+records its identity in every manifest: a directory's content hash, or the
+revision with its paths. What is inside it is the exam's business. Two
+variants with two bundles compare them in one batch. A changed bundle is a
+changed variant.
 
 On an agent variant the bundle stays on the host. Proctor hashes it, records
-it in every attempt, hands it to the variant hooks as `PROCTOR_BUNDLE`, and
-refuses to `resume` once it has changed, exactly as on a bare variant. It is
-never copied into the agent's container. An `agent: nb` variant with a
+it in every attempt and hands it to the variant hooks as `PROCTOR_BUNDLE`,
+exactly as on a bare variant. It is never copied into the agent's container. An `agent: nb` variant with a
 bundle cannot name `{{bundle}}` in the program template.
 
 The way an agent variant's bundle reaches the agent is through the fixture's
@@ -231,7 +293,32 @@ and `exams/tern-docs` compares two versions of those docs with none.
 Services run on Docker and podman, not on Modal.
 
 Proctor checks the fixture out into the work directory before each attempt,
-commits it, and collects `diff.patch` afterwards.
+commits it, and collects `diff.patch` afterwards. In order: nb compiles the
+program on the host (a program it refuses fails the attempt before
+anything else), the fixture's `repo/` is copied (less `.git` and any
+directory named in its `source.exclude`, which the fixture hash leaves out
+too) and committed, the attempt setup hook runs, nb runs, the attempt
+teardown hook runs, and the diff is collected. The commit comes before the
+setup hook, so whatever the hook writes into the work directory is in
+`diff.patch` and in `files_touched`. Teardown and the diff run whenever
+setup ran, even when it failed, so a teardown hook must cope with a
+half-made or missing container (`rm -f … || true`).
+
+A fixture's `expect` is a default that the task's `expect` overlays one
+top-level key at a time: a task's `files_touched` replaces the fixture's
+whole `files_touched`. The merged block is what `"@expect"` reads and what
+scripts see as `PROCTOR_EXPECT`.
+
+Hooks and script checks get the attempt in the environment:
+`PROCTOR_EXAM_DIR`, `PROCTOR_FIXTURE` (the fixture's directory, so a script
+can read its `fixture.json`), `PROCTOR_BUNDLE`, `PROCTOR_BATCH`,
+`PROCTOR_VARIANT`, `PROCTOR_TASK`, `PROCTOR_ATTEMPT`, `PROCTOR_ATTEMPT_DIR`,
+`PROCTOR_WORK`, `PROCTOR_TASK_JSON`, `PROCTOR_EXPECT`, `PROCTOR_TRANSCRIPT`,
+`PROCTOR_DIFF`, `PROCTOR_RUNNER`, `PROCTOR_NB`, `PROCTOR_NB_CONFIG`,
+`PROCTOR_CONTAINER`, `PROCTOR_WORK_MOUNT` and `PROCTOR_BUNDLE_MOUNT`. A
+variant hook, which runs once per variant rather than per attempt, gets
+`PROCTOR_BATCH`, `PROCTOR_VARIANT`, `PROCTOR_EXAM_DIR`, `PROCTOR_BUNDLE`
+and `PROCTOR_RUNNER`.
 
 Checks live at three levels and an attempt carries the union: the exam's
 `grading.checks` on every task, a fixture's `checks` on every task run
@@ -239,8 +326,10 @@ against it, and a task's own `checks` on that task alone, for the outcome
 only it can state. A name declared at two levels is a problem. A check
 named in `pass` that the exam does not declare must reach every task from
 its fixture or its own block. A check named in `validity` decides whether an
-attempt counts at all: an attempt that fails one is excluded, not failed. A
-task's check is reported over the tasks that carry it.
+attempt counts at all: an attempt that fails one is excluded, not failed;
+an `error` or `needs-judge` there excludes nothing, and a check is in `pass`
+or `validity`, not both. A task's check is reported over the tasks that
+carry it.
 
 ```json
 {
@@ -255,8 +344,8 @@ task's check is reported over the tasks that carry it.
 ```
 
 The report is written for a reader, not a grader, so every id it prints
-carries a sentence beside it. An exam, a variant and a task take an optional
-`description`; a task without one is described by the first line of its
+carries a sentence beside it. An exam and a task take an optional
+`description`, a variant a `note`; a task without one is described by the first line of its
 prompt. A check takes `description` as a field beside its spec, and a
 script check must have one, because from outside a script says nothing:
 
@@ -436,12 +525,29 @@ report.
 }
 ```
 
+`decide` passes when the most likely label is `expect` at a probability of
+at least `threshold` (default 0.9), fails when another label is, and is
+`needs-judge` below it. On a yes/no question `expect` is true or false,
+default true; with `options` (a list of at least two labels, or labels with
+a sentence each) `expect` is required. `judge` takes `votes` (default 3) and
+expects yes unless told no; fewer than two usable votes (one when `votes` is
+1) is `error`, not `needs-judge`. A window part that is empty, such as
+`diff` on an attempt that changed nothing or `answer_json` with no JSON
+fence, is `error` before any call. `tool_calls` cuts each call's arguments
+at 400 characters and shows no output; `tool_results` keeps each result's
+first 40 lines; `max_window` caps the parts together. No window or prompt
+carries the variant, the model or the attempt number. A verdict is kept in
+`verdicts/` and reused by the next `grade`; its hash covers the request,
+the judge's model, the threshold and the expectation, so changing any of
+them asks again, and an `error` is always asked again.
+
 `expect` may be `"@expect"`, read from the task's `expect.<check name>`;
 so may `ask`, read from `expect.<check name>.ask`, so one `correct` check
 can carry a rubric per task. A built-in field set to `"@expect"` reads
 `expect.<check name>.<field>` first and `expect.<field>` second.
 `with` names a judge from `proctor.json`; without it the only judge of the
-needed kind is used. Whether an exam is judged is not declared; it follows
+needed kind is used, and several of that kind with no `with` is a problem
+`list` and `run` report. Whether an exam is judged is not declared; it follows
 from a check that asks a model, and `list` says so.
 
 ## Agent variants
@@ -453,14 +559,18 @@ is a vendor's own CLI at a pinned version (`claude-code`, `codex`,
 `qwen-code`), or `nb` itself:
 
 ```json
-{
-  "variants": [
-    { "id": "cc-haiku", "agent": "claude-code", "agent_version": "2.1.301", "model": "claude-haiku-5-5" },
-    { "id": "floor", "agent": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next" }
-  ],
-  "harbor": { "version": "0.24.0" },
-  "limits": { "wall_ms": 1800000 }
-}
+{ "id": "cc-haiku", "agent": "claude-code", "agent_version": "2.1.301", "model": "claude-haiku-5-5" }
+```
+
+```json
+{ "id": "floor", "agent": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next" }
+```
+
+are `variants/cc-haiku.json` and `variants/floor.json`, and `exam.json` pins
+Harbor and the time each attempt may take:
+
+```json
+{ "harbor": { "version": "0.24.0" }, "limits": { "wall_ms": 1800000 } }
 ```
 
 The machine needs [uv](https://docs.astral.sh/uv/), which runs the pinned
@@ -525,4 +635,4 @@ that asks an agent to write exams, using most of what is described here.
 Harbor path: nb on Mock, bare and through Harbor, must agree, and each
 vendor agent on the stub must come back as scripted.
 The check vocabulary and the shape of every file are in
-`project/plans/on-disk-layout.md` and `project/archive/fixtures-arms-baselines.md`.
+`project/plans/on-disk-layout.md`.

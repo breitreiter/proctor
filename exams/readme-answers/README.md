@@ -33,7 +33,8 @@ retries when it is throttled, so a batch can take a few minutes.
 
 **A different provider.** The variants name the provider `gemini`, the name
 `proctor setup` suggests. If you named it something else, or want another
-model, change `provider` and `model` in both variants of `exam.json`.
+model, change `provider` and `model` in both files under `variants/` before
+the first batch; after it, a changed variant needs a new id.
 `proctor setup --check` lists the models your key can reach.
 
 **How it is built.** `program.nb` gives the variant's README to the model as

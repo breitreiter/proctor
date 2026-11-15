@@ -9,7 +9,7 @@ proctor setup                 # providers and keys, one job at a time (interacti
 proctor setup --check         # what is set up, in plain lines for you or your coding agent; --probe repeats each key check
 proctor list [exam]           # validate; print the labels and the attempts that would run
 proctor list --label kind=bugfix   # only the exams carrying that label
-proctor run <exam>            # make every attempt into attempts/<batch>/; prints "batch <id>"
+proctor run <exam>            # make every attempt into attempts/<batch>/; prints "batch <id>"; refuses a changed variant under an id that made attempts
 proctor resume <id>           # make again the attempts that did not complete
 proctor run <exam> --config exams/proctor.modal.json   # another machine's config, such as Modal's (docs/modal.md); also list, resume, grade
 proctor grade <id>            # checks over every completed attempt -> checks.json; model verdicts cached in verdicts/
@@ -26,7 +26,7 @@ proctor report <id> --against <earlier>   # each variant against the same varian
 proctor --version
 ```
 
-A batch is a matrix: every variant over every task, several attempts each. `run`
+A batch is a matrix: every variant file over every task, the exam's `attempts` each. `run`
 prints the batch's id; `grade` and `report` take it. Grading is
 separate from running, and every model verdict is cached beside the
 evidence, so a new check or a different judge is a regrade, not a rerun.
@@ -37,7 +37,7 @@ There are two ways of working.
 
 In **explore** mode several variants run in one batch and the report
 compares them with each other. The verdict card compares each variant with the
-first, the reference.
+first, the reference: the first file under the exam's `variants/` by name.
 
 In **guard** mode one variant runs against a baseline: pinned attempts per task,
 committed with the exam, written by `proctor baseline` from a batch

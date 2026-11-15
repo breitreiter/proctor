@@ -56,7 +56,7 @@ read and let the user correct you.
    whether one is set up. If the model only reads and answers (a document,
    a prompt, a tool definition, a chatbot turn), it is a bare nb variant with
    `tools none` and needs no sandbox. Start there when you can.
-6. **What will it cost?** Attempts = variants × tasks × attempts per task.
+6. **What will it cost?** Attempts = variants × tasks × the exam's `attempts` (per task, for every variant).
    Estimate tokens per attempt, price it, and agree the number with the user
    before any paid batch. A free tier or a local model is the place to iterate.
 
@@ -82,7 +82,8 @@ In the user's repository, `exams/` at the root holds their exams and
 needs; setup tracks its own and leaves the rest alone.
 
 ```
-exams/<id>/exam.json      variants (each with its attempts), grading (checks, pass, validity), labels, description
+exams/<id>/exam.json      attempts, grading (checks, pass, validity), labels, description
+exams/<id>/variants/*.json one variant per file, the id its name: agent or runner/harness/provider, model, bundle, note
 exams/<id>/program.nb      the nb program template (nb variants only)
 exams/<id>/tasks/*.json    one task per file: fixture, prompt, expect, its own checks
 exams/<id>/checks/*.sh     script checks
@@ -133,8 +134,15 @@ exam, task, attempt, check, variant, fixture, batch, baseline.
   than the one under test, with its entry in `exams/proctor.json`
   `judges` naming a model; setup writes none, since the model is the
   exam's choice.
-- **Every check, variant and task gets a one-sentence `description`.** The
-  report puts it beside every number.
+- **Every check and task gets a one-sentence `description`, every variant a
+  `note`.** The report puts it beside every number. A note says what is
+  different about the variant, never what it is expected to do.
+- **A variant is declared data, and its identity is its content.** Editing a
+  variant's file or its bundle makes a new variant; once the old one has
+  made attempts, `run` refuses the edit under the same id, so give it a new
+  file and id. Hooks are the exam's: one that branches on `PROCTOR_VARIANT`
+  to change what the agent sees hides that difference from proctor; put it
+  in the bundle (a git bundle's `paths` can pick part of a revision).
 - **A changed exam is a new batch.** `resume` refuses one, so settle
   the files before a long batch.
 

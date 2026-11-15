@@ -17,9 +17,9 @@ formats or the vocabulary; a patch bump does not.
   |---|---|
   | `suites/`, `suite.json`, `skills/proctor-suite/` | `exams/`, `exam.json`, `skills/proctor-exam/` |
   | `runs/<experiment>/`, `experiment.json` | `attempts/<batch>/`, `batch.json` |
-  | `experiment.json` `suite`, `suite_hash`, `suite_def` | `batch.json` `exam`, `exam_hash`, `exam_def` |
-  | `arms` in `suite.json`, an arm's `samples` | `variants` in `exam.json`, a variant's `attempts` |
-  | manifest `experiment`, `arm`, `sample`, `run_id`, `attempts` (retries), `suite_hash` | `batch`, `variant`, `attempt`, `id`, `tries`, `exam_hash` |
+  | `experiment.json` `suite`, `suite_hash`, `suite_def` | `batch.json` `exam`, `exam_hash`, `exam_def` (and `variants`, `tasks`: below) |
+  | `arms` in `suite.json`, an arm's `samples` | `variants/<id>.json` beside `exam.json`, the exam's `attempts` (below) |
+  | manifest `experiment`, `arm`, `sample`, `run_id`, `attempts` (retries), `suite_hash` | `batch`, `variant {id, hash}`, `attempt`, `id`, `tries`, `task {id, hash}` (below) |
   | `results.jsonl` `run_id`, `arm`, `sample`; `stats.json` `arms`, `k_cells`, `n_cells`, `attempted`, `runs` | `id`, `variant`, `attempt`; `variants`, `k_attempts`, `n_attempts`, `started`, `attempts` |
   | `friction.json` `friction/0`, `run {experiment, arm, task, sample}` | `friction/1`, `attempt {exam, batch, variant, task, attempt}` |
   | `PROCTOR_SUITE_DIR`, `PROCTOR_ARM`, `PROCTOR_SAMPLE`, `PROCTOR_EXPERIMENT`, `PROCTOR_CELL` | `PROCTOR_EXAM_DIR`, `PROCTOR_VARIANT`, `PROCTOR_ATTEMPT`, `PROCTOR_BATCH`, `PROCTOR_ATTEMPT_DIR` |
@@ -34,6 +34,29 @@ formats or the vocabulary; a patch bump does not.
   no longer read. `suite-authoring` is `exam-authoring`; `nb-changes`'
   `suite-green` check is `tests-green`. `project/gate/old-words.sh` fails
   on an old word outside its allow-list.
+
+- **Breaking: variants are files, and a variant and a task each have a
+  hash** (step 2 of `project/plans/exam-variant-attempt-removal.md`).
+  Each variant is `exams/<exam>/variants/<id>.json`, declared data only:
+  agent or runner, harness, provider, model, bundle, and a free-text
+  `note` where a variant had `description`. `attempts` moves from each
+  variant to `exam.json`, for every variant alike. An `exam.json` that
+  still lists `variants`, or a variant with `attempts` or `description`,
+  is refused with where it goes; every exam here was converted (where
+  variants asked for different counts, the exam takes the smallest:
+  `code-change` is 1). The exam's hash no longer covers variants. A
+  variant's hash covers what it declares but its id and note, its bundle
+  by content; a task's covers its file, answer sheet, fixture definition
+  and the checks that apply to it. Manifests record `exam`,
+  `variant {id, hash}` and `task {id, hash}` in place of `exam_hash`;
+  `batch.json` keeps `exam_hash` and `exam_def` and adds `variants`
+  (`{id, hash, def}`) and `tasks` (`{id, hash}`). `run` refuses a changed
+  variant under an id that has made attempts, saying what changed: give
+  it a new id. `resume` refuses a changed variant (its bundle included)
+  as it refuses a changed exam. A git bundle may name `paths`, the part
+  of its revision to hand over. Variants load in file-name order, so the
+  reference (the first variant) is the first file by name. A `batch.json`
+  from before this is refused, not read: make it again.
 
 Entries below this line, the unreleased ones above 0.3.6 included, use the
 earlier words: suite (exam), arm (variant), experiment (batch), sample,
