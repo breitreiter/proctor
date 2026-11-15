@@ -1074,3 +1074,49 @@ passed, $3.15 by `core.json`, 45 to 48 calls, 7 to 16 minutes. Haiku took 93
 calls for the same pass. Strips: `o11 A! R A A! R! R! R! .`,
 `o13 A A! R! r .`, `o15 A A! R! R! R!`, `o12 A! R A A! R! R! R! .`. Not yet
 read against the cut.
+
+## A cookbook: proctor output for human expert review (after the rewrite)
+
+Queued 2026-11-15, to do once the move to exam, variant and attempt has
+landed (`project/plans/exam-variant-attempt.md`), so the recipe is
+written against the commands that will exist.
+
+Write a cookbook page in `docs/` for the rare, high-touch case where
+proctor makes the material and a professional judges it: "you work in
+this field, which of these versions makes the most sense to you?"
+Proctor's part is generating, not grading. A person cleans up the
+output, picks the few comparisons that matter, and stages them into a
+session, usually run on a call.
+
+What the page should walk through, on one worked example:
+
+- an exam whose checks are only the sanity ones (there is output, it did
+  not time out), with the variants being the versions to compare;
+- running it and finding each attempt's output whole, with the variant
+  that made it;
+- picking and pairing outputs by hand, and what to strip so the reviewer
+  cannot tell which variant wrote which;
+- recording what the reviewer said beside the attempts, as a result that
+  is not a check.
+
+See "Specimens for human review" above for the earlier thinking. If
+writing the page shows the last step has nowhere to live, that is a
+finding for the model, not something to work around in the recipe.
+
+## Confirm a regrade costs nothing for unchanged checks
+
+Queued 2026-11-15, replacing a maybe ("regrade only new or altered
+checks"). Settled the same day: the checks are our best understanding of
+what success means, one standard, so a changed check regrades every
+current attempt and `grade` keeps doing all of them. "What we check now,
+given current conditions" would mean a leaky fixture (a vendor API,
+firmware, input data), and that is a fixture change, which makes
+attempts stale by the task hash. A change of taste is slow enough to be
+a new exam.
+
+What is left is cost. A judged check's verdict is kept beside the
+attempt, keyed on the exact request (`Grade/Judge.cs`, `Cached`), so an
+untouched check on an untouched attempt should come back without a call
+or a flipped verdict. That is read from the code, not measured: after
+the rewrite, grade a judged exam twice across two batches and confirm
+the second pass makes no judge calls.
