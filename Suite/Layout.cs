@@ -35,6 +35,8 @@ static class Layout
     public const string ChecksFile = "checks.json";
     public const string VerdictsDir = "verdicts";
     public const string FrictionFile = "friction.json";
+    /// <summary>What a reader was sent and answered about a cell: friction-reading.&lt;judge&gt;.&lt;hash&gt;.json, the cache and the record.</summary>
+    public const string ReadingPrefix = "friction-reading";
 
     /// <summary>An agent arm's cells: the compiled Harbor tasks per experiment, Harbor's own job per cell, and what ingest lifts out of the trial.</summary>
     public const string HarborDir = "harbor";

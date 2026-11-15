@@ -74,15 +74,36 @@ static class Verbs
     }
 
     /// <summary>The friction rules over every completed cell that has a trajectory, into friction.json beside it. No model and no key.</summary>
-    public static int Friction(string root, string experimentId, List<string>? armIds = null, List<string>? taskIds = null)
+    /// <param name="reader">A chat judge of the machine's config to read each run as well; a hosted model, so it costs what the model costs.</param>
+    public static int Friction(string root, string experimentId, List<string>? armIds = null, List<string>? taskIds = null, string? reader = null, bool again = false, string? configFile = null)
     {
         var (experiment, suite) = LoadExperiment(root, experimentId);
         RequireKnown(suite, armIds, taskIds);
+        JudgeClient? judges = null;
+        if (reader is not null)
+        {
+            var problems = new List<Problem>();
+            var config = Suite.LoadConfig(root, problems, configFile);
+            if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
+            if (config.Judges?.GetValueOrDefault(reader) is not { } def) throw new ProctorException($"--reader {reader}: no judge '{reader}' in {config.Source} ({string.Join(", ", (config.Judges ?? []).Keys)})");
+            if (def.Kind != JudgeDef.Chat) throw new ProctorException($"--reader {reader}: '{reader}' is {def.Kind}; a reader is a chat judge");
+            judges = new JudgeClient { Defs = config.Judges, Rejudge = again, Note = Console.WriteLine };
+        }
+        else if (again) throw new ProctorException("--rejudge goes with --reader");
         if (suite.Def.Surface is null) Console.WriteLine($"  note: suite '{suite.Id}' declares no surface; only help, environment and tool-error points can be found");
-        var cells = Proctor.Friction.Experiment(root, experiment, suite, Console.Out, armIds, taskIds);
+        var cells = Proctor.Friction.Experiment(root, experiment, suite, Console.Out, armIds, taskIds, judges, reader);
         var read = cells.Where(c => c.Points is not null).ToList();
         var skipped = cells.Where(c => c.Skipped is not null).GroupBy(c => c.Skipped!).Select(g => $"{g.Count()} {g.Key}").ToList();
         Console.WriteLine($"friction: {read.Count} of {cells.Count} cells read, {read.Sum(c => c.Points)} points{(skipped.Count > 0 ? $"; skipped {string.Join(", ", skipped)}" : "")}");
+        if (reader is not null)
+        {
+            var readings = read.Select(c => c.Reading!).ToList();
+            var asked = readings.Where(r => r.Asked).ToList();
+            Console.WriteLine($"reader {reader}: {asked.Count(r => r.Problem is null)} asked, {readings.Count(r => !r.Asked)} reused, {readings.Count(r => r.Problem is not null)} without an answer; "
+                + $"{readings.Sum(r => r.Kept)} of {readings.Sum(r => r.Labelled)} labelled calls kept; {asked.Sum(r => r.InputTokens ?? 0):N0} tokens in, {asked.Sum(r => r.OutputTokens ?? 0):N0} out");
+            foreach (var c in read.Where(c => c.Reading!.Dropped.Count > 0))
+                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Arm}/{c.Task}/{c.Sample} {drop}");
+        }
         return 0;
     }
 

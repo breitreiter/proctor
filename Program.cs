@@ -22,7 +22,8 @@ static class Program
         --arm <id>            grade, friction: only this arm's cells, the others left as they are (repeatable); baseline: which arm to pin (required with several arms)
         --tasks <a,b>         grade, friction: only these tasks' cells; baseline: only these tasks, the rest keep their pins
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
-        --rejudge             grade: call the judges again instead of reusing the cells' verdict files
+        --rejudge             grade: call the judges again instead of reusing the cells' verdict files; friction --reader: ask the reader again
+        --reader <judge>      friction: a chat judge reads each run too and adds what rules cannot see (repair, lost, reread, dead-end, workaround), each with a checked quote; a model call per run, kept in the cell and reused
         --version             print proctor's version (see CHANGELOG.md for what changed between versions)
         --tolerance <points>  report: how far below the baseline still counts as held (default 0)
         --fail-on regression  report: exit 1 when any arm regressed against the baseline
@@ -34,7 +35,7 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, failOn = null, against = null, configFile = null;
+        string? nbPath = null, runner = null, failOn = null, against = null, configFile = null, reader = null;
         List<string>? tasks = null, labels = null, judges = null, arms = null;
         var tolerance = 0;
         var rejudge = false;
@@ -53,6 +54,7 @@ static class Program
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
                 case "--rejudge": rejudge = true; break;
+                case "--reader" when i + 1 < args.Length: reader = args[++i]; break;
                 case "--check": check = true; break;
                 case "--live": live = true; break;
                 case "--tasks" when i + 1 < args.Length: tasks = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
@@ -76,7 +78,7 @@ static class Program
                 ("run", [var suite]) => Verbs.Run(root, suite, nbPath, runner, configFile),
                 ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner, configFile),
                 ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge, arms, tasks, configFile),
-                ("friction", [var id]) => Verbs.Friction(root, id, arms, tasks),
+                ("friction", [var id]) => Verbs.Friction(root, id, arms, tasks, reader, rejudge, configFile),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn, against),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, arms, tasks),
                 ("setup", []) => Verbs.Setup(root, check, live),

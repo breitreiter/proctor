@@ -289,6 +289,7 @@ runs/
           diff.patch                        whatever the teardown hook chose to collect
           checks.json                       {name: {verdict, reason}}, written by `proctor grade` (below)
           friction.json                     where the run paid a cost the task did not ask for, written by `proctor friction`
+          friction-reading.haiku.9f2c1ab04d7e.json   what `friction --reader` sent a reader and what it answered; the cache
           verdicts/
             cf-glm.rubric-a1b2c3.json       judge phase, one file per judge and rubric version
         2/

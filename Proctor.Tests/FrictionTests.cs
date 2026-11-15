@@ -11,29 +11,25 @@ public class FrictionTests
         Tools: ["mcp__gh-history__*"], Docs: ["/app/docs/gh-history.md"], Fails: [@"^\[\]$", "\"error\""],
         Substitutes: new SubstitutesDef(Commands: ["git log", "git blame", "git show", "gh"])));
 
-    static (string, JsonObject, string) Bash(string command, string result = "") => ("Bash", new JsonObject { ["command"] = command }, result);
     static (string, JsonObject, string) Tool(string result = "[]") => ("mcp__gh-history__timeline", new JsonObject { ["path"] = "src/parser.c" }, result);
     static (string, JsonObject, string) Edit => ("Edit", new JsonObject { ["file_path"] = "/app/src/parser.c", ["old_string"] = "a", ["new_string"] = "b" }, "ok");
 
-    static JsonObject Detect(Surface surface, params (string Tool, JsonObject Arguments, string Result)[][] steps)
+    internal static (string, JsonObject, string) Bash(string command, string result = "") => ("Bash", new JsonObject { ["command"] = command }, result);
+
+    internal static JsonObject Trajectory(params (string Tool, JsonObject Arguments, string Result)[][] steps) => new()
     {
-        var trajectory = new JsonObject
+        ["schema_version"] = "ATIF-v1.7",
+        ["agent"] = new JsonObject { ["name"] = "test" },
+        ["steps"] = new JsonArray(steps.Select((calls, i) => (JsonNode?)new JsonObject
         {
-            ["schema_version"] = "ATIF-v1.7",
-            ["agent"] = new JsonObject { ["name"] = "test" },
-            ["steps"] = new JsonArray(steps.Select((calls, i) => (JsonNode?)new JsonObject
-            {
-                ["step_id"] = i + 1, ["source"] = "agent", ["message"] = "", ["extra"] = new JsonObject { ["cwd"] = "/app" },
-                ["tool_calls"] = new JsonArray(calls.Select((c, n) => (JsonNode?)new JsonObject { ["tool_call_id"] = $"c{i}_{n}", ["function_name"] = c.Tool, ["arguments"] = c.Arguments.DeepClone() }).ToArray()),
-                ["observation"] = new JsonObject { ["results"] = new JsonArray(calls.Select((c, n) => (JsonNode?)new JsonObject { ["source_call_id"] = $"c{i}_{n}", ["content"] = c.Result }).ToArray()) },
-            }).ToArray()),
-        };
-        var file = Path.Combine(Path.GetTempPath(), "proctor-tests", $"trajectory-{Guid.NewGuid():N}.json");
-        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-        File.WriteAllText(file, trajectory.ToJsonString());
-        try { return Friction.Detect(file, surface, new JsonObject { ["task"] = "t" }); }
-        finally { File.Delete(file); }
-    }
+            ["step_id"] = i + 1, ["source"] = "agent", ["message"] = "", ["extra"] = new JsonObject { ["cwd"] = "/app" }, ["metrics"] = new JsonObject { ["cost_usd"] = 0.01 },
+            ["tool_calls"] = new JsonArray(calls.Select((c, n) => (JsonNode?)new JsonObject { ["tool_call_id"] = $"c{i}_{n}", ["function_name"] = c.Tool, ["arguments"] = c.Arguments.DeepClone() }).ToArray()),
+            ["observation"] = new JsonObject { ["results"] = new JsonArray(calls.Select((c, n) => (JsonNode?)new JsonObject { ["source_call_id"] = $"c{i}_{n}", ["content"] = c.Result }).ToArray()) },
+        }).ToArray()),
+    };
+
+    static JsonObject Detect(Surface surface, params (string Tool, JsonObject Arguments, string Result)[][] steps) =>
+        Friction.Detect(Trajectory(steps), surface, new JsonObject { ["task"] = "t" }).File;
 
     static string[] LabelsOf(JsonObject file) => file["points"]!.AsArray().Select(p => p!["label"]!.GetValue<string>()).Distinct().Order().ToArray();
     static JsonObject SurfaceOf(JsonObject file) => file["summary"]!["surface"]!.AsObject();

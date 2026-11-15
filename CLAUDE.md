@@ -81,6 +81,7 @@ in the order the verbs run them. Every file is one concern:
 | `Grade/Grade.cs` | checks over a cell into `checks.json`; the headline pass |
 | `Friction/Shell.cs` | a shell command as the friction rules read it: words, then actions (one per pipeline, named by its first command, heredoc bodies dropped); POSIX path and glob helpers, since the paths are the container's |
 | `Friction/Friction.cs` | `Surface` (the suite's `surface` block, compiled) and the friction rules: a cell's trajectory into `friction.json` (points, each with a checked quote, and the summary by surface part) |
+| `Friction/Reader.cs` | the reader stage of `friction --reader`: a run rendered as text with a call id per call, the fixed instructions, the reply checked into points with a model source, the reading file kept in the cell |
 | `Setup/providers.json` | `proctor setup`'s provider catalogue, embedded: per kind its form fields (a secret's env variable), the jobs it `serves` (`?` untested) or serves `by_hand`, the site help anchor (never a vendor URL; an anchor once released is permanent), where it lists models. The plan and mockups are `project/plans/setup/` |
 | `Setup/Catalogue.cs` | the catalogue as records; `ProviderKind.Fit(job)` |
 | `Setup/KeyCheck.cs` | the key check: list a provider's models (no tokens), the ids sorted, or the provider's words with the key redacted and a reading that is the same for every kind; Azure, and an OpenAI-compatible entry with no endpoint yet, have none. `Proctor.Tests/fixtures/models/` are answers captured from each vendor, trimmed |
@@ -132,8 +133,16 @@ The directories are for reading, not for namespaces: everything is
   ported from a Python trial in auspex (`../auspex/project/trials/friction.py`,
   the contract in `../auspex/project/friction-contract.md`) and held to
   identical output on 702 runs when ported; a rule change is made in one
-  place now, here. No model: a reader stage that names what rules cannot
-  see is planned and is not this.
+  place now, here. The rules call no model. `--reader <judge>` adds the
+  reader stage (`FrictionReader`): one chat call per run through
+  `JudgeClient`, so throttling and the test fakes are the judges'. It
+  picks from five labels and must quote the call; a point is written
+  only when the call exists, the label is in the list and the quote is
+  in that call, and its reason is a note, never a count. What was sent
+  and answered is `friction-reading.<judge>.<hash>.json` in the cell,
+  the cache and the record; `--rejudge` asks again. `Instructions` is
+  the wording the measurements were made with, pinned by hash in
+  `FrictionReaderTests`: change it knowingly, and measure again.
 - **A check is one of three kinds by where it is named.** In `grading.pass`
   it is capability; in `grading.validity` it decides whether the sample
   counts (a `fail` excludes the sample with its reason, `error` never does);

@@ -322,7 +322,26 @@ with one label:
 Every point carries a quote from the call it cites, checked the way a
 judge's quote is checked; a point with no quote that is in the call is not
 written. The rules use no model, so the same trajectory and declaration
-give the same file. A point is a place to look, not a verdict: what it
+give the same file.
+
+Rules see what a call was and what came back, not what it was for.
+`proctor friction <id> --reader <judge>` adds a reader: a chat judge from
+`proctor.json` reads each run once and names five more kinds of point,
+`repair` (fixing its own work after something it ran failed), `lost` (a
+search or read that led to nothing used later), `reread`, `dead-end`
+(following an instruction that could not work as given) and `workaround`.
+The reader must quote the call, and a point is written only when the
+call exists, the label is one of the five and the quote is in that
+call; its one-line reason is kept as a note. Its points carry
+`"source": {"kind": "model", ...}`, so they can always be told from the
+rules'. It is one model call per run, of the run's length (a few
+thousand to a few tens of thousands of tokens); what was sent and
+answered is kept in the cell as `friction-reading.<judge>.<hash>.json`
+and reused, so repeating the command costs nothing, and `--rejudge` asks
+again. The command prints the tokens it used. A small, cheap model is
+enough; local models tried so far were not.
+
+A point is a place to look, not a verdict: what it
 should become, when it matters, is a check. Two built-ins say most of
 them: `tool_args` with `match: regex` for what a run did, and
 `result_matches` (a regular expression over every tool result) for what

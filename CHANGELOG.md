@@ -7,6 +7,11 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- `proctor friction <experiment> --reader <judge>`: a chat judge reads
+  each run and adds the points rules cannot see (`repair`, `lost`,
+  `reread`, `dead-end`, `workaround`), each with a quote checked against
+  the call it cites and a model source. One call per run, kept in the
+  cell and reused.
 - A `result_matches` check: a regular expression over every tool result
   of a run, so `not_result_matches` fails a run that was shown something
   it should never be shown, whatever it did next.

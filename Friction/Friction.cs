@@ -107,9 +107,9 @@ static class Friction
     static readonly JsonSerializerOptions Compact = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     static readonly JsonSerializerOptions Written = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, WriteIndented = true };
 
-    record Action(string Part, string? Rule, string[] Quotes, string Head);
+    internal record Action(string Part, string? Rule, string[] Quotes, string Head);
 
-    sealed class Call
+    internal sealed class Call
     {
         public required string Id, Command, Result;
         public required List<Action> Actions;
@@ -121,13 +121,14 @@ static class Friction
         public string SquashedResult => squashedResult ??= Shell.Squash(Result);
     }
 
-    record Step(string Id, List<Call> Calls);
+    internal record Step(string Id, List<Call> Calls);
 
-    public record CellFriction(string Arm, string Task, int Sample, int? Points, string? Skipped);
+    public record CellFriction(string Arm, string Task, int Sample, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
 
     /// <summary>friction.json beside each completed cell's trajectory. A cell with no trajectory is skipped and said so.</summary>
+    /// <param name="reader">A chat judge of the machine's config that reads each run for what rules cannot see; its points are added with a model source. Null for rules only.</param>
     public static List<CellFriction> Experiment(string root, Experiment experiment, Suite suite, TextWriter log,
-        IReadOnlyCollection<string>? arms = null, IReadOnlyCollection<string>? tasks = null)
+        IReadOnlyCollection<string>? arms = null, IReadOnlyCollection<string>? tasks = null, JudgeClient? judges = null, string? reader = null)
     {
         var surface = new Surface(suite.Def.Surface);
         var experimentDir = Layout.Experiment(root, experiment.Id);
@@ -143,22 +144,26 @@ static class Friction
                 continue;
             }
             var run = new JsonObject { ["experiment"] = experiment.Id, ["arm"] = arm.Id, ["task"] = task.Id, ["sample"] = sample.ToString() };
-            var file = Detect(trajectory, surface, run);
+            var parsed = JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject();
+            var (file, steps) = Detect(parsed, surface, run);
+            var reading = reader is null ? null : FrictionReader.Read(cellDir, parsed, file, steps, suite.Def.Surface?.Description, judges!, reader);
             File.WriteAllText(Path.Combine(cellDir, Layout.FrictionFile), file.ToJsonString(Written) + "\n");
             var points = file["points"]!.AsArray();
-            done.Add(new CellFriction(arm.Id!, task.Id!, sample, points.Count, null));
-            log.WriteLine($"  {arm.Id}/{task.Id}/{sample}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}");
+            done.Add(new CellFriction(arm.Id!, task.Id!, sample, points.Count, null, reading));
+            log.WriteLine($"  {arm.Id}/{task.Id}/{sample}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}{(reading is null ? "" : $"  [reader: {reading.Says}]")}");
         }
         return done;
     }
 
     /// <summary>One trajectory into the file's content. <paramref name="run"/> is written as given: which run this is.</summary>
-    public static JsonObject Detect(string trajectoryFile, Surface surface, JsonObject run)
+    public static JsonObject Detect(string trajectoryFile, Surface surface, JsonObject run) =>
+        Detect(JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject(), surface, run).File;
+
+    internal static (JsonObject File, List<Step> Steps) Detect(JsonObject trajectory, Surface surface, JsonObject run)
     {
-        var trajectory = JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject();
         var steps = Read(trajectory, surface);
         var points = Points(steps, surface);
-        return new JsonObject
+        return (new JsonObject
         {
             ["schema"] = Schema,
             ["run"] = run,
@@ -171,17 +176,17 @@ static class Friction
             },
             ["summary"] = Summary(steps, points, surface),
             ["points"] = new JsonArray(points.Select(p => (JsonNode?)p).ToArray()),
-        };
+        }, steps);
     }
 
     // ---------- a call into actions ----------
 
-    static string Text(JsonNode? node) => node is null ? "null" : node is JsonValue v && v.TryGetValue<string>(out var s) ? s : node.ToJsonString(Compact);
+    internal static string Text(JsonNode? node) => node is null ? "null" : node is JsonValue v && v.TryGetValue<string>(out var s) ? s : node.ToJsonString(Compact);
 
-    static string? String(JsonNode? node) => node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+    internal static string? String(JsonNode? node) => node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     /// <summary>A call's shell command, when it has one: <c>command</c> or <c>cmd</c>, a string or a list of words.</summary>
-    static string? CommandOf(JsonObject arguments)
+    internal static string? CommandOf(JsonObject arguments)
     {
         var node = arguments["command"] ?? arguments["cmd"];
         return node is JsonArray words ? string.Join(' ', words.Select(Text)) : String(node);
@@ -325,7 +330,7 @@ static class Friction
         return steps;
     }
 
-    static bool Verified(string quote, Call call)
+    internal static bool Verified(string quote, Call call)
     {
         var q = Shell.Squash(quote);
         return q.Length > 0 && (call.SquashedCommand.Contains(q, StringComparison.Ordinal) || call.SquashedResult.Contains(q, StringComparison.Ordinal));
@@ -411,7 +416,7 @@ static class Friction
         return sorted;
     }
 
-    static (long, long) CallOrder(string callId)
+    internal static (long, long) CallOrder(string callId)
     {
         var numbers = Regex.Matches(callId, @"\d+").Select(m => long.TryParse(m.Value, out var v) ? v : long.MaxValue).ToList();
         return (numbers.ElementAtOrDefault(0), numbers.ElementAtOrDefault(1));
