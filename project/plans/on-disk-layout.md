@@ -124,8 +124,8 @@ it declares. Its hash covers everything but `id` and `note`:
 
 Points to notice:
 
-- **Variants are a declared list, not a cartesian product.** Each variant names its
-  runner, harness, model and attempt count. The mixed-runner shape (nb for the
+- **Variants are a declared list, not a cartesian product.** Each variant's file names its
+  runner, harness and model; the attempt count is the exam's, one for all. The mixed-runner shape (nb for the
   floor, real CLIs for the rest) is the brief's open question made explicit
   and recorded per variant. Proctor never compares a costume variant to a real-CLI variant
   without the manifest showing which is which.
