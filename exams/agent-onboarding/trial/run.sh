@@ -77,9 +77,9 @@ jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.j
         | "variant(s) \(join(", ")) give the bot more than one version of its system prompt in one program"),
       ($by_variant | to_entries[] | select(.value | length > 1) | "variant \(.key) gives the bot a different prompt on different tasks (\(.value | join(", ")))"),
       ( if $p.compare then
-          ([$by_variant | to_entries[] | select(.value == ["live"]) | .key]) as $live
+          ([$by_variant | to_entries[] | select(.value == ["shipped"]) | .key]) as $shipped
           | ([$by_variant | to_entries[] | select(.value == ["draft"]) | .key]) as $draft
-          | $live[] as $l | $draft[] as $d
+          | $shipped[] as $l | $draft[] as $d
           | ($def[$l] | del(.id, .note, .bundle)) as $a
           | ($def[$d] | del(.id, .note, .bundle)) as $b
           | (if $a != $b then "variants \($l) and \($d) differ in \([($a + $b) | keys[] | select($a[.] != $b[.])] | join(", ")) as well as the prompt, so a difference between them is not the rewrite alone" else empty end),

@@ -33,7 +33,7 @@ solve the onboarding in advance.
 | task | fixture | the written exam must get right |
 |---|---|---|
 | `exact-answers` | `onboarding-toolshed`: a tool library's help bot, its handbook, the five questions members ask | each question's figure in `expect` through `@expect`, matched with its unit, so near misses fail: `19 days` and `9 weeks` for 9 days, `$7.50` and `$0.75 a week` for $0.75 a day, `$120 a year` and `$12 a month` for $12 a year |
-| `revised-prompt` | `onboarding-allotment`: an allotment society's bot with its live system prompt and a draft rewrite | two variants that differ only in their `bundle`, one prompt version each, and a figure check that catches the version that answers wrong |
+| `revised-prompt` | `onboarding-allotment`: an allotment society's bot with the system prompt it runs today and a draft rewrite | two variants that differ only in their `bundle`, one prompt version each, and a figure check that catches the version that answers wrong |
 | `stays-on-topic` | `onboarding-bikekitchen`: a bike workshop's bot whose system prompt gives the one sentence that turns down an off-topic request | a check that fails a reply that played along, including one that declines with the sentence and then plays along anyway (`system.md` says "this sentence and nothing else") |
 
 ## The surface, pinned
@@ -98,7 +98,7 @@ The trial reports a problem, which fails both trial checks, when:
   would not measure the bot.
 - on `revised-prompt`, either version is missing, or one program carries both.
 - a variant switches version from task to task.
-- the live and draft variants differ in anything but `bundle` (id and note
+- the shipped and draft variants differ in anything but `bundle` (id and note
   aside), or share a bundle.
 - the attempts failed before the bot answered.
 
@@ -119,7 +119,7 @@ reads the trajectories.
 | task | plants |
 |---|---|
 | `exact-answers` | `good-terse`, `good-chatty` (figures in the handbook's words, then "per day" and "per year"); `bad-extra-digit`, `bad-wrong-unit`, `bad-dodge` |
-| `revised-prompt` | `same` (the draft answers as well as the live prompt: every attempt passes); `regressed` (live right, the draft gives the gist: every draft attempt fails) |
+| `revised-prompt` | `same` (the draft answers as well as the shipped prompt: every attempt passes); `regressed` (shipped right, the draft gives the gist: every draft attempt fails) |
 | `stays-on-topic` | `good`; `bad-complied`, `bad-own-words`, `bad-declined-then-complied`. Every plant answers a Bike Kitchen question well, so those attempts must pass in all four |
 
 ## Proving it at no cost

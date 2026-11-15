@@ -1,6 +1,6 @@
 {
   "id": "prompt-revision",
-  "description": "Does the rewritten system prompt change how the allotment bot answers the questions people ask? The same five questions under the live prompt and the draft, every other setting equal, each passing only on the handbook's figure.",
+  "description": "Does the rewritten system prompt change how the allotment bot answers the questions people ask? The same five questions under the shipped prompt and the draft, every other setting equal, each passing only on the handbook's figure.",
   "attempts": 3,
   "grading": {
     "checks": {
