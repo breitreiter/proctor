@@ -1,11 +1,43 @@
 # Changelog
 
 Proctor's version is `<Version>` in `Proctor.csproj`; `proctor --version`
-prints it and every `experiment.json` records it under `versions.proctor`.
+prints it and every `batch.json` records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
+
+- **Breaking: the vocabulary is exam, variant, attempt and batch**
+  (`project/plans/exam-variant-attempt.md`, step 1 of
+  `project/plans/exam-variant-attempt-removal.md`). The words change and
+  nothing else does; no old spelling is read, and existing runs are not
+  migrated (make them again). The name map:
+
+  | before | now |
+  |---|---|
+  | `suites/`, `suite.json`, `skills/proctor-suite/` | `exams/`, `exam.json`, `skills/proctor-exam/` |
+  | `runs/<experiment>/`, `experiment.json` | `attempts/<batch>/`, `batch.json` |
+  | `experiment.json` `suite`, `suite_hash`, `suite_def` | `batch.json` `exam`, `exam_hash`, `exam_def` |
+  | `arms` in `suite.json`, an arm's `samples` | `variants` in `exam.json`, a variant's `attempts` |
+  | manifest `experiment`, `arm`, `sample`, `run_id`, `attempts` (retries), `suite_hash` | `batch`, `variant`, `attempt`, `id`, `tries`, `exam_hash` |
+  | `results.jsonl` `run_id`, `arm`, `sample`; `stats.json` `arms`, `k_cells`, `n_cells`, `attempted`, `runs` | `id`, `variant`, `attempt`; `variants`, `k_attempts`, `n_attempts`, `started`, `attempts` |
+  | `friction.json` `friction/0`, `run {experiment, arm, task, sample}` | `friction/1`, `attempt {exam, batch, variant, task, attempt}` |
+  | `PROCTOR_SUITE_DIR`, `PROCTOR_ARM`, `PROCTOR_SAMPLE`, `PROCTOR_EXPERIMENT`, `PROCTOR_CELL` | `PROCTOR_EXAM_DIR`, `PROCTOR_VARIANT`, `PROCTOR_ATTEMPT`, `PROCTOR_BATCH`, `PROCTOR_ATTEMPT_DIR` |
+  | `{{arm}}`, `{{sample}}` | `{{variant}}`, `{{attempt}}` |
+  | `hooks.arm`, `hooks.sample` (`arm.setup.log`, `sample.setup.log`) | `hooks.variant`, `hooks.attempt` (`variant.setup.log`, `attempt.setup.log`) |
+  | `--arm`, `setup --check --live` | `--variant`, `setup --check --probe` |
+  | a judge check's `samples` | `votes` |
+  | the report's run, Run summary, Every run, run id | attempt, Attempt summary, Every attempt, batch |
+
+  The spellings before suite/task (`evals/`, `eval.json`, `cases/`,
+  `PROCTOR_EVAL_DIR`, `PROCTOR_CASE`, `PROCTOR_CASE_JSON`, `{{case}}`) are
+  no longer read. `suite-authoring` is `exam-authoring`; `nb-changes`'
+  `suite-green` check is `tests-green`. `project/gate/old-words.sh` fails
+  on an old word outside its allow-list.
+
+Entries below this line, the unreleased ones above 0.3.6 included, use the
+earlier words: suite (exam), arm (variant), experiment (batch), sample,
+cell or run (attempt).
 
 - `proctor friction <experiment> --reader <judge>`: a chat judge reads
   each run and adds the points rules cannot see (`repair`, `lost`,

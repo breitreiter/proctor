@@ -1,0 +1,41 @@
+# Where project/gate/old-words.sh lets an old word through. One entry per line, fields separated by tabs: a path
+# glob (`*` within a directory, `**` across), optionally a regular expression (any case) that a line must match
+# to pass, and always the reason, starting with #. A glob without a pattern allows the whole file.
+
+# The rename's own record and history, kept as written.
+project/archive/**		# written in the earlier vocabulary, each with a header saying so
+project/plans/exam-variant-attempt.md		# the plan names the old words it replaces
+project/plans/exam-variant-attempt-removal.md		# the work-list names the old words it removes
+CHANGELOG.md		# released entries keep the words of their time; the rename's entry carries the name map
+project/gate/**		# the gate names the words it looks for
+
+# The user's, pending: not reworded in step 1.
+project/todo.md		# loose ends; each section needs a person's judgement
+project/plans/agent-neutral-runs.md		# open plan, the user's to reword or archive
+project/plans/jev-judge-research.md		# open plan, the user's to reword or archive
+project/plans/jev-trial.md		# open plan, the user's to reword or archive
+project/plans/onboarding.md		# open plan, the user's to reword or archive
+project/plans/lab.md		# open plan, the user's to reword or archive
+project/plans/lab-report-worked-example.md		# open plan, the user's to reword or archive
+project/plans/oracle-in-proctor.md		# open plan, the user's to reword or archive
+project/plans/setup/**		# the setup wizard's plan and screen mockups; not on the work-list, the user's to reword or archive
+
+# Not proctor's model, or frozen output of an earlier version.
+project/learnings/**		# notes on other tools and dated findings, kept as written (the work-list keeps them)
+project/lab/**		# throwaway trials over the frozen datasets, which keep the old layout
+bench/**		# the judge bench: its own proctor root at an earlier version, unrelated to the rename
+docs/reports/**		# published reports, rendered by an earlier version
+Proctor.Tests/fixtures/**		# captured transcripts and trajectories, as the agents wrote them
+
+# Still in the code at this step; goes in a later step of the work-list.
+Exam/Baseline.cs		# proctor baseline and baseline.json: deleted in step 4
+Proctor.Tests/BaselineTests.cs		# tests of the baseline: deleted in step 4
+exams/code-change/baseline.json		# a pinned baseline in its own format: deleted in step 4
+Verbs.cs	\bpin(s|ned)?\b	# proctor baseline prints a pin's own fields (baseline.json's format): deleted in step 4
+**	baseline	# the baseline verb, file, types, report text and their tests: deleted in step 4
+**	resum	# proctor resume and Runner.Resume: run continues a batch instead in step 3
+
+# Ordinary English or another tool's word.
+**	\btest suites?\b	# a project's own tests
+**	\btable cells?\b	# a cell of a table
+project/plans/on-disk-layout.md	evaluation suite	# the literature's word for an exam, in the words table
