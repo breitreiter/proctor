@@ -1,6 +1,6 @@
 {
   "id": "agent-onboarding",
-  "description": "Given only proctor's own onboarding surface (the proctor-exam skill, the docs and the CLI, at a pinned revision), can a shipped coding agent stage a working chat-only exam for a small chatbot project it has never seen? Each written exam is graded by running it against planted runs of its own tasks on nb's Mock provider: it must pass the right answers and fail the wrong ones.",
+  "description": "Given only proctor's own onboarding surface (the proctor-exam skill, the docs and the CLI, at a pinned revision), can a shipped coding agent stage a working chat-only exam for a small chatbot project it has never seen? Each written exam is graded by running it against planted attempts at its own tasks on nb's Mock provider: it must pass the right answers and fail the wrong ones.",
   "attempts": 3,
   "labels": {
     "area": "onboarding/agents",

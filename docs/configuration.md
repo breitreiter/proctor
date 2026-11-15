@@ -132,9 +132,7 @@ missing in a new batch. The worked example is
 `exams/runners/container.sh` with the `exam-authoring` exam's hooks and the
 `Containerfile` beside the runner, which puts nb's own image
 (`podman build -t nb .` in the nb repository) on the .NET SDK. The
-commands below show the two modes; `exam-authoring` itself does not run
-yet, since its variants' pinned bundle predates the rename (its README
-says why):
+commands below show the two modes:
 
 ```bash
 proctor run exam-authoring                 # each attempt in its own container, as exam.json says

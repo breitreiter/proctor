@@ -34,13 +34,9 @@ part of its hash. `hooks/variant-setup.sh` prepares the machine and does not bra
 the variant: it builds proctor at the bundle's revision and puts the build beside the
 bundle in the *view*, the files the agent sees at `/work/.bundle`, read-only.
 
-**The pin predates the rename, so this exam does not run yet.** The pinned
-revision documents the layout before exam, variant and attempt and has no
-`docs/` and no `exams/`, so the bundle's `paths` are not in it and `proctor run`
-stops while resolving the bundle. The paths name the new layout, which is what
-the agent should be shown; the pin moves, in both variant files and as a new
-id for each (a changed variant is a new variant), to a pushed revision with the
-new words. Moving the pin is a push, and the user's. The view sits inside the workspace because nb's file
+**Moving the pin.** The revision must be pushed, since the bundle is cloned
+from GitHub. Once a variant has made attempts, moving its pin changes it, and
+a changed variant is a new variant: give each a new id. The view sits inside the workspace because nb's file
 tools (`read_file`, `grep`, `list_dir`) read only under the working directory;
 mounted beside it, the documentation could be read only through `bash`. The only difference between the variants is whether the examples are in
 the bundle, so comparing them tests a theory about how agents use documentation:

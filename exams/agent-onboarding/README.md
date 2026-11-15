@@ -53,15 +53,8 @@ the third `image.run` line of the three `fixtures/onboarding-*/fixture.json`.
 The block is identical in all three, so one command does it:
 
 ```bash
-sed -i 's/76494f192dc303d4b4bb5256702bb4fc1e04e7b2/<new sha>/g' fixtures/onboarding-*/fixture.json
+sed -i 's/b3250b68f59a9d8bb35c8fd1860cbbfb63196220/<new sha>/g' fixtures/onboarding-*/fixture.json
 ```
-
-**The pin predates the rename.** The pinned revision is proctor before exam,
-variant and attempt: its skill and docs teach the layout before the rename,
-and its build reads only that. `checks/written.sh` and `trial/run.sh` now look
-for `exams/<id>/exam.json` with its variants in `variants/<id>.json`, so until the pin
-moves to a pushed revision with the new words, every written exam fails
-`validates` and the trial cannot run on the pinned build.
 
 The revision must be pushed to GitHub, since the image clones it. A fixture's
 image block cannot be shared between fixtures, so the pin appears three times.

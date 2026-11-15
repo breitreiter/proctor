@@ -7,7 +7,7 @@
   "model": "qwen3-coder-next",
   "bundle": {
     "git": "https://github.com/breitreiter/proctor.git",
-    "rev": "1e71808b804a63a3469f3ca91ff3efaf9b95a1d0",
+    "rev": "b3250b68f59a9d8bb35c8fd1860cbbfb63196220",
     "paths": [
       "README.md",
       "docs/configuration.md",

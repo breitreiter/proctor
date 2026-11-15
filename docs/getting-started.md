@@ -111,9 +111,7 @@ Two things it can read for itself:
   reach. Neither holds a key.
 - `exams/` holds worked examples: `readme-answers` for a question answered
   from a document, `cli-for-agents` for a code change checked by running
-  the result, `exam-authoring` for an agent that writes exams (read it
-  for its shape: its pinned bundle predates the rename, so it does not
-  run yet).
+  the result, `exam-authoring` for an agent that writes exams.
 
 Your agent should never handle a key. When an exam needs a provider you
 have not added, run `proctor setup` yourself.
