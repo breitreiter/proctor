@@ -103,6 +103,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         RefuseChangedVariants(root, exam);
         string? last = null;
         var considered = new HashSet<string>();
+        var continued = new HashSet<(string Batch, string Label)>();
         while (Pool.Interrupted(exam, Pool.Of(root, exam), variants, tasks).FirstOrDefault(i => !considered.Contains(i.Batch.Id)) is { } interrupted)
         {
             var batch = interrupted.Batch;
@@ -118,9 +119,17 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             if (nbOverride is not null) batch = batch with { Nb = batch.Nb with { Path = Path.GetFullPath(nbOverride) } };
             new Runner(root, batch, exam, config, log).Make(interrupted.Missing
                 .Select(a => (exam.Variants.First(v => v.Id == a.Variant), exam.Tasks.First(t => t.Id == a.Task), a.Attempt)).ToList());
+            continued.UnionWith(interrupted.Missing.Select(a => (batch.Id, a.Label)));
             last = batch.Id;
         }
-        var missing = Pool.Missing(exam, Pool.Of(root, exam), variants, tasks);
+        var pool = Pool.Of(root, exam);
+        // What was continued just now and failed again is not made a second time in a new batch: whatever stopped it is
+        // still there, and the next `proctor run` continues it.
+        var failedAgain = pool.Where(a => a.Unfinished && continued.Contains((a.Batch.Id, a.Label)))
+            .GroupBy(a => (a.Variant, a.Task)).ToDictionary(g => g.Key, g => g.Count());
+        var missing = Pool.Missing(exam, pool, variants, tasks).GroupBy(m => (m.Variant.Id!, m.Task.Id!))
+            .SelectMany(g => g.SkipLast(failedAgain.GetValueOrDefault(g.Key))).ToList();
+        if (failedAgain.Count > 0) log.WriteLine($"{AttemptCount(failedAgain.Values.Sum())} failed again and {(failedAgain.Values.Sum() == 1 ? "is" : "are")} left for the next `proctor run {exam.Id}`");
         if (missing.Count > 0) return Start(root, exam, config, nbOverride, runnerOverride, commandLine, log, missing);
         if (last is null)
             log.WriteLine($"{exam.Id}: {(variants is null && tasks is null ? "every variant" : "every variant asked for")} has its {AttemptCount(exam.Attempts)} of each task{(tasks is null ? "" : " asked for")}; nothing to make");

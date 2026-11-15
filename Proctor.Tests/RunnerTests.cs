@@ -296,6 +296,28 @@ public class RunnerTests
     }
 
     [Fact]
+    public void Run_ContinuingABatchWhoseAttemptFailsAgain_LeavesItForTheNextRun_AndMakesNoSecondBatch()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        repo.Write("smoke/hooks/flaky-setup.sh", "#!/usr/bin/env bash\nif [ \"$PROCTOR_TASK\" = plain ]; then echo 'no fixture for plain' >&2; exit 7; fi\nmkdir -p \"$PROCTOR_WORK\"\n");
+        File.SetUnixFileMode(Path.Combine(repo.Root, "exams/smoke/hooks/flaky-setup.sh"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var id = StartSmoke(repo, e =>
+        {
+            repo.KeepOnlyVariant("smoke", "a"); e["attempts"] = 1;
+            e["hooks"]!["attempt"]!["setup"] = "hooks/flaky-setup.sh";
+        });
+
+        var log = new StringWriter();
+        var again = Runner.Run(repo.Root, repo.LoadExam("smoke"), Exam.LoadConfig(repo.Root, []), null, null, "test", log);
+
+        Assert.Equal(id, again);
+        Assert.Single(Directory.GetDirectories(Path.Combine(repo.Root, Layout.AttemptsDir)));
+        Assert.Equal("failed", Runner.ReadStatus(Attempt(repo, id, "a", "plain", 1)));
+        Assert.Contains("1 attempt failed again and is left for the next `proctor run smoke`", log.ToString());
+    }
+
+    [Fact]
     public void VariantHookFailure_FailsEveryAttemptOfThatVariant_AndTheNextVariantRuns()
     {
         using var repo = new TestRepo();

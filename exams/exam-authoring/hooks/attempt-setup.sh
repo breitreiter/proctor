@@ -14,14 +14,19 @@ if [ -z "$PROCTOR_RUNNER" ]; then
 fi
 engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)
 "$engine" rm -f "$PROCTOR_CONTAINER" >/dev/null 2>&1 || true
+# The bundle mount sits inside the work mount, so its mount point is made here: a rootless engine cannot make it in a directory it does not own.
+case "$PROCTOR_BUNDLE_MOUNT" in "$PROCTOR_WORK_MOUNT"/*) mkdir -p "$PROCTOR_WORK/${PROCTOR_BUNDLE_MOUNT#"$PROCTOR_WORK_MOUNT"/}" ;; esac
 args=(-d --name "$PROCTOR_CONTAINER"
       -v "$PROCTOR_WORK:$PROCTOR_WORK_MOUNT"
       -v "$view:$PROCTOR_BUNDLE_MOUNT:ro"
       -v "$PROCTOR_NB_CONFIG:/nb/config.json:ro"
       -v proctor-nuget:/home/agent/.nuget/packages
       -e LLM_GATEWAY -e LLM_GATEWAY_KEY)
-gateway=$(printf '%s' "${LLM_GATEWAY:-}" | sed -E 's#^[a-z]+://##; s#[:/].*##')
-if [ -n "$gateway" ] && ip=$(getent hosts "$gateway" | cut -d' ' -f1 | head -1) && [ -n "$ip" ]; then args+=(--add-host "$gateway:$ip"); fi
+# nb's config names the variables it reads (${VAR}) and the hosts it calls: the container gets both, whatever this machine calls them.
+for var in $(grep -oE '\$\{[A-Za-z_][A-Za-z0-9_]*\}' "$PROCTOR_NB_CONFIG" | tr -d '${}' | sort -u); do args+=(-e "$var"); done
+for host in $( { printf '%s\n' "${LLM_GATEWAY:-}"; grep -oE 'https?://[^/:"$ ]+' "$PROCTOR_NB_CONFIG"; } | sed -E 's#^[a-z]+://##; s#[:/].*##' | sort -u); do
+  if ip=$(getent hosts "$host" | cut -d' ' -f1 | head -1) && [ -n "$ip" ]; then args+=(--add-host "$host:$ip"); fi
+done
 [ "$engine" = podman ] && args+=(--userns=keep-id)
 "$engine" run "${args[@]}" proctor-dotnet sleep infinity >/dev/null
 echo "$engine container $PROCTOR_CONTAINER: $PROCTOR_WORK at $PROCTOR_WORK_MOUNT, $view at $PROCTOR_BUNDLE_MOUNT"

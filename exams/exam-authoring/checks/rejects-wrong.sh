@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Does the written exam fail every planted wrong run (trial/<task>/bad-*)? Reason: which wrong runs
-# got through, or which check caught each one. An undecided wrong run was not caught.
+# Does the written exam fail every planted wrong attempt (trial/<task>/bad-*)? Reason: which wrong attempts
+# got through, or which check caught each one. An undecided wrong attempt was not caught.
 set -uo pipefail
 "$PROCTOR_EXAM_DIR/checks/trial.sh"
 t="$PROCTOR_ATTEMPT_DIR/trial/trial.json"
@@ -8,6 +8,6 @@ t="$PROCTOR_ATTEMPT_DIR/trial/trial.json"
 err=$(jq -r '.error // empty' "$t"); [ -z "$err" ] || { echo "$err"; exit 1; }
 through=$(jq -r '[.variants | to_entries[] | select(.key | startswith("bad-")) | select(any(.value[]; .pass != false)) | .key] | join(", ")' "$t")
 total=$(jq '[.variants | keys[] | select(startswith("bad-"))] | length' "$t")
-if [ -n "$through" ]; then echo "lets through $through (of $total wrong runs)"; exit 1; fi
+if [ -n "$through" ]; then echo "lets through $through (of $total wrong attempts)"; exit 1; fi
 echo "rejects all $total: $(jq -r '[.variants | to_entries[] | select(.key | startswith("bad-"))
   | "\(.key) by \([.value[].checks // {} | to_entries[] | select(.value == "fail") | .key] | unique | join("+"))"] | join("; ")' "$t")"
