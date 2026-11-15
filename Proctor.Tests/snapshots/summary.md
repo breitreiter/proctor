@@ -4,16 +4,14 @@ Thursday, 17 September 2026, started 14:32 UTC
 
 Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?
 
-**Against the baseline pinned 14 Sep 2026**
+**Against the live variant, floor**
 
-| Variant | Passed | 95% interval | Change against the baseline | 95% interval |
+| Variant | Passed | 95% interval | Change against floor | 95% interval |
 |---|---|---|---|---|
-| floor (reference) | 56% | 15% to 90% | −22 points, **worse** (unconfirmed) | −67 to +39 |
-| b | 89% | 35% to 99% | +11 points, **better** (unconfirmed) | −46 to +63 |
+| floor (live) | 56% | 15% to 90% | — | — |
+| b | 89% | 35% to 99% | +33 points, **better** (unconfirmed) | −31 to +75 |
 
-**floor**: lower on loops (−33) and uses-bash (−33); same on plain.
-
-**b**: higher on uses-bash (+33); same on loops and plain.
+**b**: higher on loops (+33) and uses-bash (+67); same on plain.
 
 **Why unconfirmed:** with 3 tasks this report can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.
 
@@ -22,7 +20,7 @@ Can a local coder model make a small change to a .NET repository so that it buil
 | | |
 |---|---|
 | Host | bench |
-| Variants | 2: `floor` (the reference), `b` |
+| Variants | 2: `floor` (live), `b` |
 | Tasks | 3, each attempted 3 times per variant |
 | Attempts | 18 planned, 16 counted |
 
@@ -30,7 +28,7 @@ Can a local coder model make a small change to a .NET repository so that it buil
 
 ## Variants
 
-A variant is one configuration under test: a harness, a provider and a model, given every task. The first variant is the reference the others are compared with.
+A variant is one configuration under test: a harness, a provider and a model, given every task. The live variant, `floor`, is the one in use now and the reference the others are compared with.
 
 | Variant | What it is | Harness | Provider | Model | Attempts per task |
 |---|---|---|---|---|---|
@@ -59,7 +57,7 @@ A check that cannot decide an attempt leaves that attempt out of its rate on bot
 | builds | the repository builds after the change | headline |
 | no_denials | no denied tool calls | validity |
 
-Each task's results show one mark per attempt: ● passed, ○ failed, ? undecided, × not counted. Hover a mark for the reason; click it for the attempt. A task scores its mean over its counted, decided attempts, and is called better or worse than its baseline beyond 10 points either way.
+Each task's results show one mark per attempt: ● passed, ○ failed, ? undecided, × not counted. Hover a mark for the reason; click it for the attempt. A task scores its mean over its counted, decided attempts.
 
 ### loops
 
@@ -69,10 +67,10 @@ Fixture **note** · Attempted **3 times** per variant · **3 checks**: 3 from th
 
 **Results**
 
-| Variant | Attempts | Score | Passed / decided | vs baseline (100%) | Verdict |
-|---|---|---|---|---|---|
-| floor | ● ● ○ | **67%** | 2 of 3 | −33 points | worse |
-| b | ● ● ● | **100%** | 3 of 3 | ±0 points | same |
+| Variant | Attempts | Score | Passed / decided |
+|---|---|---|---|
+| floor | ● ● ○ | **67%** | 2 of 3 |
+| b | ● ● ● | **100%** | 3 of 3 |
 
 - floor attempt 3 failed: exit_ok: exit_reason=max_tool_calls
 
@@ -84,10 +82,10 @@ Fixture **note** · Attempted **3 times** per variant · **3 checks**: 3 from th
 
 **Results**
 
-| Variant | Attempts | Score | Passed / decided | vs baseline (100%) | Verdict |
-|---|---|---|---|---|---|
-| floor | ● ● × | **100%** | 2 of 2 | ±0 points | same |
-| b | ● ● ● | **100%** | 3 of 3 | ±0 points | same |
+| Variant | Attempts | Score | Passed / decided |
+|---|---|---|---|
+| floor | ● ● × | **100%** | 2 of 2 |
+| b | ● ● ● | **100%** | 3 of 3 |
 
 - floor attempt 3 not counted: no_denials: 1 denied call: bash (no-match)
 
@@ -105,10 +103,10 @@ Fixture **note** · Attempted **3 times** per variant · **4 checks**: 3 from th
 
 **Results**
 
-| Variant | Attempts | Score | Passed / decided | vs baseline (33%) | Verdict |
-|---|---|---|---|---|---|
-| floor | ○ × ○ | **0%** | 0 of 2 | −33 points | worse |
-| b | ● ○ ● | **67%** | 2 of 3 | +33 points | better |
+| Variant | Attempts | Score | Passed / decided |
+|---|---|---|---|
+| floor | ○ × ○ | **0%** | 0 of 2 |
+| b | ● ○ ● | **67%** | 2 of 3 |
 
 - floor attempt 1 failed: builds: 2 of 41 tests failed
 - floor attempt 2 never completed: attempt setup hook failed: `hooks/reset-fixture.sh` exited 1: clone failed
@@ -124,7 +122,7 @@ Pass rate is the share of counted attempts in which every headline check held, a
 | `floor` | 56% | 15% to 90% | 4 / 7 |
 | `b` | 89% | 35% to 99% | 8 / 9 |
 
-**Against the reference variant, `floor`.** Each variant's pass rate minus `floor`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with 3 tasks, it could be noise.
+**Against the live variant, `floor`.** Each variant's pass rate minus `floor`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with 3 tasks, it could be noise.
 
 | Variant | Difference from `floor` | 95% interval | Tasks better / worse / same | Verdict |
 |---|---|---|---|---|
@@ -132,14 +130,7 @@ Pass rate is the share of counted attempts in which every headline check held, a
 
 With 3 paired tasks this report can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.
 
-**Against the baseline.** The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each variant's score with it and calls anything more than 10 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.
-
-| Variant | Difference from baseline | 95% interval | Tasks better / worse / same | Verdict |
-|---|---|---|---|---|
-| `floor` | −22 points | −67 to +39 | 0 / 2 / 1 | **Worse** (unconfirmed) |
-| `b` | +11 points | −46 to +63 | 1 / 0 / 2 | **Better** (unconfirmed) |
-
-How each task scored against its baseline, and why attempts failed, is shown with the task under Tasks.
+How each task scored, and why attempts failed, is shown with the task under Tasks.
 
 ## Failures
 
@@ -242,4 +233,4 @@ What produced this report, so it can be run again, and how the numbers were comp
 | command | `proctor run smoke` |
 | created | 2026-09-17T14:32:00Z |
 
-Each task is scored as its mean over its counted, decided attempts, so n in every interval is the number of tasks. Per-variant rates use the Wilson 95% interval. Differences between variants, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the attempt's wall time including hooks; tokens are the attempt's own count. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each variant and each task; a variant's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).
+Each task is scored as its mean over its counted, decided attempts, so n in every interval is the number of tasks. Per-variant rates use the Wilson 95% interval. Differences from the live variant, floor, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the attempt's wall time including hooks; tokens are the attempt's own count. No multiplicity adjustment; 1 comparison shown.

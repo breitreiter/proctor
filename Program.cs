@@ -13,7 +13,6 @@ static class Program
           report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json, report.html and summary.md, stamped with what they were built from
           live <exam> [variant]  mark a variant live in exams/<exam>/live.json (commit it): the one in use now, which the report
                                  compares the others with; with no variant, say which is live. Delete the file to have none
-          baseline <batch>       pin a variant's analysed attempts in that batch as the exam's baseline, per task
           setup                  set up providers and keys for this machine, job by job (needs a terminal)
 
         An attempt is current while its variant's and its task's hashes are today's; one made before either changed is
@@ -25,15 +24,12 @@ static class Program
         --nb <path>           the nb binary (default: exams/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per attempt (default: the exam's nb.runner); none runs nb bare
         --batch <id>          grade, friction, report: only that batch's attempts
-        --variant <id>        run, grade, friction, report: only this variant's attempts, the others left as they are (repeatable); baseline: which variant to pin (required with several variants)
-        --tasks <a,b>         run, grade, friction, report: only these tasks' attempts; baseline: only these tasks, the rest keep their pins
+        --variant <id>        run, grade, friction, report: only this variant's attempts, the others left as they are (repeatable)
+        --tasks <a,b>         run, grade, friction, report: only these tasks' attempts
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the attempts' verdict files; friction --reader: ask the reader again
         --reader <judge>      friction: a chat judge reads each attempt too and adds what rules cannot see (repair, lost, reread, dead-end, workaround), each with a checked quote; a model call per attempt, kept in the attempt and reused
         --version             print proctor's version (see CHANGELOG.md for what changed between versions)
-        --tolerance <points>  report: how far below the baseline still counts as held (default 0)
-        --fail-on regression  report: exit 1 when any variant regressed against the baseline
-        --against <batch>     report: compare each variant with the variant of the same id in that batch, in place of the baseline
         --check               setup: print what is set up and what is missing, plain lines for an agent; exit 1 on a problem
         --probe               setup --check: repeat each provider's key check (lists models; no tokens)
         """;
@@ -41,9 +37,8 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, failOn = null, against = null, configFile = null, reader = null, batch = null;
+        string? nbPath = null, runner = null, configFile = null, reader = null, batch = null;
         List<string>? tasks = null, labels = null, judges = null, variants = null;
-        var tolerance = 0;
         var rejudge = false;
         var check = false;
         var probe = false;
@@ -65,9 +60,6 @@ static class Program
                 case "--check": check = true; break;
                 case "--probe": probe = true; break;
                 case "--tasks" when i + 1 < args.Length: tasks = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); break;
-                case "--tolerance" when i + 1 < args.Length && int.TryParse(args[i + 1], out var t) && t >= 0: tolerance = t; i++; break;
-                case "--against" when i + 1 < args.Length: against = args[++i]; break;
-                case "--fail-on" when i + 1 < args.Length && args[i + 1] == "regression": failOn = args[++i]; break;
                 case "-h" or "--help": Console.WriteLine(Usage); return 0;
                 case "--version": Console.WriteLine($"proctor {Runner.ProctorVersion}"); return 0;
                 case var flag when flag.StartsWith("--"): Console.Error.WriteLine($"unknown flag {flag}"); Console.Error.WriteLine(Usage); return 1;
@@ -85,10 +77,9 @@ static class Program
                 ("run", [var exam]) => Verbs.Run(root, exam, nbPath, runner, configFile, variants, tasks),
                 ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, batch, configFile),
                 ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, batch, reader, rejudge, configFile),
-                ("report", [var exam]) => Verbs.Report(root, exam, tolerance, failOn, against, batch, variants, tasks),
+                ("report", [var exam]) => Verbs.Report(root, exam, batch, variants, tasks),
                 ("live", [var exam]) => Verbs.Live(root, exam, null),
                 ("live", [var exam, var variant]) => Verbs.Live(root, exam, variant),
-                ("baseline", [var id]) => Verbs.Baseline(root, id, variants, tasks),
                 ("setup", []) => Verbs.Setup(root, check, probe),
                 _ => Fail(Usage),
             };

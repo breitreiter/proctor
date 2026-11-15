@@ -67,29 +67,16 @@ record Comparison(string Variant, string Vs, int NPairs, int DiffPoints, int[] C
 record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
 /// <summary>
-/// The guard comparison: every variant against the exam's pinned baseline, with a tolerance on the point estimate.
-/// With <c>Against</c> (report --against), each variant against the variant of the same id in that batch instead, and
-/// <c>Set</c> is when it was created; <c>Unpaired</c> are the variants it does not have. <c>Pinned</c> are the variants
-/// the exam's baseline pinned its runs from, so the report can say whose scores every variant is compared with.
+/// The live mark as the report read it: the variant it names and since when. <c>NotReference</c> says why that variant is not
+/// the reference the others are compared with (its mark is broken, or it has no attempt in this report); null when it is.
 /// </summary>
-record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineVariant> Variants, List<BaselineGap>? Gaps = null, string? Against = null, List<string>? Unpaired = null, List<string>? Pinned = null);
-
-/// <summary>
-/// <c>Verdict</c> is the point estimate against the tolerance, and is what <c>--fail-on regression</c> reads.
-/// <c>Confirmed</c> says the whole 95% interval lies in the region the verdict names: beyond the tolerance on
-/// that side for <c>regressed</c> or <c>improved</c>, within it for <c>held</c>. <c>Score</c> is the baseline's own
-/// score over the paired tasks (the mean of their pinned scores), which the report's chart marks beside the variant's rate.
-/// </summary>
-record BaselineVariant(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, bool Confirmed, Dictionary<string, BaselineTask> Tasks, int? MdePoints = null, double? Score = null);
-
-/// <summary>One task against its pinned score, with the same tolerance on the difference.</summary>
-record BaselineTask(double Baseline, double Variant, int DiffPoints, string Verdict);
+record LiveStats(string Variant, string Since, string? NotReference = null);
 
 record StatsFile(
     string Exam, int NTasks, bool Paired,
     Dictionary<string, VariantStats> Variants, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
-    Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null,
+    Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, LiveStats? Live = null, Dictionary<string, TaskJson>? TaskDetails = null,
     List<ErroredCheck>? ErroredChecks = null, BuiltFrom? BuiltFrom = null);
 
 /// <summary>
@@ -100,22 +87,17 @@ record StatsFile(
 record BuiltFrom(string At, List<string> Batches, Dictionary<string, string> Variants, Dictionary<string, string> Tasks, int Current, int Stale,
     List<StaleAttempt>? StaleAttempts = null, string? Narrowed = null, Dictionary<string, List<string>>? Mixed = null);
 
-/// <summary>What the report knows about the baseline: the resolved per-task scores, where they came from, and the tolerance asked for.</summary>
-/// <summary>What the variants are compared with: one set of task scores for every variant, or with <c>PerVariant</c> (report --against) each variant's own, and none for a variant it lacks.</summary>
-record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints, List<BaselineGap>? Gaps = null,
-    string? Against = null, Dictionary<string, Dictionary<string, double>>? PerVariant = null, List<string>? Pinned = null)
-{
-    public Dictionary<string, double>? ScoresFor(string variant) => PerVariant is null ? Scores : PerVariant.GetValueOrDefault(variant);
-}
-
 static class Stats
 {
     const double Z = 1.959964;           // 97.5th percentile of the standard normal
     const double ZPower = 2.801582;      // z_0.975 + z_0.80, for MDE at 80% power
     const double AssumedSdOfPairedDifference = 0.5;
 
-    /// <summary>The statistics of the rows given: the exam's variants and tasks that have an attempt among them, in the exam's order.</summary>
-    public static StatsFile Compute(Exam exam, List<ResultRow> rows, GuardInput? guard = null, BuiltFrom? built = null)
+    /// <summary>
+    /// The statistics of the rows given: the exam's variants and tasks that have an attempt among them, in the exam's order.
+    /// With a live mark that holds and a live variant among them, every other variant is compared with it; otherwise none is.
+    /// </summary>
+    public static StatsFile Compute(Exam exam, List<ResultRow> rows, Live? live = null, BuiltFrom? built = null)
     {
         var variants = exam.Variants.Select(a => a.Id!).Where(a => rows.Any(r => r.Variant == a)).ToList();
         var tasks = exam.Tasks.Select(c => c.Id!).Where(c => rows.Any(r => r.Task == c)).ToList();
@@ -126,47 +108,21 @@ static class Stats
         var variantStats = variants.ToDictionary(a => a, a => VariantStats(byVariant[a], tasks, checks, validity));
 
         var scores = variants.ToDictionary(a => a, a => TaskScores(byVariant[a].Where(r => r.Decided).ToList(), tasks, r => r.Pass == true));
+        var broken = live?.Broken(exam);
+        var reference = live is not null && broken is null && variants.Contains(live.Variant.Id) ? live.Variant.Id : null;
+        var liveStats = live is null ? null : new LiveStats(live.Variant.Id, live.Since,
+            broken ?? (reference is null ? "it has no current attempt in this report" : null));
         var comparisons = new List<Comparison>();
-        foreach (var other in variants.Skip(1))
+        foreach (var other in variants.Where(a => reference is not null && a != reference))
         {
-            var c = Compare(other, variants[0], scores[other], scores[variants[0]], tasks);
+            var c = Compare(other, reference!, scores[other], scores[reference!], tasks);
             if (c is not null) comparisons.Add(c);
         }
 
-        BaselineStats? baseline = null;
-        if (guard is not null)
-        {
-            var against = new Dictionary<string, BaselineVariant>();
-            foreach (var variant in variants)
-            {
-                if (guard.ScoresFor(variant) is not { } theirs) continue;
-                var c = Compare(variant, "baseline", scores[variant], theirs, tasks);
-                if (c is null) continue;
-                var tol = guard.TolerancePoints;
-                var verdict = GuardVerdict(c.DiffPoints, tol);
-                var confirmed = verdict switch
-                {
-                    "regressed" => c.Ci95[1] < -tol,
-                    "improved" => c.Ci95[0] > tol,
-                    _ => c.Ci95[0] >= -tol && c.Ci95[1] <= tol,
-                };
-                var perTask = c.Tasks.ToDictionary(x => x.Key, x => new BaselineTask(Round3(theirs[x.Key]), Round3(scores[variant][x.Key]), x.Value, GuardVerdict(x.Value, tol)));
-                against[variant] = new BaselineVariant(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, confirmed, perTask,
-                    Score: Round3(c.Tasks.Keys.Average(x => theirs[x])));
-            }
-            var unpaired = guard.PerVariant is null ? null : variants.Where(a => !guard.PerVariant.ContainsKey(a)).ToList();
-            baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against, guard.Gaps is { Count: > 0 } ? guard.Gaps : null,
-                guard.Against, unpaired is { Count: > 0 } ? unpaired : null, guard.Pinned);
-        }
-
-        // The run's reach is its widest pairing; a pair on fewer tasks carries its own, smaller reach.
-        var pairs = comparisons.Select(c => c.NPairs).Concat(baseline?.Variants.Values.Select(g => g.NPairs) ?? []).ToList();
-        var nPairs = pairs.Count > 0 ? pairs.Max() : tasks.Count(c => byVariant[variants[0]].Any(r => r.Task == c && r.Decided));
+        // The report's reach is its widest pairing; a pair on fewer tasks carries its own, smaller reach. With no pairing, the most tasks a variant decided.
+        var nPairs = comparisons.Count > 0 ? comparisons.Max(c => c.NPairs) : variants.Select(a => scores[a].Count).DefaultIfEmpty(0).Max();
         var mde = Mde(nPairs);
-        int? Short(int n) => n < nPairs ? Mde(n).Points : null;
-        comparisons = comparisons.Select(c => c with { MdePoints = Short(c.NPairs) }).ToList();
-        if (baseline is not null)
-            baseline = baseline with { Variants = baseline.Variants.ToDictionary(g => g.Key, g => g.Value with { MdePoints = Short(g.Value.NPairs) }) };
+        comparisons = comparisons.Select(c => c with { MdePoints = c.NPairs < nPairs ? Mde(c.NPairs).Points : null }).ToList();
 
         var matrix = variants.ToDictionary(a => a, a => tasks.ToDictionary(c => c,
             c => byVariant[a].Where(r => r.Task == c).OrderBy(r => r.Attempt).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
@@ -186,13 +142,14 @@ static class Stats
             return new ErroredCheck(name, errors.Count, counted.Count, variants.Where(a => errors.Any(r => r.Variant == a)).ToDictionary(a => a, a => errors.Count(r => r.Variant == a)));
         }).Where(u => u.Attempts > 1 && (u.Attempts > 5 || u.Attempts > 0.05 * u.Of)).ToList();   // one error is a blip, listed under its variant
 
-        var vs = guard?.Against is null ? "the baseline" : "each variant's earlier run";
         var methods = "Each task is scored as its mean over its counted, decided attempts, so n in every interval is the number of tasks. "
-            + $"Per-variant rates use the Wilson 95% interval. Differences between variants, and against {vs}, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
+            + "Per-variant rates use the Wilson 95% interval. "
+            + (reference is null
+                ? "No variant is live, so none is compared with another. "
+                : $"Differences from the live variant, {reference}, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). ")
             + $"The detectable difference assumes 80% power and a per-task paired-difference sd of {AssumedSdOfPairedDifference}. "
-            + "Durations are the attempt's wall time including hooks; tokens are the attempt's own count. "
-            + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
-            + (baseline is null ? "" : $" The {(guard?.Against is null ? "baseline verdict" : "verdict against each variant's earlier run")} is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each variant and each task; a variant's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
+            + "Durations are the attempt's wall time including hooks; tokens are the attempt's own count."
+            + (reference is null ? "" : $" No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown.");
 
         var descriptions = new Descriptions(
             exam.Def.Description,
@@ -202,7 +159,7 @@ static class Stats
 
         var taskDetails = exam.Tasks.Where(c => tasks.Contains(c.Id!)).ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, exam.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
-        return new StatsFile(exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
+        return new StatsFile(exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, liveStats, taskDetails,
             erroredChecks.Count > 0 ? erroredChecks : null, built);
     }
 
@@ -381,9 +338,6 @@ static class Stats
             Verdict: lo > 0 ? "better" : hi < 0 ? "worse" : "no-detectable-difference",
             Tasks: shared.ToDictionary(c => c, c => Points(a[c] - b[c])));
     }
-
-    static string GuardVerdict(int diffPoints, int tolerance) =>
-        diffPoints < -tolerance ? "regressed" : diffPoints > tolerance ? "improved" : "held";
 
     /// <summary>The minimum detectable effect at 80% power for a paired design with the assumed sd, and the n a 10-point effect needs.</summary>
     public static Mde Mde(int nPairs)

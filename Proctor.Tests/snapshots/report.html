@@ -56,7 +56,6 @@ b { font-weight: 600; }
 .chart .bar { stroke: #595959; stroke-width: 2; stroke-linecap: round; }
 .chart .dot { fill: #1b1b1b; stroke: #fff; stroke-width: 2; }
 .chart .ddot { stroke-width: 2; }
-.chart .mark { stroke: #1b1b1b; stroke-width: 1.5; stroke-dasharray: 3 2; }
 .verdict-lines { display: flex; flex-direction: column; gap: 6px; }
 .rpt .verdict-lines p { margin: 0; max-width: 44rem; }
 .verdict-foot { border-top: 1px solid #e4e4e0; padding-top: 16px; }
@@ -127,33 +126,28 @@ b { font-weight: 600; }
 </header>
 <p>Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?</p>
 <div class="verdict" role="region" aria-label="Verdict">
-<div class="kicker">Against the baseline pinned 14 Sep 2026</div>
-<svg class="chart" viewBox="0 0 746 170" width="746" height="170" role="img" aria-label="Pass rate per variant with its 95% interval, and each variant&#39;s change against the baseline in points">
-<text x="130" y="16" class="ch">Pass rate</text><text x="130" y="33" class="cs">dot: share of attempts passed · bar: 95% interval</text>
-<text x="450" y="16" class="ch">Change against the baseline</text><text x="450" y="33" class="cs">points · hollow: not confirmed</text>
-<line x1="130" x2="130" y1="64" y2="140" class="grid"/><text x="130" y="157" class="ax" text-anchor="middle">0%</text>
-<line x1="192.5" x2="192.5" y1="64" y2="140" class="grid"/><text x="192.5" y="157" class="ax" text-anchor="middle">25%</text>
-<line x1="255" x2="255" y1="64" y2="140" class="grid"/><text x="255" y="157" class="ax" text-anchor="middle">50%</text>
-<line x1="317.5" x2="317.5" y1="64" y2="140" class="grid"/><text x="317.5" y="157" class="ax" text-anchor="middle">75%</text>
-<line x1="380" x2="380" y1="64" y2="140" class="grid"/><text x="380" y="157" class="ax" text-anchor="middle">100%</text>
-<line x1="450" x2="450" y1="64" y2="140" class="grid"/><text x="450" y="157" class="ax" text-anchor="middle">−100</text>
-<line x1="500" x2="500" y1="64" y2="140" class="grid"/><text x="500" y="157" class="ax" text-anchor="middle">−50</text>
-<line x1="550" x2="550" y1="64" y2="140" class="zero"/><text x="550" y="157" class="ax" text-anchor="middle">0</text>
-<line x1="600" x2="600" y1="64" y2="140" class="grid"/><text x="600" y="157" class="ax" text-anchor="middle">+50</text>
-<line x1="650" x2="650" y1="64" y2="140" class="grid"/><text x="650" y="157" class="ax" text-anchor="middle">+100</text>
-<text x="324.5" y="58" class="ax" text-anchor="middle">baseline 78%</text>
-<text x="0" y="94" class="variant">floor <tspan class="cs">reference</tspan></text>
-<line x1="324.5" x2="324.5" y1="76" y2="102" class="mark"><title>The baseline&#39;s score: 78%</title></line>
-<g><title>floor: 56% of attempts passed (4 of 7); 95% interval 15% to 90% over 3 tasks</title><rect x="161.8" y="76" width="198.8" height="26" fill="transparent"/><line x1="167.8" x2="354.5" y1="89" y2="89" class="bar"/><circle cx="269" cy="89" r="5" class="dot"/></g><text x="390" y="94" class="val">56%</text>
-<g><title>floor: −22 points; 95% interval −67 to +39; worse, not confirmed</title><rect x="477" y="76" width="118" height="26" fill="transparent"/><line x1="483" x2="589" y1="89" y2="89" class="bar" style="stroke:#a52d15"/><circle cx="528" cy="89" r="5" class="ddot" style="stroke:#a52d15;fill:#fff"/></g><text x="660" y="94" class="val" style="fill:#a52d15">−22 worse</text>
-<text x="0" y="128" class="variant">b</text>
-<line x1="324.5" x2="324.5" y1="110" y2="136" class="mark"><title>The baseline&#39;s score: 78%</title></line>
-<g><title>b: 89% of attempts passed (8 of 9); 95% interval 35% to 99% over 3 tasks</title><rect x="211.3" y="110" width="172.8" height="26" fill="transparent"/><line x1="217.3" x2="378" y1="123" y2="123" class="bar"/><circle cx="352.3" cy="123" r="5" class="dot"/></g><text x="390" y="128" class="val">89%</text>
-<g><title>b: +11 points; 95% interval −46 to +63; better, not confirmed</title><rect x="498" y="110" width="121" height="26" fill="transparent"/><line x1="504" x2="613" y1="123" y2="123" class="bar" style="stroke:#17603a"/><circle cx="561" cy="123" r="5" class="ddot" style="stroke:#17603a;fill:#fff"/></g><text x="660" y="128" class="val" style="fill:#17603a">+11 better</text>
+<div class="kicker">Against the live variant, floor</div>
+<svg class="chart" viewBox="0 0 712 154" width="712" height="154" role="img" aria-label="Pass rate per variant with its 95% interval, and each variant&#39;s change against floor in points">
+<text x="96" y="16" class="ch">Pass rate</text><text x="96" y="33" class="cs">dot: share of attempts passed · bar: 95% interval</text>
+<text x="416" y="16" class="ch">Change against floor</text><text x="416" y="33" class="cs">points · hollow: not confirmed</text>
+<line x1="96" x2="96" y1="48" y2="124" class="grid"/><text x="96" y="141" class="ax" text-anchor="middle">0%</text>
+<line x1="158.5" x2="158.5" y1="48" y2="124" class="grid"/><text x="158.5" y="141" class="ax" text-anchor="middle">25%</text>
+<line x1="221" x2="221" y1="48" y2="124" class="grid"/><text x="221" y="141" class="ax" text-anchor="middle">50%</text>
+<line x1="283.5" x2="283.5" y1="48" y2="124" class="grid"/><text x="283.5" y="141" class="ax" text-anchor="middle">75%</text>
+<line x1="346" x2="346" y1="48" y2="124" class="grid"/><text x="346" y="141" class="ax" text-anchor="middle">100%</text>
+<line x1="416" x2="416" y1="48" y2="124" class="grid"/><text x="416" y="141" class="ax" text-anchor="middle">−100</text>
+<line x1="466" x2="466" y1="48" y2="124" class="grid"/><text x="466" y="141" class="ax" text-anchor="middle">−50</text>
+<line x1="516" x2="516" y1="48" y2="124" class="zero"/><text x="516" y="141" class="ax" text-anchor="middle">0</text>
+<line x1="566" x2="566" y1="48" y2="124" class="grid"/><text x="566" y="141" class="ax" text-anchor="middle">+50</text>
+<line x1="616" x2="616" y1="48" y2="124" class="grid"/><text x="616" y="141" class="ax" text-anchor="middle">+100</text>
+<text x="0" y="78" class="variant">floor <tspan class="cs">live</tspan></text>
+<g><title>floor: 56% of attempts passed (4 of 7); 95% interval 15% to 90% over 3 tasks</title><rect x="127.8" y="60" width="198.8" height="26" fill="transparent"/><line x1="133.8" x2="320.5" y1="73" y2="73" class="bar"/><circle cx="235" cy="73" r="5" class="dot"/></g><text x="356" y="78" class="val">56%</text>
+<text x="0" y="112" class="variant">b</text>
+<g><title>b: 89% of attempts passed (8 of 9); 95% interval 35% to 99% over 3 tasks</title><rect x="177.3" y="94" width="172.8" height="26" fill="transparent"/><line x1="183.3" x2="344" y1="107" y2="107" class="bar"/><circle cx="318.3" cy="107" r="5" class="dot"/></g><text x="356" y="112" class="val">89%</text>
+<g><title>b: +33 points; 95% interval −31 to +75; better, not confirmed</title><rect x="479" y="94" width="118" height="26" fill="transparent"/><line x1="485" x2="591" y1="107" y2="107" class="bar" style="stroke:#17603a"/><circle cx="549" cy="107" r="5" class="ddot" style="stroke:#17603a;fill:#fff"/></g><text x="626" y="112" class="val" style="fill:#17603a">+33 better</text>
 </svg>
 <div class="verdict-lines">
-<p><b>floor</b>: lower on <a href="#task-loops">loops</a> (−33) and <a href="#task-uses-bash">uses-bash</a> (−33); same on <a href="#task-plain">plain</a>.</p>
-<p><b>b</b>: higher on <a href="#task-uses-bash">uses-bash</a> (+33); same on <a href="#task-loops">loops</a> and <a href="#task-plain">plain</a>.</p>
+<p><b>b</b>: higher on <a href="#task-loops">loops</a> (+33) and <a href="#task-uses-bash">uses-bash</a> (+67); same on <a href="#task-plain">plain</a>.</p>
 </div>
 <div class="verdict-foot">
 <p><b>Why unconfirmed:</b> with 3 tasks this report can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.</p>
@@ -162,7 +156,7 @@ b { font-weight: 600; }
 </div>
 <dl>
 <dt>Host</dt><dd>bench</dd>
-<dt>Variants</dt><dd>2: <span class="id">floor</span> (the reference), <span class="id">b</span></dd>
+<dt>Variants</dt><dd>2: <span class="id">floor</span> (live), <span class="id">b</span></dd>
 <dt>Tasks</dt><dd>3, each attempted 3 times per variant</dd>
 <dt>Attempts</dt><dd>18 planned, 16 counted</dd>
 </dl>
@@ -171,7 +165,7 @@ b { font-weight: 600; }
 
 <section id="variants">
 <h2>Variants</h2>
-<p class="explain">A variant is one configuration under test: a harness, a provider and a model, given every task. The first variant is the reference the others are compared with.</p>
+<p class="explain">A variant is one configuration under test: a harness, a provider and a model, given every task. The live variant, <span class="id">floor</span>, is the one in use now and the reference the others are compared with.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Variant</th><th>What it is</th><th>Harness</th><th>Provider</th><th>Model</th><th class="num">Attempts per task</th></tr></thead>
 <tbody>
@@ -200,17 +194,17 @@ b { font-weight: 600; }
 <tr><td>no_denials</td><td>no denied tool calls</td><td><span class="role role-validity">validity</span></td></tr>
 </tbody>
 </table></div>
-<p class="explain">Each task&#39;s results show one mark per attempt: ● passed, ○ failed, ? undecided, &#215; not counted. Hover a mark for the reason; click it for the attempt. A task scores its mean over its counted, decided attempts, and is called better or worse than its baseline beyond 10 points either way.</p>
+<p class="explain">Each task&#39;s results show one mark per attempt: ● passed, ○ failed, ? undecided, &#215; not counted. Hover a mark for the reason; click it for the attempt. A task scores its mean over its counted, decided attempts.</p>
 <section id="task-loops" class="task">
 <h3>loops</h3>
 <p class="prompt">The model repeats a bash command until nb nudges it out of the loop</p>
 <div class="facts"><span>Fixture <b>note</b></span><span>Attempted <b>3 times</b> per variant</span><span><b>3 checks</b>: 3 from the exam, none of its own</span></div>
 <h4>Results</h4>
 <div class="table-wrap"><table class="results">
-<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
+<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th></tr></thead>
 <tbody>
-<tr><td>floor</td><td><span class="marks"><a href="#attempt-fl10000000000000" class="pass" title="attempt 1: passed (fl10000000000000)">●</a><a href="#attempt-fl20000000000000" class="pass" title="attempt 2: passed (fl20000000000000)">●</a><a href="#attempt-fl30000000000000" class="fail" title="attempt 3: failed — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
-<tr><td>b</td><td><span class="marks"><a href="#attempt-bl10000000000000" class="pass" title="attempt 1: passed (bl10000000000000)">●</a><a href="#attempt-bl20000000000000" class="pass" title="attempt 2: passed (bl20000000000000)">●</a><a href="#attempt-bl30000000000000" class="pass" title="attempt 3: passed (bl30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>floor</td><td><span class="marks"><a href="#attempt-fl10000000000000" class="pass" title="attempt 1: passed (fl10000000000000)">●</a><a href="#attempt-fl20000000000000" class="pass" title="attempt 2: passed (fl20000000000000)">●</a><a href="#attempt-fl30000000000000" class="fail" title="attempt 3: failed — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td></tr>
+<tr><td>b</td><td><span class="marks"><a href="#attempt-bl10000000000000" class="pass" title="attempt 1: passed (bl10000000000000)">●</a><a href="#attempt-bl20000000000000" class="pass" title="attempt 2: passed (bl20000000000000)">●</a><a href="#attempt-bl30000000000000" class="pass" title="attempt 3: passed (bl30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td></tr>
 </tbody>
 </table></div>
 <ul class="why">
@@ -223,10 +217,10 @@ b { font-weight: 600; }
 <div class="facts"><span>Fixture <b>note</b></span><span>Attempted <b>3 times</b> per variant</span><span><b>3 checks</b>: 3 from the exam, none of its own</span></div>
 <h4>Results</h4>
 <div class="table-wrap"><table class="results">
-<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
+<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th></tr></thead>
 <tbody>
-<tr><td>floor</td><td><span class="marks"><a href="#attempt-fp10000000000000" class="pass" title="attempt 1: passed (fp10000000000000)">●</a><a href="#attempt-fp20000000000000" class="pass" title="attempt 2: passed (fp20000000000000)">●</a><a href="#attempt-fp30000000000000" class="skip" title="attempt 3: not counted — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></span></td><td class="num"><b>100%</b></td><td class="num">2 of 2</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
-<tr><td>b</td><td><span class="marks"><a href="#attempt-bp10000000000000" class="pass" title="attempt 1: passed (bp10000000000000)">●</a><a href="#attempt-bp20000000000000" class="pass" title="attempt 2: passed (bp20000000000000)">●</a><a href="#attempt-bp30000000000000" class="pass" title="attempt 3: passed (bp30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>floor</td><td><span class="marks"><a href="#attempt-fp10000000000000" class="pass" title="attempt 1: passed (fp10000000000000)">●</a><a href="#attempt-fp20000000000000" class="pass" title="attempt 2: passed (fp20000000000000)">●</a><a href="#attempt-fp30000000000000" class="skip" title="attempt 3: not counted — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></span></td><td class="num"><b>100%</b></td><td class="num">2 of 2</td></tr>
+<tr><td>b</td><td><span class="marks"><a href="#attempt-bp10000000000000" class="pass" title="attempt 1: passed (bp10000000000000)">●</a><a href="#attempt-bp20000000000000" class="pass" title="attempt 2: passed (bp20000000000000)">●</a><a href="#attempt-bp30000000000000" class="pass" title="attempt 3: passed (bp30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td></tr>
 </tbody>
 </table></div>
 <ul class="why">
@@ -246,10 +240,10 @@ b { font-weight: 600; }
 </table></div>
 <h4>Results</h4>
 <div class="table-wrap"><table class="results">
-<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (33%)</th><th>Verdict</th></tr></thead>
+<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th></tr></thead>
 <tbody>
-<tr><td>floor</td><td><span class="marks"><a href="#attempt-fu10000000000000" class="fail" title="attempt 1: failed — builds: 2 of 41 tests failed (fu10000000000000)">○</a><a href="#attempt-fu20000000000000" class="skip" title="attempt 2: never completed — attempt setup hook failed: hooks/reset-fixture.sh exited 1: clone failed (fu20000000000000)">×</a><a href="#attempt-fu30000000000000" class="fail" title="attempt 3: failed — builds: 2 of 41 tests failed (fu30000000000000)">○</a></span></td><td class="num"><b>0%</b></td><td class="num">0 of 2</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
-<tr><td>b</td><td><span class="marks"><a href="#attempt-bu10000000000000" class="pass" title="attempt 1: passed (bu10000000000000)">●</a><a href="#attempt-bu20000000000000" class="fail" title="attempt 2: failed — builds: 2 of 41 tests failed (bu20000000000000)">○</a><a href="#attempt-bu30000000000000" class="pass" title="attempt 3: passed (bu30000000000000)">●</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">+33 points</td><td><b class="vgood">better</b></td></tr>
+<tr><td>floor</td><td><span class="marks"><a href="#attempt-fu10000000000000" class="fail" title="attempt 1: failed — builds: 2 of 41 tests failed (fu10000000000000)">○</a><a href="#attempt-fu20000000000000" class="skip" title="attempt 2: never completed — attempt setup hook failed: hooks/reset-fixture.sh exited 1: clone failed (fu20000000000000)">×</a><a href="#attempt-fu30000000000000" class="fail" title="attempt 3: failed — builds: 2 of 41 tests failed (fu30000000000000)">○</a></span></td><td class="num"><b>0%</b></td><td class="num">0 of 2</td></tr>
+<tr><td>b</td><td><span class="marks"><a href="#attempt-bu10000000000000" class="pass" title="attempt 1: passed (bu10000000000000)">●</a><a href="#attempt-bu20000000000000" class="fail" title="attempt 2: failed — builds: 2 of 41 tests failed (bu20000000000000)">○</a><a href="#attempt-bu30000000000000" class="pass" title="attempt 3: passed (bu30000000000000)">●</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td></tr>
 </tbody>
 </table></div>
 <ul class="why">
@@ -271,7 +265,7 @@ b { font-weight: 600; }
 <tr><td><span class="id">b</span></td><td class="num">89%</td><td class="num">35% to 99%</td><td class="num">8 / 9</td></tr>
 </tbody>
 </table></div>
-<p class="explain"><b>Against the reference variant, <span class="id">floor</span>.</b> Each variant&#39;s pass rate minus <span class="id">floor</span>&#39;s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with 3 tasks, it could be noise.</p>
+<p class="explain"><b>Against the live variant, <span class="id">floor</span>.</b> Each variant&#39;s pass rate minus <span class="id">floor</span>&#39;s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with 3 tasks, it could be noise.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Variant</th><th class="num">Difference from <span class="id">floor</span></th><th class="num">95% interval</th><th class="num">Tasks better / worse / same</th><th>Verdict</th></tr></thead>
 <tbody>
@@ -279,15 +273,7 @@ b { font-weight: 600; }
 </tbody>
 </table></div>
 <p>With 3 paired tasks this report can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.</p>
-<p class="explain"><b>Against the baseline.</b> The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each variant&#39;s score with it and calls anything more than 10 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.</p>
-<div class="table-wrap"><table>
-<thead><tr><th>Variant</th><th class="num">Difference from baseline</th><th class="num">95% interval</th><th class="num">Tasks better / worse / same</th><th>Verdict</th></tr></thead>
-<tbody>
-<tr><td><span class="id">floor</span></td><td class="num">−22 points</td><td class="num">−67 to +39</td><td class="num">0 / 2 / 1</td><td><b class="vbad">Worse</b> (unconfirmed)</td></tr>
-<tr><td><span class="id">b</span></td><td class="num">+11 points</td><td class="num">−46 to +63</td><td class="num">1 / 0 / 2</td><td><b class="vgood">Better</b> (unconfirmed)</td></tr>
-</tbody>
-</table></div>
-<p class="explain">How each task scored against its baseline, and why attempts failed, is shown with the task under <a href="#tasks">Tasks</a>.</p>
+<p class="explain">How each task scored, and why attempts failed, is shown with the task under <a href="#tasks">Tasks</a>.</p>
 </section>
 
 <section id="failures">
@@ -402,7 +388,7 @@ b { font-weight: 600; }
 <dt>command</dt><dd><code class="code">proctor run smoke</code></dd>
 <dt>created</dt><dd>2026-09-17T14:32:00Z</dd>
 </dl>
-<p class="explain">Each task is scored as its mean over its counted, decided attempts, so n in every interval is the number of tasks. Per-variant rates use the Wilson 95% interval. Differences between variants, and against the baseline, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the attempt&#39;s wall time including hooks; tokens are the attempt&#39;s own count. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each variant and each task; a variant&#39;s verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).</p>
+<p class="explain">Each task is scored as its mean over its counted, decided attempts, so n in every interval is the number of tasks. Per-variant rates use the Wilson 95% interval. Differences from the live variant, floor, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the attempt&#39;s wall time including hooks; tokens are the attempt&#39;s own count. No multiplicity adjustment; 1 comparison shown.</p>
 </section>
 <footer>
 <img src="data:image/svg+xml;base64,PCEtLSAiUG9pbnR5IGhhdCIgYnkgTG9yYywgaHR0cHM6Ly9nYW1lLWljb25zLm5ldC8xeDEvbG9yYy9wb2ludHktaGF0Lmh0bWwsIENDIEJZIDMuMCBodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvMy4wLyA7IGFkYXB0ZWQgKHJlc2NhbGVkIGFuZCByZXN0eWxlZCkuIC0tPgo8c3ZnIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMzkuMDExNyAzLjk3NTU1QzMzLjYxNCA0LjAxODM5IDI5LjE4MDggNi4zOTQ2OCAyNS40MzU1IDEwLjA1NzZDMjEuNDk5NSAxMy45MDcyIDE4LjQwNDMgMTkuMjA4NSAxNi4wNjA1IDI0LjYzNTdDMTYuMTMzNiAyNS4wNTc5IDE2LjM0NzQgMjUuNDc0NCAxNi43MjU2IDI1LjkxNjFDMTcuMjA5MSAyNi40ODA5IDE3Ljk2MTUgMjcuMDUxNyAxOC44OTk0IDI3LjU2NTVDMjAuNzc1NCAyOC41OTMyIDIzLjM3OTggMjkuMzk3OCAyNS45Nzc2IDI5Ljg1OTZDMjguNTc1NCAzMC4zMjEzIDMxLjE4MTIgMzAuNDQxNyAzMy4wMjM0IDMwLjE4MTlDMzMuOTQ0NSAzMC4wNTE5IDM0LjY2NzYgMjkuODE1MyAzNS4wNjg0IDI5LjU2NjZDMzUuNDY5MSAyOS4zMTc5IDM1LjUyOTMgMjkuMTk1NiAzNS41MTk1IDI4Ljk0NTVMMzUuNTg3IDI4Ljk0MjdDMzUuMjY3NSAyNC45Mjc2IDM1LjAyNDUgMjAuNjE4IDM1LjU5NTcgMTYuNTczM0MzNS44NiAxNC43MDA5IDM2LjMxNDUgMTIuODc2NCAzNy4wMjI1IDExLjE3MTFDMzQuMDYyNiAxNC4xMTg2IDMxLjEyNCAxNy4zMDQ2IDI4Ljg4MDkgMjAuMDUxMUMzMi4yMDEzIDEzLjQ2OTggMzYuOTYyMiA4LjY2OTk5IDQyLjExMTQgNC4yMTAxMUM0MS4wNDQ5IDQuMDQ5OCA0MC4wMDk1IDMuOTY3ODYgMzkuMDExNyAzLjk3NTc0VjMuOTc1NTVaTTE0LjU1MDkgMjIuNDA1N0MxNC4xMzQyIDIyLjQwMjkgMTMuNzE3NSAyMi40MDcgMTMuMzAwOSAyMi40MThDMTEuMTMxNyAyMi40NzE5IDkuMTU0NTkgMjIuNjkwOCA3LjUgMjMuMDkxOEM1LjI5Mzg4IDIzLjYyNjUgMy43MDYzMSAyNC40ODc2IDIuOTI2ODggMjUuNTMyMUMyLjE0NzE2IDI2LjU3NjkgMS45ODE4OCAyNy44NDQ3IDIuODM1OTQgMjkuODAwOEM1LjkxNjU2IDM2Ljg1NjcgMTMuODIyIDQyLjAxMjYgMjIuMzIxMyA0My43MzE1QzMwLjgyMDcgNDUuNDQ5OSAzOS43Njg5IDQzLjc0NTIgNDUuMDM1MSAzNy40NzM2QzQ2LjMwOTEgMzUuOTU2MyA0Ni40NjkyIDM0LjcyNTYgNDUuOTY2OCAzMy40MjE4QzQ1LjQ2NDQgMzIuMTE3OSA0NC4xMzA2IDMwLjcxNDUgNDIuMTQzNiAyOS40MTRDNDAuNzYxMyAyOC41MDkzIDM5LjA3OTYgMjcuNjU3NCAzNy4xOTgzIDI2Ljg3OTlDMzcuMzM5NSAyOC45OTc3IDM3LjUzMTYgMzEuMDg3MSAzNy42Nzg3IDMzLjA2NDNWMzMuMDg0OEMzNy43MzU2IDM0LjE1MzggMzcuMTY0IDM1LjEwODQgMzYuMzMzOSAzNS43MDRDMzUuNTA0IDM2LjI5OTYgMzQuNDMzOCAzNi42NDkgMzMuMTk5MiAzNi44NjcxQzMwLjczMDEgMzcuMzAzNCAyNy41NzE4IDM3LjE4NTYgMjQuNDQ4MiAzNi42NjJDMjEuMzI0OCAzNi4xMzg0IDE4LjI1MjggMzUuMjEyIDE1Ljk4NDUgMzMuOTE0QzE0Ljg1MDQgMzMuMjY0OSAxMy45MDg0IDMyLjUyMTggMTMuMjc3NCAzMS42MTk5QzEyLjY0NjUgMzAuNzE4MyAxMi4zNjI0IDI5LjU5OTIgMTIuNjU5MyAyOC40OTExTDEyLjY2ODIgMjguNDU1OUwxMi42Nzk5IDI4LjQyMDlDMTMuMzk1OCAyNi40MzI4IDE0LjIwODggMjQuNDA5MyAxNS4xMjYyIDIyLjQxMjFDMTQuOTM0NSAyMi40MDkgMTQuNzQyOSAyMi40MDY5IDE0LjU1MTIgMjIuNDA1N0gxNC41NTA5Wk0xNS4xNzI5IDI2Ljc4MDJDMTQuODg2NiAyNy41MDU2IDE0LjYxMTIgMjguMjM1MiAxNC4zNDY3IDI4Ljk2ODdDMTQuMTk3MSAyOS41NTQzIDE0LjMwOTIgMzAuMDM4MSAxNC43MTI5IDMwLjYxNTNDMTUuMTIzIDMxLjIwMTIgMTUuODY0MiAzMS44MjY4IDE2Ljg1NDYgMzIuMzkzNUMxOC44MzUzIDMzLjUyNyAyMS43NjcxIDM0LjQzNTQgMjQuNzM4NSAzNC45MzM3QzI3LjcwOTggMzUuNDMxOSAzMC43NCAzNS41MjI0IDMyLjg5NDcgMzUuMTQxOEMzMy45NzIxIDM0Ljk1MTMgMzQuODE5NCAzNC42MzM3IDM1LjMxMTYgMzQuMjgwMkMzNS44MDM4IDMzLjkyNzIgMzUuOTU1MSAzMy42NDk3IDM1LjkyOTkgMzMuMTc1OUMzNS44ODE0IDMyLjUyNjIgMzUuODI3OSAzMS44NjA4IDM1Ljc3MTYgMzEuMTgzN0MzNS4wNzM0IDMxLjU2MTUgMzQuMjI3NiAzMS43ODA2IDMzLjI2NjggMzEuOTE2MUMzMS4xMzU3IDMyLjIxNjcgMjguNDExNSAzMi4wNzIyIDI1LjY3MDMgMzEuNTg1QzIyLjkyODggMzEuMDk3OSAyMC4xODU5IDMwLjI2NzQgMTguMDU1OSAyOS4xMDA2QzE2Ljk5MDkgMjguNTE3MyAxNi4wNzU3IDI3Ljg1IDE1LjM5NTcgMjcuMDU1OEMxNS4zMTg1IDI2Ljk2NjQgMTUuMjQ0MyAyNi44NzQ1IDE1LjE3MyAyNi43ODAzTDE1LjE3MjkgMjYuNzgwMloiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl83M18xNDApIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfNzNfMTQwIiB4MT0iMjQuMjQ4NCIgeTE9IjMuOTc1MjIiIHgyPSIyNC4yNDg0IiB5Mj0iNDQuMzYxNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQkQ3M0Q2Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBCMUI0MiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=" alt="" width="16" height="16">

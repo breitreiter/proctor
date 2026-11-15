@@ -19,7 +19,7 @@ mkdir -p "$out/records"
 root="$(mktemp -d)/root"
 cp -r "$WRITTEN_ROOT" "$root" || fail "could not copy the written exam"
 id=$WRITTEN_ID; dir="$root/exams/$id"; def="$dir/exam.json"
-rm -rf "$root/attempts" "$root/reports" "$root/.proctor" "$dir/baseline.json"
+rm -rf "$root/attempts" "$root/reports" "$root/.proctor" "$dir/live.json"
 jq -e . "$def" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
 variants=("$dir"/variants/*.json)
 [ -f "${variants[0]}" ] || fail "exams/$id has no variants/*.json"

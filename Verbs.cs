@@ -166,12 +166,6 @@ static class Verbs
             ?? throw new ProctorException($"exam '{examId}' does not load:\n" + string.Join("\n", problems));
     }
 
-    static (Batch, Exam) LoadBatch(string root, string batchId)
-    {
-        var batch = Runner.LoadBatch(root, batchId);
-        return (batch, LoadExam(root, batch.Exam));
-    }
-
     static string Count(int n, string one) => $"{n} {one}{(n == 1 ? "" : "s")}";
 
     /// <summary>The setup wizard at a terminal; with <c>--check</c>, what is set up, as plain lines an agent reads.</summary>
@@ -180,44 +174,12 @@ static class Verbs
         : probe ? throw new ProctorException("--probe goes with --check")
         : SetupWizard.RunAsync(root).GetAwaiter().GetResult();
 
-    /// <summary>Pin a variant's analysed attempts as the exam's baseline, per task; tasks the variant did not analyse keep their old pin.</summary>
-    public static int Baseline(string root, string batchId, List<string>? variantIds, List<string>? taskIds)
-    {
-        var (batch, exam) = LoadBatch(root, batchId);
-        if (variantIds is { Count: > 1 }) throw new ProctorException("baseline pins one variant; give --variant once");
-        var variantId = variantIds?.Single();
-        var variant = variantId is null
-            ? exam.Variants.Count == 1 ? exam.Variants[0] : throw new ProctorException($"exam '{exam.Id}' has {exam.Variants.Count} variants; say which with --variant ({string.Join(", ", exam.Variants.Select(a => a.Id))})")
-            : exam.Variants.FirstOrDefault(a => a.Id == variantId) ?? throw new ProctorException($"no variant '{variantId}' in exam '{exam.Id}' ({string.Join(", ", exam.Variants.Select(a => a.Id))})");
-        RequireKnown(exam, null, taskIds);
-
-        var rows = Results.Collect(root, exam, Pool.Select(root, exam, batch.Id).Current);
-        var existing = Proctor.Baseline.Load(exam);
-        var pins = existing?.Tasks.ToDictionary(k => k.Key, k => k.Value) ?? [];
-        var pinned = 0;
-        foreach (var c in exam.Tasks.Where(c => taskIds is null || taskIds.Contains(c.Id!)))
-        {
-            if (Proctor.Baseline.PinOf(batch, exam, rows, variant.Id!, c) is not { } pin)
-            {
-                Console.WriteLine($"  {c.Id}  {(pins.ContainsKey(c.Id!) ? $"kept: {pins[c.Id!].Experiment}/{pins[c.Id!].Arm}" : "not pinned")}: variant {variant.Id} analysed no attempt of it");
-                continue;
-            }
-            pins[c.Id!] = pin;
-            pinned++;
-            Console.WriteLine($"  {c.Id}  pinned {batch.Id}/{variant.Id} attempts {string.Join(",", pin.Samples)}  score {pin.Score:0.###}");
-        }
-        var baseline = new Baseline(DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), Environment.CommandLine, batch.ExamHash, pins);
-        baseline.Save(exam);
-        Console.WriteLine($"{Path.GetRelativePath(root, Proctor.Baseline.FileOf(exam))}: {pinned} task{(pinned == 1 ? "" : "s")} pinned, {pins.Count} in the baseline");
-        return 0;
-    }
-
     /// <summary>
     /// The exploration report over the exam's current attempts, within --batch, --variant and --tasks: results.jsonl, stats.json
     /// (stamped with what it was built from), report.html and summary.md under reports/&lt;exam&gt;/explore/. An earlier report
-    /// there is moved aside, not overwritten.
+    /// there is moved aside, not overwritten. With a variant live, every other variant is compared with it.
     /// </summary>
-    public static int Report(string root, string examId, int tolerancePoints = 0, string? failOn = null, string? againstId = null, string? batchId = null, List<string>? variantIds = null, List<string>? taskIds = null)
+    public static int Report(string root, string examId, string? batchId = null, List<string>? variantIds = null, List<string>? taskIds = null)
     {
         var exam = LoadExam(root, examId);
         RequireKnown(exam, variantIds, taskIds);
@@ -228,17 +190,11 @@ static class Verbs
             Console.WriteLine($"note: variant {variant.Id} has no current attempts{(batchId is null ? "" : $" in batch {batchId}")}; it is not in the report");
 
         var rows = Results.Collect(root, exam, selection.Current);
-        GuardInput? guard = null;
-        if (againstId is not null) guard = Against(root, exam, againstId, tolerancePoints);
-        else if (Proctor.Baseline.Load(exam) is { } baseline)
-        {
-            var (scores, source, gaps) = baseline.Resolve(root, exam);
-            guard = new GuardInput(baseline.Set, source, scores, tolerancePoints, gaps, Pinned: baseline.Tasks.Values.Select(p => p.Arm).Distinct().ToList());
-        }
+        var live = Proctor.Live.Load(exam);
         var narrowed = string.Join(" ", new[] { batchId is null ? null : $"--batch {batchId}" }.Concat((variantIds ?? []).Select(v => $"--variant {v}"))
             .Append(taskIds is null ? null : $"--tasks {string.Join(",", taskIds)}").OfType<string>());
         var built = Stats.Stamp(exam, selection, narrowed.Length > 0 ? narrowed : null, DateTime.UtcNow);
-        var stats = Stats.Compute(exam, rows, guard, built);
+        var stats = Stats.Compute(exam, rows, live, built);
         var view = View(root, exam, selection.Current, stats.Variants.Keys);
         var judges = Judge.Uses(root, selection.Current);
 
@@ -257,16 +213,11 @@ static class Verbs
         var ungraded = rows.Where(r => r.Status == AttemptStatus.Completed && r.Checks is null).ToList();
         if (ungraded.Count > 0)
             Console.WriteLine($"note: {ungraded.Count} completed attempt{(ungraded.Count == 1 ? " has" : "s have")} no checks.json ({string.Join(", ", ungraded.GroupBy(r => r.Variant).Select(g => $"variant {g.Key}: {g.Count()}"))}); run `proctor grade {exam.Id}` first for them to count");
-        if (stats.Baseline is { } bl)
-        {
-            var vs = bl.Against ?? "baseline";
-            foreach (var gap in bl.Gaps ?? [])
-                Console.WriteLine($"warning: the {(bl.Against is null ? "baseline's pinned " : "")}attempts in {gap.Experiment} were never graded on the pass check '{gap.Check}'; {gap.Tasks.Count} task{(gap.Tasks.Count == 1 ? "" : "s")} use the score as pinned ({string.Join(", ", gap.Tasks)})");
-            foreach (var (variant, g) in bl.Variants) Console.WriteLine($"  {variant} vs {vs}: {(g.DiffPoints >= 0 ? "+" : "")}{g.DiffPoints} pts [{g.Ci95[0]}, {g.Ci95[1]}], {g.Verdict}");
-            foreach (var variant in bl.Unpaired ?? []) Console.WriteLine($"  {variant} vs {vs}: no variant '{variant}' there");
-            if (failOn == "regression" && bl.Variants.Values.Any(g => g.Verdict == "regressed")) return 1;
-        }
-        else if (failOn is not null) Console.WriteLine($"note: --fail-on {failOn} has nothing to fail on; the exam has no baseline (run `proctor baseline <batch>`)");
+        if (live?.Broken(exam) is { } broken) Console.WriteLine(live.Warning(exam, broken));
+        else if (stats.Live is { NotReference: { } why }) Console.WriteLine($"note: {stats.Live.Variant} is live, but {why}; no variant is compared with it");
+        else if (stats.Live is { } mark)
+            foreach (var c in stats.Comparisons) Console.WriteLine($"  {c.Variant} against {mark.Variant} (live): {(c.DiffPoints >= 0 ? "+" : "")}{c.DiffPoints} points [{c.Ci95[0]}, {c.Ci95[1]}], {c.Verdict}");
+        else Console.WriteLine("  nothing is live, so no variant is compared with another; `proctor live " + exam.Id + " <variant>` marks one");
         return 0;
     }
 
@@ -300,35 +251,5 @@ static class Verbs
         var earlier = Path.Combine(outDir, at.ToString("yyyyMMdd-HHmmss"));
         Directory.CreateDirectory(earlier);
         foreach (var file in Directory.GetFiles(outDir)) File.Move(file, Path.Combine(earlier, Path.GetFileName(file)), overwrite: true);
-    }
-
-    /// <summary>
-    /// report --against: each variant against the variant of the same id in another batch, of this exam or another.
-    /// Its pins are its decided attempts as its own exam scored them, then rescored under this exam like a baseline.
-    /// </summary>
-    static GuardInput Against(string root, Exam exam, string otherId, int tolerancePoints)
-    {
-        var (other, otherExam) = LoadBatch(root, otherId);
-        var rows = Results.Collect(root, otherExam, Pool.Select(root, otherExam, other.Id).Current);
-        var perVariant = new Dictionary<string, Dictionary<string, double>>();
-        var sources = new List<string>();
-        var gaps = new List<BaselineGap>();
-        foreach (var variant in exam.Variants.Where(a => otherExam.Variants.Any(o => o.Id == a.Id)))
-        {
-            var pins = otherExam.Tasks.Where(c => exam.Tasks.Any(x => x.Id == c.Id))
-                .Select(c => (c.Id!, Pin: Proctor.Baseline.PinOf(other, otherExam, rows, variant.Id!, c)))
-                .Where(x => x.Pin is not null).ToDictionary(x => x.Item1, x => x.Pin!);
-            if (pins.Count == 0) continue;     // its exam may have the variant now, but the batch decided none of its attempts
-            var (scores, variantSource, variantGaps) = new Baseline(other.Created, "", other.ExamHash, pins).Resolve(root, exam);
-            perVariant[variant.Id!] = scores;
-            sources.Add(variantSource);
-            foreach (var g in variantGaps)
-                if (gaps.FirstOrDefault(x => x.Check == g.Check) is { } seen) seen.Tasks.AddRange(g.Tasks.Except(seen.Tasks));
-                else gaps.Add(g);
-        }
-        if (perVariant.Count == 0)
-            throw new ProctorException($"batch '{otherId}' has none of this exam's variants ({string.Join(", ", exam.Variants.Select(a => a.Id))}); --against pairs variants by id");
-        var source = sources.Distinct().Count() == 1 ? sources[0] : "partly recomputed";
-        return new GuardInput(other.Created, source, [], tolerancePoints, gaps, otherId, perVariant);
     }
 }

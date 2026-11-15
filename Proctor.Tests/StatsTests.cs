@@ -128,7 +128,7 @@ public class StatsTests
         foreach (var (c, v) in floor) for (var s = 0; s < 3; s++) rows.Add(Row("floor", c, s + 1, v[s], exit: v[s] ? "ok" : "max_tool_calls"));
         foreach (var (c, v) in b) for (var s = 0; s < 3; s++) rows.Add(Row("b", c, s + 1, v[s]));
 
-        var stats = Stats.Compute(exam, rows);
+        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam));
 
         Assert.Equal(3, stats.NTasks);
         Assert.True(stats.Paired);
@@ -172,7 +172,7 @@ public class StatsTests
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, null, status: "failed"),
             Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(exam, rows);
+        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam));
         var f = stats.Variants["floor"];
         Assert.Equal((3, 3, 2, 2, 2), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
@@ -198,7 +198,7 @@ public class StatsTests
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, true, invalid: "no_denials: 1 denied call"),
             Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(exam, rows);
+        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam));
         var f = stats.Variants["floor"];
         Assert.Equal((3, 3, 3, 3, 2), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
@@ -250,8 +250,9 @@ public class StatsTests
         Assert.False(built.Mixed!.ContainsKey("b"));
     }
 
+    /// <summary>The live variant is the reference wherever it sits in the exam's order; with nothing live, nothing is compared.</summary>
     [Fact]
-    public void Compute_AgainstBaseline_VerdictIsThePointEstimateAgainstTheTolerance()
+    public void Compute_TheLiveVariantIsTheReference_AndNothingLiveComparesNothing()
     {
         var exam = TwoVariantExam(attempts: 1);
         var rows = new List<ResultRow>
@@ -259,29 +260,17 @@ public class StatsTests
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, false), Row("floor", "uses-bash", 1, false),
             Row("b", "loops", 1, true), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var guard = new GuardInput("2026-09-21T16:40:12Z", "recomputed", new() { ["loops"] = 1.0, ["plain"] = 1.0, ["uses-bash"] = 0.0 }, TolerancePoints: 10);
-        var stats = Stats.Compute(exam, rows, guard);
-        var bl = stats.Baseline!;
-        Assert.Equal(("2026-09-21T16:40:12Z", "recomputed", 10), (bl.Set, bl.Scores, bl.TolerancePoints));
+        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam, "b"));
+        Assert.Equal(new LiveStats("b", "2026-09-10T09:12:00Z"), stats.Live);
+        var cmp = Assert.Single(stats.Comparisons);
+        Assert.Equal(("floor", "b", -67), (cmp.Variant, cmp.Vs, cmp.DiffPoints));
+        Assert.Contains("Differences from the live variant, b, use Newcombe's paired method", stats.Methods);
+        Assert.Contains("1 comparison shown", stats.Methods);
 
-        var floor = bl.Variants["floor"];      // 1/3 against 2/3: −33 points, beyond the tolerance
-        Assert.Equal((3, -33, "regressed"), (floor.NPairs, floor.DiffPoints, floor.Verdict));
-        Assert.Equal((0, 1, 2), (floor.Won, floor.Lost, floor.Tied));
-        Assert.Equal(new BaselineTask(1.0, 0.0, -100, "regressed"), floor.Tasks["plain"]);
-        Assert.Equal(new BaselineTask(1.0, 1.0, 0, "held"), floor.Tasks["loops"]);
-        var b = bl.Variants["b"];              // 3/3 against 2/3: +33 points
-        Assert.Equal((33, "improved"), (b.DiffPoints, b.Verdict));
-        Assert.True(b.Ci95[0] < 0 && b.Ci95[1] > 0, "three tasks cannot make the interval exclude zero");
-        Assert.False(floor.Confirmed || b.Confirmed, "an interval that crosses the tolerance does not confirm the verdict");
-
-        // Inside the tolerance is held, whichever way it leans; the between-variant comparison is untouched.
-        var held = Stats.Compute(exam, rows, guard with { TolerancePoints = 40 }).Baseline!;
-        Assert.All(held.Variants.Values, a => Assert.Equal("held", a.Verdict));
-        Assert.All(held.Variants.Values, a => Assert.False(a.Confirmed));
-        // Held is confirmed only when the whole interval sits inside the tolerance.
-        var wide = Stats.Compute(exam, rows, guard with { TolerancePoints = 100 }).Baseline!;
-        Assert.All(wide.Variants.Values, a => Assert.True(a.Confirmed));
-        Assert.Equal(67, Assert.Single(stats.Comparisons).DiffPoints);
-        Assert.Contains("tolerance of 10 points", stats.Methods);
+        var none = Stats.Compute(exam, rows);
+        Assert.Null(none.Live);
+        Assert.Empty(none.Comparisons);
+        Assert.Equal(3, none.Mde.NPairs);
+        Assert.DoesNotContain("Newcombe", none.Methods);
     }
 }

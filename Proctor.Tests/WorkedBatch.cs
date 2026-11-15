@@ -6,7 +6,8 @@ namespace Proctor.Tests;
 /// <summary>The work batch's shape from project/archive/first-slice.md as fixed data: two variants, three tasks, three attempts.</summary>
 static class WorkedBatch
 {
-    public static Exam Exam(int attempts = 3, bool twoVariants = true)
+    /// <summary>The worked exam: the floor and b, or with <paramref name="third"/> also c, a copy of b; with <paramref name="twoVariants"/> false, the floor alone.</summary>
+    public static Exam Exam(int attempts = 3, bool twoVariants = true, bool third = false)
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
@@ -21,11 +22,14 @@ static class WorkedBatch
         repo.EditVariant("smoke", "a", v => { v["note"] = "the local floor"; v["model"] = "qwen-coder"; v["provider"] = "local-qcoder"; });
         repo.RenameVariant("smoke", "a", "floor");
         repo.EditVariant("smoke", "b", v => { v["model"] = "glm"; v["provider"] = "local-glm"; });
+        if (third) repo.AddVariant("smoke", """{ "id": "c", "runner": "nb", "harness": "nb", "provider": "local-glm", "model": "glm-air", "bundle": { "path": "bundles/smoke" } }""");
         if (!twoVariants) repo.RemoveVariant("smoke", "b");
         repo.EditJson("smoke/tasks/uses-bash.json", t => t["checks"] = JsonNode.Parse("{\"used-bash\": {\"tools_used\": [\"bash\"]}}"));
         var exam = repo.LoadExam("smoke");
-        // Variants load in file-name order, b before floor; the worked batch has the floor first, as its reference.
-        exam.Variants.Sort((x, y) => x.Id == "floor" ? -1 : y.Id == "floor" ? 1 : 0);
+        // Variants load in file-name order, b before floor; the worked batch lists the floor first, as the live variant, so the page reads in that order.
+        var floor = exam.Variants.Single(v => v.Id == "floor");
+        exam.Variants.Remove(floor);
+        exam.Variants.Insert(0, floor);
         return exam;
     }
 
@@ -43,9 +47,9 @@ static class WorkedBatch
         StaleAttempts: [new("20260916-0910-smoke-q2rd", "floor/plain/1", "task plain changed (1a2b3c4d then, 5e6f7a8b now)"), new("20260916-0910-smoke-q2rd", "b/plain/1", "task plain changed (1a2b3c4d then, 5e6f7a8b now)")],
         Mixed: new() { ["floor"] = ["nb 1.0.0, 1.0.1"] });
 
-    /// <summary>Last week's floor, pinned: loops was perfect, plain was perfect, uses-bash was one in three.</summary>
-    public static GuardInput Guard() =>
-        new("2026-09-14T09:12:00Z", "as pinned", new() { ["loops"] = 1.0, ["plain"] = 1.0, ["uses-bash"] = 0.333 }, TolerancePoints: 10);
+    /// <summary>The floor is live, marked a week before the batch at its hash as the exam has it.</summary>
+    public static Live Live(Exam exam, string variant = "floor") =>
+        new(new Ref(variant, exam.Variants.Single(v => v.Id == variant).Hash), "2026-09-10T09:12:00Z");
 
     public static ResultRow Row(string variant, string task, int n, bool? pass, string status = "completed", string exit = "ok", long tokens = 57331, long durationMs = 1118000, string? reason = null, string? invalid = null) =>
         new(Id: $"{variant[0]}{@task[0]}{n}0000000000000", Variant: variant, Task: task, Attempt: n, Status: status,

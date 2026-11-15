@@ -17,7 +17,7 @@ public class ReportTests
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows();
-        return (Stats.Compute(exam, rows, WorkedBatch.Guard(), WorkedBatch.Built()), rows, WorkedBatch.Batch(exam));
+        return (Stats.Compute(exam, rows, WorkedBatch.Live(exam), WorkedBatch.Built()), rows, WorkedBatch.Batch(exam));
     }
 
     static void AssertSnapshot(string name, string actual)
@@ -83,52 +83,64 @@ public class ReportTests
         Assert.Contains("judge: line one<br>line two", md);
     }
 
-    /// <summary>
-    /// The card's foot gives the run's reach once; a variant paired on fewer tasks says its own on its row, and with a
-    /// baseline each row carries the variant against the reference rather than the foot repeating it.
-    /// </summary>
+    /// <summary>The card's foot gives the report's reach once; a variant paired with the live one on fewer tasks says its own on its row.</summary>
     [Fact]
     public void AVariantPairedOnFewerTasks_SaysItsOwnReach_OnItsRow()
     {
-        var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows().Where(r => !(r.Variant == "b" && r.Task == "plain")).ToList();
-        var stats = Stats.Compute(exam, rows, WorkedBatch.Guard());
+        var exam = WorkedBatch.Exam(third: true);
+        var rows = WorkedBatch.Rows();
+        rows.AddRange(rows.Where(r => r.Variant == "b" && r.Task != "plain").Select(r => r with { Variant = "c", Id = "c" + r.Id[1..] }).ToList());
+        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam));
         Assert.Equal(3, stats.Mde.NPairs);
-        Assert.Equal(2, stats.Baseline!.Variants["b"].NPairs);
-        Assert.NotNull(stats.Baseline.Variants["b"].MdePoints);
-        Assert.Null(stats.Baseline.Variants["floor"].MdePoints);
+        var c = stats.Comparisons.Single(x => x.Variant == "c");
+        Assert.Equal((2, "floor"), (c.NPairs, c.Vs));
+        Assert.NotNull(c.MdePoints);
+        Assert.Null(stats.Comparisons.Single(x => x.Variant == "b").MdePoints);
         var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
-        var bRow = md.Split('\n').Single(l => l.StartsWith("**b**:"));
-        Assert.Contains($"Paired on 2 of 3 tasks, so it can only confirm a change of about {stats.Baseline.Variants["b"].MdePoints} points.", bRow);
-        Assert.DoesNotContain("For the same reason", md);
+        var cRow = md.Split('\n').Single(l => l.StartsWith("**c**:"));
+        Assert.Contains($"Paired on 2 of 3 tasks, so it can only confirm a change of about {c.MdePoints} points.", cRow);
     }
 
-    /// <summary>The chart marks the baseline's own score beside each variant's rate: the mean of its pinned task scores, from stats.json.</summary>
+    /// <summary>With nothing live the variants stand side by side: no reference, no change, no verdict, and the page says none is live.</summary>
     [Fact]
-    public void Chart_MarksTheBaselinesScore_FromStats()
+    public void NothingLive_TheVariantsSideBySide_NoneComparedWithAnother()
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows();
-        var guard = WorkedBatch.Guard();
-        var stats = Stats.Compute(exam, rows, guard);
-        var expected = Math.Round(guard.Scores.Values.Average(), 3);
-        Assert.Equal(expected, stats.Baseline!.Variants["floor"].Score);
-        var html = Report.Html(stats, rows, WorkedBatch.Batch(exam));
-        Assert.Contains("class=\"mark\"", html);
-        Assert.Contains($"baseline {Math.Round(expected * 100):F0}%", html);
+        var stats = Stats.Compute(exam, rows, null, WorkedBatch.Built());
+        Assert.Null(stats.Live);
+        Assert.Empty(stats.Comparisons);
+        Assert.Equal(3, stats.Mde.NPairs);
+        Assert.Contains("No variant is live, so none is compared with another.", stats.Methods);
+        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
+        Assert.Contains("**Two variants, side by side**\n\n| Variant | Passed | 95% interval |\n", md);
+        Assert.Contains("None is live yet.", md);
+        Assert.Contains("Picking the best of several flatters it: part of any lead is luck.", md);
+        Assert.Contains(stats.Mde.Sentence, md);
+        Assert.Contains("None is live, so the variants stand side by side and none is compared with another.", md);
+        Assert.Contains("| Variants | 2: `floor`, `b` |", md);
+        foreach (var gone in new[] { "Against the live variant", "Difference from", "Change against", "(live)", "reference", "unconfirmed" })
+            Assert.DoesNotContain(gone, md);
+        Assert.DoesNotContain("<tspan class=\"cs\">live</tspan>", Report.Html(stats, rows, WorkedBatch.Batch(exam)));
     }
 
-    /// <summary>A variant the baseline never ran is compared with the pinned variant's scores, and the card says whose they are.</summary>
+    /// <summary>A live mark that does not hold, or names a variant with no attempt here, is said on the page, and nothing is compared with it.</summary>
     [Fact]
-    public void Card_SaysWhoseRunsTheBaselineIs_WhenAVariantWasNeverPinned()
+    public void ALiveMarkThatIsNotTheReference_IsAWarning_AndNothingIsCompared()
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows();
-        var stats = Stats.Compute(exam, rows, WorkedBatch.Guard() with { Pinned = ["floor"] });
-        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
-        Assert.Contains("The baseline is `floor`'s runs from", md);
-        var pinnedBoth = Stats.Compute(exam, rows, WorkedBatch.Guard() with { Pinned = ["floor", "b"] });
-        Assert.DoesNotContain("The baseline is `", Report.Markdown(pinnedBoth, rows, WorkedBatch.Batch(exam)));
+        var moved = Stats.Compute(exam, rows, new Live(new Ref("floor", "sha256:0000000011111111"), "2026-09-10T09:12:00Z"));
+        Assert.Empty(moved.Comparisons);
+        Assert.StartsWith("its file has changed since it was marked (00000000 then, ", moved.Live!.NotReference);
+        var md = Report.Markdown(moved, rows, WorkedBatch.Batch(exam));
+        Assert.Contains("> **Warning.** `floor` is marked live, but its file has changed since it was marked", md);
+        Assert.DoesNotContain("None is live yet.", md);
+
+        var floorOnly = rows.Where(r => r.Variant == "floor").ToList();
+        var absent = Stats.Compute(exam, floorOnly, WorkedBatch.Live(exam, "b"));
+        Assert.Equal("it has no current attempt in this report", absent.Live!.NotReference);
+        Assert.Contains("`b` is marked live, but it has no current attempt in this report, so no variant is compared with it.", Report.Markdown(absent, floorOnly, WorkedBatch.Batch(exam)));
     }
 
     /// <summary>A check that could not grade many runs is one warning with its count per variant, and leaves the per-variant failure lists.</summary>

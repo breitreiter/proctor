@@ -10,7 +10,7 @@ set -uo pipefail
 id=$1
 fail() { jq -n --arg e "$1" '{error: $e}' >/out/trial.json; echo "$1"; exit 0; }
 root=/tmp/root
-cp -r /authored "$root" && rm -rf "$root/attempts" "$root/reports" "$root/.proctor" "$root/exams/$id/baseline.json"
+cp -r /authored "$root" && rm -rf "$root/attempts" "$root/reports" "$root/.proctor" "$root/exams/$id/live.json"
 e="$root/exams/$id/exam.json"; defs="$root/exams"
 [ -f "$e" ] || fail "no exams/$id/exam.json"
 jq -e . "$e" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
