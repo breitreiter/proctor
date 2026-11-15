@@ -53,7 +53,7 @@ record Manifest
     public required string ProgramHash { get; init; }
     public string Status { get; set; } = CellStatus.Pending;
     public string? StatusReason { get; set; }
-    public int Attempts { get; set; }
+    public int Tries { get; set; }
     public int? NbExitCode { get; set; }
     /// <summary>An agent arm's run: the agent as the trial reported it, its settings, the Harbor that ran it, and what it used.</summary>
     public AgentRun? Agent { get; set; }
@@ -247,7 +247,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
                 Bundle = experiment.BundleOf(arm.Id!), Nb = experiment.Nb,
                 Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash, ProgramHash = Sha256(program),
             };
-        manifest.Attempts++;
+        manifest.Tries++;
         manifest.Started = Now();
         manifest.Ended = null;
         manifest.DurationMs = null;
@@ -314,7 +314,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         var oracle = OracleCellOf(arm, c);
         manifest.Agent = new AgentRun(arm.Agent!, null, arm.Model ?? "", HarborCompile.AgentKwargs(arm, route, nb), HarborCompile.AgentEnv(arm, route), experiment.Harbor!.Version, null);
         manifest.Oracle = null;
-        manifest.Attempts++;
+        manifest.Tries++;
         manifest.Started = Now();
         manifest.Ended = null;
         manifest.DurationMs = null;
@@ -496,7 +496,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
                 Runner = arm.Runner, Harness = arm.Harness, Provider = arm.Provider, Model = arm.Model,
                 Host = experiment.Host, Versions = experiment.Versions, SuiteHash = suite.Hash, ProgramHash = "",
             };
-        manifest.Attempts++;
+        manifest.Tries++;
         manifest.StatusReason = reason;
         SetStatus(cellDir, manifest, CellStatus.Failed);
         log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  failed  {reason}");

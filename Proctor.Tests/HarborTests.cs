@@ -497,7 +497,7 @@ public class HarborTests
         File.WriteAllText(Path.Combine(scratch.Root, "suites", "fake-uv.sh"), File.ReadAllText(Path.Combine(scratch.Root, "suites", "fake-uv.sh")).Replace("echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1", GoodTrial));
         Runner.Resume(repo.Root, id, null, null, TextWriter.Null);
         Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
-        Assert.Equal(2, ReadJson(Path.Combine(cell, "manifest.json"))["attempts"]!.GetValue<int>());
+        Assert.Equal(2, ReadJson(Path.Combine(cell, "manifest.json"))["tries"]!.GetValue<int>());
     }
 
     [Fact]

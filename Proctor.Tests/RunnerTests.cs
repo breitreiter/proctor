@@ -65,7 +65,7 @@ public class RunnerTests
         Assert.Equal("Mock", manifest["provider"]!.GetValue<string>());
         Assert.Equal("nb-jsonl", manifest["transcript"]!["format"]!.GetValue<string>());
         Assert.Equal("completed", manifest["status"]!.GetValue<string>());
-        Assert.Equal(1, manifest["attempts"]!.GetValue<int>());
+        Assert.Equal(1, manifest["tries"]!.GetValue<int>());
         Assert.StartsWith("sha256:", manifest["suite_hash"]!.GetValue<string>());
         Assert.StartsWith("sha256:", manifest["program_hash"]!.GetValue<string>());
         Assert.True(manifest["duration_ms"]!.GetValue<long>() > 0);
@@ -121,7 +121,7 @@ public class RunnerTests
         Runner.Resume(repo.Root, id, null, null, TextWriter.Null);
 
         Assert.Equal("completed", Runner.ReadStatus(failedCell));
-        Assert.Equal(2, ReadJson(Path.Combine(failedCell, "manifest.json"))["attempts"]!.GetValue<int>());
+        Assert.Equal(2, ReadJson(Path.Combine(failedCell, "manifest.json"))["tries"]!.GetValue<int>());
         Assert.Equal(untouchedRunId, ReadJson(Path.Combine(untouched, "manifest.json"))["run_id"]!.GetValue<string>());
         Assert.Equal(untouchedStarted, File.GetLastWriteTimeUtc(Path.Combine(untouched, "transcript.jsonl")));
     }
