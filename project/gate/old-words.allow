@@ -34,3 +34,16 @@ Proctor.Tests/fixtures/**		# captured transcripts and trajectories, as the agent
 **	\btest suites?\b	# a project's own tests
 **	\btable cells?\b	# a cell of a table
 project/plans/on-disk-layout.md	evaluation suite	# the literature's word for an exam, in the words table
+
+# The example reports predate the rename.
+README.md	\b(suite|arm|baseline) for (exam|variant|the live variant)\b	# docs/reports/ were rendered in the earlier words; the README maps them for a reader
+
+# eval as evaluation in general, and nb's evals/ directory: not a proctor exam.
+**	(?<![A-Za-z])evals/	# nb's own evals/ directory, named in task prompts and comments about nb; a task prompt is in its hash
+exams/nb-changes/tasks/far-cause.json	nb's tests and evals all pass	# nb's evals, in a task prompt the task hash covers
+CLAUDE.md	reporter of evals	# evaluation in general: what proctor is a runner of
+docs/index.html	\ban eval that\b|\bvisibility and evals\b|agent-evals">their write-up	# evaluation in general on the site, and an outside study's URL
+skills/proctor-exam/SKILL.md	other eval tools	# evaluation tools in general
+project/brief.md	Demystifying evals|where "eval"|evals need to be taken seriously	# evaluation in general, as the brief itself says where "eval" survives
+project/plans/on-disk-layout.md	evals literature|\beval run\b	# the literature's words for exam and batch, in the words table
+bundles/smoke/README.md	smoke eval's bundle	# the bundle's only file: rewording it changes the bundle's identity and so the smoke variant b's hash
