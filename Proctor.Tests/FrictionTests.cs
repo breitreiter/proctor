@@ -179,8 +179,12 @@ public class FrictionTests
         var expDir = Layout.Experiment(repo.Root, id);
         File.WriteAllText(Path.Combine(Layout.Cell(expDir, "a", "loops", 1), "status"), "failed\n");
 
-        var cells = Friction.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
+        // The suite's arm is renamed after the run: friction still reads what was run.
+        repo.EditJson("smoke/suite.json", e => e["arms"]![0]!["id"] = "renamed");
 
+        var cells = Friction.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), repo.LoadSuite("smoke"), TextWriter.Null);
+
+        Assert.All(cells, c => Assert.Equal("a", c.Arm));
         Assert.Equal("not completed", cells.Single(c => c.Task == "loops").Skipped);
         Assert.False(File.Exists(Path.Combine(Layout.Cell(expDir, "a", "loops", 1), Layout.FrictionFile)));
         var read = cells.Single(c => c.Task == "uses-bash");

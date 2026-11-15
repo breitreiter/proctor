@@ -78,7 +78,11 @@ static class Verbs
     public static int Friction(string root, string experimentId, List<string>? armIds = null, List<string>? taskIds = null, string? reader = null, bool again = false, string? configFile = null)
     {
         var (experiment, suite) = LoadExperiment(root, experimentId);
-        RequireKnown(suite, armIds, taskIds);
+        var ran = Proctor.Friction.Cells(experiment).ToList();
+        foreach (var a in armIds ?? [])
+            if (ran.All(c => c.Arm != a)) throw new ProctorException($"no arm '{a}' in experiment {experiment.Id} ({string.Join(", ", ran.Select(c => c.Arm).Distinct())})");
+        foreach (var t in taskIds ?? [])
+            if (!experiment.Tasks.Contains(t)) throw new ProctorException($"no task '{t}' in experiment {experiment.Id}");
         JudgeClient? judges = null;
         if (reader is not null)
         {

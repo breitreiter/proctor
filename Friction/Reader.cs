@@ -142,7 +142,8 @@ static class FrictionReader
             try
             {
                 var chat = client.ChatClient(def with { Endpoint = def.ResolvedEndpoint(judge) }, def.ResolvedKey(judge));
-                var response = client.Send(judge, () => chat.GetResponseAsync([new ChatMessage(ChatRole.User, prompt)], new ChatOptions { Temperature = 0 }));
+                // No temperature: the newer Claude models refuse the parameter outright ("`temperature` is deprecated for this model").
+                var response = client.Send(judge, () => chat.GetResponseAsync([new ChatMessage(ChatRole.User, prompt)]));
                 reply = response.Text;
                 (input, output) = (response.Usage?.InputTokenCount, response.Usage?.OutputTokenCount);
             }

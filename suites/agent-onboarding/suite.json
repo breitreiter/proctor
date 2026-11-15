@@ -26,6 +26,12 @@
       "setup": "../code-change/hooks/ensure-model.sh"
     }
   },
+  "surface": {
+    "description": "proctor's onboarding surface: the proctor and nb CLIs, their published docs, the proctor-suite skill, and the shipped example suites and fixtures",
+    "commands": ["proctor", "nb"],
+    "docs": ["/opt/proctor/docs/*", "/opt/proctor/README.md", "/opt/proctor/suites/*", "/opt/proctor/fixtures/*", "/opt/nb/docs/*", "/opt/nb/README.md", "tool:Skill"],
+    "internals": ["/opt/proctor/*", "/opt/nb/*", "/usr/local/bin/proctor", "/usr/local/bin/nb"]
+  },
   "grading": {
     "checks": {
       "exit_ok": {
