@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The trial: the exam the agent wrote, run by proctor against planted runs of its own tasks and graded, so it is
-# judged by what it passes and fails rather than by how it reads. Each written variant is cloned once per plant
-# in <task>/plants.json, with one attempt, its bundle and everything else kept; hooks and the nb runner
+# judged by what it passes and fails rather than by how it reads. Each written variant file is cloned once per
+# plant in <task>/plants.json, its bundle and everything else kept, and the exam asks one attempt; hooks and the nb runner
 # are dropped and trial/planted.sh answers for the bot. Model checks are dropped too, since nothing here can
 # answer one; a model check named in pass or validity is a problem, since then no run could be decided.
 # It needs no network: proctor and nb from PATH, the bot on nb's Mock provider.
@@ -21,7 +21,10 @@ cp -r "$WRITTEN_ROOT" "$root" || fail "could not copy the written exam"
 id=$WRITTEN_ID; dir="$root/exams/$id"; def="$dir/exam.json"
 rm -rf "$root/attempts" "$root/reports" "$root/.proctor" "$dir/baseline.json"
 jq -e . "$def" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
-agents=$(jq -r '[.variants // [] | .[] | select(.agent != null) | .id] | join(", ")' "$def")
+variants=("$dir"/variants/*.json)
+[ -f "${variants[0]}" ] || fail "exams/$id has no variants/*.json"
+jq -s . "${variants[@]}" >"$out/written-variants.json" 2>/dev/null || fail "a file in exams/$id/variants/ is not JSON"
+agents=$(jq -r '[.[] | select(.agent != null) | .id] | join(", ")' "$out/written-variants.json")
 [ -z "$agents" ] || fail "variant(s) $agents run an agent through Harbor; a chat exam's variants are bare nb"
 
 # Model checks, wherever they are declared: the exam, its tasks, the fixtures.
@@ -36,15 +39,18 @@ for f in "${spec_files[@]}"; do
     if .grading.checks then .grading.checks |= drop elif .checks then .checks |= drop else . end' "$f" >"$f.trial" && mv "$f.trial" "$f"
 done
 
-jq -c '.variants' "$def" >"$out/written-variants.json"
 names=$(jq -c ".plants | keys_unsorted" "$plants")
 jq -n --argjson v "$names" --slurpfile variants "$out/written-variants.json" \
   '[$v[] as $plant | $variants[0][] | {key: "\($plant)-\(.id)", value: {plant: $plant, variant: .id}}] | from_entries' >"$out/variants.json"
-jq --argjson v "$names" '.variants as $variants | .variants = [$v[] as $plant | $variants[] | . + {id: "\($plant)-\(.id)", attempts: 1}] | del(.hooks, .nb)' \
-  "$def" >"$def.trial" && mv "$def.trial" "$def"
+rm -f "$dir"/variants/*.json
+for plant in $(jq -r '.[]' <<<"$names"); do
+  jq -c --arg plant "$plant" '.[] | .id = "\($plant)-\(.id)"' "$out/written-variants.json" \
+    | while read -r v; do jq . <<<"$v" >"$dir/variants/$(jq -r .id <<<"$v").json"; done
+done
+jq '.attempts = 1 | del(.hooks, .nb)' "$def" >"$def.trial" && mv "$def.trial" "$def"
 
 # nb on Mock under every provider name the exam uses, so its program compiles whatever it names.
-providers=$( { jq -r '.variants[].provider // empty' "$def"; sed -nE 's/^[[:space:]]*provider[[:space:]]+([^[:space:]{]+)[[:space:]]*$/\1/p' "$dir/program.nb" 2>/dev/null; } | sort -u | grep -vx Mock)
+providers=$( { jq -r '.[].provider // empty' "$out/written-variants.json"; sed -nE 's/^[[:space:]]*provider[[:space:]]+([^[:space:]{]+)[[:space:]]*$/\1/p' "$dir/program.nb" 2>/dev/null; } | sort -u | grep -vx Mock)
 jq -n --arg p "$providers" '{Harness: "nb", ActiveProvider: "Mock", Trust: false,
   ChatProviders: ([{Name: "Mock"}] + [$p | split("\n")[] | select(. != "") | {Name: ., Provider: "Mock"}])}' >"$root/exams/trial-nb.json"
 jq -n --arg nb "$(command -v nb)" '{nb: {path: $nb, config: "trial-nb.json"}}' >"$root/exams/proctor.json"
@@ -74,8 +80,8 @@ jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.j
           ([$by_variant | to_entries[] | select(.value == ["live"]) | .key]) as $live
           | ([$by_variant | to_entries[] | select(.value == ["draft"]) | .key]) as $draft
           | $live[] as $l | $draft[] as $d
-          | ($def[$l] | del(.id, .description, .attempts, .bundle, .labels)) as $a
-          | ($def[$d] | del(.id, .description, .attempts, .bundle, .labels)) as $b
+          | ($def[$l] | del(.id, .note, .bundle)) as $a
+          | ($def[$d] | del(.id, .note, .bundle)) as $b
           | (if $a != $b then "variants \($l) and \($d) differ in \([($a + $b) | keys[] | select($a[.] != $b[.])] | join(", ")) as well as the prompt, so a difference between them is not the rewrite alone" else empty end),
             (if $def[$l].bundle == $def[$d].bundle then "variants \($l) and \($d) have the same bundle, so their bundle is not what gives them different prompts" else empty end)
         else empty end ),

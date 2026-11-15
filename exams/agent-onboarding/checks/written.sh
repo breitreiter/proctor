@@ -8,7 +8,7 @@
 found=$(git -C "$PROCTOR_WORK" status --porcelain --untracked-files=all 2>/dev/null \
   | sed -E 's/^.. //; s/^"(.*)"$/\1/' \
   | grep -E '(^|/)exams/[^/]+/exam\.json$' \
-  | grep -vE '(^|/)(\.proctor|runs|reports)/' | sort -u)
+  | grep -vE '(^|/)(\.proctor|attempts|reports)/' | sort -u)
 if [ "$(grep -c . <<<"$found")" -gt 1 ]; then
   kept=$(grep -vE '(^|/)exams/[^/]*(mock|shakedown|smoke|scratch|tmp|trial|test)[^/]*/exam\.json$' <<<"$found")
   [ -n "$kept" ] && found=$kept

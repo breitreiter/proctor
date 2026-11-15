@@ -1,12 +1,19 @@
 {
   "id": "docs",
-  "note": "the README and the layout plans, no example exams",
+  "note": "the README, the configuration and CLI references and two layout plans, no example exams",
   "runner": "nb",
   "harness": "nb",
   "provider": "local-qcoder",
   "model": "qwen3-coder-next",
   "bundle": {
     "git": "https://github.com/breitreiter/proctor.git",
-    "rev": "1e71808b804a63a3469f3ca91ff3efaf9b95a1d0"
+    "rev": "1e71808b804a63a3469f3ca91ff3efaf9b95a1d0",
+    "paths": [
+      "README.md",
+      "docs/configuration.md",
+      "docs/cli.md",
+      "project/plans/on-disk-layout.md",
+      "project/plans/report-structure.md"
+    ]
   }
 }

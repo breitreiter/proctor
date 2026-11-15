@@ -64,7 +64,8 @@ for task_file in "$here"/tasks/*.json; do
   fi
   if [ "$mode" = --sloppy ]; then
     edit "$PROCTOR_WORK/exams/nb.json" '.ChatProviders[0].ApiKey = "sk-proj-shakedownFAKEkey000000000000"'
-    edit "$s/exam.json" 'del(.description) | .variants |= map(del(.description))'
+    edit "$s/exam.json" 'del(.description)'
+    for v in "$s"/variants/*.json; do edit "$v" 'del(.note)'; done
     sed -i '/^tools none$/d' "$s/program.nb"
   fi
   (cd "$PROCTOR_WORK" && git add -A -N . && git diff --no-color --binary >"$PROCTOR_DIFF")

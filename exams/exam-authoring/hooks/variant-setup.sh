@@ -1,40 +1,27 @@
 #!/usr/bin/env bash
-# Variant setup: the model on the model box, proctor built from the variant's bundle, and the variant's view of
-# that bundle: what the agent is shown at /work/.bundle. Both variants pin the same revision; the view is
-# what differs, so the comparison between variants is the examples and nothing else. The image is
-# runners/Containerfile's, the package cache warmed for this exam's fixtures.
+# Variant setup prepares the machine: the model on the model box, proctor built at the revision the variant's
+# bundle pins, and the view the agent is shown at /work/.bundle, which is the bundle and that build. What the
+# agent reads is the bundle's paths, declared in the variant's file, so this hook never branches on which
+# variant it runs for. The image is runners/Containerfile's, the package cache warmed for this exam's fixtures.
 set -euo pipefail
 "$PROCTOR_EXAM_DIR/../code-change/hooks/ensure-model.sh" qcoder
 root=$(cd "$PROCTOR_EXAM_DIR/../.." && pwd)
-rev=$(git -C "$PROCTOR_BUNDLE" rev-parse HEAD)
+variant="$PROCTOR_EXAM_DIR/variants/$PROCTOR_VARIANT.json"
+url=$(jq -r .bundle.git "$variant"); rev=$(jq -r .bundle.rev "$variant")
 
 # proctor as a user would have it, built once per revision on the host (it is our own source, not the model's).
+# The bundle holds only the documentation, so the build is from a clone of its own.
+src="$root/.proctor/proctor-src/$rev"
+[ -d "$src/.git" ] || { rm -rf "$src" && git clone -q "$url" "$src" && git -C "$src" checkout -q "$rev"; }
 build="$root/.proctor/proctor-builds/$rev"
-[ -f "$build/proctor.dll" ] || dotnet build "$PROCTOR_BUNDLE/Proctor.csproj" -c Release -o "$build" --nologo -v q >/dev/null
+[ -f "$build/proctor.dll" ] || dotnet build "$src/Proctor.csproj" -c Release -o "$build" --nologo -v q >/dev/null
 echo "proctor $rev built at $build"
 
-# The view: documentation for every variant, the examples for the variant named for them. This exam is never
-# shown, since its checks and trial are the grader and its reference/ the answer key; nor are the
-# workspace fixtures the tasks run in.
-view="$root/.proctor/views/$rev/$PROCTOR_VARIANT"
-rm -rf "$view" && mkdir -p "$view/project/plans"
-cp "$PROCTOR_BUNDLE/README.md" "$view/"
-# The configuration reference left the README on 2026-11-08; a revision before that has none.
-[ -f "$PROCTOR_BUNDLE/docs/configuration.md" ] && mkdir -p "$view/docs" && cp "$PROCTOR_BUNDLE/docs/configuration.md" "$view/docs/"
-# The commands and guard mode left it on 2026-11-09.
-[ -f "$PROCTOR_BUNDLE/docs/cli.md" ] && mkdir -p "$view/docs" && cp "$PROCTOR_BUNDLE/docs/cli.md" "$view/docs/"
-cp "$PROCTOR_BUNDLE"/project/plans/{on-disk-layout,report-structure}.md "$view/project/plans/"
-case "$PROCTOR_VARIANT" in
-  docs) ;;
-  docs-and-examples)
-    # find fails on a start path that is missing.
-    dirs=(); for d in exams fixtures; do [ -d "$PROCTOR_BUNDLE/$d" ] && dirs+=("$d"); done
-    (cd "$PROCTOR_BUNDLE" && find "${dirs[@]}" -type f \
-       -not -path 'exams/exam-authoring/*' -not -path 'fixtures/authoring-*' \
-       -not -path '*/bin/*' -not -path '*/obj/*' -not -name baseline.json -print0 \
-     | xargs -0 cp --parents -t "$view") ;;
-  *) echo "no view for variant $PROCTOR_VARIANT"; exit 1 ;;
-esac
+# The view: the bundle as proctor resolved it, and the build beside it. Named by the bundle's directory, which is
+# its identity, so attempt-setup.sh finds the same one.
+view="$root/.proctor/views/$(basename "$PROCTOR_BUNDLE")"
+rm -rf "$view" && mkdir -p "$view"
+cp -r "$PROCTOR_BUNDLE/." "$view/"
 cp -r "$build" "$view/proctor"
 echo "view for $PROCTOR_VARIANT: $(find "$view" -type f -not -path "$view/proctor/*" | wc -l) files beside the build"
 

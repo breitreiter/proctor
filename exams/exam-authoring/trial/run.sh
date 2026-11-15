@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The trial, inside a container: the exam the agent wrote, run by proctor against planted runs of
 # its own task and graded, so it is judged by what it passes and fails rather than by how it reads.
-# Its variants are replaced by one variant per planted run in /trial/$TRIAL_TASK (good-* must pass, bad-*
+# Its variants/ is replaced by one variant per planted run in /trial/$TRIAL_TASK (good-* must pass, bad-*
 # must fail), its hooks and runner by planted.sh, and its model checks dropped: a guardrail that
 # asks a model decides nothing here, and one named in pass or validity makes the trial fail.
 #   usage: run.sh <exam id>    mounts: /authored (the work directory, read-only), /trial (read-only),
@@ -18,11 +18,13 @@ jq -e . "$e" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
 asks_model=$(jq -c '[.grading.checks // {} | to_entries[] | select(.value | type == "object" and (keys | any(test("(decide|judge)$")))) | .key]' "$e")
 in_headline=$(jq -r --argjson m "$asks_model" '[(.grading.pass // []) + (.grading.validity // []) | .[] | select(. as $n | $m | index($n))] | first // empty' "$e")
 [ -z "$in_headline" ] || fail "'$in_headline' asks a model and is named in pass or validity, so no run can be decided without one"
-variants=$(for f in "/trial/$TRIAL_TASK"/*.sh; do
-         jq -n --arg id "$(basename "$f" .sh)" '{id: $id, runner: "nb", harness: "nb", provider: "Mock", model: "mock", attempts: 1}'
-       done | jq -s .)
-jq --argjson variants "$variants" --argjson m "$asks_model" \
-   '.variants = $variants | del(.hooks, .nb) | .grading.checks |= with_entries(select(.key as $k | $m | index($k) | not))' "$e" >"$e.trial"
+rm -rf "$root/exams/$id/variants" && mkdir -p "$root/exams/$id/variants"
+for f in "/trial/$TRIAL_TASK"/*.sh; do
+  v=$(basename "$f" .sh)
+  jq -n --arg id "$v" '{id: $id, runner: "nb", harness: "nb", provider: "Mock", model: "mock"}' >"$root/exams/$id/variants/$v.json"
+done
+jq --argjson m "$asks_model" \
+   '.attempts = 1 | del(.hooks, .nb) | .grading.checks |= with_entries(select(.key as $k | $m | index($k) | not))' "$e" >"$e.trial"
 mv "$e.trial" "$e"
 jq -n '{nb: {path: "/opt/nb/nb", config: "trial-nb.json"}}' >"$defs/proctor.json"
 jq -n '{Harness: "nb", ActiveProvider: "Mock", Trust: false, ChatProviders: [{Name: "Mock"}]}' >"$defs/trial-nb.json"

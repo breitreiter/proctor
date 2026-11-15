@@ -54,7 +54,7 @@
       },
       "describes-everything": {
         "script": "checks/describes-everything.sh",
-        "description": "the written exam, its variants and its tasks each carry a description for the report's reader"
+        "description": "the written exam and its tasks each carry a description, and its variants a note, for the report's reader"
       },
       "read-examples": {
         "script": "checks/read-examples.sh",

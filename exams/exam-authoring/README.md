@@ -21,25 +21,29 @@ attempted three times."
 | | |
 |---|---|
 | agent | nb with the local qwen3-coder model, in a container (`../runners/container.sh`) |
-| variants | `docs`: the README and the layout plans; `docs-and-examples`: the same, with the example exams and fixtures beside them |
+| variants | `variants/docs.json`: the README, the configuration and CLI references and two layout plans; `variants/docs-and-examples.json`: the same, with the example exams and fixtures beside them |
 | tasks | three workspaces, each asking for one exam (below) |
 | attempts | 3 per variant and task: 18 in all |
 
-Both variants pin the same proctor revision as their `bundle`. `hooks/variant-setup.sh`
-builds proctor from it and prepares the variant's *view*: the files the agent sees at
-`/work/.bundle`, read-only. The view is the README, `docs/configuration.md` and
-`docs/cli.md`, and two plans, `on-disk-layout` and `report-structure`; it no longer
-copies the plans now under `project/archive/`.
+Both variants pin the same proctor revision as their `bundle`, and each names the
+`paths` of that revision it shows: the README, `docs/configuration.md`, `docs/cli.md`
+and two plans, `on-disk-layout` and `report-structure`; `docs-and-examples` adds every
+example exam and fixture by name, leaving out this exam and its `authoring-*`
+workspaces. What the agent reads is therefore declared in the variant's file and is
+part of its hash. `hooks/variant-setup.sh` prepares the machine and does not branch on
+the variant: it builds proctor at the bundle's revision and puts the build beside the
+bundle in the *view*, the files the agent sees at `/work/.bundle`, read-only.
 
-**The pin predates the rename.** The pinned revision documents the layout
-before exam, variant and attempt (its README and plans say the earlier words
-and directory names), while the checks here, and the proctor that grades, read
-only `exams/<id>/exam.json`. Until the pin moves to a pushed revision with the
-new words, an agent that follows the pinned docs writes the old layout and
-fails `validates`. Moving the pin is a push, and the user's. The view sits inside the workspace because nb's file
+**The pin predates the rename, so this exam does not run yet.** The pinned
+revision documents the layout before exam, variant and attempt and has no
+`docs/` and no `exams/`, so the bundle's `paths` are not in it and `proctor run`
+stops while resolving the bundle. The paths name the new layout, which is what
+the agent should be shown; the pin moves, in both variant files and as a new
+id for each (a changed variant is a new variant), to a pushed revision with the
+new words. Moving the pin is a push, and the user's. The view sits inside the workspace because nb's file
 tools (`read_file`, `grep`, `list_dir`) read only under the working directory;
 mounted beside it, the documentation could be read only through `bash`. The only difference between the variants is whether the examples are in
-the view, so comparing them tests a theory about how agents use documentation:
+the bundle, so comparing them tests a theory about how agents use documentation:
 that an agent reads a worked example alongside the structured docs and borrows
 from it. `read-examples` is the rate at which it does.
 
@@ -52,8 +56,8 @@ from it. `read-examples` is the rate at which it does.
 ## How a written exam is graded
 
 `checks/trial.sh` runs `trial/run.sh` in a container with no network. The trial
-copies the workspace, replaces the written exam's variants with one per planted attempt
-in `trial/<task>/` (`good-*` and `bad-*`), and swaps its hooks and runner for
+copies the workspace, replaces the written exam's `variants/` with one variant file per
+planted attempt in `trial/<task>/` (`good-*` and `bad-*`), sets `attempts` to 1, and swaps its hooks and runner for
 `trial/planted.sh`. That runner applies the planted change to the checkout and
 has nb's Mock provider make one tool call and give the planted closing message,
 so the transcript is nb's own. Proctor then runs, grades and reports that inner
@@ -68,7 +72,7 @@ batch stays in the attempt under `trial/` as evidence.
 |---|---|---|
 | `exit_ok`, `validates`, `accepts-correct`, `rejects-wrong` | pass | nb finished; `proctor list` loads the exam cleanly; it passes the correct attempt; it fails every wrong one |
 | `stays-in-work` | validity | the agent stayed in its checkout and the bundle (once shared with code-change, which runs through Harbor now) |
-| `self-validated`, `describes-everything`, `read-examples` | guardrail | it ran `list` itself; every id carries a description; it opened an example |
+| `self-validated`, `describes-everything`, `read-examples` | guardrail | it ran `list` itself; the exam and every task carry a description and every variant a note; it opened an example |
 | `stance` (`decide`), `prompt-hides-answer` (`judge`) | guardrail | the closing message claims completion; the task prompt it wrote does not give away the answer |
 
 `reference/` holds a good answer for each task: three small exams that also serve
@@ -92,7 +96,7 @@ cp reports/data/<id>/{report.html,summary.md} exams/exam-authoring/report/
 ```
 
 `--runner none` is only a shakedown here. It skips the views, so the agent sees
-the whole clone, answer key included, and gets no proctor build.
+the bundle without a proctor build.
 
-To test a documentation change, push it, add a variant whose bundle pins the new
+To test a documentation change, push it, add a variant file whose bundle pins the new
 revision, and compare the two in one batch.

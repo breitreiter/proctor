@@ -25,9 +25,9 @@ solve the onboarding in advance.
 
 | | |
 |---|---|
-| variants | `cc-sonnet`: Claude Code 2.1.301 on `claude-sonnet-5-5`, 5 attempts. `qwen`: Qwen Code 0.25.2 on the local `qwen3-coder-next`, 1 attempt, the free shakedown variant (`../code-change/hooks/ensure-model.sh` loads the model) |
+| variants | `variants/qwen.json`: Qwen Code 0.25.2 on the local `qwen3-coder-next`, the free shakedown variant (`../code-change/hooks/ensure-model.sh` loads the model). A hosted variant, such as Claude Code on `claude-sonnet-5-5`, is a file beside it, its spend agreed first |
 | tasks | three chatbot projects, one request each (below) |
-| attempts | 18: 15 on Sonnet, 3 local |
+| attempts | `attempts: 3` in `exam.json`: 9 for the one variant |
 | wall | 45 minutes per attempt (`limits.wall_ms`) |
 
 | task | fixture | the written exam must get right |
@@ -59,14 +59,14 @@ sed -i 's/76494f192dc303d4b4bb5256702bb4fc1e04e7b2/<new sha>/g' fixtures/onboard
 **The pin predates the rename.** The pinned revision is proctor before exam,
 variant and attempt: its skill and docs teach the layout before the rename,
 and its build reads only that. `checks/written.sh` and `trial/run.sh` now look
-for `exams/<id>/exam.json` and write the new field names, so until the pin
+for `exams/<id>/exam.json` with its variants in `variants/<id>.json`, so until the pin
 moves to a pushed revision with the new words, every written exam fails
 `validates` and the trial cannot run on the pinned build.
 
 The revision must be pushed to GitHub, since the image clones it. A fixture's
 image block cannot be shared between fixtures, so the pin appears three times.
-The exam hash covers the fixtures, so `resume` refuses a batch whose pin
-changed.
+The exam hash and each task's hash cover the fixtures, so `resume` refuses a
+batch whose pin changed.
 
 ## How a written exam is graded
 
@@ -78,8 +78,8 @@ any root. A scratch copy is ignored when its id says so (`*-mock`,
 `*-shakedown`, and so on).
 
 `checks/trial.sh` runs `trial/run.sh` once. It copies the written root and
-clones each written variant once per plant in `trial/<task>/plants.json`,
-with one attempt, keeping its bundle and every other field. It drops hooks,
+clones each written variant file once per plant in `trial/<task>/plants.json`,
+keeping its bundle and every other field, and sets the exam's `attempts` to 1. It drops hooks,
 the nb runner and model checks; a model check named in `pass` or `validity` is
 a problem, since nothing here can answer one. It then runs, grades and reports
 that inner batch with the image's proctor. The runner is
@@ -98,8 +98,8 @@ The trial reports a problem, which fails both trial checks, when:
   would not measure the bot.
 - on `revised-prompt`, either version is missing, or one program carries both.
 - a variant switches version from task to task.
-- the live and draft variants differ in anything but `bundle` (id, description and
-  attempts aside), or share a bundle.
+- the live and draft variants differ in anything but `bundle` (id and note
+  aside), or share a bundle.
 - the attempts failed before the bot answered.
 
 | check | kind | what it says |
@@ -109,7 +109,7 @@ The trial reports a problem, which fails both trial checks, when:
 | `accepts-correct` | pass | every planted right reply passed and was counted |
 | `rejects-wrong` | pass | every planted wrong reply completed, was counted and failed. An undecided, excluded or broken attempt got through |
 | `surface-present` | validity | proctor, nb and the skill were in the image and ran, and nb answered on Mock |
-| `chat-only`, `no-secrets`, `describes-everything` | guardrail | every variant is bare nb and the program says `tools none`; no key value in any file written (`${VAR}` only); the exam, its variants and its tasks are described |
+| `chat-only`, `no-secrets`, `describes-everything` | guardrail | every variant is bare nb and the program says `tools none`; no key value in any file written (`${VAR}` only); the exam and its tasks carry a description, its variants a note |
 
 That is deliberately all. There are no process checks (whether the agent read
 the skill, ran `list`, or proved the exam on Mock), no model checks and no
@@ -149,8 +149,7 @@ reference through Harbor's oracle agent, with `reference/solve.sh` and
 ```bash
 dotnet build
 exams/agent-onboarding/reference/shakedown.sh      # optional, ~3 min
-proctor run agent-onboarding --variant qwen          # the free shakedown variant, local model
-proctor run agent-onboarding                         # both variants: 15 Sonnet attempts, real spend
+proctor run agent-onboarding                         # every variant file: qwen, the free local one, alone as shipped
 proctor grade <id>
 proctor report <id>
 ```
@@ -159,7 +158,7 @@ proctor report <id>
 an example exam or two and the fixture, then writes about a dozen files and
 runs `proctor list` and a Mock shakedown a few times. Expect 40 to 80 tool
 calls, about 30 to 60 model requests, and 1 to 3 million input tokens (mostly
-cache reads) per attempt. Agree the number before the 15-attempt batch.
+cache reads) per attempt. Agree the number before a batch with a hosted variant.
 
 ## Answer key (private)
 
@@ -171,7 +170,7 @@ shown to the agent. The image removes it from the proctor clone.
 - One exam under `exams/<id>/`, with a fixture of its own. A chat exam needs
   an almost empty one, like proctor's `fixtures/empty`, which is not in the
   user's repository.
-- Bare nb variants: `runner: nb`, `harness: nb`, a provider and a model.
+- Bare nb variants, one file each under `variants/`: `runner: nb`, `harness: nb`, a provider and a model.
 - A program with `model {{model}}` before `provider {{provider}}`, then
   `tools none`.
 - The bot's own system prompt and knowledge file as `system` messages, e.g.
@@ -185,7 +184,7 @@ shown to the agent. The image removes it from the proctor clone.
 - Deterministic checks only. A validity check that the provider answered
   (`exit_reason: ok`) is good practice.
 - Config that names keys as `${VAR}`. The user's llama-server needs none.
-- A description on the exam, every variant and every task.
+- A description on the exam and every task, a note on every variant.
 
 **`exact-answers`.**
 
@@ -203,7 +202,7 @@ shown to the agent. The image removes it from the proctor clone.
 
 **`revised-prompt`.**
 
-- Two variants, identical but for `id`, `description` and `bundle`:
+- Two variant files, identical but for `id`, `note` and `bundle`:
   - one whose program gives the bot `bot/system.md`;
   - one whose program gives it `bot/system-draft.md`.
 - The knowledge file in both.

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Attempt setup: the attempt's container, as code-change's was, except that the bundle mount is the variant's view
-# (see variant-setup.sh) rather than the clone itself, read-only. exam.json puts it inside the work mount,
+# (see variant-setup.sh: the bundle and a proctor build) rather than the bundle itself, read-only. exam.json puts it inside the work mount,
 # since nb's file tools read nothing outside the working directory; on the host that leaves an empty
 # mount point in the checkout, which git does not see.
 set -euo pipefail
 [ -n "$PROCTOR_RUNNER" ] || { echo "bare run: nb stays on the host, no container"; exit 0; }
 engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)
 root=$(cd "$PROCTOR_EXAM_DIR/../.." && pwd)
-view="$root/.proctor/views/$(git -C "$PROCTOR_BUNDLE" rev-parse HEAD)/$PROCTOR_VARIANT"
+view="$root/.proctor/views/$(basename "$PROCTOR_BUNDLE")"
 "$engine" rm -f "$PROCTOR_CONTAINER" >/dev/null 2>&1 || true
 args=(-d --name "$PROCTOR_CONTAINER"
       -v "$PROCTOR_WORK:$PROCTOR_WORK_MOUNT"
