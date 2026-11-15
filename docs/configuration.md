@@ -1,39 +1,39 @@
 # Configuring proctor
 
-The reference for what goes in a suite, a fixture, a task and the
-machine's config. To install proctor and run a first suite, start from the
+The reference for what goes in an exam, a fixture, a task and the
+machine's config. To install proctor and run a first exam, start from the
 [README](../README.md).
 
 ## Layout and vocabulary
 
-A repository that uses proctor has `suites/` (yours, in git), `runs/` (raw
+A repository that uses proctor has `exams/` (yours, in git), `attempts/` (raw
 output, gitignored) and `reports/` (derived, written by `proctor report`).
 
 The words, which the report and every file use the same way:
 
 | word | one sentence |
 |---|---|
-| **suite** | A collection of related tasks with one business goal, graded by one shared checklist so a pass rate across them means one thing. |
+| **exam** | A collection of related tasks with one business goal, graded by one shared checklist so a pass rate across them means one thing. |
 | **task** | One input and one desired outcome: a prompt against a fixture, with the checks that say whether the outcome was reached. |
-| **sample** | One measurement of a stochastic system: one attempt at one task by one arm. |
-| **check** | One yes-or-no item on the checklist, asked of a finished sample. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
-| **arm** | What is under test: a harness, a provider, a model and a bundle, run over every task. |
-| **fixture** | The repository a task runs against and what "done" looks like in it; reused across suites. |
-| **experiment** | One execution of one suite across every arm, task and sample. |
-| **baseline** | Pinned cells from an earlier experiment, compared with as a virtual arm. |
+| **check** | One yes-or-no item on the checklist, asked of a finished attempt. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
+| **fixture** | The repository a task runs against and what "done" looks like in it; reused across exams. |
+| **variant** | What is under test: a harness, a provider, a model and a bundle, given every task. |
+| **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
+| **batch** | The attempts one `proctor run` made: every variant over every task, as many attempts as each variant asks for. |
+| **baseline** | Pinned attempts from an earlier batch, compared with as a virtual variant. |
 
-A suite is one business goal probed by many tasks. Every task in it is
+An exam is one business goal probed by many tasks. Every task in it is
 graded by the same pass list. If you find yourself wanting a different
 pass list for one task, or a check that only makes sense on some tasks
-and passes vacuously on the rest, you have two suites. If you want to
+and passes vacuously on the rest, you have two exams. If you want to
 ask a second question of the same transcripts, you have a new check,
-not a new suite. The prompt is what the user wants, in the user's words;
+not a new exam. The prompt is what the user wants, in the user's words;
 the task's checks are how proctor measures whether they got it.
 
 ## The machine's config and the judges
 
-`suites/proctor.json` says where nb is and which config it runs with; paths are
-relative to `suites/`:
+`exams/proctor.json` says where nb is and which config it runs with; paths are
+relative to `exams/`:
 
 ```json
 { "nb": { "path": "../../nb/bin/Debug/net10.0/nb", "config": "nb.json" } }
@@ -43,12 +43,12 @@ Without it, `nb` is taken from `PATH` and nb resolves its own config.
 `--nb <path>` overrides either.
 
 `--config <file>` on `list`, `run`, `resume` and `grade` reads another
-machine file in place of `suites/proctor.json`, with the same fields and
-its relative paths still resolved against `suites/`. A suite is the
-question and this file is the machine, so the same suite runs somewhere
+machine file in place of `exams/proctor.json`, with the same fields and
+its relative paths still resolved against `exams/`. An exam is the
+question and this file is the machine, so the same exam runs somewhere
 else by naming a different file: `proctor run code-change --config
-suites/proctor.modal.json`. `resume` needs the `--config` the experiment
-was run with. Files named `suites/proctor.*.json` and `suites/nb.*.json`
+exams/proctor.modal.json`. `resume` needs the `--config` the batch
+was run with. Files named `exams/proctor.*.json` and `exams/nb.*.json`
 are gitignored, apart from the `*.example.json` ones.
 
 The same file names the judges that the model checks call at grade time,
@@ -59,11 +59,11 @@ speaks it), with a `model` sent in the request when the endpoint serves
 several; a `chat` judge is an OpenAI-dialect chat completions endpoint with
 a model name. Endpoints and keys may be `${VAR}`
 references, resolved only when `grade` runs. This repository commits only
-`suites/proctor.example.json`, which expects `LLM_GATEWAY`, the base URL of
+`exams/proctor.example.json`, which expects `LLM_GATEWAY`, the base URL of
 an OpenAI-dialect gateway that serves the routes it names, and
-`LLM_GATEWAY_KEY`, its key; your `suites/proctor.json` is gitignored, so the
+`LLM_GATEWAY_KEY`, its key; your `exams/proctor.json` is gitignored, so the
 routes you point it at stay on your machine. nb resolves the same references
-in its own config, which is how `suites/nb.json` reaches the same gateway.
+in its own config, which is how `exams/nb.json` reaches the same gateway.
 
 ```json
 {
@@ -90,8 +90,8 @@ LLM_GATEWAY=http://gateway.example:8086/x
 LLM_GATEWAY_KEY=...
 ```
 
-`family` is only for the reminder `grade` prints when an arm's model
-carries a judge's family name; a judge should be off-family from every arm
+`family` is only for the reminder `grade` prints when a variant's model
+carries a judge's family name; a judge should be off-family from every variant
 it grades. `max_window` (characters, default 24,000) caps what a judge is
 sent; a larger window is an error, never a truncation.
 
@@ -104,49 +104,49 @@ endpoint's own words and no further requests. Nothing is lost: the next
 
 ## Running bare nb in a container
 
-nb's runner, below, is the older way to put a bare nb arm in a container.
-For a new suite with tools, prefer an agent arm (`agent: nb` for nb
-itself; see [Agent arms](#agent-arms)).
+nb's runner, below, is the older way to put a bare nb variant in a container.
+For a new exam with tools, prefer an agent variant (`agent: nb` for nb
+itself; see [Agent variants](#agent-variants)).
 
-A suite that runs nb inside a container names the script that runs it in
-its `suite.json`, beside the hooks that make the container;
-`--runner <script>` (a path from the current directory) overrides it for one run and
+An exam that runs nb inside a container names the script that runs it in
+its `exam.json`, beside the hooks that make the container;
+`--runner <script>` (a path from the current directory) overrides it for one `proctor run` and
 `--runner none` runs bare. The contract is the whole interface:
 
 | proctor gives the runner | the runner must |
 |---|---|
 | stdin: the resolved program, compiled on the host by `nb --compile` so every `@file` include is inlined | pass it to nb's stdin unchanged |
 | cwd: the work directory on the host | start nb with the checkout as its working directory, wherever that is inside |
-| the cell environment (`PROCTOR_*`, which includes `PROCTOR_NB`, the host binary, `PROCTOR_NB_CONFIG`, `PROCTOR_WORK_MOUNT`, `PROCTOR_BUNDLE_MOUNT` and `PROCTOR_CONTAINER`) and `NO_COLOR` | run nb where the checkout, the bundle and the config are at the paths those name |
+| the attempt environment (`PROCTOR_*`, which includes `PROCTOR_NB`, the host binary, `PROCTOR_NB_CONFIG`, `PROCTOR_WORK_MOUNT`, `PROCTOR_BUNDLE_MOUNT` and `PROCTOR_CONTAINER`) and `NO_COLOR` | run nb where the checkout, the bundle and the config are at the paths those name |
 | nothing on argv | run `nb --output jsonl [--config <config>] -` |
-| stdout and stderr captured to the cell | put only nb's stdout on stdout |
+| stdout and stderr captured to the attempt | put only nb's stdout on stdout |
 | | exit with nb's exit code |
 
-`PROCTOR_CONTAINER` is a name derived from the cell that proctor never uses,
-so hooks and the runner can agree on one container: the sample setup hook
-creates it, the runner execs into it, the sample teardown hook removes it.
+`PROCTOR_CONTAINER` is a name derived from the attempt that proctor never uses,
+so hooks and the runner can agree on one container: the attempt setup hook
+creates it, the runner execs into it, the attempt teardown hook removes it.
 Hooks see which is in effect in `PROCTOR_RUNNER`, empty on a bare run, and
 skip the container. The manifest records the script and its hash, and
 `resume` refuses a changed one. The worked example is
-`suites/runners/container.sh` with the `suite-authoring` suite's hooks and the
+`exams/runners/container.sh` with the `exam-authoring` exam's hooks and the
 `Containerfile` beside the runner, which puts nb's own image
 (`podman build -t nb .` in the nb repository) on the .NET SDK:
 
 ```bash
-proctor run suite-authoring                 # each cell in its own container, as suite.json says
-proctor run suite-authoring --runner none   # bare: the shakedown, on this machine
+proctor run exam-authoring                 # each attempt in its own container, as exam.json says
+proctor run exam-authoring --runner none   # bare: the shakedown, on this machine
 ```
 
-A bare run is for shaking down a suite: nb and the model's tools run on this
+A bare run is for shaking down an exam: nb and the model's tools run on this
 machine as you. A container is for anything you would not run on your own
-machine, which is every real suite, since the model runs whatever it decides
+machine, which is every real exam, since the model runs whatever it decides
 to. How to build the image, what to mount, who owns the files the model
 writes, and what nb leaves within its reach is nb's runbook,
 [`docs/containers.md`](https://github.com/breitreiter/nb/blob/HEAD/docs/containers.md); the example above is that
-runbook applied. Each cell keeps `program.nb`, the source as resolved, and
+runbook applied. Each attempt keeps `program.nb`, the source as resolved, and
 `program.jsonl`, what actually went down stdin.
 
-The suite's `nb` block names the runner, relative to the suite directory like
+The exam's `nb` block names the runner, relative to the exam directory like
 a hook, and `mounts`, where the runner will show nb the checkout and the
 bundle:
 
@@ -161,19 +161,19 @@ Hooks and checks run on the host and keep `PROCTOR_WORK` and
 `PROCTOR_BUNDLE_MOUNT` are the paths the model was told, which fall back to
 the host paths when nothing is mounted, so a check such as `stays-in-work`
 reads one variable either way. A bare run ignores the mounts, which is what
-makes `--runner none` a shakedown of the suite on the host. The plan and the
-worked example are in `project/plans/containerised-runs.md`.
+makes `--runner none` a shakedown of the exam on the host. The plan and the
+worked example are in `project/archive/containerised-runs.md`.
 
-## Suites, fixtures and tasks
+## Exams, fixtures and tasks
 
-One suite is one directory, `suites/<id>/`:
+One exam is one directory, `exams/<id>/`:
 
 ```
-suite.json        description, labels, arms, samples, nb (runner, mounts), hooks, grading (checks, pass, validity)
-program.nb       the nb program template; {{prompt}}, {{task}}, {{work}}, {{bundle}}, {{provider}}, {{model}}, {{harness}}, {{arm}}, {{sample}}
+exam.json        description, labels, variants (each with its attempts), nb (runner, mounts), hooks, grading (checks, pass, validity)
+program.nb       the nb program template; {{prompt}}, {{task}}, {{work}}, {{bundle}}, {{provider}}, {{model}}, {{harness}}, {{variant}}, {{attempt}}
 tasks/*.json     one task per file; the id is the file name; names a fixture and adds the prompt, a description, labels, expect and its own checks
 checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason); each needs a description
-hooks/*.sh       arm and sample setup/teardown
+hooks/*.sh       variant and attempt setup/teardown
 ```
 
 Put `model {{model}}` in the template, before `provider {{provider}}`:
@@ -184,62 +184,62 @@ provider {{provider}}
 harness {{harness}}
 ```
 
-Then the arm's `model` is the model nb asks for, and what the report records
+Then the variant's `model` is the model nb asks for, and what the report records
 is what ran. Without the line, nb uses the `Model` in the provider's nb.json
-entry and the arm's `model` is only a label. `proctor setup` writes entries
+entry and the variant's `model` is only a label. `proctor setup` writes entries
 with no `Model`, so they need the line. On those entries nb's Gemini provider
 otherwise falls back to an old default, and its LocalLlm provider (OpenRouter
 and other OpenAI-compatible servers) refuses to start. The order matters,
 because nb builds a provider's client as soon as it reads `provider`. With
-the line, the arm's `model` must be an id the provider serves (a gateway's
+the line, the variant's `model` must be an id the provider serves (a gateway's
 route name, if that is what it takes); `proctor setup --check` lists the ids
 each key can reach.
 
 A fixture is the repository a task is run against, with what "done" looks
 like in it. Fixtures are repo-level, `fixtures/<id>/`, and reused across
-suites:
+exams:
 
 ```
 fixture.json     id, source ({path} or {git, rev}), stack, labels, default expect, checks (scripts with descriptions)
-checks/*.sh      the fixture's own checks (builds, tests pass); merged into every cell run on it
+checks/*.sh      the fixture's own checks (builds, tests pass); merged into every attempt run on it
 repo/            the checkout source; the only thing copied into the work directory
 ```
 
-An arm may name a `bundle`, the pinned version of whatever it puts under
+A variant may name a `bundle`, the pinned version of whatever it puts under
 test: `{ "path": "bundles/x" }` under the repository root, or
 `{ "git": url, "rev": sha }`. Proctor hands its directory to the program
 template as `{{bundle}}` and to hooks and checks as `PROCTOR_BUNDLE`, and
-records its identity in every manifest; what is inside it is the suite's
-business. Two arms with two bundles compare them in one experiment.
+records its identity in every manifest; what is inside it is the exam's
+business. Two variants with two bundles compare them in one batch.
 
-On an agent arm the bundle stays on the host. Proctor hashes it, records
-it in every cell, hands it to the arm hooks as `PROCTOR_BUNDLE`, and
-refuses to `resume` once it has changed, exactly as on a bare arm. It is
-never copied into the agent's container. An `agent: nb` arm with a
+On an agent variant the bundle stays on the host. Proctor hashes it, records
+it in every attempt, hands it to the variant hooks as `PROCTOR_BUNDLE`, and
+refuses to `resume` once it has changed, exactly as on a bare variant. It is
+never copied into the agent's container. An `agent: nb` variant with a
 bundle cannot name `{{bundle}}` in the program template.
 
-The way an agent arm's bundle reaches the agent is through the fixture's
+The way an agent variant's bundle reaches the agent is through the fixture's
 services. A fixture's `image.services` names a directory beside `repo/`
 holding a `docker-compose.yaml`; its services run beside the agent's
 container and share its network, so the agent reaches them on
 `localhost`, and the model's host stays the only other name it can
-reach. Proctor copies the arm's bundle beside those services as
-`bundle/` (an empty directory for an arm with none), so a service can
+reach. Proctor copies the variant's bundle beside those services as
+`bundle/` (an empty directory for a variant with none), so a service can
 mount `./bundle` and serve it: a docs site, say, that the agent reads over
 HTTP and cannot grep. `fixtures/tern-shop` serves a docs bundle this way,
-and `suites/tern-docs` compares two versions of those docs with none.
+and `exams/tern-docs` compares two versions of those docs with none.
 Services run on Docker and podman, not on Modal.
 
-Proctor checks the fixture out into the work directory before each sample,
+Proctor checks the fixture out into the work directory before each attempt,
 commits it, and collects `diff.patch` afterwards.
 
-Checks live at three levels and a cell carries the union: the suite's
+Checks live at three levels and an attempt carries the union: the exam's
 `grading.checks` on every task, a fixture's `checks` on every task run
 against it, and a task's own `checks` on that task alone, for the outcome
 only it can state. A name declared at two levels is a problem. A check
-named in `pass` that the suite does not declare must reach every task from
-its fixture or its own block. A check named in `validity` decides whether a
-sample counts at all: a sample that fails one is excluded, not failed. A
+named in `pass` that the exam does not declare must reach every task from
+its fixture or its own block. A check named in `validity` decides whether an
+attempt counts at all: an attempt that fails one is excluded, not failed. A
 task's check is reported over the tasks that carry it.
 
 ```json
@@ -255,7 +255,7 @@ task's check is reported over the tasks that carry it.
 ```
 
 The report is written for a reader, not a grader, so every id it prints
-carries a sentence beside it. A suite, an arm and a task take an optional
+carries a sentence beside it. An exam, a variant and a task take an optional
 `description`; a task without one is described by the first line of its
 prompt. A check takes `description` as a field beside its spec, and a
 script check must have one, because from outside a script says nothing:
@@ -266,10 +266,10 @@ script check must have one, because from outside a script says nothing:
 
 ## The surface under test
 
-A suite usually tests one thing inside a fixture that holds many: a CLI, an
-MCP server, a docs site. A run can pass without ever using it, by going
-round. `surface` in `suite.json` says what the thing is, so
-`proctor friction <id>` can sort each run's actions by it. It is optional,
+An exam usually tests one thing inside a fixture that holds many: a CLI, an
+MCP server, a docs site. An attempt can pass without ever using it, by going
+round. `surface` in `exam.json` says what the thing is, so
+`proctor friction <id>` can sort each attempt's actions by it. It is optional,
 and no check, report or other verb reads it.
 
 ```json
@@ -298,11 +298,11 @@ and no check, report or other verb reads it.
 Paths are the container's. In a glob `*` crosses directories, so
 `/opt/tern/docs/*` is everything under it. A compound shell call is split
 into actions, one per pipeline, named by the pipeline's first command; a
-heredoc's body is not read; `cd` is followed; a script the run wrote that
+heredoc's body is not read; `cd` is followed; a script the agent wrote that
 calls a surface command counts as the surface when it is run.
 
 `friction.json` holds a `summary` and `points`. With a surface declared the
-summary says whether the run reached it, which it reached first, whether a
+summary says whether the attempt reached it, which it reached first, whether a
 call to it worked, how many of its calls failed, whether a substitute was
 used, and the actions and cost on, about and around the surface, on
 substitutes, and on everything else. A point is a stretch of adjacent steps
@@ -310,10 +310,10 @@ with one label:
 
 | label | a step where | needs a surface |
 |---|---|---|
-| `off-surface` | the run read the surface's internals, or hunted for where it is installed | yes |
+| `off-surface` | the agent read the surface's internals, or hunted for where it is installed | yes |
 | `substitute` | a declared substitute was used | yes |
 | `abandoned` | a substitute was used within two steps of a surface call that failed | yes |
-| `surface-search` | the run searched the surface's docs | yes |
+| `surface-search` | the agent searched the surface's docs | yes |
 | `help` | `--help`, `-h` or `man` | no |
 | `workaround` | a script run inline, or a file written to `/tmp` | yes |
 | `environment` | the machine refused: command not found, permission, timeout, network | no |
@@ -326,7 +326,7 @@ give the same file.
 
 Rules see what a call was and what came back, not what it was for.
 `proctor friction <id> --reader <judge>` adds a reader: a chat judge from
-`proctor.json` reads each run once and names five more kinds of point,
+`proctor.json` reads each attempt once and names five more kinds of point,
 `repair` (fixing its own work after something it ran failed), `lost` (a
 search or read that led to nothing used later), `reread`, `dead-end`
 (following an instruction that could not work as given) and `workaround`.
@@ -334,40 +334,40 @@ The reader must quote the call, and a point is written only when the
 call exists, the label is one of the five and the quote is in that
 call; its one-line reason is kept as a note. Its points carry
 `"source": {"kind": "model", ...}`, so they can always be told from the
-rules'. It is one model call per run, of the run's length (a few
+rules'. It is one model call per attempt, of the attempt's length (a few
 thousand to a few tens of thousands of tokens); what was sent and
-answered is kept in the cell as `friction-reading.<judge>.<hash>.json`
+answered is kept in the attempt as `friction-reading.<judge>.<hash>.json`
 and reused, so repeating the command costs nothing, and `--rejudge` asks
 again. The command prints the tokens it used. A small, cheap model is
 enough; local models tried so far were not.
 
 A point is a place to look, not a verdict: what it
 should become, when it matters, is a check. Two built-ins say most of
-them: `tool_args` with `match: regex` for what a run did, and
+them: `tool_args` with `match: regex` for what an attempt did, and
 `result_matches` (a regular expression over every tool result) for what
 it was shown, usually negated:
 
 ```json
-"no-dead-end": { "not_result_matches": "ask the user to run\\s+`tern setup`", "description": "the docs never send a run to an instruction it cannot follow" }
+"no-dead-end": { "not_result_matches": "ask the user to run\\s+`tern setup`", "description": "the docs never send the agent to an instruction it cannot follow" }
 ```
 
 ## Oracles
 
 A task can name an **answer sheet**, a scripted user that answers when the
-agent stops to ask: `"oracle": "oracle/<task>.md"`, a file inside the suite
+agent stops to ask: `"oracle": "oracle/<task>.md"`, a file inside the exam
 directory in nb's format (`## <id>`, then the answer, verbatim). After a turn
 that ends `ok`, a judge reads the agent's last message against the sheet. On a
-hit the selected answers become the next user turn and the run goes on; when
-the agent asked for something the sheet lacks, the run ends `oracle_miss`.
-`suite.json`'s `oracle` block sets how many answers a run may get (`turns`,
+hit the selected answers become the next user turn and the attempt goes on; when
+the agent asked for something the sheet lacks, the attempt ends `oracle_miss`.
+`exam.json`'s `oracle` block sets how many answers an attempt may get (`turns`,
 default 8, then `oracle_budget`) and which nb config entry judges (`judge`;
-by default the arm's own provider). The checks are `oracle_hit` (a list of
+by default the variant's own provider). The checks are `oracle_hit` (a list of
 entry ids the oracle must have answered with), `oracle_turns {max}` and
-`oracle_misses {max}`. A bare nb arm runs nb's own oracle. An `agent: nb` arm
+`oracle_misses {max}`. A bare nb variant runs nb's own oracle. An `agent: nb` variant
 runs in Harbor with a simulated user on the host, which sends the task and
 each answer to nb over Harbor's ACP bridge and judges with the host's nb, so
 the sheet never enters the container; its program must end in exactly
-`run {{prompt}}`. A vendor agent arm beside an oracle task is refused, because
+`run {{prompt}}`. A vendor agent variant beside an oracle task is refused, because
 Harbor leaves a bridged vendor agent no trajectory to grade
 (`project/plans/oracle-in-proctor.md`).
 
@@ -377,37 +377,37 @@ A built-in check describes itself from its spec
 (`{ "denied_calls": { "max": 0 } }` reads as "no denied tool calls") unless you give it a better sentence.
 
 The report is built for someone who was not there, and for someone who opens
-one every few months as much as every day: it defines arm, task, run and
+one every few months as much as every day: it defines variant, task, attempt and
 check before using them, and every section opens with a sentence saying what
 it is for. Those definitions are set in muted grey so the findings stand
 out once you know the drill. A rail down the left lists every section and
 task and follows you as you scroll.
 
-It starts with the suite's question and a verdict card: for each arm,
+It starts with the exam's question and a verdict card: for each variant,
 better, worse or unchanged and by how many points, whether the 95% interval
 confirms it, the tasks that moved it, and, when it cannot be confirmed, how
-many tasks it would take. The card says so if an arm lost more runs than
-another. Then Arms, and Tasks: one card per task with its prompt, its
-fixture, the checks it carries (its own first, then the suite's), and every
-arm's runs, score and verdict on it, followed by each run that did not pass
+many tasks it would take. The card says so if a variant lost more attempts than
+another. Then Variants, and Tasks: one card per task with its prompt, its
+fixture, the checks it carries (its own first, then the exam's), and every
+variant's attempts, score and verdict on it, followed by each attempt that did not pass
 and why. Results holds the numbers across all tasks (pass rates, the
-comparison between arms, the baseline), then Failures: per arm, each check
+comparison between variants, the baseline), then Failures: per variant, each check
 that failed, in the author's words, with how often and on which tasks.
 Everything after that is evidence: what ran and what was left out, check
-pass rates, cost, every run, and the method last. A run whose headline check
+pass rates, cost, every attempt, and the method last. An attempt whose headline check
 could not decide (a script's exit 2, a split judge) is *undecided*: out of
 the pass rate on both sides, listed for review when there are a few, and
 flagged as a defect in the check when there are many.
 
 ## Labels
 
-Labels are yours: a key with a string or a list of strings, on the suite,
+Labels are yours: a key with a string or a list of strings, on the exam,
 the fixture or the task, and proctor never interprets a key. A task carries
-its fixture's labels, the suite's laid over them and its own over both, key
+its fixture's labels, the exam's laid over them and its own over both, key
 by key. They print with `list`, filter it (`--label kind`,
 `--label area=coding/*`, repeatable; `*` matches within a slash segment and `**`
 across), and sit on every row of `results.jsonl` so a later report can group
-on them without re-reading a suite that has since changed:
+on them without re-reading an exam that has since changed:
 
 ```json
 { "labels": { "area": "coding/change", "stack": "dotnet" } }
@@ -421,9 +421,9 @@ named extractions (`answer`, `answer_json`, `prompt`, `tool_calls`,
 systemone judge one typed question and reads the probability: yes/no
 without `options`, one label of several with them. `judge` asks a chat
 model a criterion, several times at temperature 0, and reads a label with
-verbatim evidence; every quote is checked against the window, a sample with
+verbatim evidence; every quote is checked against the window, a vote with
 an unverifiable quote is discarded, a split or an `unknown` is `needs-judge`,
-and the reasoning stays in the cell's `verdicts/` file and never reaches the
+and the reasoning stays in the attempt's `verdicts/` file and never reaches the
 report.
 
 ```json
@@ -432,7 +432,7 @@ report.
                                "options": { "complete": "it presents the work as finished", "asked": "it stops to ask", "blocked": "it could not finish" },
                                "expect": "complete", "threshold": 0.95 } },
   "ran-tests":   { "decide": { "ask": "Did the agent run the project's tests before its closing message?", "window": "tool_calls+answer" } },
-  "change-fits": { "judge":  { "ask": "Does the diff change only what the prompt asked for?", "window": "prompt+diff", "samples": 3 } }
+  "change-fits": { "judge":  { "ask": "Does the diff change only what the prompt asked for?", "window": "prompt+diff", "votes": 3 } }
 }
 ```
 
@@ -441,12 +441,12 @@ so may `ask`, read from `expect.<check name>.ask`, so one `correct` check
 can carry a rubric per task. A built-in field set to `"@expect"` reads
 `expect.<check name>.<field>` first and `expect.<field>` second.
 `with` names a judge from `proctor.json`; without it the only judge of the
-needed kind is used. Whether a suite is judged is not declared; it follows
+needed kind is used. Whether an exam is judged is not declared; it follows
 from a check that asks a model, and `list` says so.
 
-## Agent arms
+## Agent variants
 
-An arm that names an `agent` runs through
+A variant that names an `agent` runs through
 [Harbor](https://github.com/harbor-framework/harbor), in a container built
 from its fixture's image, instead of running nb on this machine. The agent
 is a vendor's own CLI at a pinned version (`claude-code`, `codex`,
@@ -454,7 +454,7 @@ is a vendor's own CLI at a pinned version (`claude-code`, `codex`,
 
 ```json
 {
-  "arms": [
+  "variants": [
     { "id": "cc-haiku", "agent": "claude-code", "agent_version": "2.1.301", "model": "claude-haiku-5-5" },
     { "id": "floor", "agent": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next" }
   ],
@@ -465,20 +465,20 @@ is a vendor's own CLI at a pinned version (`claude-code`, `codex`,
 
 The machine needs [uv](https://docs.astral.sh/uv/), which runs the pinned
 Harbor, and a container engine, set by `harbor.engine` in
-`suites/proctor.json`:
+`exams/proctor.json`:
 
 - **Docker** (the default), with the Compose and buildx CLI plugins.
 - **Podman**, rootless, with its API socket running, docker-compose v2
   behind `podman compose`, and three lines of user config. The setup,
   and why each step is there, is [`podman.md`](podman.md);
   `run` checks what it can before it starts.
-- **Modal** (experimental), no engine on this machine at all: each cell's containers run
+- **Modal** (experimental), no engine on this machine at all: each attempt's containers run
   as sandboxes on your Modal account. The agent's model must be on the
   internet, and a fixture with `image.services` cannot run there. Setting
   it up, and what it costs, is [`modal.md`](modal.md).
 
 The same file says where each vendor agent's model calls go and where nb's
-self-contained linux-x64 publish is, for an `agent: nb` arm:
+self-contained linux-x64 publish is, for an `agent: nb` variant:
 
 ```json
 {
@@ -488,23 +488,23 @@ self-contained linux-x64 publish is, for an `agent: nb` arm:
 ```
 
 While the agent works, its container reaches only the host of its model's
-base URL; the checks run afterwards with no network at all. An experiment
+base URL; the checks run afterwards with no network at all. A batch
 keeps the engine it started on, and `resume` refuses a different one. What
-a fixture's image needs and how a suite moves to agent arms is
+a fixture's image needs and how an exam moves to agent variants is
 [`porting-to-agent-neutral.md`](porting-to-agent-neutral.md);
-`suites/code-change/` runs the same three tasks on all four agents.
+`exams/code-change/` runs the same three tasks on all four agents.
 `agents.codex.config` may name a native Codex `config.toml` (relative to
-`suites/`), merged under Harbor's base URL. Use it for what an endpoint
+`exams/`), merged under Harbor's base URL. Use it for what an endpoint
 needs of the agent: a llama-server takes only function tools, for example.
 
 Harbor pins its own version but not its dependencies' versions, so proctor
 resolves them with uv's `--exclude-newer` seven days back. A poisoned
 release that is pulled within a week never reaches you. If the account
-that runs agent arms holds credentials worth stealing, `harbor.uv` can
+that runs agent variants holds credentials worth stealing, `harbor.uv` can
 point at a wrapper that runs uv in a sandbox with your home directory
 hidden. [`podman.md`](podman.md) §8 has one.
 
-To check that a machine can run agent arms, without a model and at $0:
+To check that a machine can run agent variants, without a model and at $0:
 
 ```bash
 PROCTOR_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
@@ -518,11 +518,11 @@ be checked without changing your config.
 
 ## Examples
 
-`suites/smoke/` with `fixtures/note/` is a complete example that runs against
-nb's Mock provider. `suites/suite-authoring/` is the demo project: a suite
-that asks an agent to write suites, using most of what is described here.
-`suites/gate/` and `suites/conformance/` are proctor's own checks of its
+`exams/smoke/` with `fixtures/note/` is a complete example that runs against
+nb's Mock provider. `exams/exam-authoring/` is the demo project: an exam
+that asks an agent to write exams, using most of what is described here.
+`exams/gate/` and `exams/conformance/` are proctor's own checks of its
 Harbor path: nb on Mock, bare and through Harbor, must agree, and each
 vendor agent on the stub must come back as scripted.
 The check vocabulary and the shape of every file are in
-`project/plans/on-disk-layout.md` and `project/plans/fixtures-arms-baselines.md`.
+`project/plans/on-disk-layout.md` and `project/archive/fixtures-arms-baselines.md`.

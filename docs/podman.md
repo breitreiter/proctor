@@ -1,4 +1,4 @@
-# Agent arms on rootless podman
+# Agent variants on rootless podman
 
 What a machine needs before `harbor.engine: podman` works, and why each
 step is there. Checked on 2026-10-27 with rootless podman 5.7.0 on Ubuntu,
@@ -7,7 +7,7 @@ against the stub) and the oracle pass over `code-change` both run green.
 Earlier findings came from podman 6.1.3. Docker needs none of this.
 
 `run` and `resume` check the compose frontend, the compose banner and the
-search registry before an experiment starts, and say which step is
+search registry before a batch starts, and say which step is
 missing. The other steps cannot be checked from outside a trial.
 
 ## 1. Packages, once, as root
@@ -52,7 +52,7 @@ Harbor's egress sidecar is built `FROM gogost/gost:…`, a short name.
 Docker assumes docker.io; podman refuses unless a search registry is set,
 and Ubuntu's `/etc/containers/registries.conf` sets none. Every trial with
 an `allowlist` or `no-network` phase builds the sidecar, and the separate
-verifier is `no-network`, so without this line every agent cell fails
+verifier is `no-network`, so without this line every agent attempt fails
 before its trial starts.
 
 ## 4. The compose banner
@@ -102,9 +102,9 @@ Ubuntu confines pasta with an AppArmor profile that allows it no signals,
 and podman stops the rootless network by sending pasta `SIGTERM`. The
 kernel refuses the signal, so every environment with a sidecar (the
 trial's and the verifier's) ends with Harbor's `compose down` failing on
-it: `rootless netns: kill network process: permission denied`. Each cell
+it: `rootless netns: kill network process: permission denied`. Each attempt
 then leaves an exited sidecar container and a network behind, two of each
-per cell. The cell's results are unaffected, but the networks hold
+per attempt. The attempt's results are unaffected, but the networks hold
 subnets from a finite pool. The denial is visible only in the kernel log,
 which needs root on Ubuntu:
 
@@ -119,7 +119,7 @@ adds the include; run it once. A passt upgrade will therefore ask about
 the changed profile, and that upgrade is probably how Ubuntu's fix will
 arrive. Ubuntu's bug is [LP#2154379](https://bugs.launchpad.net/bugs/2154379).
 To clear what runs before the rule left behind (the trial images are the
-bulk of it: two per cell, about 1.15 GB each, and `compose down --rmi
+bulk of it: two per attempt, about 1.15 GB each, and `compose down --rmi
 local` is what would have removed them):
 
 ```bash
@@ -141,23 +141,23 @@ trial's tag with it. Untagging removes the image with its last tag.
 Harbor ends every trial with `compose down --rmi local --volumes
 --remove-orphans`, for the environment and again for the verifier: the
 containers, the network and the image each built are gone. With the pasta
-rule in place a finished cell leaves nothing in the engine (checked
+rule in place a finished attempt leaves nothing in the engine (checked
 2026-11-01: `gate-oracle` on a clean podman, no container, no network, no
 new image afterwards).
 
 Two things skip that `down`:
 
-- **A killed Harbor.** When a cell outruns its wall limit plus the overhead
+- **A killed Harbor.** When an attempt outruns its wall limit plus the overhead
   allowed for image builds, proctor kills the Harbor process tree, and no
   `compose down` runs: the agent's container may still be running, with its
   sidecar, network and images. Proctor then removes them itself, by the
   trial's compose project labels (`com.docker.compose.project`:
-  `<trial>__env` and `<trial>__verifier__trial`, lower-cased), so a cell
-  running beside it is untouched. The cell's failure says what was removed.
+  `<trial>__env` and `<trial>__verifier__trial`, lower-cased), so an attempt
+  running beside it is untouched. The attempt's failure says what was removed.
   A Harbor killed by anything other than proctor (an interrupted hand run,
   `kill -9` on the host) leaves the same set; the lines above clear it.
 - **A failed `down`**, which is what the pasta denial above causes: one
-  exited sidecar, one network and one image per environment, two per cell.
+  exited sidecar, one network and one image per environment, two per attempt.
   That is the machine's fault, not proctor's, so proctor does not sweep for
   it; fix the rule, then run the lines above once.
 
@@ -171,7 +171,7 @@ PROCTOR_CONFORMANCE=<proctor.json> dotnet test --no-build --filter ConformanceTe
 ```
 
 `PROCTOR_CONFORMANCE=1` takes `harbor.uv` and `harbor.engine` from the
-repository's `suites/proctor.json`; a path takes them from that file
+repository's `exams/proctor.json`; a path takes them from that file
 instead, so a machine can be checked on podman without changing its
 config. A file holding only `{"harbor": {"engine": "podman"}}` is enough.
 About twenty minutes (seventeen for the vendor agents, three and a half
@@ -183,7 +183,7 @@ Harbor pins its own version but not its dependencies', and one of them
 (litellm 1.107.0, 2026-10-21) shipped a credential stealer that ran at
 every Python startup. Proctor resolves Harbor's dependencies under a
 seven-day cooldown, which keeps out a poisoned release pulled within the
-week. If the account that runs agent arms also holds keys worth stealing
+week. If the account that runs agent variants also holds keys worth stealing
 (`~/.ssh`, a GitHub token, an AI client's credentials), `harbor.uv` can
 point at a wrapper that runs uv in a bubblewrap sandbox with the home
 directory hidden:
@@ -192,7 +192,7 @@ directory hidden:
 #!/bin/bash
 # harbor.uv: uv with $HOME, the runtime directory's other sockets, /srv and
 # the rest of /tmp hidden, and the environment cleared but for what proctor
-# hands Harbor. Bind in your repository's runs/ (or wherever experiments
+# hands Harbor. Bind in your repository's attempts/ (or wherever batches
 # live) if it is under a hidden path.
 set -euo pipefail
 H=$HOME R=$XDG_RUNTIME_DIR UV=$(command -v uv)
@@ -227,10 +227,10 @@ exec bwrap \
 - Inside bubblewrap's user namespace the podman CLI cannot join podman's
   own; `CONTAINER_HOST` makes it a client of the API socket instead, which
   is how Harbor's compose calls reach podman anyway.
-- Harbor's working directory (the cell, under `runs/`) must be visible
+- Harbor's working directory (the attempt, under `attempts/`) must be visible
   and writable inside; add a `--bind` for it if it lies under `$HOME`,
   `/tmp` or another hidden path.
-- An `agent: nb` arm also passes its provider endpoint's `${VAR}`s by value;
+- An `agent: nb` variant also passes its provider endpoint's `${VAR}`s by value;
   add them to the list.
 - This stops a dependency that reads credential files. It does not stop
   one that drives the podman socket, which can start a container mounting

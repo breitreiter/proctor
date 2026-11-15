@@ -1,84 +1,98 @@
-# suite-authoring
+# exam-authoring
 
-Can a coding agent write a proctor suite, given proctor's documentation? This
-suite asks it to, three times, and grades each written suite by what the suite
-does rather than how it reads: it runs the written suite against planted runs
-of its own task, one correct and several wrong, and a written suite passes
-only if it passes the correct run and fails every wrong one.
+Can a coding agent write a proctor exam, given proctor's documentation? This
+exam asks it to, three times, and grades each written exam by what the exam
+does rather than how it reads: it runs the written exam against planted attempts
+of its own task, one correct and several wrong, and a written exam passes
+only if it passes the correct attempt and fails every wrong one.
 
 It is also proctor's demo project. Between them the files here use most of
-what proctor has. The report of a run goes in `report/` so you can see the
+what proctor has. The report of a batch goes in `report/` so you can see the
 output without running anything; none is there
 yet.
 
 ## What runs
 
+The three task prompts were reworded on 2026-11-15 to the words they test:
+"Write an exam with the id `stock-count`. ... It has one variant: nb with the
+provider `local-qcoder` and the model `qwen3-coder-next`. Each task is
+attempted three times."
+
 | | |
 |---|---|
 | agent | nb with the local qwen3-coder model, in a container (`../runners/container.sh`) |
-| arms | `docs`: the README and the layout plans; `docs-and-examples`: the same, with the example suites and fixtures beside them |
-| tasks | three workspaces, each asking for one suite (below) |
-| samples | 3 per arm and task: 18 runs |
+| variants | `docs`: the README and the layout plans; `docs-and-examples`: the same, with the example exams and fixtures beside them |
+| tasks | three workspaces, each asking for one exam (below) |
+| attempts | 3 per variant and task: 18 in all |
 
-Both arms pin the same proctor revision as their `bundle`. `hooks/arm-setup.sh`
-builds proctor from it and prepares the arm's *view*: the files the agent sees at
-`/work/.bundle`, read-only. The view sits inside the workspace because nb's file
+Both variants pin the same proctor revision as their `bundle`. `hooks/variant-setup.sh`
+builds proctor from it and prepares the variant's *view*: the files the agent sees at
+`/work/.bundle`, read-only. The view is the README, `docs/configuration.md` and
+`docs/cli.md`, and two plans, `on-disk-layout` and `report-structure`; it no longer
+copies the plans now under `project/archive/`.
+
+**The pin predates the rename.** The pinned revision documents the layout
+before exam, variant and attempt (its README and plans say the earlier words
+and directory names), while the checks here, and the proctor that grades, read
+only `exams/<id>/exam.json`. Until the pin moves to a pushed revision with the
+new words, an agent that follows the pinned docs writes the old layout and
+fails `validates`. Moving the pin is a push, and the user's. The view sits inside the workspace because nb's file
 tools (`read_file`, `grep`, `list_dir`) read only under the working directory;
-mounted beside it, the documentation could be read only through `bash`. The only difference between the arms is whether the examples are in
+mounted beside it, the documentation could be read only through `bash`. The only difference between the variants is whether the examples are in
 the view, so comparing them tests a theory about how agents use documentation:
 that an agent reads a worked example alongside the structured docs and borrows
 from it. `read-examples` is the rate at which it does.
 
-| task | workspace | the suite must get right |
+| task | workspace | the exam must get right |
 |---|---|---|
-| `guard-the-tests` | `fixtures/authoring-ledger`: a complete fixture with a failing test | a scope guard, so a run that edits the test to make it pass fails |
+| `guard-the-tests` | `fixtures/authoring-ledger`: a complete fixture with a failing test | a scope guard, so an attempt that edits the test to make it pass fails |
 | `check-the-answer` | `fixtures/authoring-stock`: a stock sheet and a question | the answer in `expect` read through `@expect`, matched exactly (`ANSWER: 18` and `ANSWER: 80` are wrong for 8), and a read-only guard |
 | `write-the-fixture` | `fixtures/authoring-widgets`: a bare repository | a `fixture.json` with its checks beside `repo/`, and a script check, because the library's tests pass before the rename too |
 
-## How a written suite is graded
+## How a written exam is graded
 
-`checks/trial.sh` runs `trial/run.sh` in a container with no network. The run
-copies the workspace, replaces the written suite's arms with one per planted run
+`checks/trial.sh` runs `trial/run.sh` in a container with no network. The trial
+copies the workspace, replaces the written exam's variants with one per planted attempt
 in `trial/<task>/` (`good-*` and `bad-*`), and swaps its hooks and runner for
 `trial/planted.sh`. That runner applies the planted change to the checkout and
 has nb's Mock provider make one tool call and give the planted closing message,
 so the transcript is nb's own. Proctor then runs, grades and reports that inner
-experiment, and `accepts-correct` and `rejects-wrong` read its `results.jsonl`.
-A model check in the written suite is dropped, because nothing in the trial can
-answer it. If the written suite names a model check in `pass` or `validity`, the
-trial fails, since without a model no run could be decided. The scripts the
+batch, and `accepts-correct` and `rejects-wrong` read its `results.jsonl`.
+A model check in the written exam is dropped, because nothing in the trial can
+answer it. If the written exam names a model check in `pass` or `validity`, the
+trial fails, since without a model no attempt could be decided. The scripts the
 agent wrote run only inside that container, never on the host. The inner
-experiment stays in the cell under `trial/` as evidence.
+batch stays in the attempt under `trial/` as evidence.
 
 | check | kind | what it says |
 |---|---|---|
-| `exit_ok`, `validates`, `accepts-correct`, `rejects-wrong` | pass | nb finished; `proctor list` loads the suite cleanly; it passes the correct run; it fails every wrong one |
+| `exit_ok`, `validates`, `accepts-correct`, `rejects-wrong` | pass | nb finished; `proctor list` loads the exam cleanly; it passes the correct attempt; it fails every wrong one |
 | `stays-in-work` | validity | the agent stayed in its checkout and the bundle (once shared with code-change, which runs through Harbor now) |
 | `self-validated`, `describes-everything`, `read-examples` | guardrail | it ran `list` itself; every id carries a description; it opened an example |
 | `stance` (`decide`), `prompt-hides-answer` (`judge`) | guardrail | the closing message claims completion; the task prompt it wrote does not give away the answer |
 
-`reference/` holds a good answer for each task: three small suites that also serve
+`reference/` holds a good answer for each task: three small exams that also serve
 as examples of the practices above. `reference/shakedown.sh` proves the trial
 without a model. The references must pass every check. With `--naive`, each
 reference loses the check that made it discriminate, and `rejects-wrong` must name
-the wrong runs that got through. Nothing in this directory is shown to the agent:
+the wrong attempts that got through. Nothing in this directory is shown to the agent:
 its checks and `trial/` are the grader and `reference/` is the answer key, so
-the examples arm sees the other suites but not this one.
+the examples variant sees the other exams but not this one.
 
 ## Run it
 
 ```bash
-export LLM_GATEWAY=... LLM_GATEWAY_KEY=...     # the gateway suites/nb.json and suites/proctor.json name (copied from *.example.json)
+export LLM_GATEWAY=... LLM_GATEWAY_KEY=...     # the gateway exams/nb.json and exams/proctor.json name (copied from *.example.json)
 dotnet build                                   # the trial grades with this build
-suites/suite-authoring/reference/shakedown.sh    # optional: the trial against the references, ~2 min
-proctor run suite-authoring
+exams/exam-authoring/reference/shakedown.sh    # optional: the trial against the references, ~2 min
+proctor run exam-authoring
 proctor grade <id>
 proctor report <id>
-cp reports/data/<id>/{report.html,summary.md} suites/suite-authoring/report/
+cp reports/data/<id>/{report.html,summary.md} exams/exam-authoring/report/
 ```
 
 `--runner none` is only a shakedown here. It skips the views, so the agent sees
 the whole clone, answer key included, and gets no proctor build.
 
-To test a documentation change, push it, add an arm whose bundle pins the new
-revision, and compare the two in one experiment.
+To test a documentation change, push it, add a variant whose bundle pins the new
+revision, and compare the two in one batch.

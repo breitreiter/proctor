@@ -64,7 +64,7 @@ nothing.</p>
     <li>Get a key: <a href="https://aistudio.google.com/apikey">Google AI Studio → Get API key</a>. The free tier needs no card.</li>
     <li>The free tier's limits are a few requests a minute and a daily cap, varying by model; nb waits and retries when it is throttled. See Google's <a href="https://ai.google.dev/gemini-api/docs/rate-limits">rate limits</a>.</li>
     <li>Free-tier prompts and responses may be used by Google to improve its products; paid-tier ones are not. Keep confidential material off the free tier. See Google's <a href="https://ai.google.dev/gemini-api/docs/pricing">pricing page</a>.</li>
-    <li>Proctor's first real suite, <code>readme-answers</code>, runs on Gemini Flash-Lite's free tier.</li>
+    <li>Proctor's first real exam, <code>readme-answers</code>, runs on Gemini Flash-Lite's free tier.</li>
   </ul>
 </section>
 
@@ -73,7 +73,7 @@ nothing.</p>
   <ul>
     <li>Get a key: <a href="https://platform.claude.com/settings/keys">Claude Console → Settings → API keys</a>.</li>
     <li>This is an API key, billed per request. A Claude subscription (Pro, Max) and its Claude Code login are separate and are not used.</li>
-    <li>Serves nb's built-in harness and Claude Code arms.</li>
+    <li>Serves nb's built-in harness and Claude Code variants.</li>
   </ul>
 </section>
 
@@ -82,7 +82,7 @@ nothing.</p>
   <ul>
     <li>Get a key: <a href="https://platform.openai.com/api-keys">OpenAI Platform → API keys</a>.</li>
     <li>Billed per request; a ChatGPT subscription is separate and is not used. See <a href="https://platform.openai.com/docs/guides/your-data">how OpenAI treats API data</a>.</li>
-    <li>Serves nb's built-in harness, Codex arms and LLM-as-judge checks.</li>
+    <li>Serves nb's built-in harness, Codex variants and LLM-as-judge checks.</li>
   </ul>
 </section>
 
@@ -91,7 +91,7 @@ nothing.</p>
   <ul>
     <li>Get a key: <a href="https://openrouter.ai/settings/keys">openrouter.ai → Keys</a>. A key can carry a credit limit; set one.</li>
     <li>One key reaches many vendors' models. Models whose ids end in <code>:free</code> cost nothing, are rate-limited, and their prompts may be logged by the vendor serving them. See OpenRouter's <a href="https://openrouter.ai/settings/privacy">privacy settings</a>.</li>
-    <li>Serves nb's built-in harness, LLM-as-judge and classifier checks. Claude Code and Qwen Code arms through it are untested; Codex through it is set up by hand.</li>
+    <li>Serves nb's built-in harness, LLM-as-judge and classifier checks. Claude Code and Qwen Code variants through it are untested; Codex through it is set up by hand.</li>
   </ul>
 </section>
 
@@ -100,7 +100,7 @@ nothing.</p>
   <ul>
     <li>For llama-server, Ollama, LM Studio, vLLM, Groq, a gateway of your own, or anything else that speaks OpenAI's chat completions.</li>
     <li>The key, if the server needs one, comes from the server's own documentation; many local servers need none.</li>
-    <li>Setup takes only the name and the key. Ask your coding agent to fill in the rest of the entry in <code>suites/nb.json</code> (the endpoint, the context size, any headers) from the server's documentation; <code>proctor setup --check</code> reports the entry as incomplete until it has an endpoint.</li>
+    <li>Setup takes only the name and the key. Ask your coding agent to fill in the rest of the entry in <code>exams/nb.json</code> (the endpoint, the context size, any headers) from the server's documentation; <code>proctor setup --check</code> reports the entry as incomplete until it has an endpoint.</li>
   </ul>
 </section>
 
@@ -109,7 +109,7 @@ nothing.</p>
   <ul>
     <li>Get a key: in the <a href="https://portal.azure.com/">Azure portal</a>, open your Azure OpenAI resource, then <em>Keys and Endpoint</em>. The endpoint is the resource URL shown there.</li>
     <li>Setup also asks for the deployment name: the name you gave the deployment, not the model's name.</li>
-    <li>Azure does not list deployments with a key, so setup cannot check the key; the first run of a suite on it is the check.</li>
+    <li>Azure does not list deployments with a key, so setup cannot check the key; the first run of an exam on it is the check.</li>
   </ul>
 </section>
 
@@ -118,7 +118,7 @@ nothing.</p>
   <ul>
     <li>Get a key: in the <a href="https://ai.azure.com/">Azure AI Foundry portal</a>, open your project, then <em>Keys and Endpoint</em>.</li>
     <li>Setup also asks for the model as deployed in the project.</li>
-    <li>As with Azure OpenAI, setup cannot check the key; the first run of a suite on it is the check.</li>
+    <li>As with Azure OpenAI, setup cannot check the key; the first run of an exam on it is the check.</li>
   </ul>
 </section>
 

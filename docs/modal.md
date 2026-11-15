@@ -1,21 +1,21 @@
-# Agent arms on Modal
+# Agent variants on Modal
 
-`harbor.engine: modal` runs each agent cell's containers as sandboxes on
+`harbor.engine: modal` runs each agent attempt's containers as sandboxes on
 your [Modal](https://modal.com) account, so the machine running proctor
-needs no Docker and no podman: proctor, nb and uv are enough. The suite
+needs no Docker and no podman: proctor, nb and uv are enough. The exam
 does not change. You run it with a second machine file in place of
-`suites/proctor.json`:
+`exams/proctor.json`:
 
 ```bash
-cp suites/proctor.modal.example.json suites/proctor.modal.json   # then edit
-proctor run code-change --config suites/proctor.modal.json
+cp exams/proctor.modal.example.json exams/proctor.modal.json   # then edit
+proctor run code-change --config exams/proctor.modal.json
 ```
 
-The usual way to use it: try a suite on your own machine (local models,
+The usual way to use it: try an exam on your own machine (local models,
 your container engine), then run it on Modal once it is right, so someone
-without your setup can run it too. Arms without an agent (bare nb) still
-run on the machine you start proctor on, so a suite can keep a bare arm on
-a local model while its agent arms run on Modal.
+without your setup can run it too. Variants without an agent (bare nb) still
+run on the machine you start proctor on, so an exam can keep a bare variant on
+a local model while its agent variants run on Modal.
 
 Modal support is **experimental**. Checked on 2026-11-10 with Harbor
 0.24.0 (Modal SDK 1.5 and later): a `code-change` task through Harbor's
@@ -23,9 +23,9 @@ verifier, the allowlist from inside a sandbox, and the gate
 (`PROCTOR_GATE_ENGINE=modal`). No hosted model's agent has run there yet,
 nor the oracle's simulated user.
 
-If Modal is the only place your agent arms will run, `proctor setup` can
+If Modal is the only place your agent variants will run, `proctor setup` can
 choose it instead (the sandbox step, "A hosted sandbox service", then
-Modal): it writes `harbor.engine: modal` into `suites/proctor.json`
+Modal): it writes `harbor.engine: modal` into `exams/proctor.json`
 itself, and you need no second file and no `--config`.
 
 ## 1. A Modal login
@@ -42,7 +42,7 @@ the other before anything starts.
 
 ## 2. The machine file
 
-`suites/proctor.modal.example.json` is the starting point. It differs from
+`exams/proctor.modal.example.json` is the starting point. It differs from
 `proctor.json` in two ways:
 
 - `harbor.engine` is `modal`.
@@ -50,24 +50,24 @@ the other before anything starts.
   keys from your environment or `~/.config/proctor/env`. A sandbox on
   Modal reaches only public hosts.
 
-`suites/proctor.*.json` is gitignored, as `proctor.json` is.
+`exams/proctor.*.json` is gitignored, as `proctor.json` is.
 
 ## What cannot run on Modal
 
-`run` refuses these before it makes anything, and says which arm or
+`run` refuses these before it makes anything, and says which variant or
 fixture and why:
 
 - **A model on your network.** A base URL whose host is `localhost`, a
   private or link-local address, a name without a domain (`imp`,
-  `library`) or a `.local`, `.lan`, `.internal` or `.home` name. Bare arms
+  `library`) or a `.local`, `.lan`, `.internal` or `.home` name. Bare variants
   are not affected, since they run on your machine.
 - **A fixture with `image.services`.** Harbor runs a task with services as
   docker-in-docker on Modal, which cannot limit the agent's network to its
   model, so Harbor refuses the task rather than run it unconfined. Run
-  these suites on docker or podman. The stub model that conformance uses
+  these exams on docker or podman. The stub model that conformance uses
   is one, so conformance stays a local check.
 
-An `agent: nb` arm runs on Modal if its provider's endpoint in nb's config
+An `agent: nb` variant runs on Modal if its provider's endpoint in nb's config
 is public. nb's publish (`harbor.nb`) is copied into each nb task's image,
 since Modal cannot see an image built on your machine.
 
@@ -75,21 +75,21 @@ since Modal cannot see an image built on your machine.
 
 Modal bills sandboxes by the second for the CPU and memory they hold. On
 2026-11-08 that was about $0.14 an hour per core (a core is two vCPUs)
-and $0.024 an hour per GiB, so a ten-minute cell on a small sandbox is a
+and $0.024 an hour per GiB, so a ten-minute attempt on a small sandbox is a
 few cents. The model calls cost far more. New accounts get $1 of credit,
 and $30 a month once a payment method is added.
 
-Every sandbox proctor starts ends itself: its lifetime is the cell's wall
+Every sandbox proctor starts ends itself: its lifetime is the attempt's wall
 limit plus the time Harbor allows for the build and the checks, and it
-stops after ten minutes with nothing running. A run you kill leaves
+stops after ten minutes with nothing running. A batch you kill leaves
 nothing billing for longer than that. Harbor's own default would keep a
 sandbox for a day.
 
 ## Resume
 
-An experiment keeps the engine it started on. Resume it with the same
+A batch keeps the engine it started on. Resume it with the same
 file:
 
 ```bash
-proctor resume <id> --config suites/proctor.modal.json
+proctor resume <id> --config exams/proctor.modal.json
 ```

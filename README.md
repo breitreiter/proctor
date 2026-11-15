@@ -9,7 +9,7 @@ better or worse.
 
 You describe tasks and what "done" looks like. Proctor runs real agents
 against them in sandboxed environments, several times each, grades every
-run with checks you can read, and writes a report that says what changed,
+attempt with checks you can read, and writes a report that says what changed,
 with a confidence interval around it.
 
 ## Why measure
@@ -17,18 +17,18 @@ with a confidence interval around it.
 The thing you shipped for agents is often not used at all. An agent says
 it is done when it is not, and its own summary tells you what it planned,
 not what it did. A fix that works for one model and harness may not hold
-for the next version. Models are non-deterministic, so one good run in
+for the next version. Models are non-deterministic, so one good attempt in
 your own setup says little about what your users' agents will do.
 
 Proctor measures outcomes, efficiency and unwanted side effects across
 the agents your users actually have, and keeps the comparison honest:
-one good run doesn't mean the problem is gone.
+one good attempt doesn't mean the problem is gone.
 
 ## What it runs
 
 - **Coding agents.** Claude Code, Codex and Qwen Code run through
   [Harbor](https://github.com/harbor-framework/harbor), one container
-  per run, each pinned to a version. Each run gets a fresh checkout of a
+  per attempt, each pinned to a version. Each attempt gets a fresh checkout of a
   fixture repository, and your MCP server, skill, docs or prompt as a
   bundle the agent can reach. The bundle is the thing under test; the
   agents are the population.
@@ -40,35 +40,35 @@ one good run doesn't mean the problem is gone.
 
 ## How it grades
 
-A check is one yes-or-no question asked of a finished run. Three kinds
-mix as a suite needs:
+A check is one yes-or-no question asked of a finished attempt. Three kinds
+mix as an exam needs:
 
-- **Static**, no model: how the run ended, turns and tool calls, wall
+- **Static**, no model: how the attempt ended, turns and tool calls, wall
   time, whether the diff stayed in scope, your own tests against the
   result.
 - **Judge**: a model sees one named window of the transcript and one
   question. It must answer with quotes, every quote is verified against
-  the window, and several samples must agree. A split is undecided, never
+  the window, and several votes must agree. A split is undecided, never
   a default.
 - **Classifier**: a typed classifier reads the window and returns a label
   with a probability, against a threshold.
 
-Proctor counts turns, tool calls and how a run ended from the trajectory
+Proctor counts turns, tool calls and how an attempt ended from the trajectory
 itself, never from the agent's own report.
 
 ## The report
 
 One self-contained HTML page and a markdown twin. Every rate carries a
-95% interval and its counts; arms are compared pairwise on the tasks they
+95% interval and its counts; variants are compared pairwise on the tasks they
 share; the minimum detectable effect is stated, so "no difference" can't
 stand in for "couldn't tell"; failures are listed by check with the
 judge's quoted evidence. No model writes any of it.
 
-Pin a run as a baseline, make your change, and the next report says
-whether each arm held, improved or regressed, and whether the interval
+Pin a batch's attempts as a baseline, make your change, and the next report says
+whether each variant held, improved or regressed, and whether the interval
 confirms it. `--fail-on regression` turns that into an exit code for CI.
 
-Two example reports from proctor's own suites are in
+Two example reports from proctor's own exams are in
 [`docs/reports/`](docs/reports/).
 
 ## Install
@@ -95,33 +95,33 @@ through are in [`docs/getting-started.md`](docs/getting-started.md).
 [`docs/getting-started.md`](docs/getting-started.md) goes from a clone to
 a first report in three steps:
 
-1. **The playground** ([`suites/playground`](suites/playground)): a
-   scripted suite on a small TypeScript CLI. No model, no key.
-2. **A real model** ([`suites/readme-answers`](suites/readme-answers)):
+1. **The playground** ([`exams/playground`](exams/playground)): a
+   scripted exam on a small TypeScript CLI. No model, no key.
+2. **A real model** ([`exams/readme-answers`](exams/readme-answers)):
    two versions of a README compared on a free hosted model. A
    documentation change, measured.
-3. **Your own suite**, planned with your coding agent using the skill in
-   [`skills/proctor-suite/`](skills/proctor-suite/).
+3. **Your own exam**, planned with your coding agent using the skill in
+   [`skills/proctor-exam/`](skills/proctor-exam/).
 
 The loop is always the same:
 
 ```bash
-proctor run <suite>     # prints an experiment id
-proctor grade <id>
-proctor report <id>     # reports/data/<id>/report.html
+proctor run <exam>      # prints a batch id
+proctor grade <batch>
+proctor report <batch>  # reports/data/<batch>/report.html
 ```
 
 ## Documentation
 
 - [`docs/getting-started.md`](docs/getting-started.md): clone to first report
 - [`docs/cli.md`](docs/cli.md): every command and flag; baselines and guard mode
-- [`docs/configuration.md`](docs/configuration.md): suites, fixtures, tasks, arms, judges, and the machine's config
+- [`docs/configuration.md`](docs/configuration.md): exams, fixtures, tasks, variants, judges, and the machine's config
 - [`docs/podman.md`](docs/podman.md): running coding agents on podman
-- [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): moving a suite to coding-agent arms
+- [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): moving an exam to coding-agent variants
 
 ## What it is not
 
-- **Not a cloud service.** Suites, transcripts, verdicts and reports are
+- **Not a cloud service.** Exams, transcripts, verdicts and reports are
   files in your repository. The only network traffic is the agents' model
   calls and the judge's.
 - **Not a leaderboard.** The question is never which agent is best. It is

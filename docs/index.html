@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>proctor — see how AI agents behave with what you built</title>
-<meta name="description" content="Proctor runs AI agents against your tool, docs, prompt or assistant, grades the runs, and writes a report with intervals you can attach to the change request.">
+<meta name="description" content="Proctor runs AI agents against your tool, docs, prompt or assistant, grades the attempts, and writes a report with intervals you can attach to the change request.">
 <link rel="icon" href="pointy-hat.svg">
 <style>
 html { scroll-behavior: smooth; background: #fff; }
@@ -67,7 +67,7 @@ footer img { width: 20px; height: 20px; display: block; }
   <div>
   <h1>Your product has a new user.</h1>
   <p class="sub">Agents are reading your docs and your website. They’re using your API, CLI, or MCP server. How do you measure whether your product helped an agent achieve a goal or reach a correct answer?</p>
-  <p class="sub">Proctor runs real coding agents in sandboxed environments, using the tools, context, and scenarios you provide. Proctor grades each run based on a rubric you define, including static checks, Jev-style deciders, and LLM-as-judge checks. Finally, proctor produces easy to understand reports to help you track how changes affect agent behavior.</p>
+  <p class="sub">Proctor runs real coding agents in sandboxed environments, using the tools, context, and scenarios you provide. Proctor grades each attempt based on a rubric you define, including static checks, Jev-style deciders, and LLM-as-judge checks. Finally, proctor produces easy to understand reports to help you track how changes affect agent behavior.</p>
   <div class="actions">
     <a class="btn primary" href="reports/20261102-1143-code-change-jy0n/report.html">Open a report</a>
     <a class="btn plain" href="https://github.com/breitreiter/proctor">GitHub</a>
@@ -91,11 +91,11 @@ footer img { width: 20px; height: 20px; display: block; }
 <section id="how">
   <h2>How you use it</h2>
   <ol>
-    <li><b>Define what good looks like.</b> Proctor ships with agent-friendly documentation, examples and skills. Work with your coding agent to define correct outcomes, guardrails and realistic fixtures. Every part of a suite lives on your local filesystem, so you can review it and check it into git.</li>
+    <li><b>Define what good looks like.</b> Proctor ships with agent-friendly documentation, examples and skills. Work with your coding agent to define correct outcomes, guardrails and realistic fixtures. Every part of an exam lives on your local filesystem, so you can review it and check it into git.</li>
     <li><b>Try it on an inexpensive model.</b> Make sure everything works before you spend those Anthropic credits.</li>
     <li><b>Confirm on the real thing.</b> Run real harnesses in a safe, containerized environment.</li>
     <li><b>Understand what happened.</b> Start with the report for the high-level view, then dig into the transcripts to see exactly what went wrong. If everything looks good, read a few transcripts anyway, to make sure you’re not grading too leniently or missing bad behavior.</li>
-    <li><b>Fix, rerun, compare.</b> Pin the earlier run as a baseline, make your change, and see how the needle moves. Proctor reports every difference with a confidence interval, so it will keep you honest: one good run doesn’t mean the problem is gone.</li>
+    <li><b>Fix, rerun, compare.</b> Pin the earlier attempts as a baseline, make your change, and see how the needle moves. Proctor reports every difference with a confidence interval, so it will keep you honest: one good attempt doesn’t mean the problem is gone.</li>
   </ol>
 </section>
 
@@ -104,7 +104,7 @@ footer img { width: 20px; height: 20px; display: block; }
   <p>Models are tuned for their own harness. Claude for Claude Code, GPT for Codex. The same model in a different harness is a different agent, so an eval that runs your tool through anything but the real harness measures something your users will never see. Doing that honestly means a container, a pinned agent version, a shell, a web fetch, your tools, a real repository, several runs. By hand that is a project in itself.</p>
   <p>Proctor does it for you:</p>
   <ul>
-    <li>Runs Claude Code, Codex and Qwen Code through <a href="https://github.com/harbor-framework/harbor">Harbor</a>, one container per run, pinned to a version.</li>
+    <li>Runs Claude Code, Codex and Qwen Code through <a href="https://github.com/harbor-framework/harbor">Harbor</a>, one container per attempt, pinned to a version.</li>
     <li>Checks out the fixture repository and supplies your MCP server, skill, docs or prompt as a bundle the agent can reach. The bundle is the thing under test; the agents are the population.</li>
     <li>Collects the diff, runs the repository’s acceptance tests in a separate offline verifier, counts turns and tool calls from the agent’s own trajectory.</li>
   </ul>
@@ -129,37 +129,37 @@ footer img { width: 20px; height: 20px; display: block; }
 
 <section id="grading">
   <h2>How it grades</h2>
-  <p>Three kinds of check, mixed as a suite needs:</p>
+  <p>Three kinds of check, mixed as an exam needs:</p>
   <ul>
-    <li><b>Static</b>: no model. How the run ended, turns and tool calls, denials, wall time, diff in scope, your own scripts against the result.</li>
-    <li><b>Judge</b>: a model sees one named window of the transcript and one question. It must answer with quotes, every quote is verified against the window, and several samples must agree. A split is undecided, never a default.</li>
+    <li><b>Static</b>: no model. How the attempt ended, turns and tool calls, denials, wall time, diff in scope, your own scripts against the result.</li>
+    <li><b>Judge</b>: a model sees one named window of the transcript and one question. It must answer with quotes, every quote is verified against the window, and several votes must agree. A split is undecided, never a default.</li>
     <li><b>Classifier</b>: a typed classifier reads the window and returns a label with a probability, against a threshold.</li>
   </ul>
-  <p>Proctor counts turns, tool calls and how a run ended from the trajectory itself. It never takes an agent’s word for its own numbers.</p>
+  <p>Proctor counts turns, tool calls and how an attempt ended from the trajectory itself. It never takes an agent’s word for its own numbers.</p>
 </section>
 
 <section id="reports">
   <h2>The report</h2>
   <ul>
     <li>Every rate carries a 95% interval and its counts.</li>
-    <li>Arms are compared pairwise on the tasks they share.</li>
+    <li>Variants are compared pairwise on the tasks they share.</li>
     <li>The minimum detectable effect is stated: three tasks cannot say “no difference” when they mean “could not tell”.</li>
     <li>Failures are listed by check, with the judge’s quoted evidence.</li>
     <li>No model writes any of it. A judge’s role ends at a label and a quote.</li>
   </ul>
   <p>As of November 2026 we found nothing else that does all three: runs the real agents against a real repository, grades with checks that are deterministic where they can be and quote-verified where they cannot, and reports paired intervals. The scanners and scores that carry the agent-experience label measure conformance to their owner’s checklist. Proctor measures an outcome.</p>
-  <p>Two reports from proctor’s own suites, as written. The suites are small, so the verdicts are unconfirmed and the pages say so; the finding is in the Failures.</p>
+  <p>Two reports from proctor’s own exams, as written. The exams are small, so the verdicts are unconfirmed and the pages say so; the finding is in the Failures.</p>
   <div class="reports">
     <div class="report">
       <div class="kicker">code-change · 2 November 2026</div>
       <div class="q">Can the agent make a small, well-specified change to a .NET repository so that it builds, the tests pass and nothing outside the task is touched?</div>
-      <div class="facts"><b>5 arms</b>: nb on a local qwen3-coder-next as the reference, Qwen Code on the same model, Claude Code on Haiku and on Sonnet, Codex on GPT-5.5 · <b>3 tasks</b> · <b>27 runs</b> · against a baseline pinned 22 September</div>
+      <div class="facts"><b>5 variants</b>: nb on a local qwen3-coder-next as the reference, Qwen Code on the same model, Claude Code on Haiku and on Sonnet, Codex on GPT-5.5 · <b>3 tasks</b> · <b>27 attempts</b> · against a baseline pinned 22 September</div>
       <a class="open" href="reports/20261102-1143-code-change-jy0n/report.html">Open the report →</a>
     </div>
     <div class="report">
       <div class="kicker">oracle-change · 30 October 2026</div>
       <div class="q">Does the agent ask when a change is underspecified, and does the answer get it right?</div>
-      <div class="facts"><b>2 arms</b>: nb on Claude Haiku, bare with its in-process oracle, and through Harbor with the oracle as the simulated user · <b>1 task</b>, its semantics only in the answer sheet · <b>10 runs</b> · judged by Haiku</div>
+      <div class="facts"><b>2 variants</b>: nb on Claude Haiku, bare with its in-process oracle, and through Harbor with the oracle as the simulated user · <b>1 task</b>, its semantics only in the answer sheet · <b>10 attempts</b> · judged by Haiku</div>
       <a class="open" href="reports/20261030-1514-oracle-change-n8hq/report.html">Open the report →</a>
     </div>
   </div>
@@ -168,20 +168,21 @@ footer img { width: 20px; height: 20px; display: block; }
 <section id="words">
   <h2>Key concepts</h2>
   <table>
-    <tr><td>suite</td><td>Related tasks with one goal, graded by one checklist, so a pass rate means one thing.</td></tr>
+    <tr><td>exam</td><td>Related tasks with one goal, graded by one checklist, so a pass rate means one thing.</td></tr>
     <tr><td>task</td><td>One prompt against one fixture, with the checks that say whether the outcome was reached.</td></tr>
-    <tr><td>fixture</td><td>The files a task runs against: a directory or a pinned git revision, with the checks that say what “done” looks like in it. Each run gets a fresh copy, and one fixture can serve many suites.</td></tr>
-    <tr><td>arm</td><td>One harness and model, run over every task. The arms are the population; the thing under test is yours.</td></tr>
-    <tr><td>check</td><td>One yes-or-no question asked of a finished run.</td></tr>
-    <tr><td>sample</td><td>One attempt at one task by one arm. A task is scored over several.</td></tr>
-    <tr><td>baseline</td><td>Pinned results from an earlier run, compared with as if it were another arm.</td></tr>
+    <tr><td>fixture</td><td>The files a task runs against: a directory or a pinned git revision, with the checks that say what “done” looks like in it. Each attempt gets a fresh copy, and one fixture can serve many exams.</td></tr>
+    <tr><td>variant</td><td>One harness and model, given every task. The variants are the population; the thing under test is yours.</td></tr>
+    <tr><td>check</td><td>One yes-or-no question asked of a finished attempt.</td></tr>
+    <tr><td>attempt</td><td>One variant at one task, once. A task is scored over several.</td></tr>
+    <tr><td>batch</td><td>The attempts one <span class="code">proctor run</span> made: when, on what machine, at what versions.</td></tr>
+    <tr><td>baseline</td><td>Pinned results from an earlier batch, compared with as if it were another variant.</td></tr>
   </table>
 </section>
 
 <section id="not">
   <h2>What it is not</h2>
   <ul>
-    <li><b>Not a cloud service.</b> Suites, transcripts, verdicts and reports are files in your repository. The only network traffic is the agents’ model calls and the judge’s.</li>
+    <li><b>Not a cloud service.</b> Exams, transcripts, verdicts and reports are files in your repository. The only network traffic is the agents’ model calls and the judge’s.</li>
     <li><b>Not a leaderboard.</b> The question is never which agent is best. It is whether what you built works for the agents your users have, and whether your last change helped.</li>
     <li><b>Not for single turns.</b> Prompt in, answer out: lighter tools exist, and nb will do it. Proctor is for the long trajectory.</li>
   </ul>
@@ -192,9 +193,9 @@ footer img { width: 20px; height: 20px; display: block; }
   <p>A .NET tool for Linux. Docker or podman and uv for coding-agent runs; a local or hosted model for the shakedown.</p>
   <ol>
     <li><a href="https://github.com/breitreiter/proctor#install">Install and configure.</a></li>
-    <li><a href="https://github.com/breitreiter/proctor/tree/master/suites/playground">Run the playground</a>: four commands, no model, no key, and a report about a small TypeScript CLI.</li>
-    <li><a href="https://github.com/breitreiter/proctor/tree/master/suites/cli-for-agents">Run the first real suite</a>: a model is asked to make that CLI usable from a script. It waits for a keypress with no <span class="code">--yes</span> and exits 0 when it gives up; we met one like it in the wild.</li>
-    <li><a href="https://github.com/breitreiter/proctor/blob/master/docs/porting-to-agent-neutral.md">Move a suite to coding-agent arms</a>, when the question is about Claude Code or Codex rather than the model behind it.</li>
+    <li><a href="https://github.com/breitreiter/proctor/tree/master/exams/playground">Run the playground</a>: four commands, no model, no key, and a report about a small TypeScript CLI.</li>
+    <li><a href="https://github.com/breitreiter/proctor/tree/master/exams/cli-for-agents">Run the first real exam</a>: a model is asked to make that CLI usable from a script. It waits for a keypress with no <span class="code">--yes</span> and exits 0 when it gives up; we met one like it in the wild.</li>
+    <li><a href="https://github.com/breitreiter/proctor/blob/master/docs/porting-to-agent-neutral.md">Move an exam to coding-agent variants</a>, when the question is about Claude Code or Codex rather than the model behind it.</li>
   </ol>
 </section>
 

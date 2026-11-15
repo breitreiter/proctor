@@ -1,7 +1,7 @@
 # Getting started
 
-Three steps, each a little more real than the last: a suite that needs
-nothing, a suite on a free hosted model, then a suite of your own. Allow
+Three steps, each a little more real than the last: an exam that needs
+nothing, an exam on a free hosted model, then an exam of your own. Allow
 half an hour for the first two.
 
 ## 0. Install
@@ -27,22 +27,22 @@ function proctor { dotnet "$PWD\bin\Debug\net10.0\proctor.dll" @args }
 ```
 
 Put the PATH line and the alias (or the function) in your shell profile to
-keep them. Proctor finds nb on PATH unless `suites/proctor.json` says
+keep them. Proctor finds nb on PATH unless `exams/proctor.json` says
 otherwise (`nb.path`).
 
 ## 1. The playground: no model, no key
 
 ```bash
 proctor setup                   # skip every job for now: this writes the config the playground runs on
-proctor run playground          # prints an experiment id
+proctor run playground          # prints a batch id
 proctor grade <id>
 proctor report <id>             # then open reports/data/<id>/report.html
 ```
 
-The playground's one arm is nb's Mock provider, which answers from a
+The playground's one variant is nb's Mock provider, which answers from a
 script in the prompt, so nothing leaves your machine. The point is to see
 the loop once (run, grade, report) and to read a report before anything
-real is measured. `suites/playground/README.md` says what each part shows.
+real is measured. `exams/playground/README.md` says what each part shows.
 
 ## 2. A real model: `proctor setup` again, then `readme-answers`
 
@@ -55,7 +55,7 @@ of the jobs. Run it in a terminal yourself,
 not through a coding agent: it asks for API keys at a hidden prompt and
 writes them to a file in your user profile (`~/.config/proctor/env`, or
 `%LOCALAPPDATA%\proctor\env` on Windows), never to this repository. The
-config files it writes in `suites/` refer to keys by name and are
+config files it writes in `exams/` refer to keys by name and are
 gitignored.
 
 For this step you need one job, the built-in harness, on one provider:
@@ -81,37 +81,37 @@ that README. The report compares them: a documentation change, measured,
 with an interval around it. It is 36 requests, free on Gemini's free tier
 (whose requests Google may use to improve its models), and takes a few
 minutes because a free tier allows only a few requests a minute.
-`suites/readme-answers/README.md` says what to expect.
+`exams/readme-answers/README.md` says what to expect.
 
-## 3. Your own suite
+## 3. Your own exam
 
 What to measure is your project's question, so this step is a conversation
 with your coding agent. Proctor ships a skill for it,
-`skills/proctor-suite/`: copy that directory into your agent's skills
+`skills/proctor-exam/`: copy that directory into your agent's skills
 directory (`~/.claude/skills/` for Claude Code, `~/.codex/skills/` for
 Codex), then, in your own repository, ask the agent to help you plan a
-proctor suite. It inventories your project with you, proposes what an
+proctor exam. It inventories your project with you, proposes what an
 agent should be able to do with what you built and how you would know it
-did, and builds the suite once you agree. Without the skill, ask it to
+did, and builds the exam once you agree. Without the skill, ask it to
 read this repository's `README.md` and `docs/configuration.md` first.
 Two things it can read for itself:
 
 - `proctor setup --check` prints what is set up on this machine, which
   providers you have and what is missing, in plain lines meant for an
-  agent; `suites/setup.json` beside it lists the models each key could
+  agent; `exams/setup.json` beside it lists the models each key could
   reach. Neither holds a key.
-- `suites/` holds worked examples: `readme-answers` for a question answered
+- `exams/` holds worked examples: `readme-answers` for a question answered
   from a document, `cli-for-agents` for a code change checked by running
-  the result, `suite-authoring` for an agent that writes suites.
+  the result, `exam-authoring` for an agent that writes exams.
 
-Your agent should never handle a key. When a suite needs a provider you
+Your agent should never handle a key. When an exam needs a provider you
 have not added, run `proctor setup` yourself.
 
 **Claude Code, Codex and other coding agents** run inside a sandbox
 (Harbor, in containers), since an agent under test is often given vague or
 risky instructions on purpose. In `proctor setup`, choose *On this machine*
 at **2. Sandbox**: setup looks at what is installed and writes
-`suites/sandbox-plan.md`, a brief for your coding agent to finish the job
+`exams/sandbox-plan.md`, a brief for your coding agent to finish the job
 with you. What it needs and why is in `docs/podman.md` and
-`docs/configuration.md`, "Agent arms". Suites on the built-in harness, like
+`docs/configuration.md`, "Agent variants". Exams on the built-in harness, like
 the two above, need no sandbox.
