@@ -1,0 +1,7 @@
+{
+  "id": "codex",
+  "note": "Codex at code-change's pin, on the stub's OpenAI Responses endpoint",
+  "agent": "codex",
+  "agent_version": "0.163.0",
+  "model": "gpt-5-mini"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "docs-and-examples",
+  "note": "the same documentation with the example exams and fixtures beside it",
+  "runner": "nb",
+  "harness": "nb",
+  "provider": "local-qcoder",
+  "model": "qwen3-coder-next",
+  "bundle": {
+    "git": "https://github.com/breitreiter/proctor.git",
+    "rev": "1e71808b804a63a3469f3ca91ff3efaf9b95a1d0"
+  }
+}

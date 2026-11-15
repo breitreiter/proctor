@@ -125,6 +125,7 @@ public class ExamTests
     [InlineData("labels", "{\"area\": [\"x\", \"\"]}", "smoke/exam.json", "labels.area")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"judge\": {}}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.judge")]
     [InlineData("variants", "[]", "smoke/exam.json", "variants")]
+    [InlineData("attempts", "0", "smoke/exam.json", "attempts")]
     [InlineData("hooks", "{\"run\": {\"setup\": \"hooks/variant-setup.sh\"}}", "smoke/exam.json", "hooks.run")]
     [InlineData("hooks", "{\"task\": {\"setup\": \"hooks/variant-setup.sh\"}}", "smoke/exam.json", "hooks.task")]
     [InlineData("hooks", "{\"variant\": {\"setup\": \"hooks/missing.sh\"}}", "smoke/exam.json", "hooks.variant.setup")]
@@ -151,18 +152,89 @@ public class ExamTests
     }
 
     [Theory]
-    [InlineData("{\"id\": \"a\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "variants[1].id")]
-    [InlineData("{\"id\": \"c\", \"runner\": \"command\", \"harness\": \"codex\", \"command\": \"codex\"}", "variants[1].runner")]
-    [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\"}", "variants[1].provider")]
-    [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\", \"attempts\": 0}", "variants[1].attempts")]
-    [InlineData("{\"id\": \"Bad Id\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "variants[1].id")]
-    public void Variants_AreValidated(string secondVariant, string expectedField)
+    [InlineData("{\"id\": \"a\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "id")]
+    [InlineData("{\"id\": \"b\", \"runner\": \"command\", \"harness\": \"codex\", \"command\": \"codex\"}", "runner")]
+    [InlineData("{\"id\": \"b\", \"runner\": \"nb\", \"harness\": \"nb\"}", "provider")]
+    [InlineData("{\"id\": \"b\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\", \"attempts\": 3}", "attempts")]
+    [InlineData("{\"id\": \"b\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\", \"description\": \"x\"}", "description")]
+    [InlineData("{\"id\": \"b\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\", \"note\": \" \"}", "note")]
+    [InlineData("{\"id\": \"Bad Id\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "id")]
+    [InlineData("null", "")]
+    public void Variants_AreValidated_EachInItsOwnFile(string secondVariant, string expectedField)
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => e["variants"]![1] = JsonNode.Parse(secondVariant));
+        repo.Write("smoke/variants/b.json", secondVariant);
 
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == expectedField);
+        Assert.Contains(repo.Problems("smoke"), p => p.File == "exams/smoke/variants/b.json" && p.Field == expectedField);
+    }
+
+    [Fact]
+    public void VariantsInExamJson_AreRefused_SayingWhereTheyGo()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => e["variants"] = JsonNode.Parse("[{\"id\": \"a\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}]"));
+
+        var problem = Assert.Single(repo.Problems("smoke"));
+        Assert.Equal(("exams/smoke/exam.json", "variants"), (problem.File, problem.Field));
+        Assert.Contains("variants/<id>.json", problem.Message);
+    }
+
+    [Fact]
+    public void AnExamWithNoVariantFiles_IsAProblem()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        Directory.Delete(Path.Combine(repo.Root, "exams", "smoke", "variants"), recursive: true);
+
+        Assert.Contains(repo.Problems("smoke"), p => p.File == "exams/smoke/variants" && p.Message.StartsWith("no variants"));
+    }
+
+    [Fact]
+    public void AVariantsHash_IsItsDeclaration_NotItsIdOrNote_AndTheExamHashLeavesItOut()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        var before = repo.LoadExam("smoke");
+        var a = before.Variants.Single(v => v.Id == "a").Hash;
+
+        repo.EditVariant("smoke", "a", v => v["note"] = "the plain variant");
+        Assert.Equal(a, repo.LoadExam("smoke").Variants.Single(v => v.Id == "a").Hash);
+        repo.RenameVariant("smoke", "a", "renamed");
+        Assert.Equal(a, repo.LoadExam("smoke").Variants.Single(v => v.Id == "renamed").Hash);
+
+        repo.EditVariant("smoke", "renamed", v => v["model"] = "other");
+        var changed = repo.LoadExam("smoke");
+        Assert.NotEqual(a, changed.Variants.Single(v => v.Id == "renamed").Hash);
+        Assert.Equal(before.Hash, changed.Hash);
+
+        // b's bundle counts by content: a file changed in it is a changed variant.
+        var b = before.Variants.Single(v => v.Id == "b").Hash;
+        File.AppendAllText(Path.Combine(repo.Root, "bundles", "smoke", "extra.md"), "more\n");
+        Assert.NotEqual(b, repo.LoadExam("smoke").Variants.Single(v => v.Id == "b").Hash);
+    }
+
+    [Fact]
+    public void ATasksHash_CoversItsFileAndTheExamsChecks_NotTheOtherTasks()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        var before = repo.LoadExam("smoke").TaskHashes;
+        Assert.Equal(3, before.Values.Distinct().Count());
+
+        repo.EditJson("smoke/tasks/plain.json", t => t["prompt"] = "Something else.");
+        var after = repo.LoadExam("smoke").TaskHashes;
+        Assert.NotEqual(before["plain"], after["plain"]);
+        Assert.Equal(before["loops"], after["loops"]);
+
+        repo.EditJson("smoke/exam.json", e => e["grading"]!["checks"]!["exit_ok"]!["description"] = "the run ended on its own");
+        var regraded = repo.LoadExam("smoke").TaskHashes;
+        Assert.All(regraded, t => Assert.NotEqual(after[t.Key], t.Value));
+
+        // Which checks are headline is grading's, read as it is now, so it is no part of a task.
+        repo.EditJson("smoke/exam.json", e => e["grading"]!["validity"] = JsonNode.Parse("[]"));
+        Assert.Equal(regraded, repo.LoadExam("smoke").TaskHashes);
     }
 
     [Fact]
@@ -289,16 +361,21 @@ public class ExamTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => e["variants"]![1]!["bundle"]!["path"] = "bundles/nope");
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "variants[1].bundle.path");
-        repo.EditJson("smoke/exam.json", e => e["variants"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\"}"));
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "variants[1].bundle.rev");
-        repo.EditJson("smoke/exam.json", e => e["variants"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\", \"rev\": \"abc\"}"));
+        repo.EditVariant("smoke", "b", v => v["bundle"]!["path"] = "bundles/nope");
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "bundle.path");
+        repo.EditVariant("smoke", "b", v => v["bundle"] = JsonNode.Parse("{\"git\": \"https://example.invalid/b\"}"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "bundle.rev");
+        repo.EditVariant("smoke", "b", v => v["bundle"] = JsonNode.Parse("{\"path\": \"bundles/smoke\", \"paths\": [\"README.md\"]}"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "bundle.paths" && p.Message.StartsWith("goes with git"));
+        repo.EditVariant("smoke", "b", v => v["bundle"] = JsonNode.Parse("{\"git\": \"https://example.invalid/b\", \"rev\": \"abc\", \"paths\": [\"../up\"]}"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "bundle.paths" && p.Message.Contains("without .."));
+        repo.EditVariant("smoke", "b", v => v["bundle"] = JsonNode.Parse("{\"git\": \"https://example.invalid/b\", \"rev\": \"abc\", \"paths\": [\"docs/\", \"README.md\"]}"));
+        Assert.Empty(repo.Problems("smoke"));
+        repo.EditVariant("smoke", "b", v => v["bundle"] = JsonNode.Parse("{\"git\": \"https://example.invalid/b\", \"rev\": \"abc\"}"));
         Assert.Empty(repo.Problems("smoke"));
     }
 
     [Theory]
-    [InlineData("smoke/exam.json", "variants", "variants[2]")]
     [InlineData("smoke/exam.json", "grading.checks", "grading.checks.nothing")]
     [InlineData("smoke/exam.json", "grading.pass", "grading.pass")]
     [InlineData("smoke/exam.json", "grading.validity", "grading.validity")]

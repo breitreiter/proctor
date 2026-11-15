@@ -1,10 +1,7 @@
 {
   "id": "gate",
   "description": "The deterministic gate: one Mock variant run bare and the same variant run through Harbor must give identical counted cores and checks, apart from timings.",
-  "variants": [
-    { "id": "nb-bare", "description": "nb on the Mock provider, run bare on the host.", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "attempts": 2 },
-    { "id": "nb-harbor", "description": "The same nb on the same Mock provider, run as a Harbor agent in the fixture's image.", "agent": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "attempts": 2 }
-  ],
+  "attempts": 2,
   "harbor": { "version": "0.24.0" },
   "limits": { "wall_ms": 120000 },
   "grading": {

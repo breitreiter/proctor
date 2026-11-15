@@ -1,0 +1,7 @@
+{
+  "id": "codex",
+  "note": "Codex on GPT-5.5, OpenAI's everyday model",
+  "agent": "codex",
+  "agent_version": "0.163.0",
+  "model": "gpt-5.5"
+}

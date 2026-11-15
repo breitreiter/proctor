@@ -60,7 +60,7 @@ public class GateTests
         var harbor = exam.Variants.Single(a => a.IsAgent);
         var bare = exam.Variants.Single(a => !a.IsAgent);
         foreach (var c in exam.Tasks)
-            foreach (var n in Enumerable.Range(1, harbor.AttemptsOrOne))
+            foreach (var n in Enumerable.Range(1, exam.Attempts))
             {
                 var at = $"{c.Id}/{n}";
                 var b = Layout.Attempt(expDir, bare.Id!, c.Id!, n);

@@ -1,53 +1,11 @@
 {
   "id": "code-change",
   "description": "Can the agent make a small, well-specified change to a .NET repository so that it builds, the tests pass and nothing outside the task is touched?",
+  "attempts": 1,
   "labels": {
     "area": "coding/change",
     "stack": "dotnet"
   },
-  "variants": [
-    {
-      "id": "floor",
-      "description": "the local floor: nb on qwen3-coder-next",
-      "agent": "nb",
-      "harness": "nb",
-      "provider": "local-qcoder",
-      "model": "qwen3-coder-next",
-      "attempts": 3
-    },
-    {
-      "id": "qwen",
-      "description": "Qwen Code on the same local model",
-      "agent": "qwen-code",
-      "agent_version": "0.25.2",
-      "model": "qwen3-coder-next",
-      "attempts": 3
-    },
-    {
-      "id": "cc-haiku",
-      "description": "Claude Code on Haiku, the cheapest Anthropic model",
-      "agent": "claude-code",
-      "agent_version": "2.1.301",
-      "model": "claude-haiku-5-5",
-      "attempts": 1
-    },
-    {
-      "id": "cc-sonnet",
-      "description": "Claude Code on Sonnet, Anthropic's everyday model",
-      "agent": "claude-code",
-      "agent_version": "2.1.301",
-      "model": "claude-sonnet-5-5",
-      "attempts": 1
-    },
-    {
-      "id": "codex",
-      "description": "Codex on GPT-5.5, OpenAI's everyday model",
-      "agent": "codex",
-      "agent_version": "0.163.0",
-      "model": "gpt-5.5",
-      "attempts": 1
-    }
-  ],
   "harbor": {
     "version": "0.24.0"
   },

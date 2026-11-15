@@ -40,8 +40,8 @@ sealed class TestRepo : IDisposable
         CopyDirectory(source, Path.Combine(Root, "exams", examId));
         foreach (var file in Directory.GetFiles(Path.Combine(Root, "exams", examId, "tasks"), "*.json"))
             if (JsonNode.Parse(File.ReadAllText(file))?["fixture"]?.GetValue<string>() is { } fixture) CopyFixture(fixture);
-        foreach (var variant in JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "exams", examId, "exam.json")))?["variants"]?.AsArray() ?? [])
-            if (variant?["bundle"]?["path"]?.GetValue<string>() is { } bundle && !Directory.Exists(Path.Combine(Root, bundle)))
+        foreach (var file in Directory.GetFiles(Path.Combine(Root, "exams", examId, "variants"), "*.json"))
+            if (JsonNode.Parse(File.ReadAllText(file))?["bundle"]?["path"]?.GetValue<string>() is { } bundle && !Directory.Exists(Path.Combine(Root, bundle)))
                 CopyDirectory(Path.Combine(SourceRoot, bundle), Path.Combine(Root, bundle));
         WriteProctorConfig();
         return Path.Combine(Root, "exams", examId);
@@ -92,6 +92,37 @@ sealed class TestRepo : IDisposable
         var node = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
         edit(node);
         File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    /// <summary>Edit one variant's file, exams/&lt;exam&gt;/variants/&lt;id&gt;.json, in place.</summary>
+    public void EditVariant(string examId, string variantId, Action<JsonObject> edit) => EditJson($"{examId}/variants/{variantId}.json", edit);
+
+    /// <summary>Write a variant's file from its JSON, named by its id.</summary>
+    public void AddVariant(string examId, string json) =>
+        Write($"{examId}/variants/{JsonNode.Parse(json)!["id"]!.GetValue<string>()}.json", json);
+
+    /// <summary>Retire a variant: delete its file.</summary>
+    public void RemoveVariant(string examId, string variantId) => File.Delete(Path.Combine(Root, "exams", examId, "variants", variantId + ".json"));
+
+    /// <summary>Give a variant another id: its file moves with it.</summary>
+    public void RenameVariant(string examId, string from, string to)
+    {
+        EditVariant(examId, from, v => v["id"] = to);
+        File.Move(Path.Combine(Root, "exams", examId, "variants", from + ".json"), Path.Combine(Root, "exams", examId, "variants", to + ".json"));
+    }
+
+    /// <summary>Retire every variant of the exam but one.</summary>
+    public void KeepOnlyVariant(string examId, string keep)
+    {
+        foreach (var file in Directory.GetFiles(Path.Combine(Root, "exams", examId, "variants"), "*.json"))
+            if (Path.GetFileNameWithoutExtension(file) != keep) File.Delete(file);
+    }
+
+    /// <summary>The smoke exam's commonest shape in a test: variant a alone, one attempt of each task.</summary>
+    public void OneVariantOneAttempt(string examId = "smoke", string keep = "a")
+    {
+        KeepOnlyVariant(examId, keep);
+        EditJson($"{examId}/exam.json", e => e["attempts"] = 1);
     }
 
     public Exam LoadExam(string examId)

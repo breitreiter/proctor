@@ -1,17 +1,7 @@
 {
   "id": "stock-count",
   "description": "Can the agent read a stock sheet and report exactly how many items are due for reorder, without changing it?",
-  "variants": [
-    {
-      "id": "floor",
-      "description": "the local floor",
-      "runner": "nb",
-      "harness": "nb",
-      "provider": "local-qcoder",
-      "model": "qwen3-coder-next",
-      "attempts": 3
-    }
-  ],
+  "attempts": 3,
   "grading": {
     "checks": {
       "exit_ok": {

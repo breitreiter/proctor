@@ -505,9 +505,10 @@ public class JudgeTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
+        repo.OneVariantOneAttempt();
+        repo.EditVariant("smoke", "a", v => v["model"] = "glm-4.7");
         repo.EditJson("smoke/exam.json", e =>
         {
-            e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; e["variants"]![0]!["model"] = "glm-4.7";
             e["grading"]!["checks"]!["stance"] = JsonNode.Parse("{\"decide\": {\"ask\": \"Does it claim completion?\", \"window\": \"answer\"}}");
             e["grading"]!["checks"]!["sensible"] = JsonNode.Parse("{\"judge\": {\"ask\": \"Is the answer sensible?\", \"window\": \"prompt+answer\", \"votes\": 2, \"with\": \"glm\"}}");
             e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"sensible\"]");

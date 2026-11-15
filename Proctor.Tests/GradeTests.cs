@@ -10,7 +10,7 @@ public class GradeTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
+        repo.OneVariantOneAttempt();
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
@@ -53,7 +53,7 @@ public class GradeTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { foreach (var variant in e["variants"]!.AsArray()) variant!["attempts"] = 1; });
+        repo.EditJson("smoke/exam.json", e => e["attempts"] = 1);
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);

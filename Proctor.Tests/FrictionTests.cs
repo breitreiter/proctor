@@ -171,7 +171,7 @@ public class FrictionTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
+        repo.OneVariantOneAttempt();
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
@@ -180,7 +180,7 @@ public class FrictionTests
         File.WriteAllText(Path.Combine(Layout.Attempt(expDir, "a", "loops", 1), "status"), "failed\n");
 
         // The exam's variant is renamed after the run: friction still reads what was run.
-        repo.EditJson("smoke/exam.json", e => e["variants"]![0]!["id"] = "renamed");
+        repo.RenameVariant("smoke", "a", "renamed");
 
         var attempts = Friction.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), repo.LoadExam("smoke"), TextWriter.Null);
 

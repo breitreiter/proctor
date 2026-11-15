@@ -61,17 +61,21 @@ record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker
 }
 
 /// <summary>
-/// A variant is what is under test. Without an agent it is nb, run bare: runner, harness and provider say how. With an
-/// agent it runs through Harbor in the fixture's image: a vendor agent is that agent's real CLI at a pinned version;
-/// agent nb is nb itself, the binary proctor.json's harbor.nb names, on the provider the variant names.
+/// A variant is what is under test, one file in the exam's variants/ directory, declared data only. Without an agent it
+/// is nb, run bare: runner, harness and provider say how. With an agent it runs through Harbor in the fixture's image: a
+/// vendor agent is that agent's real CLI at a pinned version; agent nb is nb itself, the binary proctor.json's harbor.nb
+/// names, on the provider the variant names. Note is free text for a reader and no part of its identity; Attempts and
+/// Description are read only to be refused, since the one is the exam's and the other is note.
 /// </summary>
-record Variant(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Attempts, string? Command, BundleSource? Bundle = null, string? Description = null, string? Agent = null, string? AgentVersion = null)
+record Variant(string? Id, string? Runner, string? Harness, string? Provider, string? Model, string? Command, BundleSource? Bundle = null, string? Note = null, string? Agent = null, string? AgentVersion = null,
+    JsonNode? Attempts = null, JsonNode? Description = null)
 {
     public const string Nb = "nb", ClaudeCode = "claude-code", Codex = "codex", QwenCode = "qwen-code";
     /// <summary>The vendor agents, each its vendor's CLI on its vendor's models only.</summary>
     public static readonly string[] Vendors = [ClaudeCode, Codex, QwenCode];
 
-    public int AttemptsOrOne => Attempts ?? 1;
+    /// <summary>The variant's identity: a hash of everything it declares but its id and note, its bundle by content. Set by <see cref="Exam.Load"/>.</summary>
+    [JsonIgnore] public string Hash { get; init; } = "";
     /// <summary>Run through Harbor: a vendor agent, or nb as a Harbor agent.</summary>
     public bool IsAgent => Agent is not null;
     /// <summary>A vendor's CLI, not nb.</summary>
@@ -84,10 +88,16 @@ record HarborDef(string? Version);
 /// <summary>exam.json's limits: run policy for agent variants. wall_ms is Harbor's agent timeout; the rest are not yet.</summary>
 record Limits(long? WallMs, int? ToolCalls, long? Tokens, double? CostUsd);
 
-/// <summary>The pinned version of what a variant puts under test: a directory in this repository, or a git revision. What is inside is the exam's business.</summary>
-record BundleSource(string? Path, string? Git, string? Rev)
+/// <summary>
+/// The pinned version of what a variant puts under test: a directory in this repository, or a git revision, optionally
+/// only the files and directories Paths names in it. What is inside is the exam's business.
+/// </summary>
+record BundleSource(string? Path, string? Git, string? Rev, List<string>? Paths = null)
 {
-    public string Describe() => Git is not null ? $"{Git}@{Rev}" : Path ?? "";
+    public string Describe() => Git is not null ? $"{Git}@{Rev}{(Paths is null ? "" : $" [{string.Join(", ", Paths)}]")}" : Path ?? "";
+
+    /// <summary>A git bundle's identity, which its revision and paths fix: git:&lt;rev&gt;, then :&lt;paths, sorted, comma-separated&gt; for a subset. A directory's is its content hash.</summary>
+    public string GitIdentity() => $"git:{Rev}{(Paths is null ? "" : ":" + string.Join(",", Paths.Order(StringComparer.Ordinal)))}";
 }
 
 record HookPair(string? Setup, string? Teardown);
@@ -106,8 +116,11 @@ record OracleDef(string? Judge = null, int? Turns = null)
     public const int DefaultTurns = 8;
 }
 
-/// <summary>Tags is what labels replaced; it is here so a leftover is a problem rather than silently ignored.</summary>
-record ExamDef(string? Id, List<Variant>? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null);
+/// <summary>
+/// exam.json. Attempts is how many attempts of each task every variant should have. Tags is what labels replaced and
+/// Variants what variants/ replaced; both are here so a leftover is a problem rather than silently ignored.
+/// </summary>
+record ExamDef(string? Id, JsonNode? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null);
 
 /// <summary>
 /// What the exam is testing, inside a fixture that holds much else: the tools, commands, docs and hosts that are the
@@ -193,14 +206,19 @@ sealed class Exam
     /// <summary>The fixtures the tasks name, by id.</summary>
     public required Dictionary<string, Fixture> Fixtures { get; init; }
     public required string ProgramTemplate { get; init; }
-    /// <summary>sha256 over every definition file, so a changed exam is a different exam in the manifest.</summary>
+    /// <summary>sha256 over every definition file but the variants', so a changed exam is a different exam in batch.json.</summary>
     public required string Hash { get; init; }
+    /// <summary>The variants, one per file under variants/, in file-name order; each carries its hash.</summary>
+    public required List<Variant> Variants { get; init; }
+    /// <summary>Each task's hash by id: its file, its answer sheet, its fixture's definition and the checks that apply to it.</summary>
+    public required Dictionary<string, string> TaskHashes { get; init; }
 
-    public List<Variant> Variants => Def.Variants!;
     /// <summary>Whether any variant runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
     public bool HasAgentVariants => Variants.Any(a => a.IsAgent);
     public Grading Grading => Def.Grading!;
-    public int PlannedAttempts => Variants.Sum(a => a.AttemptsOrOne) * Tasks.Count;
+    /// <summary>How many attempts of each task every variant should have.</summary>
+    public int Attempts => Def.Attempts ?? 1;
+    public int PlannedAttempts => Variants.Count * Attempts * Tasks.Count;
 
     /// <summary>An exam is judged when any check an attempt can carry asks a model (decide or judge); there is no marker to declare.</summary>
     public bool Judged => AllChecks().Any(c => Checks.AsksAModel(c.Spec));
@@ -325,11 +343,12 @@ sealed class Exam
         var before = problems.Count;
 
         var tasks = LoadTasks(dir, rel, problems);
+        var variants = LoadVariants(root, dir, rel, problems);
         var fixtures = new Dictionary<string, Fixture>();
         foreach (var name in tasks.Select(c => c.Fixture).Where(f => f is not null).Distinct())
             if (Fixture.Load(root, name!, problems) is { } fixture) fixtures[name!] = fixture;
 
-        ValidateDef(def, root, dir, rel(examFile), examId, tasks, fixtures, problems);
+        ValidateDef(def, root, dir, rel(examFile), examId, tasks, variants, fixtures, problems);
         if (judges is not null)
         {
             foreach (var (check, spec) in def.Grading?.Checks ?? [])
@@ -356,10 +375,10 @@ sealed class Exam
                 if (!Placeholders.Contains(m.Groups[1].Value))
                     problems.Add(new Problem(rel(templateFile), m.Value, $"unknown placeholder; known: {string.Join(", ", Placeholders.Select(p => "{{" + p + "}}"))}"));
             // An agent variant's bundle stays on the host (hooks, the hash, resume); its container never holds it.
-            if (Regex.IsMatch(template, @"\{\{\s*bundle\s*\}\}") && def.Variants?.FirstOrDefault(a => a is { IsAgent: true, IsVendor: false, Bundle: not null }) is { } nbAgent)
+            if (Regex.IsMatch(template, @"\{\{\s*bundle\s*\}\}") && variants.FirstOrDefault(a => a is { IsAgent: true, IsVendor: false, Bundle: not null }) is { } nbAgent)
                 problems.Add(new Problem(rel(templateFile), "{{bundle}}", $"variant '{nbAgent.Id}' runs nb through Harbor, where its bundle is not in the container; serve it from a variant hook, or run the variant bare"));
             if (tasks.Any(c => c.Oracle is not null))
-                foreach (var problem in OracleTemplateProblems(template, def.Variants?.Any(a => a is { IsAgent: true, IsVendor: false }) == true))
+                foreach (var problem in OracleTemplateProblems(template, variants.Any(a => a is { IsAgent: true, IsVendor: false })))
                     problems.Add(new Problem(rel(templateFile), "", problem));
         }
 
@@ -374,6 +393,8 @@ sealed class Exam
             Fixtures = fixtures,
             ProgramTemplate = template,
             Hash = HashDefinition(root, dir, def, tasks, fixtures.Values),
+            Variants = variants.Select(v => v with { Hash = VariantHash(root, v) }).ToList(),
+            TaskHashes = tasks.ToDictionary(c => c.Id!, c => TaskHash(root, dir, def, c, c.Fixture is null ? null : fixtures[c.Fixture])),
         };
     }
 
@@ -416,6 +437,35 @@ sealed class Exam
     static string Verb(string directive) => directive.Split(' ', 2)[0];
 
     static string TaskFile(string dir, TaskDef c) => Path.Combine(Layout.TasksDirIn(dir), c.Id + ".json");
+
+    /// <summary>A variant's file, as problems and messages name it.</summary>
+    public static string VariantFile(string dir, string id) => Path.Combine(Layout.VariantsDirIn(dir), id + ".json");
+
+    /// <summary>
+    /// Every variants/*.json, each validated on its own: an id that is its file name and a path segment, the fields its
+    /// kind takes, a bundle that resolves. What depends on the rest of the exam (Harbor, the oracle) is checked with it.
+    /// </summary>
+    static List<Variant> LoadVariants(string root, string dir, Func<string, string> rel, List<Problem> problems)
+    {
+        var variantsDir = Layout.VariantsDirIn(dir);
+        var variants = new List<Variant>();
+        var files = Directory.Exists(variantsDir) ? Directory.GetFiles(variantsDir, "*.json").Order(StringComparer.Ordinal).ToList() : [];
+        if (files.Count == 0)
+            problems.Add(new Problem(rel(variantsDir), "", "no variants; an exam needs at least one variants/<id>.json"));
+        foreach (var file in files)
+        {
+            var before = problems.Count;
+            var variant = ReadJson<Variant>(file, problems);
+            if (variant is null)
+            {
+                if (problems.Count == before) problems.Add(new Problem(rel(file), "", "a variant is an object, not null"));
+                continue;
+            }
+            ValidateVariant(variant, root, Path.GetFileNameWithoutExtension(file), (field, message) => problems.Add(new Problem(rel(file), field, message)));
+            if (problems.Count == before) variants.Add(variant);
+        }
+        return variants;
+    }
 
     private static List<TaskDef> LoadTasks(string dir, Func<string, string> rel, List<Problem> problems)
     {
@@ -470,7 +520,7 @@ sealed class Exam
         return null;
     }
 
-    private static void ValidateDef(ExamDef def, string root, string dir, string file, string examId, List<TaskDef> tasks, Dictionary<string, Fixture> fixtures, List<Problem> problems)
+    private static void ValidateDef(ExamDef def, string root, string dir, string file, string examId, List<TaskDef> tasks, List<Variant> variants, Dictionary<string, Fixture> fixtures, List<Problem> problems)
     {
         void Add(string field, string message) => problems.Add(new Problem(file, field, message));
 
@@ -481,48 +531,11 @@ sealed class Exam
         if (def.Tags is not null) Add("tags", "removed: an exam's own metadata is labels, and whether it is judged follows from its checks");
         Labels.Validate(def.Labels, Add);
 
-        if (def.Variants is null or { Count: 0 }) Add("variants", "at least one variant is required");
-        var seen = new HashSet<string>();
-        foreach (var (variant, i) in (def.Variants ?? []).Select((a, i) => (a, i)))
-        {
-            var f = $"variants[{i}]";
-            if (variant is null) { Add(f, "a variant is an object, not null"); continue; }
-            if (string.IsNullOrWhiteSpace(variant.Id)) Add($"{f}.id", "required");
-            else if (!seen.Add(variant.Id)) Add($"{f}.id", $"duplicate variant id '{variant.Id}'");
-            else if (!Regex.IsMatch(variant.Id, "^[a-z0-9][a-z0-9-]*$")) Add($"{f}.id", "variant ids are path segments: lowercase letters, digits and hyphens");
-            else if (variant.Id == Layout.HarborDir) Add($"{f}.id", $"'{Layout.HarborDir}' is the batch's directory for the tasks compiled for Harbor; name the variant something else");
-            if (variant.IsVendor) { ValidateAgentVariant(variant, f, Add); continue; }
-            if (variant.IsAgent) { ValidateNbAgentVariant(variant, f, Add); continue; }
-            switch (variant.Runner)
-            {
-                case "nb":
-                    if (string.IsNullOrWhiteSpace(variant.Provider)) Add($"{f}.provider", "required for the nb runner (a provider entry name in nb's config)");
-                    if (string.IsNullOrWhiteSpace(variant.Harness)) Add($"{f}.harness", "required for the nb runner: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
-                    break;
-                case "command":
-                    Add($"{f}.runner", "'command' is not yet implemented; only 'nb' variants run in this version");
-                    break;
-                case null or "":
-                    Add($"{f}.runner", "required");
-                    break;
-                default:
-                    Add($"{f}.runner", $"unknown runner '{variant.Runner}'; known: nb");
-                    break;
-            }
-            if (variant.Attempts is < 1) Add($"{f}.attempts", "must be at least 1");
-            if (variant.Description is not null && string.IsNullOrWhiteSpace(variant.Description)) Add($"{f}.description", "a description is a sentence, not an empty string");
-            switch (variant.Bundle)
-            {
-                case null: break;
-                case { Path: not null, Git: not null }: Add($"{f}.bundle", "path or git, not both"); break;
-                case { Path: { } p } when !Directory.Exists(Path.Combine(root, p)): Add($"{f}.bundle.path", $"no such directory under the repository root: {p}"); break;
-                case { Git: not null, Rev: null or "" }: Add($"{f}.bundle.rev", "required with git: a bundle is pinned to a revision"); break;
-                case { Path: null, Git: null }: Add($"{f}.bundle", "expects {path} or {git, rev}"); break;
-            }
-        }
+        if (def.Variants is not null) Add("variants", "variants are not in exam.json: each is its own file, variants/<id>.json beside it, holding what its entry held (note for description; attempts is the exam's)");
+        if (def.Attempts is < 1) Add("attempts", "must be at least 1");
 
-        ValidateHarbor(def, Add, dir, tasks, fixtures, root, problems);
-        ValidateOracle(def, Add, tasks, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), field, message)),
+        ValidateHarbor(def, Add, dir, tasks, variants, fixtures, root, problems);
+        ValidateOracle(def, Add, tasks, variants, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), field, message)),
             (f, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(f.Dir, Layout.FixtureFile)), field, message)));
 
         if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use variant or attempt");
@@ -596,16 +609,60 @@ sealed class Exam
         }
 
         bool NbOnlyBesideVendor(string name) =>
-            def.Variants?.Any(a => a?.IsVendor == true) == true
+            variants.Any(a => a.IsVendor)
             && (def.Grading.Checks.TryGetValue(name, out var spec) ? [spec] : tasks.Select(c => c.Checks?.GetValueOrDefault(name) ?? (c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture)?.Checks.GetValueOrDefault(name))))
                 .Any(s => s is not null && Checks.NbOnly(s));
+    }
+
+    static void ValidateVariant(Variant variant, string root, string fileId, Action<string, string> add)
+    {
+        if (string.IsNullOrWhiteSpace(variant.Id)) add("id", "required");
+        else if (variant.Id != fileId) add("id", $"'{variant.Id}' does not match the file name '{fileId}'; the id is the file name");
+        else if (!Regex.IsMatch(variant.Id, "^[a-z0-9][a-z0-9-]*$")) add("id", "variant ids are path segments: lowercase letters, digits and hyphens");
+        else if (variant.Id == Layout.HarborDir) add("id", $"'{Layout.HarborDir}' is the batch's directory for the tasks compiled for Harbor; name the variant something else");
+        if (variant.Attempts is not null) add("attempts", "the exam's, not a variant's: set attempts in exam.json, how many attempts of each task every variant should have");
+        if (variant.Description is not null) add("description", "a variant's free text is note");
+        if (variant.Note is not null && string.IsNullOrWhiteSpace(variant.Note)) add("note", "a note is a sentence, not an empty string");
+        switch (variant.Bundle)
+        {
+            case null: break;
+            case { Path: not null, Git: not null }: add("bundle", "path or git, not both"); break;
+            case { Path: { } p } when !Directory.Exists(Path.Combine(root, p)): add("bundle.path", $"no such directory under the repository root: {p}"); break;
+            case { Path: not null, Paths: not null }: add("bundle.paths", "goes with git: a directory bundle names the directory it means"); break;
+            case { Git: not null, Rev: null or "" }: add("bundle.rev", "required with git: a bundle is pinned to a revision"); break;
+            case { Path: null, Git: null }: add("bundle", "expects {path} or {git, rev}"); break;
+            case { Paths: { } paths }:
+                if (paths.Count == 0) add("bundle.paths", "a non-empty list, or absent for the whole revision");
+                foreach (var path in paths)
+                    if (string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains(".."))
+                        add("bundle.paths", $"'{path}' is not a path inside the repository: relative, without ..");
+                break;
+        }
+        if (variant.IsVendor) { ValidateAgentVariant(variant, add); return; }
+        if (variant.IsAgent) { ValidateNbAgentVariant(variant, add); return; }
+        switch (variant.Runner)
+        {
+            case "nb":
+                if (string.IsNullOrWhiteSpace(variant.Provider)) add("provider", "required for the nb runner (a provider entry name in nb's config)");
+                if (string.IsNullOrWhiteSpace(variant.Harness)) add("harness", "required for the nb runner: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
+                break;
+            case "command":
+                add("runner", "'command' is not yet implemented; only 'nb' variants run in this version");
+                break;
+            case null or "":
+                add("runner", "required");
+                break;
+            default:
+                add("runner", $"unknown runner '{variant.Runner}'; known: nb");
+                break;
+        }
     }
 
     /// <summary>
     /// A vendor agent variant: a model of the agent's own vendor, with no provider prefix (Harbor passes it to the gateway
     /// verbatim), at a pinned agent version. The nb fields have no meaning on it.
     /// </summary>
-    static void ValidateAgentVariant(Variant variant, string f, Action<string, string> add)
+    static void ValidateAgentVariant(Variant variant, Action<string, string> add)
     {
         var (vendor, models, example) = variant.Agent switch
         {
@@ -614,28 +671,27 @@ sealed class Exam
             Variant.QwenCode => ("a Qwen", @"^qwen", "qwen3-coder-next"),
             _ => (null, null, null),
         };
-        if (vendor is null) { add($"{f}.agent", $"unknown agent '{variant.Agent}'; known: {Variant.Nb}, {string.Join(", ", Variant.Vendors)}"); return; }
+        if (vendor is null) { add("agent", $"unknown agent '{variant.Agent}'; known: {Variant.Nb}, {string.Join(", ", Variant.Vendors)}"); return; }
         foreach (var (field, value) in new[] { ("runner", variant.Runner), ("harness", variant.Harness), ("provider", variant.Provider), ("command", variant.Command) })
-            if (value is not null) add($"{f}.{field}", $"an nb field; a variant with agent {variant.Agent} is that agent, on the model it names");
-        if (string.IsNullOrWhiteSpace(variant.Model)) add($"{f}.model", $"required for agent {variant.Agent}");
-        else if (variant.Model.Contains('/')) add($"{f}.model", $"'{variant.Model}' has a provider prefix; name the model bare ({example}), as the gateway receives it");
-        else if (!Regex.IsMatch(variant.Model, models!)) add($"{f}.model", $"'{variant.Model}' is not {vendor} model; {variant.Agent} runs {vendor[(vendor.IndexOf(' ') + 1)..]} models only, so the harness and the model are one vendor's");
-        if (string.IsNullOrWhiteSpace(variant.AgentVersion)) add($"{f}.agent_version", $"required: the {variant.Agent} release under test, pinned (there is no latest)");
-        else if (!Regex.IsMatch(variant.AgentVersion, @"^\d+(\.\d+)*$")) add($"{f}.agent_version", $"'{variant.AgentVersion}' is not a version number");
+            if (value is not null) add(field, $"an nb field; a variant with agent {variant.Agent} is that agent, on the model it names");
+        if (string.IsNullOrWhiteSpace(variant.Model)) add("model", $"required for agent {variant.Agent}");
+        else if (variant.Model.Contains('/')) add("model", $"'{variant.Model}' has a provider prefix; name the model bare ({example}), as the gateway receives it");
+        else if (!Regex.IsMatch(variant.Model, models!)) add("model", $"'{variant.Model}' is not {vendor} model; {variant.Agent} runs {vendor[(vendor.IndexOf(' ') + 1)..]} models only, so the harness and the model are one vendor's");
+        if (string.IsNullOrWhiteSpace(variant.AgentVersion)) add("agent_version", $"required: the {variant.Agent} release under test, pinned (there is no latest)");
+        else if (!Regex.IsMatch(variant.AgentVersion, @"^\d+(\.\d+)*$")) add("agent_version", $"'{variant.AgentVersion}' is not a version number");
     }
 
     /// <summary>
     /// nb as a Harbor agent: the harness and provider as on the bare path, the model optional likewise. The runner is the
     /// bare path's (Harbor runs nb here) and the version is the binary's, so neither is the variant's to say.
     /// </summary>
-    static void ValidateNbAgentVariant(Variant variant, string f, Action<string, string> add)
+    static void ValidateNbAgentVariant(Variant variant, Action<string, string> add)
     {
-        if (variant.Runner is not null) add($"{f}.runner", "the bare path's; a variant with agent nb runs nb through Harbor");
-        if (variant.Command is not null) add($"{f}.command", "the bare path's; a variant with agent nb runs nb through Harbor");
-        if (variant.AgentVersion is not null) add($"{f}.agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
-        if (string.IsNullOrWhiteSpace(variant.Provider)) add($"{f}.provider", "required for agent nb (a provider entry name in nb's config)");
-        if (string.IsNullOrWhiteSpace(variant.Harness)) add($"{f}.harness", "required for agent nb: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
-        if (variant.Attempts is < 1) add($"{f}.attempts", "must be at least 1");
+        if (variant.Runner is not null) add($"runner", "the bare path's; a variant with agent nb runs nb through Harbor");
+        if (variant.Command is not null) add("command", "the bare path's; a variant with agent nb runs nb through Harbor");
+        if (variant.AgentVersion is not null) add("agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
+        if (string.IsNullOrWhiteSpace(variant.Provider)) add("provider", "required for agent nb (a provider entry name in nb's config)");
+        if (string.IsNullOrWhiteSpace(variant.Harness)) add("harness", "required for agent nb: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
     }
 
     /// <summary>
@@ -643,9 +699,9 @@ sealed class Exam
     /// image on every task's fixture. An attempt hook runs on the host, which an agent's container never sees; the setup it
     /// did belongs in the fixture's image.
     /// </summary>
-    static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
+    static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, List<Variant> variants, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
     {
-        var agents = (def.Variants ?? []).Any(a => a?.IsAgent == true);
+        var agents = variants.Any(a => a.IsAgent);
         if (def.Harbor is { } harbor && (string.IsNullOrWhiteSpace(harbor.Version) || !Regex.IsMatch(harbor.Version, @"^\d+(\.\d+)*$")))
             add("harbor.version", "required: the Harbor release, pinned (0.24.0)");
         foreach (var (field, value) in new (string, object?)[] { ("tool_calls", def.Limits?.ToolCalls), ("tokens", def.Limits?.Tokens), ("cost_usd", def.Limits?.CostUsd) })
@@ -673,7 +729,7 @@ sealed class Exam
     /// Harbor. A vendor agent can be a bridge target, but bridged it leaves no ATIF (Harbor converts the user agent's
     /// log, not the target's), and Qwen Code cannot be a target at all (plans/oracle-in-proctor.md, question 4).
     /// </summary>
-    static void ValidateOracle(ExamDef def, Action<string, string> add, List<TaskDef> tasks, Dictionary<string, Fixture> fixtures,
+    static void ValidateOracle(ExamDef def, Action<string, string> add, List<TaskDef> tasks, List<Variant> variants, Dictionary<string, Fixture> fixtures,
         Action<TaskDef, string, string> addToTask, Action<Fixture, string, string> addToFixture)
     {
         var oracleTasks = tasks.Where(c => c.Oracle is not null).Select(c => c.Id).ToList();
@@ -694,12 +750,47 @@ sealed class Exam
             foreach (var c in tasks) foreach (var name in Oracular(c.Checks)) addToTask(c, $"checks.{name}", never);
             return;
         }
-        foreach (var (variant, i) in (def.Variants ?? []).Select((a, i) => (a, i)))
-            if (variant?.IsVendor == true)
-                add($"variants[{i}].agent", $"not yet: task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb variants only. Through Harbor's simulated user, {variant.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
+        foreach (var variant in variants.Where(a => a.IsVendor))
+                add("variants", $"not yet: variant '{variant.Id}' is {variant.Agent}, and task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb variants only. Through Harbor's simulated user, {variant.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
     }
 
-    /// <summary>Every definition file: the exam's own, plus each named fixture's fixture.json and check scripts. Not the fixture's source tree; that is the fixture hash, recorded per attempt.</summary>
+    /// <summary>
+    /// A task's identity: its file (prompt, expect, its own checks), its answer sheet, its fixture's definition, the
+    /// scripts of the checks it carries and the specs of the exam's checks, which reach every task. Not the fixture's
+    /// source tree (the fixture hash, recorded per attempt) and not the pass and validity lists, which grading reads
+    /// as they are now.
+    /// </summary>
+    static string TaskHash(string root, string dir, ExamDef def, TaskDef c, Fixture? fixture)
+    {
+        var files = new List<string> { TaskFile(dir, c) };
+        if (c.Oracle is not null) files.Add(Path.Combine(dir, c.Oracle));
+        foreach (var spec in def.Grading!.Checks!.Values.Concat((c.Checks ?? []).Values))
+            if (spec["script"] is JsonValue v && v.TryGetValue<string>(out var script)) files.Add(Path.Combine(dir, script));
+        if (fixture is not null) files.AddRange(fixture.DefinitionFiles());
+        var examChecks = new JsonObject(def.Grading.Checks.Select(k => KeyValuePair.Create(k.Key, (JsonNode?)k.Value.DeepClone()))).ToJsonString();
+        return HashFiles(root, files, examChecks);
+    }
+
+    /// <summary>
+    /// A variant's identity: what it declares but its id and note, with its bundle by content (a directory's tree hash,
+    /// a git revision and its paths), so the same declaration under another name or with another note is the same variant.
+    /// </summary>
+    static string VariantHash(string root, Variant v)
+    {
+        var declared = JsonSerializer.Serialize(v with { Id = null, Note = null, Bundle = null, Attempts = null, Description = null }, JsonOptions);
+        var bundle = BundleIdentity(root, v.Bundle);
+        return "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(declared + "\0" + bundle)));
+    }
+
+    /// <summary>A bundle's identity, as batch.json and the manifests record it: a directory's tree hash, or a git revision with its paths. Empty without one.</summary>
+    public static string BundleIdentity(string root, BundleSource? bundle) => bundle switch
+    {
+        null => "",
+        { Git: not null } => bundle.GitIdentity(),
+        _ => Tree.Hash(Path.GetFullPath(Path.Combine(root, bundle.Path!)), new HashSet<string> { ".git" }),
+    };
+
+    /// <summary>Every definition file: the exam's own, plus each named fixture's fixture.json and check scripts. Not the variants, which are hashed one by one, and not the fixture's source tree; that is the fixture hash, recorded per attempt.</summary>
     private static string HashDefinition(string root, string dir, ExamDef def, List<TaskDef> tasks, IEnumerable<Fixture> fixtures)
     {
         var files = new List<string> { Layout.ExamFileIn(dir), Path.Combine(dir, Layout.ProgramTemplateFile) };
@@ -711,7 +802,12 @@ sealed class Exam
             foreach (var script in new[] { pair?.Setup, pair?.Teardown })
                 if (script is not null) files.Add(Path.Combine(dir, script));
         foreach (var fixture in fixtures) files.AddRange(fixture.DefinitionFiles());
+        return HashFiles(root, files);
+    }
 
+    /// <summary>sha256 over files by their path from the root and their bytes, in path order, then any text given.</summary>
+    static string HashFiles(string root, IEnumerable<string> files, string text = "")
+    {
         using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         foreach (var file in files.Select(Path.GetFullPath).Distinct().Order(StringComparer.Ordinal))
         {
@@ -719,6 +815,7 @@ sealed class Exam
             sha.AppendData(File.ReadAllBytes(file));
             sha.AppendData("\0"u8);
         }
+        sha.AppendData(Encoding.UTF8.GetBytes(text));
         return "sha256:" + Convert.ToHexStringLower(sha.GetHashAndReset());
     }
 

@@ -84,12 +84,11 @@ public class OracleExamTests
     public void AVendorVariant_IsRefused_WhenATaskHasAnOracle()
     {
         using var repo = GateWithOracle();
-        repo.EditJson("gate/exam.json", s => s["variants"]!.AsArray().Add(JsonNode.Parse(
-            """{"id": "cc", "agent": "claude-code", "model": "claude-haiku-5-5", "agent_version": "2.1.290"}""")));
+        repo.AddVariant("gate", """{"id": "cc", "agent": "claude-code", "model": "claude-haiku-5-5", "agent_version": "2.1.290"}""");
         var problem = Assert.Single(repo.Problems("gate"));
 
-        Assert.Equal("variants[2].agent", problem.Field);
-        Assert.StartsWith("not yet: task plain names an answer sheet", problem.Message);
+        Assert.Equal(("exams/gate/exam.json", "variants"), (problem.File, problem.Field));
+        Assert.StartsWith("not yet: variant 'cc' is claude-code, and task plain names an answer sheet", problem.Message);
     }
 
     [Theory]
@@ -119,9 +118,9 @@ public class OracleExamTests
     {
         // Bare variants only: the program runs the prompt itself, so any run is fine.
         using var bare = GateWithOracle();
+        bare.RemoveVariant("gate", "nb-harbor");
         bare.EditJson("gate/exam.json", s =>
         {
-            s["variants"]!.AsArray().RemoveAt(1);
             s.Remove("harbor");
             s.Remove("limits");
         });

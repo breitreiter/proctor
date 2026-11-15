@@ -11,7 +11,7 @@ public class BaselineTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
+        repo.OneVariantOneAttempt();
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
@@ -67,7 +67,7 @@ public class BaselineTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
+        repo.OneVariantOneAttempt();
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
@@ -97,7 +97,7 @@ public class BaselineTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { foreach (var a in e["variants"]!.AsArray()) a!["attempts"] = 1; });
+        repo.EditJson("smoke/exam.json", e => e["attempts"] = 1);
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var earlier = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
@@ -110,7 +110,7 @@ public class BaselineTests
         File.WriteAllText(Path.Combine(attempt, "checks.json"), checks.ToJsonString());
 
         // The new batch adds a variant the earlier one never had.
-        repo.EditJson("smoke/exam.json", e => e["variants"]!.AsArray().Add(JsonNode.Parse("""{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "attempts": 1 }""")));
+        repo.AddVariant("smoke", """{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock" }""");
         exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);

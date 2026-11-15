@@ -1,0 +1,7 @@
+{
+  "id": "qwen",
+  "note": "Qwen Code on the local model: the free shakedown variant",
+  "agent": "qwen-code",
+  "agent_version": "0.25.2",
+  "model": "qwen3-coder-next"
+}

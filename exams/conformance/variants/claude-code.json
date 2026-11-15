@@ -1,0 +1,7 @@
+{
+  "id": "claude-code",
+  "note": "Claude Code at code-change's pin, on the stub's Anthropic Messages endpoint",
+  "agent": "claude-code",
+  "agent_version": "2.1.301",
+  "model": "claude-haiku-5-5"
+}

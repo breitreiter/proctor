@@ -5,15 +5,25 @@ using System.Text.Json.Nodes;
 
 namespace Proctor;
 
-/// <summary>attempts/&lt;id&gt;/batch.json: what is the same for every attempt.</summary>
+/// <summary>
+/// attempts/&lt;id&gt;/batch.json: what is the same for every attempt. The exam's own definition and its hash, each
+/// variant as its file was with its hash, and each task's hash.
+/// </summary>
 record Batch(
-    string Id, string Exam, string ExamHash, JsonObject ExamDef, List<string> Tasks, int Planned,
+    string Id, string Exam, string ExamHash, JsonObject ExamDef, List<BatchVariant> Variants, List<Ref> Tasks, int Planned,
     string Created, string CommandLine, string Host,
     Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
     Dictionary<string, ResolvedBundle>? Bundles = null, ResolvedHarbor? Harbor = null)
 {
     public ResolvedBundle? BundleOf(string variant) => Bundles?.GetValueOrDefault(variant);
+    public bool HasTask(string task) => Tasks.Any(t => t.Id == task);
 }
+
+/// <summary>A variant or a task as an attempt names it: its id and the hash that is its identity.</summary>
+record Ref(string Id, string Hash);
+
+/// <summary>A variant as batch.json keeps it: its id, its hash and its file as it was.</summary>
+record BatchVariant(string Id, string Hash, JsonObject Def);
 
 /// <summary>A variant's bundle as resolved for this batch: where it was read from, the directory handed to the run, and its identity.</summary>
 record ResolvedBundle(string Source, string Path, string Hash);
@@ -30,9 +40,10 @@ record ResolvedRunner(string Script, string Path, string Hash);
 record Manifest
 {
     public required string Id { get; init; }
+    public required string Exam { get; init; }
     public required string Batch { get; init; }
-    public required string Variant { get; init; }
-    public required string Task { get; init; }
+    public required Ref Variant { get; init; }
+    public required Ref Task { get; init; }
     public required int Attempt { get; init; }
     /// <summary>How an nb variant ran; absent on an agent variant, whose run is <see cref="Agent"/>.</summary>
     public string? Runner { get; init; }
@@ -49,7 +60,6 @@ record Manifest
     public long? DurationMs { get; set; }
     public required string Host { get; init; }
     public required Dictionary<string, string> Versions { get; init; }
-    public required string ExamHash { get; init; }
     public required string ProgramHash { get; init; }
     public string Status { get; set; } = AttemptStatus.Pending;
     public string? StatusReason { get; set; }
@@ -81,13 +91,15 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// <summary>Create a new batch directory from an exam and run it.</summary>
     public static string Start(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
+        RefuseChangedVariants(root, exam);
         var nb = ResolveNb(root, exam, config, nbOverride, runnerOverride);
         foreach (var variant in exam.Variants.Where(a => a.IsAgent)) Route(root, config, nb, variant);   // a missing endpoint fails before anything is made
         var id = Layout.NewBatchId(exam.Id, DateTime.UtcNow);
         var batch = new Batch(
             Id: id, Exam: exam.Id, ExamHash: exam.Hash,
             ExamDef: JsonNode.Parse(File.ReadAllText(Layout.ExamFileIn(exam.Dir)))!.AsObject(),
-            Tasks: exam.Tasks.Select(c => c.Id!).ToList(),
+            Variants: exam.Variants.Select(v => new BatchVariant(v.Id!, v.Hash, JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, v.Id!)))!.AsObject())).ToList(),
+            Tasks: exam.Tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(),
             Planned: exam.PlannedAttempts,
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
@@ -125,9 +137,14 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             ?? throw new ProctorException($"exam '{batch.Exam}' no longer loads:\n" + string.Join("\n", problems));
         if (exam.Hash != batch.ExamHash)
             throw new ProctorException($"exams/{exam.Id} has changed since batch {batchId} was created ({exam.Hash} vs {batch.ExamHash}); a changed exam is a new batch");
-        foreach (var (variant, bundle) in ResolveBundles(root, exam))
-            if (batch.BundleOf(variant)?.Hash != bundle.Hash)
-                throw new ProctorException($"the bundle of variant '{variant}' ({bundle.Source}) has changed since batch {batchId} was created ({bundle.Hash} vs {batch.BundleOf(variant)?.Hash ?? "none"}); a changed bundle is a new batch");
+        // A variant's hash covers its bundle's content, so a changed bundle is a changed variant.
+        foreach (var variant in exam.Variants)
+            if (batch.Variants.FirstOrDefault(v => v.Id == variant.Id) is not { } then)
+                throw new ProctorException($"variant '{variant.Id}' was not in batch {batchId} when it was created; a new variant is a new batch");
+            else if (then.Hash != variant.Hash)
+                throw new ProctorException($"{Path.GetRelativePath(root, Exam.VariantFile(exam.Dir, variant.Id!))} has changed since batch {batchId} was created ({variant.Hash} vs {then.Hash}); a changed variant is a new batch");
+        foreach (var then in batch.Variants.Where(v => exam.Variants.All(x => x.Id != v.Id)))
+            throw new ProctorException($"variant '{then.Id}' of batch {batchId} has no file in exams/{exam.Id}/variants/ now; a batch resumes with the variants it was created with");
         var runner = ResolveRunner(root, exam, runnerOverride);
         if ((runner?.Script, runner?.Hash) != (batch.Nb.Runner?.Script, batch.Nb.Runner?.Hash))
             throw new ProctorException($"the runner has changed since batch {batchId} was created ({Describe(runner)} vs {Describe(batch.Nb.Runner)}); a changed runner is a new batch");
@@ -149,19 +166,78 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     {
         var file = Path.Combine(Layout.Batch(root, batchId), Layout.BatchFile);
         if (!File.Exists(file)) throw new ProctorException($"no batch {batchId} under {Layout.Batch(root, "")}");
-        return ReadJson<Batch>(file)!;
+        Batch? batch;
+        try { batch = ReadJson<Batch>(file); }
+        catch (JsonException) { batch = null; }
+        // An earlier proctor wrote the variants into exam_def and the tasks as bare ids; such a batch is not read, but made again.
+        if (batch?.Variants is null || batch.Tasks is null)
+            throw new ProctorException($"{Path.GetRelativePath(root, file)} was written by an earlier proctor, before variants had files and hashes; it is not read. Move it out of {Layout.AttemptsDir}/ and run the exam again");
+        return batch;
+    }
+
+    /// <summary>
+    /// A changed variant under an old id is refused: when attempts on disk were made by a variant with this id and another
+    /// hash, the variant has changed and needs a new id, or its attempts and the new ones would be compared as one. Every
+    /// variant that changed is said at once, before anything is made.
+    /// </summary>
+    static void RefuseChangedVariants(string root, Exam exam)
+    {
+        var attemptsDir = Path.Combine(root, Layout.AttemptsDir);
+        if (!Directory.Exists(attemptsDir)) return;
+        var changed = new Dictionary<string, (int Attempts, BatchVariant Then, ResolvedBundle? Bundle)>();
+        foreach (var dir in Directory.GetDirectories(attemptsDir).Order(StringComparer.Ordinal))
+        {
+            var file = Path.Combine(dir, Layout.BatchFile);
+            if (!File.Exists(file) || JsonNode.Parse(File.ReadAllText(file))?["exam"]?.GetValue<string>() != exam.Id) continue;
+            var batch = LoadBatch(root, Path.GetFileName(dir));
+            foreach (var then in batch.Variants)
+            {
+                if (exam.Variants.FirstOrDefault(v => v.Id == then.Id) is not { } now || now.Hash == then.Hash) continue;
+                var variantDir = Layout.Variant(dir, then.Id);
+                var made = Directory.Exists(variantDir) ? Directory.GetFiles(variantDir, Layout.ManifestFile, SearchOption.AllDirectories).Length : 0;
+                if (made == 0) continue;
+                changed[then.Id] = (changed.GetValueOrDefault(then.Id).Attempts + made, then, batch.BundleOf(then.Id));   // the latest batch's record says what it was
+            }
+        }
+        if (changed.Count == 0) return;
+        throw new ProctorException(string.Join("\n", changed.Select(c =>
+        {
+            var now = exam.Variants.First(v => v.Id == c.Key);
+            return $"{Path.GetRelativePath(root, Exam.VariantFile(exam.Dir, c.Key))}: this is not the {c.Key} that made {c.Value.Attempts} attempt{(c.Value.Attempts == 1 ? "" : "s")}\n"
+                + $"  ({Differences(root, exam, now, c.Value.Then, c.Value.Bundle)}). A changed variant is a new variant: give it a new id.";
+        })));
+    }
+
+    /// <summary>What changed in a variant, field by field from the file batch.json kept, its bundle by identity; the hashes when nothing declared differs.</summary>
+    static string Differences(string root, Exam exam, Variant now, BatchVariant then, ResolvedBundle? thenBundle)
+    {
+        var current = JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, now.Id!)))!.AsObject();
+        var differences = new List<string>();
+        foreach (var field in then.Def.Select(k => k.Key).Union(current.Select(k => k.Key)).Where(k => k is not ("id" or "note" or "bundle")))
+            if (!JsonNode.DeepEquals(then.Def[field], current[field]))
+                differences.Add($"{field} {Text(then.Def[field])} then, {Text(current[field])} now");
+        var bundleNow = Exam.BundleIdentity(root, now.Bundle);
+        if ((thenBundle?.Hash ?? "") != bundleNow) differences.Add($"bundle {Short(thenBundle?.Hash)} then, {Short(bundleNow)} now");
+        return differences.Count > 0 ? string.Join("; ", differences) : $"{Short(then.Hash)} then, {Short(now.Hash)} now";
+
+        static string Text(JsonNode? node) => node is null ? "none" : node is JsonValue v && v.TryGetValue<string>(out var str) ? str : node.ToJsonString();
+        static string Short(string? hash) => hash is null or "" ? "none" : hash.StartsWith("sha256:") ? hash[7..15] : hash;
     }
 
     /// <summary>Every attempt's coordinates, in declared order.</summary>
     public static IEnumerable<(Variant Variant, TaskDef Task, int Attempt)> Attempts(Exam exam) =>
-        from variant in exam.Variants from c in exam.Tasks from s in Enumerable.Range(1, variant.AttemptsOrOne) select (variant, c, s);
+        from variant in exam.Variants from c in exam.Tasks from s in Enumerable.Range(1, exam.Attempts) select (variant, c, s);
 
     /// <summary>Everything a hook or check needs to know about an attempt, for the runner and the grader alike.</summary>
     public static AttemptContext Context(string root, Batch batch, Exam exam, Variant variant, TaskDef c, int n) =>
         new(exam.Dir, Layout.Attempt(Layout.Batch(root, batch.Id), variant.Id!, c.Id!, n), Layout.Work(root, batch.Id, variant.Id!, c.Id!, n), batch.Id, variant.Id!, c, n)
         { Expect = exam.ExpectFor(c), Fixture = exam.FixtureOf(c), BundleDir = batch.BundleOf(variant.Id!)?.Path, NbRunner = batch.Nb.Runner?.Script ?? "", NbPath = batch.Nb.Path, NbConfig = batch.Nb.Config, Mounts = batch.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor };
 
-    /// <summary>Each variant's bundle, once per batch: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
+    /// <summary>
+    /// Each variant's bundle, once per batch: a path is hashed in place; a git revision is cloned under .proctor/bundles/
+    /// and identified by its revision, and with paths only those files and directories are copied out of the clone
+    /// into a directory of their own, the bundle's identity then naming them too.
+    /// </summary>
     public static Dictionary<string, ResolvedBundle> ResolveBundles(string root, Exam exam)
     {
         var bundles = new Dictionary<string, ResolvedBundle>();
@@ -182,7 +258,9 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
                             throw new ProctorException($"bundle of variant '{variant.Id}': git {args[0]} {url} failed: {(result.Started ? result.FirstStderrLine : result.Stderr)}");
                     }
                 }
-                bundles[variant.Id!] = new ResolvedBundle(source.Describe(), dir, $"git:{source.Rev}");
+                var identity = source.GitIdentity();
+                if (source.Paths is { } paths) dir = Subset(root, variant, dir, paths, identity);
+                bundles[variant.Id!] = new ResolvedBundle(source.Describe(), dir, identity);
             }
             else
             {
@@ -191,6 +269,32 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             }
         }
         return bundles;
+    }
+
+    /// <summary>The paths of a git bundle, copied out of the clone once; a path the revision does not have is an error, not an empty bundle.</summary>
+    static string Subset(string root, Variant variant, string clone, List<string> paths, string identity)
+    {
+        var dir = Layout.GitBundleSubset(root, variant.Bundle!.Rev!, Sha256(identity)["sha256:".Length..]);
+        if (Directory.Exists(dir)) return dir;
+        var staging = dir + ".partial";
+        if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
+        foreach (var path in paths)
+        {
+            var from = Path.GetFullPath(Path.Combine(clone, path));
+            var to = Path.Combine(staging, path);
+            if (File.Exists(from)) { Directory.CreateDirectory(Path.GetDirectoryName(to)!); File.Copy(from, to, overwrite: true); }
+            else if (Directory.Exists(from) && Path.GetFileName(from.TrimEnd(Path.DirectorySeparatorChar)) != ".git")
+                foreach (var (relative, full) in Tree.Files(from, new HashSet<string> { ".git" }))
+                {
+                    var target = Path.Combine(to, relative);
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    File.Copy(full, target, overwrite: true);
+                }
+            else throw new ProctorException($"bundle of variant '{variant.Id}': {path} is not in {variant.Bundle.Git} at {variant.Bundle.Rev}");
+        }
+        Directory.CreateDirectory(staging);
+        Directory.Move(staging, dir);
+        return dir;
     }
 
     public static string ReadStatus(string attemptDir)
@@ -204,7 +308,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         WriteStatusCounts();
         foreach (var variant in exam.Variants)
         {
-            var pending = exam.Tasks.SelectMany(c => Enumerable.Range(1, variant.AttemptsOrOne).Select(s => (c, s)))
+            var pending = exam.Tasks.SelectMany(c => Enumerable.Range(1, exam.Attempts).Select(s => (c, s)))
                 .Where(x => ReadStatus(Layout.Attempt(batchDir, variant.Id!, x.c.Id!, x.s)) != AttemptStatus.Completed).ToList();
             if (pending.Count == 0) continue;
 
@@ -241,11 +345,11 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Attempt = n,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(c), Attempt = n,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
                 Fixture = attempt.Fixture is null ? null : new FixtureRef(attempt.Fixture.Id, attempt.Fixture.Hash),
                 Bundle = batch.BundleOf(variant.Id!), Nb = batch.Nb,
-                Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash, ProgramHash = Sha256(program),
+                Host = batch.Host, Versions = batch.Versions, ProgramHash = Sha256(program),
             };
         manifest.Tries++;
         manifest.Started = Now();
@@ -304,10 +408,10 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Attempt = n, Model = variant.Model,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(c), Attempt = n, Model = variant.Model,
                 Harness = variant.Harness, Provider = variant.Provider,
                 Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = batch.BundleOf(variant.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
-                Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash,
+                Host = batch.Host, Versions = batch.Versions,
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };
         var nb = program is null ? null : new NbAttempt(Path.Combine(attemptDir, Layout.CompiledProgramFile), batch.Nb.Config);
@@ -492,15 +596,18 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Attempt = n,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(c), Attempt = n,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
-                Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash, ProgramHash = "",
+                Host = batch.Host, Versions = batch.Versions, ProgramHash = "",
             };
         manifest.Tries++;
         manifest.StatusReason = reason;
         SetStatus(attemptDir, manifest, AttemptStatus.Failed);
         log.WriteLine($"  {variant.Id}/{c.Id}/{n}  failed  {reason}");
     }
+
+    Ref RefOf(Variant variant) => new(variant.Id!, variant.Hash);
+    Ref RefOf(TaskDef c) => new(c.Id!, exam.TaskHashes[c.Id!]);
 
     static void SetStatus(string attemptDir, Manifest manifest, string status)
     {

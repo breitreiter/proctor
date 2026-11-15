@@ -187,7 +187,7 @@ static class Stats
 
         var descriptions = new Descriptions(
             exam.Def.Description,
-            exam.Variants.Where(a => a.Description is not null).ToDictionary(a => a.Id!, a => a.Description!),
+            exam.Variants.Where(a => a.Note is not null).ToDictionary(a => a.Id!, a => a.Note!),
             exam.Tasks.ToDictionary(c => c.Id!, Exam.Describe),
             exam.CheckDescriptions());
 

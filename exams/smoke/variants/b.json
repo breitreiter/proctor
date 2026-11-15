@@ -1,0 +1,10 @@
+{
+  "id": "b",
+  "runner": "nb",
+  "harness": "nb",
+  "provider": "MockB",
+  "model": "mock",
+  "bundle": {
+    "path": "bundles/smoke"
+  }
+}

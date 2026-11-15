@@ -1,0 +1,11 @@
+{
+  "id": "local",
+  "note": "the bot as it runs: bot/system.md and bot/knowledge.md on qwen3-coder-next behind the local llama-server",
+  "runner": "nb",
+  "harness": "nb",
+  "provider": "local",
+  "model": "qwen3-coder-next",
+  "bundle": {
+    "path": "bot"
+  }
+}

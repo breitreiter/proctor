@@ -57,11 +57,8 @@ static class Report
         b.Add(new Title(stats.Exam, created.ToString("dddd, d MMMM yyyy"), created.ToString("HH:mm")));
         if (d.Exam is { } about) b.Add(new Para(about));
         b.Add(VerdictCard(stats));
-        var byAttempts = variants.GroupBy(a => Attempts(exp, a)).ToList();
-        var tasksLine = byAttempts.Count == 1 ? $"{stats.NTasks}, each attempted {Times(byAttempts[0].Key)} per variant"
-            : $"{stats.NTasks}, each attempted " + string.Join("; ", byAttempts.Select(g => $"{Times(g.Key)} by {Join(g.Select(a => $"`{a}`"))}"));
-        var attemptsPerVariant = byAttempts.Count == 1 ? $"Attempted **{Times(byAttempts[0].Key)}** per variant"
-            : $"Attempted **{string.Join("** or **", byAttempts.Select(g => Times(g.Key)))}** per variant, as [Variants](#variants) lists";
+        var tasksLine = $"{stats.NTasks}, each attempted {Times(Attempts(exp))} per variant";
+        var attemptsPerVariant = $"Attempted **{Times(Attempts(exp))}** per variant";
         b.Add(new Pairs(
         [
             ("Host", exp.Host),
@@ -87,13 +84,13 @@ static class Report
         b.Add(new Para("A variant is one configuration under test: a harness, a provider and a model, given every task." + (variants.Count > 1 ? " The first variant is the reference the others are compared with." : ""), "explain"));
         var bundles = exp.Bundles is { Count: > 0 };
         b.Add(new Table(["Variant", "What it is", "Harness", "Provider", "Model", "Attempts per task", .. bundles ? ["Bundle"] : Array.Empty<string>()],
-            variants.Select(a => (List<Td>)[Id(a), T(d.Variants.GetValueOrDefault(a, "")), T(Harness(exp, a)), T(VariantField(exp, a, "provider", "—")), T(VariantField(exp, a, "model")), T(Attempts(exp, a).ToString()),
+            variants.Select(a => (List<Td>)[Id(a), T(d.Variants.GetValueOrDefault(a, "")), T(Harness(exp, a)), T(VariantField(exp, a, "provider", "—")), T(VariantField(exp, a, "model")), T(Attempts(exp).ToString()),
                 .. bundles ? [T(exp.BundleOf(a) is { } bu ? $"``{bu.Source}``" : "")] : Array.Empty<Td>()]).ToList(),
             [5]));
 
         // 3. Tasks: what each asks, what it is checked for, and how every variant did on it
         b.Add(new Heading("Tasks", "tasks"));
-        b.Add(new Para($"A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(byAttempts.Count == 1 ? (byAttempts[0].Key == 1 ? "Each task is attempted once per variant, so one attempt decides its score." : $"Each task is attempted {Times(byAttempts[0].Key)} per variant, so a score is not one lucky or unlucky attempt.") : "Each variant attempts each task the number of times Variants lists; a task attempted more than once scores the mean of its attempts, so one lucky or unlucky attempt does not decide it.")}", "explain"));
+        b.Add(new Para($"A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(Attempts(exp) == 1 ? "Each task is attempted once per variant, so one attempt decides its score." : $"Each task is attempted {Times(Attempts(exp))} per variant, so a score is not one lucky or unlucky attempt.")}", "explain"));
         b.Add(new Para("A check is one yes-or-no test over a finished attempt. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to an attempt:", "explain"));
         b.Add(new Pairs(
         [
@@ -526,14 +523,13 @@ static class Report
         stats.Variants.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
 
     static string VariantField(Batch exp, string variant, string field, string missing = "?") =>
-        exp.ExamDef["variants"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == variant)?[field]?.GetValue<string>() ?? missing;
+        exp.Variants.FirstOrDefault(a => a.Id == variant)?.Def[field]?.GetValue<string>() ?? missing;
 
     /// <summary>nb's harness on an nb variant; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the batch does not record.</summary>
     static string Harness(Batch exp, string variant) =>
         VariantField(exp, variant, "harness", "") is { Length: > 0 } h ? h : $"{VariantField(exp, variant, "agent")} {VariantField(exp, variant, "agent_version", "")}".TrimEnd();
 
-    static int Attempts(Batch exp, string variant) =>
-        exp.ExamDef["variants"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == variant)?["attempts"]?.GetValue<int>() ?? 1;
+    static int Attempts(Batch exp) => exp.ExamDef["attempts"]?.GetValue<int>() ?? 1;
 
     /// <summary>Monospace only for what is typed or opened: the command, paths, endpoints.</summary>
     static IEnumerable<(string, string)> ReproFacts(Batch exp, List<JudgeUse>? judges)

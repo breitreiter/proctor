@@ -25,10 +25,9 @@ public class OracleBareTests
         repo.Write("smoke/oracle/plain.md", Sheet);
         foreach (var other in new[] { "loops", "uses-bash" }) File.Delete(Path.Combine(repo.Root, "exams", "smoke", "tasks", other + ".json"));
         repo.EditJson("smoke/tasks/plain.json", t => { t["prompt"] = prompt; t["oracle"] = "oracle/plain.md"; });
+        repo.OneVariantOneAttempt();
         repo.EditJson("smoke/exam.json", s =>
         {
-            s["variants"]!.AsArray().RemoveAt(1);
-            s["variants"]![0]!["attempts"] = 1;
             if (oracle is not null) s["oracle"] = System.Text.Json.JsonSerializer.SerializeToNode(oracle);
         });
         var exam = repo.LoadExam("smoke");

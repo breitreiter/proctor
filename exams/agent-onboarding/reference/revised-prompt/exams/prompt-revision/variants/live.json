@@ -1,0 +1,11 @@
+{
+  "id": "live",
+  "note": "the system prompt that runs today (a copy of bot/system.md)",
+  "runner": "nb",
+  "harness": "nb",
+  "provider": "local",
+  "model": "qwen3-coder-next",
+  "bundle": {
+    "path": "exams/prompt-revision/bundles/live"
+  }
+}

@@ -24,7 +24,7 @@ static class Verbs
             if (labels.Count > 0) Console.WriteLine($"  labels: {Labels.Format(labels)}");
             foreach (var variant in exam.Variants)
                 foreach (var c in exam.Tasks)
-                    for (var s = 1; s <= variant.AttemptsOrOne; s++)
+                    for (var s = 1; s <= exam.Attempts; s++)
                         Console.WriteLine($"  {variant.Id}/{c.Id}/{s}");
         }
         foreach (var p in problems) Console.Error.WriteLine(p);
@@ -82,7 +82,7 @@ static class Verbs
         foreach (var a in variantIds ?? [])
             if (ran.All(c => c.Variant != a)) throw new ProctorException($"no variant '{a}' in batch {batch.Id} ({string.Join(", ", ran.Select(c => c.Variant).Distinct())})");
         foreach (var t in taskIds ?? [])
-            if (!batch.Tasks.Contains(t)) throw new ProctorException($"no task '{t}' in batch {batch.Id}");
+            if (!batch.HasTask(t)) throw new ProctorException($"no task '{t}' in batch {batch.Id}");
         JudgeClient? judges = null;
         if (reader is not null)
         {

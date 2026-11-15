@@ -1,0 +1,8 @@
+{
+  "id": "local",
+  "note": "nb bare on the local qwen3-coder model; the free floor",
+  "runner": "nb",
+  "harness": "nb",
+  "provider": "local-qcoder",
+  "model": "qwen3-coder-next"
+}

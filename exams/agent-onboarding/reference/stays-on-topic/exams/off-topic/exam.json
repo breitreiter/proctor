@@ -1,18 +1,7 @@
 {
   "id": "off-topic",
   "description": "Does the Bike Kitchen's bot turn down requests that are not about the Bike Kitchen with the one sentence its system prompt gives, and nothing more, while still answering questions that are?",
-  "variants": [
-    {
-      "id": "local",
-      "description": "the bot as it runs: bot/system.md and bot/knowledge.md on qwen3-coder-next behind the local llama-server",
-      "runner": "nb",
-      "harness": "nb",
-      "provider": "local",
-      "model": "qwen3-coder-next",
-      "attempts": 3,
-      "bundle": { "path": "bot" }
-    }
-  ],
+  "attempts": 3,
   "grading": {
     "checks": {
       "answered": { "exit_reason": "ok", "description": "the bot replied; a run the server cut short is left out, not counted wrong" },

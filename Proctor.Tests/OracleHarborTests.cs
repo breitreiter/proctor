@@ -47,7 +47,7 @@ public class OracleHarborTests
         Assert.Equal(["nb_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(expDir)).Select(Path.GetFileName));
     }
 
-    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", 2, null, Agent: "nb");
+    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", null, Agent: "nb");
 
     [Fact]
     public void Job_AnOracleAttempt_IsBridged_ToOracleUserOnTheHost()
@@ -117,7 +117,7 @@ public class OracleHarborTests
 
     static Manifest NbManifest() => new()
     {
-        Id = "r", Batch = "e", Variant = "nb-harbor", Task = "plain", Attempt = 1, Host = "h", Versions = [], ExamHash = "s", ProgramHash = "p",
+        Id = "r", Batch = "e", Exam = "x", Variant = new("nb-harbor", "sha256:v"), Task = new("plain", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
         Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null),
     };
 

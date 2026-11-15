@@ -1,0 +1,11 @@
+{
+  "id": "as-shipped",
+  "note": "jot's README as it ships",
+  "runner": "nb",
+  "harness": "nb",
+  "provider": "gemini",
+  "model": "gemini-flash-lite-latest",
+  "bundle": {
+    "path": "exams/readme-answers/bundles/as-shipped"
+  }
+}

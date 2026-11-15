@@ -1,0 +1,10 @@
+{
+  "id": "as-shipped",
+  "note": "Claude Code on Sonnet with Tern's docs as shipped: one quickstart on /v2 that states the units, a reference, a changelog that retires /v1",
+  "agent": "claude-code",
+  "agent_version": "2.1.301",
+  "model": "claude-sonnet-5-5",
+  "bundle": {
+    "path": "exams/tern-docs/bundles/as-shipped"
+  }
+}

@@ -130,12 +130,10 @@ static class Friction
     /// the exam says now, so a batch whose exam has since changed its variants is still read.
     /// </summary>
     public static IEnumerable<(string Variant, string Task, int Attempt)> Attempts(Batch batch) =>
-        from variant in (batch.ExamDef["variants"] as JsonArray ?? []).OfType<JsonObject>()
-        let id = String(variant["id"])
-        where id is not null
+        from variant in batch.Variants
         from task in batch.Tasks
-        from n in Enumerable.Range(1, variant["attempts"] is JsonValue v && v.TryGetValue<int>(out var count) ? count : 1)
-        select (id, task, n);
+        from n in Enumerable.Range(1, batch.ExamDef["attempts"] is JsonValue v && v.TryGetValue<int>(out var count) ? count : 1)
+        select (variant.Id, task.Id, n);
 
     /// <summary>friction.json beside each completed attempt's trajectory. An attempt with no trajectory is skipped and said so.</summary>
     /// <param name="reader">A chat judge of the machine's config that reads each attempt for what rules cannot see; its points are added with a model source. Null for rules only.</param>

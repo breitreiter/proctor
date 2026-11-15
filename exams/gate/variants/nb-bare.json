@@ -1,0 +1,8 @@
+{
+  "id": "nb-bare",
+  "note": "nb on the Mock provider, run bare on the host.",
+  "runner": "nb",
+  "harness": "nb",
+  "provider": "Mock",
+  "model": "mock"
+}

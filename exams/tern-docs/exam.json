@@ -1,38 +1,11 @@
 {
   "id": "tern-docs",
   "description": "Does a restructure of an API's documentation change what a coding agent builds from it? Claude Code on Sonnet implements six shipping functions in a small shop's Python backend against Tern, an invented carrier, with Tern's docs as shipped, as restructured, or absent. The variants differ only in the docs bundle.",
+  "attempts": 2,
   "labels": {
     "area": "docs/api",
     "purpose": "showcase"
   },
-  "variants": [
-    {
-      "id": "as-shipped",
-      "description": "Claude Code on Sonnet with Tern's docs as shipped: one quickstart on /v2 that states the units, a reference, a changelog that retires /v1",
-      "agent": "claude-code",
-      "agent_version": "2.1.301",
-      "model": "claude-sonnet-5-5",
-      "attempts": 2,
-      "bundle": { "path": "exams/tern-docs/bundles/as-shipped" }
-    },
-    {
-      "id": "restructure",
-      "description": "Claude Code on Sonnet with Tern's docs restructured: a quickstart per language, the Python one still on /v1 in kilograms, the units only in the reference, no changelog",
-      "agent": "claude-code",
-      "agent_version": "2.1.301",
-      "model": "claude-sonnet-5-5",
-      "attempts": 2,
-      "bundle": { "path": "exams/tern-docs/bundles/restructure" }
-    },
-    {
-      "id": "no-docs",
-      "description": "Claude Code on Sonnet with no docs: the docs site answers 404 to every page",
-      "agent": "claude-code",
-      "agent_version": "2.1.301",
-      "model": "claude-sonnet-5-5",
-      "attempts": 2
-    }
-  ],
   "harbor": {
     "version": "0.24.0"
   },

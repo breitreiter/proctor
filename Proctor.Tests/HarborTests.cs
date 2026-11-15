@@ -44,18 +44,18 @@ public class HarborTests
     }
 
     [Theory]
-    [InlineData("harness", "\"claude-code\"", "variants[0].harness", "an nb field")]
-    [InlineData("provider", "\"anthropic\"", "variants[0].provider", "an nb field")]
-    [InlineData("model", "\"gpt-5.4\"", "variants[0].model", "not an Anthropic model")]
-    [InlineData("model", "\"anthropic/claude-haiku-5-5\"", "variants[0].model", "provider prefix")]
-    [InlineData("agent_version", "null", "variants[0].agent_version", "pinned")]
-    [InlineData("agent_version", "\"latest\"", "variants[0].agent_version", "not a version number")]
-    [InlineData("agent", "\"cursor\"", "variants[0].agent", "unknown agent")]
+    [InlineData("harness", "\"claude-code\"", "harness", "an nb field")]
+    [InlineData("provider", "\"anthropic\"", "provider", "an nb field")]
+    [InlineData("model", "\"gpt-5.4\"", "model", "not an Anthropic model")]
+    [InlineData("model", "\"anthropic/claude-haiku-5-5\"", "model", "provider prefix")]
+    [InlineData("agent_version", "null", "agent_version", "pinned")]
+    [InlineData("agent_version", "\"latest\"", "agent_version", "not a version number")]
+    [InlineData("agent", "\"cursor\"", "agent", "unknown agent")]
     public void AgentVariant_IsValidated(string field, string value, string problemField, string message)
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        repo.EditJson("harbor-unit/exam.json", e => e["variants"]![0]![field] = JsonNode.Parse(value));
+        repo.EditVariant("harbor-unit", "cc-haiku", v => v[field] = JsonNode.Parse(value));
         Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == problemField && p.Message.Contains(message));
     }
 
@@ -181,7 +181,7 @@ public class HarborTests
     [Fact]
     public void Job_StatesEverySettingHarborWouldDefault_AndCarriesNoKey()
     {
-        var variant = new Variant("cc-haiku", null, null, null, "claude-haiku-5-5", 1, null, Agent: "claude-code", AgentVersion: "2.1.301");
+        var variant = new Variant("cc-haiku", null, null, null, "claude-haiku-5-5", null, Agent: "claude-code", AgentVersion: "2.1.301");
         var job = HarborCompile.Job(variant, "/t", "/j", new AgentRoute(BaseUrl, "sk-secret"));
         Assert.Equal(1, job["n_attempts"]!.GetValue<int>());
         Assert.Equal(0, job["retry"]!["max_retries"]!.GetValue<int>());
@@ -200,7 +200,7 @@ public class HarborTests
 
     // A trial as Harbor 0.24.0 writes one: result.json, the agent's logs with the ATIF trajectory, the artifacts, the verifier.
 
-    static readonly Variant CcVariant = new("cc-haiku", null, null, null, "claude-haiku-5-5", 1, null, Agent: "claude-code", AgentVersion: "2.1.301");
+    static readonly Variant CcVariant = new("cc-haiku", null, null, null, "claude-haiku-5-5", null, Agent: "claude-code", AgentVersion: "2.1.301");
 
     static string Trajectory(params string[] tools) => new JsonObject
     {
@@ -240,7 +240,7 @@ public class HarborTests
 
     static Manifest NewManifest() => new()
     {
-        Id = "r", Batch = "e", Variant = "cc-haiku", Task = "fix-null-deref", Attempt = 1, Host = "h", Versions = [], ExamHash = "s", ProgramHash = "p",
+        Id = "r", Batch = "e", Exam = "x", Variant = new("cc-haiku", "sha256:v"), Task = new("fix-null-deref", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
         Agent = new AgentRun("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
     };
 
@@ -522,11 +522,8 @@ public class HarborTests
         var bundleDir = Directory.CreateDirectory(Path.Combine(repo.Root, "bundles", "corpus")).FullName;
         File.WriteAllText(Path.Combine(bundleDir, "page.html"), "<h1>corpus page</h1>\n");
         repo.WriteScript("harbor-unit/hooks/serve.sh", $"#!/usr/bin/env bash\necho \"$PROCTOR_BUNDLE\" > \"{scratch.Root}/hook.bundle\"\n");
-        repo.EditJson("harbor-unit/exam.json", e =>
-        {
-            e["variants"]![0]!["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}""");
-            e["hooks"] = JsonNode.Parse("""{"variant": {"setup": "hooks/serve.sh"}}""");
-        });
+        repo.EditVariant("harbor-unit", "cc-haiku", v => v["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}"""));
+        repo.EditJson("harbor-unit/exam.json", e => e["hooks"] = JsonNode.Parse("""{"variant": {"setup": "hooks/serve.sh"}}"""));
 
         var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         var expDir = Layout.Batch(repo.Root, id);
@@ -540,7 +537,7 @@ public class HarborTests
 
         File.AppendAllText(Path.Combine(bundleDir, "page.html"), "rebuilt\n");
         var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("the bundle of variant 'cc-haiku'", e.Message);
+        Assert.Contains("variants/cc-haiku.json has changed since batch", e.Message);
     }
 
     [Fact]
@@ -717,8 +714,8 @@ public class HarborTests
     // Codex and Qwen Code: Harbor's agents on an OpenAI-dialect route, Qwen Code's install replaced by proctor's pin check.
 
     const string OpenAiUrl = "http://library:8086/x/openai/v1";
-    static readonly Variant CodexVariant = new("codex-mini", null, null, null, "gpt-5-mini", 1, null, Agent: "codex", AgentVersion: "0.163.0");
-    static readonly Variant QwenVariant = new("qwen", null, null, null, "qwen3-coder-next", 1, null, Agent: "qwen-code", AgentVersion: "0.25.2");
+    static readonly Variant CodexVariant = new("codex-mini", null, null, null, "gpt-5-mini", null, Agent: "codex", AgentVersion: "0.163.0");
+    static readonly Variant QwenVariant = new("qwen", null, null, null, "qwen3-coder-next", null, Agent: "qwen-code", AgentVersion: "0.25.2");
 
     [Theory]
     [InlineData("codex", "gpt-5-mini", null)]
@@ -731,10 +728,10 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        repo.EditJson("harbor-unit/exam.json", e => { e["variants"]![0]!["agent"] = agent; e["variants"]![0]!["model"] = model; });
-        var problems = repo.Problems("harbor-unit").Where(p => p.Field.StartsWith("variants[0]")).ToList();
+        repo.EditVariant("harbor-unit", "cc-haiku", v => { v["agent"] = agent; v["model"] = model; });
+        var problems = repo.Problems("harbor-unit").Where(p => p.File.EndsWith("variants/cc-haiku.json")).ToList();
         if (message is null) Assert.Empty(problems);
-        else Assert.Contains(problems, p => p.Field == "variants[0].model" && p.Message.Contains(message));
+        else Assert.Contains(problems, p => p.Field == "model" && p.Message.Contains(message));
     }
 
     [Fact]
@@ -850,10 +847,9 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        repo.EditJson("harbor-unit/exam.json", e => e["variants"] = JsonNode.Parse("""
-            [{"id": "codex-mini", "agent": "codex", "agent_version": "0.163.0", "model": "gpt-5-mini"},
-             {"id": "qwen", "agent": "qwen-code", "agent_version": "0.25.2", "model": "qwen3-coder-next"}]
-            """));
+        repo.RemoveVariant("harbor-unit", "cc-haiku");
+        repo.AddVariant("harbor-unit", """{"id": "codex-mini", "agent": "codex", "agent_version": "0.163.0", "model": "gpt-5-mini"}""");
+        repo.AddVariant("harbor-unit", """{"id": "qwen", "agent": "qwen-code", "agent_version": "0.25.2", "model": "qwen3-coder-next"}""");
         var exam = repo.LoadExam("harbor-unit");
         var expDir = Path.Combine(repo.Root, "attempts", "exp");
         HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute(OpenAiUrl, "sk-secret"));
@@ -922,7 +918,7 @@ public class HarborTests
 
     // nb as a Harbor agent: the gate exam's harbor variant.
 
-    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", 2, null, Agent: "nb");
+    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", null, Agent: "nb");
 
     [Fact]
     public void NbAgentVariant_IsAHarborVariant_ButNotAVendors()
@@ -938,15 +934,16 @@ public class HarborTests
     }
 
     [Theory]
-    [InlineData("runner", "\"nb\"", "variants[1].runner", "bare path")]
-    [InlineData("agent_version", "\"0.9.0\"", "variants[1].agent_version", "the binary's")]
-    [InlineData("provider", "null", "variants[1].provider", "required for agent nb")]
-    [InlineData("id", "\"harbor\"", "variants[1].id", "compiled for Harbor")]
+    [InlineData("runner", "\"nb\"", "runner", "bare path")]
+    [InlineData("agent_version", "\"0.9.0\"", "agent_version", "the binary's")]
+    [InlineData("provider", "null", "provider", "required for agent nb")]
+    [InlineData("id", "\"harbor\"", "id", "compiled for Harbor")]
     public void NbAgentVariant_IsValidated(string field, string value, string problemField, string message)
     {
         using var repo = new TestRepo();
         repo.CopyExam("gate");
-        repo.EditJson("gate/exam.json", e => e["variants"]![1]![field] = JsonNode.Parse(value));
+        repo.EditVariant("gate", "nb-harbor", v => v[field] = JsonNode.Parse(value));
+        if (field == "id") repo.RenameVariant("gate", "nb-harbor", "harbor");
         Assert.Contains(repo.Problems("gate"), p => p.Field == problemField && p.Message.Contains(message));
     }
 
@@ -956,7 +953,7 @@ public class HarborTests
         using var repo = new TestRepo();
         repo.CopyExam("gate");
         Directory.CreateDirectory(Path.Combine(repo.Root, "bundles", "corpus"));
-        repo.EditJson("gate/exam.json", e => e["variants"]![1]!["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}"""));
+        repo.EditVariant("gate", "nb-harbor", v => v["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}"""));
         Assert.Empty(repo.Problems("gate"));
 
         File.AppendAllText(Path.Combine(repo.Root, "exams", "gate", "program.nb"), "# corpus: {{bundle}}\n");

@@ -1,0 +1,8 @@
+{
+  "id": "haiku-bare",
+  "note": "nb on Haiku, bare on the host, its oracle in-process",
+  "runner": "nb",
+  "harness": "nb",
+  "provider": "anthropic-haiku",
+  "model": "claude-haiku-5-5"
+}

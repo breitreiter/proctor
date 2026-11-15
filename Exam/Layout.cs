@@ -16,6 +16,7 @@ static class Layout
     public const string ExamFile = "exam.json";
     public const string ProgramTemplateFile = "program.nb";
     public const string TasksDir = "tasks";
+    public const string VariantsDir = "variants";
     public const string BaselineFile = "baseline.json";
     public const string FixtureFile = "fixture.json";
 
@@ -58,6 +59,7 @@ static class Layout
     public static string Exam(string root, string examId) => Path.Combine(Exams(root), examId);
     public static string ExamFileIn(string examDir) => Path.Combine(examDir, ExamFile);
     public static string TasksDirIn(string examDir) => Path.Combine(examDir, TasksDir);
+    public static string VariantsDirIn(string examDir) => Path.Combine(examDir, VariantsDir);
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
     public static string Batch(string root, string batchId) => Path.Combine(root, AttemptsDir, batchId);
     public static string Variant(string batchDir, string variant) => Path.Combine(batchDir, variant);
@@ -68,6 +70,8 @@ static class Layout
     /// <summary>The Harbor task a variant runs a task as, compiled once per batch.</summary>
     public static string HarborTask(string batchDir, string variant, string task) => Path.Combine(batchDir, HarborDir, "tasks", variant, task);
     public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
+    /// <summary>The files a bundle's paths name, copied out of its revision's clone; named by the bundle's identity so two subsets of one revision sit apart.</summary>
+    public static string GitBundleSubset(string root, string rev, string identityHash) => Path.Combine(root, BundlesDir, $"{rev}-{identityHash[..12]}");
     public static string ReportData(string root, string batchId) =>
         Path.Combine(root, ReportsDir, "data", batchId);
 

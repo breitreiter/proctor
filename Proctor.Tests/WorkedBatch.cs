@@ -13,21 +13,26 @@ static class WorkedBatch
         repo.EditJson("smoke/exam.json", e =>
         {
             e["description"] = "Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?";
-            e["variants"]![0]!["description"] = "the local floor";
-            e["variants"]![0]!["id"] = "floor"; e["variants"]![0]!["attempts"] = attempts; e["variants"]![0]!["model"] = "qwen-coder"; e["variants"]![0]!["provider"] = "local-qcoder";
-            e["variants"]![1]!["id"] = "b"; e["variants"]![1]!["attempts"] = attempts; e["variants"]![1]!["model"] = "glm"; e["variants"]![1]!["provider"] = "local-glm";
-            if (!twoVariants) e["variants"]!.AsArray().RemoveAt(1);
+            e["attempts"] = attempts;
             e["grading"]!["checks"] = JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}, \"builds\": {\"script\": \"checks/answer-nonempty.sh\", \"description\": \"the repository builds after the change\"}, \"no_denials\": {\"denied_calls\": {\"max\": 0}}}");
             e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"builds\"]");
             e["grading"]!["validity"] = JsonNode.Parse("[\"no_denials\"]");
         });
+        repo.EditVariant("smoke", "a", v => { v["note"] = "the local floor"; v["model"] = "qwen-coder"; v["provider"] = "local-qcoder"; });
+        repo.RenameVariant("smoke", "a", "floor");
+        repo.EditVariant("smoke", "b", v => { v["model"] = "glm"; v["provider"] = "local-glm"; });
+        if (!twoVariants) repo.RemoveVariant("smoke", "b");
         repo.EditJson("smoke/tasks/uses-bash.json", t => t["checks"] = JsonNode.Parse("{\"used-bash\": {\"tools_used\": [\"bash\"]}}"));
-        return repo.LoadExam("smoke");
+        var exam = repo.LoadExam("smoke");
+        // Variants load in file-name order, b before floor; the worked batch has the floor first, as its reference.
+        exam.Variants.Sort((x, y) => x.Id == "floor" ? -1 : y.Id == "floor" ? 1 : 0);
+        return exam;
     }
 
     public static Batch Batch(Exam exam) => new(
         "20260917-1432-smoke-k7px", exam.Id, "sha256:9c1e0000", System.Text.Json.JsonSerializer.SerializeToNode(exam.Def, Proctor.Exam.JsonOptions)!.AsObject(),
-        exam.Tasks.Select(c => c.Id!).ToList(), exam.PlannedAttempts, "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
+        exam.Variants.Select(v => new BatchVariant(v.Id!, v.Hash, System.Text.Json.JsonSerializer.SerializeToNode(v, Proctor.Exam.JsonOptions)!.AsObject())).ToList(),
+        exam.Tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(), exam.PlannedAttempts, "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
         new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.0" }, new GitInfo("3f2c1e9a", Dirty: false), new ResolvedNb("/usr/local/bin/nb", null));
 
     /// <summary>Last week's floor, pinned: loops was perfect, plain was perfect, uses-bash was one in three.</summary>

@@ -1,0 +1,7 @@
+{
+  "id": "qwen",
+  "note": "Qwen Code on the same local model",
+  "agent": "qwen-code",
+  "agent_version": "0.25.2",
+  "model": "qwen3-coder-next"
+}

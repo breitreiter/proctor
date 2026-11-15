@@ -1,20 +1,11 @@
 {
   "id": "harbor-unit",
   "description": "Test data for HarborTests: one Claude Code variant, one task on ledger. Never run for real: HarborTests stand a fake uv in for Harbor.",
+  "attempts": 1,
   "labels": {
     "area": "coding/change",
     "stack": "dotnet"
   },
-  "variants": [
-    {
-      "id": "cc-haiku",
-      "description": "Claude Code on Haiku",
-      "agent": "claude-code",
-      "agent_version": "2.1.301",
-      "model": "claude-haiku-5-5",
-      "attempts": 1
-    }
-  ],
   "harbor": { "version": "0.24.0" },
   "limits": { "wall_ms": 900000 },
   "grading": {
