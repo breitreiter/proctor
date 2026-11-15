@@ -92,7 +92,7 @@ fixtures/<id>/repo/         what is copied into the work directory, and nothing 
 ```
 
 Use proctor's vocabulary in every file and in what you tell the user:
-exam, task, attempt, check, variant, fixture, batch, baseline.
+exam, task, attempt, check, variant, fixture, batch, live.
 
 ### Proctor's gotchas
 
@@ -171,7 +171,10 @@ exam, task, attempt, check, variant, fixture, batch, baseline.
 4. Then the agreed batch: `proctor run <id>`, then `proctor grade <id>` and
    `proctor report <id>` (the exam's id: they read every current attempt of it,
    whichever batch made it). Walk the user through the report: the verdict,
-   the intervals, the failures and their quoted reasons.
+   the intervals, the failures and their quoted reasons. Until a variant is
+   live the report shows the variants side by side; when the user picks the
+   one in use, `proctor live <id> <variant>` marks it (commit
+   `exams/<id>/live.json`), and later reports compare the others with it.
 
 If a check fails an attempt that looks right to you, the check is the suspect
 before the agent is.

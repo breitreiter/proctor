@@ -24,7 +24,9 @@ proctor report readme-answers     # then open reports/readme-answers/explore/rep
 What to expect: both variants get the first three right. On the last three,
 `as-shipped` can only guess, and the report shows how often a guess is
 wrong. That gap is the point: a change to the documentation, measured,
-with an interval around it.
+with an interval around it. The first report shows the two side by side;
+`proctor live readme-answers as-shipped` marks the README as it ships as
+the live variant, and the next report gives `for-scripts` against it.
 
 **Cost.** 36 requests, each a few thousand tokens. On Gemini's free tier
 that is free; free-tier requests may be used by Google to improve its

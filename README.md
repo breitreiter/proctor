@@ -59,14 +59,14 @@ itself, never from the agent's own report.
 ## The report
 
 One self-contained HTML page and a markdown twin. Every rate carries a
-95% interval and its counts; variants are compared pairwise on the tasks they
-share; the minimum detectable effect is stated, so "no difference" can't
-stand in for "couldn't tell"; failures are listed by check with the
-judge's quoted evidence. No model writes any of it.
+95% interval and its counts; the minimum detectable effect is stated, so
+"no difference" can't stand in for "couldn't tell"; failures are listed by
+check with the judge's quoted evidence. No model writes any of it.
 
-Pin a batch's attempts as a baseline, make your change, and the next report says
-whether each variant held, improved or regressed, and whether the interval
-confirms it. `--fail-on regression` turns that into an exit code for CI.
+Until a variant is live, the report shows the variants side by side. Mark
+the one in use with `proctor live <exam> <variant>`, and every report after
+compares each other variant with it on the tasks they share: better, worse
+or the same, and whether the interval confirms it.
 
 Two example reports from proctor's own exams are in
 [`docs/reports/`](docs/reports/).
@@ -114,7 +114,7 @@ proctor report <exam>   # reports/<exam>/explore/report.html
 ## Documentation
 
 - [`docs/getting-started.md`](docs/getting-started.md): clone to first report
-- [`docs/cli.md`](docs/cli.md): every command and flag; baselines and guard mode
+- [`docs/cli.md`](docs/cli.md): every command and flag; the live variant
 - [`docs/configuration.md`](docs/configuration.md): exams, fixtures, tasks, variants, judges, and the machine's config
 - [`docs/podman.md`](docs/podman.md): running coding agents on podman
 - [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): moving an exam to coding-agent variants

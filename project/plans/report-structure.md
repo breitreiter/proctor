@@ -21,7 +21,7 @@ consistently.** Five terms carry the whole report:
 | term | one sentence, used verbatim wherever the term is introduced |
 |---|---|
 | exam | A collection of related tasks with one business goal. Named once, in the opening table; the description under the title is the exam's. |
-| variant | One configuration under test: a harness, a provider and a model, given every task. The first variant is the reference the others are compared with. |
+| variant | One configuration under test: a harness, a provider and a model, given every task. The live variant, when one is, is the reference the others are compared with. |
 | task | One input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. |
 | attempt | One variant at one task, once. A task is attempted several times per variant, so the score is not one lucky or unlucky attempt. (This plan first chose "run" for the page; the word is "attempt" since 2026-11-15, `exam-variant-attempt.md`, on the page and on disk alike.) |
 | check | One yes-or-no test over a finished attempt. The **headline** checks together decide whether an attempt passed. A **validity** check decides whether an attempt counts at all. Any other check is a **guardrail**: reported, not part of the pass. |
@@ -39,8 +39,8 @@ headless Chrome.
 **Where the page has rightly moved past this plan.** The order below is now:
 the verdict card, then the about table (no *Result* row: the card is the result), Variants,
 Tasks, Results, Failures, Attempt summary (was *What ran*), Check pass rates, Cost and effort, Every attempt,
-Reproducibility and method. *Results by task* is gone as a section: each task's attempts,
-score and baseline sit in its own block under Tasks, with the reason each failed attempt
+Reproducibility and method. *Results by task* is gone as a section: each task's attempts
+and score sit in its own block under Tasks, with the reason each failed attempt
 failed, which reads better than a matrix far from the task's sentence. Attempt summary gains
 *Decided*. The card is the place for direction and confidence ("Worse (unconfirmed)"),
 the about table only for what ran.
@@ -58,11 +58,10 @@ that errored still fails the attempt, so the pass rate is unchanged.
 
 **Next revision** (not built):
 
-- *Baseline verdicts for variants the baseline never saw.* `cc-sonnet` and `codex` are
-  "Unchanged" against a baseline pinned on 22 September, before either existed. The
-  baseline is per task, so the arithmetic holds, but the word reads as "no change
-  since then". Say "against the baseline's scores" for a variant with no pinned attempts of
-  its own, or leave it out of the card.
+- *Verdicts for variants the pinned scores never saw.* `cc-sonnet` and `codex` were
+  "Unchanged" against scores pinned on 22 September, before either existed. (Built
+  2026-11-08; gone on 2026-11-15 with the pinned scores, when the live variant, which has
+  attempts of its own, became the reference.)
 - *Repetition at many variants in Results.* Results has one near-identical comparison
   paragraph per variant; at five variants a comparison table should replace them. (The card's
   half of this is done; see below.)
@@ -76,8 +75,8 @@ that errored still fails the attempt, so the pass rate is unchanged.
 
 - *Why unconfirmed* is the report's, not a variant's: the interval's width rests on the task
   count, which every variant shares, so the foot says it once ("with 3 tasks this report can
-  only confirm a change of about 81 points"), from the report's widest pairing. With a
-  baseline, each variant's row carries its own standing against the reference ("Against
+  only confirm a change of about 81 points"), from the report's widest pairing. Each
+  variant's row carries its own standing against the reference ("Against
   **floor**: +11 points, not a detectable difference") where the foot repeated it per
   variant. A variant paired on fewer tasks than the report (every attempt on a task lost or
   undecided) says its own reach on its row; `stats.json` carries it as `mde_points` on
@@ -86,11 +85,10 @@ that errored still fails the attempt, so the pass rate is unchanged.
   terminating."
 
 **Built, 2026-11-08** (the four items under *Next revision*, and the todo's
-charts). The card opens with a chart: each variant's pass rate on its interval with
-the baseline's own score marked, and its change in points with its interval,
+charts). The card opens with a chart: each variant's pass rate on its interval, and
+its change in points against the reference with its interval,
 hollow when not confirmed (inline SVG from `stats.json`, a table in
-`summary.md`). Under it, a line per variant that moved and one for the rest. A variant
-the baseline never ran gets a sentence saying whose attempts the baseline is.
+`summary.md`). Under it, a line per variant that moved and one for the rest.
 Results compares against the reference in one table. The exam's checks are
 listed once in Tasks, each task only its own. Mixed attempt counts are said per
 variant. The heatmap and cost-against-pass-rate candidates were not built: the
@@ -107,7 +105,7 @@ so. A report copied to the public site needs those scrubbed, or written as
 2. **Variants** (defines the term, lists them)
 3. **Tasks** (defines the term, lists them with what each asks, its fixture, and the checks it carries beyond the shared ones)
 4. **Checks** (defines the term and the three roles, lists them with what each tests and which tasks carry each)
-5. **Results** (pass rate per variant, the comparison, the baseline; the verdict in words)
+5. **Results** (pass rate per variant, the comparison with the live variant; the verdict in words)
 6. **Failures** (per variant, the checks that failed and on which tasks, in the words from 3 and 4)
 7. **Attempt summary** (planned, started, completed, graded, analysed; what was excluded and why; how nb ended each attempt, per variant)
 8. **Results by task** (the glyph matrix, now that variant, task and attempt are defined)
@@ -137,16 +135,16 @@ builds and the tests pass?
 |---|---|
 | Exam | `smoke` |
 | Batch | 2026-09-17 on `bench` |
-| Variants | 2: `floor` (the reference), `b` |
+| Variants | 2: `floor` (live), `b` |
 | Tasks | 3, each attempted 3 times per variant |
 | Attempts | 18 planned, 16 counted |
-| Result | `b` passed 89% of its attempts, `floor` 56%. With 3 tasks the difference (+33 points) is not statistically detectable. Against the pinned baseline, `floor` regressed and `b` improved at a tolerance of 10 points. |
+| Result | `b` passed 89% of its attempts, `floor` 56%. With 3 tasks the difference (+33 points) is not statistically detectable. |
 
 ## Variants
 
 A variant is one configuration under test: a harness, a provider and a model,
-given every task. The first variant is the reference the others are compared
-with.
+given every task. The live variant, `floor`, is the one in use now and the
+reference the others are compared with.
 
 | Variant | What it is | Harness | Provider | Model | Runs per task |
 |---|---|---|---|---|---|
@@ -216,26 +214,17 @@ from the measured one; with 3 tasks it is wide.
 | `floor` | 56% | 15% to 90% | 4 / 7 |
 | `b` | 89% | 35% to 99% | 8 / 9 |
 
-**`b` against `floor`.** `b` passed 33 points more of its attempts than `floor`.
+**`b` against `floor`, the live variant.** `b` passed 33 points more of its attempts than `floor`.
 The 95% interval on that difference runs from −31 to +75 points, so with 3
 tasks the difference could be noise: no detectable difference. Task by task,
 `b` did better on 2, worse on 0, the same on 1. To detect a 10-point
 difference reliably this exam would need about 200 tasks.
 
-**Against the baseline.** The baseline is the score pinned for each task on
-2026-09-14; the verdict compares each variant's score with it and calls anything
-more than 10 points either way a change.
-
-| Variant | Difference from baseline | 95% interval | Tasks better / worse / same | Verdict |
-|---|---|---|---|---|
-| `floor` | −22 points | −67 to +39 | 0 / 2 / 1 | regressed |
-| `b` | +11 points | −46 to +63 | 1 / 0 / 2 | improved |
-
-| Task | Baseline | `floor` | `b` |
-|---|---|---|---|
-| `loops` | 100% | 67% | 100% |
-| `plain` | 100% | 100% | 100% |
-| `uses-bash` | 33% | 0% | 67% |
+| Task | `floor` | `b` |
+|---|---|---|
+| `loops` | 67% | 100% |
+| `plain` | 100% | 100% |
+| `uses-bash` | 0% | 67% |
 
 ## Failures
 
@@ -355,12 +344,11 @@ hover text; it identifies, it does not inform.)
 
 Each task is scored as its mean over its counted attempts, so n in every
 interval is the number of tasks. Per-variant rates use the Wilson 95% interval.
-Differences between variants, and against the baseline, use Newcombe's paired
-method (Wilson square-and-add, with phi from the per-task scores). The
-detectable difference assumes 80% power and a per-task paired-difference sd
-of 0.5. No multiplicity adjustment; 1 comparison shown. The baseline verdict
-is the point estimate against the tolerance; the interval is shown so a
-small n cannot hide.
+Differences from the live variant, floor, use Newcombe's paired method
+(Wilson square-and-add, with phi from the per-task scores). The detectable
+difference assumes 80% power and a per-task paired-difference sd of 0.5. No
+multiplicity adjustment; 1 comparison shown. With nothing live, no variant is
+compared with another.
 
 ---
 
@@ -405,8 +393,8 @@ be refused in `grading.pass` at validation, so the band is rare.
   2026-11-15 with `exam-variant-attempt.md`). "analysed" becomes "counted".
   "CI" becomes "95% interval". Section names as above.
 - **The about table** replaces the two summary paragraphs. The one-sentence
-  result in it is the report's verdict, built from the comparison and
-  baseline verdicts that already exist in `stats.json`.
+  result in it is the report's verdict, built from the comparison
+  verdicts that already exist in `stats.json`.
 - **Variants, Tasks and Checks sections** are new. They need nothing new in
   `stats.json`: variant details come from `batch.json`'s copy of the exam,
   tasks and checks from the `descriptions` block.

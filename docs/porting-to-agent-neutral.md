@@ -107,7 +107,7 @@ refuses the edit under the same id, so the ported variant takes a new id
 - A variant that was `harness: claude-code | codex | qwen-code` (nb in a
   costume) becomes `agent: claude-code | codex | qwen-code` with the vendor's
   model. This is the change most likely to move numbers: its first batch is a
-  new baseline for that variant. It is not optional: nb refuses the costume names
+  new measurement of that variant. It is not optional: nb refuses the costume names
   since 2026-10-28, so an unported variant fails at compile with the same redirect.
 - **An oracle task keeps its sheet on an nb variant, and loses its vendor variants.**
   On `agent: nb` the oracle is a simulated user that drives nb over Harbor's
@@ -123,11 +123,13 @@ refuses the edit under the same id, so the ported variant takes a new id
   - **The agent can see the bridge's `.acpxrc.json` in its checkout.** The
     diff leaves it out.
 
-## 7. Baselines
+## 7. The live variant
 
-A baseline pins attempts by variant id. A variant whose route changed is a new
-measurement: drop its entries from `baseline.json` rather than compare across
-the move. `code-change` keeps its `floor` entries, because the floor is the
-same nb on the same model and the deterministic gate (`exams/gate`) shows nb
-bare and nb through Harbor read the same; its first batch after the port says
-whether that held on a real model.
+A ported variant is a changed variant, so it takes a new id (a changed
+variant under an id that made attempts is refused), and its attempts are
+made again. If the old one was live and you retire its file, `live.json`
+names a variant with no file and every verb says so; mark the ported one live with `proctor live`
+once you trust it, rather than compare across the move. The deterministic
+gate (`exams/gate`) shows nb bare and nb through Harbor read the same, so an
+nb variant moved to `agent: nb` is the closest to the one it replaced; its
+first batch after the port says whether that held on a real model.

@@ -20,7 +20,7 @@ The words, which the report and every file use the same way:
 | **variant** | What is under test: an agent or nb's harness and provider, a model and a bundle, as declared data, one file per variant. Its identity is its content. |
 | **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
 | **batch** | The attempts one `proctor run` made: what the exam lacked at the time. An exam's attempts are every batch's; one is current while its variant's and its task's hashes are today's, and stale after. |
-| **baseline** | Pinned attempts from an earlier batch, compared with as a virtual variant. |
+| **live** | A mark on one variant (`live.json` beside the exam): the one in use now, and the reference the report compares the others with. |
 
 An exam is one business goal probed by many tasks. Every task in it is
 graded by the same pass list. If you find yourself wanting a different
@@ -183,6 +183,7 @@ program.nb       the nb program template; {{prompt}}, {{task}}, {{work}}, {{bund
 tasks/*.json     one task per file; the id is the file name; names a fixture and adds the prompt, a description, labels, expect and its own checks
 checks/*.sh      script checks (exit 0/1/2 = pass/fail/needs-judge; first stdout line is the reason); each needs a description
 hooks/*.sh       variant and attempt setup/teardown
+live.json        which variant is live, written by `proctor live` (absent until one is picked); docs/cli.md
 ```
 
 `attempts` in `exam.json` is how many attempts of each task every variant
@@ -473,15 +474,17 @@ it is for. Those definitions are set in muted grey so the findings stand
 out once you know the drill. A rail down the left lists every section and
 task and follows you as you scroll.
 
-It starts with the exam's question and a verdict card: for each variant,
-better, worse or unchanged and by how many points, whether the 95% interval
-confirms it, the tasks that moved it, and, when it cannot be confirmed, how
-many tasks it would take. The card says so if a variant lost more attempts than
+It starts with the exam's question and a verdict card. With a variant
+live, it gives each other variant against the live one: better, worse or
+the same and by how many points, whether the 95% interval confirms it, the
+tasks that moved it, and, when it cannot be confirmed, how many tasks it
+would take. With nothing live, it shows the variants side by side and
+compares none. The card says so if a variant lost more attempts than
 another. Then Variants, and Tasks: one card per task with its prompt, its
 fixture, the checks it carries (its own first, then the exam's), and every
-variant's attempts, score and verdict on it, followed by each attempt that did not pass
+variant's attempts and score on it, followed by each attempt that did not pass
 and why. Results holds the numbers across all tasks (pass rates, the
-comparison between variants, the baseline), then Failures: per variant, each check
+comparison of each variant with the live one, when one is live), then Failures: per variant, each check
 that failed, in the author's words, with how often and on which tasks.
 Everything after that is evidence: what ran and what was left out, check
 pass rates, cost, every attempt, and the method last. An attempt whose headline check

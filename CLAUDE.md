@@ -42,20 +42,22 @@ code, files, prose and the report, and no others for these things:
 | **live** | A mark on one variant: the one in use now, and the reference a change is compared with. |
 | **claim** | What should change between two variants, which checks and which way, said before the attempts are made. |
 
-**The words are done; the model is three quarters done.** Steps 1 to 3 of
-`project/plans/exam-variant-attempt-removal.md` are built: everything says
-exam, variant, attempt and batch, each variant is its own file
+**Built: the words and steps 1 to 4** of
+`project/plans/exam-variant-attempt-removal.md`: everything says exam,
+variant, attempt and batch, each variant is its own file
 (`exams/<exam>/variants/<id>.json`) with its own hash, each task has a
-hash, `attempts` is set on the exam, and an exam's attempts are the pool
-of every batch of it (`run` makes what is missing and continues an
+hash, `attempts` is set on the exam, an exam's attempts are the pool of
+every batch of it (`run` makes what is missing and continues an
 interrupted batch; `grade`, `friction` and `report` take the exam; there
-is no resume verb). What is still pending: step 4, `live` in place of the
-baseline (`baseline.json`, `proctor baseline <batch>`, `report --against
-<batch>`, "the first variant is the reference", which is the first variant
-file by name); those baseline pieces still run and still take a batch id.
-Claims and the change report (stage 3) are not built. Write nothing new in
-the earlier words; the grep gate below lists them and says where they may
-stay.
+is no resume verb), and one variant may be marked live
+(`exams/<exam>/live.json`, `proctor live`), which the report compares the
+others with. **Not built:** claims and the change report (stage 3), so
+`claim` in the table above names nothing in the code yet. **Still in the
+old shape, labelled where it lives:** attempts nest under the batch that
+made them (`Layout`), Harbor tasks are compiled per batch (`Harbor/Compile.cs`),
+and the page is built as the variants side by side (`Report/Report.cs`).
+Write nothing new in the earlier words; the grep gate below lists them and
+says where they may stay.
 
 ## Structure
 
@@ -66,14 +68,14 @@ in the order the verbs run them. Every file is one concern:
 | file | holds |
 |---|---|
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
-| `Verbs.cs` | one method per verb: `list`, `run`, `grade`, `friction`, `report`, `baseline`; the report's stand-in batch and the earlier report moved aside |
+| `Verbs.cs` | one method per verb: `list`, `run`, `grade`, `friction`, `report`, `live`; the report's stand-in batch and the earlier report moved aside |
 | `Exam/Layout.cs` | paths and file names, nothing else |
 | `Exam/Exam.cs` | `proctor.json` (the host binary and its config), `exam.json` (attempts, the `nb` block with the runner and mounts, hooks, grading), `variants/*.json`, tasks, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per task; the exam's, each variant's and each task's hash |
 | `Exam/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
 | `Exam/EnvFile.cs` | the user's env file (`~/.config/proctor/env`, `%LOCALAPPDATA%\proctor\env` on Windows, or `PROCTOR_ENV_FILE`): `NAME=value` lines `Program.Main` loads into the process environment before any verb, the real environment winning, so every `${VAR}` resolver and child process sees them |
 | `Exam/Judges.cs` | `proctor.json`'s `judges` block: an endpoint per name by wire shape (`systemone`, `chat`), key resolution, which judge a check gets |
 | `Exam/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
-| `Exam/Baseline.cs` | `exams/<exam>/baseline.json`: pinned attempts per task; scores recomputed from the attempts while they exist |
+| `Exam/Live.cs` | `exams/<exam>/live.json`: the live variant by id and hash, and since when; whether the mark still holds (`Live.Broken`) and the warning `list`, `run` and `report` print when it does not |
 | `Run/Runner.cs` | `run`: an interrupted batch continued when its conditions hold (`WhyNotContinue`), then what is missing made in a new batch; `batch.json` and attempt manifests, hooks, nb as a subprocess, an agent attempt through Harbor; bundles resolved (a git bundle's `paths` copied out of its clone); a changed variant under an id that made attempts refused |
 | `Run/Pool.cs` | an exam's attempts across every batch of it: current or stale by the variant and task hashes each was made under (`Pool.Stale`), what is missing (`Pool.Missing`), which batches were interrupted (`Pool.Interrupted`), the selection `--batch`, `--variant` and `--tasks` narrow (`Pool.Select`) |
 | `Harbor/Compile.cs` | an agent variant's task as a Harbor task (`instruction.md`, `task.toml`, the image, the verifier) and an attempt's job file |
@@ -120,7 +122,7 @@ in the order the verbs run them. Every file is one concern:
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/`. `jotcli` is a tiny TypeScript CLI whose `clear` reads its confirmation from `/dev/tty` with no `--yes` and exits 0 when it gives up, planted on purpose (its README says why); one of two non-.NET fixtures, with `tern-shop` (Python, beside two compose services: Tern's sandbox API and a docs site serving the variant's bundle). `empty` holds nothing, for tasks whose whole context is in the prompt |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one nb run (`capture.sh` regenerates them); `snapshots/` are the approved renderings; `exams/` is test data `TestRepo.CopyExam` finds after `exams/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never an exam to run; `python/` is `oracle_user.py`'s unittests, on stub `harbor` modules and captured `acpx` output, which `OracleHarborTests` runs with `python3` |
-| `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own exam with your agent); `cli.md`, every verb and flag, explore and guard mode, the report files (moved out of the README); `configuration.md`, the reference for exam, fixture, task, variant and `proctor.json` (moved out of the README; `exam-authoring`'s variants name it in their bundle's paths); `porting-to-agent-neutral.md`, how an exam moves to agent variants (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor; `modal.md`, agent variants on Modal's sandboxes from a second machine file (`--config`), what it costs and what cannot run there |
+| `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own exam with your agent); `cli.md`, every verb and flag, the live variant, the report files (moved out of the README); `configuration.md`, the reference for exam, fixture, task, variant and `proctor.json` (moved out of the README; `exam-authoring`'s variants name it in their bundle's paths); `porting-to-agent-neutral.md`, how an exam moves to agent variants (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor; `modal.md`, agent variants on Modal's sandboxes from a second machine file (`--config`), what it costs and what cannot run there |
 | `skills/proctor-exam/` | the onboarding skill a user copies into their agent's skills directory: plan an exam with the user (inventory, tasks, checks, variants, cost; a `PLAN.md` approved), then build it and prove its checks for free; only what a frontier model would not guess and proctor's gotchas, pointing at `docs/configuration.md` and the example exams for the rest |
 | `project/` | the brief, the plans, the learnings and the loose ends (`todo.md`); `archive/` holds built and dropped plans and the old bug notes, in the earlier words |
 | `project/gate/` | `old-words.sh`, the grep gate for the old words, and `old-words.allow`, where each exception is listed with a reason |
@@ -313,20 +315,21 @@ The directories are for reading, not for namespaces: everything is
   URL over: what an endpoint needs of the agent, such as a llama-server,
   which takes only function tools (`web_search = "disabled"`,
   `[features] multi_agent = false`).
-- **The baseline is a virtual variant in the statistics, not in the batch.**
-  `report` resolves `baseline.json` to per-task scores (re-read from the
-  pinned attempts' `checks.json` under the current `pass` and `validity`
-  lists when the batch is still under `attempts/`, else the pinned score)
-  and compares every variant to them with the same Newcombe pairing. The verdict
-  is `held`, `improved` or `regressed` on the point estimate against
-  `--tolerance`; `--fail-on regression` turns it into an exit code. The
-  baseline is not in the accounting or the matrix. `report --against <batch>`
-  replaces it for one report with per-variant scores from another batch
-  (`GuardInput.PerVariant`), variants paired by id, built as pins by
-  `Baseline.PinOf` and resolved by the same `Resolve`; the page then says
-  "earlier run" where it said "baseline" (the page's own words for the other batch, which go with `--against`). A pinned attempt graded without a
-  current `pass` check is not rescored: its task stands as pinned and the
-  check is a `baseline.gaps` warning.
+- **The live variant is the reference, and only a live mark that holds makes
+  one.** `exams/<exam>/live.json` is `{variant: {id, hash}, since}`,
+  written by `proctor live <exam> <variant>` and committed with the exam;
+  it is in no hash. It holds while that variant has a file with that hash
+  (`Live.Broken`); otherwise `list`, `run`, `report` and `proctor live
+  <exam>` print one warning and nothing is live. There is no verb to clear
+  it: deleting the file is how. `report` hands the mark to `Stats.Compute`,
+  which compares every other variant with the live one by the Newcombe
+  pairing (`comparisons`, verdict `better`, `worse` or
+  `no-detectable-difference`) when the mark holds and the live variant has
+  attempts among the rows; `stats.json` `live` carries the mark and, as
+  `not_reference`, why it is not the reference when it is not. With nothing
+  live there are no comparisons: the card shows the variants side by side.
+  The card and the Results table read the same `comparisons`; nothing else
+  compares.
 - **Every id in the report carries a sentence.** `description` is the one
   key in a check spec that is not a check (`Checks.Description`); a script
   check must declare one, a built-in derives one from its fields
@@ -355,11 +358,10 @@ The directories are for reading, not for namespaces: everything is
   findings are never muted. Colour is semantic only: green passed/better,
   red failed/worse, amber not counted or a warning, purple a link.
 - **The verdict card is direction plus confidence, both from `stats.json`.**
-  Better/Worse/Unchanged is the baseline `verdict` (point estimate against
-  `--tolerance`); "(unconfirmed)" is `confirmed: false`. Without a baseline
-  the card compares each variant with the reference at no tolerance, confirmed
-  when the Newcombe interval excludes zero. The card never carries model
-  output. The structure and the
+  With a variant live, each other variant is better, worse or the same
+  than it by the sign of the point estimate, confirmed when the Newcombe
+  interval excludes zero; with nothing live, the card is the variants side
+  by side with no direction. The card never carries model output. The structure and the
   reader-facing vocabulary (variant, task, attempt, check; counted, decided;
   "95% interval") are `project/plans/report-structure.md`. The page and the
   files say attempt alike.

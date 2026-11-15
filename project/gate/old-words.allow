@@ -27,12 +27,7 @@ bench/**		# the judge bench: its own proctor root at an earlier version, unrelat
 docs/reports/**		# published reports, rendered by an earlier version
 Proctor.Tests/fixtures/**		# captured transcripts and trajectories, as the agents wrote them
 
-# Still in the code at this step; goes in a later step of the work-list.
-Exam/Baseline.cs		# proctor baseline and baseline.json: deleted in step 4
-Proctor.Tests/BaselineTests.cs		# tests of the baseline: deleted in step 4
-exams/code-change/baseline.json		# a pinned baseline in its own format: deleted in step 4
-Verbs.cs	\bpin(s|ned)?\b	# proctor baseline prints a pin's own fields (baseline.json's format): deleted in step 4
-**	baseline	# the baseline verb, file, types, report text and their tests: deleted in step 4
+# The one place an old word is the point.
 **	\bno resume verb\b	# D15: after a crash a person or an agent looks for "resume", so the CLI help, docs/cli.md, the skill and exam-authoring say there is none
 
 # Ordinary English or another tool's word.

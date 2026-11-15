@@ -95,7 +95,7 @@ footer img { width: 20px; height: 20px; display: block; }
     <li><b>Try it on an inexpensive model.</b> Make sure everything works before you spend those Anthropic credits.</li>
     <li><b>Confirm on the real thing.</b> Run real harnesses in a safe, containerized environment.</li>
     <li><b>Understand what happened.</b> Start with the report for the high-level view, then dig into the transcripts to see exactly what went wrong. If everything looks good, read a few transcripts anyway, to make sure you’re not grading too leniently or missing bad behavior.</li>
-    <li><b>Fix, rerun, compare.</b> Pin the earlier attempts as a baseline, make your change, and see how the needle moves. Proctor reports every difference with a confidence interval, so it will keep you honest: one good attempt doesn’t mean the problem is gone.</li>
+    <li><b>Fix, rerun, compare.</b> Mark the variant you use as live, make your change as a new variant, and see how the needle moves. Proctor reports every difference with a confidence interval, so it will keep you honest: one good attempt doesn’t mean the problem is gone.</li>
   </ol>
 </section>
 
@@ -153,7 +153,7 @@ footer img { width: 20px; height: 20px; display: block; }
     <div class="report">
       <div class="kicker">code-change · 2 November 2026</div>
       <div class="q">Can the agent make a small, well-specified change to a .NET repository so that it builds, the tests pass and nothing outside the task is touched?</div>
-      <div class="facts"><b>5 variants</b>: nb on a local qwen3-coder-next as the reference, Qwen Code on the same model, Claude Code on Haiku and on Sonnet, Codex on GPT-5.5 · <b>3 tasks</b> · <b>27 attempts</b> · against a baseline pinned 22 September</div>
+      <div class="facts"><b>5 variants</b>: nb on a local qwen3-coder-next as the reference, Qwen Code on the same model, Claude Code on Haiku and on Sonnet, Codex on GPT-5.5 · <b>3 tasks</b> · <b>27 attempts</b></div>
       <a class="open" href="reports/20261102-1143-code-change-jy0n/report.html">Open the report →</a>
     </div>
     <div class="report">
@@ -175,7 +175,7 @@ footer img { width: 20px; height: 20px; display: block; }
     <tr><td>check</td><td>One yes-or-no question asked of a finished attempt.</td></tr>
     <tr><td>attempt</td><td>One variant at one task, once. A task is scored over several.</td></tr>
     <tr><td>batch</td><td>The attempts one <span class="code">proctor run</span> made: when, on what machine, at what versions.</td></tr>
-    <tr><td>baseline</td><td>Pinned results from an earlier batch, compared with as if it were another variant.</td></tr>
+    <tr><td>live</td><td>A mark on the variant in use now. The report compares every other variant with it.</td></tr>
   </table>
 </section>
 

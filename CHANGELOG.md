@@ -96,6 +96,29 @@ formats or the vocabulary; a patch bump does not.
   `report --against <batch>` still take a batch id until `live` replaces
   them.
 
+- **Breaking: one variant may be live, and it is the report's reference;
+  the baseline is gone** (step 4 of
+  `project/plans/exam-variant-attempt-removal.md`). `proctor live <exam>
+  <variant>` writes `exams/<exam>/live.json`, `{"variant": {"id", "hash"},
+  "since"}`, to commit with the exam; `proctor live <exam>` says which is
+  live. With a variant live, the report compares every other variant with
+  it; with nothing live it compares none, and the verdict card shows the
+  variants side by side ("Two variants, side by side", "None is live
+  yet."). The first variant file by name is no longer the reference. A mark
+  naming a variant with no file, or whose file has changed since it was
+  marked, is a warning from `list`, `run`, `report` and `proctor live`, and
+  nothing is live until a variant is marked again; delete the file to have
+  none. `stats.json` drops `baseline` for `live` (`variant`, `since`, and
+  `not_reference` when the mark does not hold or the variant has no
+  attempt in the report); `comparisons` are against the live variant only.
+  The page says "live" where it said "the reference" and drops the baseline
+  block, the task cards' baseline columns and the chart's baseline mark.
+  **Removed, with no replacement:** `proctor baseline`, `baseline.json`
+  (`exams/code-change/baseline.json` is deleted; a leftover file is
+  ignored), `report --against`, `--tolerance` and `--fail-on regression`.
+  `agent-onboarding`'s reference variant `live` is `shipped`, and its
+  trial's version key with it.
+
 Entries below this line, the unreleased ones above 0.3.6 included, use the
 earlier words: suite (exam), arm (variant), experiment (batch), sample,
 cell or run (attempt).

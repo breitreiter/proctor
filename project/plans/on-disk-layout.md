@@ -50,7 +50,7 @@ second column is the word the evals literature uses for the same thing.
 | **fixture** | environment | The repository a task runs against and what "done" looks like in it; reused across exams. |
 | **attempt** | trial | One measurement of a stochastic system: one variant at one task, once. On disk, the directory its evidence lives in. |
 | **batch** | eval run | The attempts one `proctor run` made: what the exam lacked at the time. An exam's attempts are every batch's. |
-| **baseline** | regression eval | Pinned attempts from an earlier batch, compared with as a virtual variant (`baseline.json`; to be replaced by a live variant). |
+| **live** | control | A mark on one variant (`live.json` beside the exam): the one in use now, and the reference the report compares the others with. |
 
 > Superseded in part by [the fixtures plan](../archive/fixtures-arms-baselines.md)
 > (2026-09-21): fixtures are repo-level under `fixtures/` and a task names
@@ -67,6 +67,7 @@ exams/
   code-change/                  one exam: "can the agent make this code change"
     exam.json                   labels, variants (each with its attempts), nb (runner, mounts), hooks, grading
     program.nb                  the nb program template; {{task}} placeholders
+    live.json                   which variant is live: {"variant": {"id", "hash"}, "since"}; absent until one is picked
     tasks/
       add-retry-flag.json       one task: which fixture, what prompt, what "done" means
       fix-null-deref.json
@@ -468,8 +469,8 @@ files.
 | `proctor run <exam>` | `exams/<exam>/`, every batch of the exam | an interrupted batch's missing attempts, in place; then what is still missing as a new batch, `attempts/<id>/` |
 | `proctor grade <exam>` | the exam's current attempts, `exams/<exam>/checks/` | `checks.json` (and `verdicts/`) in each current, completed attempt |
 | `proctor friction <exam>` | the exam's current attempts, the exam's `surface` | `friction.json` in each current, completed attempt that has a `trajectory.json` |
-| `proctor report <exam>` | the exam's current attempts | `reports/<exam>/explore/`, an earlier report moved aside |
-| `proctor baseline <batch>` | that batch's current attempts | `exams/<exam>/baseline.json` (until `live`, step 4) |
+| `proctor report <exam>` | the exam's current attempts, its `live.json` | `reports/<exam>/explore/`, an earlier report moved aside |
+| `proctor live <exam> [variant]` | `exams/<exam>/`, its `live.json` | `exams/<exam>/live.json` when given a variant; else prints which is live |
 | `proctor list` | `exams/`, every batch | nothing; prints each variant's current attempts against those wanted, the stale ones, an interrupted batch |
 
 `--batch`, `--variant` and `--tasks` narrow `grade`, `friction` and

@@ -54,9 +54,8 @@ proctor friction <exam> --variant a [--tasks x,y] [--batch <id>]   # only those 
 proctor friction <exam> --reader haiku   # a chat judge from proctor.json reads each attempt too: repair, lost, reread, dead-end, workaround; one model call per attempt, kept in the attempt and reused (--rejudge asks again)
 proctor report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json,report.html,summary.md}, stamped with what they were built from
 proctor report <exam> --batch <id> | --variant a | --tasks x,y   # a report over only those attempts
-proctor baseline <batch> [--variant a] [--tasks x,y]   # pin the variant's analysed attempts in that batch as exams/<exam>/baseline.json
-proctor report <exam> --tolerance 10 --fail-on regression   # guard mode: exit 1 if a variant fell further than that
-proctor report <exam> --against <batch>   # each variant against the same variant in an earlier batch, in place of the baseline
+proctor live <exam> <variant> # mark the variant live in exams/<exam>/live.json (commit it): the one in use now, which the report compares the others with
+proctor live <exam>           # which variant is live, and whether its mark still holds
 proctor --version
 ```
 
@@ -93,31 +92,50 @@ task's hash covers only what the agent met (the prompt, the fixture, the
 answer sheet an oracle reads from, the program template and the hooks),
 and only a change there makes attempts stale.
 
-## Explore and guard
+## The live variant
 
-There are two ways of working.
+`exams/<exam>/live.json` marks one variant as live: the one in use now.
+Until there is one, nothing is live. `proctor live` writes it, with the
+variant's id, its hash and when it was marked; commit it with the exam.
 
-In **explore** mode the report compares several variants with each
-other. The verdict card compares each variant with the
-first, the reference: the first file under the exam's `variants/` by name.
+```
+$ proctor live tern-docs as-shipped
+exams/tern-docs/live.json: as-shipped is live
+```
 
-In **guard** mode one variant runs against a baseline: pinned attempts per task,
-committed with the exam, written by `proctor baseline` from a batch
-you trust. The verdict card then compares every variant with the baseline by
-the same paired method, and each task card shows every variant against that
-task's pinned score. The verdict is held, improved or regressed on the
-point estimate against `--tolerance`, and `--fail-on regression` reads
-only that, so it can gate a CI job. A verdict is *confirmed* only when the
-whole interval lies beyond the tolerance on the same side (or within it,
-for held), so a small task count cannot pass off a guess as a finding.
+```json
+{
+  "variant": { "id": "as-shipped", "hash": "sha256:…" },
+  "since": "2026-11-13T04:10:00Z"
+}
+```
 
-`--against <batch>` stands in for the baseline for one report: each
-variant is compared with the variant of the same id in that earlier batch,
-and the page says "earlier run" where it said "baseline".
+Marking another variant replaces the mark (`py38-quickstart is live (was
+as-shipped)`). There is no verb to clear it: delete the file and nothing is
+live.
 
-While the pinned batch is still under `attempts/`, its attempts are re-read,
-so a regrade flows through to the comparison; once it is archived the
-pinned scores stand, and the report says which.
+**When nothing is live**, the report shows the variants side by side: each
+one's pass rate with its interval, and no variant compared with another,
+since picking the best of several flatters it.
+
+**When a variant is live**, it is the reference: the report compares every
+other variant with it, task by task, by Newcombe's paired method. The
+verdict card says, for each, how far its pass rate is from the live
+variant's, better, worse or the same, and *confirmed* only when the whole
+95% interval lies on one side of zero, so a small task count cannot pass
+off a guess as a finding.
+
+A mark holds while the variant it names has a file with the hash it had
+when it was marked. If the file is deleted or changed, `list`, `run`,
+`report` and `proctor live <exam>` say so, and nothing is treated as live
+until a variant is marked again:
+
+```
+warning: exams/tern-docs/live.json marks as-shipped live, but its file has changed since it was marked (a2ed391d then, 77c0e5aa now); nothing is treated as live until `proctor live tern-docs <variant>` marks one
+```
+
+A live variant with no current attempt in the report (one `--variant`
+leaves out, say) is the reference for nothing; the page says so.
 
 ## The report
 
@@ -138,9 +156,9 @@ from disk or attach it to a message; the page reads the same without the
 script. `summary.md` has the same content as plain markdown, the verdict
 card as a list and a heading per task.
 
-Every rate carries a 95% interval and its counts. Comparisons between variants
-are paired on shared tasks with their own interval and a fixed verdict
-word. The minimum detectable effect is stated, so an underpowered result
+Every rate carries a 95% interval and its counts. A comparison with the
+live variant is paired on shared tasks, with its own interval and a fixed
+verdict word. The minimum detectable effect is stated, so an underpowered result
 cannot read as "no difference". The methods are named in the report's
 last paragraph. No model writes any part of the report; a judge's role
 ends at a label and a quote.

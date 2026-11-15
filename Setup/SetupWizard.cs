@@ -171,7 +171,7 @@ static partial class SetupWizard
         AnsiConsole.WriteLine("Coding harnesses, like Claude Code and Codex, expect rich filesystem access and the ability to run arbitrary commands. Running these bare on your local machine creates three types of hazards:");
         AnsiConsole.WriteLine("  - Agents under test are intentionally stressed. They're often given vague, conflicting, or dangerous instructions to see how well they handle uncertainty. They may cause unwanted damage if run with your account permissions.");
         AnsiConsole.WriteLine("  - Agents under your account have access to the same files as you, including test descriptions and answer keys.");
-        AnsiConsole.WriteLine("  - They also have access to your memories and preferences, which may skew their baseline behavior.");
+        AnsiConsole.WriteLine("  - They also have access to your memories and preferences, which may skew how they behave.");
         AnsiConsole.WriteLine();
         AnsiConsole.WriteLine("Proctor uses Harbor for sandboxing. Running Harbor on your local machine requires installing several packages and performing extra configuration. Setup will create a plan for your coding agent to wire everything up.");
         AnsiConsole.WriteLine();
