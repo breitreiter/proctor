@@ -83,7 +83,7 @@ static class Report
 
         // 2. Variants
         b.Add(new Heading("Variants", "variants"));
-        b.Add(new Para("A variant is one configuration under test: a harness, a provider and a model, given every task." + (variants.Count < 2 ? ""
+        b.Add(new Para("A variant is what is under test: an agent (or nb with a harness and a provider), a model and, when it has one, a bundle, given every task." + (variants.Count < 2 ? ""
             : live is not null ? $" The live variant, `{live}`, is the one in use now and the reference the others are compared with." : " None is live, so the variants stand side by side and none is compared with another."), "explain"));
         var bundles = batch.Bundles is { Count: > 0 };
         b.Add(new Table(["Variant", "What it is", "Harness", "Provider", "Model", "Attempts per task", .. bundles ? ["Bundle"] : Array.Empty<string>()],

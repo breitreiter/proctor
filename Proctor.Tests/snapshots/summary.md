@@ -28,7 +28,7 @@ Can a local coder model make a small change to a .NET repository so that it buil
 
 ## Variants
 
-A variant is one configuration under test: a harness, a provider and a model, given every task. The live variant, `floor`, is the one in use now and the reference the others are compared with.
+A variant is what is under test: an agent (or nb with a harness and a provider), a model and, when it has one, a bundle, given every task. The live variant, `floor`, is the one in use now and the reference the others are compared with.
 
 | Variant | What it is | Harness | Provider | Model | Attempts per task |
 |---|---|---|---|---|---|
