@@ -27,10 +27,10 @@ cp "$PROCTOR_BUNDLE"/project/plans/{on-disk-layout,report-structure}.md "$view/p
 case "$PROCTOR_VARIANT" in
   docs) ;;
   docs-and-examples)
-    # A revision has exams/ or, before the rename, evals/; find fails on a start path that is missing.
-    dirs=(); for d in exams evals fixtures; do [ -d "$PROCTOR_BUNDLE/$d" ] && dirs+=("$d"); done
+    # find fails on a start path that is missing.
+    dirs=(); for d in exams fixtures; do [ -d "$PROCTOR_BUNDLE/$d" ] && dirs+=("$d"); done
     (cd "$PROCTOR_BUNDLE" && find "${dirs[@]}" -type f \
-       -not -path 'exams/exam-authoring/*' -not -path 'evals/eval-authoring/*' -not -path 'fixtures/authoring-*' \
+       -not -path 'exams/exam-authoring/*' -not -path 'fixtures/authoring-*' \
        -not -path '*/bin/*' -not -path '*/obj/*' -not -name baseline.json -print0 \
      | xargs -0 cp --parents -t "$view") ;;
   *) echo "no view for variant $PROCTOR_VARIANT"; exit 1 ;;

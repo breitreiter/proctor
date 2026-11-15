@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Does the fixture's own test suite pass as the run left it? Reason: the counts.
+# Do the fixture's own tests pass as the run left the repository? Reason: the counts.
 set -uo pipefail
 cd "$PROCTOR_WORK" || exit 1
 [ -d node_modules ] || npm ci --no-audit --no-fund --silent >/dev/null 2>&1 || { echo "npm ci failed"; exit 1; }

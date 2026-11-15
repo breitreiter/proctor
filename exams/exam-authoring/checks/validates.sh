@@ -3,7 +3,7 @@
 set -uo pipefail
 id=$(jq -r .exam <<<"$PROCTOR_EXPECT")
 proctor=$(cd "$PROCTOR_EXAM_DIR/../../bin/Debug/net10.0" && pwd)/proctor.dll
-[ -f "$PROCTOR_WORK/exams/$id/exam.json" ] || [ -f "$PROCTOR_WORK/evals/$id/eval.json" ] || { echo "no exams/$id/exam.json"; exit 1; }
+[ -f "$PROCTOR_WORK/exams/$id/exam.json" ] || { echo "no exams/$id/exam.json"; exit 1; }
 err=$(mktemp); trap 'rm -f "$err"' EXIT
 out=$(dotnet "$proctor" list "$id" --root "$PROCTOR_WORK" 2>"$err"); code=$?
 problems=$(grep -c . "$err")

@@ -7,6 +7,6 @@ b=${PROCTOR_BUNDLE_MOUNT:-/bundle}
 w=${PROCTOR_WORK_MOUNT:-/work}; rel=${b#"$w"/}
 [ "$rel" != "$b" ] && at="($b|(\./)?$rel)" || at="$b"
 read=$(jq -r 'select(.type == "tool_call") | .arguments | del(.content, .old_string, .new_string, .description) | tostring' "$PROCTOR_TRANSCRIPT" \
-  | grep -oE "(^|[^A-Za-z0-9_/])$at/(exams|evals|fixtures)/[A-Za-z0-9_./-]*" | sed -E "s#^.*$at/##" | sort -u)
+  | grep -oE "(^|[^A-Za-z0-9_/])$at/(exams|fixtures)/[A-Za-z0-9_./-]*" | sed -E "s#^.*$at/##" | sort -u)
 if [ -n "$read" ]; then echo "$(wc -l <<<"$read") example path(s): $(head -4 <<<"$read" | paste -sd, - | sed 's/,/, /g')"; exit 0; fi
 echo "no example opened"; exit 1

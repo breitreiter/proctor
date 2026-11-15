@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Does the fixture's own test suite pass as the run left it? Reason: the counts.
+# Do the fixture's own tests pass as the run left the repository? Reason: the counts.
 set -uo pipefail
 out=$(cd "$PROCTOR_WORK" && dotnet test tests/FetchCli.Tests --nologo 2>&1)
 summary=$(grep -E '^(Passed|Failed)!' <<<"$out" | tail -1)
