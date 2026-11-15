@@ -142,7 +142,7 @@ footer img { width: 20px; height: 20px; display: block; }
   <h2>The report</h2>
   <ul>
     <li>Every rate carries a 95% interval and its counts.</li>
-    <li>Variants are compared pairwise on the tasks they share.</li>
+    <li>Once a variant is marked live, every other variant is compared with it, paired on the tasks they share. Until then the variants stand side by side.</li>
     <li>The minimum detectable effect is stated: three tasks cannot say “no difference” when they mean “could not tell”.</li>
     <li>Failures are listed by check, with the judge’s quoted evidence.</li>
     <li>No model writes any of it. A judge’s role ends at a label and a quote.</li>
@@ -168,10 +168,10 @@ footer img { width: 20px; height: 20px; display: block; }
 <section id="words">
   <h2>Key concepts</h2>
   <table>
-    <tr><td>exam</td><td>Related tasks with one goal, graded by one checklist, so a pass rate means one thing.</td></tr>
-    <tr><td>task</td><td>One prompt against one fixture, with the checks that say whether the outcome was reached.</td></tr>
+    <tr><td>exam</td><td>Related tasks with one goal and the checks that grade them, so a pass rate means one thing.</td></tr>
+    <tr><td>task</td><td>One prompt against one fixture, with its own answer key for the checks that apply to it.</td></tr>
     <tr><td>fixture</td><td>The files a task runs against: a directory or a pinned git revision, with the checks that say what “done” looks like in it. Each attempt gets a fresh copy, and one fixture can serve many exams.</td></tr>
-    <tr><td>variant</td><td>One harness and model, given every task. The variants are the population; the thing under test is yours.</td></tr>
+    <tr><td>variant</td><td>What is under test: an agent, a model and a bundle (your MCP server, skill, docs or prompt), given every task.</td></tr>
     <tr><td>check</td><td>One yes-or-no question asked of a finished attempt.</td></tr>
     <tr><td>attempt</td><td>One variant at one task, once. A task is scored over several.</td></tr>
     <tr><td>batch</td><td>The attempts one <span class="code">proctor run</span> made: when, on what machine, at what versions.</td></tr>

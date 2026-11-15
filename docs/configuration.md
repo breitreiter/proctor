@@ -13,13 +13,13 @@ The words, which the report and every file use the same way:
 
 | word | one sentence |
 |---|---|
-| **exam** | A collection of related tasks with one business goal, graded by one shared checklist so a pass rate across them means one thing. |
-| **task** | One input and one desired outcome: a prompt against a fixture, with the checks that say whether the outcome was reached. |
-| **check** | One yes-or-no item on the checklist, asked of a finished attempt. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
+| **exam** | A collection of related tasks with one business goal and the checks that grade them, with one pass list for every task so a pass rate across them means one thing. Its variants are files beside it, outside its identity. |
+| **task** | One input and one desired outcome: a prompt against a fixture, with its own answer key (`expect`) for the checks that apply to it, and any checks of its own. |
+| **check** | One yes-or-no question asked of a finished attempt, declared on the exam, a fixture or a task; an attempt carries all three. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
 | **fixture** | The repository a task runs against and what "done" looks like in it; reused across exams. |
 | **variant** | What is under test: an agent or nb's harness and provider, a model and a bundle, as declared data, one file per variant. Its identity is its content. |
 | **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
-| **batch** | The attempts one `proctor run` made: what the exam lacked at the time. An exam's attempts are every batch's; one is current while its variant's and its task's hashes are today's, and stale after. |
+| **batch** | The attempts one `proctor run` made, when, on what machine and at what versions: what the exam lacked at the time. An exam's attempts are every batch's; one is current while its variant's and its task's hashes are today's, and stale after. |
 | **live** | A mark on one variant (`live.json` beside the exam): the one in use now, and the reference the report compares the others with. |
 
 An exam is one business goal probed by many tasks. Every task in it is

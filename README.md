@@ -30,8 +30,9 @@ one good attempt doesn't mean the problem is gone.
   [Harbor](https://github.com/harbor-framework/harbor), one container
   per attempt, each pinned to a version. Each attempt gets a fresh checkout of a
   fixture repository, and your MCP server, skill, docs or prompt as a
-  bundle the agent can reach. The bundle is the thing under test; the
-  agents are the population.
+  bundle the agent can reach. A variant is what is under test: an
+  agent, a model and a bundle, so two variants that differ only in the
+  bundle measure the bundle.
 - **Assistants and conversations.** For an in-product assistant, a
   chatbot or a headless job, proctor bundles a lightweight harness: you
   supply the system prompt, the tools and the model, from any local or

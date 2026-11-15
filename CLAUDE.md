@@ -32,13 +32,13 @@ code, files, prose and the report, and no others for these things:
 
 | word | one sentence |
 |---|---|
-| **exam** | The question being answered, the tasks, and the checks that grade them. It does not hold the variants that take it. |
-| **task** | One prompt against a fixture, with its own answer key for the exam's checks. |
-| **check** | One yes-or-no grading question, shared across the exam's tasks and asked of a finished attempt. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
+| **exam** | The question being answered, the tasks, and the checks that grade them. The variants that take it are files beside it (`variants/`), outside its identity (hash). |
+| **task** | One prompt against a fixture, with its own answer key for the checks that apply to it, and any checks of its own. |
+| **check** | One yes-or-no grading question asked of a finished attempt, declared on the exam, a fixture or a task (an attempt carries the union). Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
 | **fixture** | The repository a task runs against and what "done" looks like in it; reused across exams. |
 | **variant** | What is under test: an agent, a model and a bundle, as declared data. Its identity is its content. |
 | **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
-| **batch** | The attempts one `proctor run` made: when, on what machine, at what versions. Not something a reader of the report needs. |
+| **batch** | The attempts one `proctor run` made: when, on what machine, at what versions. The report names the batches it was built from, but compares variants, never batches. |
 | **live** | A mark on one variant: the one in use now, and the reference a change is compared with. |
 | **claim** | What should change between two variants, which checks and which way, said before the attempts are made. |
 
