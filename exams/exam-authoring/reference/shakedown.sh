@@ -4,11 +4,14 @@
 # passes. With --naive, each reference loses the check that makes it discriminate (the scope guard,
 # the anchored answer and the read-only guard, the no-legacy script), and rejects-wrong must fail,
 # naming the wrong runs that got through. With --unsolved, nothing is written and validates fails.
-# Needs proctor built (dotnet build at the repository root) and the proctor-dotnet image.
+# continue-the-batch is proved by doing it: an interrupted batch, then `run` and `report`; continued and reported
+# must pass, fail with --naive (the exam started over) and fail with --unsolved.
+# Needs proctor built (dotnet build at the repository root), nb ($NB_PATH) and the proctor-dotnet image.
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 root="$(cd "$here/../.." && pwd)"
 mode=${1:-}
+nb="${NB_PATH:-$root/../nb/bin/Debug/net10.0/nb}"
 tmp=$(mktemp -d)
 for task_file in "$here"/tasks/*.json; do
   c=$(basename "$task_file" .json)
@@ -20,8 +23,17 @@ for task_file in "$here"/tasks/*.json; do
   mkdir -p "$PROCTOR_ATTEMPT_DIR" "$PROCTOR_WORK"
   cp -r "$PROCTOR_FIXTURE/repo/." "$PROCTOR_WORK"
   (cd "$PROCTOR_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm "fixture $f")
-  if [ "$mode" != --unsolved ]; then cp -r "$here/reference/$c/." "$PROCTOR_WORK"; fi
-  if [ "$mode" = --naive ]; then
+  checks="validates accepts-correct rejects-wrong describes-everything"
+  if [ "$c" = continue-the-batch ]; then
+    # The reference is an action, not files: the interrupted batch as attempt setup makes it, then `run` and `report`
+    # on the host build. --naive starts the exam over instead of continuing it; --unsolved does nothing.
+    p=(dotnet "$root/bin/Debug/net10.0/proctor.dll" --nb "$nb")
+    "$here/hooks/interrupt.sh" "$PROCTOR_WORK" "$PROCTOR_WORK" "${p[@]}" >"$PROCTOR_ATTEMPT_DIR/interrupted-batch"
+    [ "$mode" != --naive ] || rm -rf "$PROCTOR_WORK/attempts"
+    [ "$mode" = --unsolved ] || { "${p[@]}" run "$id" --root "$PROCTOR_WORK" && "${p[@]}" report "$id" --root "$PROCTOR_WORK"; } >"$PROCTOR_ATTEMPT_DIR/solve.log" 2>&1
+    checks="validates continued reported describes-everything"
+  elif [ "$mode" != --unsolved ]; then cp -r "$here/reference/$c/." "$PROCTOR_WORK"; fi
+  if [ "$mode" = --naive ] && [ "$c" != continue-the-batch ]; then
     e="$PROCTOR_WORK/exams/$id/exam.json"
     case "$c" in
       guard-the-tests)   jq '.grading.pass -= ["tests-untouched"]' "$e" ;;
@@ -29,7 +41,7 @@ for task_file in "$here"/tasks/*.json; do
       write-the-fixture) jq '.grading.pass -= ["no-legacy"]' "$e" ;;
     esac >"$e.naive" && mv "$e.naive" "$e"
   fi
-  for check in validates accepts-correct rejects-wrong describes-everything; do
+  for check in $checks; do
     reason=$(cd "$PROCTOR_ATTEMPT_DIR" && "$here/checks/$check.sh"); code=$?
     printf '%-18s %-21s %-8s %s\n' "$c" "$check" "$([ $code = 0 ] && echo pass || echo "fail($code)")" "$reason"
   done

@@ -1,0 +1,20 @@
+{
+  "id": "continue-the-batch",
+  "description": "An exam whose batch a crash interrupted, to be finished in place and reported, not started over",
+  "labels": { "teaches": "continue-after-a-crash" },
+  "fixture": "authoring-interrupted",
+  "prompt": "The exam `stock-count` under exams/ was being run when the machine crashed, and its batch under attempts/ stopped part way. Finish it: every attempt the batch set out to make should be made, and the attempts already made should be kept, not made again. Then write the exam's report. proctor is set up for this repository (exams/proctor.json), and the exam's provider here is nb's scripted Mock, so running it costs nothing.\n\nValidate the exam with proctor's `list` before you finish.",
+  "expect": {
+    "exam": "stock-count"
+  },
+  "checks": {
+    "continued": {
+      "script": "checks/continued.sh",
+      "description": "the interrupted batch was finished in place: every attempt it set out to make completed, and no other batch of the exam started"
+    },
+    "reported": {
+      "script": "checks/reported.sh",
+      "description": "the exam's report was written, built from the interrupted batch"
+    }
+  }
+}

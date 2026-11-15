@@ -3,11 +3,16 @@
 # (see variant-setup.sh: the bundle and a proctor build) rather than the bundle itself, read-only. exam.json puts it inside the work mount,
 # since nb's file tools read nothing outside the working directory; on the host that leaves an empty
 # mount point in the checkout, which git does not see.
+# continue-the-batch starts from an interrupted batch, made here by the proctor the agent is shown (interrupt.sh).
 set -euo pipefail
-[ -n "$PROCTOR_RUNNER" ] || { echo "bare run: nb stays on the host, no container"; exit 0; }
-engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)
 root=$(cd "$PROCTOR_EXAM_DIR/../.." && pwd)
 view="$root/.proctor/views/$(basename "$PROCTOR_BUNDLE")"
+interrupt() { [ "$PROCTOR_TASK" != continue-the-batch ] || "$PROCTOR_EXAM_DIR/hooks/interrupt.sh" "$PROCTOR_WORK" "$@" >"$PROCTOR_ATTEMPT_DIR/interrupted-batch"; }
+if [ -z "$PROCTOR_RUNNER" ]; then
+  interrupt "$PROCTOR_WORK" dotnet "$view/proctor/proctor.dll" --nb "$PROCTOR_NB"
+  echo "bare run: nb stays on the host, no container"; exit 0
+fi
+engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)
 "$engine" rm -f "$PROCTOR_CONTAINER" >/dev/null 2>&1 || true
 args=(-d --name "$PROCTOR_CONTAINER"
       -v "$PROCTOR_WORK:$PROCTOR_WORK_MOUNT"
@@ -20,3 +25,4 @@ if [ -n "$gateway" ] && ip=$(getent hosts "$gateway" | cut -d' ' -f1 | head -1) 
 [ "$engine" = podman ] && args+=(--userns=keep-id)
 "$engine" run "${args[@]}" proctor-dotnet sleep infinity >/dev/null
 echo "$engine container $PROCTOR_CONTAINER: $PROCTOR_WORK at $PROCTOR_WORK_MOUNT, $view at $PROCTOR_BUNDLE_MOUNT"
+interrupt "$PROCTOR_WORK_MOUNT" "$engine" exec "$PROCTOR_CONTAINER" dotnet "$PROCTOR_BUNDLE_MOUNT/proctor/proctor.dll"

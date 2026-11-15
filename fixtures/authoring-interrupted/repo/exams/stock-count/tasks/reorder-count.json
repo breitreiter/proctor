@@ -1,0 +1,9 @@
+{
+  "id": "reorder-count",
+  "description": "Count the SKUs due for reorder in stock.csv",
+  "fixture": "stock",
+  "prompt": "How many SKUs in stock.csv are due for reorder? End your answer with a line of the form `ANSWER: <n>`.",
+  "expect": {
+    "answer_regex": "(?m)^ANSWER: 8\\s*\\z"
+  }
+}

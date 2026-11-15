@@ -1,0 +1,6 @@
+{
+  "id": "stock",
+  "description": "A hardware store's stock sheet: twenty SKUs with on-hand counts and reorder points",
+  "source": { "path": "repo" },
+  "stack": "none"
+}

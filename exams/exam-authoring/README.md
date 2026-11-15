@@ -22,8 +22,8 @@ attempted three times."
 |---|---|
 | agent | nb with the local qwen3-coder model, in a container (`../runners/container.sh`) |
 | variants | `variants/docs.json`: the README, the configuration and CLI references and two layout plans; `variants/docs-and-examples.json`: the same, with the example exams and fixtures beside them |
-| tasks | three workspaces, each asking for one exam (below) |
-| attempts | 3 per variant and task: 18 in all |
+| tasks | three workspaces, each asking for one exam, and one that starts from an interrupted batch (below) |
+| attempts | 3 per variant and task: 24 in all |
 
 Both variants pin the same proctor revision as their `bundle`, and each names the
 `paths` of that revision it shows: the README, `docs/configuration.md`, `docs/cli.md`
@@ -52,6 +52,25 @@ from it. `read-examples` is the rate at which it does.
 | `guard-the-tests` | `fixtures/authoring-ledger`: a complete fixture with a failing test | a scope guard, so an attempt that edits the test to make it pass fails |
 | `check-the-answer` | `fixtures/authoring-stock`: a stock sheet and a question | the answer in `expect` read through `@expect`, matched exactly (`ANSWER: 18` and `ANSWER: 80` are wrong for 8), and a read-only guard |
 | `write-the-fixture` | `fixtures/authoring-widgets`: a bare repository | a `fixture.json` with its checks beside `repo/`, and a script check, because the library's tests pass before the rename too |
+| `continue-the-batch` | `fixtures/authoring-interrupted`: the `stock-count` exam already written, on nb's scripted Mock, and a batch of it a crash interrupted | nothing to write: finish the batch in place (proctor's `run` again, not a new start) and write the report |
+
+`continue-the-batch` asks whether an agent, given the docs, finds how to
+continue after a crash, which is the one thing a person or an agent is
+likely to look for under a word proctor does not have: there is no resume verb.
+`hooks/attempt-setup.sh` makes its interrupted batch with the proctor the
+agent is shown (`hooks/interrupt.sh`: the exam run in full, then its last
+attempt removed and the one before marked running) and keeps the batch id in
+the attempt. Its own checks, `continued` (every attempt of that batch
+completed, and no other batch of the exam started) and `reported` (a report
+built from that batch), are guardrails reported over this task alone: the
+pass list is the exam's and every task carries it, and here the written
+exam is the fixture's, so `validates`, `accepts-correct` and
+`rejects-wrong` grade it (with `check-the-answer`'s planted attempts, which
+`trial/continue-the-batch` links to). **Not yet run as an attempt:** like
+the rest of this exam it waits on the pin, and the proctor at the pinned
+revision cannot make the batch `interrupt.sh` reads. Its checks are proved
+on the host by `reference/shakedown.sh`, with the current build: pass, then
+fail with `--naive` (the exam started over) and `--unsolved`.
 
 ## How a written exam is graded
 
@@ -74,9 +93,10 @@ batch stays in the attempt under `trial/` as evidence.
 | `stays-in-work` | validity | the agent stayed in its checkout and the bundle (once shared with code-change, which runs through Harbor now) |
 | `self-validated`, `describes-everything`, `read-examples` | guardrail | it ran `list` itself; the exam and every task carry a description and every variant a note; it opened an example |
 | `stance` (`decide`), `prompt-hides-answer` (`judge`) | guardrail | the closing message claims completion; the task prompt it wrote does not give away the answer |
+| `continued`, `reported` | guardrail, `continue-the-batch` only | the interrupted batch was finished in place; the report was built from it |
 
-`reference/` holds a good answer for each task: three small exams that also serve
-as examples of the practices above. `reference/shakedown.sh` proves the trial
+`reference/` holds a good answer for each exam-writing task: three small exams that also serve
+as examples of the practices above (`continue-the-batch`'s answer is an action, which the shakedown performs). `reference/shakedown.sh` proves the trial
 without a model. The references must pass every check. With `--naive`, each
 reference loses the check that made it discriminate, and `rejects-wrong` must name
 the wrong attempts that got through. Nothing in this directory is shown to the agent:
@@ -90,9 +110,9 @@ export LLM_GATEWAY=... LLM_GATEWAY_KEY=...     # the gateway exams/nb.json and e
 dotnet build                                   # the trial grades with this build
 exams/exam-authoring/reference/shakedown.sh    # optional: the trial against the references, ~2 min
 proctor run exam-authoring
-proctor grade <id>
-proctor report <id>
-cp reports/data/<id>/{report.html,summary.md} exams/exam-authoring/report/
+proctor grade exam-authoring
+proctor report exam-authoring
+cp reports/exam-authoring/explore/{report.html,summary.md} exams/exam-authoring/report/
 ```
 
 `--runner none` is only a shakedown here. It skips the views, so the agent sees
