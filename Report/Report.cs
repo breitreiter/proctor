@@ -11,6 +11,7 @@ namespace Proctor;
 // term before using it, one sentence under every heading saying what the section is for, the answer in the
 // first six sections and the evidence after. Some readers open this daily and some once a quarter; for the
 // latter every time is the first time, which is why the explainers are here, muted, so the findings stand out.
+// The page is built as one batch's variants side by side, until the two report layouts exist. Shape inherited from experiments; tolerated, not endorsed. See project/plans/exam-variant-attempt.md.
 
 static class Report
 {

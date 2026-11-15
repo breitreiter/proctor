@@ -8,6 +8,7 @@ namespace Proctor;
 // An exam's agent variants as Harbor tasks: one task directory per variant and task, under the batch, and one job file
 // per attempt. Only the fixture's repo/ enters the image the agent runs in; its checks, the exam and the expectations go
 // to tests/, which Harbor copies into the separate verifier container only.
+// Harbor tasks are compiled once per batch, per variant and task. Shape inherited from experiments; tolerated, not endorsed. See project/plans/exam-variant-attempt.md.
 
 /// <summary>
 /// What compile needs from the machine: where the agent's model calls go, resolved, and the key with the variable it

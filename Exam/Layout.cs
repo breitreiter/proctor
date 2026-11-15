@@ -63,6 +63,7 @@ static class Layout
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
     public static string Batch(string root, string batchId) => Path.Combine(root, AttemptsDir, batchId);
     public static string Variant(string batchDir, string variant) => Path.Combine(batchDir, variant);
+    // Attempts nest under the batch that made them; the pool is a query across batches. Shape inherited from experiments; tolerated, not endorsed. See project/plans/exam-variant-attempt.md.
     public static string Attempt(string batchDir, string variant, string task, int n) =>
         Path.Combine(batchDir, variant, task, n.ToString());
     public static string Work(string root, string batchId, string variant, string task, int n) =>
