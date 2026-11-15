@@ -195,7 +195,7 @@ static partial class SetupWizard
                 .UseConverter(c => c == "Modal" ? $"{"Modal",-20} [grey]experimental[/]" : $"{c,-20} [grey]not supported yet[/]"));
             if (service == "Modal") { Modal(w); return; }
             w.State.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: service.StartsWith("Another") ? null : service.ToLowerInvariant());
-            AnsiConsole.WriteLine($"\nRecorded as wanted: hosted sandbox ({service}). Until it is supported, agent variants need Modal, or Docker or podman on this machine; nb runs need neither.");
+            AnsiConsole.WriteLine($"\nRecorded as wanted: hosted sandbox ({service}). Until it is supported, agent variants need Modal, or Docker or podman on this machine; bare nb attempts need neither.");
             return;
         }
 
@@ -217,7 +217,7 @@ static partial class SetupWizard
     {
         w.Wrote(SetupFiles.PutEngine(w.ExamsDir, HarborConfig.Modal), $"harbor.engine {HarborConfig.Modal}");
         w.State.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: HarborConfig.Modal, Engine: HarborConfig.Modal);
-        AnsiConsole.WriteLine("\nModal support is experimental: it has run proctor's own checks, not yet a hosted model's agent. Each agent cell runs in a Modal sandbox on your account, billed by the second; nb runs stay on this machine.");
+        AnsiConsole.WriteLine("\nModal support is experimental: it has run proctor's own checks, not yet a hosted model's agent. Each agent attempt runs in a Modal sandbox on your account, billed by the second; bare nb attempts stay on this machine.");
         AnsiConsole.WriteLine("Two limits: the agent's model must be on the internet (a vendor's API, not a model on your network), and a fixture with services cannot run there.");
         if (HarborRun.ModalProblem(Environment.GetEnvironmentVariable, File.Exists) is not null)
             AnsiConsole.MarkupLine("\n[yellow]No Modal login yet.[/] Run [bold]uvx modal token new[/] (it opens your browser).");
@@ -270,13 +270,13 @@ static partial class SetupWizard
     {
         if (id == "classifier")
         {
-            AnsiConsole.WriteLine("Proctor supports classifier checks. These checks use a lightweight AI judge to answer questions about a run (\"does the answer claim the work is finished?\").");
+            AnsiConsole.WriteLine("Proctor supports classifier checks. These checks use a lightweight AI judge to answer questions about an attempt (\"does the answer claim the work is finished?\").");
             AnsiConsole.WriteLine();
             AnsiConsole.WriteLine("These checks are usually significantly faster and cheaper than asking a full chat AI. However, they require specialized models, like Jev or Clef.");
         }
         else
         {
-            AnsiConsole.WriteLine("Proctor supports LLM-as-judge checks. These checks use a chat model judge to review part of a run and answer a question with evidence from the transcript.");
+            AnsiConsole.WriteLine("Proctor supports LLM-as-judge checks. These checks use a chat model judge to review part of an attempt and answer a question with evidence from the transcript.");
             AnsiConsole.WriteLine();
             AnsiConsole.WriteLine("For best results, we recommend:");
             AnsiConsole.WriteLine("  - Selecting a provider that offers a model you're not already measuring. For example, if you're only measuring Claude, use an OpenAI model as a judge.");
@@ -572,7 +572,7 @@ static partial class SetupWizard
             var detail = job switch
             {
                 { Where: "local" } => $"{job.Engine ?? "no engine yet"} on this machine; see {SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.SandboxPlan))}",
-                { Engine: HarborConfig.Modal } => "agent cells on your Modal account; see docs/modal.md",
+                { Engine: HarborConfig.Modal } => "agent attempts on your Modal account; see docs/modal.md",
                 { Where: "hosted" } => $"{job.Service ?? "hosted"} (not supported yet)",
                 _ => string.Join(", ", job?.Providers ?? []),
             };
@@ -590,7 +590,7 @@ static partial class SetupWizard
         AnsiConsole.WriteLine("Run `proctor setup` again to change anything.");
     }
 
-    /// <summary>Rows as aligned columns, indented, the last column grey; a long cell wraps within its column.</summary>
+    /// <summary>Rows as aligned columns, indented, the last column grey; a long entry wraps within its column.</summary>
     static void Columns(IEnumerable<string[]> rows)
     {
         var list = rows.ToList();
@@ -599,7 +599,7 @@ static partial class SetupWizard
         var grid = new Grid();
         for (var i = 0; i < width; i++) grid.AddColumn(new GridColumn().PadLeft(i == 0 ? 2 : 0).PadRight(2));
         foreach (var row in list)
-            grid.AddRow(row.Select((cell, i) => (Spectre.Console.Rendering.IRenderable)new Markup(i == width - 1 ? $"[grey]{Esc(cell)}[/]" : Esc(cell))).ToArray());
+            grid.AddRow(row.Select((entry, i) => (Spectre.Console.Rendering.IRenderable)new Markup(i == width - 1 ? $"[grey]{Esc(entry)}[/]" : Esc(entry))).ToArray());
         AnsiConsole.Write(grid);
     }
 

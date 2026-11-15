@@ -33,10 +33,10 @@ static class Layout
     public const string ChecksFile = "checks.json";
     public const string VerdictsDir = "verdicts";
     public const string FrictionFile = "friction.json";
-    /// <summary>What a reader was sent and answered about a cell: friction-reading.&lt;judge&gt;.&lt;hash&gt;.json, the cache and the record.</summary>
+    /// <summary>What a reader was sent and answered about an attempt: friction-reading.&lt;judge&gt;.&lt;hash&gt;.json, the cache and the record.</summary>
     public const string ReadingPrefix = "friction-reading";
 
-    /// <summary>An agent variant's cells: the compiled Harbor tasks per batch, Harbor's own job per cell, and what ingest lifts out of the trial.</summary>
+    /// <summary>An agent variant's attempts: the compiled Harbor tasks per batch, Harbor's own job per attempt, and what ingest lifts out of the trial.</summary>
     public const string HarborDir = "harbor";
     public const string HarborJobFile = "job.json";
     public const string HarborLogFile = "harbor.log";
@@ -61,10 +61,10 @@ static class Layout
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
     public static string Batch(string root, string batchId) => Path.Combine(root, AttemptsDir, batchId);
     public static string Variant(string batchDir, string variant) => Path.Combine(batchDir, variant);
-    public static string Cell(string batchDir, string variant, string task, int sample) =>
-        Path.Combine(batchDir, variant, task, sample.ToString());
-    public static string Work(string root, string batchId, string variant, string task, int sample) =>
-        Path.Combine(root, WorkDir, batchId, variant, task, sample.ToString());
+    public static string Attempt(string batchDir, string variant, string task, int n) =>
+        Path.Combine(batchDir, variant, task, n.ToString());
+    public static string Work(string root, string batchId, string variant, string task, int n) =>
+        Path.Combine(root, WorkDir, batchId, variant, task, n.ToString());
     /// <summary>The Harbor task a variant runs a task as, compiled once per batch.</summary>
     public static string HarborTask(string batchDir, string variant, string task) => Path.Combine(batchDir, HarborDir, "tasks", variant, task);
     public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
@@ -75,7 +75,7 @@ static class Layout
     public static string NewBatchId(string examId, DateTime utcNow) =>
         $"{utcNow:yyyyMMdd-HHmm}-{examId}-{RandomSuffix(4)}";
 
-    public static string NewRunId() => RandomSuffix(16);
+    public static string NewAttemptId() => RandomSuffix(16);
 
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
     private const string Hex = "0123456789abcdef";

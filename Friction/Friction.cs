@@ -76,7 +76,7 @@ sealed class Surface
 /// </summary>
 static class Friction
 {
-    public const string Schema = "friction/0";
+    public const string Schema = "friction/1";
     /// <summary>The rules' own version, apart from proctor's: a file says which rules made it.</summary>
     public const string RulesVersion = "0.9";
     public static readonly string[] Labels = ["off-surface", "substitute", "abandoned", "surface-search", "help", "workaround", "environment", "tool-error"];
@@ -123,62 +123,62 @@ static class Friction
 
     internal record Step(string Id, List<Call> Calls);
 
-    public record CellFriction(string Variant, string Task, int Sample, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
+    public record AttemptFriction(string Variant, string Task, int Attempt, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
 
     /// <summary>
-    /// The cells a batch ran, from its own record of its variants and tasks. Friction reads what was run, not what
+    /// The attempts a batch ran, from its own record of its variants and tasks. Friction reads what was run, not what
     /// the exam says now, so a batch whose exam has since changed its variants is still read.
     /// </summary>
-    public static IEnumerable<(string Variant, string Task, int Sample)> Cells(Batch batch) =>
+    public static IEnumerable<(string Variant, string Task, int Attempt)> Attempts(Batch batch) =>
         from variant in (batch.ExamDef["variants"] as JsonArray ?? []).OfType<JsonObject>()
         let id = String(variant["id"])
         where id is not null
         from task in batch.Tasks
-        from sample in Enumerable.Range(1, variant["samples"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : 1)
-        select (id, task, sample);
+        from n in Enumerable.Range(1, variant["attempts"] is JsonValue v && v.TryGetValue<int>(out var count) ? count : 1)
+        select (id, task, n);
 
-    /// <summary>friction.json beside each completed cell's trajectory. A cell with no trajectory is skipped and said so.</summary>
-    /// <param name="reader">A chat judge of the machine's config that reads each run for what rules cannot see; its points are added with a model source. Null for rules only.</param>
-    public static List<CellFriction> Batch(string root, Batch batch, Exam exam, TextWriter log,
+    /// <summary>friction.json beside each completed attempt's trajectory. An attempt with no trajectory is skipped and said so.</summary>
+    /// <param name="reader">A chat judge of the machine's config that reads each attempt for what rules cannot see; its points are added with a model source. Null for rules only.</param>
+    public static List<AttemptFriction> Batch(string root, Batch batch, Exam exam, TextWriter log,
         IReadOnlyCollection<string>? variants = null, IReadOnlyCollection<string>? tasks = null, JudgeClient? judges = null, string? reader = null)
     {
         var surface = new Surface(exam.Def.Surface);
         var batchDir = Layout.Batch(root, batch.Id);
-        var done = new List<CellFriction>();
-        foreach (var (variant, task, sample) in Cells(batch).Where(x => (variants is null || variants.Contains(x.Variant)) && (tasks is null || tasks.Contains(x.Task))))
+        var done = new List<AttemptFriction>();
+        foreach (var (variant, task, n) in Attempts(batch).Where(x => (variants is null || variants.Contains(x.Variant)) && (tasks is null || tasks.Contains(x.Task))))
         {
-            var cellDir = Layout.Cell(batchDir, variant, task, sample);
-            var trajectory = Path.Combine(cellDir, Layout.TrajectoryFile);
-            var skipped = Runner.ReadStatus(cellDir) != CellStatus.Completed ? "not completed" : !File.Exists(trajectory) ? "no trajectory" : null;
+            var attemptDir = Layout.Attempt(batchDir, variant, task, n);
+            var trajectory = Path.Combine(attemptDir, Layout.TrajectoryFile);
+            var skipped = Runner.ReadStatus(attemptDir) != AttemptStatus.Completed ? "not completed" : !File.Exists(trajectory) ? "no trajectory" : null;
             if (skipped is not null)
             {
-                done.Add(new CellFriction(variant, task, sample, null, skipped));
+                done.Add(new AttemptFriction(variant, task, n, null, skipped));
                 continue;
             }
-            var run = new JsonObject { ["batch"] = batch.Id, ["variant"] = variant, ["task"] = task, ["sample"] = sample.ToString() };
+            var attempt = new JsonObject { ["exam"] = batch.Exam, ["batch"] = batch.Id, ["variant"] = variant, ["task"] = task, ["attempt"] = n.ToString() };
             var parsed = JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject();
-            var (file, steps) = Detect(parsed, surface, run);
-            var reading = reader is null ? null : FrictionReader.Read(cellDir, parsed, file, steps, exam.Def.Surface?.Description, judges!, reader);
-            File.WriteAllText(Path.Combine(cellDir, Layout.FrictionFile), file.ToJsonString(Written) + "\n");
+            var (file, steps) = Detect(parsed, surface, attempt);
+            var reading = reader is null ? null : FrictionReader.Read(attemptDir, parsed, file, steps, exam.Def.Surface?.Description, judges!, reader);
+            File.WriteAllText(Path.Combine(attemptDir, Layout.FrictionFile), file.ToJsonString(Written) + "\n");
             var points = file["points"]!.AsArray();
-            done.Add(new CellFriction(variant, task, sample, points.Count, null, reading));
-            log.WriteLine($"  {variant}/{task}/{sample}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}{(reading is null ? "" : $"  [reader: {reading.Says}]")}");
+            done.Add(new AttemptFriction(variant, task, n, points.Count, null, reading));
+            log.WriteLine($"  {variant}/{task}/{n}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}{(reading is null ? "" : $"  [reader: {reading.Says}]")}");
         }
         return done;
     }
 
-    /// <summary>One trajectory into the file's content. <paramref name="run"/> is written as given: which run this is.</summary>
-    public static JsonObject Detect(string trajectoryFile, Surface surface, JsonObject run) =>
-        Detect(JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject(), surface, run).File;
+    /// <summary>One trajectory into the file's content. <paramref name="attempt"/> is written as given: which attempt this is.</summary>
+    public static JsonObject Detect(string trajectoryFile, Surface surface, JsonObject attempt) =>
+        Detect(JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject(), surface, attempt).File;
 
-    internal static (JsonObject File, List<Step> Steps) Detect(JsonObject trajectory, Surface surface, JsonObject run)
+    internal static (JsonObject File, List<Step> Steps) Detect(JsonObject trajectory, Surface surface, JsonObject attempt)
     {
         var steps = Read(trajectory, surface);
         var points = Points(steps, surface);
         return (new JsonObject
         {
             ["schema"] = Schema,
-            ["run"] = run,
+            ["attempt"] = attempt,
             ["agent"] = (trajectory["agent"] as JsonObject)?["name"]?.DeepClone(),
             ["atif"] = trajectory["schema_version"]?.DeepClone(),
             ["detector"] = new JsonObject

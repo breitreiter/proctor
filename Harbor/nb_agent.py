@@ -1,7 +1,7 @@
 """nb as a Harbor agent, for proctor. Compiled into each batch's harbor/agents/ and imported as nb_agent:NbAgent.
 
 The image already holds the binary (/opt/nb, copied from proctor's nb layer), so setup installs nothing: it uploads the
-config the host's nb runs with and the program proctor compiled on the host for this cell, and asks the binary its
+config the host's nb runs with and the program proctor compiled on the host for this attempt, and asks the binary its
 version. The run is nb's own invocation, the program on stdin; nb writes its own ATIF trajectory (--trajectory) where
 Harbor keeps an agent's, beside its JSONL, stderr and exit code. A non-zero exit is nb's to report, not a Harbor failure.
 

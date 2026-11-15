@@ -72,7 +72,7 @@ public class StatsTests
     [Fact]
     public void Newcombe_FractionalTaskScores_ReduceBeforeTheInterval()
     {
-        // Three tasks, three samples each: task means, not nine cells.
+        // Three tasks, three attempts each: task means, not nine attempts.
         var a = new double[] { 2 / 3.0, 1, 1 / 3.0 };
         var b = new double[] { 1 / 3.0, 1, 0 };
         var (diff, ci) = Stats.NewcombePaired(a, b);
@@ -113,17 +113,17 @@ public class StatsTests
         Assert.Equal(2.5, Stats.Summarise([1, 2, 3, 4])!.Median);
     }
 
-    static ResultRow Row(string variant, string task, int sample, bool? pass, string status = "completed", string exit = "ok", string? invalid = null) =>
-        WorkedBatch.Row(variant, task, sample, pass, status, exit, reason: "hook failed", invalid: invalid);
+    static ResultRow Row(string variant, string task, int n, bool? pass, string status = "completed", string exit = "ok", string? invalid = null) =>
+        WorkedBatch.Row(variant, task, n, pass, status, exit, reason: "hook failed", invalid: invalid);
 
-    static Exam TwoVariantExam(int samples) => WorkedBatch.Exam(samples);
+    static Exam TwoVariantExam(int attempts) => WorkedBatch.Exam(attempts);
 
     static Batch Exp(Exam exam) => WorkedBatch.Batch(exam);
 
     [Fact]
     public void Compute_TheWorkedBatchShape()
     {
-        var exam = TwoVariantExam(samples: 3);   // tasks: loops, plain, uses-bash
+        var exam = TwoVariantExam(attempts: 3);   // tasks: loops, plain, uses-bash
         var rows = new List<ResultRow>();
         var floor = new Dictionary<string, bool[]> { ["loops"] = [true, true, false], ["plain"] = [true, true, true], ["uses-bash"] = [false, true, false] };
         var b = new Dictionary<string, bool[]> { ["loops"] = [true, true, true], ["plain"] = [true, true, true], ["uses-bash"] = [true, false, true] };
@@ -135,11 +135,11 @@ public class StatsTests
         Assert.Equal(3, stats.NTasks);
         Assert.True(stats.Paired);
         var f = stats.Variants["floor"];
-        Assert.Equal((9, 9, 9, 9, 9), (f.Planned, f.Attempted, f.Completed, f.Graded, f.Analysed));
+        Assert.Equal((9, 9, 9, 9, 9), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         Assert.Empty(f.Excluded);
         Assert.Equal(0.667, f.Pass!.Rate);
         Assert.Equal(3, f.Pass.N);
-        Assert.Equal((6, 9), (f.Pass.KCells, f.Pass.NCells));
+        Assert.Equal((6, 9), (f.Pass.KAttempts, f.Pass.NAttempts));
         Assert.True(f.Pass.Ci95.Lo > 0 && f.Pass.Ci95.Hi < 1);
         Assert.Equal(new Dictionary<string, int> { ["ok"] = 6, ["max_tool_calls"] = 3 }, f.ExitReasons);
         Assert.Equal(0.667, f.Checks["builds"].Rate);
@@ -166,9 +166,9 @@ public class StatsTests
     }
 
     [Fact]
-    public void Compute_ExcludedCellsStayInAccounting_AndOutOfRates()
+    public void Compute_ExcludedAttemptsStayInAccounting_AndOutOfRates()
     {
-        var exam = TwoVariantExam(samples: 1);
+        var exam = TwoVariantExam(attempts: 1);
         var rows = new List<ResultRow>
         {
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, null, status: "failed"),
@@ -176,9 +176,9 @@ public class StatsTests
         };
         var stats = Stats.Compute(Exp(exam), exam, rows);
         var f = stats.Variants["floor"];
-        Assert.Equal((3, 3, 2, 2, 2), (f.Planned, f.Attempted, f.Completed, f.Graded, f.Analysed));
+        Assert.Equal((3, 3, 2, 2, 2), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
-        Assert.Equal(("floor/uses-bash/1", "failed", "hook failed"), (ex.Cell, ex.Status, ex.Reason));
+        Assert.Equal(("floor/uses-bash/1", "failed", "hook failed"), (ex.Attempt, ex.Status, ex.Reason));
         Assert.Equal(1.0, f.Pass!.Rate);
         Assert.Equal(2, f.Pass.N);
         Assert.Equal(["failed"], stats.Matrix["floor"]["uses-bash"]);
@@ -192,9 +192,9 @@ public class StatsTests
     }
 
     [Fact]
-    public void Compute_InvalidSamplesAreExcluded_ValidityRateIsOverEveryGradedSample()
+    public void Compute_InvalidAttemptsAreExcluded_ValidityRateIsOverEveryGradedAttempt()
     {
-        var exam = TwoVariantExam(samples: 1);
+        var exam = TwoVariantExam(attempts: 1);
         var rows = new List<ResultRow>
         {
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, true, invalid: "no_denials: 1 denied call"),
@@ -202,35 +202,35 @@ public class StatsTests
         };
         var stats = Stats.Compute(Exp(exam), exam, rows);
         var f = stats.Variants["floor"];
-        Assert.Equal((3, 3, 3, 3, 2), (f.Planned, f.Attempted, f.Completed, f.Graded, f.Analysed));
+        Assert.Equal((3, 3, 3, 3, 2), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
-        Assert.Equal(("floor/uses-bash/1", "invalid", "no_denials: 1 denied call"), (ex.Cell, ex.Status, ex.Reason));
+        Assert.Equal(("floor/uses-bash/1", "invalid", "no_denials: 1 denied call"), (ex.Attempt, ex.Status, ex.Reason));
         Assert.Equal(2, f.Pass!.N);
         Assert.Equal(["invalid"], stats.Matrix["floor"]["uses-bash"]);
         Assert.Equal(["no_denials"], stats.ValidityChecks);
-        // The validity check is rated over all three graded samples; the pass checks over the two that count.
-        Assert.Equal((2, 3), (f.Checks["no_denials"].KCells, f.Checks["no_denials"].NCells));
-        Assert.Equal((2, 2), (f.Checks["builds"].KCells, f.Checks["builds"].NCells));
+        // The validity check is rated over all three graded attempts; the pass checks over the two that count.
+        Assert.Equal((2, 3), (f.Checks["no_denials"].KAttempts, f.Checks["no_denials"].NAttempts));
+        Assert.Equal((2, 2), (f.Checks["builds"].KAttempts, f.Checks["builds"].NAttempts));
         Assert.Equal(2, Assert.Single(stats.Comparisons).NPairs);
     }
 
     [Fact]
     public void Compute_OneVariant_NoComparisons_MdeFromItsTasks()
     {
-        var exam = TwoVariantExam(samples: 1);
+        var exam = TwoVariantExam(attempts: 1);
         var rows = new List<ResultRow> { Row("floor", "loops", 1, true), Row("floor", "plain", 1, false), Row("floor", "uses-bash", 1, true) };
         var stats = Stats.Compute(Exp(exam), exam, rows);
         Assert.Empty(stats.Comparisons);
         Assert.Equal(3, stats.Mde.NPairs);
         Assert.Null(stats.Variants["b"].Pass);
-        Assert.Equal(0, stats.Variants["b"].Attempted);
+        Assert.Equal(0, stats.Variants["b"].Started);
         Assert.Empty(stats.Matrix["b"]["loops"]);
     }
 
     [Fact]
     public void Compute_AgainstBaseline_VerdictIsThePointEstimateAgainstTheTolerance()
     {
-        var exam = TwoVariantExam(samples: 1);
+        var exam = TwoVariantExam(attempts: 1);
         var rows = new List<ResultRow>
         {
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, false), Row("floor", "uses-bash", 1, false),

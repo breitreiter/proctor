@@ -5,13 +5,13 @@ namespace Proctor;
 /// <summary>
 /// A batch's Harbor: the pinned release and the hash of the tasks compiled for it, which a resume must find
 /// unchanged; with an nb variant, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
-/// engine every cell runs on (proctor.json harbor.engine), which holds that layer.
+/// engine every attempt runs on (proctor.json harbor.engine), which holds that layer.
 /// </summary>
 record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, string Engine = "docker");
 
 /// <summary>
-/// One cell's trial: Harbor's job file in the cell, then `uv tool run harbor@&lt;pin&gt; run` on it with telemetry off and
-/// the model key in that one process's environment, never on disk. Harbor's job directory stays in the cell as the full
+/// One attempt's trial: Harbor's job file in the attempt, then `uv tool run harbor@&lt;pin&gt; run` on it with telemetry off and
+/// the model key in that one process's environment, never on disk. Harbor's job directory stays in the attempt as the full
 /// record; ingest lifts what proctor reads out of it.
 /// </summary>
 static class HarborRun
@@ -55,7 +55,7 @@ static class HarborRun
         return (tag, asked.Stdout.Trim().Split('+')[0]);
     }
 
-    /// <summary>What each engine needs of the machine, checked before the first cell: podman's setup, Modal's login.</summary>
+    /// <summary>What each engine needs of the machine, checked before the first attempt: podman's setup, Modal's login.</summary>
     public static void Preflight(HarborConfig harbor)
     {
         if (harbor.Engine == "podman") CheckPodman();
@@ -128,11 +128,11 @@ static class HarborRun
         return problems;
     }
 
-    /// <summary>Run the trial. Returns the trial directory, or why there is none (infrastructure: the cell fails).</summary>
-    public static (string? TrialDir, string? Failure) Trial(string uv, string version, string engine, string cellDir, Variant variant, string taskDir, AgentRoute route, long wallMs, string agentsDir, NbCell? nb = null, OracleCell? oracle = null)
+    /// <summary>Run the trial. Returns the trial directory, or why there is none (infrastructure: the attempt fails).</summary>
+    public static (string? TrialDir, string? Failure) Trial(string uv, string version, string engine, string attemptDir, Variant variant, string taskDir, AgentRoute route, long wallMs, string agentsDir, NbAttempt? nb = null, OracleAttempt? oracle = null)
     {
-        var harborDir = Path.Combine(cellDir, Layout.HarborDir);
-        if (Directory.Exists(harborDir)) Directory.Delete(harborDir, recursive: true);   // a resumed cell starts clean
+        var harborDir = Path.Combine(attemptDir, Layout.HarborDir);
+        if (Directory.Exists(harborDir)) Directory.Delete(harborDir, recursive: true);   // a resumed attempt starts clean
         Directory.CreateDirectory(harborDir);
         var jobsDir = Path.Combine(harborDir, "jobs");
         var timeout = TimeSpan.FromMilliseconds(wallMs) + Overhead;
@@ -172,12 +172,12 @@ static class HarborRun
     /// <summary>
     /// Remove what a killed trial left in the engine. Harbor ends a trial with `compose down --rmi local --volumes`, and
     /// a kill skips it, so the containers stay (the agent's possibly still running), with the network and the two images
-    /// the trial built. Everything is found by the trial's project labels and names, so a concurrent cell's resources
-    /// are untouched. Returns one line saying what was removed, for the cell's failure.
+    /// the trial built. Everything is found by the trial's project labels and names, so a concurrent attempt's resources
+    /// are untouched. Returns one line saying what was removed, for the attempt's failure.
     /// </summary>
     public static string TearDown(string engine, string jobsDir)
     {
-        // A sandbox on Modal ends itself: the job gives it the cell's lifetime and an idle limit (HarborCompile.Job).
+        // A sandbox on Modal ends itself: the job gives it the attempt's lifetime and an idle limit (HarborCompile.Job).
         if (engine == HarborConfig.Modal) return $"A sandbox it left on Modal ends itself within {HarborCompile.ModalIdle.TotalMinutes:0} minutes of going idle.";
         var jobDir = Path.Combine(jobsDir, "job");
         var trials = Directory.Exists(jobDir) ? Directory.GetDirectories(jobDir).Select(Path.GetFileName).Where(n => n!.Contains("__")).ToList() : [];

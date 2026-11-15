@@ -2,12 +2,12 @@ using System.Text.Json.Nodes;
 
 namespace Proctor;
 
-/// <summary>An agent cell's run as Harbor reported it, in the manifest: the agent as it ran, the Harbor that ran it, and what it used.</summary>
+/// <summary>An agent attempt's run as Harbor reported it, in the manifest: the agent as it ran, the Harbor that ran it, and what it used.</summary>
 record AgentRun(string Name, string? Version, string Model, Dictionary<string, string> Kwargs, Dictionary<string, string> Env, string Harbor, string? Trial,
     long? InputTokens = null, long? CachedTokens = null, long? OutputTokens = null, double? CostUsd = null);
 
 /// <summary>
-/// An oracle cell's simulated user on the Harbor path, in the manifest: its ending (oracle-user.json's, null when the
+/// An oracle attempt's simulated user on the Harbor path, in the manifest: its ending (oracle-user.json's, null when the
 /// trial was killed mid-loop), the answers it sent, and the judge's tokens. The judge is a separate process, so they are
 /// not in the counted core; on the bare path nb charges them to the run.
 /// </summary>
@@ -21,8 +21,8 @@ record OracleRun(string? Ending, int Answers, long? JudgeInputTokens, long? Judg
 record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dictionary<string, int> Kinds, long? InputTokens, long? CachedTokens, long? OutputTokens, double? CostUsd, long? DurationMs = null);
 
 /// <summary>
-/// A Harbor trial into a cell: the trajectory, the agent's native logs, the diff, the verifier's rewards and outputs,
-/// and the counted core. Strict: a step or tool the agent's mapping does not know fails the cell as adapter_unmapped
+/// A Harbor trial into an attempt: the trajectory, the agent's native logs, the diff, the verifier's rewards and outputs,
+/// and the counted core. Strict: a step or tool the agent's mapping does not know fails the attempt as adapter_unmapped
 /// rather than being dropped, so a vendor or Harbor format change shows on the first run after the bump. The one
 /// exception is a tool name the model made up and the agent refused with an error result, counted as kind "none".
 /// </summary>
@@ -86,28 +86,28 @@ static class Ingest
     };
 
     /// <summary>
-    /// Lift the trial into the cell and fill the manifest. Null when the cell completed; otherwise why it failed
+    /// Lift the trial into the attempt and fill the manifest. Null when the attempt completed; otherwise why it failed
     /// (infrastructure only). The version is the variant's pin for a vendor agent, the host nb's for nb. A bridged trial is an
-    /// oracle cell's: nb served over ACP, driven by the simulated user (<see cref="Oracle"/>).
+    /// oracle attempt's: nb served over ACP, driven by the simulated user (<see cref="Oracle"/>).
     /// </summary>
-    public static string? Trial(string trialDir, string cellDir, Variant variant, Manifest manifest, string expectedVersion, bool bridged = false)
+    public static string? Trial(string trialDir, string attemptDir, Variant variant, Manifest manifest, string expectedVersion, bool bridged = false)
     {
         var result = JsonNode.Parse(File.ReadAllText(Path.Combine(trialDir, "result.json")))!.AsObject();
-        CopyTree(Path.Combine(trialDir, "agent"), Path.Combine(cellDir, Layout.AgentLogsDir));
-        CopyTree(Path.Combine(trialDir, Layout.UserAgentLogsDir), Path.Combine(cellDir, Layout.UserAgentLogsDir));
-        CopyTree(Path.Combine(trialDir, "verifier"), Path.Combine(cellDir, Layout.VerifierDir));
+        CopyTree(Path.Combine(trialDir, "agent"), Path.Combine(attemptDir, Layout.AgentLogsDir));
+        CopyTree(Path.Combine(trialDir, Layout.UserAgentLogsDir), Path.Combine(attemptDir, Layout.UserAgentLogsDir));
+        CopyTree(Path.Combine(trialDir, "verifier"), Path.Combine(attemptDir, Layout.VerifierDir));
         // Harbor mirrors a collected container path under artifacts/: the verifier's collect step wrote /logs/artifacts/diff.patch.
         var diff = Path.Combine(trialDir, "artifacts", "logs", "artifacts", Layout.DiffFile);
-        if (File.Exists(diff)) File.Copy(diff, Path.Combine(cellDir, Layout.DiffFile), overwrite: true);
+        if (File.Exists(diff)) File.Copy(diff, Path.Combine(attemptDir, Layout.DiffFile), overwrite: true);
         var reward = Path.Combine(trialDir, "verifier", Layout.RewardFile);
-        if (File.Exists(reward)) File.Copy(reward, Path.Combine(cellDir, Layout.RewardFile), overwrite: true);
+        if (File.Exists(reward)) File.Copy(reward, Path.Combine(attemptDir, Layout.RewardFile), overwrite: true);
 
         var agentInfo = result["agent_info"];
         var agentResult = result["agent_result"];
         manifest.Agent = manifest.Agent! with
         {
             Version = agentInfo?["version"]?.GetValue<string>(),
-            Trial = Path.GetRelativePath(cellDir, trialDir),
+            Trial = Path.GetRelativePath(attemptDir, trialDir),
             InputTokens = Long(agentResult?["n_input_tokens"]),
             CachedTokens = Long(agentResult?["n_cache_tokens"]),
             OutputTokens = Long(agentResult?["n_output_tokens"]),
@@ -130,16 +130,16 @@ static class Ingest
                 : $"agent_version_mismatch: the image ran nb {manifest.Agent.Version ?? "unknown"}, the host nb that compiled the program is {expectedVersion}";
         if (!variant.IsVendor)
         {
-            if (Nb(trialDir, cellDir, exceptionType, manifest, bridged) is { } nbFailure) return nbFailure;
+            if (Nb(trialDir, attemptDir, exceptionType, manifest, bridged) is { } nbFailure) return nbFailure;
             hasTrajectory = true;
-            trajectoryFile = Path.Combine(cellDir, Layout.TrajectoryFile);
+            trajectoryFile = Path.Combine(attemptDir, Layout.TrajectoryFile);
         }
         if (!hasTrajectory)
             return "adapter_unmapped: the trial has no agent/trajectory.json";
         if (!File.Exists(diff))
             return $"the trial collected no diff (artifacts/logs/artifacts/{Layout.DiffFile}); the verifier's collect step did not run";
 
-        if (variant.IsVendor) File.Copy(trajectoryFile, Path.Combine(cellDir, Layout.TrajectoryFile), overwrite: true);
+        if (variant.IsVendor) File.Copy(trajectoryFile, Path.Combine(attemptDir, Layout.TrajectoryFile), overwrite: true);
         var trajectory = JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject();
         string? ending = null;
         if (bridged)
@@ -163,7 +163,7 @@ static class Ingest
         if (variant.IsVendor && core!.Turns == 0)
             return $"the agent took no turn ({exitReason}): its model never answered; see agent/ for why";
         // Tokens are the trajectory's when it carries them, else Harbor's account of the agent's run.
-        Runner.WriteJson(Path.Combine(cellDir, Layout.CoreFile), core! with
+        Runner.WriteJson(Path.Combine(attemptDir, Layout.CoreFile), core! with
         {
             InputTokens = core.InputTokens ?? manifest.Agent.InputTokens,
             CachedTokens = core.CachedTokens ?? manifest.Agent.CachedTokens,
@@ -176,12 +176,12 @@ static class Ingest
 
     /// <summary>
     /// nb's own trajectory (agent/trajectory.json, which nb wrote with --trajectory beside its JSONL, stderr and exit
-    /// code) as the cell's. Failed as on the bare path: nb that ends without one before its time is up did not run.
+    /// code) as the attempt's. Failed as on the bare path: nb that ends without one before its time is up did not run.
     /// Out of time is a completed run with nothing written: nb writes both files when the run ends. Bridged, nb is the
     /// ACP server Harbor started, with no JSONL, stderr or exit code of its own, and rewrites the trajectory after each
     /// prompt.
     /// </summary>
-    static string? Nb(string trialDir, string cellDir, string? exceptionType, Manifest manifest, bool bridged)
+    static string? Nb(string trialDir, string attemptDir, string? exceptionType, Manifest manifest, bool bridged)
     {
         var logs = Path.Combine(trialDir, "agent");
         if (int.TryParse(ReadOr(Path.Combine(logs, "nb.exit")).Trim(), out var exit)) manifest.NbExitCode = exit;
@@ -198,15 +198,15 @@ static class Ingest
             ["agent"] = new JsonObject { ["name"] = Variant.Nb, ["version"] = manifest.Agent!.Version },
             ["steps"] = new JsonArray(),
         };
-        Runner.WriteJson(Path.Combine(cellDir, Layout.TrajectoryFile), trajectory);
+        Runner.WriteJson(Path.Combine(attemptDir, Layout.TrajectoryFile), trajectory);
         return null;
     }
 
     /// <summary>
-    /// An oracle cell's simulated user (user-agent/oracle-user.json, from Harbor/oracle_user.py) against nb's trajectory.
+    /// An oracle attempt's simulated user (user-agent/oracle-user.json, from Harbor/oracle_user.py) against nb's trajectory.
     /// The trajectory's last user steps must be the prompts it sent, in order, compared with trailing whitespace trimmed
     /// (acpx trims a prompt's); the answers among them are marked as the bare path's are, extra {source: oracle, keys}.
-    /// Strict: any other shape is adapter_unmapped. A judge that failed fails the cell, since the run then measures the
+    /// Strict: any other shape is adapter_unmapped. A judge that failed fails the attempt, since the run then measures the
     /// judge, not the agent. Null when it lines up, with the ending out and the manifest's <see cref="OracleRun"/> filled.
     /// </summary>
     static string? Oracle(string trialDir, JsonObject trajectory, Manifest manifest, out string? ending)

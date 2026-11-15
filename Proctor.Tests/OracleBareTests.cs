@@ -4,7 +4,7 @@ using Proctor;
 namespace Proctor.Tests;
 
 // The oracle on the bare path (plans/oracle-in-proctor.md, work item 2): proctor prepends nb's own directives and nb's
-// in-process oracle answers. One cell per ending, on nb's Mock provider, whose verdict rides on the scripted reply.
+// in-process oracle answers. One attempt per ending, on nb's Mock provider, whose verdict rides on the scripted reply.
 public class OracleBareTests
 {
     // An answer that is the subject's next scripted turn too, as nb's evals/fixtures/oracle-sheet.md chains them.
@@ -18,7 +18,7 @@ public class OracleBareTests
         MOCK:response=And again? MOCK:oracle=again
         """;
 
-    static (TestRepo Repo, string CellDir) RunOne(string prompt, object? oracle = null)
+    static (TestRepo Repo, string AttemptDir) RunOne(string prompt, object? oracle = null)
     {
         var repo = new TestRepo();
         repo.CopyExam("smoke");
@@ -28,65 +28,65 @@ public class OracleBareTests
         repo.EditJson("smoke/exam.json", s =>
         {
             s["variants"]!.AsArray().RemoveAt(1);
-            s["variants"]![0]!["samples"] = 1;
+            s["variants"]![0]!["attempts"] = 1;
             if (oracle is not null) s["oracle"] = System.Text.Json.JsonSerializer.SerializeToNode(oracle);
         });
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
-        return (repo, Layout.Cell(Layout.Batch(repo.Root, id), "a", "plain", 1));
+        return (repo, Layout.Attempt(Layout.Batch(repo.Root, id), "a", "plain", 1));
     }
 
-    static Verdict Check(string cellDir, string spec)
+    static Verdict Check(string attemptDir, string spec)
     {
         var task = new TaskDef("plain", null, "p", null, Oracle: "oracle/plain.md");
-        return Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), new CellContext("/nonexistent", cellDir, "/work", "exp", "a", task, 1), Transcript.Read(cellDir));
+        return Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), new AttemptContext("/nonexistent", attemptDir, "/work", "exp", "a", task, 1), Transcript.Read(attemptDir));
     }
 
     [Fact]
     public void AHit_IsAnsweredFromTheSheet_AndTheRunGoesOn()
     {
-        var (repo, cell) = RunOne("MOCK:response=Which environment should I deploy to? MOCK:oracle=deploy-target");
+        var (repo, attempt) = RunOne("MOCK:response=Which environment should I deploy to? MOCK:oracle=deploy-target");
         using var _ = repo;
-        var t = Transcript.Read(cell);
+        var t = Transcript.Read(attempt);
 
         Assert.Equal("ok", t.Trailer!.ExitReason);
         var answer = Assert.Single(t.UserTurns, u => u.IsOracle);
         Assert.Equal(["deploy-target"], answer.Keys);
         Assert.Equal("Deploying to staging.", t.Answer!.Replace("MOCK:oracle=DONE", "").Trim());
         Assert.Equal(1, t.Trailer.OracleTurns);
-        Assert.Equal(Verdict.Pass, Check(cell, """{"oracle_hit": ["deploy-target"]}""").Result);
-        Assert.Equal(Verdict.Fail, Check(cell, """{"oracle_hit": ["deploy-target", "region"]}""").Result);
-        Assert.Equal(Verdict.Pass, Check(cell, """{"oracle_turns": {"max": 1}}""").Result);
-        Assert.Equal(Verdict.Fail, Check(cell, """{"oracle_turns": {"max": 0}}""").Result);
-        Assert.Equal(Verdict.Pass, Check(cell, """{"oracle_misses": {"max": 0}}""").Result);
+        Assert.Equal(Verdict.Pass, Check(attempt, """{"oracle_hit": ["deploy-target"]}""").Result);
+        Assert.Equal(Verdict.Fail, Check(attempt, """{"oracle_hit": ["deploy-target", "region"]}""").Result);
+        Assert.Equal(Verdict.Pass, Check(attempt, """{"oracle_turns": {"max": 1}}""").Result);
+        Assert.Equal(Verdict.Fail, Check(attempt, """{"oracle_turns": {"max": 0}}""").Result);
+        Assert.Equal(Verdict.Pass, Check(attempt, """{"oracle_misses": {"max": 0}}""").Result);
     }
 
     [Fact]
     public void AMiss_EndsTheRun_AsOracleMiss()
     {
-        var (repo, cell) = RunOne("MOCK:response=What colour should the button be? MOCK:oracle=MISS");
+        var (repo, attempt) = RunOne("MOCK:response=What colour should the button be? MOCK:oracle=MISS");
         using var _ = repo;
-        var t = Transcript.Read(cell);
+        var t = Transcript.Read(attempt);
 
         Assert.Equal("oracle_miss", t.Trailer!.ExitReason);
         Assert.DoesNotContain(t.UserTurns, u => u.IsOracle);
-        Assert.Equal(Verdict.Fail, Check(cell, """{"oracle_misses": {"max": 0}}""").Result);
-        Assert.Equal(Verdict.Fail, Check(cell, """{"oracle_hit": ["deploy-target"]}""").Result);
+        Assert.Equal(Verdict.Fail, Check(attempt, """{"oracle_misses": {"max": 0}}""").Result);
+        Assert.Equal(Verdict.Fail, Check(attempt, """{"oracle_hit": ["deploy-target"]}""").Result);
     }
 
     [Fact]
     public void TheExamsTurns_BoundTheAnswers_AndTheJudgeIsTheNamedEntry()
     {
-        var (repo, cell) = RunOne("MOCK:response=Again? MOCK:oracle=again", new { turns = 2, judge = "MockB" });
+        var (repo, attempt) = RunOne("MOCK:response=Again? MOCK:oracle=again", new { turns = 2, judge = "MockB" });
         using var _ = repo;
-        var t = Transcript.Read(cell);
+        var t = Transcript.Read(attempt);
 
         Assert.Equal("oracle_budget", t.Trailer!.ExitReason);
         Assert.Equal(2, t.UserTurns.Count(u => u.IsOracle));
-        var program = File.ReadAllText(Path.Combine(cell, Layout.ProgramFile));
+        var program = File.ReadAllText(Path.Combine(attempt, Layout.ProgramFile));
         Assert.StartsWith($"oracle @{Path.Combine(repo.Root, "exams", "smoke", "oracle", "plain.md")}\noracle provider MockB\nbudget oracle_turns 2\n", program);
         // The compiled program carries the sheet's text, not its path: a runner's container never needs the file.
-        var compiled = File.ReadAllText(Path.Combine(cell, Layout.CompiledProgramFile));
+        var compiled = File.ReadAllText(Path.Combine(attempt, Layout.CompiledProgramFile));
         Assert.Contains("deploy-target", compiled);
         Assert.DoesNotContain("plain.md", compiled);
     }
@@ -104,8 +104,8 @@ public class OracleBareTests
     public void OracleHit_OnATaskWithNoSheet_IsAnError_NotAFail()
     {
         var t = Transcript.Parse("""{"type":"result","exit_reason":"ok"}""" + "\n", null);
-        var cell = new CellContext("/nonexistent", Path.GetTempPath(), "/work", "exp", "a", new TaskDef("c", null, "p", null), 1);
-        Assert.Equal(Verdict.Error, Checks.Evaluate(JsonNode.Parse("""{"oracle_hit": ["x"]}""")!.AsObject(), cell, t).Result);
+        var attempt = new AttemptContext("/nonexistent", Path.GetTempPath(), "/work", "exp", "a", new TaskDef("c", null, "p", null), 1);
+        Assert.Equal(Verdict.Error, Checks.Evaluate(JsonNode.Parse("""{"oracle_hit": ["x"]}""")!.AsObject(), attempt, t).Result);
     }
 
     [Theory]

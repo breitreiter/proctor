@@ -74,13 +74,13 @@ public class HarborTests
     }
 
     [Fact]
-    public void AgentVariant_RefusesSampleHooks_AndANbExamRefusesTheHarborBlocks()
+    public void AgentVariant_RefusesAttemptHooks_AndANbExamRefusesTheHarborBlocks()
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
         repo.WriteScript("harbor-unit/hooks/setup.sh", "#!/bin/sh\nexit 0\n");
-        repo.EditJson("harbor-unit/exam.json", e => e["hooks"] = JsonNode.Parse("{\"sample\": {\"setup\": \"hooks/setup.sh\"}}"));
-        Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == "hooks.sample" && p.Message.Contains("fixture's image"));
+        repo.EditJson("harbor-unit/exam.json", e => e["hooks"] = JsonNode.Parse("{\"attempt\": {\"setup\": \"hooks/setup.sh\"}}"));
+        Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == "hooks.attempt" && p.Message.Contains("fixture's image"));
 
         repo.CopyExam("smoke");
         repo.EditJson("smoke/exam.json", e => { e["harbor"] = JsonNode.Parse("{\"version\": \"0.24.0\"}"); e["limits"] = JsonNode.Parse("{\"wall_ms\": 60000}"); });
@@ -240,29 +240,29 @@ public class HarborTests
 
     static Manifest NewManifest() => new()
     {
-        RunId = "r", Batch = "e", Variant = "cc-haiku", Task = "fix-null-deref", Sample = 1, Host = "h", Versions = [], ExamHash = "s", ProgramHash = "p",
+        Id = "r", Batch = "e", Variant = "cc-haiku", Task = "fix-null-deref", Attempt = 1, Host = "h", Versions = [], ExamHash = "s", ProgramHash = "p",
         Agent = new AgentRun("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
     };
 
     [Fact]
-    public void Ingest_LiftsTheTrialIntoTheCell_AndCountsByProctorsDefinitions()
+    public void Ingest_LiftsTheTrialIntoTheAttempt_AndCountsByProctorsDefinitions()
     {
         using var repo = new TestRepo();
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
-        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         var manifest = NewManifest();
 
-        Assert.Null(Ingest.Trial(trial, cell, CcVariant, manifest, CcVariant.AgentVersion!));
+        Assert.Null(Ingest.Trial(trial, attempt, CcVariant, manifest, CcVariant.AgentVersion!));
         Assert.Equal(["agent", "core.json", "diff.patch", "reward.json", "trajectory.json", "verifier"],
-            Directory.GetFileSystemEntries(cell).Select(Path.GetFileName).Order(StringComparer.Ordinal));
-        Assert.True(File.Exists(Path.Combine(cell, "agent", "claude-code.txt")));
-        Assert.True(File.Exists(Path.Combine(cell, "verifier", "builds.out")));
+            Directory.GetFileSystemEntries(attempt).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.True(File.Exists(Path.Combine(attempt, "agent", "claude-code.txt")));
+        Assert.True(File.Exists(Path.Combine(attempt, "verifier", "builds.out")));
         Assert.Equal("2.1.301", manifest.Agent!.Version);
         Assert.Equal(1200, manifest.Agent.InputTokens);
         Assert.Equal(0.004, manifest.Agent.CostUsd);
         Assert.Equal(Path.Combine("..", "trial"), manifest.Agent.Trial);
 
-        var core = ReadJson(Path.Combine(cell, "core.json"));
+        var core = ReadJson(Path.Combine(attempt, "core.json"));
         Assert.Equal("ok", core["exit_reason"]!.GetValue<string>());
         Assert.Equal(2, core["turns"]!.GetValue<int>());
         Assert.Equal(3, core["tool_calls"]!.GetValue<int>());
@@ -280,8 +280,8 @@ public class HarborTests
         using var repo = new TestRepo();
         var noTurn = new JsonObject { ["schema_version"] = "ATIF-v1.7", ["steps"] = new JsonArray(new JsonObject { ["step_id"] = 1, ["source"] = "user", ["message"] = "fix it" }) };
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"), "AgentTimeoutError", trajectory: noTurn.ToJsonString());
-        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
-        Assert.StartsWith("the agent took no turn (time_budget)", Ingest.Trial(trial, cell, CcVariant, NewManifest(), CcVariant.AgentVersion!));
+        var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
+        Assert.StartsWith("the agent took no turn (time_budget)", Ingest.Trial(trial, attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
     }
 
     [Fact]
@@ -305,27 +305,27 @@ public class HarborTests
     {
         using var repo = new TestRepo();
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"), exception);
-        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
-        Assert.Equal(failure, Ingest.Trial(trial, cell, CcVariant, NewManifest(), CcVariant.AgentVersion!));
-        if (exitReason is not null) Assert.Equal(exitReason, ReadJson(Path.Combine(cell, "core.json"))["exit_reason"]!.GetValue<string>());
+        var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
+        Assert.Equal(failure, Ingest.Trial(trial, attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
+        if (exitReason is not null) Assert.Equal(exitReason, ReadJson(Path.Combine(attempt, "core.json"))["exit_reason"]!.GetValue<string>());
     }
 
     [Fact]
     public void Ingest_IsStrict_AboutTheVersion_AndTheTools()
     {
         using var repo = new TestRepo();
-        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         Assert.Equal("agent_version_mismatch: the trial ran claude-code 2.1.302, the variant pins 2.1.301",
-            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t1"), version: "2.1.302"), cell, CcVariant, NewManifest(), CcVariant.AgentVersion!));
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t1"), version: "2.1.302"), attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
         Assert.Equal("adapter_unmapped: tool 'mcp__fs__read' has no kind for claude-code",
-            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t2"), trajectory: Trajectory("Read", "mcp__fs__read")), cell, CcVariant, NewManifest(), CcVariant.AgentVersion!));
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t2"), trajectory: Trajectory("Read", "mcp__fs__read")), attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
         Assert.Equal("adapter_unmapped: the trial has no agent/trajectory.json",
-            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t3"), trajectory: ""), cell, CcVariant, NewManifest(), CcVariant.AgentVersion!));
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t3"), trajectory: ""), attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
         var noDiff = WriteTrial(Path.Combine(repo.Root, "t5"));
         File.Delete(Path.Combine(noDiff, "artifacts", "logs", "artifacts", "diff.patch"));
-        Assert.StartsWith("the trial collected no diff", Ingest.Trial(noDiff, cell, CcVariant, NewManifest(), CcVariant.AgentVersion!));
+        Assert.StartsWith("the trial collected no diff", Ingest.Trial(noDiff, attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
         Assert.Equal("agent exited without a trajectory: NonZeroAgentExitCodeError: it went wrong",
-            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t4"), "NonZeroAgentExitCodeError", trajectory: ""), cell, CcVariant, NewManifest(), CcVariant.AgentVersion!));
+            Ingest.Trial(WriteTrial(Path.Combine(repo.Root, "t4"), "NonZeroAgentExitCodeError", trajectory: ""), attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
     }
 
     /// <summary>
@@ -353,7 +353,7 @@ public class HarborTests
         """;
 
     [Fact]
-    public void Run_AnAgentVariant_CompilesOnce_RunsHarborPerCell_AndIngests()
+    public void Run_AnAgentVariant_CompilesOnce_RunsHarborPerAttempt_AndIngests()
     {
         using var scratch = new TestRepo();
         var (repo, keyVar) = AgentRepo(FakeUv(scratch, GoodTrial));
@@ -367,9 +367,9 @@ public class HarborTests
         Assert.Equal("0.24.0", batch["harbor"]!["version"]!.GetValue<string>());
         Assert.Equal(HarborCompile.TreeHash(expDir), batch["harbor"]!["tasks_hash"]!.GetValue<string>());
 
-        var cell = Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1);
-        Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
-        var manifest = ReadJson(Path.Combine(cell, "manifest.json"));
+        var attempt = Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1);
+        Assert.Equal("completed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
+        var manifest = ReadJson(Path.Combine(attempt, "manifest.json"));
         Assert.Equal("atif", manifest["transcript"]!["format"]!.GetValue<string>());
         Assert.Equal("trajectory.json", manifest["transcript"]!["file"]!.GetValue<string>());
         Assert.Null(manifest["harness"]);
@@ -379,12 +379,12 @@ public class HarborTests
         Assert.Equal("0.24.0", manifest["agent"]!["harbor"]!.GetValue<string>());
         Assert.Equal("bypassPermissions", manifest["agent"]!["kwargs"]!["permission_mode"]!.GetValue<string>());
         Assert.Equal("0.24.0", manifest["versions"]!["harbor"]!.GetValue<string>());
-        Assert.Equal(1, ReadJson(Path.Combine(cell, "core.json"))["tool_calls"]!.GetValue<int>());
-        Assert.Equal("{\"builds\": 1, \"tests-pass\": 0}", File.ReadAllText(Path.Combine(cell, "reward.json")).Trim());
+        Assert.Equal(1, ReadJson(Path.Combine(attempt, "core.json"))["tool_calls"]!.GetValue<int>());
+        Assert.Equal("{\"builds\": 1, \"tests-pass\": 0}", File.ReadAllText(Path.Combine(attempt, "reward.json")).Trim());
 
         Assert.Equal("tool run --exclude-newer 7 days harbor@0.24.0 run --config job.json",File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
         Assert.Equal($"telemetry=off key=sk-test-{keyVar}", File.ReadAllText(Path.Combine(scratch.Root, "uv.env")).Trim());
-        var job = ReadJson(Path.Combine(cell, "harbor", "job.json"));
+        var job = ReadJson(Path.Combine(attempt, "harbor", "job.json"));
         Assert.Equal(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), job["tasks"]![0]!["path"]!.GetValue<string>());
         // The key reached Harbor's process and no file.
         Assert.DoesNotContain(Directory.GetFiles(expDir, "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains($"sk-test-{keyVar}"));
@@ -404,27 +404,27 @@ public class HarborTests
         Assert.Equal(["tests-pass", "diff-in-scope"], row.Reasons!.Keys);
     }
 
-    /// <summary>An agent cell as ingest leaves it, graded on its own: script verdicts from the verifier, the rest from the trajectory and the diff.</summary>
-    static Dictionary<string, Verdict> GradeAgentCell(Action<string> edit, Action<JsonObject>? editExam = null)
+    /// <summary>An agent attempt as ingest leaves it, graded on its own: script verdicts from the verifier, the rest from the trajectory and the diff.</summary>
+    static Dictionary<string, Verdict> GradeAgentAttempt(Action<string> edit, Action<JsonObject>? editExam = null)
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
         if (editExam is not null) repo.EditJson("harbor-unit/exam.json", editExam);
         var exam = repo.LoadExam("harbor-unit");
-        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
         File.WriteAllText(Path.Combine(trial, "verifier", "tests-pass.out"), "6 of 6 tests pass\n");
-        Assert.Null(Ingest.Trial(trial, cell, CcVariant, NewManifest(), CcVariant.AgentVersion!));
-        edit(cell);
-        var context = new CellContext(exam.Dir, cell, Path.Combine(repo.Root, "work"), "e", "cc-haiku", exam.Tasks[0], 1)
+        Assert.Null(Ingest.Trial(trial, attempt, CcVariant, NewManifest(), CcVariant.AgentVersion!));
+        edit(attempt);
+        var context = new AttemptContext(exam.Dir, attempt, Path.Combine(repo.Root, "work"), "e", "cc-haiku", exam.Tasks[0], 1)
             { Expect = exam.ExpectFor(exam.Tasks[0]), Fixture = exam.FixtureOf(exam.Tasks[0]), ScriptsInVerifier = true, Vendor = true };
-        return Grade.Cell(context, exam, Transcript.Read(cell));
+        return Grade.Attempt(context, exam, Transcript.Read(attempt));
     }
 
     [Fact]
-    public void Grade_AnAgentCell_ReadsTheVerifier_AndTheTrajectory()
+    public void Grade_AnAgentAttempt_ReadsTheVerifier_AndTheTrajectory()
     {
-        var checks = GradeAgentCell(_ => { });
+        var checks = GradeAgentAttempt(_ => { });
         Assert.Equal(new Verdict(Verdict.Pass, "dotnet build: 0 errors"), checks["builds"]);
         Assert.Equal(new Verdict(Verdict.Pass, "6 of 6 tests pass"), checks["tests-pass"]);
         Assert.Equal(new Verdict(Verdict.Pass, "touched 1, all expected"), checks["diff-in-scope"]);
@@ -433,26 +433,26 @@ public class HarborTests
     [Fact]
     public void Grade_AMissingRewardKey_IsAnError_NeverAFail()
     {
-        var checks = GradeAgentCell(cell =>
+        var checks = GradeAgentAttempt(attempt =>
         {
-            File.WriteAllText(Path.Combine(cell, "reward.json"), "{\"builds\": 1}");
-            File.WriteAllText(Path.Combine(cell, "verifier", "tests-pass.out"), "dotnet: command not found\n");
-            File.WriteAllText(Path.Combine(cell, "verifier", "tests-pass.exit"), "127\n");
+            File.WriteAllText(Path.Combine(attempt, "reward.json"), "{\"builds\": 1}");
+            File.WriteAllText(Path.Combine(attempt, "verifier", "tests-pass.out"), "dotnet: command not found\n");
+            File.WriteAllText(Path.Combine(attempt, "verifier", "tests-pass.exit"), "127\n");
         });
         Assert.Equal(new Verdict(Verdict.Error, "dotnet: command not found"), checks["tests-pass"]);
 
-        checks = GradeAgentCell(cell =>
+        checks = GradeAgentAttempt(attempt =>
         {
-            File.WriteAllText(Path.Combine(cell, "reward.json"), "{}");
-            File.WriteAllText(Path.Combine(cell, "verifier", "apply.out"), "error: patch failed: Ledger/Statement.cs:31\n");
+            File.WriteAllText(Path.Combine(attempt, "reward.json"), "{}");
+            File.WriteAllText(Path.Combine(attempt, "verifier", "apply.out"), "error: patch failed: Ledger/Statement.cs:31\n");
         });
-        Assert.Equal(new Verdict(Verdict.Error, "the run's diff did not apply in the verifier: error: patch failed: Ledger/Statement.cs:31"), checks["builds"]);
+        Assert.Equal(new Verdict(Verdict.Error, "the attempt's diff did not apply in the verifier: error: patch failed: Ledger/Statement.cs:31"), checks["builds"]);
     }
 
     [Fact]
     public void Grade_BuiltIns_ReadTheCountedCore_AndTheNudgeIsNbs()
     {
-        var checks = GradeAgentCell(_ => { }, e =>
+        var checks = GradeAgentAttempt(_ => { }, e =>
         {
             e["grading"]!["checks"]!["few-calls"] = JsonNode.Parse("{\"max_tool_calls\": 2}");
             e["grading"]!["checks"]!["exit-ok"] = JsonNode.Parse("{\"exit_reason\": \"ok\"}");
@@ -484,20 +484,20 @@ public class HarborTests
     }
 
     [Fact]
-    public void Run_HarborWithoutATrial_FailsTheCell_AndResumeRunsItAgain()
+    public void Run_HarborWithoutATrial_FailsTheAttempt_AndResumeRunsItAgain()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1"));
         using var _r = repo;
         var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
-        var cell = Layout.Cell(Layout.Batch(repo.Root, id), "cc-haiku", "fix-null-deref", 1);
-        Assert.Equal("failed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
-        Assert.Equal("Harbor exited 1 without a trial: docker: Cannot connect to the Docker daemon", ReadJson(Path.Combine(cell, "manifest.json"))["status_reason"]!.GetValue<string>());
+        var attempt = Layout.Attempt(Layout.Batch(repo.Root, id), "cc-haiku", "fix-null-deref", 1);
+        Assert.Equal("failed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
+        Assert.Equal("Harbor exited 1 without a trial: docker: Cannot connect to the Docker daemon", ReadJson(Path.Combine(attempt, "manifest.json"))["status_reason"]!.GetValue<string>());
 
         File.WriteAllText(Path.Combine(scratch.Root, "exams", "fake-uv.sh"), File.ReadAllText(Path.Combine(scratch.Root, "exams", "fake-uv.sh")).Replace("echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1", GoodTrial));
         Runner.Resume(repo.Root, id, null, null, TextWriter.Null);
-        Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
-        Assert.Equal(2, ReadJson(Path.Combine(cell, "manifest.json"))["tries"]!.GetValue<int>());
+        Assert.Equal("completed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
+        Assert.Equal(2, ReadJson(Path.Combine(attempt, "manifest.json"))["tries"]!.GetValue<int>());
     }
 
     [Fact]
@@ -512,7 +512,7 @@ public class HarborTests
         Assert.Contains("have changed on disk", e.Message);
     }
 
-    /// <summary>Issue #11: an agent variant's bundle is the host's, as on the bare path: hashed, recorded per cell, handed to variant hooks, guarded on resume; never in the task.</summary>
+    /// <summary>Issue #11: an agent variant's bundle is the host's, as on the bare path: hashed, recorded per attempt, handed to variant hooks, guarded on resume; never in the task.</summary>
     [Fact]
     public void Run_AnAgentVariantsBundle_IsRecorded_HandedToVariantHooks_KeptOutOfTheTask_AndGuardsResume()
     {
@@ -532,7 +532,7 @@ public class HarborTests
         var expDir = Layout.Batch(repo.Root, id);
         var hash = ReadJson(Path.Combine(expDir, "batch.json"))["bundles"]!["cc-haiku"]!["hash"]!.GetValue<string>();
         Assert.StartsWith("sha256:", hash);
-        var manifest = ReadJson(Path.Combine(Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1), "manifest.json"));
+        var manifest = ReadJson(Path.Combine(Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1), "manifest.json"));
         Assert.Equal(hash, manifest["bundle"]!["hash"]!.GetValue<string>());
         Assert.Equal(bundleDir, File.ReadAllText(Path.Combine(scratch.Root, "hook.bundle")).Trim());
         Assert.DoesNotContain(Directory.GetFiles(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), "*", SearchOption.AllDirectories),
@@ -555,7 +555,7 @@ public class HarborTests
         var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         var expDir = Layout.Batch(repo.Root, id);
         Assert.Equal("podman", ReadJson(Path.Combine(expDir, "batch.json"))["harbor"]!["engine"]!.GetValue<string>());
-        var job = Path.Combine(Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1), Layout.HarborDir, Layout.HarborJobFile);
+        var job = Path.Combine(Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1), Layout.HarborDir, Layout.HarborJobFile);
         Assert.Equal("podman", ReadJson(job)["environment"]!["type"]!.GetValue<string>());
 
         Engine("docker");
@@ -613,7 +613,7 @@ public class HarborTests
     }
 
     [Fact]
-    public void Job_OnModal_GivesEachSandboxTheCellsLifetime_AndAnIdleLimit_AndHarborItsModalExtra()
+    public void Job_OnModal_GivesEachSandboxTheAttemptsLifetime_AndAnIdleLimit_AndHarborItsModalExtra()
     {
         var job = HarborCompile.Job(CcVariant, "/t", "/j", new AgentRoute(PublicUrl, "sk"), engine: "modal", lifetime: TimeSpan.FromMinutes(70));
         Assert.Equal("""{"type":"modal","kwargs":{"sandbox_timeout_secs":4200,"sandbox_idle_timeout_secs":600}}""", job["environment"]!.ToJsonString());
@@ -683,9 +683,9 @@ public class HarborTests
         var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null);
         var expDir = Layout.Batch(repo.Root, id);
         Assert.Equal("modal", ReadJson(Path.Combine(expDir, "batch.json"))["harbor"]!["engine"]!.GetValue<string>());
-        var cell = Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1);
-        Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
-        var job = ReadJson(Path.Combine(cell, "harbor", "job.json"));
+        var attempt = Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1);
+        Assert.Equal("completed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
+        var job = ReadJson(Path.Combine(attempt, "harbor", "job.json"));
         Assert.Equal("modal", job["environment"]!["type"]!.GetValue<string>());
         // The exam's 900 s wall limit and the build, verifier and start overhead.
         Assert.Equal(900 + 3300, job["environment"]!["kwargs"]!["sandbox_timeout_secs"]!.GetValue<int>());
@@ -992,14 +992,14 @@ public class HarborTests
     }
 
     [Fact]
-    public void Job_NbVariant_ImportsProctorsAgent_WithTheCellsProgram_AndTheKeyByNameOnly()
+    public void Job_NbVariant_ImportsProctorsAgent_WithTheAttemptsProgram_AndTheKeyByNameOnly()
     {
         var route = new AgentRoute("http://library:8086/x/qcoder/v1", "sk-secret", "LLM_GATEWAY_KEY", new() { ["LLM_GATEWAY"] = "http://library:8086/x" });
-        var job = HarborCompile.Job(NbVariant, "/t", "/j", route, new NbCell("/cell/program.jsonl", "/exams/nb.json"));
+        var job = HarborCompile.Job(NbVariant, "/t", "/j", route, new NbAttempt("/attempt/program.jsonl", "/exams/nb.json"));
         var agent = job["agents"]![0]!.AsObject();
         Assert.Null(agent["name"]);
         Assert.Equal("nb_agent:NbAgent", agent["import_path"]!.GetValue<string>());
-        Assert.Equal("""{"program":"/cell/program.jsonl","workdir":"/app","config":"/exams/nb.json","secret":"LLM_GATEWAY_KEY"}""", agent["kwargs"]!.ToJsonString());
+        Assert.Equal("""{"program":"/attempt/program.jsonl","workdir":"/app","config":"/exams/nb.json","secret":"LLM_GATEWAY_KEY"}""", agent["kwargs"]!.ToJsonString());
         Assert.Equal("""{"LLM_GATEWAY":"http://library:8086/x"}""", agent["env"]!.ToJsonString());
         Assert.DoesNotContain("sk-secret", job.ToJsonString());
     }
@@ -1033,21 +1033,21 @@ public class HarborTests
     {
         using var repo = new TestRepo();
         var trial = WriteNbTrial(Path.Combine(repo.Root, "trial"), "loop-nudged");
-        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         var manifest = NewManifest() with { Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null) };
 
-        Assert.Null(Ingest.Trial(trial, cell, NbVariant, manifest, "0.9.0"));
-        Assert.True(File.Exists(Path.Combine(cell, "agent", "nb.jsonl")));
+        Assert.Null(Ingest.Trial(trial, attempt, NbVariant, manifest, "0.9.0"));
+        Assert.True(File.Exists(Path.Combine(attempt, "agent", "nb.jsonl")));
         Assert.Equal(0, manifest.NbExitCode);
-        Assert.Equal("nb", ReadJson(Path.Combine(cell, "trajectory.json"))["agent"]!["name"]!.GetValue<string>());
-        var core = ReadJson(Path.Combine(cell, "core.json"));
+        Assert.Equal("nb", ReadJson(Path.Combine(attempt, "trajectory.json"))["agent"]!["name"]!.GetValue<string>());
+        var core = ReadJson(Path.Combine(attempt, "core.json"));
         Assert.Equal("max_tool_calls", core["exit_reason"]!.GetValue<string>());   // nb's own ending
         Assert.Equal(4, core["tool_calls"]!.GetValue<int>());
         Assert.Equal(4, core["kinds"]!["shell"]!.GetValue<int>());
         Assert.Equal(50, core["input_tokens"]!.GetValue<long>());   // nb's own final_metrics
         Assert.Equal(1500, core["duration_ms"]!.GetValue<long>());
 
-        var t = Transcript.Read(cell);
+        var t = Transcript.Read(attempt);
         Assert.True(t.LoopNudged);
         Assert.Equal("Mock", t.Trailer!.Provider);
     }
@@ -1056,9 +1056,9 @@ public class HarborTests
     public void Ingest_NbTrial_FailsAsTheBarePathDoes()
     {
         using var repo = new TestRepo();
-        var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
+        var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         AgentRun nbRun = new("nb", null, "mock", [], [], "0.24.0", null);
-        string? Ingested(string trial) => Ingest.Trial(trial, cell, NbVariant, NewManifest() with { Agent = nbRun }, "0.9.0");
+        string? Ingested(string trial) => Ingest.Trial(trial, attempt, NbVariant, NewManifest() with { Agent = nbRun }, "0.9.0");
 
         Assert.Equal("agent_version_mismatch: the image ran nb 0.8.1, the host nb that compiled the program is 0.9.0",
             Ingested(WriteNbTrial(Path.Combine(repo.Root, "t1"), "plain", version: "0.8.1")));
@@ -1068,6 +1068,6 @@ public class HarborTests
 
         // Out of time is a completed run, with nothing written: nb writes both files when the run ends.
         Assert.Null(Ingested(WriteNbTrial(Path.Combine(repo.Root, "t4"), "", exception: "AgentTimeoutError", exit: "")));
-        Assert.Equal("time_budget", ReadJson(Path.Combine(cell, "core.json"))["exit_reason"]!.GetValue<string>());
+        Assert.Equal("time_budget", ReadJson(Path.Combine(attempt, "core.json"))["exit_reason"]!.GetValue<string>());
     }
 }

@@ -13,7 +13,7 @@
       "harness": "nb",
       "provider": "local-qcoder",
       "model": "qwen3-coder-next",
-      "samples": 3,
+      "attempts": 3,
       "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "1e71808b804a63a3469f3ca91ff3efaf9b95a1d0" }
     },
     {
@@ -23,7 +23,7 @@
       "harness": "nb",
       "provider": "local-qcoder",
       "model": "qwen3-coder-next",
-      "samples": 3,
+      "attempts": 3,
       "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "1e71808b804a63a3469f3ca91ff3efaf9b95a1d0" }
     }
   ],
@@ -38,9 +38,9 @@
     "variant": {
       "setup": "hooks/variant-setup.sh"
     },
-    "sample": {
-      "setup": "hooks/sample-setup.sh",
-      "teardown": "hooks/sample-teardown.sh"
+    "attempt": {
+      "setup": "hooks/attempt-setup.sh",
+      "teardown": "hooks/attempt-teardown.sh"
     }
   },
   "grading": {
@@ -104,7 +104,7 @@
         "judge": {
           "ask": "The diff adds a proctor exam; its task files carry a `prompt`, the task an agent under test will be given. Does every such prompt state the task without stating what a correct run's result is, leaving the expected answer or the solution's code to the exam's checks and expectations? Answer no if a prompt contains the expected number, or the code or edit that solves the task.",
           "window": "diff",
-          "samples": 3,
+          "votes": 3,
           "with": "glm"
         },
         "description": "the task prompt the written exam gives its agent does not give away the answer"

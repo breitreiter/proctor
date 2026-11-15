@@ -20,11 +20,11 @@ static class Verbs
             if (exam is null) { exit = 1; continue; }
             var labels = exam.AllLabels();
             if (labelFilters?.All(f => Labels.Matches(labels, f)) == false) continue;
-            Console.WriteLine($"{exam.Id}  ({exam.PlannedCells} cells: {exam.Variants.Count} variant{(exam.Variants.Count == 1 ? "" : "s")} x {exam.Tasks.Count} task{(exam.Tasks.Count == 1 ? "" : "s")}{(exam.Judged ? ", judged" : "")})");
+            Console.WriteLine($"{exam.Id}  ({exam.PlannedAttempts} attempts: {exam.Variants.Count} variant{(exam.Variants.Count == 1 ? "" : "s")} x {exam.Tasks.Count} task{(exam.Tasks.Count == 1 ? "" : "s")}{(exam.Judged ? ", judged" : "")})");
             if (labels.Count > 0) Console.WriteLine($"  labels: {Labels.Format(labels)}");
             foreach (var variant in exam.Variants)
                 foreach (var c in exam.Tasks)
-                    for (var s = 1; s <= variant.SamplesOrOne; s++)
+                    for (var s = 1; s <= variant.AttemptsOrOne; s++)
                         Console.WriteLine($"  {variant.Id}/{c.Id}/{s}");
         }
         foreach (var p in problems) Console.Error.WriteLine(p);
@@ -63,8 +63,8 @@ static class Verbs
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
         var undecided = grades.Count(g => g.Checks is not null && g.Invalid is null && g.Pass is null);
-        var untouched = Runner.Cells(exam).Count() - grades.Count;
-        Console.WriteLine($"graded {graded} of {grades.Count} cells; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided > 0 ? $", {undecided} undecided" : "")}{(untouched > 0 ? $"; {untouched} outside --variant/--tasks left as they were" : "")}");
+        var untouched = Runner.Attempts(exam).Count() - grades.Count;
+        Console.WriteLine($"graded {graded} of {grades.Count} attempts; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided > 0 ? $", {undecided} undecided" : "")}{(untouched > 0 ? $"; {untouched} outside --variant/--tasks left as they were" : "")}");
         foreach (var (judge, reasons) in judges?.Errors ?? [])
         {
             var top = reasons.GroupBy(r => r).OrderByDescending(g => g.Count()).First();
@@ -73,12 +73,12 @@ static class Verbs
         return 0;
     }
 
-    /// <summary>The friction rules over every completed cell that has a trajectory, into friction.json beside it. No model and no key.</summary>
+    /// <summary>The friction rules over every completed attempt that has a trajectory, into friction.json beside it. No model and no key.</summary>
     /// <param name="reader">A chat judge of the machine's config to read each run as well; a hosted model, so it costs what the model costs.</param>
     public static int Friction(string root, string batchId, List<string>? variantIds = null, List<string>? taskIds = null, string? reader = null, bool again = false, string? configFile = null)
     {
         var (batch, exam) = LoadBatch(root, batchId);
-        var ran = Proctor.Friction.Cells(batch).ToList();
+        var ran = Proctor.Friction.Attempts(batch).ToList();
         foreach (var a in variantIds ?? [])
             if (ran.All(c => c.Variant != a)) throw new ProctorException($"no variant '{a}' in batch {batch.Id} ({string.Join(", ", ran.Select(c => c.Variant).Distinct())})");
         foreach (var t in taskIds ?? [])
@@ -95,10 +95,10 @@ static class Verbs
         }
         else if (again) throw new ProctorException("--rejudge goes with --reader");
         if (exam.Def.Surface is null) Console.WriteLine($"  note: exam '{exam.Id}' declares no surface; only help, environment and tool-error points can be found");
-        var cells = Proctor.Friction.Batch(root, batch, exam, Console.Out, variantIds, taskIds, judges, reader);
-        var read = cells.Where(c => c.Points is not null).ToList();
-        var skipped = cells.Where(c => c.Skipped is not null).GroupBy(c => c.Skipped!).Select(g => $"{g.Count()} {g.Key}").ToList();
-        Console.WriteLine($"friction: {read.Count} of {cells.Count} cells read, {read.Sum(c => c.Points)} points{(skipped.Count > 0 ? $"; skipped {string.Join(", ", skipped)}" : "")}");
+        var attempts = Proctor.Friction.Batch(root, batch, exam, Console.Out, variantIds, taskIds, judges, reader);
+        var read = attempts.Where(c => c.Points is not null).ToList();
+        var skipped = attempts.Where(c => c.Skipped is not null).GroupBy(c => c.Skipped!).Select(g => $"{g.Count()} {g.Key}").ToList();
+        Console.WriteLine($"friction: {read.Count} of {attempts.Count} attempts read, {read.Sum(c => c.Points)} points{(skipped.Count > 0 ? $"; skipped {string.Join(", ", skipped)}" : "")}");
         if (reader is not null)
         {
             var readings = read.Select(c => c.Reading!).ToList();
@@ -106,7 +106,7 @@ static class Verbs
             Console.WriteLine($"reader {reader}: {asked.Count(r => r.Problem is null)} asked, {readings.Count(r => !r.Asked)} reused, {readings.Count(r => r.Problem is not null)} without an answer; "
                 + $"{readings.Sum(r => r.Kept)} of {readings.Sum(r => r.Labelled)} labelled calls kept; {asked.Sum(r => r.InputTokens ?? 0):N0} tokens in, {asked.Sum(r => r.OutputTokens ?? 0):N0} out");
             foreach (var c in read.Where(c => c.Reading!.Dropped.Count > 0))
-                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Variant}/{c.Task}/{c.Sample} {drop}");
+                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Variant}/{c.Task}/{c.Attempt} {drop}");
         }
         return 0;
     }
@@ -133,7 +133,7 @@ static class Verbs
         : live ? throw new ProctorException("--live goes with --check")
         : SetupWizard.RunAsync(root).GetAwaiter().GetResult();
 
-    /// <summary>Pin a variant's analysed cells as the exam's baseline, per task; tasks the variant did not analyse keep their old pin.</summary>
+    /// <summary>Pin a variant's analysed attempts as the exam's baseline, per task; tasks the variant did not analyse keep their old pin.</summary>
     public static int Baseline(string root, string batchId, List<string>? variantIds, List<string>? taskIds)
     {
         var (batch, exam) = LoadBatch(root, batchId);
@@ -152,12 +152,12 @@ static class Verbs
         {
             if (Proctor.Baseline.PinOf(batch, exam, rows, variant.Id!, c) is not { } pin)
             {
-                Console.WriteLine($"  {c.Id}  {(pins.ContainsKey(c.Id!) ? $"kept: {pins[c.Id!].Experiment}/{pins[c.Id!].Arm}" : "not pinned")}: variant {variant.Id} analysed no sample of it");
+                Console.WriteLine($"  {c.Id}  {(pins.ContainsKey(c.Id!) ? $"kept: {pins[c.Id!].Experiment}/{pins[c.Id!].Arm}" : "not pinned")}: variant {variant.Id} analysed no attempt of it");
                 continue;
             }
             pins[c.Id!] = pin;
             pinned++;
-            Console.WriteLine($"  {c.Id}  pinned {batch.Id}/{variant.Id} samples {string.Join(",", pin.Samples)}  score {pin.Score:0.###}");
+            Console.WriteLine($"  {c.Id}  pinned {batch.Id}/{variant.Id} attempts {string.Join(",", pin.Samples)}  score {pin.Score:0.###}");
         }
         var baseline = new Baseline(DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), Environment.CommandLine, batch.ExamHash, pins);
         baseline.Save(exam);
@@ -188,14 +188,14 @@ static class Verbs
         File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Proctor.Report.Markdown(stats, rows, batch, judges));
 
         Console.WriteLine($"{Path.GetRelativePath(root, outDir)}/: {Layout.ResultsFile} ({rows.Count} rows), {Layout.StatsFile}, {Layout.ReportHtmlFile}, {Layout.SummaryFile}");
-        var ungraded = rows.Where(r => r.Status == CellStatus.Completed && r.Checks is null).ToList();
+        var ungraded = rows.Where(r => r.Status == AttemptStatus.Completed && r.Checks is null).ToList();
         if (ungraded.Count > 0)
-            Console.WriteLine($"note: {ungraded.Count} completed cell{(ungraded.Count == 1 ? " has" : "s have")} no checks.json ({string.Join(", ", ungraded.GroupBy(r => r.Variant).Select(g => $"variant {g.Key}: {g.Count()}"))}); run `proctor grade {batchId}` first for them to count");
+            Console.WriteLine($"note: {ungraded.Count} completed attempt{(ungraded.Count == 1 ? " has" : "s have")} no checks.json ({string.Join(", ", ungraded.GroupBy(r => r.Variant).Select(g => $"variant {g.Key}: {g.Count()}"))}); run `proctor grade {batchId}` first for them to count");
         if (stats.Baseline is { } bl)
         {
             var vs = bl.Against ?? "baseline";
             foreach (var gap in bl.Gaps ?? [])
-                Console.WriteLine($"warning: the {(bl.Against is null ? "baseline's pinned " : "")}cells in {gap.Experiment} were never graded on the pass check '{gap.Check}'; {gap.Tasks.Count} task{(gap.Tasks.Count == 1 ? "" : "s")} use the score as pinned ({string.Join(", ", gap.Tasks)})");
+                Console.WriteLine($"warning: the {(bl.Against is null ? "baseline's pinned " : "")}attempts in {gap.Experiment} were never graded on the pass check '{gap.Check}'; {gap.Tasks.Count} task{(gap.Tasks.Count == 1 ? "" : "s")} use the score as pinned ({string.Join(", ", gap.Tasks)})");
             foreach (var (variant, g) in bl.Variants) Console.WriteLine($"  {variant} vs {vs}: {(g.DiffPoints >= 0 ? "+" : "")}{g.DiffPoints} pts [{g.Ci95[0]}, {g.Ci95[1]}], {g.Verdict}");
             foreach (var variant in bl.Unpaired ?? []) Console.WriteLine($"  {variant} vs {vs}: no variant '{variant}' there");
             if (failOn == "regression" && bl.Variants.Values.Any(g => g.Verdict == "regressed")) return 1;
@@ -206,7 +206,7 @@ static class Verbs
 
     /// <summary>
     /// report --against: each variant against the variant of the same id in another batch, of this exam or another.
-    /// Its pins are its decided cells as its own exam scored them, then rescored under this exam like a baseline.
+    /// Its pins are its decided attempts as its own exam scored them, then rescored under this exam like a baseline.
     /// </summary>
     static GuardInput Against(string root, Exam exam, string otherId, int tolerancePoints)
     {
@@ -220,7 +220,7 @@ static class Verbs
             var pins = otherExam.Tasks.Where(c => exam.Tasks.Any(x => x.Id == c.Id))
                 .Select(c => (c.Id!, Pin: Proctor.Baseline.PinOf(other, otherExam, rows, variant.Id!, c)))
                 .Where(x => x.Pin is not null).ToDictionary(x => x.Item1, x => x.Pin!);
-            if (pins.Count == 0) continue;     // its exam may have the variant now, but the batch decided none of its cells
+            if (pins.Count == 0) continue;     // its exam may have the variant now, but the batch decided none of its attempts
             var (scores, variantSource, variantGaps) = new Baseline(other.Created, "", other.ExamHash, pins).Resolve(root, exam);
             perVariant[variant.Id!] = scores;
             sources.Add(variantSource);

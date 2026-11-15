@@ -22,8 +22,8 @@ public class FrictionReaderTests : IDisposable
         public void Dispose() { }
     }
 
-    readonly string cell = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "proctor-tests", $"cell-{Guid.NewGuid():N}")).FullName;
-    public void Dispose() => Directory.Delete(cell, recursive: true);
+    readonly string attempt = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "proctor-tests", $"attempt-{Guid.NewGuid():N}")).FullName;
+    public void Dispose() => Directory.Delete(attempt, recursive: true);
 
     static JudgeClient Client(ScriptedChat chat, bool again = false) => new()
     {
@@ -41,7 +41,7 @@ public class FrictionReaderTests : IDisposable
     (JsonObject File, FrictionReader.Reading Reading) Read(ScriptedChat chat, bool again = false)
     {
         var (file, steps) = Friction.Detect(Run, Surface.None, new JsonObject { ["task"] = "t" });
-        return (file, FrictionReader.Read(cell, Run, file, steps, "a parser", Client(chat, again), "haiku"));
+        return (file, FrictionReader.Read(attempt, Run, file, steps, "a parser", Client(chat, again), "haiku"));
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class FrictionReaderTests : IDisposable
     }
 
     [Fact]
-    public void AReading_IsKeptInTheCell_AndNotAskedTwice()
+    public void AReading_IsKeptInTheAttempt_AndNotAskedTwice()
     {
         var chat = new ScriptedChat("""{"s3.1": {"label": "repair", "quote": "1 passed", "why": "fix"}}""");
 
@@ -109,7 +109,7 @@ public class FrictionReaderTests : IDisposable
         Assert.Equal(1, second.Kept);
         Assert.True(third.Asked);
         Assert.Equal(2, chat.Calls);
-        var kept = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(cell, "friction-reading.haiku.*.json").Single()))!;
+        var kept = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(attempt, "friction-reading.haiku.*.json").Single()))!;
         Assert.Equal(chat.Sent, kept["request"]!.GetValue<string>());
         Assert.Equal(900, kept["usage"]!["input_tokens"]!.GetValue<long>());
     }
@@ -122,7 +122,7 @@ public class FrictionReaderTests : IDisposable
         Assert.StartsWith("no answer: connection refused", reading.Problem);
         Assert.Empty(file["points"]!.AsArray());
         Assert.Null(file["reader"]);
-        Assert.Empty(Directory.GetFiles(cell));
+        Assert.Empty(Directory.GetFiles(attempt));
     }
 
     [Fact]

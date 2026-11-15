@@ -6,17 +6,17 @@ namespace Proctor.Tests;
 public class GradeTests
 {
     [Fact]
-    public void Grade_WritesChecksJsonPerCompletedCell_AndComputesPass()
+    public void Grade_WritesChecksJsonPerCompletedAttempt_AndComputesPass()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         var expDir = Layout.Batch(repo.Root, id);
-        File.WriteAllText(Path.Combine(Layout.Cell(expDir, "a", "uses-bash", 1), "status"), "failed\n");
+        File.WriteAllText(Path.Combine(Layout.Attempt(expDir, "a", "uses-bash", 1), "status"), "failed\n");
 
         var grades = Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);
 
@@ -38,28 +38,28 @@ public class GradeTests
         var failed = grades.Single(g => g.Task == "uses-bash");
         Assert.Null(failed.Checks);
         Assert.Null(failed.Pass);
-        Assert.False(File.Exists(Path.Combine(Layout.Cell(expDir, "a", "uses-bash", 1), "checks.json")));
+        Assert.False(File.Exists(Path.Combine(Layout.Attempt(expDir, "a", "uses-bash", 1), "checks.json")));
 
         // checks.json is the map the plan shows, re-readable.
-        var written = Grade.ReadChecks(Layout.Cell(expDir, "a", "plain", 1))!;
+        var written = Grade.ReadChecks(Layout.Attempt(expDir, "a", "plain", 1))!;
         Assert.Equal(exam.Grading.Checks!.Keys.Order(), written.Keys.Order());
-        var raw = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.Cell(expDir, "a", "plain", 1), "checks.json")))!;
+        var raw = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.Attempt(expDir, "a", "plain", 1), "checks.json")))!;
         Assert.Equal("exit_reason=ok", raw["exit_ok"]!["reason"]!.GetValue<string>());
         Assert.Equal("pass", raw["exit_ok"]!["result"]!.GetValue<string>());
     }
 
     [Fact]
-    public void Grade_LimitedToVariantsAndTasks_LeavesTheOtherCellsAsTheyWere()
+    public void Grade_LimitedToVariantsAndTasks_LeavesTheOtherAttemptsAsTheyWere()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { foreach (var variant in e["variants"]!.AsArray()) variant!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { foreach (var variant in e["variants"]!.AsArray()) variant!["attempts"] = 1; });
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         var expDir = Layout.Batch(repo.Root, id);
         var batch = Runner.LoadBatch(repo.Root, id);
-        bool Graded(string variant, string task) => File.Exists(Path.Combine(Layout.Cell(expDir, variant, task, 1), "checks.json"));
+        bool Graded(string variant, string task) => File.Exists(Path.Combine(Layout.Attempt(expDir, variant, task, 1), "checks.json"));
 
         var onlyA = Grade.Batch(repo.Root, batch, exam, TextWriter.Null, variants: ["a"]);
         Assert.All(onlyA, g => Assert.Equal("a", g.Variant));
@@ -67,7 +67,7 @@ public class GradeTests
         Assert.False(Graded("b", "plain"));
 
         // a later pass over b's plain task leaves a's checks.json untouched
-        var aPlain = Path.Combine(Layout.Cell(expDir, "a", "plain", 1), "checks.json");
+        var aPlain = Path.Combine(Layout.Attempt(expDir, "a", "plain", 1), "checks.json");
         File.WriteAllText(aPlain, "{}");
         var bPlain = Grade.Batch(repo.Root, batch, exam, TextWriter.Null, variants: ["b"], tasks: ["plain"]);
         Assert.Equal(("b", "plain"), (Assert.Single(bPlain).Variant, bPlain[0].Task));

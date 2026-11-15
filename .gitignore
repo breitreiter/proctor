@@ -21,7 +21,7 @@ exams/nb.*.json
 !exams/*.example.json
 exams/codex.toml
 
-# Fixture checkouts made by sample setup hooks
+# Fixture checkouts made by attempt setup hooks
 .proctor/
 
 # Reports are derived data written by `proctor report`; the smoke eval's are not worth committing
@@ -30,7 +30,7 @@ exams/codex.toml
 # Snapshot tests: the received rendering awaiting review (see Proctor.Tests/ReportTests.cs)
 *.received
 
-# bench experiments, raw tier
+# the bench's runs, raw tier
 bench/systemone/root/runs/
 
 # Python

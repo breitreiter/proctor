@@ -21,7 +21,7 @@ asks_model=$(jq -c '[.grading.checks // {} | to_entries[] | select(.value | type
 in_headline=$(jq -r --argjson m "$asks_model" '[(.grading.pass // []) + (.grading.validity // []) | .[] | select(. as $n | $m | index($n))] | first // empty' "$e")
 [ -z "$in_headline" ] || fail "'$in_headline' asks a model and is named in pass or validity, so no run can be decided without one"
 variants=$(for f in "/trial/$TRIAL_TASK"/*.sh; do
-         jq -n --arg id "$(basename "$f" .sh)" '{id: $id, runner: "nb", harness: "nb", provider: "Mock", model: "mock", samples: 1}'
+         jq -n --arg id "$(basename "$f" .sh)" '{id: $id, runner: "nb", harness: "nb", provider: "Mock", model: "mock", attempts: 1}'
        done | jq -s .)
 jq --argjson variants "$variants" --argjson m "$asks_model" \
    '.variants = $variants | del(.hooks, .nb) | .grading.checks |= with_entries(select(.key as $k | $m | index($k) | not))' "$e" >"$e.trial"

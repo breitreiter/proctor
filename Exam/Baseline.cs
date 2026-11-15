@@ -26,8 +26,8 @@ record Baseline(string Set, string Command, string SuiteHash, Dictionary<string,
     /// <summary>An arm's pin for one task: its decided cells in the experiment, scored as that experiment's suite decided them; null when it decided none.</summary>
     public static BaselinePin? PinOf(Batch experiment, Exam suite, List<ResultRow> rows, string arm, TaskDef task)
     {
-        var decided = rows.Where(r => r.Variant == arm && r.Task == task.Id && r.Decided).OrderBy(r => r.Sample).ToList();
-        return decided.Count == 0 ? null : new BaselinePin(experiment.Id, arm, decided.Select(r => r.Sample).ToList(),
+        var decided = rows.Where(r => r.Variant == arm && r.Task == task.Id && r.Decided).OrderBy(r => r.Attempt).ToList();
+        return decided.Count == 0 ? null : new BaselinePin(experiment.Id, arm, decided.Select(r => r.Attempt).ToList(),
             experiment.BundleOf(arm)?.Hash, suite.FixtureOf(task)?.Hash, Math.Round(decided.Average(r => r.Pass == true ? 1.0 : 0.0), 3));
     }
 
@@ -43,7 +43,7 @@ record Baseline(string Set, string Command, string SuiteHash, Dictionary<string,
         int recomputed = 0, pinned = 0;
         foreach (var (taskId, pin) in Tasks)
         {
-            var cells = pin.Samples.Select(s => Layout.Cell(Layout.Batch(root, pin.Experiment), pin.Arm, taskId, s)).ToList();
+            var cells = pin.Samples.Select(s => Layout.Attempt(Layout.Batch(root, pin.Experiment), pin.Arm, taskId, s)).ToList();
             var verdicts = cells.Select(Grade.ReadChecks).ToList();
             if (verdicts.All(v => v is not null))
             {

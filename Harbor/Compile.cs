@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 namespace Proctor;
 
 // An exam's agent variants as Harbor tasks: one task directory per variant and task, under the batch, and one job file
-// per cell. Only the fixture's repo/ enters the image the agent runs in; its checks, the exam and the expectations go
+// per attempt. Only the fixture's repo/ enters the image the agent runs in; its checks, the exam and the expectations go
 // to tests/, which Harbor copies into the separate verifier container only.
 
 /// <summary>
@@ -20,14 +20,14 @@ record AgentRoute(string? BaseUrl, string? ApiKey, string? KeyEnv = null, Dictio
     public string? Host => BaseUrl is null ? null : new Uri(BaseUrl).Host;
 }
 
-/// <summary>An nb cell's own inputs to its job: the program compiled on the host for this cell and nb's config (host paths the agent uploads).</summary>
-record NbCell(string Program, string? Config);
+/// <summary>An nb attempt's own inputs to its job: the program compiled on the host for this attempt and nb's config (host paths the agent uploads).</summary>
+record NbAttempt(string Program, string? Config);
 
 /// <summary>
-/// An oracle cell's simulated user, all host paths: the task's answer sheet, the host nb that judges and its config, the
+/// An oracle attempt's simulated user, all host paths: the task's answer sheet, the host nb that judges and its config, the
 /// config entry that judges, how many answers the run may get, and the compiled user prompt template.
 /// </summary>
-record OracleCell(string Sheet, string Nb, string? Config, string? Judge, int Turns, string Template);
+record OracleAttempt(string Sheet, string Nb, string? Config, string? Judge, int Turns, string Template);
 
 static class HarborCompile
 {
@@ -143,14 +143,14 @@ static class HarborCompile
     public static readonly TimeSpan ModalIdle = TimeSpan.FromMinutes(10);
 
     /// <summary>
-    /// Harbor's job for one cell: one trial of one task by one agent. Every setting Harbor would otherwise default is
+    /// Harbor's job for one attempt: one trial of one task by one agent. Every setting Harbor would otherwise default is
     /// stated: the container engine, the pinned version, the permission mode, each model alias (Harbor maps them all to one model on a custom
     /// base URL; proctor says so rather than inherits it), no retries (a retry is proctor's attempt), one trial at a time.
     /// The key is not here: it goes in the environment of the one Harbor process. proctor's own agents (nb, Qwen
-    /// Code) are named by import path; nb's kwargs carry the cell's host-compiled program and nb's config. On Modal each
-    /// sandbox lives no longer than the cell may take (<paramref name="lifetime"/>) and ends after <see cref="ModalIdle"/> idle.
+    /// Code) are named by import path; nb's kwargs carry the attempt's host-compiled program and nb's config. On Modal each
+    /// sandbox lives no longer than the attempt may take (<paramref name="lifetime"/>) and ends after <see cref="ModalIdle"/> idle.
     /// </summary>
-    public static JsonObject Job(Variant variant, string taskDir, string jobsDir, AgentRoute route, NbCell? nb = null, string engine = "docker", OracleCell? oracle = null, TimeSpan? lifetime = null)
+    public static JsonObject Job(Variant variant, string taskDir, string jobsDir, AgentRoute route, NbAttempt? nb = null, string engine = "docker", OracleAttempt? oracle = null, TimeSpan? lifetime = null)
     {
         var agent = new JsonObject();
         if (OwnAgents.TryGetValue(variant.Agent!, out var own)) agent["import_path"] = own.Import;
@@ -185,10 +185,10 @@ static class HarborCompile
     }
 
     /// <summary>
-    /// An oracle cell's simulated user: OracleUser on the host, bridged to the agent over ACP, with the sheet, the judge
+    /// An oracle attempt's simulated user: OracleUser on the host, bridged to the agent over ACP, with the sheet, the judge
     /// and the budget as kwargs. Harbor hands it the task through the compiled template.
     /// </summary>
-    public static JsonObject UserAgent(OracleCell oracle)
+    public static JsonObject UserAgent(OracleAttempt oracle)
     {
         var kwargs = new JsonObject { ["sheet"] = oracle.Sheet, ["nb"] = oracle.Nb, ["turns"] = oracle.Turns };
         if (oracle.Config is not null) kwargs["config"] = oracle.Config;
@@ -216,12 +216,12 @@ static class HarborCompile
     }
 
     /// <summary>
-    /// The agent's settings as Harbor takes them; the cell manifest records the same. A vendor agent's: its pin, and
+    /// The agent's settings as Harbor takes them; the attempt manifest records the same. A vendor agent's: its pin, and
     /// Claude Code's permission mode (Codex and Qwen Code have no setting for it: Harbor runs them with approvals and
     /// sandbox bypassed, always). nb's: the program and config on the host, the work directory, and the key's
     /// variable by name.
     /// </summary>
-    public static Dictionary<string, string> AgentKwargs(Variant variant, AgentRoute route, NbCell? nb = null)
+    public static Dictionary<string, string> AgentKwargs(Variant variant, AgentRoute route, NbAttempt? nb = null)
     {
         switch (variant.Agent)
         {
@@ -349,7 +349,7 @@ static class HarborCompile
 
     /// <summary>
     /// The script check contract inside the verifier: the paths the scripts see are the container's, and what has no
-    /// meaning there (the cell, the sample, nb, a runner) is empty. There is no transcript in the verifier: a check that
+    /// meaning there (the attempt's directory and number, nb, a runner) is empty. There is no transcript in the verifier: a check that
     /// reads one cannot run there yet.
     /// </summary>
     static string VerifierEnv(Exam exam, Variant variant, TaskDef c, string batchId)
@@ -362,8 +362,8 @@ static class HarborCompile
             ["PROCTOR_BATCH"] = batchId,
             ["PROCTOR_VARIANT"] = variant.Id!,
             ["PROCTOR_TASK"] = c.Id!,
-            ["PROCTOR_SAMPLE"] = "",
-            ["PROCTOR_CELL"] = "",
+            ["PROCTOR_ATTEMPT"] = "",
+            ["PROCTOR_ATTEMPT_DIR"] = "",
             ["PROCTOR_WORK"] = Workdir,
             ["PROCTOR_WORK_MOUNT"] = Workdir,
             ["PROCTOR_BUNDLE_MOUNT"] = "",

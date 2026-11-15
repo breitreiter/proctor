@@ -5,7 +5,7 @@ namespace Proctor;
 
 // Every number the report shows is computed here, once, into stats.json. The renderers read it.
 // Methods: project/learnings/prior-art/stats.md. Every task is scored as its mean over its analysed
-// samples, so n is the task count and a rate never overstates independence between samples.
+// attempts, so n is the task count and a rate never overstates independence between attempts.
 
 [JsonConverter(typeof(IntervalConverter))]
 record Interval(double Lo, double Hi);
@@ -30,10 +30,10 @@ sealed class IntervalConverter : JsonConverter<Interval>
 
 record Summary(int N, double Median, double P90, double Mean, double Min, double Max);
 
-record Exclusion(string Cell, string Status, string Reason);
+record Exclusion(string Attempt, string Status, string Reason);
 
 record VariantStats(
-    int Planned, int Attempted, int Completed, int Graded, int Analysed, int Decided, List<Exclusion> Excluded, List<Exclusion> Undecided,
+    int Planned, int Started, int Completed, int Graded, int Analysed, int Decided, List<Exclusion> Excluded, List<Exclusion> Undecided,
     RateJson? Pass, Dictionary<string, RateJson> Checks, List<CheckFailure> Failures, Dictionary<string, int> ExitReasons,
     Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated, Dictionary<string, TaskScore> Tasks, Summary? CostUsd = null, double? CostTotalUsd = null, List<CheckFailure>? Errored = null);
 
@@ -41,13 +41,13 @@ record VariantStats(
 record TaskScore(double? Score, int Passed, int Decided);
 
 /// <summary>A check that could not decide too many of the runs it applies to, across variants: the check needs rewriting before the batch is conclusive.</summary>
-record UndecidedCheck(string Check, int Runs, int Of);
+record UndecidedCheck(string Check, int Attempts, int Of);
 
 /// <summary>A check that could not grade more than a few of the runs it applies to, with how many per variant: the check's defect, said once above the numbers.</summary>
-record ErroredCheck(string Check, int Runs, int Of, Dictionary<string, int> Variants);
+record ErroredCheck(string Check, int Attempts, int Of, Dictionary<string, int> Variants);
 
-/// <summary>Where a variant fell down: a check that did not pass in some analysed cells, most often first, with the tasks it happened in.</summary>
-record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Tasks);
+/// <summary>Where a variant fell down: a check that did not pass in some analysed attempts, most often first, with the tasks it happened in.</summary>
+record CheckFailure(string Check, int Attempts, int Of, Dictionary<string, int> Tasks);
 
 /// <summary>What the ids mean, in the exam author's words (or derived from a built-in check), so the report can carry them.</summary>
 record Descriptions(string? Exam, Dictionary<string, string> Variants, Dictionary<string, string> Tasks, Dictionary<string, string> Checks);
@@ -57,8 +57,8 @@ record TaskJson(string? Fixture, List<TaskCheck> Checks);
 
 record TaskCheck(string Name, string Level, string Description);
 
-/// <summary>What a rate looks like in stats.json: the rate and interval, with the task and cell counts behind it.</summary>
-record RateJson(double Rate, Interval Ci95, int N, int KCells, int NCells, int? Errors = null, int? NeedsJudge = null);
+/// <summary>What a rate looks like in stats.json: the rate and interval, with the task and attempt counts behind it.</summary>
+record RateJson(double Rate, Interval Ci95, int N, int KAttempts, int NAttempts, int? Errors = null, int? NeedsJudge = null);
 
 /// <summary>One variant against another, paired by task; <c>Tasks</c> is the difference on each shared task, in points.</summary>
 /// <summary><c>MdePoints</c> is set only when this pair rests on fewer tasks than the run's widest: the change it alone can confirm.</summary>
@@ -160,14 +160,14 @@ static class Stats
             baseline = baseline with { Variants = baseline.Variants.ToDictionary(g => g.Key, g => g.Value with { MdePoints = Short(g.Value.NPairs) }) };
 
         var matrix = variants.ToDictionary(a => a, a => tasks.ToDictionary(c => c,
-            c => byVariant[a].Where(r => r.Task == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
+            c => byVariant[a].Where(r => r.Task == c).OrderBy(r => r.Attempt).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
 
         // A check undecided in more than a few of the runs it applies to is a defect in the check; the report says so above the numbers.
         var undecidedChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
         {
             var counted = rows.Where(r => r.Analysed && r.Checks!.ContainsKey(name)).ToList();
             return new UndecidedCheck(name, counted.Count(r => r.Checks![name] == Verdict.NeedsJudge), counted.Count);
-        }).Where(u => u.Runs > 5 || (u.Of > 0 && u.Runs > 0.05 * u.Of)).ToList();
+        }).Where(u => u.Attempts > 5 || (u.Of > 0 && u.Attempts > 0.05 * u.Of)).ToList();
 
         // Likewise a check that could not grade them: one warning with the count per variant, not a line under every variant's failures.
         var erroredChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
@@ -175,13 +175,13 @@ static class Stats
             var counted = rows.Where(r => r.Analysed && r.Checks!.ContainsKey(name)).ToList();
             var errors = counted.Where(r => r.Checks![name] == Verdict.Error).ToList();
             return new ErroredCheck(name, errors.Count, counted.Count, variants.Where(a => errors.Any(r => r.Variant == a)).ToDictionary(a => a, a => errors.Count(r => r.Variant == a)));
-        }).Where(u => u.Runs > 1 && (u.Runs > 5 || u.Runs > 0.05 * u.Of)).ToList();   // one error is a blip, listed under its variant
+        }).Where(u => u.Attempts > 1 && (u.Attempts > 5 || u.Attempts > 0.05 * u.Of)).ToList();   // one error is a blip, listed under its variant
 
         var vs = guard?.Against is null ? "the baseline" : "each variant's earlier run";
-        var methods = "Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. "
+        var methods = "Each task is scored as its mean over its counted, decided attempts, so n in every interval is the number of tasks. "
             + $"Per-variant rates use the Wilson 95% interval. Differences between variants, and against {vs}, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
             + $"The detectable difference assumes 80% power and a per-task paired-difference sd of {AssumedSdOfPairedDifference}. "
-            + "Durations are the run's wall time including hooks; tokens are the run's own count. "
+            + "Durations are the attempt's wall time including hooks; tokens are the attempt's own count. "
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
             + (baseline is null ? "" : $" The {(guard?.Against is null ? "baseline verdict" : "verdict against each variant's earlier run")} is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each variant and each task; a variant's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
 
@@ -200,13 +200,13 @@ static class Stats
     static VariantStats VariantStats(List<ResultRow> rows, List<string> tasks, List<string> checks, List<string> validity)
     {
         var analysed = rows.Where(r => r.Analysed).ToList();
-        var excluded = rows.Where(r => r.Status != CellStatus.Pending && !r.Analysed)
+        var excluded = rows.Where(r => r.Status != AttemptStatus.Pending && !r.Analysed)
             .Select(r => r.Invalid is not null
-                ? new Exclusion($"{r.Variant}/{r.Task}/{r.Sample}", "invalid", r.Invalid)
-                : new Exclusion($"{r.Variant}/{r.Task}/{r.Sample}", r.Status, r.StatusReason ?? "")).ToList();
+                ? new Exclusion($"{r.Variant}/{r.Task}/{r.Attempt}", "invalid", r.Invalid)
+                : new Exclusion($"{r.Variant}/{r.Task}/{r.Attempt}", r.Status, r.StatusReason ?? "")).ToList();
 
         var decided = analysed.Where(r => r.Decided).ToList();
-        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Variant}/{r.Task}/{r.Sample}", "undecided", r.Undecided!)).ToList();
+        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Variant}/{r.Task}/{r.Attempt}", "undecided", r.Undecided!)).ToList();
         var pass = TaskRate(decided, tasks, r => r.Pass == true);
         var checkRates = checks.ToDictionary(name => name, name =>
         {
@@ -227,22 +227,22 @@ static class Stats
         // Failures: over the counted runs, every non-validity check that failed, most often first, out of the runs it decided. A validity fail is an exclusion;
         // an undecided check is listed apart, and so is one that errored, out of the runs that carry it.
         List<CheckFailure> Tally(string verdict, Func<string, bool> of) => checks.Where(name => !validity.Contains(name))
-            .Select(name => (name, cells: analysed.Where(r => r.Checks!.TryGetValue(name, out var v) && v == verdict).ToList()))
-            .Where(x => x.cells.Count > 0)
-            .OrderByDescending(x => x.cells.Count).ThenBy(x => checks.IndexOf(x.name))
-            .Select(x => new CheckFailure(x.name, x.cells.Count, analysed.Count(r => r.Checks!.TryGetValue(x.name, out var v) && of(v)),
-                tasks.Where(c => x.cells.Any(r => r.Task == c)).ToDictionary(c => c, c => x.cells.Count(r => r.Task == c))))
+            .Select(name => (name, attempts: analysed.Where(r => r.Checks!.TryGetValue(name, out var v) && v == verdict).ToList()))
+            .Where(x => x.attempts.Count > 0)
+            .OrderByDescending(x => x.attempts.Count).ThenBy(x => checks.IndexOf(x.name))
+            .Select(x => new CheckFailure(x.name, x.attempts.Count, analysed.Count(r => r.Checks!.TryGetValue(x.name, out var v) && of(v)),
+                tasks.Where(c => x.attempts.Any(r => r.Task == c)).ToDictionary(c => c, c => x.attempts.Count(r => r.Task == c))))
             .ToList();
         var failures = Tally(Verdict.Fail, v => v is not (Verdict.NeedsJudge or Verdict.Error));
         var errored = Tally(Verdict.Error, _ => true);
 
-        var completed = rows.Where(r => r.Status == CellStatus.Completed).ToList();
+        var completed = rows.Where(r => r.Status == AttemptStatus.Completed).ToList();
         var exitReasons = completed.Where(r => r.ExitReason is not null).GroupBy(r => r.ExitReason!)
             .OrderByDescending(g => g.Count()).ThenBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count());
 
         return new VariantStats(
             Planned: rows.Count,
-            Attempted: rows.Count(r => r.Status != CellStatus.Pending),
+            Started: rows.Count(r => r.Status != AttemptStatus.Pending),
             Completed: completed.Count,
             Graded: rows.Count(r => r.Checks is not null),
             Analysed: analysed.Count,
@@ -266,7 +266,7 @@ static class Stats
             }));
     }
 
-    /// <summary>Per-task mean scores over the analysed samples, for the tasks that have any.</summary>
+    /// <summary>Per-task mean scores over the analysed attempts, for the tasks that have any.</summary>
     static Dictionary<string, double> TaskScores(List<ResultRow> analysed, List<string> tasks, Func<ResultRow, bool> hit) =>
         tasks.Where(c => analysed.Any(r => r.Task == c))
              .ToDictionary(c => c, c => analysed.Where(r => r.Task == c).Average(r => hit(r) ? 1.0 : 0.0));
@@ -293,8 +293,8 @@ static class Stats
     /// Newcombe 1998 method 10 for paired proportions: the Wilson limits of each variant combined
     /// square-and-add, with phi estimated from the 2x2 task table with Newcombe's continuity
     /// correction (so phi is 0 when a margin is empty and below 1 when no task is discordant).
-    /// With one sample per task the table is the literal count of tasks both passed, only the
-    /// first passed, only the second passed, neither; with several samples it is the expected
+    /// With one attempt per task the table is the literal count of tasks both passed, only the
+    /// first passed, only the second passed, neither; with several attempts it is the expected
     /// table from the per-task means, which reduces to the same thing when the scores are 0/1.
     /// </summary>
     public static (double Diff, Interval Ci) NewcombePaired(double[] a, double[] b)
@@ -352,7 +352,7 @@ static class Stats
         var rounded = casesFor10 >= 100 ? (int)Math.Round(casesFor10 / 10.0) * 10 : casesFor10;
         var sentence = nPairs == 0
             ? "No paired tasks were analysed, so no difference can be detected."
-            : $"With {nPairs} paired task{(nPairs == 1 ? "" : "s")} this batch can reliably detect a difference of about {points} points. To detect 10 points you need about {rounded} tasks.";
+            : $"With {nPairs} paired task{(nPairs == 1 ? "" : "s")} this report can reliably detect a difference of about {points} points. To detect 10 points you need about {rounded} tasks.";
         return new Mde(nPairs, points, rounded, sentence);
     }
 

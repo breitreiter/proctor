@@ -14,7 +14,7 @@ namespace Proctor;
 record NbConfig(string Path = "nb", string? Config = null);
 
 /// <summary>
-/// exam.json's nb block: the runner script that runs nb for a cell instead of the binary (see the runner contract in the
+/// exam.json's nb block: the runner script that runs nb for an attempt instead of the binary (see the runner contract in the
 /// README), relative to the exam directory like a hook, and where it shows nb the checkout and the bundle. It sits beside
 /// the hooks because it only works with the hooks that make its container; --runner overrides it for one run.
 /// </summary>
@@ -56,7 +56,7 @@ record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker
     public const string Modal = "modal";
     public static readonly string[] Engines = ["docker", "podman", Modal];
 
-    /// <summary>Whether the cells run off this machine: a remote builder cannot see a local image, and a sandbox there reaches only public hosts.</summary>
+    /// <summary>Whether the attempts run off this machine: a remote builder cannot see a local image, and a sandbox there reaches only public hosts.</summary>
     [JsonIgnore] public bool Remote => Engine == Modal;
 }
 
@@ -65,13 +65,13 @@ record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker
 /// agent it runs through Harbor in the fixture's image: a vendor agent is that agent's real CLI at a pinned version;
 /// agent nb is nb itself, the binary proctor.json's harbor.nb names, on the provider the variant names.
 /// </summary>
-record Variant(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null, string? Description = null, string? Agent = null, string? AgentVersion = null)
+record Variant(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Attempts, string? Command, BundleSource? Bundle = null, string? Description = null, string? Agent = null, string? AgentVersion = null)
 {
     public const string Nb = "nb", ClaudeCode = "claude-code", Codex = "codex", QwenCode = "qwen-code";
     /// <summary>The vendor agents, each its vendor's CLI on its vendor's models only.</summary>
     public static readonly string[] Vendors = [ClaudeCode, Codex, QwenCode];
 
-    public int SamplesOrOne => Samples ?? 1;
+    public int AttemptsOrOne => Attempts ?? 1;
     /// <summary>Run through Harbor: a vendor agent, or nb as a Harbor agent.</summary>
     public bool IsAgent => Agent is not null;
     /// <summary>A vendor's CLI, not nb.</summary>
@@ -92,7 +92,7 @@ record BundleSource(string? Path, string? Git, string? Rev)
 
 record HookPair(string? Setup, string? Teardown);
 
-record Hooks(HookPair? Run, HookPair? Variant, HookPair? Task, HookPair? Sample);
+record Hooks(HookPair? Run, HookPair? Variant, HookPair? Task, HookPair? Attempt);
 
 record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<string>? Validity);
 
@@ -183,8 +183,8 @@ record Problem(string File, string Field, string Message)
 /// <summary>One exam directory, loaded. Construct through <see cref="Load"/>.</summary>
 sealed class Exam
 {
-    /// <summary>Placeholders a program template may use; resolved per cell by the runner.</summary>
-    public static readonly string[] Placeholders = ["prompt", "task", "work", "bundle", "provider", "model", "harness", "variant", "sample"];
+    /// <summary>Placeholders a program template may use; resolved per attempt by the runner.</summary>
+    public static readonly string[] Placeholders = ["prompt", "task", "work", "bundle", "provider", "model", "harness", "variant", "attempt"];
 
     public required string Id { get; init; }
     public required string Dir { get; init; }
@@ -200,9 +200,9 @@ sealed class Exam
     /// <summary>Whether any variant runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
     public bool HasAgentVariants => Variants.Any(a => a.IsAgent);
     public Grading Grading => Def.Grading!;
-    public int PlannedCells => Variants.Sum(a => a.SamplesOrOne) * Tasks.Count;
+    public int PlannedAttempts => Variants.Sum(a => a.AttemptsOrOne) * Tasks.Count;
 
-    /// <summary>An exam is judged when any check a cell can carry asks a model (decide or judge); there is no marker to declare.</summary>
+    /// <summary>An exam is judged when any check an attempt can carry asks a model (decide or judge); there is no marker to declare.</summary>
     public bool Judged => AllChecks().Any(c => Checks.AsksAModel(c.Spec));
 
     /// <summary>A task's labels: its fixture's, the exam's laid over them, the task's own over both.</summary>
@@ -234,7 +234,7 @@ sealed class Exam
         return checks;
     }
 
-    /// <summary>Every check name any cell can carry, exam checks first, then each task's fixture's and its own, in declared order.</summary>
+    /// <summary>Every check name any attempt can carry, exam checks first, then each task's fixture's and its own, in declared order.</summary>
     public List<string> CheckNames => AllChecks().Select(c => c.Name).Distinct().ToList();
 
     /// <summary>What a check tests, in plain words, when it says one thing everywhere: the declared description, or the one derived from a built-in spec.
@@ -509,7 +509,7 @@ sealed class Exam
                     Add($"{f}.runner", $"unknown runner '{variant.Runner}'; known: nb");
                     break;
             }
-            if (variant.Samples is < 1) Add($"{f}.samples", "must be at least 1");
+            if (variant.Attempts is < 1) Add($"{f}.attempts", "must be at least 1");
             if (variant.Description is not null && string.IsNullOrWhiteSpace(variant.Description)) Add($"{f}.description", "a description is a sentence, not an empty string");
             switch (variant.Bundle)
             {
@@ -525,9 +525,9 @@ sealed class Exam
         ValidateOracle(def, Add, tasks, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), field, message)),
             (f, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(f.Dir, Layout.FixtureFile)), field, message)));
 
-        if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use variant or sample");
-        if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use variant or sample");
-        foreach (var (level, pair) in new[] { ("variant", def.Hooks?.Variant), ("sample", def.Hooks?.Sample) })
+        if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use variant or attempt");
+        if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use variant or attempt");
+        foreach (var (level, pair) in new[] { ("variant", def.Hooks?.Variant), ("attempt", def.Hooks?.Attempt) })
         {
             if (pair is null) continue;
             foreach (var (kind, script) in new[] { ("setup", pair.Setup), ("teardown", pair.Teardown) })
@@ -586,13 +586,13 @@ sealed class Exam
         foreach (var name in def.Grading.Pass ?? [])
             if (name is null) Add("grading.pass", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.pass", why);
-            else if (NbOnlyBesideVendor(name)) Add("grading.pass", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's runs do not carry, so they could never pass; make it a guardrail");
+            else if (NbOnlyBesideVendor(name)) Add("grading.pass", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's attempts do not carry, so they could never pass; make it a guardrail");
         foreach (var name in def.Grading.Validity ?? [])
         {
             if (name is null) Add("grading.validity", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.validity", why);
-            else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the sample counts, not both");
-            else if (NbOnlyBesideVendor(name)) Add("grading.validity", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's runs do not carry; make it a guardrail");
+            else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the attempt counts, not both");
+            else if (NbOnlyBesideVendor(name)) Add("grading.validity", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's attempts do not carry; make it a guardrail");
         }
 
         bool NbOnlyBesideVendor(string name) =>
@@ -635,12 +635,12 @@ sealed class Exam
         if (variant.AgentVersion is not null) add($"{f}.agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
         if (string.IsNullOrWhiteSpace(variant.Provider)) add($"{f}.provider", "required for agent nb (a provider entry name in nb's config)");
         if (string.IsNullOrWhiteSpace(variant.Harness)) add($"{f}.harness", "required for agent nb: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
-        if (variant.Samples is < 1) add($"{f}.samples", "must be at least 1");
+        if (variant.Attempts is < 1) add($"{f}.attempts", "must be at least 1");
     }
 
     /// <summary>
     /// What an agent variant needs from the rest of the exam: a pinned Harbor, a wall limit (Harbor's agent timeout) and an
-    /// image on every task's fixture. A sample hook runs on the host, which an agent's container never sees; the setup it
+    /// image on every task's fixture. An attempt hook runs on the host, which an agent's container never sees; the setup it
     /// did belongs in the fixture's image.
     /// </summary>
     static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
@@ -658,8 +658,8 @@ sealed class Exam
             return;
         }
         if (def.Harbor is null) add("harbor.version", "required with an agent variant: the Harbor release it runs on, pinned (0.24.0)");
-        if (def.Limits?.WallMs is null) add("limits.wall_ms", "required with an agent variant: how long its run may take");
-        if (def.Hooks?.Sample is not null) add("hooks.sample", "not yet with an agent variant: a sample hook runs on the host, the agent in its container; move the setup into the fixture's image");
+        if (def.Limits?.WallMs is null) add("limits.wall_ms", "required with an agent variant: how long each attempt may take");
+        if (def.Hooks?.Attempt is not null) add("hooks.attempt", "not yet with an agent variant: an attempt hook runs on the host, the agent in its container; move the setup into the fixture's image");
         foreach (var c in tasks)
         {
             if (c.Fixture is null) problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), "fixture", "required with an agent variant: the agent runs in the fixture's image"));
@@ -699,7 +699,7 @@ sealed class Exam
                 add($"variants[{i}].agent", $"not yet: task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb variants only. Through Harbor's simulated user, {variant.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
     }
 
-    /// <summary>Every definition file: the exam's own, plus each named fixture's fixture.json and check scripts. Not the fixture's source tree; that is the fixture hash, recorded per cell.</summary>
+    /// <summary>Every definition file: the exam's own, plus each named fixture's fixture.json and check scripts. Not the fixture's source tree; that is the fixture hash, recorded per attempt.</summary>
     private static string HashDefinition(string root, string dir, ExamDef def, List<TaskDef> tasks, IEnumerable<Fixture> fixtures)
     {
         var files = new List<string> { Layout.ExamFileIn(dir), Path.Combine(dir, Layout.ProgramTemplateFile) };
@@ -707,7 +707,7 @@ sealed class Exam
         files.AddRange(tasks.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));
         foreach (var spec in def.Grading!.Checks!.Values.Concat(tasks.SelectMany(c => (c.Checks ?? []).Values)))
             if (spec["script"] is JsonValue v && v.TryGetValue<string>(out var script)) files.Add(Path.Combine(dir, script));
-        foreach (var pair in new[] { def.Hooks?.Variant, def.Hooks?.Sample })
+        foreach (var pair in new[] { def.Hooks?.Variant, def.Hooks?.Attempt })
             foreach (var script in new[] { pair?.Setup, pair?.Teardown })
                 if (script is not null) files.Add(Path.Combine(dir, script));
         foreach (var fixture in fixtures) files.AddRange(fixture.DefinitionFiles());

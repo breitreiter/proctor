@@ -167,32 +167,32 @@ public class FrictionTests
     }
 
     [Fact]
-    public void Friction_WritesFrictionJsonBesideEachCompletedCellsTrajectory()
+    public void Friction_WritesFrictionJsonBesideEachCompletedAttemptsTrajectory()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         var expDir = Layout.Batch(repo.Root, id);
-        File.WriteAllText(Path.Combine(Layout.Cell(expDir, "a", "loops", 1), "status"), "failed\n");
+        File.WriteAllText(Path.Combine(Layout.Attempt(expDir, "a", "loops", 1), "status"), "failed\n");
 
         // The exam's variant is renamed after the run: friction still reads what was run.
         repo.EditJson("smoke/exam.json", e => e["variants"]![0]!["id"] = "renamed");
 
-        var cells = Friction.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), repo.LoadExam("smoke"), TextWriter.Null);
+        var attempts = Friction.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), repo.LoadExam("smoke"), TextWriter.Null);
 
-        Assert.All(cells, c => Assert.Equal("a", c.Variant));
-        Assert.Equal("not completed", cells.Single(c => c.Task == "loops").Skipped);
-        Assert.False(File.Exists(Path.Combine(Layout.Cell(expDir, "a", "loops", 1), Layout.FrictionFile)));
-        var read = cells.Single(c => c.Task == "uses-bash");
+        Assert.All(attempts, c => Assert.Equal("a", c.Variant));
+        Assert.Equal("not completed", attempts.Single(c => c.Task == "loops").Skipped);
+        Assert.False(File.Exists(Path.Combine(Layout.Attempt(expDir, "a", "loops", 1), Layout.FrictionFile)));
+        var read = attempts.Single(c => c.Task == "uses-bash");
         Assert.NotNull(read.Points);
-        var file = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.Cell(expDir, "a", "uses-bash", 1), Layout.FrictionFile)))!;
+        var file = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.Attempt(expDir, "a", "uses-bash", 1), Layout.FrictionFile)))!;
         Assert.Equal(Friction.Schema, file["schema"]!.GetValue<string>());
-        Assert.Equal("uses-bash", file["run"]!["task"]!.GetValue<string>());
-        Assert.Equal("1", file["run"]!["sample"]!.GetValue<string>());
+        Assert.Equal("uses-bash", file["attempt"]!["task"]!.GetValue<string>());
+        Assert.Equal("1", file["attempt"]!["attempt"]!.GetValue<string>());
         Assert.True(file["summary"]!["calls"]!.GetValue<int>() > 0);
     }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Validity: did the agent start from the repository this task is about? The fixture's image applies plant.patch
-# to nb at the pin and commits the result as the only commit. A sample whose commit lacks the plant measured
+# to nb at the pin and commits the result as the only commit. An attempt whose commit lacks the plant measured
 # something else and does not count. A fixture with no plant.patch (not-a-bug) has nothing to check.
 set -uo pipefail
 plant="$PROCTOR_FIXTURE/plant.patch"

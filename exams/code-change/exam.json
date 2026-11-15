@@ -13,7 +13,7 @@
       "harness": "nb",
       "provider": "local-qcoder",
       "model": "qwen3-coder-next",
-      "samples": 3
+      "attempts": 3
     },
     {
       "id": "qwen",
@@ -21,7 +21,7 @@
       "agent": "qwen-code",
       "agent_version": "0.25.2",
       "model": "qwen3-coder-next",
-      "samples": 3
+      "attempts": 3
     },
     {
       "id": "cc-haiku",
@@ -29,7 +29,7 @@
       "agent": "claude-code",
       "agent_version": "2.1.301",
       "model": "claude-haiku-5-5",
-      "samples": 1
+      "attempts": 1
     },
     {
       "id": "cc-sonnet",
@@ -37,7 +37,7 @@
       "agent": "claude-code",
       "agent_version": "2.1.301",
       "model": "claude-sonnet-5-5",
-      "samples": 1
+      "attempts": 1
     },
     {
       "id": "codex",
@@ -45,7 +45,7 @@
       "agent": "codex",
       "agent_version": "0.163.0",
       "model": "gpt-5.5",
-      "samples": 1
+      "attempts": 1
     }
   ],
   "harbor": {
@@ -110,7 +110,7 @@
         "judge": {
           "ask": "Does the diff change only what the prompt asked for? Answer no if it contains unrelated edits, refactors, reformatting or new files the prompt did not call for; incidental changes the task requires (a using directive, a test for the new behaviour) are in scope.",
           "window": "prompt+diff",
-          "samples": 3,
+          "votes": 3,
           "with": "glm"
         },
         "description": "the change is the one the prompt asked for and nothing else"

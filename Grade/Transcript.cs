@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-// A cell's run read into the fixed windows the checks look at: nb's JSONL, or an agent cell's ATIF trajectory with
+// An attempt's run read into the fixed windows the checks look at: nb's JSONL, or an agent attempt's ATIF trajectory with
 // proctor's counted core. Nothing here judges anything.
 
 record Trailer(
@@ -56,23 +56,23 @@ sealed class Transcript
     public string? Diff { get; init; }
     public bool LoopNudged => UserTurns.Any(u => u.IsLoopNudge);
 
-    /// <summary>Whether a cell holds a run to read: nb's transcript, or an agent cell's trajectory.</summary>
-    public static bool Exists(string cellDir) =>
-        File.Exists(Path.Combine(cellDir, Layout.TranscriptFile)) || File.Exists(Path.Combine(cellDir, Layout.TrajectoryFile));
+    /// <summary>Whether an attempt holds a run to read: nb's transcript, or an agent attempt's trajectory.</summary>
+    public static bool Exists(string attemptDir) =>
+        File.Exists(Path.Combine(attemptDir, Layout.TranscriptFile)) || File.Exists(Path.Combine(attemptDir, Layout.TrajectoryFile));
 
-    /// <summary>Read a cell: transcript.jsonl, else an agent cell's trajectory.json and core.json; plus diff.patch when there is one.</summary>
-    public static Transcript Read(string cellDir)
+    /// <summary>Read an attempt: transcript.jsonl, else an agent attempt's trajectory.json and core.json; plus diff.patch when there is one.</summary>
+    public static Transcript Read(string attemptDir)
     {
-        var diffFile = Path.Combine(cellDir, Layout.DiffFile);
+        var diffFile = Path.Combine(attemptDir, Layout.DiffFile);
         var diff = File.Exists(diffFile) ? File.ReadAllText(diffFile) : null;
-        var trajectory = Path.Combine(cellDir, Layout.TrajectoryFile);
-        if (!File.Exists(Path.Combine(cellDir, Layout.TranscriptFile)) && File.Exists(trajectory))
+        var trajectory = Path.Combine(attemptDir, Layout.TrajectoryFile);
+        if (!File.Exists(Path.Combine(attemptDir, Layout.TranscriptFile)) && File.Exists(trajectory))
         {
-            var core = Path.Combine(cellDir, Layout.CoreFile);
+            var core = Path.Combine(attemptDir, Layout.CoreFile);
             return FromAtif(JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject(),
                 File.Exists(core) ? Runner.ReadJson<CountedCore>(core) : null, diff);
         }
-        return Parse(File.ReadAllText(Path.Combine(cellDir, Layout.TranscriptFile)), diff);
+        return Parse(File.ReadAllText(Path.Combine(attemptDir, Layout.TranscriptFile)), diff);
     }
 
     /// <summary>

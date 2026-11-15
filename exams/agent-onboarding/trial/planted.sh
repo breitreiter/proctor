@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The trial's runner, standing in for the bot: proctor hands it the program it compiled from the written exam
-# for this cell, and it answers as the planted run would, through nb's Mock provider, so the transcript is nb's
+# for this attempt, and it answers as the planted run would, through nb's Mock provider, so the transcript is nb's
 # own. It reads which prompt the program gives the bot from the markers in plants.json (versions), which
 # question the task asks from its prompt (questions, first match), and the variant's plant from the map
 # run.sh wrote; then it records what it planted and what the exam should make of it (expect: pass, fail, or
@@ -34,9 +34,9 @@ planted=$(jq -c --arg v "$plant" --arg ver "$version" --arg k "$key" '
           expect: (if $k == "*" then "none" elif ($x.expect | type) == "object" then $x.expect[$k] else $x.expect end)}
     end' "$plants")
 jq -n --argjson e "$entry" --argjson p "$planted" --arg variant "$PROCTOR_VARIANT" --arg task "$PROCTOR_TASK" \
-  --arg sample "$PROCTOR_SAMPLE" --arg key "$key" --arg version "$version" \
-  '{variant: $variant, task: $task, sample: $sample, plant: $e.plant, written_variant: $e.variant, key: $key, version: $version, expect: $p.expect}' \
-  >"$TRIAL_RECORDS/$PROCTOR_VARIANT.$PROCTOR_TASK.$PROCTOR_SAMPLE.json"
+  --arg attempt "$PROCTOR_ATTEMPT" --arg key "$key" --arg version "$version" \
+  '{variant: $variant, task: $task, attempt: $attempt, plant: $e.plant, written_variant: $e.variant, key: $key, version: $version, expect: $p.expect}' \
+  >"$TRIAL_RECORDS/$PROCTOR_VARIANT.$PROCTOR_TASK.$PROCTOR_ATTEMPT.json"
 
 config=$(mktemp)
 jq -n --arg answer "$(jq -r .answer <<<"$planted")" \

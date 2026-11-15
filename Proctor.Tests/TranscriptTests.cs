@@ -119,7 +119,7 @@ public class TranscriptTests
     }
 }
 
-/// <summary>An agent cell's ATIF trajectory, captured from Claude Code 2.1.301 on Haiku through Harbor 0.24.0 (fix-null-deref, 2026-10-16).</summary>
+/// <summary>An agent attempt's ATIF trajectory, captured from Claude Code 2.1.301 on Haiku through Harbor 0.24.0 (fix-null-deref, 2026-10-16).</summary>
 public class AtifTranscriptTests
 {
     static readonly System.Text.Json.Nodes.JsonObject Captured =

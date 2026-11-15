@@ -19,7 +19,7 @@ sealed class ConformanceFactAttribute : FactAttribute
 
 /// <summary>
 /// Harbor conformance (project/plans/harbor-conformance.md, rows 3 to 9): exams/conformance runs each vendor agent at
-/// its pin against the stub fixture's scripted model, which costs nothing, and every cell must come back as the stub
+/// its pin against the stub fixture's scripted model, which costs nothing, and every attempt must come back as the stub
 /// scripted it: ok completes with one shell call, the verifier's check and every offered tool mapped; fail is an
 /// outage; hang is a completed run that hit its time budget.
 /// </summary>
@@ -103,7 +103,7 @@ public class ConformanceTests
         Assert.True(misses.Count == 0, string.Join("\n", misses));
     }
 
-    /// <summary>Every way a cell differs from the stub's script, as "variant/task: what"; empty when conformance is green.</summary>
+    /// <summary>Every way an attempt differs from the stub's script, as "variant/task: what"; empty when conformance is green.</summary>
     internal static List<string> Misses(string root, string batchId, Exam exam)
     {
         var expDir = Layout.Batch(root, batchId);
@@ -111,22 +111,22 @@ public class ConformanceTests
         foreach (var variant in exam.Variants)
         {
             void Miss(string task, string what) => misses.Add($"{variant.Id}/{task}: {what}");
-            string Cell(string task) => Layout.Cell(expDir, variant.Id!, task, 1);
-            string Reason(string task) => Runner.ReadManifest(Path.Combine(Cell(task), Layout.ManifestFile)).StatusReason ?? "";
-            CountedCore? Core(string task) => File.Exists(Path.Combine(Cell(task), Layout.CoreFile)) ? Runner.ReadJson<CountedCore>(Path.Combine(Cell(task), Layout.CoreFile)) : null;
+            string Attempt(string task) => Layout.Attempt(expDir, variant.Id!, task, 1);
+            string Reason(string task) => Runner.ReadManifest(Path.Combine(Attempt(task), Layout.ManifestFile)).StatusReason ?? "";
+            CountedCore? Core(string task) => File.Exists(Path.Combine(Attempt(task), Layout.CoreFile)) ? Runner.ReadJson<CountedCore>(Path.Combine(Attempt(task), Layout.CoreFile)) : null;
 
-            if (Runner.ReadStatus(Cell("ok")) is var ok && ok != CellStatus.Completed) Miss("ok", $"{ok}: {Reason("ok")}");
+            if (Runner.ReadStatus(Attempt("ok")) is var ok && ok != AttemptStatus.Completed) Miss("ok", $"{ok}: {Reason("ok")}");
             else
             {
                 var core = Core("ok")!;
                 if (core.ToolCalls != 1 || core.Kinds.GetValueOrDefault("shell") != 1) Miss("ok", $"counted {core.ToolCalls} calls ({string.Join(", ", core.Kinds.Select(k => $"{k.Key}={k.Value}"))}), not one shell call");
-                var reward = JsonNode.Parse(File.ReadAllText(Path.Combine(Cell("ok"), Layout.RewardFile)))!;
+                var reward = JsonNode.Parse(File.ReadAllText(Path.Combine(Attempt("ok"), Layout.RewardFile)))!;
                 if (reward["made-file"]?.GetValue<double>() != 1) Miss("ok", $"the verifier's made-file is {reward["made-file"]?.ToJsonString() ?? "missing"}");
-                var checks = Grade.ReadChecks(Cell("ok"));
+                var checks = Grade.ReadChecks(Attempt("ok"));
                 if (checks is null) Miss("ok", "not graded");
                 else if (Grade.Pass(checks, exam.Grading.Pass!) != true)
                     Miss("ok", "does not pass: " + string.Join("; ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result} ({k.Value.Reason})")));
-                var answer = Transcript.Read(Cell("ok")).Answer ?? "";
+                var answer = Transcript.Read(Attempt("ok")).Answer ?? "";
                 if (!answer.StartsWith("tools: ")) Miss("ok", $"the answer is not the stub's tool list: '{answer}'");
                 else
                 {
@@ -135,9 +135,9 @@ public class ConformanceTests
                 }
             }
 
-            if (Runner.ReadStatus(Cell("fail")) is var fail && fail != CellStatus.Failed) Miss("fail", $"{fail}, not failed: an outage must never read as a run");
+            if (Runner.ReadStatus(Attempt("fail")) is var fail && fail != AttemptStatus.Failed) Miss("fail", $"{fail}, not failed: an outage must never read as a run");
 
-            if (Runner.ReadStatus(Cell("hang")) is var hang && hang != CellStatus.Completed) Miss("hang", $"{hang}: {Reason("hang")}");
+            if (Runner.ReadStatus(Attempt("hang")) is var hang && hang != AttemptStatus.Completed) Miss("hang", $"{hang}: {Reason("hang")}");
             else if (Core("hang")?.ExitReason is var exit && exit != "time_budget") Miss("hang", $"exit reason {exit}, not time_budget");
         }
         return misses;

@@ -109,7 +109,7 @@ static class SetupCheck
                     if (Runner.FindOnPath("uv") is null) problems.Add("sandbox is Modal, but uv is not installed; proctor runs Harbor with it");
                     if ((string?)config?["harbor"]?["engine"] is not HarborConfig.Modal)
                         problems.Add("sandbox is Modal, but exams/proctor.json harbor.engine is not modal; ask the user to rerun `proctor setup`, or pass a Modal machine file with --config (docs/modal.md)");
-                    return "Modal (experimental): agent cells run as sandboxes on the user's Modal account; their models must be public endpoints and fixtures with image.services cannot run there (docs/modal.md)";
+                    return "Modal (experimental): agent attempts run as sandboxes on the user's Modal account; their models must be public endpoints and fixtures with image.services cannot run there (docs/modal.md)";
                 }
                 if (job.Where == "hosted") return $"wanted: hosted ({job.Service ?? "not sure which"}), not supported yet";
                 var engine = (string?)config?["harbor"]?["engine"] ?? "docker";

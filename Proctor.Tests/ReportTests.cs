@@ -54,14 +54,14 @@ public class ReportTests
         AssertSnapshot("summary.md", Report.Markdown(stats, rows, exp));
     }
 
-    /// <summary>Variants with different sample counts that lost nothing are not "unequal": the warning compares the share each variant decided.</summary>
+    /// <summary>Variants with different attempt counts that lost nothing are not "unequal": the warning compares the share each variant decided.</summary>
     [Fact]
-    public void Markdown_DifferentSampleCounts_LosingNothing_WarnsNothing()
+    public void Markdown_DifferentAttemptCounts_LosingNothing_WarnsNothing()
     {
         var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows().Where(r => r.Variant == "b" || r.Sample == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
+        var rows = WorkedBatch.Rows().Where(r => r.Variant == "b" || r.Attempt == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
         var md = Report.Markdown(Stats.Compute(WorkedBatch.Batch(exam), exam, rows), rows, WorkedBatch.Batch(exam));
-        Assert.DoesNotContain("lost runs unequally", md);
+        Assert.DoesNotContain("lost attempts unequally", md);
     }
 
     /// <summary>A check that errored is the check's weakness: out of its rate, not called a failure, and listed apart under Failures.</summary>
@@ -69,16 +69,16 @@ public class ReportTests
     public void AnErroredCheck_IsOutOfItsRate_AndListedApartFromFailures()
     {
         var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows().Select(r => r is { Variant: "b", Task: "uses-bash", Sample: 1 }
+        var rows = WorkedBatch.Rows().Select(r => r is { Variant: "b", Task: "uses-bash", Attempt: 1 }
             ? r with { Checks = new(r.Checks!) { ["used-bash"] = Verdict.Error }, Reasons = new() { ["used-bash"] = "judge: line one\nline two" } }
             : r).ToList();
         var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows);
         var b = stats.Variants["b"];
-        Assert.Equal((2, 1), (b.Checks["used-bash"].NCells, b.Checks["used-bash"].Errors));
+        Assert.Equal((2, 1), (b.Checks["used-bash"].NAttempts, b.Checks["used-bash"].Errors));
         Assert.DoesNotContain(b.Failures, f => f.Check == "used-bash");
-        Assert.Equal(("used-bash", 1, 3), Assert.Single(b.Errored!) is var e ? (e.Check, e.Cells, e.Of) : default);
+        Assert.Equal(("used-bash", 1, 3), Assert.Single(b.Errored!) is var e ? (e.Check, e.Attempts, e.Of) : default);
         var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
-        Assert.Contains("could not grade 1 of 3 runs", md);
+        Assert.Contains("could not grade 1 of 3 attempts", md);
         // A reason over two lines stays in its table row.
         Assert.Contains("judge: line one<br>line two", md);
     }
@@ -88,7 +88,7 @@ public class ReportTests
     /// baseline each row carries the variant against the reference rather than the foot repeating it.
     /// </summary>
     [Fact]
-    public void AnVariantPairedOnFewerTasks_SaysItsOwnReach_OnItsRow()
+    public void AVariantPairedOnFewerTasks_SaysItsOwnReach_OnItsRow()
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows().Where(r => !(r.Variant == "b" && r.Task == "plain")).ToList();
@@ -120,7 +120,7 @@ public class ReportTests
 
     /// <summary>A variant the baseline never ran is compared with the pinned variant's scores, and the card says whose they are.</summary>
     [Fact]
-    public void Card_SaysWhoseRunsTheBaselineIs_WhenAnVariantWasNeverPinned()
+    public void Card_SaysWhoseRunsTheBaselineIs_WhenAVariantWasNeverPinned()
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows();
@@ -141,16 +141,16 @@ public class ReportTests
         var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows);
         var x = Assert.Single(stats.ErroredChecks!);
         Assert.Equal("used-bash", x.Check);
-        Assert.Equal(x.Runs, x.Variants.Values.Sum());
+        Assert.Equal(x.Attempts, x.Variants.Values.Sum());
         var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
-        Assert.Contains($"> **Warning.** The check `used-bash` (uses bash) could not grade {x.Runs} of the {x.Of} runs it applies to, on every variant", md);
+        Assert.Contains($"> **Warning.** The check `used-bash` (uses bash) could not grade {x.Attempts} of the {x.Of} attempts it applies to, on every variant", md);
         Assert.DoesNotContain("could not grade some of", md);
-        Assert.Contains("`used-bash` could not grade many runs, and is left out of the lists above", md);
+        Assert.Contains("`used-bash` could not grade many attempts, and is left out of the lists above", md);
     }
 
     /// <summary>An agent's reported cost reaches the Cost and effort table; a variant without one shows none.</summary>
     [Fact]
-    public void Markdown_ShowsCost_WhenAnVariantReportsIt()
+    public void Markdown_ShowsCost_WhenAVariantReportsIt()
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows().Select(r => r.Variant == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
@@ -183,7 +183,7 @@ public class ReportTests
         foreach (var variant in stats.Variants.Values)
         {
             var interval = $"{Math.Round(100 * variant.Pass!.Ci95.Lo):F0}% to {Math.Round(100 * variant.Pass.Ci95.Hi):F0}%";
-            var runs = $"{variant.Pass.KCells} / {variant.Pass.NCells}";
+            var runs = $"{variant.Pass.KAttempts} / {variant.Pass.NAttempts}";
             Assert.Contains(interval, html);
             Assert.Contains(interval, md);
             Assert.Contains(runs, html);
@@ -191,9 +191,9 @@ public class ReportTests
         }
         Assert.Contains(stats.Mde.Sentence, html);
         Assert.Contains(stats.Mde.Sentence, md);
-        Assert.Contains("Variants lost runs unequally", html);
-        Assert.Contains("Variants lost runs unequally", md);
-        foreach (var row in rows) Assert.Contains(row.RunId, html);
+        Assert.Contains("Variants lost attempts unequally", html);
+        Assert.Contains("Variants lost attempts unequally", md);
+        foreach (var row in rows) Assert.Contains(row.Id, html);
     }
 
     /// <summary>A headline every task declares in its own words: each task card carries the task's sentence, the check pass rates point there, and a failure names the task's criterion.</summary>

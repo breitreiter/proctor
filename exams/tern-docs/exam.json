@@ -12,7 +12,7 @@
       "agent": "claude-code",
       "agent_version": "2.1.301",
       "model": "claude-sonnet-5-5",
-      "samples": 2,
+      "attempts": 2,
       "bundle": { "path": "exams/tern-docs/bundles/as-shipped" }
     },
     {
@@ -21,7 +21,7 @@
       "agent": "claude-code",
       "agent_version": "2.1.301",
       "model": "claude-sonnet-5-5",
-      "samples": 2,
+      "attempts": 2,
       "bundle": { "path": "exams/tern-docs/bundles/restructure" }
     },
     {
@@ -30,7 +30,7 @@
       "agent": "claude-code",
       "agent_version": "2.1.301",
       "model": "claude-sonnet-5-5",
-      "samples": 2
+      "attempts": 2
     }
   ],
   "harbor": {

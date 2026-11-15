@@ -27,7 +27,7 @@ sealed record Fixture
     public required string Id { get; init; }
     public required string Dir { get; init; }
     public required FixtureDef Def { get; init; }
-    /// <summary>The identity of what a cell is run against: a content hash of the source tree, or the git revision.</summary>
+    /// <summary>The identity of what an attempt is run against: a content hash of the source tree, or the git revision.</summary>
     public required string Hash { get; init; }
 
     public FixtureSource Source => Def.Source!;

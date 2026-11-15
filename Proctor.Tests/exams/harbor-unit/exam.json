@@ -12,7 +12,7 @@
       "agent": "claude-code",
       "agent_version": "2.1.301",
       "model": "claude-haiku-5-5",
-      "samples": 1
+      "attempts": 1
     }
   ],
   "harbor": { "version": "0.24.0" },

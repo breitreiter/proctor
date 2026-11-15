@@ -9,11 +9,11 @@ public class ChecksTests
     static Transcript Fixture(string name, string? diff = null) =>
         Transcript.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name + ".jsonl")), diff);
 
-    static CellContext Cell(JsonObject? expect = null, string? examDir = null, string? cellDir = null) =>
-        new(examDir ?? "/nonexistent", cellDir ?? Path.GetTempPath(), "/work", "exp", "a", new TaskDef("c", null, "p", expect), 1);
+    static AttemptContext Attempt(JsonObject? expect = null, string? examDir = null, string? attemptDir = null) =>
+        new(examDir ?? "/nonexistent", attemptDir ?? Path.GetTempPath(), "/work", "exp", "a", new TaskDef("c", null, "p", expect), 1);
 
     static Verdict Exam(string spec, Transcript t, JsonObject? expect = null) =>
-        Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), Cell(expect), t);
+        Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), Attempt(expect), t);
 
     const string Diff = "diff --git a/src/fetch.cs b/src/fetch.cs\n--- a/src/fetch.cs\n+++ b/src/fetch.cs\n@@ -1 +1 @@\n-a\n+b\ndiff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-a\n+b\n";
 
@@ -23,9 +23,9 @@ public class ChecksTests
     [InlineData(null, 1L, "error")]
     public void MaxDurationUsesTheManifestWallTime(long? wallTime, long spec, string expected)
     {
-        var dir = Directory.CreateTempSubdirectory("proctor-cell").FullName;
+        var dir = Directory.CreateTempSubdirectory("proctor-attempt").FullName;
         if (wallTime is not null) File.WriteAllText(Path.Combine(dir, Layout.ManifestFile), $"{{\"duration_ms\": {wallTime}}}");
-        var v = Checks.Evaluate(JsonNode.Parse($"{{\"max_duration_ms\": {spec}}}")!.AsObject(), Cell(cellDir: dir), Fixture("plain"));
+        var v = Checks.Evaluate(JsonNode.Parse($"{{\"max_duration_ms\": {spec}}}")!.AsObject(), Attempt(attemptDir: dir), Fixture("plain"));
         Assert.True(expected == v.Result, $"{v.Result} ({v.Reason})");
     }
 
@@ -99,7 +99,7 @@ public class ChecksTests
     [Theory]
     [InlineData("{\"max_duration_ms\": 1800000}", "finishes within 30 min")]
     [InlineData("{\"max_duration_ms\": 1500}", "finishes within 1500 ms")]
-    [InlineData("{\"not_exit_reason\": \"ok\"}", "not: the run ends with 'ok'")]
+    [InlineData("{\"not_exit_reason\": \"ok\"}", "not: the attempt ends with 'ok'")]
     [InlineData("{\"files_touched\": \"@expect\"}", "the files changed are the ones the task expects")]
     [InlineData("{\"files_touched\": {\"paths\": [\"src/**\", \"README.md\"], \"mode\": \"at_most\"}}", "changes stay within src/**, README.md")]
     [InlineData("{\"tool_sequence\": {\"names\": [\"read\", \"bash\"], \"mode\": \"exact\"}}", "calls read, bash and nothing else")]
@@ -111,7 +111,7 @@ public class ChecksTests
         Assert.Equal(expected, Checks.Describe(JsonNode.Parse(spec)!.AsObject()));
 
     [Fact]
-    public void ResultMatches_ReadsAnAgentCellsToolResults()
+    public void ResultMatches_ReadsAnAgentAttemptsToolResults()
     {
         var trajectory = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "atif-claude-code.json")))!.AsObject();
         var t = Transcript.FromAtif(trajectory, null);
@@ -168,9 +168,9 @@ public class ChecksTests
         var t = Fixture("plain");
         var expect = JsonNode.Parse("{\"greets\": {\"answer_contains\": \"zzz\"}, \"answer_contains\": \"forty\"}")!.AsObject();
         var spec = JsonNode.Parse("{\"answer_contains\": \"@expect\"}")!.AsObject();
-        Assert.Equal("fail", Checks.Evaluate(spec, Cell(expect), t, "greets").Result);
-        Assert.Equal("pass", Checks.Evaluate(spec, Cell(expect), t, "other").Result);
-        var v = Checks.Evaluate(JsonNode.Parse("{\"tools_used\": \"@expect\"}")!.AsObject(), Cell(expect), t, "uses");
+        Assert.Equal("fail", Checks.Evaluate(spec, Attempt(expect), t, "greets").Result);
+        Assert.Equal("pass", Checks.Evaluate(spec, Attempt(expect), t, "other").Result);
+        var v = Checks.Evaluate(JsonNode.Parse("{\"tools_used\": \"@expect\"}")!.AsObject(), Attempt(expect), t, "uses");
         Assert.Equal(("error", "tools_used: task has no expect.uses.tools_used or expect.tools_used"), (v.Result, v.Reason));
     }
 
@@ -193,9 +193,9 @@ public class ChecksTests
         using var repo = new TestRepo();
         var script = repo.Write("e/checks/c.sh", "#!/usr/bin/env bash\n" + body + "\n");
         File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        var cell = Cell(examDir: Path.Combine(repo.Root, "exams", "e"), cellDir: repo.Root);
+        var attempt = Attempt(examDir: Path.Combine(repo.Root, "exams", "e"), attemptDir: repo.Root);
 
-        var v = Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/c.sh\"}")!.AsObject(), cell, Fixture("plain"));
+        var v = Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/c.sh\"}")!.AsObject(), attempt, Fixture("plain"));
         Assert.Equal(expected, v.Result);
         Assert.Contains(reasonContains, v.Reason);
     }
@@ -205,20 +205,20 @@ public class ChecksTests
     {
         using var repo = new TestRepo();
         repo.Write("e/checks/noexec.sh", "#!/usr/bin/env bash\nexit 0\n");   // not executable
-        var cell = Cell(examDir: Path.Combine(repo.Root, "exams", "e"), cellDir: repo.Root);
-        var v = Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/noexec.sh\"}")!.AsObject(), cell, Fixture("plain"));
+        var attempt = Attempt(examDir: Path.Combine(repo.Root, "exams", "e"), attemptDir: repo.Root);
+        var v = Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/noexec.sh\"}")!.AsObject(), attempt, Fixture("plain"));
         Assert.Equal("error", v.Result);
         Assert.Contains("could not run", v.Reason);
     }
 
     [Fact]
-    public void Script_SeesTheCellInItsEnvironment()
+    public void Script_SeesTheAttemptInItsEnvironment()
     {
         using var repo = new TestRepo();
-        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_TASK\" = c ] && [ \"$PROCTOR_VARIANT\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_CELL\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
+        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_TASK\" = c ] && [ \"$PROCTOR_VARIANT\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_ATTEMPT_DIR\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
         File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        var cell = Cell(JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject(), Path.Combine(repo.Root, "exams", "e"), repo.Root);
-        Assert.Equal("pass", Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/env.sh\"}")!.AsObject(), cell, Fixture("plain")).Result);
+        var attempt = Attempt(JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject(), Path.Combine(repo.Root, "exams", "e"), repo.Root);
+        Assert.Equal("pass", Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/env.sh\"}")!.AsObject(), attempt, Fixture("plain")).Result);
     }
 
     [Theory]

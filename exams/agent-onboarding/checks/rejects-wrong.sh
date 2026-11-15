@@ -5,16 +5,16 @@
 set -uo pipefail
 . "$PROCTOR_EXAM_DIR/checks/written.sh"
 "$PROCTOR_EXAM_DIR/checks/trial.sh"
-out="${PROCTOR_CELL:-$PWD}/trial"; t="$out/trial.json"
+out="${PROCTOR_ATTEMPT_DIR:-$PWD}/trial"; t="$out/trial.json"
 [ -f "$t" ] || { echo "the trial did not run: $(tail -1 "$out/trial.log" 2>/dev/null)"; exit 3; }
 problem=$(jq -r '.problems[0] // empty' "$t")
 [ -z "$problem" ] || { echo "$problem"; exit 1; }
-wrong=$(jq '[.cells[] | select(.expect == "fail")] | length' "$t")
+wrong=$(jq '[.attempts[] | select(.expect == "fail")] | length' "$t")
 [ "$wrong" -gt 0 ] || { echo "no wrong reply to reject: $(jq -r .unrecognised "$PROCTOR_EXAM_DIR/trial/$PROCTOR_TASK/plants.json")"; exit 1; }
-through=$(jq -r '[.cells[] | select(.expect == "fail" and (.status != "completed" or .invalid != null or .pass != false))]
+through=$(jq -r '[.attempts[] | select(.expect == "fail" and (.status != "completed" or .invalid != null or .pass != false))]
   | group_by(.plant) | map("\(.[0].plant) on \(length) task(s) (\([.[].task] | unique | join(", ")))") | .[]' "$t")
 if [ -n "$through" ]; then
   echo "lets through $(paste -sd';' <<<"$through" | sed 's/;/; /g' | cut -c1-300) (of $wrong wrong replies)"; exit 1
 fi
-echo "rejects all $wrong: $(jq -r '[.cells[] | select(.expect == "fail")] | group_by(.plant)
+echo "rejects all $wrong: $(jq -r '[.attempts[] | select(.expect == "fail")] | group_by(.plant)
   | map("\(.[0].plant) by \([.[].failed[] | split(" ")[0]] | unique | join("+"))") | join("; ")' "$t")"

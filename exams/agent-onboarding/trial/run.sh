@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # The trial: the exam the agent wrote, run by proctor against planted runs of its own tasks and graded, so it is
 # judged by what it passes and fails rather than by how it reads. Each written variant is cloned once per plant
-# in <task>/plants.json, with one sample, its bundle and everything else kept; hooks and the nb runner
+# in <task>/plants.json, with one attempt, its bundle and everything else kept; hooks and the nb runner
 # are dropped and trial/planted.sh answers for the bot. Model checks are dropped too, since nothing here can
 # answer one; a model check named in pass or validity is a problem, since then no run could be decided.
 # It needs no network: proctor and nb from PATH, the bot on nb's Mock provider.
 #   env: TRIAL_TASK, TRIAL_OUT (a writable directory), WRITTEN_ROOT, WRITTEN_ID (checks/written.sh)
-#   writes: $TRIAL_OUT/trial.json {problems: [...], cells: [{plant, variant, task, key, version, expect, status, pass, failed}]},
+#   writes: $TRIAL_OUT/trial.json {problems: [...], attempts: [{plant, variant, task, key, version, expect, status, pass, failed}]},
 #   the logs, the records planted.sh made, and the graded batch.
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 plants="$here/$TRIAL_TASK/plants.json"
 out=$TRIAL_OUT
-fail() { jq -n --arg e "$1" '{problems: [$e], cells: []}' >"$out/trial.json"; echo "$1"; exit 0; }
+fail() { jq -n --arg e "$1" '{problems: [$e], attempts: []}' >"$out/trial.json"; echo "$1"; exit 0; }
 [ -f "$plants" ] || fail "no planted runs for task $TRIAL_TASK"
 mkdir -p "$out/records"
 
@@ -40,7 +40,7 @@ jq -c '.variants' "$def" >"$out/written-variants.json"
 names=$(jq -c ".plants | keys_unsorted" "$plants")
 jq -n --argjson v "$names" --slurpfile variants "$out/written-variants.json" \
   '[$v[] as $plant | $variants[0][] | {key: "\($plant)-\(.id)", value: {plant: $plant, variant: .id}}] | from_entries' >"$out/variants.json"
-jq --argjson v "$names" '.variants as $variants | .variants = [$v[] as $plant | $variants[] | . + {id: "\($plant)-\(.id)", samples: 1}] | del(.hooks, .nb)' \
+jq --argjson v "$names" '.variants as $variants | .variants = [$v[] as $plant | $variants[] | . + {id: "\($plant)-\(.id)", attempts: 1}] | del(.hooks, .nb)' \
   "$def" >"$def.trial" && mv "$def.trial" "$def"
 
 # nb on Mock under every provider name the exam uses, so its program compiles whatever it names.
@@ -74,8 +74,8 @@ jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.j
           ([$by_variant | to_entries[] | select(.value == ["live"]) | .key]) as $live
           | ([$by_variant | to_entries[] | select(.value == ["draft"]) | .key]) as $draft
           | $live[] as $l | $draft[] as $d
-          | ($def[$l] | del(.id, .description, .samples, .bundle, .labels)) as $a
-          | ($def[$d] | del(.id, .description, .samples, .bundle, .labels)) as $b
+          | ($def[$l] | del(.id, .description, .attempts, .bundle, .labels)) as $a
+          | ($def[$d] | del(.id, .description, .attempts, .bundle, .labels)) as $b
           | (if $a != $b then "variants \($l) and \($d) differ in \([($a + $b) | keys[] | select($a[.] != $b[.])] | join(", ")) as well as the prompt, so a difference between them is not the rewrite alone" else empty end),
             (if $def[$l].bundle == $def[$d].bundle then "variants \($l) and \($d) have the same bundle, so their bundle is not what gives them different prompts" else empty end)
         else empty end ),
@@ -83,9 +83,9 @@ jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.j
         | select(length > 0) | "\(length) run(s) failed before the bot answered, so the exam never asked it: \(.[0].status_reason // .[0].reason // .[0].status)")
     ] as $problems
   | { problems: $problems,
-      cells: [ $r[] | . as $c | ([$res[] | select(.variant == $c.variant and .task == $c.task)] | first) as $row
+      attempts: [ $r[] | . as $c | ([$res[] | select(.variant == $c.variant and .task == $c.task)] | first) as $row
         | {plant, variant: .written_variant, task, key, version, expect,
            status: ($row.status // "missing"), pass: $row.pass, invalid: $row.invalid,
            failed: [($row.checks // {}) | to_entries[] | select(.value != "pass") | "\(.key) \(.value)"]} ] }' >"$out/trial.json" \
   || fail "the trial could not read its own results: $(tail -1 "$out/results.jsonl" 2>/dev/null | cut -c1-120)"
-echo "trial $batch: $(jq -r '"\(.cells | length) runs, \(.problems | length) problem(s)"' "$out/trial.json")"
+echo "trial $batch: $(jq -r '"\(.attempts | length) runs, \(.problems | length) problem(s)"' "$out/trial.json")"

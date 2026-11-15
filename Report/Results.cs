@@ -4,7 +4,7 @@ namespace Proctor;
 
 /// <summary>One row of results.jsonl: coordinates on every row, no transcript text.</summary>
 record ResultRow(
-    string RunId, string Variant, string Task, int Sample,
+    string Id, string Variant, string Task, int Attempt,
     string Status, string? StatusReason, string? ExitReason,
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null,
@@ -24,24 +24,24 @@ record UsageRow(long? Input, long? Output, long? Total, bool Estimated, double? 
 
 static class Results
 {
-    /// <summary>Read every cell of a batch into rows, in declared order. Grades come from checks.json; cells without one are not analysed.</summary>
+    /// <summary>Read every attempt of a batch into rows, in declared order. Grades come from checks.json; attempts without one are not analysed.</summary>
     public static List<ResultRow> Collect(string root, Batch batch, Exam exam)
     {
         var batchDir = Layout.Batch(root, batch.Id);
         var rows = new List<ResultRow>();
-        foreach (var (variant, c, sample) in Runner.Cells(exam))
+        foreach (var (variant, c, n) in Runner.Attempts(exam))
         {
-            var cellDir = Layout.Cell(batchDir, variant.Id!, c.Id!, sample);
-            var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
+            var attemptDir = Layout.Attempt(batchDir, variant.Id!, c.Id!, n);
+            var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
-            var status = Runner.ReadStatus(cellDir);
-            var trailer = status == CellStatus.Completed && Transcript.Exists(cellDir) ? Transcript.Read(cellDir).Trailer : null;
-            var checks = status == CellStatus.Completed ? Grade.ReadChecks(cellDir) : null;
+            var status = Runner.ReadStatus(attemptDir);
+            var trailer = status == AttemptStatus.Completed && Transcript.Exists(attemptDir) ? Transcript.Read(attemptDir).Trailer : null;
+            var checks = status == AttemptStatus.Completed ? Grade.ReadChecks(attemptDir) : null;
             rows.Add(new ResultRow(
-                RunId: manifest?.RunId ?? "",
-                Variant: variant.Id!, Task: c.Id!, Sample: sample,
+                Id: manifest?.Id ?? "",
+                Variant: variant.Id!, Task: c.Id!, Attempt: n,
                 Status: status,
-                StatusReason: manifest?.StatusReason ?? (checks is null && status == CellStatus.Completed ? "not graded" : null),
+                StatusReason: manifest?.StatusReason ?? (checks is null && status == AttemptStatus.Completed ? "not graded" : null),
                 ExitReason: trailer?.ExitReason,
                 Usage: trailer is null ? null : new UsageRow(trailer.Input, trailer.Output, trailer.Total, trailer.Estimated, trailer.CostUsd),
                 ToolCalls: trailer?.ToolCalls,

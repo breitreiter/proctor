@@ -15,7 +15,7 @@ public class ExamTests
         Assert.Equal("smoke", exam.Id);
         Assert.Equal(2, exam.Variants.Count);
         Assert.Equal(3, exam.Tasks.Count);
-        Assert.Equal(12, exam.PlannedCells);
+        Assert.Equal(12, exam.PlannedAttempts);
         Assert.Equal(["exit_ok", "says-expected"], exam.Grading.Pass);
         Assert.StartsWith("sha256:", exam.Hash);
         Assert.Equal(exam.Hash, repo.LoadExam("smoke").Hash);
@@ -28,7 +28,7 @@ public class ExamTests
         repo.CopyExam("smoke");
         var described = repo.LoadExam("smoke").CheckDescriptions();
         Assert.Equal("the last assistant message is not empty", described["answer-nonempty"]);
-        Assert.Equal("the run ends with 'ok'", described["exit_ok"]);
+        Assert.Equal("the attempt ends with 'ok'", described["exit_ok"]);
         Assert.Equal("no denied tool calls", described["no_denials"]);
         Assert.Equal("at most 3 tool calls and at most 100,000 tokens", described["under_budget"]);
         Assert.Equal("the answer contains what the task expects", described["says-expected"]);
@@ -92,7 +92,7 @@ public class ExamTests
         var exam = repo.LoadExam("smoke");
         Assert.Contains("own", exam.Grading.Pass!);
         Assert.False(exam.CheckDescriptions().ContainsKey("own"));   // three tasks, three criteria: no one sentence is the check's
-        Assert.Equal("the run ends with 'ok'", exam.ChecksFor(exam.Tasks.Single(t => t.Id == "loops")).Values.Select(k => Checks.Describe(k.Spec)).Last());
+        Assert.Equal("the attempt ends with 'ok'", exam.ChecksFor(exam.Tasks.Single(t => t.Id == "loops")).Values.Select(k => Checks.Describe(k.Spec)).Last());
         Assert.All(exam.Tasks, t => Assert.Equal("task", exam.ChecksFor(t)["own"].Level));
     }
 
@@ -103,7 +103,7 @@ public class ExamTests
         repo.CopyExam("smoke");
         foreach (var task in new[] { "plain", "loops", "uses-bash" })
             repo.EditJson($"smoke/tasks/{task}.json", c => c["checks"] = JsonNode.Parse("{\"own\": {\"exit_reason\": \"ok\"}}"));
-        Assert.Equal("the run ends with 'ok'", repo.LoadExam("smoke").CheckDescriptions()["own"]);
+        Assert.Equal("the attempt ends with 'ok'", repo.LoadExam("smoke").CheckDescriptions()["own"]);
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public class ExamTests
     [InlineData("{\"id\": \"a\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "variants[1].id")]
     [InlineData("{\"id\": \"c\", \"runner\": \"command\", \"harness\": \"codex\", \"command\": \"codex\"}", "variants[1].runner")]
     [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\"}", "variants[1].provider")]
-    [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\", \"samples\": 0}", "variants[1].samples")]
+    [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\", \"attempts\": 0}", "variants[1].attempts")]
     [InlineData("{\"id\": \"Bad Id\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "variants[1].id")]
     public void Variants_AreValidated(string secondVariant, string expectedField)
     {

@@ -3,8 +3,8 @@
   "description": "Does a README tell a reader what they need to use jot from a script? Six questions answered from the README alone, under two versions of it: as shipped, and with a section for scripts.",
   "labels": { "area": "docs", "purpose": "onboarding" },
   "variants": [
-    { "id": "as-shipped", "description": "jot's README as it ships", "runner": "nb", "harness": "nb", "provider": "gemini", "model": "gemini-flash-lite-latest", "samples": 3, "bundle": { "path": "exams/readme-answers/bundles/as-shipped" } },
-    { "id": "for-scripts", "description": "the same README with a section on using jot from a script", "runner": "nb", "harness": "nb", "provider": "gemini", "model": "gemini-flash-lite-latest", "samples": 3, "bundle": { "path": "exams/readme-answers/bundles/for-scripts" } }
+    { "id": "as-shipped", "description": "jot's README as it ships", "runner": "nb", "harness": "nb", "provider": "gemini", "model": "gemini-flash-lite-latest", "attempts": 3, "bundle": { "path": "exams/readme-answers/bundles/as-shipped" } },
+    { "id": "for-scripts", "description": "the same README with a section on using jot from a script", "runner": "nb", "harness": "nb", "provider": "gemini", "model": "gemini-flash-lite-latest", "attempts": 3, "bundle": { "path": "exams/readme-answers/bundles/for-scripts" } }
   ],
   "grading": {
     "checks": {

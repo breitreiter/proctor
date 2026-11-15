@@ -4,7 +4,7 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>Steps 2 and 3: one cell against nb's Mock provider, then the matrix, resume and hook failures.</summary>
+/// <summary>Steps 2 and 3: one attempt against nb's Mock provider, then the matrix, resume and hook failures.</summary>
 public class RunnerTests
 {
     static string StartSmoke(TestRepo repo, Action<JsonObject>? editExam = null, string? runner = null, string? runnerOverride = null, object? mounts = null)
@@ -17,24 +17,24 @@ public class RunnerTests
         return Runner.Start(repo.Root, exam, config, null, runnerOverride, "test", TextWriter.Null);
     }
 
-    static void OneVariantOneSample(JsonObject e) { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; }
+    static void OneVariantOneAttempt(JsonObject e) { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; }
 
     /// <summary>The runner contract's bare equivalent: nb itself, started as proctor would start it, with the program on stdin.</summary>
     const string Passthrough = "#!/usr/bin/env bash\nexec \"$PROCTOR_NB\" --output jsonl --config \"$PROCTOR_NB_CONFIG\" -\n";
 
-    static string Cell(TestRepo repo, string id, string variant, string task, int sample) =>
-        Layout.Cell(Layout.Batch(repo.Root, id), variant, task, sample);
+    static string Attempt(TestRepo repo, string id, string variant, string task, int n) =>
+        Layout.Attempt(Layout.Batch(repo.Root, id), variant, task, n);
 
     static JsonObject ReadJson(string file) => JsonNode.Parse(File.ReadAllText(file))!.AsObject();
 
     [Fact]
-    public void OneCell_MatchesTheLayoutPlanFileForFile()
+    public void OneAttempt_MatchesTheLayoutPlanFileForFile()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, e =>
         {
             e["variants"]!.AsArray().RemoveAt(1);
-            e["variants"]![0]!["samples"] = 1;
+            e["variants"]![0]!["attempts"] = 1;
         });
         var expDir = Layout.Batch(repo.Root, id);
         Assert.Matches(@"^\d{8}-\d{4}-smoke-[a-z0-9]{4}$", id);
@@ -47,21 +47,21 @@ public class RunnerTests
         Assert.Equal(3, status["planned"]!.GetValue<int>());
         Assert.Equal(3, status["counts"]!["completed"]!.GetValue<int>());
 
-        // Cell level: every file the plan names, and nothing that belongs elsewhere.
-        var cell = Cell(repo, id, "a", "plain", 1);
+        // Attempt level: every file the plan names, and nothing that belongs elsewhere.
+        var attempt = Attempt(repo, id, "a", "plain", 1);
         Assert.Equal(
             ["diff.patch", "hooks", "manifest.json", "program.jsonl", "program.nb", "status", "stderr.txt", "trajectory.json", "transcript.jsonl"],
-            Directory.GetFileSystemEntries(cell).Select(Path.GetFileName).Order(StringComparer.Ordinal));
-        Assert.Equal(["sample.setup.log", "sample.teardown.log"],
-            Directory.GetFiles(Path.Combine(cell, "hooks")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
-        Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
+            Directory.GetFileSystemEntries(attempt).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal(["attempt.setup.log", "attempt.teardown.log"],
+            Directory.GetFiles(Path.Combine(attempt, "hooks")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal("completed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
 
-        var manifest = ReadJson(Path.Combine(cell, "manifest.json"));
-        Assert.Matches("^[0-9a-f]{16}$", manifest["run_id"]!.GetValue<string>());
+        var manifest = ReadJson(Path.Combine(attempt, "manifest.json"));
+        Assert.Matches("^[0-9a-f]{16}$", manifest["id"]!.GetValue<string>());
         Assert.Equal(id, manifest["batch"]!.GetValue<string>());
         Assert.Equal("a", manifest["variant"]!.GetValue<string>());
         Assert.Equal("plain", manifest["task"]!.GetValue<string>());
-        Assert.Equal(1, manifest["sample"]!.GetValue<int>());
+        Assert.Equal(1, manifest["attempt"]!.GetValue<int>());
         Assert.Equal("Mock", manifest["provider"]!.GetValue<string>());
         Assert.Equal("nb-jsonl", manifest["transcript"]!["format"]!.GetValue<string>());
         Assert.Equal("completed", manifest["status"]!.GetValue<string>());
@@ -72,17 +72,17 @@ public class RunnerTests
         Assert.Null(manifest["status_reason"]);
 
         // The program as run: placeholders resolved, nothing else changed.
-        var program = File.ReadAllText(Path.Combine(cell, "program.nb"));
+        var program = File.ReadAllText(Path.Combine(attempt, "program.nb"));
         Assert.Contains("provider Mock\n", program);
         Assert.Contains("run MOCK:response=hello world\n", program);
         Assert.DoesNotContain("{{", program);
         // What went down stdin: the same program as JSONL, compiled on the host.
-        var compiled = File.ReadAllLines(Path.Combine(cell, "program.jsonl"));
+        var compiled = File.ReadAllLines(Path.Combine(attempt, "program.jsonl"));
         Assert.All(compiled, line => Assert.StartsWith("{", line));
         Assert.Contains(compiled, line => line.Contains("\"type\":\"run\"") && line.Contains("MOCK:response=hello world"));
 
         // nb's output untouched: the transcript ends in a result trailer.
-        var trailer = Transcript.Read(cell).Trailer;
+        var trailer = Transcript.Read(attempt).Trailer;
         Assert.NotNull(trailer);
         Assert.Equal("ok", trailer.ExitReason);
         Assert.Equal("Mock", trailer.Provider);
@@ -92,37 +92,37 @@ public class RunnerTests
     }
 
     [Fact]
-    public void Matrix_RunsEveryVariantTaskAndSample_AndABadTranscriptIsStillCompleted()
+    public void Matrix_RunsEveryVariantTaskAndAttempt_AndABadTranscriptIsStillCompleted()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo);
-        var statuses = Runner.Cells(repo.LoadExam("smoke"))
-            .Select(x => Runner.ReadStatus(Cell(repo, id, x.Variant.Id!, x.Task.Id!, x.Sample))).ToList();
+        var statuses = Runner.Attempts(repo.LoadExam("smoke"))
+            .Select(x => Runner.ReadStatus(Attempt(repo, id, x.Variant.Id!, x.Task.Id!, x.Attempt))).ToList();
         Assert.Equal(12, statuses.Count);
         Assert.All(statuses, s => Assert.Equal("completed", s));
 
         // `loops` exhausts the tool-call budget: a transcript with exit_reason max_tool_calls, still `completed`.
-        Assert.Equal("max_tool_calls", Transcript.Read(Cell(repo, id, "b", "loops", 2)).Trailer!.ExitReason);
+        Assert.Equal("max_tool_calls", Transcript.Read(Attempt(repo, id, "b", "loops", 2)).Trailer!.ExitReason);
     }
 
     [Fact]
-    public void Resume_SkipsCompletedCells_AndRerunsFailedOnes()
+    public void Resume_SkipsCompletedAttempts_AndRerunsFailedOnes()
     {
         using var repo = new TestRepo();
-        var id = StartSmoke(repo, e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
+        var id = StartSmoke(repo, e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
 
-        // Pretend one cell died: its status is `failed`, its manifest records an attempt.
-        var failedCell = Cell(repo, id, "a", "uses-bash", 1);
-        File.WriteAllText(Path.Combine(failedCell, "status"), "failed\n");
-        var untouched = Cell(repo, id, "a", "plain", 1);
-        var untouchedRunId = ReadJson(Path.Combine(untouched, "manifest.json"))["run_id"]!.GetValue<string>();
+        // Pretend one attempt died: its status is `failed`, its manifest records an attempt.
+        var failedAttempt = Attempt(repo, id, "a", "uses-bash", 1);
+        File.WriteAllText(Path.Combine(failedAttempt, "status"), "failed\n");
+        var untouched = Attempt(repo, id, "a", "plain", 1);
+        var untouchedId = ReadJson(Path.Combine(untouched, "manifest.json"))["id"]!.GetValue<string>();
         var untouchedStarted = File.GetLastWriteTimeUtc(Path.Combine(untouched, "transcript.jsonl"));
 
         Runner.Resume(repo.Root, id, null, null, TextWriter.Null);
 
-        Assert.Equal("completed", Runner.ReadStatus(failedCell));
-        Assert.Equal(2, ReadJson(Path.Combine(failedCell, "manifest.json"))["tries"]!.GetValue<int>());
-        Assert.Equal(untouchedRunId, ReadJson(Path.Combine(untouched, "manifest.json"))["run_id"]!.GetValue<string>());
+        Assert.Equal("completed", Runner.ReadStatus(failedAttempt));
+        Assert.Equal(2, ReadJson(Path.Combine(failedAttempt, "manifest.json"))["tries"]!.GetValue<int>());
+        Assert.Equal(untouchedId, ReadJson(Path.Combine(untouched, "manifest.json"))["id"]!.GetValue<string>());
         Assert.Equal(untouchedStarted, File.GetLastWriteTimeUtc(Path.Combine(untouched, "transcript.jsonl")));
     }
 
@@ -130,7 +130,7 @@ public class RunnerTests
     public void Resume_RefusesWhenTheExamChanged()
     {
         using var repo = new TestRepo();
-        var id = StartSmoke(repo, e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
+        var id = StartSmoke(repo, e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
         repo.EditJson("smoke/tasks/plain.json", c => c["prompt"] = "MOCK:response=changed");
 
         var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
@@ -138,7 +138,7 @@ public class RunnerTests
     }
 
     [Fact]
-    public void SampleHookFailure_MarksTheCellFailed_AndTheMatrixContinues()
+    public void AttemptHookFailure_MarksTheAttemptFailed_AndTheMatrixContinues()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
@@ -147,28 +147,28 @@ public class RunnerTests
         var id = StartSmoke(repo, e =>
         {
             e["variants"]!.AsArray().RemoveAt(1);
-            e["variants"]![0]!["samples"] = 1;
-            e["hooks"]!["sample"]!["setup"] = "hooks/flaky-setup.sh";
+            e["variants"]![0]!["attempts"] = 1;
+            e["hooks"]!["attempt"]!["setup"] = "hooks/flaky-setup.sh";
         });
 
-        var failed = Cell(repo, id, "a", "plain", 1);
+        var failed = Attempt(repo, id, "a", "plain", 1);
         Assert.Equal("failed", Runner.ReadStatus(failed));
         var manifest = ReadJson(Path.Combine(failed, "manifest.json"));
         Assert.Equal("failed", manifest["status"]!.GetValue<string>());
         Assert.Contains("hooks/flaky-setup.sh exited 7: no fixture for plain", manifest["status_reason"]!.GetValue<string>());
         Assert.False(File.Exists(Path.Combine(failed, "transcript.jsonl")), "nb must not run when setup failed");
-        Assert.True(File.Exists(Path.Combine(failed, "hooks", "sample.teardown.log")), "teardown runs whenever setup ran, so a half-made environment is not left behind");
+        Assert.True(File.Exists(Path.Combine(failed, "hooks", "attempt.teardown.log")), "teardown runs whenever setup ran, so a half-made environment is not left behind");
         Assert.True(File.Exists(Path.Combine(failed, "diff.patch")));
 
-        Assert.Equal("completed", Runner.ReadStatus(Cell(repo, id, "a", "loops", 1)));
-        Assert.Equal("completed", Runner.ReadStatus(Cell(repo, id, "a", "uses-bash", 1)));
+        Assert.Equal("completed", Runner.ReadStatus(Attempt(repo, id, "a", "loops", 1)));
+        Assert.Equal("completed", Runner.ReadStatus(Attempt(repo, id, "a", "uses-bash", 1)));
         var counts = ReadJson(Path.Combine(Layout.Batch(repo.Root, id), "status.json"))["counts"]!;
         Assert.Equal(1, counts["failed"]!.GetValue<int>());
         Assert.Equal(2, counts["completed"]!.GetValue<int>());
     }
 
     [Fact]
-    public void VariantHookFailure_FailsEveryCellOfThatVariant_AndTheNextVariantRuns()
+    public void VariantHookFailure_FailsEveryAttemptOfThatVariant_AndTheNextVariantRuns()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
@@ -176,15 +176,15 @@ public class RunnerTests
         File.SetUnixFileMode(Path.Combine(repo.Root, "exams/smoke/hooks/variant-b-fails.sh"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var id = StartSmoke(repo, e =>
         {
-            foreach (var variant in e["variants"]!.AsArray()) variant!["samples"] = 1;
+            foreach (var variant in e["variants"]!.AsArray()) variant!["attempts"] = 1;
             e["hooks"]!["variant"]!["setup"] = "hooks/variant-b-fails.sh";
         });
 
         foreach (var c in new[] { "loops", "plain", "uses-bash" })
         {
-            Assert.Equal("completed", Runner.ReadStatus(Cell(repo, id, "a", c, 1)));
-            Assert.Equal("failed", Runner.ReadStatus(Cell(repo, id, "b", c, 1)));
-            Assert.Contains("variant setup hook failed", ReadJson(Path.Combine(Cell(repo, id, "b", c, 1), "manifest.json"))["status_reason"]!.GetValue<string>());
+            Assert.Equal("completed", Runner.ReadStatus(Attempt(repo, id, "a", c, 1)));
+            Assert.Equal("failed", Runner.ReadStatus(Attempt(repo, id, "b", c, 1)));
+            Assert.Contains("variant setup hook failed", ReadJson(Path.Combine(Attempt(repo, id, "b", c, 1), "manifest.json"))["status_reason"]!.GetValue<string>());
         }
     }
 
@@ -195,12 +195,12 @@ public class RunnerTests
         var id = StartSmoke(repo, e =>
         {
             e["variants"]!.AsArray().RemoveAt(1);
-            e["variants"]![0]!["samples"] = 1;
+            e["variants"]![0]!["attempts"] = 1;
             e["variants"]![0]!["provider"] = "NoSuchEntry";
         });
-        var cell = Cell(repo, id, "a", "plain", 1);
-        Assert.Equal("failed", Runner.ReadStatus(cell));
-        var reason = ReadJson(Path.Combine(cell, "manifest.json"))["status_reason"]!.GetValue<string>();
+        var attempt = Attempt(repo, id, "a", "plain", 1);
+        Assert.Equal("failed", Runner.ReadStatus(attempt));
+        var reason = ReadJson(Path.Combine(attempt, "manifest.json"))["status_reason"]!.GetValue<string>();
         Assert.StartsWith("nb exited 1 without a result trailer", reason);
     }
 
@@ -216,18 +216,18 @@ public class RunnerTests
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
 
-        var cell = Cell(repo, id, "a", "plain", 1);
-        Assert.Equal("completed", Runner.ReadStatus(cell));
+        var attempt = Attempt(repo, id, "a", "plain", 1);
+        Assert.Equal("completed", Runner.ReadStatus(attempt));
         // The source keeps the include for reading; the compiled program carries its body and no path.
-        var source = File.ReadAllText(Path.Combine(cell, "program.nb"));
+        var source = File.ReadAllText(Path.Combine(attempt, "program.nb"));
         Assert.Contains("system @notes.md\n", source);
-        var compiled = File.ReadAllText(Path.Combine(cell, "program.jsonl"));
+        var compiled = File.ReadAllText(Path.Combine(attempt, "program.jsonl"));
         Assert.Contains("Never mention the sheet.", compiled);
         Assert.DoesNotContain("notes.md", compiled);
         var hash = "sha256:" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
-        Assert.Equal(hash, ReadJson(Path.Combine(cell, "manifest.json"))["program_hash"]!.GetValue<string>());
+        Assert.Equal(hash, ReadJson(Path.Combine(attempt, "manifest.json"))["program_hash"]!.GetValue<string>());
         // And the model saw it: the transcript's system turn is the note.
-        Assert.Contains("Never mention the sheet.", File.ReadAllText(Path.Combine(cell, "transcript.jsonl")));
+        Assert.Contains("Never mention the sheet.", File.ReadAllText(Path.Combine(attempt, "transcript.jsonl")));
     }
 
     [Fact]
@@ -241,14 +241,14 @@ public class RunnerTests
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
 
-        var cell = Cell(repo, id, "a", "plain", 1);
-        Assert.Equal("failed", Runner.ReadStatus(cell));
-        var reason = ReadJson(Path.Combine(cell, "manifest.json"))["status_reason"]!.GetValue<string>();
+        var attempt = Attempt(repo, id, "a", "plain", 1);
+        Assert.Equal("failed", Runner.ReadStatus(attempt));
+        var reason = ReadJson(Path.Combine(attempt, "manifest.json"))["status_reason"]!.GetValue<string>();
         Assert.Equal("program compile failed: nb --compile exited 1: Error: @include not found: missing.md", reason);
-        Assert.False(File.Exists(Path.Combine(cell, "program.jsonl")));
-        Assert.False(File.Exists(Path.Combine(cell, "transcript.jsonl")));
-        Assert.False(File.Exists(Path.Combine(cell, "hooks", "sample.setup.log")), "nothing was set up for a program nb refused");
-        Assert.False(File.Exists(Path.Combine(cell, "hooks", "sample.teardown.log")));
+        Assert.False(File.Exists(Path.Combine(attempt, "program.jsonl")));
+        Assert.False(File.Exists(Path.Combine(attempt, "transcript.jsonl")));
+        Assert.False(File.Exists(Path.Combine(attempt, "hooks", "attempt.setup.log")), "nothing was set up for a program nb refused");
+        Assert.False(File.Exists(Path.Combine(attempt, "hooks", "attempt.teardown.log")));
     }
 
     [Fact]
@@ -256,30 +256,30 @@ public class RunnerTests
     {
         var variant = new Variant("floor", "nb", "nb", "Mock", "m", 1, null);
         var c = new TaskDef("x", null, "Add a flag.\nKeep tests green.\n  Indented line.", null);
-        var program = Runner.ResolveProgram("run {{prompt}}\n# {{task}} on {{variant}} sample {{sample}} in {{work}}\n", variant, c, 2, "/w");
-        Assert.Equal("run Add a flag. \\\nKeep tests green. \\\n  Indented line.\n# x on floor sample 2 in /w\n", program);
+        var program = Runner.ResolveProgram("run {{prompt}}\n# {{task}} on {{variant}} attempt {{attempt}} in {{work}}\n", variant, c, 2, "/w");
+        Assert.Equal("run Add a flag. \\\nKeep tests green. \\\n  Indented line.\n# x on floor attempt 2 in /w\n", program);
     }
 
     [Fact]
     public void Fixture_IsCheckedOutBeforeTheRun_AndTheDiffCollectedAfter()
     {
         using var repo = new TestRepo();
-        var id = StartSmoke(repo, e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
-        var cell = Cell(repo, id, "a", "plain", 1);
+        var id = StartSmoke(repo, e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; });
+        var attempt = Attempt(repo, id, "a", "plain", 1);
         var work = Layout.Work(repo.Root, id, "a", "plain", 1);
 
-        var manifest = ReadJson(Path.Combine(cell, "manifest.json"));
+        var manifest = ReadJson(Path.Combine(attempt, "manifest.json"));
         Assert.Equal("note", manifest["fixture"]!["id"]!.GetValue<string>());
         Assert.StartsWith("sha256:", manifest["fixture"]!["hash"]!.GetValue<string>());
 
         // The checkout is a git repository with the fixture committed; the teardown hook's edit is the diff.
         Assert.True(Directory.Exists(Path.Combine(work, ".git")));
         Assert.Equal("changed", File.ReadAllText(Path.Combine(work, "note.txt")).Trim());
-        var diff = File.ReadAllText(Path.Combine(cell, "diff.patch"));
+        var diff = File.ReadAllText(Path.Combine(attempt, "diff.patch"));
         Assert.Contains("diff --git a/note.txt b/note.txt", diff);
         Assert.Contains("-original", diff);
         Assert.Contains("+changed", diff);
-        Assert.Equal(["note.txt"], Transcript.Read(cell).TouchedPaths());
+        Assert.Equal(["note.txt"], Transcript.Read(attempt).TouchedPaths());
     }
 
     [Fact]
@@ -289,27 +289,27 @@ public class RunnerTests
         repo.CopyExam("smoke");
         var fixture = repo.LoadExam("smoke").Fixtures["note"];
         var work = Path.Combine(repo.Root, ".proctor/work/x");
-        var cell = Path.Combine(repo.Root, "attempts/x");
-        Directory.CreateDirectory(cell);
+        var attempt = Path.Combine(repo.Root, "attempts/x");
+        Directory.CreateDirectory(attempt);
 
         Assert.Null(Checkout.Materialise(fixture, work));
         File.WriteAllText(Path.Combine(work, "note.txt"), "edited\n");
         File.WriteAllText(Path.Combine(work, "new.txt"), "added\n");
-        Assert.Null(Checkout.CollectDiff(work, cell));
+        Assert.Null(Checkout.CollectDiff(work, attempt));
         Directory.Delete(work, recursive: true);
 
-        Assert.Null(Checkout.Restore(fixture, work, cell));
+        Assert.Null(Checkout.Restore(fixture, work, attempt));
         Assert.Equal("edited", File.ReadAllText(Path.Combine(work, "note.txt")).Trim());
         Assert.Equal("added", File.ReadAllText(Path.Combine(work, "new.txt")).Trim());
         // A second restore over a populated directory is a no-op.
-        Assert.Null(Checkout.Restore(fixture, work, cell));
+        Assert.Null(Checkout.Restore(fixture, work, attempt));
     }
 
     [Fact]
-    public void Bundle_IsResolvedOncePerBatch_RecordedPerCell_AndResumeRefusesWhenItChanged()
+    public void Bundle_IsResolvedOncePerBatch_RecordedPerAttempt_AndResumeRefusesWhenItChanged()
     {
         using var repo = new TestRepo();
-        var id = StartSmoke(repo, e => { foreach (var variant in e["variants"]!.AsArray()) variant!["samples"] = 1; });
+        var id = StartSmoke(repo, e => { foreach (var variant in e["variants"]!.AsArray()) variant!["attempts"] = 1; });
         var bundleDir = Path.Combine(repo.Root, "bundles", "smoke");
 
         var batch = ReadJson(Path.Combine(Layout.Batch(repo.Root, id), "batch.json"));
@@ -318,10 +318,10 @@ public class RunnerTests
         Assert.Equal(bundleDir, batch["bundles"]!["b"]!["path"]!.GetValue<string>());
         Assert.StartsWith("sha256:", batch["bundles"]!["b"]!["hash"]!.GetValue<string>());
 
-        var b = Cell(repo, id, "b", "plain", 1);
+        var b = Attempt(repo, id, "b", "plain", 1);
         Assert.Equal(batch["bundles"]!["b"]!["hash"]!.GetValue<string>(), ReadJson(Path.Combine(b, "manifest.json"))["bundle"]!["hash"]!.GetValue<string>());
         Assert.Contains($"# bundle: {bundleDir}\n", File.ReadAllText(Path.Combine(b, "program.nb")));
-        var a = Cell(repo, id, "a", "plain", 1);
+        var a = Attempt(repo, id, "a", "plain", 1);
         Assert.Null(ReadJson(Path.Combine(a, "manifest.json"))["bundle"]);
         Assert.Contains("# bundle: \n", File.ReadAllText(Path.Combine(a, "program.nb")));
 
@@ -330,17 +330,17 @@ public class RunnerTests
         Assert.Contains("bundle of variant 'b'", e.Message);
     }
     [Fact]
-    public void Runner_Passthrough_ProducesTheSameCellAsABareRun()
+    public void Runner_Passthrough_ProducesTheSameAttemptAsABareRun()
     {
         using var bare = new TestRepo();
-        var bareId = StartSmoke(bare, OneVariantOneSample);
+        var bareId = StartSmoke(bare, OneVariantOneAttempt);
         using var repo = new TestRepo();
         repo.WriteScript("runners/passthrough.sh", Passthrough);
-        var id = StartSmoke(repo, OneVariantOneSample, runner: "runners/passthrough.sh");
+        var id = StartSmoke(repo, OneVariantOneAttempt, runner: "runners/passthrough.sh");
 
         foreach (var c in new[] { "loops", "plain", "uses-bash" })
         {
-            var (a, b) = (Cell(bare, bareId, "a", c, 1), Cell(repo, id, "a", c, 1));
+            var (a, b) = (Attempt(bare, bareId, "a", c, 1), Attempt(repo, id, "a", c, 1));
             Assert.Equal("completed", Runner.ReadStatus(b));
             // Identical but for the milliseconds nb measures.
             foreach (var file in new[] { "transcript.jsonl", "program.nb", "program.jsonl", "diff.patch", "status" })
@@ -349,29 +349,29 @@ public class RunnerTests
         }
 
         // The manifest and the batch say how nb was run; a bare run says nothing.
-        var manifest = ReadJson(Path.Combine(Cell(repo, id, "a", "plain", 1), "manifest.json"));
+        var manifest = ReadJson(Path.Combine(Attempt(repo, id, "a", "plain", 1), "manifest.json"));
         Assert.Equal("runners/passthrough.sh", manifest["nb"]!["runner"]!["script"]!.GetValue<string>());
         Assert.StartsWith("sha256:", manifest["nb"]!["runner"]!["hash"]!.GetValue<string>());
         Assert.Equal(TestRepo.NbPath, manifest["nb"]!["path"]!.GetValue<string>());
         var batch = ReadJson(Path.Combine(Layout.Batch(repo.Root, id), "batch.json"));
         Assert.Equal(manifest["nb"]!["runner"]!["hash"]!.GetValue<string>(), batch["nb"]!["runner"]!["hash"]!.GetValue<string>());
-        Assert.Null(ReadJson(Path.Combine(Cell(bare, bareId, "a", "plain", 1), "manifest.json"))["nb"]!["runner"]);
+        Assert.Null(ReadJson(Path.Combine(Attempt(bare, bareId, "a", "plain", 1), "manifest.json"))["nb"]!["runner"]);
 
         static string Timeless(string text) => System.Text.RegularExpressions.Regex.Replace(text, @"""(duration|provider)_ms"":\d+", "");
     }
 
     [Fact]
-    public void Runner_GetsTheProgramOnStdin_TheCellEnvironment_AndTheWorkDirectory()
+    public void Runner_GetsTheProgramOnStdin_TheAttemptEnvironment_AndTheWorkDirectory()
     {
         using var repo = new TestRepo();
         repo.WriteScript("runners/spy.sh", "#!/usr/bin/env bash\n"
             + "echo \"argv=$#\" >&2\necho \"cwd=$PWD\" >&2\necho \"container=$PROCTOR_CONTAINER\" >&2\necho \"runner=$PROCTOR_RUNNER\" >&2\necho \"work=$PROCTOR_WORK\" >&2\necho \"nocolor=$NO_COLOR\" >&2\n"
             + "exec \"$PROCTOR_NB\" --output jsonl --config \"$PROCTOR_NB_CONFIG\" -\n");
-        var id = StartSmoke(repo, OneVariantOneSample, runner: "runners/spy.sh");
+        var id = StartSmoke(repo, OneVariantOneAttempt, runner: "runners/spy.sh");
 
-        var cell = Cell(repo, id, "a", "plain", 1);
-        Assert.Equal("completed", Runner.ReadStatus(cell));
-        var stderr = File.ReadAllText(Path.Combine(cell, "stderr.txt"));
+        var attempt = Attempt(repo, id, "a", "plain", 1);
+        Assert.Equal("completed", Runner.ReadStatus(attempt));
+        var stderr = File.ReadAllText(Path.Combine(attempt, "stderr.txt"));
         var work = Layout.Work(repo.Root, id, "a", "plain", 1);
         Assert.Contains("argv=0\n", stderr);
         Assert.Contains($"cwd={work}\n", stderr);
@@ -380,7 +380,7 @@ public class RunnerTests
         Assert.Contains("runner=runners/spy.sh\n", stderr);
         Assert.Contains("nocolor=1\n", stderr);
         // The hooks see the same runner and container name, so they can own a container nb is exec'd into.
-        Assert.Contains($"proctor-{id}-a-plain-1", File.ReadAllText(Path.Combine(cell, "hooks", "sample.setup.log")));
+        Assert.Contains($"proctor-{id}-a-plain-1", File.ReadAllText(Path.Combine(attempt, "hooks", "attempt.setup.log")));
         Assert.Contains("runners/spy.sh", File.ReadAllText(Path.Combine(Layout.Batch(repo.Root, id), "a", "hooks", "variant.setup.log")));
     }
 
@@ -395,25 +395,25 @@ public class RunnerTests
         // Variant b is the one with a bundle.
         var id = StartSmoke(repo, e =>
         {
-            e["variants"]!.AsArray().RemoveAt(0); e["variants"]![0]!["samples"] = 1;
-            e["hooks"]!["sample"]!["setup"] = "hooks/mounts.sh";
+            e["variants"]!.AsArray().RemoveAt(0); e["variants"]![0]!["attempts"] = 1;
+            e["hooks"]!["attempt"]!["setup"] = "hooks/mounts.sh";
             WithWorkComment(repo);
         }, runner: "runners/spy.sh", mounts: new { work = "/work", bundle = "/bundle" });
 
-        var cell = Cell(repo, id, "b", "plain", 1);
-        Assert.Equal("completed", Runner.ReadStatus(cell));
+        var attempt = Attempt(repo, id, "b", "plain", 1);
+        Assert.Equal("completed", Runner.ReadStatus(attempt));
         var work = Layout.Work(repo.Root, id, "b", "plain", 1);
         var bundleDir = Path.Combine(repo.Root, "bundles", "smoke");
         // The program tells the model the paths inside the container.
-        var program = File.ReadAllText(Path.Combine(cell, "program.nb"));
+        var program = File.ReadAllText(Path.Combine(attempt, "program.nb"));
         Assert.Contains("# work: /work\n", program);
         Assert.Contains("# bundle: /bundle\n", program);
         // The runner and the hooks, on the host, get both.
         var expected = $"work={work} mount=/work bundle={bundleDir} bundle_mount=/bundle";
-        Assert.Contains(expected, File.ReadAllText(Path.Combine(cell, "stderr.txt")));
-        Assert.Contains(expected, File.ReadAllText(Path.Combine(cell, "hooks", "sample.setup.log")));
+        Assert.Contains(expected, File.ReadAllText(Path.Combine(attempt, "stderr.txt")));
+        Assert.Contains(expected, File.ReadAllText(Path.Combine(attempt, "hooks", "attempt.setup.log")));
         // The manifest records the mounts beside the runner.
-        var nb = ReadJson(Path.Combine(cell, "manifest.json"))["nb"]!;
+        var nb = ReadJson(Path.Combine(attempt, "manifest.json"))["nb"]!;
         Assert.Equal("/work", (string)nb["mounts"]!["work"]!);
         Assert.Equal("/bundle", (string)nb["mounts"]!["bundle"]!);
     }
@@ -423,14 +423,14 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         repo.WriteScript("runners/passthrough.sh", Passthrough);
-        var id = StartSmoke(repo, e => { OneVariantOneSample(e); WithWorkComment(repo); }, runner: "runners/passthrough.sh", runnerOverride: "none", mounts: new { work = "/work" });
+        var id = StartSmoke(repo, e => { OneVariantOneAttempt(e); WithWorkComment(repo); }, runner: "runners/passthrough.sh", runnerOverride: "none", mounts: new { work = "/work" });
 
-        var cell = Cell(repo, id, "a", "plain", 1);
-        Assert.Equal("completed", Runner.ReadStatus(cell));
+        var attempt = Attempt(repo, id, "a", "plain", 1);
+        Assert.Equal("completed", Runner.ReadStatus(attempt));
         var work = Layout.Work(repo.Root, id, "a", "plain", 1);
-        Assert.Contains($"# work: {work}\n", File.ReadAllText(Path.Combine(cell, "program.nb")));
-        Assert.Contains($"work_mount={work}", File.ReadAllText(Path.Combine(cell, "hooks", "sample.setup.log")));
-        Assert.Null(ReadJson(Path.Combine(cell, "manifest.json"))["nb"]!["mounts"]);
+        Assert.Contains($"# work: {work}\n", File.ReadAllText(Path.Combine(attempt, "program.nb")));
+        Assert.Contains($"work_mount={work}", File.ReadAllText(Path.Combine(attempt, "hooks", "attempt.setup.log")));
+        Assert.Null(ReadJson(Path.Combine(attempt, "manifest.json"))["nb"]!["mounts"]);
     }
 
     /// <summary>The smoke template names the bundle in a comment; add the checkout the same way, so the resolved program shows what the model was told.</summary>
@@ -467,8 +467,8 @@ public class RunnerTests
     public void TheManifestRecordsNbsVersion_ReadFromTheHostBinary()
     {
         using var repo = new TestRepo();
-        var id = StartSmoke(repo, OneVariantOneSample);
-        var versions = ReadJson(Path.Combine(Cell(repo, id, "a", "plain", 1), "manifest.json"))["versions"]!;
+        var id = StartSmoke(repo, OneVariantOneAttempt);
+        var versions = ReadJson(Path.Combine(Attempt(repo, id, "a", "plain", 1), "manifest.json"))["versions"]!;
         Assert.Matches(@"^\d+\.\d+", (string)versions["nb"]!);
         Assert.DoesNotContain("+", (string)versions["nb"]!);
     }
@@ -478,12 +478,12 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         repo.WriteScript("runners/never.sh", "#!/usr/bin/env bash\necho 'the runner must not run' >&2\nexit 9\n");
-        var id = StartSmoke(repo, OneVariantOneSample, runner: "runners/never.sh", runnerOverride: "none");
+        var id = StartSmoke(repo, OneVariantOneAttempt, runner: "runners/never.sh", runnerOverride: "none");
 
-        var cell = Cell(repo, id, "a", "plain", 1);
-        Assert.Equal("completed", Runner.ReadStatus(cell));
-        Assert.Null(ReadJson(Path.Combine(cell, "manifest.json"))["nb"]!["runner"]);
-        Assert.Contains("runner= container=", File.ReadAllText(Path.Combine(cell, "hooks", "sample.setup.log")));
+        var attempt = Attempt(repo, id, "a", "plain", 1);
+        Assert.Equal("completed", Runner.ReadStatus(attempt));
+        Assert.Null(ReadJson(Path.Combine(attempt, "manifest.json"))["nb"]!["runner"]);
+        Assert.Contains("runner= container=", File.ReadAllText(Path.Combine(attempt, "hooks", "attempt.setup.log")));
     }
 
     [Fact]
@@ -491,8 +491,8 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         var script = repo.WriteScript("runners/passthrough.sh", Passthrough);
-        var id = StartSmoke(repo, OneVariantOneSample, runner: "runners/passthrough.sh");
-        File.WriteAllText(Path.Combine(Cell(repo, id, "a", "plain", 1), "status"), "failed\n");
+        var id = StartSmoke(repo, OneVariantOneAttempt, runner: "runners/passthrough.sh");
+        File.WriteAllText(Path.Combine(Attempt(repo, id, "a", "plain", 1), "status"), "failed\n");
 
         File.AppendAllText(script, "# edited\n");
         var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
@@ -513,7 +513,7 @@ public class RunnerTests
         Assert.Equal("nb.runner", problem.Field);
         Assert.Contains("script not found", problem.Message);
         // And on the command line, where nothing validated it first.
-        var e = Assert.Throws<ProctorException>(() => StartSmoke(repo, OneVariantOneSample, runnerOverride: "runners/missing.sh"));
+        var e = Assert.Throws<ProctorException>(() => StartSmoke(repo, OneVariantOneAttempt, runnerOverride: "runners/missing.sh"));
         Assert.Contains("runner not found", e.Message);
         Assert.Contains("--runner", e.Message);
     }

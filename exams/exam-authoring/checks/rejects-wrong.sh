@@ -3,8 +3,8 @@
 # got through, or which check caught each one. An undecided wrong run was not caught.
 set -uo pipefail
 "$PROCTOR_EXAM_DIR/checks/trial.sh"
-t="$PROCTOR_CELL/trial/trial.json"
-[ -f "$t" ] || { echo "the trial did not run: $(tail -1 "$PROCTOR_CELL/trial/trial.log" 2>/dev/null)"; exit 3; }
+t="$PROCTOR_ATTEMPT_DIR/trial/trial.json"
+[ -f "$t" ] || { echo "the trial did not run: $(tail -1 "$PROCTOR_ATTEMPT_DIR/trial/trial.log" 2>/dev/null)"; exit 3; }
 err=$(jq -r '.error // empty' "$t"); [ -z "$err" ] || { echo "$err"; exit 1; }
 through=$(jq -r '[.variants | to_entries[] | select(.key | startswith("bad-")) | select(any(.value[]; .pass != false)) | .key] | join(", ")' "$t")
 total=$(jq '[.variants | keys[] | select(startswith("bad-"))] | length' "$t")

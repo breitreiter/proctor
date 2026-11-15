@@ -52,7 +52,7 @@ public class GateTests
         return (exam, id);
     }
 
-    /// <summary>Every way a Harbor cell differs from its bare twin, as "task/sample: what"; empty when the gate is green.</summary>
+    /// <summary>Every way a Harbor attempt differs from its bare twin, as "task/attempt: what"; empty when the gate is green.</summary>
     internal static List<string> Differences(string root, string batchId, Exam exam)
     {
         var expDir = Layout.Batch(root, batchId);
@@ -60,20 +60,20 @@ public class GateTests
         var harbor = exam.Variants.Single(a => a.IsAgent);
         var bare = exam.Variants.Single(a => !a.IsAgent);
         foreach (var c in exam.Tasks)
-            foreach (var sample in Enumerable.Range(1, harbor.SamplesOrOne))
+            foreach (var n in Enumerable.Range(1, harbor.AttemptsOrOne))
             {
-                var at = $"{c.Id}/{sample}";
-                var b = Layout.Cell(expDir, bare.Id!, c.Id!, sample);
-                var h = Layout.Cell(expDir, harbor.Id!, c.Id!, sample);
+                var at = $"{c.Id}/{n}";
+                var b = Layout.Attempt(expDir, bare.Id!, c.Id!, n);
+                var h = Layout.Attempt(expDir, harbor.Id!, c.Id!, n);
                 var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
-                if (bs != CellStatus.Completed || hs != CellStatus.Completed)
+                if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)
                 {
                     differences.Add($"{at}: bare {bs}, harbor {hs} ({Runner.ReadManifest(Path.Combine(h, Layout.ManifestFile)).StatusReason})");
                     continue;
                 }
 
                 // The checkout is at a host path bare and at /app in the image; a tool's output naming it is the one other expected difference.
-                var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(Layout.Work(root, batchId, bare.Id!, c.Id!, sample), HarborCompile.Workdir));
+                var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(Layout.Work(root, batchId, bare.Id!, c.Id!, n), HarborCompile.Workdir));
                 var harborJsonl = Untimed(File.ReadAllText(Path.Combine(h, Layout.AgentLogsDir, Layout.NbLogFile)));
                 if (bareJsonl != harborJsonl) differences.Add($"{at}: nb's transcript differs\n--- bare\n{bareJsonl}\n--- harbor\n{harborJsonl}");
 
@@ -128,11 +128,11 @@ public class OracleGateTests
         foreach (var c in exam.Tasks)
         {
             var at = c.Id!;
-            var b = Layout.Cell(expDir, bare.Id!, c.Id!, 1);
-            var h = Layout.Cell(expDir, harbor.Id!, c.Id!, 1);
+            var b = Layout.Attempt(expDir, bare.Id!, c.Id!, 1);
+            var h = Layout.Attempt(expDir, harbor.Id!, c.Id!, 1);
             var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
             var manifest = Runner.ReadManifest(Path.Combine(h, Layout.ManifestFile));
-            if (bs != CellStatus.Completed || hs != CellStatus.Completed)
+            if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)
             {
                 differences.Add($"{at}: bare {bs}, harbor {hs} ({manifest.StatusReason})");
                 continue;
@@ -142,7 +142,7 @@ public class OracleGateTests
             var exit = trajectory["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";
             var bareCore = Ingest.Count(trajectory, Variant.Nb, exit).Core! with { DurationMs = null };
             var judge = manifest.Oracle;
-            if (judge is null) { differences.Add($"{at}: the harbor cell's manifest has no oracle"); continue; }
+            if (judge is null) { differences.Add($"{at}: the harbor attempt's manifest has no oracle"); continue; }
             bareCore = bareCore with
             {
                 InputTokens = bareCore.InputTokens - judge.JudgeInputTokens,
@@ -158,7 +158,7 @@ public class OracleGateTests
             if (harborCore.ExitReason != expected || answers != Answers[c.Id!])
                 differences.Add($"{at}: harbor ended {harborCore.ExitReason} after {answers} answers; the task scripts {expected} after {Answers[c.Id!]}");
 
-            string Turns(string cell) => string.Join("\n", Transcript.Read(cell).UserTurns.Select(u => $"{u.Source ?? "-"} [{string.Join(",", u.Keys ?? [])}] {u.Text}"));
+            string Turns(string attempt) => string.Join("\n", Transcript.Read(attempt).UserTurns.Select(u => $"{u.Source ?? "-"} [{string.Join(",", u.Keys ?? [])}] {u.Text}"));
             var (bt, ht) = (Turns(b), Turns(h));
             if (bt != ht) differences.Add($"{at}: user turns differ\n--- bare\n{bt}\n--- harbor\n{ht}");
 

@@ -3,7 +3,7 @@
   "description": "The first exam to run: two scripted tasks against a tiny TypeScript CLI, no model and no key, so the loop and the report can be seen before anything real is measured.",
   "labels": { "purpose": "onboarding" },
   "variants": [
-    { "id": "mock", "description": "nb on its Mock provider, which answers from a script in the prompt", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 2 }
+    { "id": "mock", "description": "nb on its Mock provider, which answers from a script in the prompt", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "attempts": 2 }
   ],
   "grading": {
     "checks": {

@@ -32,8 +32,8 @@ sealed class JudgeClient
     public Dictionary<string, List<string>> Errors { get; } = [];
 
     // A grade pass loses nothing by giving up on a throttled judge: an error verdict is asked again by the next grade.
-    // So a throttle is retried briefly and then the judge is stopped for the pass, rather than every remaining sample
-    // of every cell being refused in turn (4,300 refused requests in one pass against a daily cap; issue #4).
+    // So a throttle is retried briefly and then the judge is stopped for the pass, rather than every remaining call
+    // of every attempt being refused in turn (4,300 refused requests in one pass against a daily cap; issue #4).
     const int MaxRetries = 3;
     static readonly TimeSpan MaxWait = TimeSpan.FromSeconds(60);
     readonly Dictionary<string, string> stopped = [];
@@ -42,13 +42,13 @@ sealed class JudgeClient
     public T Send<T>(string judge, Func<Task<T>> send)
     {
         if (stopped.TryGetValue(judge, out var why)) throw new JudgeStopped(why);
-        for (var attempt = 0; ; attempt++)
+        for (var retry = 0; ; retry++)
         {
             try { return send().GetAwaiter().GetResult(); }
             catch (Exception e) when (Throttle.Of(e) is { } throttle)
             {
-                var wait = throttle.RetryAfter ?? TimeSpan.FromSeconds(2 << attempt);
-                if (attempt >= MaxRetries || wait > MaxWait)
+                var wait = throttle.RetryAfter ?? TimeSpan.FromSeconds(2 << retry);
+                if (retry >= MaxRetries || wait > MaxWait)
                 {
                     stopped[judge] = $"{judge} stopped for this pass: rate limited ({throttle.Text}); grade again once it clears";
                     Note($"  note: {stopped[judge]}");
@@ -92,7 +92,7 @@ sealed class JudgeClient
 
     public static IChatClient OpenAiCompatible(JudgeDef def, string? key, HttpClient? http = null)
     {
-        // The SDK's own retries would run underneath Send: four requests per attempt, on a schedule it cannot see.
+        // The SDK's own retries would run underneath Send: four requests per call, on a schedule it cannot see.
         var options = new OpenAIClientOptions { Endpoint = new Uri(def.Endpoint!), RetryPolicy = new System.ClientModel.Primitives.ClientRetryPolicy(maxRetries: 0) };
         if (http is not null) options.Transport = new System.ClientModel.Primitives.HttpClientPipelineTransport(http);
         return new OpenAIClient(new ApiKeyCredential(key ?? "none"), options).GetChatClient(def.Model!).AsIChatClient();
@@ -154,18 +154,18 @@ record Throttle(string Text, TimeSpan? RetryAfter)
         : null;
 }
 
-/// <summary>One sample of a model's answer, as read. Problem says why it was discarded; a discarded sample is still in the file.</summary>
-record JudgeSample(string? Label, double? Probability, List<string>? Evidence, string? Reasoning, string? Problem);
+/// <summary>One of a model's answers, as read: a vote. Problem says why it was discarded; a discarded vote is still in the file.</summary>
+record JudgeVote(string? Label, double? Probability, List<string>? Evidence, string? Reasoning, string? Problem);
 
 record JudgeUsage(long? Input, long? Output);
 
 /// <summary>
-/// verdicts/&lt;check&gt;.&lt;judge&gt;.&lt;hash&gt;.json: the request as sent (key redacted), the responses as received, the samples as read,
+/// verdicts/&lt;check&gt;.&lt;judge&gt;.&lt;hash&gt;.json: the request as sent (key redacted), the responses as received, the votes as read,
 /// and the verdict. Applied says whether checks.json holds it: true from a plain grade, false from a `--judge` comparison pass.
 /// </summary>
 record VerdictFile(
     string Check, string Judge, string Kind, string? Model, string Endpoint, string PromptHash, string Window,
-    string Graded, long DurationMs, JsonNode Request, List<JsonNode> Responses, List<JudgeSample> Samples, JudgeUsage? Usage, Verdict Verdict, bool Applied = true);
+    string Graded, long DurationMs, JsonNode Request, List<JsonNode> Responses, List<JudgeVote> Votes, JudgeUsage? Usage, Verdict Verdict, bool Applied = true);
 
 /// <summary>A judge as the report names it: which checks it graded, through which endpoint and model.</summary>
 record JudgeUse(string Judge, string Kind, string? Model, string Endpoint, List<string> Checks);
@@ -175,7 +175,7 @@ static class Judge
     public const string Decide = "decide", JudgeCheck = "judge";
     const string Yes = "yes", No = "no", Unknown = "unknown";
     const double DefaultThreshold = 0.9;
-    const int DefaultSamples = 3;
+    const int DefaultVotes = 3;
     const int QuoteChars = 80;
 
     // ---- validation and description (load time) ----
@@ -184,8 +184,8 @@ static class Judge
     {
         if (value is not JsonObject spec) return name == Decide
             ? "expects {ask, window, options?, expect, threshold?, with?}"
-            : "expects {ask, window, expect?, samples?, with?}";
-        var known = name == Decide ? new[] { "ask", "window", "options", "expect", "threshold", "with" } : ["ask", "window", "expect", "samples", "with"];
+            : "expects {ask, window, expect?, votes?, with?}";
+        var known = name == Decide ? new[] { "ask", "window", "options", "expect", "threshold", "with" } : ["ask", "window", "expect", "votes", "with"];
         if (spec.FirstOrDefault(f => !known.Contains(f.Key)) is { Key: { } extra }) return $"unknown field '{extra}'; known: {string.Join(", ", known)}";
         if (spec["ask"] is not JsonValue a || !a.TryGetValue<string>(out var ask) || string.IsNullOrWhiteSpace(ask)) return "ask is required: the question, in a sentence, or @expect";
         if (Window.Validate((spec["window"] as JsonValue)?.GetValue<string>()) is { } w) return $"window: {w}";
@@ -205,7 +205,7 @@ static class Judge
         else
         {
             if (!fromCase && expect is not null && YesNo(expect) is null) return "expect is yes or no (default yes), or @expect";
-            if (spec["samples"] is { } s && (s is not JsonValue sv || !sv.TryGetValue<int>(out var n) || n < 1)) return "samples is a whole number of at least 1";
+            if (spec["votes"] is { } s && (s is not JsonValue sv || !sv.TryGetValue<int>(out var n) || n < 1)) return "votes is a whole number of at least 1";
         }
         return null;
     }
@@ -228,13 +228,13 @@ static class Judge
 
     // ---- evaluation (grade time) ----
 
-    public static Verdict Evaluate(string name, JsonObject spec, string check, CellContext cell, Transcript t)
+    public static Verdict Evaluate(string name, JsonObject spec, string check, AttemptContext attempt, Transcript t)
     {
-        var client = cell.Judges ?? throw new ProctorException($"check '{check}': grading a {name} check needs the judges of exams/proctor.json");
+        var client = attempt.Judges ?? throw new ProctorException($"check '{check}': grading a {name} check needs the judges of exams/proctor.json");
         var (judge, def) = client.Resolve(KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), check);
 
         // What the task supplies under the check's name: the expectation itself, or {ask, expect} when the question is the task's too.
-        var fromCase = cell.Expect?[check];
+        var fromCase = attempt.Expect?[check];
         var expect = spec["expect"];
         if (IsFromExpect(expect))
         {
@@ -250,16 +250,16 @@ static class Judge
         }
 
         var window = spec["window"]!.GetValue<string>();
-        var (parts, error) = Window.Extract(window, cell, t, def.MaxWindowOrDefault);
+        var (parts, error) = Window.Extract(window, attempt, t, def.MaxWindowOrDefault);
         if (parts is null) return Verdict.Err($"{name}: {error}");
 
-        var call = new Call(client, check, judge, def, window, parts, Path.Combine(cell.CellDir, Layout.VerdictsDir));
+        var call = new Call(client, check, judge, def, window, parts, Path.Combine(attempt.AttemptDir, Layout.VerdictsDir));
         var verdict = name == Decide ? RunDecide(call, spec, expect) : RunJudge(call, spec, expect);
         if (verdict.Result == Verdict.Error) (client.Errors.TryGetValue(judge, out var errors) ? errors : client.Errors[judge] = []).Add(verdict.Reason);
         return verdict;
     }
 
-    /// <summary>Everything one evaluation carries from the cell to the endpoint and back to the verdict file.</summary>
+    /// <summary>Everything one evaluation carries from the attempt to the endpoint and back to the verdict file.</summary>
     record Call(JudgeClient Client, string Check, string Judge, JudgeDef Def, string Window, Dictionary<string, string> Parts, string VerdictsDir);
 
     // ---- decide: one typed question, one call, a probability ----
@@ -285,11 +285,11 @@ static class Judge
         try { response = call.Client.Send(call.Judge, () => PostSystemOne(call, request)); }
         catch (JudgeStopped e)
         {
-            return Save(call, hash, request, [], [new JudgeSample(null, null, null, null, e.Message)], null, null, started, Verdict.Err($"decide: {e.Message}"));
+            return Save(call, hash, request, [], [new JudgeVote(null, null, null, null, e.Message)], null, null, started, Verdict.Err($"decide: {e.Message}"));
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException or ProctorException or JudgeHttpException)
         {
-            return Save(call, hash, request, [], [new JudgeSample(null, null, null, null, e.Message)], null, null, started,
+            return Save(call, hash, request, [], [new JudgeVote(null, null, null, null, e.Message)], null, null, started,
                 Verdict.Err($"decide: {call.Judge} did not answer: {FirstLine(e.Message)}"));
         }
 
@@ -303,13 +303,13 @@ static class Judge
         else if (options is not null && answer?["choice"] is JsonValue cv && cv.TryGetValue<string>(out var chosen) && answer["probabilities"]?[chosen] is JsonValue pv && pv.TryGetValue<double>(out var pChosen))
             (label, p) = (chosen, pChosen);
         else
-            return Save(call, hash, request, [response], [new JudgeSample(null, null, null, null, "no answer of the expected type in the response")], usage, model, started,
+            return Save(call, hash, request, [response], [new JudgeVote(null, null, null, null, "no answer of the expected type in the response")], usage, model, started,
                 Verdict.Err($"decide: {call.Judge} returned no {(options is null ? "noul" : "choice")} answer"));
 
         var but = label == expected ? "" : $", expected {expected}";
         var verdict = p < threshold ? new Verdict(Verdict.NeedsJudge, $"{label} p={p:0.00} (below {threshold:0.00}){but}")
             : Verdict.Of(label == expected, $"{label} p={p:0.00}{but}");
-        return Save(call, hash, request, [response], [new JudgeSample(label, p, null, null, null)], usage, model, started, verdict);
+        return Save(call, hash, request, [response], [new JudgeVote(label, p, null, null, null)], usage, model, started, verdict);
     }
 
     static async Task<JsonNode> PostSystemOne(Call call, JsonObject request)
@@ -324,7 +324,7 @@ static class Judge
         return JsonNode.Parse(body) ?? throw new JsonException("empty response");
     }
 
-    // ---- judge: one criterion, several samples at temperature 0, a label with verbatim evidence ----
+    // ---- judge: one criterion, several votes at temperature 0, a label with verbatim evidence ----
 
     const string SystemPrompt = """
         You are grading one criterion over material extracted from an AI coding assistant's run. The material is given in labelled sections; each section says what it is.
@@ -344,12 +344,12 @@ static class Judge
 
     static Verdict RunJudge(Call call, JsonObject spec, JsonNode? expect)
     {
-        var samples = spec["samples"]?.GetValue<int>() ?? DefaultSamples;
+        var votes = spec["votes"]?.GetValue<int>() ?? DefaultVotes;
         var expected = YesNo(expect ?? Yes)!;
         var user = Window.Compile(call.Parts) + $"\n### criterion\n{spec["ask"]!.GetValue<string>()}\n\nAnswer with the label and the evidence, as instructed.";
         var request = new JsonObject
         {
-            ["model"] = call.Def.Model, ["temperature"] = 0, ["samples"] = samples,
+            ["model"] = call.Def.Model, ["temperature"] = 0, ["votes"] = votes,
             ["messages"] = new JsonArray(new JsonObject { ["role"] = "system", ["content"] = SystemPrompt }, new JsonObject { ["role"] = "user", ["content"] = user }),
         };
         var hash = Hash(call.Def.Kind!, call.Def.Model!, request.ToJsonString(), expected);
@@ -358,74 +358,74 @@ static class Judge
 
         var started = DateTime.UtcNow;
         var responses = new List<JsonNode>();
-        var read = new List<JudgeSample>();
+        var read = new List<JudgeVote>();
         long? input = null, output = null;
         IChatClient chat;
         try { chat = call.Client.ChatClient(call.Def with { Endpoint = call.Def.ResolvedEndpoint(call.Judge) }, call.Def.ResolvedKey(call.Judge)); }
         catch (Exception e) when (e is UriFormatException or ProctorException)
         {
-            return Save(call, hash, request, [], [new JudgeSample(null, null, null, null, e.Message)], null, null, started, Verdict.Err($"judge: {call.Judge}: {FirstLine(e.Message)}"));
+            return Save(call, hash, request, [], [new JudgeVote(null, null, null, null, e.Message)], null, null, started, Verdict.Err($"judge: {call.Judge}: {FirstLine(e.Message)}"));
         }
         var messages = new List<ChatMessage> { new(ChatRole.System, SystemPrompt), new(ChatRole.User, user) };
         string? halted = null;
-        for (var i = 0; i < samples && halted is null; i++)
+        for (var i = 0; i < votes && halted is null; i++)
         {
             ChatResponse response;
             try { response = call.Client.Send(call.Judge, () => chat.GetResponseAsync(messages, new ChatOptions { Temperature = 0 })); }
             catch (JudgeStopped e)
             {
-                read.Add(new JudgeSample(null, null, null, null, e.Message));
+                read.Add(new JudgeVote(null, null, null, null, e.Message));
                 halted = e.Message;
                 continue;
             }
             catch (Exception e) when (e is not OutOfMemoryException)
             {
-                read.Add(new JudgeSample(null, null, null, null, $"no answer: {FirstLine(e.Message)}"));
+                read.Add(new JudgeVote(null, null, null, null, $"no answer: {FirstLine(e.Message)}"));
                 continue;
             }
             responses.Add(JsonValue.Create(response.Text)!);
             if (response.Usage is { } u) { input = (input ?? 0) + (u.InputTokenCount ?? 0); output = (output ?? 0) + (u.OutputTokenCount ?? 0); }
-            read.Add(ReadSample(response.Text, call.Parts));
+            read.Add(ReadVote(response.Text, call.Parts));
         }
 
         var kept = read.Where(s => s.Problem is null).ToList();
-        var needed = Math.Min(2, samples);
+        var needed = Math.Min(2, votes);
         var verdict = halted is not null ? Verdict.Err($"judge: {halted}")
             : kept.Count < needed
-            ? Verdict.Err($"judge: {kept.Count} of {samples} usable answers from {call.Judge}: {string.Join("; ", read.Where(s => s.Problem is not null).Select(s => s.Problem).Distinct())}")
-            : Settle(kept, expected, samples);
+            ? Verdict.Err($"judge: {kept.Count} of {votes} usable answers from {call.Judge}: {string.Join("; ", read.Where(s => s.Problem is not null).Select(s => s.Problem).Distinct())}")
+            : Settle(kept, expected, votes);
         return Save(call, hash, request, responses, read, input is null ? null : new JudgeUsage(input, output), call.Def.Model, started, verdict);
     }
 
-    static Verdict Settle(List<JudgeSample> kept, string expected, int samples)
+    static Verdict Settle(List<JudgeVote> kept, string expected, int votes)
     {
         var labels = kept.Select(s => s.Label!).ToList();
         var quote = kept.SelectMany(s => s.Evidence ?? []).FirstOrDefault();
         var cite = quote is null ? "" : $" — \"{Cut(quote)}\"";
-        if (labels.All(l => l == expected)) return new Verdict(Verdict.Pass, $"{expected} {labels.Count}/{samples}{cite}");
+        if (labels.All(l => l == expected)) return new Verdict(Verdict.Pass, $"{expected} {labels.Count}/{votes}{cite}");
         var other = expected == Yes ? No : Yes;
-        if (labels.All(l => l == other)) return new Verdict(Verdict.Fail, $"{other} {labels.Count}/{samples}, expected {expected}{cite}");
+        if (labels.All(l => l == other)) return new Verdict(Verdict.Fail, $"{other} {labels.Count}/{votes}, expected {expected}{cite}");
         var counts = string.Join(", ", labels.GroupBy(l => l).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} {g.Count()}"));
-        return new Verdict(Verdict.NeedsJudge, $"{(labels.Contains(Unknown) ? "unknown" : "split")}: {counts} of {samples}{cite}");
+        return new Verdict(Verdict.NeedsJudge, $"{(labels.Contains(Unknown) ? "unknown" : "split")}: {counts} of {votes}{cite}");
     }
 
     static readonly Regex Thinking = new("<thinking>(.*?)</thinking>", RegexOptions.Singleline);
 
     /// <summary>The label and evidence from one answer; the reasoning kept for the file; a problem when the answer cannot be used.</summary>
-    static JudgeSample ReadSample(string text, Dictionary<string, string> parts)
+    static JudgeVote ReadVote(string text, Dictionary<string, string> parts)
     {
         var reasoning = Thinking.Match(text) is { Success: true } m ? m.Groups[1].Value.Trim() : null;
         var json = Transcript.LastJsonFence(text) as JsonObject;
-        if (json is null) return new JudgeSample(null, null, null, reasoning, "no json block in the answer");
+        if (json is null) return new JudgeVote(null, null, null, reasoning, "no json block in the answer");
         var label = (json["label"] as JsonValue)?.ToString().Trim().ToLowerInvariant();
-        if (label is not (Yes or No or Unknown)) return new JudgeSample(label, null, null, reasoning, $"label '{label}' is not yes, no or unknown");
+        if (label is not (Yes or No or Unknown)) return new JudgeVote(label, null, null, reasoning, $"label '{label}' is not yes, no or unknown");
         var evidence = (json["evidence"] as JsonArray)?.Select(e => e?.ToString() ?? "").Where(e => e.Length > 0).ToList() ?? [];
         var joined = string.Join("\n", parts.Values);
         string[] material = [Normalise(joined), Normalise(Unescape(joined))];
         var unverified = evidence.Where(e => !material.Any(m => m.Contains(Normalise(e), StringComparison.Ordinal))).ToList();
-        if (unverified.Count > 0) return new JudgeSample(label, null, evidence, reasoning, $"evidence not found verbatim in the material: \"{Cut(unverified[0])}\"");
-        if (label != Unknown && evidence.Count == 0) return new JudgeSample(label, null, evidence, reasoning, "no evidence quoted");
-        return new JudgeSample(label, null, evidence, reasoning, null);
+        if (unverified.Count > 0) return new JudgeVote(label, null, evidence, reasoning, $"evidence not found verbatim in the material: \"{Cut(unverified[0])}\"");
+        if (label != Unknown && evidence.Count == 0) return new JudgeVote(label, null, evidence, reasoning, "no evidence quoted");
+        return new JudgeVote(label, null, evidence, reasoning, null);
     }
 
     // A judge quotes JSON as it reads it: compacted, and with string escapes undone. So a
@@ -453,12 +453,12 @@ static class Judge
         return on.Verdict;
     }
 
-    static Verdict Save(Call call, string hash, JsonNode request, List<JsonNode> responses, List<JudgeSample> samples, JudgeUsage? usage, string? model, DateTime started, Verdict verdict)
+    static Verdict Save(Call call, string hash, JsonNode request, List<JsonNode> responses, List<JudgeVote> votes, JudgeUsage? usage, string? model, DateTime started, Verdict verdict)
     {
         Directory.CreateDirectory(call.VerdictsDir);
         var file = new VerdictFile(call.Check, call.Judge, call.Def.Kind!, model, call.Def.Endpoint!, hash, call.Window,
             started.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), (long)(DateTime.UtcNow - started).TotalMilliseconds,
-            request, responses, samples, usage, verdict, Applied: !call.Client.Comparing);
+            request, responses, votes, usage, verdict, Applied: !call.Client.Comparing);
         Runner.WriteJson(FileOf(call, hash), file);
         return verdict;
     }
@@ -467,9 +467,9 @@ static class Judge
     public static List<JudgeUse> Uses(string root, Batch batch, Exam exam)
     {
         var uses = new Dictionary<(string, string, string?, string), List<string>>();
-        foreach (var (variant, c, sample) in Runner.Cells(exam))
+        foreach (var (variant, c, n) in Runner.Attempts(exam))
         {
-            var dir = Path.Combine(Layout.Cell(Layout.Batch(root, batch.Id), variant.Id!, c.Id!, sample), Layout.VerdictsDir);
+            var dir = Path.Combine(Layout.Attempt(Layout.Batch(root, batch.Id), variant.Id!, c.Id!, n), Layout.VerdictsDir);
             if (!Directory.Exists(dir)) continue;
             foreach (var file in Directory.GetFiles(dir, "*.json").Order(StringComparer.Ordinal))
             {

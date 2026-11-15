@@ -35,12 +35,12 @@ static class Window
     public static List<string> Parts(string spec) => spec.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
     /// <summary>The window's parts as text, in the order named. The error names the part that was empty, or says the total was too large.</summary>
-    public static (Dictionary<string, string>? Parts, string? Error) Extract(string spec, CellContext cell, Transcript t, int maxChars)
+    public static (Dictionary<string, string>? Parts, string? Error) Extract(string spec, AttemptContext attempt, Transcript t, int maxChars)
     {
         var parts = new Dictionary<string, string>();
         foreach (var name in Parts(spec))
         {
-            var text = Text(name, cell, t);
+            var text = Text(name, attempt, t);
             if (string.IsNullOrWhiteSpace(text)) return (null, $"window '{name}' is empty");
             parts[name] = text;
         }
@@ -57,11 +57,11 @@ static class Window
         return sb.ToString().TrimEnd() + "\n";
     }
 
-    static string? Text(string name, CellContext cell, Transcript t) => name switch
+    static string? Text(string name, AttemptContext attempt, Transcript t) => name switch
     {
         "answer" => t.Answer,
         "answer_json" => t.AnswerJson?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }),
-        "prompt" => cell.Task.Prompt,
+        "prompt" => attempt.Task.Prompt,
         "tool_calls" => string.Join("\n", t.ToolCalls.Select((c, i) =>
             $"{i + 1}. {c.Name} {Cut(c.Arguments?.ToJsonString() ?? "{}", ArgumentChars)}{(c.Denied ? " [denied]" : "")}")),
         "tool_results" => string.Join("\n\n", t.ToolResults.Select((r, i) =>

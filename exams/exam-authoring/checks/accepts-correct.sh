@@ -3,8 +3,8 @@
 # that failed a correct run, which are the ones asking for more than the task does.
 set -uo pipefail
 "$PROCTOR_EXAM_DIR/checks/trial.sh"
-t="$PROCTOR_CELL/trial/trial.json"
-[ -f "$t" ] || { echo "the trial did not run: $(tail -1 "$PROCTOR_CELL/trial/trial.log" 2>/dev/null)"; exit 3; }
+t="$PROCTOR_ATTEMPT_DIR/trial/trial.json"
+[ -f "$t" ] || { echo "the trial did not run: $(tail -1 "$PROCTOR_ATTEMPT_DIR/trial/trial.log" 2>/dev/null)"; exit 3; }
 err=$(jq -r '.error // empty' "$t"); [ -z "$err" ] || { echo "$err"; exit 1; }
 failed=$(jq -r '.variants | to_entries[] | select(.key | startswith("good-")) | .key as $variant | .value[] | select(.pass != true)
   | "\($variant) on \(.task): \(if .status != "completed" then .status else ([.checks // {} | to_entries[] | select(.value != "pass") | "\(.key) \(.value)"] | join(", ")) end)"' "$t")

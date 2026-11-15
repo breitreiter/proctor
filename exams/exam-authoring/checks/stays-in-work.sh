@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Validity: did the agent stay inside its checkout? Fails on the first tool call whose arguments
 # name an absolute path outside the checkout (system paths aside) or climb with `..`. Reaching
-# the repository root would find the exam, the tasks and the fixture's checker, so such a sample
+# the repository root would find the exam, the tasks and the fixture's checker, so such an attempt
 # does not count; it is not a capability failure. The variant's bundle is there to be read. The
 # checkout is where the model was told it is: $PROCTOR_WORK_MOUNT, which a runner may put
 # somewhere other than $PROCTOR_WORK on the host.

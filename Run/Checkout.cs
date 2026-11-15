@@ -25,21 +25,21 @@ static class Checkout
             ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", $"fixture {fixture.Id} {fixture.Hash}");
     }
 
-    /// <summary>Everything the run changed, new files included, as one unified diff in the cell. Null on success.</summary>
-    public static string? CollectDiff(string workDir, string cellDir)
+    /// <summary>Everything the run changed, new files included, as one unified diff in the attempt. Null on success.</summary>
+    public static string? CollectDiff(string workDir, string attemptDir)
     {
         if (!Directory.Exists(Path.Combine(workDir, ".git"))) return "work directory is not a git checkout";
         if (Git(workDir, "add", "-A", "-N", ".") is { } addError) return addError;
-        var result = Subprocess.Run("git", ["diff", "--no-color"], workDir, stdoutFile: Path.Combine(cellDir, Layout.DiffFile));
+        var result = Subprocess.Run("git", ["diff", "--no-color"], workDir, stdoutFile: Path.Combine(attemptDir, Layout.DiffFile));
         return result.Started && result.ExitCode == 0 ? null : $"git diff: {result.FirstStderrLine}";
     }
 
-    /// <summary>For a regrade after the checkout is gone: the fixture again, with the cell's diff applied. Null on success.</summary>
-    public static string? Restore(Fixture fixture, string workDir, string cellDir)
+    /// <summary>For a regrade after the checkout is gone: the fixture again, with the attempt's diff applied. Null on success.</summary>
+    public static string? Restore(Fixture fixture, string workDir, string attemptDir)
     {
         if (Directory.Exists(workDir) && Directory.EnumerateFileSystemEntries(workDir).Any()) return null;
         if (Materialise(fixture, workDir) is { } error) return error;
-        var diff = Path.Combine(cellDir, Layout.DiffFile);
+        var diff = Path.Combine(attemptDir, Layout.DiffFile);
         if (!File.Exists(diff) || new FileInfo(diff).Length == 0) return null;
         return Git(workDir, "apply", "--allow-empty", diff) is { } applyError ? $"git apply {Layout.DiffFile}: {applyError}" : null;
     }

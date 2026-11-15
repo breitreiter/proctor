@@ -12,7 +12,7 @@
       "agent": "qwen-code",
       "agent_version": "0.25.2",
       "model": "qwen3-coder-next",
-      "samples": 3
+      "attempts": 3
     }
   ],
   "harbor": {

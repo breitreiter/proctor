@@ -12,8 +12,8 @@ record Verdict(string Result, string Reason)
     public static Verdict Err(string reason) => new(Error, reason);
 }
 
-/// <summary>Everything the runner and the grader need to know about one cell, without the transcript.</summary>
-record CellContext(string ExamDir, string CellDir, string WorkDir, string Batch, string Variant, TaskDef Task, int Sample)
+/// <summary>Everything the runner and the grader need to know about one attempt, without the transcript.</summary>
+record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string Batch, string Variant, TaskDef Task, int Attempt)
 {
     /// <summary>What the task expects, its fixture's defaults included; the task's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Task.Expect;
@@ -29,9 +29,9 @@ record CellContext(string ExamDir, string CellDir, string WorkDir, string Batch,
     public NbMounts? Mounts { get; init; }
     /// <summary>The judges a decide or judge check calls; set by grade, absent while running.</summary>
     public JudgeClient? Judges { get; init; }
-    /// <summary>An agent cell: its script checks already ran in Harbor's verifier, and grade reads their verdicts from the cell.</summary>
+    /// <summary>An agent attempt: its script checks already ran in Harbor's verifier, and grade reads their verdicts from the attempt.</summary>
     public bool ScriptsInVerifier { get; init; }
-    /// <summary>A vendor agent's cell, not nb's: nb's own behaviour (the loop nudge) has nothing to read there.</summary>
+    /// <summary>A vendor agent's attempt, not nb's: nb's own behaviour (the loop nudge) has nothing to read there.</summary>
     public bool Vendor { get; init; }
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
@@ -39,8 +39,8 @@ record CellContext(string ExamDir, string CellDir, string WorkDir, string Batch,
     /// <summary>The path the model is told the bundle is at, when the variant has one.</summary>
     public string? BundleMount => BundleDir is null ? null : Mounts?.Bundle ?? BundleDir;
 
-    /// <summary>A container name for this cell, derived from its coordinates. Proctor never uses it; hooks and runners that own a container agree on it through this.</summary>
-    public string Container => $"proctor-{Batch}-{Variant}-{Task.Id}-{Sample}";
+    /// <summary>A container name for this attempt, derived from its coordinates. Proctor never uses it; hooks and runners that own a container agree on it through this.</summary>
+    public string Container => $"proctor-{Batch}-{Variant}-{Task.Id}-{Attempt}";
 
     public IDictionary<string, string> Environment() => new Dictionary<string, string>
     {
@@ -50,15 +50,15 @@ record CellContext(string ExamDir, string CellDir, string WorkDir, string Batch,
         ["PROCTOR_BATCH"] = Batch,
         ["PROCTOR_VARIANT"] = Variant,
         ["PROCTOR_TASK"] = Task.Id ?? "",
-        ["PROCTOR_SAMPLE"] = Sample.ToString(),
-        ["PROCTOR_CELL"] = CellDir,
+        ["PROCTOR_ATTEMPT"] = Attempt.ToString(),
+        ["PROCTOR_ATTEMPT_DIR"] = AttemptDir,
         ["PROCTOR_WORK"] = WorkDir,
         ["PROCTOR_WORK_MOUNT"] = WorkMount,
         ["PROCTOR_BUNDLE_MOUNT"] = BundleMount ?? "",
         ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(Task, Exam.JsonOptions),
         ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
-        ["PROCTOR_TRANSCRIPT"] = Path.Combine(CellDir, Layout.TranscriptFile),
-        ["PROCTOR_DIFF"] = Path.Combine(CellDir, Layout.DiffFile),
+        ["PROCTOR_TRANSCRIPT"] = Path.Combine(AttemptDir, Layout.TranscriptFile),
+        ["PROCTOR_DIFF"] = Path.Combine(AttemptDir, Layout.DiffFile),
         ["PROCTOR_RUNNER"] = NbRunner,
         ["PROCTOR_NB"] = NbPath,
         ["PROCTOR_NB_CONFIG"] = NbConfig ?? "",
@@ -136,10 +136,10 @@ static class Checks
                 "answer_contains" => "the answer contains what the task expects",
                 "answer_equals" => "the answer is exactly what the task expects",
                 "answer_regex" => "the answer matches the pattern the task expects",
-                "exit_reason" => "the run ends the way the task expects",
+                "exit_reason" => "the attempt ends the way the task expects",
                 _ => $"{name.Replace('_', ' ')} is what the task expects",
             },
-            "exit_reason" => $"the run ends with '{v}'",
+            "exit_reason" => $"the attempt ends with '{v}'",
             "max_tool_calls" => $"at most {v} tool calls",
             "max_tokens" => $"at most {v!.GetValue<long>():N0} tokens",
             "max_duration_ms" => $"finishes within {DescribeMs(v!.GetValue<long>())}",
@@ -222,14 +222,14 @@ static class Checks
         static bool IsRegex(string p) { try { _ = new Regex(p); return true; } catch (ArgumentException) { return false; } }
     }
 
-    /// <summary>A check that reads only nb's own behaviour (the loop nudge): a vendor agent's cell does not carry it, so its rate is over nb's cells.
-    /// Combined with anything else it stays, and the nudge part is an error on a vendor cell.</summary>
+    /// <summary>A check that reads only nb's own behaviour (the loop nudge): a vendor agent's attempt does not carry it, so its rate is over nb's attempts.
+    /// Combined with anything else it stays, and the nudge part is an error on a vendor attempt.</summary>
     public static bool NbOnly(JsonObject spec) => spec.Where(f => f.Key != Description).Select(f => f.Key).SequenceEqual(["loop_nudged"]);
 
-    /// <summary>Evaluate a declared check over one cell. A spec with several fields is their conjunction. The name is what a model check's verdict file and @expect are keyed by.</summary>
-    public static Verdict Evaluate(CheckDef check, CellContext cell, Transcript t, string name = "check")
+    /// <summary>Evaluate a declared check over one attempt. A spec with several fields is their conjunction. The name is what a model check's verdict file and @expect are keyed by.</summary>
+    public static Verdict Evaluate(CheckDef check, AttemptContext attempt, Transcript t, string name = "check")
     {
-        var verdicts = check.Spec.Where(f => f.Key != Description).Select(field => EvaluateField(field.Key, field.Value, check.Dir, name, cell, t)).ToList();
+        var verdicts = check.Spec.Where(f => f.Key != Description).Select(field => EvaluateField(field.Key, field.Value, check.Dir, name, attempt, t)).ToList();
         if (verdicts.Count == 1) return verdicts[0];
         var worst = verdicts.MaxBy(v => v.Result switch { Verdict.Error => 3, Verdict.NeedsJudge => 2, Verdict.Fail => 1, _ => 0 })!;
         // The parts that decided the verdict lead, so a skimmed reason opens with why it failed.
@@ -237,26 +237,26 @@ static class Checks
     }
 
     /// <summary>An exam's check: its script path is relative to the exam directory.</summary>
-    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, cell.ExamDir, "exam"), cell, t, name);
+    public static Verdict Evaluate(JsonObject spec, AttemptContext attempt, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, attempt.ExamDir, "exam"), attempt, t, name);
 
-    private static Verdict EvaluateField(string key, JsonNode? value, string scriptDir, string check, CellContext cell, Transcript t)
+    private static Verdict EvaluateField(string key, JsonNode? value, string scriptDir, string check, AttemptContext attempt, Transcript t)
     {
         var (name, negated) = Split(key);
-        if (name is Judge.Decide or Judge.JudgeCheck) return Judge.Evaluate(name, (JsonObject)value!, check, cell, t);
+        if (name is Judge.Decide or Judge.JudgeCheck) return Judge.Evaluate(name, (JsonObject)value!, check, attempt, t);
         if (value is JsonValue jv && jv.TryGetValue<string>(out var s) && s == FromExpect)
         {
             // Keyed by the check's name first, so two checks over one field can differ per task; by the field for the common single task.
-            value = (cell.Expect?[check] as JsonObject)?[name] ?? cell.Expect?[name];
+            value = (attempt.Expect?[check] as JsonObject)?[name] ?? attempt.Expect?[name];
             if (value is null) return Verdict.Err($"{name}: task has no expect.{check}.{name} or expect.{name}");
         }
         var verdict = name == "script"
-            ? cell.ScriptsInVerifier ? VerifierScript(check, cell) : RunScript(value!.GetValue<string>(), scriptDir, cell)
-            : BuiltIn(name, value!, cell, t);
+            ? attempt.ScriptsInVerifier ? VerifierScript(check, attempt) : RunScript(value!.GetValue<string>(), scriptDir, attempt)
+            : BuiltIn(name, value!, attempt, t);
         if (!negated || verdict.Result is Verdict.Error or Verdict.NeedsJudge) return verdict;
         return new Verdict(verdict.Result == Verdict.Pass ? Verdict.Fail : Verdict.Pass, "not: " + verdict.Reason);
     }
 
-    private static Verdict BuiltIn(string name, JsonNode v, CellContext cell, Transcript t)
+    private static Verdict BuiltIn(string name, JsonNode v, AttemptContext attempt, Transcript t)
     {
         var trailer = t.Trailer;
         switch (name)
@@ -272,8 +272,8 @@ static class Checks
                 return Verdict.Of(trailer.Total <= v.GetValue<long>(), $"{trailer.Total} tokens{(trailer.Estimated ? " (estimated)" : "")} (max {v})");
             case "max_duration_ms":
             {
-                // nb's trailer carries no duration (2026-09); the cell's wall time from the manifest is the fallback, as in the report.
-                var (ms, source) = trailer?.DurationMs is { } d ? (d, "trailer") : (WallTime(cell), "wall time");
+                // nb's trailer carries no duration (2026-09); the attempt's wall time from the manifest is the fallback, as in the report.
+                var (ms, source) = trailer?.DurationMs is { } d ? (d, "trailer") : (WallTime(attempt), "wall time");
                 if (ms is null) return Verdict.Err("no duration on the trailer or in the manifest");
                 return Verdict.Of(ms <= v.GetValue<long>(), $"{ms} ms {source} (max {v})");
             }
@@ -289,13 +289,13 @@ static class Checks
                 var errors = t.ToolResults.Count(r => r.IsError);
                 return Verdict.Of(errors <= v["max"]!.GetValue<int>(), $"{errors} tool error{(errors == 1 ? "" : "s")} (max {v["max"]})");
             }
-            case "loop_nudged" when cell.Vendor:
+            case "loop_nudged" when attempt.Vendor:
                 return Verdict.Err("loop_nudged is nb's nudge; a vendor agent has none to fire");
             case "loop_nudged":
                 return Verdict.Of(t.LoopNudged == v.GetValue<bool>(), t.LoopNudged ? "loop nudge fired" : "no loop nudge");
             case "oracle_hit":
             {
-                if (cell.Task.Oracle is null) return Verdict.Err($"task {cell.Task.Id} names no answer sheet, so the oracle could not answer");
+                if (attempt.Task.Oracle is null) return Verdict.Err($"task {attempt.Task.Id} names no answer sheet, so the oracle could not answer");
                 var keys = t.UserTurns.Where(u => u.IsOracle).SelectMany(u => u.Keys ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 var missing = v.AsArray().Select(n => n!.GetValue<string>()).Where(k => !keys.Contains(k, StringComparer.OrdinalIgnoreCase)).ToList();
                 var answered = keys.Count == 0 ? "the oracle never answered" : $"the oracle answered with {string.Join(", ", keys)}";
@@ -306,7 +306,7 @@ static class Checks
             {
                 if (trailer is null) return Verdict.Err("no result trailer");
                 var misses = trailer.ExitReason == "oracle_miss" ? 1 : 0;
-                return Verdict.Of(misses <= v["max"]!.GetValue<int>(), misses == 0 ? "no oracle miss" : "the run ended on an oracle miss: the agent asked for something the sheet does not cover");
+                return Verdict.Of(misses <= v["max"]!.GetValue<int>(), misses == 0 ? "no oracle miss" : "the attempt ended on an oracle miss: the agent asked for something the sheet does not cover");
             }
             case "oracle_turns":
             {
@@ -379,7 +379,7 @@ static class Checks
             }
             case "files_touched":
             {
-                if (t.Diff is null) return Verdict.Err("no diff.patch in the cell");
+                if (t.Diff is null) return Verdict.Err("no diff.patch in the attempt");
                 var patterns = v["paths"]!.AsArray().Select(n => n!.GetValue<string>()).ToList();
                 var touched = t.TouchedPaths();
                 var unmatched = patterns.Where(p => !touched.Any(f => Glob.IsMatch(p, f))).ToList();
@@ -422,18 +422,18 @@ static class Checks
         return i == wanted.Count;
     }
 
-    private static long? WallTime(CellContext cell)
+    private static long? WallTime(AttemptContext attempt)
     {
-        var file = Path.Combine(cell.CellDir, Layout.ManifestFile);
+        var file = Path.Combine(attempt.AttemptDir, Layout.ManifestFile);
         if (!File.Exists(file)) return null;
         return JsonNode.Parse(File.ReadAllText(file))?["duration_ms"]?.GetValue<long>();
     }
 
-    /// <summary>The script contract: runs in the cell, exit 0/1/2 = pass/fail/needs-judge, first stdout line is the reason.</summary>
-    private static Verdict RunScript(string script, string scriptDir, CellContext cell)
+    /// <summary>The script contract: runs in the attempt, exit 0/1/2 = pass/fail/needs-judge, first stdout line is the reason.</summary>
+    private static Verdict RunScript(string script, string scriptDir, AttemptContext attempt)
     {
         var path = Path.GetFullPath(Path.Combine(scriptDir, script));
-        var result = Subprocess.Run(path, [], cell.CellDir, cell.Environment());
+        var result = Subprocess.Run(path, [], attempt.AttemptDir, attempt.Environment());
         if (!result.Started) return Verdict.Err($"could not run {script}: {result.Stderr}");
         var firstLine = result.Stdout.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
         return result.ExitCode switch
@@ -450,12 +450,12 @@ static class Checks
     /// the first line of verifier/&lt;check&gt;.out the reason. A missing key is error, never fail: the script exited
     /// otherwise, or the verifier never reached it.
     /// </summary>
-    private static Verdict VerifierScript(string check, CellContext cell)
+    private static Verdict VerifierScript(string check, AttemptContext attempt)
     {
-        var verifier = Path.Combine(cell.CellDir, Layout.VerifierDir);
+        var verifier = Path.Combine(attempt.AttemptDir, Layout.VerifierDir);
         string? FirstLine(string file) => File.Exists(Path.Combine(verifier, file))
             ? File.ReadAllLines(Path.Combine(verifier, file)).Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) : null;
-        var rewardFile = Path.Combine(cell.CellDir, Layout.RewardFile);
+        var rewardFile = Path.Combine(attempt.AttemptDir, Layout.RewardFile);
         if (!File.Exists(rewardFile)) return Verdict.Err("the verifier wrote no reward.json");
         var reward = JsonNode.Parse(File.ReadAllText(rewardFile))?[check];
         var reason = FirstLine($"{check}.out");
@@ -466,7 +466,7 @@ static class Checks
             2 => new Verdict(Verdict.NeedsJudge, reason ?? "needs judge"),
             _ => Verdict.Err($"reward {r} is not 0, 1 or 2"),
         }
-        : FirstLine("apply.out") is { } applyError ? Verdict.Err($"the run's diff did not apply in the verifier: {applyError}")
+        : FirstLine("apply.out") is { } applyError ? Verdict.Err($"the attempt's diff did not apply in the verifier: {applyError}")
         : FirstLine($"{check}.exit") is { } code ? Verdict.Err(reason ?? $"exited {code}")
         : Verdict.Err("the verifier did not run this check");
     }

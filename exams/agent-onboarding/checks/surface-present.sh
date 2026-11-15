@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Validity: was the onboarding surface there to be used? The fixture's image clones and builds nb and proctor at
 # pinned revisions, puts both on PATH and installs proctor's skill where Claude Code and Qwen Code look for
-# skills. A sample whose image lacked any of it measured something else and does not count. The verifier runs
+# skills. An attempt whose image lacked any of it measured something else and does not count. The verifier runs
 # in a fresh container of the same image. The reason names the proctor revision, so the record says which
-# surface a sample saw.
+# surface an attempt saw.
 set -uo pipefail
 proctor_dir=/opt/proctor
 v=$(proctor --version 2>&1) || { echo "proctor does not run: $(head -1 <<<"$v")"; exit 1; }

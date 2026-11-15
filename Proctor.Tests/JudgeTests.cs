@@ -87,11 +87,11 @@ public class JudgeTests
     static Transcript Fixture(string name, string? diff = null) =>
         Transcript.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name + ".jsonl")), diff);
 
-    static CellContext Cell(JudgeClient judges, JsonObject? expect = null, string? cellDir = null) =>
-        new("/nonexistent", cellDir ?? Directory.CreateTempSubdirectory("proctor-judge").FullName, "/work", "exp", "a", new TaskDef("c", null, "Say the answer.", expect), 1) { Judges = judges };
+    static AttemptContext Attempt(JudgeClient judges, JsonObject? expect = null, string? attemptDir = null) =>
+        new("/nonexistent", attemptDir ?? Directory.CreateTempSubdirectory("proctor-judge").FullName, "/work", "exp", "a", new TaskDef("c", null, "Say the answer.", expect), 1) { Judges = judges };
 
-    static Verdict Exam(string spec, Transcript t, JudgeClient judges, JsonObject? expect = null, string? cellDir = null, string name = "the-check") =>
-        Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), Cell(judges, expect, cellDir), t, name);
+    static Verdict Exam(string spec, Transcript t, JudgeClient judges, JsonObject? expect = null, string? attemptDir = null, string name = "the-check") =>
+        Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), Attempt(judges, expect, attemptDir), t, name);
 
     static string Answer(string label, params string[] evidence) =>
         $"<thinking>because</thinking>\n```json\n{new JsonObject { ["label"] = label, ["evidence"] = new JsonArray(evidence.Select(e => (JsonNode)e).ToArray()) }.ToJsonString()}\n```";
@@ -104,21 +104,21 @@ public class JudgeTests
     [Fact]
     public void Window_ExtractsNamedPartsAndRefusesEmptyOrOversized()
     {
-        var cell = Cell(Client());
-        var (parts, _) = Window.Extract("answer+prompt", cell, Fixture("plain"), 24_000);
+        var attempt = Attempt(Client());
+        var (parts, _) = Window.Extract("answer+prompt", attempt, Fixture("plain"), 24_000);
         Assert.Equal(["answer", "prompt"], parts!.Keys);
         Assert.Equal("The answer is forty-two.", parts["answer"]);
         Assert.Contains("### answer", Window.Compile(parts));
         Assert.Contains("<prompt>\nSay the answer.\n</prompt>", Window.Compile(parts));
 
-        var (calls, _) = Window.Extract("tool_calls", cell, Fixture("tool-allowed"), 24_000);
+        var (calls, _) = Window.Extract("tool_calls", attempt, Fixture("tool-allowed"), 24_000);
         Assert.StartsWith("1. bash {\"command\":\"echo hi\"", calls!["tool_calls"]);
 
-        var (none, error) = Window.Extract("diff", cell, Fixture("plain"), 24_000);
+        var (none, error) = Window.Extract("diff", attempt, Fixture("plain"), 24_000);
         Assert.Null(none);
         Assert.Equal("window 'diff' is empty", error);
 
-        var (big, tooBig) = Window.Extract("answer", cell, Fixture("plain"), 10);
+        var (big, tooBig) = Window.Extract("answer", attempt, Fixture("plain"), 10);
         Assert.Null(big);
         Assert.StartsWith("window too large", tooBig);
 
@@ -187,7 +187,7 @@ public class JudgeTests
         var client = new JudgeClient { Defs = new() { ["jev"] = Jev with { Model = "typesafe/jev-1.14" } }, Http = new HttpClient(http) };
         var dir = Directory.CreateTempSubdirectory("proctor-judge").FullName;
 
-        var v = Exam("{\"decide\": {\"ask\": \"Is it done?\", \"window\": \"answer\"}}", Fixture("plain"), client, cellDir: dir, name: "done");
+        var v = Exam("{\"decide\": {\"ask\": \"Is it done?\", \"window\": \"answer\"}}", Fixture("plain"), client, attemptDir: dir, name: "done");
         Assert.Equal(("pass", "yes p=0.99"), v.Deconstruct());
         var sent = JsonNode.Parse(http.LastBody!)!.AsObject();
         Assert.Equal("typesafe/jev-1.14", sent["model"]!.GetValue<string>());
@@ -281,7 +281,7 @@ public class JudgeTests
     // ---- judge ----
 
     [Fact]
-    public void Judge_UnanimousSamplesPassOrFailWithTheFirstQuote()
+    public void Judge_UnanimousVotesPassOrFailWithTheFirstQuote()
     {
         var yes = new ScriptedChat(Answer("yes", "forty-two"));
         var v = Exam("{\"judge\": {\"ask\": \"Does it answer?\", \"window\": \"answer\"}}", Fixture("plain"), Client(chat: yes));
@@ -291,7 +291,7 @@ public class JudgeTests
         var no = new ScriptedChat(Answer("no", "The answer is"));
         Assert.Equal(("fail", "no 3/3, expected yes — \"The answer is\""), Exam("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Client(chat: no)).Deconstruct());
 
-        var expectNo = Exam("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\", \"expect\": \"no\", \"samples\": 1}}", Fixture("plain"), Client(chat: new ScriptedChat(Answer("no", "forty-two"))));
+        var expectNo = Exam("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\", \"expect\": \"no\", \"votes\": 1}}", Fixture("plain"), Client(chat: new ScriptedChat(Answer("no", "forty-two"))));
         Assert.Equal(("pass", "no 1/1 — \"forty-two\""), expectNo.Deconstruct());
     }
 
@@ -307,9 +307,9 @@ public class JudgeTests
     }
 
     [Fact]
-    public void Judge_DiscardsUnverifiableOrUnparsableSamples_AndErrorsWhenTooFewRemain()
+    public void Judge_DiscardsUnverifiableOrUnparsableVotes_AndErrorsWhenTooFewRemain()
     {
-        // one bad quote among three: the two verified samples decide
+        // one bad quote among three: the two verified votes decide
         var oneBad = new ScriptedChat(Answer("yes", "forty-two"), Answer("yes", "forty-three"), Answer("yes", "The  answer is\nforty-two"));
         var v = Exam("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), Client(chat: oneBad));
         Assert.Equal(("pass", "yes 2/3 — \"forty-two\""), v.Deconstruct());
@@ -356,31 +356,31 @@ public class JudgeTests
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.98"));
         const string spec = "{\"decide\": {\"ask\": \"Is it done?\", \"window\": \"answer\"}}";
 
-        Assert.Equal("pass", Exam(spec, Fixture("plain"), Client(http), cellDir: dir, name: "done").Result);
+        Assert.Equal("pass", Exam(spec, Fixture("plain"), Client(http), attemptDir: dir, name: "done").Result);
         var files = Directory.GetFiles(Path.Combine(dir, Layout.VerdictsDir));
         var file = Assert.Single(files);
         Assert.Matches(@"done\.jev\.[0-9a-f]{8}\.json$", file);
         var written = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Proctor.Exam.JsonOptions)!;
         Assert.Equal(("done", "jev", "systemone", "jev-1.13.0", "answer"), (written.Check, written.Judge, written.Kind, written.Model, written.Window));
         Assert.Equal(287, written.Usage!.Input);
-        Assert.Equal(0.98, written.Samples[0].Probability);
+        Assert.Equal(0.98, written.Votes[0].Probability);
         Assert.Equal("pass", written.Verdict.Result);
         Assert.Contains("forty-two", written.Request.ToJsonString());
 
-        Assert.Equal("pass", Exam(spec, Fixture("plain"), Client(http), cellDir: dir, name: "done").Result);
+        Assert.Equal("pass", Exam(spec, Fixture("plain"), Client(http), attemptDir: dir, name: "done").Result);
         Assert.Equal(1, http.Calls);   // the file answered
 
-        Assert.Equal("pass", Exam(spec.Replace("Is it done?", "Is it finished?"), Fixture("plain"), Client(http), cellDir: dir, name: "done").Result);
+        Assert.Equal("pass", Exam(spec.Replace("Is it done?", "Is it finished?"), Fixture("plain"), Client(http), attemptDir: dir, name: "done").Result);
         Assert.Equal(2, http.Calls);   // a different question is a different file
         Assert.Equal(2, Directory.GetFiles(Path.Combine(dir, Layout.VerdictsDir)).Length);
 
-        Assert.Equal("pass", Exam(spec, Fixture("plain"), Client(http, rejudge: true), cellDir: dir, name: "done").Result);
+        Assert.Equal("pass", Exam(spec, Fixture("plain"), Client(http, rejudge: true), attemptDir: dir, name: "done").Result);
         Assert.Equal(3, http.Calls);
 
         // an error on file is retried, not reused
         var down = new ScriptedHttp(HttpStatusCode.BadGateway, "gone");
-        Assert.Equal("error", Exam(spec.Replace("done?", "over?"), Fixture("plain"), Client(down), cellDir: dir, name: "done").Result);
-        Assert.Equal("error", Exam(spec.Replace("done?", "over?"), Fixture("plain"), Client(down), cellDir: dir, name: "done").Result);
+        Assert.Equal("error", Exam(spec.Replace("done?", "over?"), Fixture("plain"), Client(down), attemptDir: dir, name: "done").Result);
+        Assert.Equal("error", Exam(spec.Replace("done?", "over?"), Fixture("plain"), Client(down), attemptDir: dir, name: "done").Result);
         Assert.Equal(2, down.Calls);
     }
 
@@ -394,7 +394,7 @@ public class JudgeTests
             Defs = new() { ["jev"] = Jev, ["jev-local"] = Jev with { Endpoint = "http://judge-local.test/v1/systemone" } },
             Http = new HttpClient(http), Remap = new() { ["jev"] = "jev-local" },
         };
-        Exam("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\", \"with\": \"jev\"}}", Fixture("plain"), client, cellDir: dir, name: "done");
+        Exam("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\", \"with\": \"jev\"}}", Fixture("plain"), client, attemptDir: dir, name: "done");
         Assert.Contains("done.jev-local.", Assert.Single(Directory.GetFiles(Path.Combine(dir, Layout.VerdictsDir))));
     }
 
@@ -407,7 +407,7 @@ public class JudgeTests
         try
         {
             var client = new JudgeClient { Defs = new() { ["jev"] = Jev with { Endpoint = "${PROCTOR_TEST_GATEWAY}/systemone" } }, Http = new HttpClient(http) };
-            Exam("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), client, cellDir: dir, name: "done");
+            Exam("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), client, attemptDir: dir, name: "done");
         }
         finally { Environment.SetEnvironmentVariable("PROCTOR_TEST_GATEWAY", null); }
         Assert.Equal("http://resolved.test/x/systemone", http.LastUri!.ToString());
@@ -437,7 +437,7 @@ public class JudgeTests
     [InlineData("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\", \"threshold\": 1.5}}", "threshold is a probability")]
     [InlineData("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\", \"expect\": \"maybe\"}}", "expect is true or false")]
     [InlineData("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\", \"model\": \"x\"}}", "unknown field 'model'")]
-    [InlineData("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\", \"samples\": 0}}", "samples is a whole number")]
+    [InlineData("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\", \"votes\": 0}}", "votes is a whole number")]
     [InlineData("{\"judge\": {\"ask\": \"?\", \"window\": \"answer\", \"expect\": \"perhaps\"}}", "expect is yes or no")]
     [InlineData("{\"not_judge\": {\"ask\": \"?\", \"window\": \"answer\"}}", "cannot be negated")]
     public void Validation_ReportsTheShape(string spec, string problem)
@@ -507,9 +507,9 @@ public class JudgeTests
         repo.CopyExam("smoke");
         repo.EditJson("smoke/exam.json", e =>
         {
-            e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; e["variants"]![0]!["model"] = "glm-4.7";
+            e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["attempts"] = 1; e["variants"]![0]!["model"] = "glm-4.7";
             e["grading"]!["checks"]!["stance"] = JsonNode.Parse("{\"decide\": {\"ask\": \"Does it claim completion?\", \"window\": \"answer\"}}");
-            e["grading"]!["checks"]!["sensible"] = JsonNode.Parse("{\"judge\": {\"ask\": \"Is the answer sensible?\", \"window\": \"prompt+answer\", \"samples\": 2, \"with\": \"glm\"}}");
+            e["grading"]!["checks"]!["sensible"] = JsonNode.Parse("{\"judge\": {\"ask\": \"Is the answer sensible?\", \"window\": \"prompt+answer\", \"votes\": 2, \"with\": \"glm\"}}");
             e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"sensible\"]");
         });
         repo.WriteProctorConfig(new { jev = new { kind = "systemone", endpoint = "http://judge.test/systemone", family = "typesafe" }, glm = new { kind = "chat", endpoint = "http://judge.test/v1", model = "glm", family = "glm" } });
@@ -529,15 +529,15 @@ public class JudgeTests
         var plain = grades.Single(g => g.Task == "plain");
         Assert.Equal("pass", plain.Checks!["stance"].Result);
         Assert.Equal("yes p=0.99", plain.Checks["stance"].Reason);
-        Assert.Equal("error", plain.Checks["sensible"].Result);   // "OK" is not in plain's answer: every sample discarded
+        Assert.Equal("error", plain.Checks["sensible"].Result);   // "OK" is not in plain's answer: every vote discarded
         var usesBash = grades.Single(g => g.Task == "uses-bash");
         Assert.Equal(("pass", "yes 2/2 — \"OK\""), usesBash.Checks!["sensible"].Deconstruct());
         Assert.True(usesBash.Pass);
         Assert.Equal(3, http.Calls);
         Assert.Equal(6, chat.Calls);
 
-        var cell = Layout.Cell(Layout.Batch(repo.Root, id), "a", "plain", 1);
-        Assert.Equal(2, Directory.GetFiles(Path.Combine(cell, Layout.VerdictsDir)).Length);
+        var attempt = Layout.Attempt(Layout.Batch(repo.Root, id), "a", "plain", 1);
+        Assert.Equal(2, Directory.GetFiles(Path.Combine(attempt, Layout.VerdictsDir)).Length);
 
         // a comparison pass: k2 beside glm, checks.json untouched, k2's files not applied
         repo.WriteProctorConfig(new { jev = new { kind = "systemone", endpoint = "http://judge.test/systemone" }, glm = new { kind = "chat", endpoint = "http://judge.test/v1", model = "glm" }, k2 = new { kind = "chat", endpoint = "http://judge.test/v1", model = "k2" } });
@@ -546,13 +546,13 @@ public class JudgeTests
         var compareLog = new StringWriter();
         var compared = Proctor.Grade.Batch(repo.Root, batch, exam, compareLog, compare);
         Assert.Equal(("pass", "yes 2/2 — \"OK\""), compared.Single(g => g.Task == "uses-bash").Checks!["sensible"].Deconstruct());
-        Assert.Equal("pass", Proctor.Grade.ReadChecks(Layout.Cell(Layout.Batch(repo.Root, id), "a", "uses-bash", 1))!["sensible"].Result);
+        Assert.Equal("pass", Proctor.Grade.ReadChecks(Layout.Attempt(Layout.Batch(repo.Root, id), "a", "uses-bash", 1))!["sensible"].Result);
         Assert.Contains("a/uses-bash/1  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2, expected yes — \"OK\")", compareLog.ToString());
         Assert.Contains("2 of 3 verdicts agree; checks.json unchanged", compareLog.ToString());   // plain and loops error under both judges ("OK" is not in their answers); uses-bash disagrees
         Assert.Equal(3, http.Calls);   // decides are not remapped, so not re-called
         Assert.Equal(6, chat.Calls);
         Assert.Equal(6, k2.Calls);
-        var k2File = Directory.GetFiles(Path.Combine(Layout.Cell(Layout.Batch(repo.Root, id), "a", "uses-bash", 1), Layout.VerdictsDir), "sensible.k2.*").Single();
+        var k2File = Directory.GetFiles(Path.Combine(Layout.Attempt(Layout.Batch(repo.Root, id), "a", "uses-bash", 1), Layout.VerdictsDir), "sensible.k2.*").Single();
         Assert.False(JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(k2File), Proctor.Exam.JsonOptions)!.Applied);
 
         var uses = Judge.Uses(repo.Root, batch, exam);

@@ -108,10 +108,10 @@ b { font-weight: 600; }
 <a href="#task-uses-bash" class="is-sub"><span>uses-bash</span></a>
 <a href="#results"><span>Results</span></a>
 <a href="#failures"><span>Failures</span></a>
-<a href="#run-summary"><span>Run summary</span><span class="flag" title="Needs care" aria-label="Needs care"></span></a>
+<a href="#attempt-summary"><span>Attempt summary</span><span class="flag" title="Needs care" aria-label="Needs care"></span></a>
 <a href="#check-rates"><span>Check pass rates</span></a>
 <a href="#cost"><span>Cost and effort</span></a>
-<a href="#every-run"><span>Every run</span></a>
+<a href="#every-attempt"><span>Every attempt</span></a>
 <a href="#method"><span>Reproducibility and method</span></a>
 </div>
 </div>
@@ -129,7 +129,7 @@ b { font-weight: 600; }
 <div class="verdict" role="region" aria-label="Verdict">
 <div class="kicker">Against the baseline pinned 14 Sep 2026</div>
 <svg class="chart" viewBox="0 0 746 170" width="746" height="170" role="img" aria-label="Pass rate per variant with its 95% interval, and each variant&#39;s change against the baseline in points">
-<text x="130" y="16" class="ch">Pass rate</text><text x="130" y="33" class="cs">dot: share of runs passed · bar: 95% interval</text>
+<text x="130" y="16" class="ch">Pass rate</text><text x="130" y="33" class="cs">dot: share of attempts passed · bar: 95% interval</text>
 <text x="450" y="16" class="ch">Change against the baseline</text><text x="450" y="33" class="cs">points · hollow: not confirmed</text>
 <line x1="130" x2="130" y1="64" y2="140" class="grid"/><text x="130" y="157" class="ax" text-anchor="middle">0%</text>
 <line x1="192.5" x2="192.5" y1="64" y2="140" class="grid"/><text x="192.5" y="157" class="ax" text-anchor="middle">25%</text>
@@ -144,11 +144,11 @@ b { font-weight: 600; }
 <text x="324.5" y="58" class="ax" text-anchor="middle">baseline 78%</text>
 <text x="0" y="94" class="variant">floor <tspan class="cs">reference</tspan></text>
 <line x1="324.5" x2="324.5" y1="76" y2="102" class="mark"><title>The baseline&#39;s score: 78%</title></line>
-<g><title>floor: 56% of runs passed (4 of 7); 95% interval 15% to 90% over 3 tasks</title><rect x="161.8" y="76" width="198.8" height="26" fill="transparent"/><line x1="167.8" x2="354.5" y1="89" y2="89" class="bar"/><circle cx="269" cy="89" r="5" class="dot"/></g><text x="390" y="94" class="val">56%</text>
+<g><title>floor: 56% of attempts passed (4 of 7); 95% interval 15% to 90% over 3 tasks</title><rect x="161.8" y="76" width="198.8" height="26" fill="transparent"/><line x1="167.8" x2="354.5" y1="89" y2="89" class="bar"/><circle cx="269" cy="89" r="5" class="dot"/></g><text x="390" y="94" class="val">56%</text>
 <g><title>floor: −22 points; 95% interval −67 to +39; worse, not confirmed</title><rect x="477" y="76" width="118" height="26" fill="transparent"/><line x1="483" x2="589" y1="89" y2="89" class="bar" style="stroke:#a52d15"/><circle cx="528" cy="89" r="5" class="ddot" style="stroke:#a52d15;fill:#fff"/></g><text x="660" y="94" class="val" style="fill:#a52d15">−22 worse</text>
 <text x="0" y="128" class="variant">b</text>
 <line x1="324.5" x2="324.5" y1="110" y2="136" class="mark"><title>The baseline&#39;s score: 78%</title></line>
-<g><title>b: 89% of runs passed (8 of 9); 95% interval 35% to 99% over 3 tasks</title><rect x="211.3" y="110" width="172.8" height="26" fill="transparent"/><line x1="217.3" x2="378" y1="123" y2="123" class="bar"/><circle cx="352.3" cy="123" r="5" class="dot"/></g><text x="390" y="128" class="val">89%</text>
+<g><title>b: 89% of attempts passed (8 of 9); 95% interval 35% to 99% over 3 tasks</title><rect x="211.3" y="110" width="172.8" height="26" fill="transparent"/><line x1="217.3" x2="378" y1="123" y2="123" class="bar"/><circle cx="352.3" cy="123" r="5" class="dot"/></g><text x="390" y="128" class="val">89%</text>
 <g><title>b: +11 points; 95% interval −46 to +63; better, not confirmed</title><rect x="498" y="110" width="121" height="26" fill="transparent"/><line x1="504" x2="613" y1="123" y2="123" class="bar" style="stroke:#17603a"/><circle cx="561" cy="123" r="5" class="ddot" style="stroke:#17603a;fill:#fff"/></g><text x="660" y="128" class="val" style="fill:#17603a">+11 better</text>
 </svg>
 <div class="verdict-lines">
@@ -156,23 +156,23 @@ b { font-weight: 600; }
 <p><b>b</b>: higher on <a href="#task-uses-bash">uses-bash</a> (+33); same on <a href="#task-loops">loops</a> and <a href="#task-plain">plain</a>.</p>
 </div>
 <div class="verdict-foot">
-<p><b>Why unconfirmed:</b> with 3 tasks this run can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.</p>
-<p class="caution"><b>Read floor with care:</b> it lost 2 of its 9 runs and b lost none, so floor&#39;s rate rests on fewer runs. See <a href="#run-summary">Run summary</a>.</p>
+<p><b>Why unconfirmed:</b> with 3 tasks this report can only confirm a change of about 81 points. Confirming a 10-point change takes about 200 tasks.</p>
+<p class="caution"><b>Read floor with care:</b> it lost 2 of its 9 attempts and b lost none, so floor&#39;s rate rests on fewer attempts. See <a href="#attempt-summary">Attempt summary</a>.</p>
 </div>
 </div>
 <dl>
 <dt>Host</dt><dd>bench</dd>
 <dt>Variants</dt><dd>2: <span class="id">floor</span> (the reference), <span class="id">b</span></dd>
-<dt>Tasks</dt><dd>3, each run 3 times per variant</dd>
-<dt>Runs</dt><dd>18 planned, 16 counted</dd>
+<dt>Tasks</dt><dd>3, each attempted 3 times per variant</dd>
+<dt>Attempts</dt><dd>18 planned, 16 counted</dd>
 </dl>
 </section>
 
 <section id="variants">
 <h2>Variants</h2>
-<p class="explain">A variant is one configuration under test: a harness, a provider and a model, run over every task. The first variant is the reference the others are compared with.</p>
+<p class="explain">A variant is one configuration under test: a harness, a provider and a model, given every task. The first variant is the reference the others are compared with.</p>
 <div class="table-wrap"><table>
-<thead><tr><th>Variant</th><th>What it is</th><th>Harness</th><th>Provider</th><th>Model</th><th class="num">Runs per task</th></tr></thead>
+<thead><tr><th>Variant</th><th>What it is</th><th>Harness</th><th>Provider</th><th>Model</th><th class="num">Attempts per task</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td>the local floor</td><td>nb</td><td>local-qcoder</td><td>qwen-coder</td><td class="num">3</td></tr>
 <tr><td><span class="id">b</span></td><td></td><td>nb</td><td>local-glm</td><td>glm</td><td class="num">3</td></tr>
@@ -182,60 +182,60 @@ b { font-weight: 600; }
 
 <section id="tasks">
 <h2>Tasks</h2>
-<p class="explain">A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per variant, so a score is not one lucky or unlucky attempt.</p>
-<p class="explain">A check is one yes-or-no test over a finished run. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check&#39;s role decides what it does to a run:</p>
+<p class="explain">A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is attempted 3 times per variant, so a score is not one lucky or unlucky attempt.</p>
+<p class="explain">A check is one yes-or-no test over a finished attempt. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check&#39;s role decides what it does to an attempt:</p>
 <dl class="explain">
-<dt><span class="role role-headline">headline</span></dt><dd>Together, the headline checks decide whether a run passed.</dd>
-<dt><span class="role role-validity">validity</span></dt><dd>Decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure.</dd>
+<dt><span class="role role-headline">headline</span></dt><dd>Together, the headline checks decide whether an attempt passed.</dd>
+<dt><span class="role role-validity">validity</span></dt><dd>Decides whether an attempt counts at all: an attempt that fails one is left out of every rate, not counted as a failure.</dd>
 <dt><span class="role role-guardrail">guardrail</span></dt><dd>Reported, not part of the pass.</dd>
 </dl>
-<p class="explain">A check that cannot decide a run leaves that run out of its rate on both sides.</p>
+<p class="explain">A check that cannot decide an attempt leaves that attempt out of its rate on both sides.</p>
 <h4>Checks the exam declares, carried by every task</h4>
 <div class="table-wrap"><table class="checks">
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th></tr></thead>
 <tbody>
-<tr><td>exit_ok</td><td>the run ends with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td></tr>
+<tr><td>exit_ok</td><td>the attempt ends with &#39;ok&#39;</td><td><span class="role role-headline">headline</span></td></tr>
 <tr><td>builds</td><td>the repository builds after the change</td><td><span class="role role-headline">headline</span></td></tr>
 <tr><td>no_denials</td><td>no denied tool calls</td><td><span class="role role-validity">validity</span></td></tr>
 </tbody>
 </table></div>
-<p class="explain">Each task&#39;s results show one mark per run: ● passed, ○ failed, ? undecided, &#215; not counted. Hover a mark for the reason; click it for the run. A task scores its mean over its counted, decided runs, and is called better or worse than its baseline beyond 10 points either way.</p>
+<p class="explain">Each task&#39;s results show one mark per attempt: ● passed, ○ failed, ? undecided, &#215; not counted. Hover a mark for the reason; click it for the attempt. A task scores its mean over its counted, decided attempts, and is called better or worse than its baseline beyond 10 points either way.</p>
 <section id="task-loops" class="task">
 <h3>loops</h3>
 <p class="prompt">The model repeats a bash command until nb nudges it out of the loop</p>
-<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per variant</span><span><b>3 checks</b>: 3 from the exam, none of its own</span></div>
+<div class="facts"><span>Fixture <b>note</b></span><span>Attempted <b>3 times</b> per variant</span><span><b>3 checks</b>: 3 from the exam, none of its own</span></div>
 <h4>Results</h4>
 <div class="table-wrap"><table class="results">
-<thead><tr><th>Variant</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
+<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
 <tbody>
-<tr><td>floor</td><td><span class="marks"><a href="#run-fl10000000000000" class="pass" title="run 1: passed (fl10000000000000)">●</a><a href="#run-fl20000000000000" class="pass" title="run 2: passed (fl20000000000000)">●</a><a href="#run-fl30000000000000" class="fail" title="run 3: failed — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
-<tr><td>b</td><td><span class="marks"><a href="#run-bl10000000000000" class="pass" title="run 1: passed (bl10000000000000)">●</a><a href="#run-bl20000000000000" class="pass" title="run 2: passed (bl20000000000000)">●</a><a href="#run-bl30000000000000" class="pass" title="run 3: passed (bl30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>floor</td><td><span class="marks"><a href="#attempt-fl10000000000000" class="pass" title="attempt 1: passed (fl10000000000000)">●</a><a href="#attempt-fl20000000000000" class="pass" title="attempt 2: passed (fl20000000000000)">●</a><a href="#attempt-fl30000000000000" class="fail" title="attempt 3: failed — exit_ok: exit_reason=max_tool_calls (fl30000000000000)">○</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
+<tr><td>b</td><td><span class="marks"><a href="#attempt-bl10000000000000" class="pass" title="attempt 1: passed (bl10000000000000)">●</a><a href="#attempt-bl20000000000000" class="pass" title="attempt 2: passed (bl20000000000000)">●</a><a href="#attempt-bl30000000000000" class="pass" title="attempt 3: passed (bl30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
 </tbody>
 </table></div>
 <ul class="why">
-<li><a href="#run-fl30000000000000">floor run 3</a> failed: exit_ok: exit_reason=max_tool_calls</li>
+<li><a href="#attempt-fl30000000000000">floor attempt 3</a> failed: exit_ok: exit_reason=max_tool_calls</li>
 </ul>
 </section>
 <section id="task-plain" class="task">
 <h3>plain</h3>
 <p class="prompt">The model answers in one turn with no tools</p>
-<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per variant</span><span><b>3 checks</b>: 3 from the exam, none of its own</span></div>
+<div class="facts"><span>Fixture <b>note</b></span><span>Attempted <b>3 times</b> per variant</span><span><b>3 checks</b>: 3 from the exam, none of its own</span></div>
 <h4>Results</h4>
 <div class="table-wrap"><table class="results">
-<thead><tr><th>Variant</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
+<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
 <tbody>
-<tr><td>floor</td><td><span class="marks"><a href="#run-fp10000000000000" class="pass" title="run 1: passed (fp10000000000000)">●</a><a href="#run-fp20000000000000" class="pass" title="run 2: passed (fp20000000000000)">●</a><a href="#run-fp30000000000000" class="skip" title="run 3: not counted — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></span></td><td class="num"><b>100%</b></td><td class="num">2 of 2</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
-<tr><td>b</td><td><span class="marks"><a href="#run-bp10000000000000" class="pass" title="run 1: passed (bp10000000000000)">●</a><a href="#run-bp20000000000000" class="pass" title="run 2: passed (bp20000000000000)">●</a><a href="#run-bp30000000000000" class="pass" title="run 3: passed (bp30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>floor</td><td><span class="marks"><a href="#attempt-fp10000000000000" class="pass" title="attempt 1: passed (fp10000000000000)">●</a><a href="#attempt-fp20000000000000" class="pass" title="attempt 2: passed (fp20000000000000)">●</a><a href="#attempt-fp30000000000000" class="skip" title="attempt 3: not counted — no_denials: 1 denied call: bash (no-match) (fp30000000000000)">×</a></span></td><td class="num"><b>100%</b></td><td class="num">2 of 2</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
+<tr><td>b</td><td><span class="marks"><a href="#attempt-bp10000000000000" class="pass" title="attempt 1: passed (bp10000000000000)">●</a><a href="#attempt-bp20000000000000" class="pass" title="attempt 2: passed (bp20000000000000)">●</a><a href="#attempt-bp30000000000000" class="pass" title="attempt 3: passed (bp30000000000000)">●</a></span></td><td class="num"><b>100%</b></td><td class="num">3 of 3</td><td class="num">&#177;0 points</td><td><b class="vsame">same</b></td></tr>
 </tbody>
 </table></div>
 <ul class="why">
-<li><a href="#run-fp30000000000000">floor run 3</a> not counted: no_denials: 1 denied call: bash (no-match)</li>
+<li><a href="#attempt-fp30000000000000">floor attempt 3</a> not counted: no_denials: 1 denied call: bash (no-match)</li>
 </ul>
 </section>
 <section id="task-uses-bash" class="task">
 <h3>uses-bash</h3>
 <p class="prompt">The model runs one bash command and answers</p>
-<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per variant</span><span><b>4 checks</b>: 3 from the exam, 1 of its own</span></div>
+<div class="facts"><span>Fixture <b>note</b></span><span>Attempted <b>3 times</b> per variant</span><span><b>4 checks</b>: 3 from the exam, 1 of its own</span></div>
 <h4>Checks beyond the exam&#39;s</h4>
 <div class="table-wrap"><table class="checks">
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>Declared by</th></tr></thead>
@@ -245,26 +245,26 @@ b { font-weight: 600; }
 </table></div>
 <h4>Results</h4>
 <div class="table-wrap"><table class="results">
-<thead><tr><th>Variant</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (33%)</th><th>Verdict</th></tr></thead>
+<thead><tr><th>Variant</th><th>Attempts</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (33%)</th><th>Verdict</th></tr></thead>
 <tbody>
-<tr><td>floor</td><td><span class="marks"><a href="#run-fu10000000000000" class="fail" title="run 1: failed — builds: 2 of 41 tests failed (fu10000000000000)">○</a><a href="#run-fu20000000000000" class="skip" title="run 2: never completed — sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed (fu20000000000000)">×</a><a href="#run-fu30000000000000" class="fail" title="run 3: failed — builds: 2 of 41 tests failed (fu30000000000000)">○</a></span></td><td class="num"><b>0%</b></td><td class="num">0 of 2</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
-<tr><td>b</td><td><span class="marks"><a href="#run-bu10000000000000" class="pass" title="run 1: passed (bu10000000000000)">●</a><a href="#run-bu20000000000000" class="fail" title="run 2: failed — builds: 2 of 41 tests failed (bu20000000000000)">○</a><a href="#run-bu30000000000000" class="pass" title="run 3: passed (bu30000000000000)">●</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">+33 points</td><td><b class="vgood">better</b></td></tr>
+<tr><td>floor</td><td><span class="marks"><a href="#attempt-fu10000000000000" class="fail" title="attempt 1: failed — builds: 2 of 41 tests failed (fu10000000000000)">○</a><a href="#attempt-fu20000000000000" class="skip" title="attempt 2: never completed — attempt setup hook failed: hooks/reset-fixture.sh exited 1: clone failed (fu20000000000000)">×</a><a href="#attempt-fu30000000000000" class="fail" title="attempt 3: failed — builds: 2 of 41 tests failed (fu30000000000000)">○</a></span></td><td class="num"><b>0%</b></td><td class="num">0 of 2</td><td class="num">−33 points</td><td><b class="vbad">worse</b></td></tr>
+<tr><td>b</td><td><span class="marks"><a href="#attempt-bu10000000000000" class="pass" title="attempt 1: passed (bu10000000000000)">●</a><a href="#attempt-bu20000000000000" class="fail" title="attempt 2: failed — builds: 2 of 41 tests failed (bu20000000000000)">○</a><a href="#attempt-bu30000000000000" class="pass" title="attempt 3: passed (bu30000000000000)">●</a></span></td><td class="num"><b>67%</b></td><td class="num">2 of 3</td><td class="num">+33 points</td><td><b class="vgood">better</b></td></tr>
 </tbody>
 </table></div>
 <ul class="why">
-<li><a href="#run-fu10000000000000">floor run 1</a> failed: builds: 2 of 41 tests failed</li>
-<li><a href="#run-fu20000000000000">floor run 2</a> never completed: sample setup hook failed: <code class="code">hooks/reset-fixture.sh</code> exited 1: clone failed</li>
-<li><a href="#run-fu30000000000000">floor run 3</a> failed: builds: 2 of 41 tests failed</li>
-<li><a href="#run-bu20000000000000">b run 2</a> failed: builds: 2 of 41 tests failed</li>
+<li><a href="#attempt-fu10000000000000">floor attempt 1</a> failed: builds: 2 of 41 tests failed</li>
+<li><a href="#attempt-fu20000000000000">floor attempt 2</a> never completed: attempt setup hook failed: <code class="code">hooks/reset-fixture.sh</code> exited 1: clone failed</li>
+<li><a href="#attempt-fu30000000000000">floor attempt 3</a> failed: builds: 2 of 41 tests failed</li>
+<li><a href="#attempt-bu20000000000000">b attempt 2</a> failed: builds: 2 of 41 tests failed</li>
 </ul>
 </section>
 </section>
 
 <section id="results">
 <h2>Results</h2>
-<p class="explain">Pass rate is the share of counted runs in which every headline check held, averaged task by task so that one task with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 tasks it is wide.</p>
+<p class="explain">Pass rate is the share of counted attempts in which every headline check held, averaged task by task so that one task with many attempts does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 tasks it is wide.</p>
 <div class="table-wrap"><table>
-<thead><tr><th>Variant</th><th class="num">Pass rate</th><th class="num">95% interval</th><th class="num">Passed / decided runs</th></tr></thead>
+<thead><tr><th>Variant</th><th class="num">Pass rate</th><th class="num">95% interval</th><th class="num">Passed / decided attempts</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td class="num">56%</td><td class="num">15% to 90%</td><td class="num">4 / 7</td></tr>
 <tr><td><span class="id">b</span></td><td class="num">89%</td><td class="num">35% to 99%</td><td class="num">8 / 9</td></tr>
@@ -277,7 +277,7 @@ b { font-weight: 600; }
 <tr><td><span class="id">b</span></td><td class="num">+33 points</td><td class="num">−31 to +75</td><td class="num">2 / 0 / 1</td><td><b class="vgood">better</b> (unconfirmed)</td></tr>
 </tbody>
 </table></div>
-<p>With 3 paired tasks this batch can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.</p>
+<p>With 3 paired tasks this report can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.</p>
 <p class="explain"><b>Against the baseline.</b> The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each variant&#39;s score with it and calls anything more than 10 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Variant</th><th class="num">Difference from baseline</th><th class="num">95% interval</th><th class="num">Tasks better / worse / same</th><th>Verdict</th></tr></thead>
@@ -286,44 +286,44 @@ b { font-weight: 600; }
 <tr><td><span class="id">b</span></td><td class="num">+11 points</td><td class="num">−46 to +63</td><td class="num">1 / 0 / 2</td><td><b class="vgood">Better</b> (unconfirmed)</td></tr>
 </tbody>
 </table></div>
-<p class="explain">How each task scored against its baseline, and why runs failed, is shown with the task under <a href="#tasks">Tasks</a>.</p>
+<p class="explain">How each task scored against its baseline, and why attempts failed, is shown with the task under <a href="#tasks">Tasks</a>.</p>
 </section>
 
 <section id="failures">
 <h2>Failures</h2>
-<p class="explain">For each variant, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check&#39;s weakness, not the variant&#39;s.</p>
+<p class="explain">For each variant, the checks that failed in at least one counted attempt, most frequent first, with the tasks they failed on. A check that could not decide an attempt, or could not grade it at all, is listed apart: that is the check&#39;s weakness, not the variant&#39;s.</p>
 <p><b><span class="id">floor</span></b> (the local floor) failed 2 checks:</p>
 <ul>
-<li><b>the repository builds after the change</b> (<span class="id">builds</span>, headline) failed in 3 of 7 runs: twice on <a href="#task-uses-bash">uses-bash</a>, once on <a href="#task-loops">loops</a>.</li>
-<li><b>the run ends with &#39;ok&#39;</b> (<span class="id">exit_ok</span>, headline) failed in 1 of 7 runs: once on <a href="#task-loops">loops</a>.</li>
+<li><b>the repository builds after the change</b> (<span class="id">builds</span>, headline) failed in 3 of 7 attempts: twice on <a href="#task-uses-bash">uses-bash</a>, once on <a href="#task-loops">loops</a>.</li>
+<li><b>the attempt ends with &#39;ok&#39;</b> (<span class="id">exit_ok</span>, headline) failed in 1 of 7 attempts: once on <a href="#task-loops">loops</a>.</li>
 </ul>
 <p><b><span class="id">b</span></b> failed 1 check:</p>
 <ul>
-<li><b>the repository builds after the change</b> (<span class="id">builds</span>, headline) failed in 1 of 9 runs: once on <a href="#task-uses-bash">uses-bash</a>.</li>
+<li><b>the repository builds after the change</b> (<span class="id">builds</span>, headline) failed in 1 of 9 attempts: once on <a href="#task-uses-bash">uses-bash</a>.</li>
 </ul>
 </section>
 
-<section id="run-summary">
-<h2>Run summary</h2>
-<p class="explain">This is how far each run in the exam got before terminating. <i>Attempted</i> runs started; <i>completed</i> runs ended with a transcript; <i>graded</i> runs have their checks; <i>counted</i> runs are graded and passed every validity check; <i>decided</i> runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.</p>
+<section id="attempt-summary">
+<h2>Attempt summary</h2>
+<p class="explain">This is how far each attempt got before terminating. <i>Started</i> attempts began; <i>completed</i> attempts ended with a transcript; <i>graded</i> attempts have their checks; <i>counted</i> attempts are graded and passed every validity check; <i>decided</i> attempts are counted attempts whose headline checks all reached a verdict. Pass rates are over decided attempts only.</p>
 <div class="table-wrap"><table>
-<thead><tr><th>Variant</th><th class="num">Planned</th><th class="num">Attempted</th><th class="num">Completed</th><th class="num">Graded</th><th class="num">Counted</th><th class="num">Decided</th></tr></thead>
+<thead><tr><th>Variant</th><th class="num">Planned</th><th class="num">Started</th><th class="num">Completed</th><th class="num">Graded</th><th class="num">Counted</th><th class="num">Decided</th></tr></thead>
 <tbody>
 <tr><td><span class="id">floor</span></td><td class="num">9</td><td class="num">9</td><td class="num">8</td><td class="num">8</td><td class="num">7</td><td class="num">7</td></tr>
 <tr><td><span class="id">b</span></td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td><td class="num">9</td></tr>
 </tbody>
 </table></div>
-<p class="warning">Variants lost runs unequally: <span class="id">floor</span> decided 7 of 9, <span class="id">b</span> decided 9 of 9. The rates are over decided runs; the runs lost are listed here.</p>
-<p>Runs left out, and why:</p>
+<p class="warning">Variants lost attempts unequally: <span class="id">floor</span> decided 7 of 9, <span class="id">b</span> decided 9 of 9. The rates are over decided attempts; the attempts lost are listed here.</p>
+<p>Attempts left out, and why:</p>
 <ul>
-<li><a href="#run-fp30000000000000">floor/plain/3</a>: not counted, failed a validity check. no_denials: 1 denied call: bash (no-match)</li>
-<li><a href="#run-fu20000000000000">floor/uses-bash/2</a>: never completed. sample setup hook failed: <code class="code">hooks/reset-fixture.sh</code> exited 1: clone failed</li>
+<li><a href="#attempt-fp30000000000000">floor/plain/3</a>: not counted, failed a validity check. no_denials: 1 denied call: bash (no-match)</li>
+<li><a href="#attempt-fu20000000000000">floor/uses-bash/2</a>: never completed. attempt setup hook failed: <code class="code">hooks/reset-fixture.sh</code> exited 1: clone failed</li>
 </ul>
-<p class="explain">How each completed run ended, per variant. <span class="id">ok</span> is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.</p>
+<p class="explain">How each completed attempt ended, per variant. <span class="id">ok</span> is a normal finish; anything else is the harness stopping the attempt (a limit, an error from the provider), which the checks then grade like any other.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Variant</th><th class="num"><span class="id">ok</span></th><th class="num"><span class="id">max_tool_calls</span></th></tr></thead>
 <tbody>
-<tr><td><span class="id">floor</span></td><td class="num">7</td><td class="num">1 (<span class="id">loops</span> run 3)</td></tr>
+<tr><td><span class="id">floor</span></td><td class="num">7</td><td class="num">1 (<span class="id">loops</span> attempt 3)</td></tr>
 <tr><td><span class="id">b</span></td><td class="num">9</td><td class="num">0</td></tr>
 </tbody>
 </table></div>
@@ -331,11 +331,11 @@ b { font-weight: 600; }
 
 <section id="check-rates">
 <h2>Check pass rates</h2>
-<p class="explain">How often each check held, per variant, over the runs it applies to. Headline and guardrail checks are over counted runs; a validity check is over every graded run, because it says how many were counted. A run the check could not decide is out of its rate and counted beside it.</p>
+<p class="explain">How often each check held, per variant, over the attempts it applies to. Headline and guardrail checks are over counted attempts; a validity check is over every graded attempt, because it says how many were counted. An attempt the check could not decide is out of its rate and counted beside it.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th class="num"><span class="id">floor</span></th><th class="num"><span class="id">b</span></th></tr></thead>
 <tbody>
-<tr><td><span class="id">exit_ok</span></td><td>the run ends with &#39;ok&#39;</td><td>headline</td><td class="num">89% (6/7)</td><td class="num">100% (9/9)</td></tr>
+<tr><td><span class="id">exit_ok</span></td><td>the attempt ends with &#39;ok&#39;</td><td>headline</td><td class="num">89% (6/7)</td><td class="num">100% (9/9)</td></tr>
 <tr><td><span class="id">builds</span></td><td>the repository builds after the change</td><td>headline</td><td class="num">56% (4/7)</td><td class="num">89% (8/9)</td></tr>
 <tr><td><span class="id">no_denials</span></td><td>no denied tool calls</td><td>validity</td><td class="num">89% (7/8)</td><td class="num">100% (9/9)</td></tr>
 <tr><td><span class="id">used-bash</span></td><td>uses bash</td><td>guardrail</td><td class="num">100% (2/2)</td><td class="num">100% (3/3)</td></tr>
@@ -345,7 +345,7 @@ b { font-weight: 600; }
 
 <section id="cost">
 <h2>Cost and effort</h2>
-<p class="explain">Per completed run. Duration is wall time in minutes, hooks included; tokens are the run&#39;s own count. Cost is not shown: no variant&#39;s harness reports one.</p>
+<p class="explain">Per completed attempt. Duration is wall time in minutes, hooks included; tokens are the attempt&#39;s own count. Cost is not shown: no variant&#39;s harness reports one.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Variant</th><th class="num">Duration (min): median</th><th class="num">p90</th><th class="num">mean</th><th class="num">range</th><th class="num">Tokens: median</th><th class="num">p90</th><th class="num">mean</th><th class="num">range</th></tr></thead>
 <tbody>
@@ -355,30 +355,30 @@ b { font-weight: 600; }
 </table></div>
 </section>
 
-<section id="every-run">
-<h2>Every run</h2>
-<p class="explain">Every run, failures first. <i>Reason</i> is the first check that did not hold and what it saw, or why the run never completed.</p>
+<section id="every-attempt">
+<h2>Every attempt</h2>
+<p class="explain">Every attempt, failures first. <i>Reason</i> is the first check that did not hold and what it saw, or why the attempt never completed.</p>
 <div class="table-wrap"><table>
-<thead><tr><th>Variant</th><th>Task</th><th class="num">Run</th><th>Result</th><th>Ended</th><th class="num">Duration (min)</th><th class="num">Tokens</th><th>Reason</th></tr></thead>
+<thead><tr><th>Variant</th><th>Task</th><th class="num">Attempt</th><th>Result</th><th>Ended</th><th class="num">Duration (min)</th><th class="num">Tokens</th><th>Reason</th></tr></thead>
 <tbody>
-<tr id="run-bu20000000000000"><td><span class="id">b</span></td><td><span class="id">uses-bash</span></td><td class="num">2</td><td><span class="fail" title="bu20000000000000">○ failed</span></td><td><span class="id">ok</span></td><td class="num">17.3</td><td class="num">63,000</td><td>builds: 2 of 41 tests failed</td></tr>
-<tr id="run-fl30000000000000"><td><span class="id">floor</span></td><td><span class="id">loops</span></td><td class="num">3</td><td><span class="fail" title="fl30000000000000">○ failed</span></td><td><span class="id">max_tool_calls</span></td><td class="num">23.5</td><td class="num">47,200</td><td>exit_ok: exit_reason=max_tool_calls</td></tr>
-<tr id="run-fu10000000000000"><td><span class="id">floor</span></td><td><span class="id">uses-bash</span></td><td class="num">1</td><td><span class="fail" title="fu10000000000000">○ failed</span></td><td><span class="id">ok</span></td><td class="num">13.5</td><td class="num">41,200</td><td>builds: 2 of 41 tests failed</td></tr>
-<tr id="run-fu30000000000000"><td><span class="id">floor</span></td><td><span class="id">uses-bash</span></td><td class="num">3</td><td><span class="fail" title="fu30000000000000">○ failed</span></td><td><span class="id">ok</span></td><td class="num">16.9</td><td class="num">47,200</td><td>builds: 2 of 41 tests failed</td></tr>
-<tr id="run-fp30000000000000"><td><span class="id">floor</span></td><td><span class="id">plain</span></td><td class="num">3</td><td><span class="skip" title="fp30000000000000">× not counted</span></td><td><span class="id">ok</span></td><td class="num">16.9</td><td class="num">67,200</td><td>no_denials: 1 denied call: bash (no-match)</td></tr>
-<tr id="run-fu20000000000000"><td><span class="id">floor</span></td><td><span class="id">uses-bash</span></td><td class="num">2</td><td><span class="skip" title="fu20000000000000">× never completed</span></td><td></td><td class="num">15.2</td><td class="num"></td><td>sample setup hook failed: <code class="code">hooks/reset-fixture.sh</code> exited 1: clone failed</td></tr>
-<tr id="run-bl10000000000000"><td><span class="id">b</span></td><td><span class="id">loops</span></td><td class="num">1</td><td><span class="pass" title="bl10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">16.5</td><td class="num">61,000</td><td></td></tr>
-<tr id="run-bl20000000000000"><td><span class="id">b</span></td><td><span class="id">loops</span></td><td class="num">2</td><td><span class="pass" title="bl20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">17.3</td><td class="num">63,000</td><td></td></tr>
-<tr id="run-bl30000000000000"><td><span class="id">b</span></td><td><span class="id">loops</span></td><td class="num">3</td><td><span class="pass" title="bl30000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">18.2</td><td class="num">65,000</td><td></td></tr>
-<tr id="run-bp10000000000000"><td><span class="id">b</span></td><td><span class="id">plain</span></td><td class="num">1</td><td><span class="pass" title="bp10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">16.5</td><td class="num">61,000</td><td></td></tr>
-<tr id="run-bp20000000000000"><td><span class="id">b</span></td><td><span class="id">plain</span></td><td class="num">2</td><td><span class="pass" title="bp20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">17.3</td><td class="num">63,000</td><td></td></tr>
-<tr id="run-bp30000000000000"><td><span class="id">b</span></td><td><span class="id">plain</span></td><td class="num">3</td><td><span class="pass" title="bp30000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">18.2</td><td class="num">65,000</td><td></td></tr>
-<tr id="run-bu10000000000000"><td><span class="id">b</span></td><td><span class="id">uses-bash</span></td><td class="num">1</td><td><span class="pass" title="bu10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">16.5</td><td class="num">61,000</td><td></td></tr>
-<tr id="run-bu30000000000000"><td><span class="id">b</span></td><td><span class="id">uses-bash</span></td><td class="num">3</td><td><span class="pass" title="bu30000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">18.2</td><td class="num">65,000</td><td></td></tr>
-<tr id="run-fl10000000000000"><td><span class="id">floor</span></td><td><span class="id">loops</span></td><td class="num">1</td><td><span class="pass" title="fl10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">20.2</td><td class="num">41,200</td><td></td></tr>
-<tr id="run-fl20000000000000"><td><span class="id">floor</span></td><td><span class="id">loops</span></td><td class="num">2</td><td><span class="pass" title="fl20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">21.9</td><td class="num">44,200</td><td></td></tr>
-<tr id="run-fp10000000000000"><td><span class="id">floor</span></td><td><span class="id">plain</span></td><td class="num">1</td><td><span class="pass" title="fp10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">13.5</td><td class="num">61,200</td><td></td></tr>
-<tr id="run-fp20000000000000"><td><span class="id">floor</span></td><td><span class="id">plain</span></td><td class="num">2</td><td><span class="pass" title="fp20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">15.2</td><td class="num">64,200</td><td></td></tr>
+<tr id="attempt-bu20000000000000"><td><span class="id">b</span></td><td><span class="id">uses-bash</span></td><td class="num">2</td><td><span class="fail" title="bu20000000000000">○ failed</span></td><td><span class="id">ok</span></td><td class="num">17.3</td><td class="num">63,000</td><td>builds: 2 of 41 tests failed</td></tr>
+<tr id="attempt-fl30000000000000"><td><span class="id">floor</span></td><td><span class="id">loops</span></td><td class="num">3</td><td><span class="fail" title="fl30000000000000">○ failed</span></td><td><span class="id">max_tool_calls</span></td><td class="num">23.5</td><td class="num">47,200</td><td>exit_ok: exit_reason=max_tool_calls</td></tr>
+<tr id="attempt-fu10000000000000"><td><span class="id">floor</span></td><td><span class="id">uses-bash</span></td><td class="num">1</td><td><span class="fail" title="fu10000000000000">○ failed</span></td><td><span class="id">ok</span></td><td class="num">13.5</td><td class="num">41,200</td><td>builds: 2 of 41 tests failed</td></tr>
+<tr id="attempt-fu30000000000000"><td><span class="id">floor</span></td><td><span class="id">uses-bash</span></td><td class="num">3</td><td><span class="fail" title="fu30000000000000">○ failed</span></td><td><span class="id">ok</span></td><td class="num">16.9</td><td class="num">47,200</td><td>builds: 2 of 41 tests failed</td></tr>
+<tr id="attempt-fp30000000000000"><td><span class="id">floor</span></td><td><span class="id">plain</span></td><td class="num">3</td><td><span class="skip" title="fp30000000000000">× not counted</span></td><td><span class="id">ok</span></td><td class="num">16.9</td><td class="num">67,200</td><td>no_denials: 1 denied call: bash (no-match)</td></tr>
+<tr id="attempt-fu20000000000000"><td><span class="id">floor</span></td><td><span class="id">uses-bash</span></td><td class="num">2</td><td><span class="skip" title="fu20000000000000">× never completed</span></td><td></td><td class="num">15.2</td><td class="num"></td><td>attempt setup hook failed: <code class="code">hooks/reset-fixture.sh</code> exited 1: clone failed</td></tr>
+<tr id="attempt-bl10000000000000"><td><span class="id">b</span></td><td><span class="id">loops</span></td><td class="num">1</td><td><span class="pass" title="bl10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">16.5</td><td class="num">61,000</td><td></td></tr>
+<tr id="attempt-bl20000000000000"><td><span class="id">b</span></td><td><span class="id">loops</span></td><td class="num">2</td><td><span class="pass" title="bl20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">17.3</td><td class="num">63,000</td><td></td></tr>
+<tr id="attempt-bl30000000000000"><td><span class="id">b</span></td><td><span class="id">loops</span></td><td class="num">3</td><td><span class="pass" title="bl30000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">18.2</td><td class="num">65,000</td><td></td></tr>
+<tr id="attempt-bp10000000000000"><td><span class="id">b</span></td><td><span class="id">plain</span></td><td class="num">1</td><td><span class="pass" title="bp10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">16.5</td><td class="num">61,000</td><td></td></tr>
+<tr id="attempt-bp20000000000000"><td><span class="id">b</span></td><td><span class="id">plain</span></td><td class="num">2</td><td><span class="pass" title="bp20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">17.3</td><td class="num">63,000</td><td></td></tr>
+<tr id="attempt-bp30000000000000"><td><span class="id">b</span></td><td><span class="id">plain</span></td><td class="num">3</td><td><span class="pass" title="bp30000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">18.2</td><td class="num">65,000</td><td></td></tr>
+<tr id="attempt-bu10000000000000"><td><span class="id">b</span></td><td><span class="id">uses-bash</span></td><td class="num">1</td><td><span class="pass" title="bu10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">16.5</td><td class="num">61,000</td><td></td></tr>
+<tr id="attempt-bu30000000000000"><td><span class="id">b</span></td><td><span class="id">uses-bash</span></td><td class="num">3</td><td><span class="pass" title="bu30000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">18.2</td><td class="num">65,000</td><td></td></tr>
+<tr id="attempt-fl10000000000000"><td><span class="id">floor</span></td><td><span class="id">loops</span></td><td class="num">1</td><td><span class="pass" title="fl10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">20.2</td><td class="num">41,200</td><td></td></tr>
+<tr id="attempt-fl20000000000000"><td><span class="id">floor</span></td><td><span class="id">loops</span></td><td class="num">2</td><td><span class="pass" title="fl20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">21.9</td><td class="num">44,200</td><td></td></tr>
+<tr id="attempt-fp10000000000000"><td><span class="id">floor</span></td><td><span class="id">plain</span></td><td class="num">1</td><td><span class="pass" title="fp10000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">13.5</td><td class="num">61,200</td><td></td></tr>
+<tr id="attempt-fp20000000000000"><td><span class="id">floor</span></td><td><span class="id">plain</span></td><td class="num">2</td><td><span class="pass" title="fp20000000000000">● passed</span></td><td><span class="id">ok</span></td><td class="num">15.2</td><td class="num">64,200</td><td></td></tr>
 </tbody>
 </table></div>
 </section>
@@ -387,7 +387,7 @@ b { font-weight: 600; }
 <h2>Reproducibility and method</h2>
 <p class="explain">What produced this report, so it can be run again, and how the numbers were computed.</p>
 <dl>
-<dt>run id</dt><dd>20260917-1432-smoke-k7px</dd>
+<dt>batch</dt><dd>20260917-1432-smoke-k7px</dd>
 <dt>proctor</dt><dd>0.1.0</dd>
 <dt>nb</dt><dd>1.0.0 at <code class="code">/usr/local/bin/nb</code></dd>
 <dt>exam hash</dt><dd>sha256:9c1e0000</dd>
@@ -395,7 +395,7 @@ b { font-weight: 600; }
 <dt>command</dt><dd><code class="code">proctor run smoke</code></dd>
 <dt>created</dt><dd>2026-09-17T14:32:00Z</dd>
 </dl>
-<p class="explain">Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-variant rates use the Wilson 95% interval. Differences between variants, and against the baseline, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run&#39;s wall time including hooks; tokens are the run&#39;s own count. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each variant and each task; a variant&#39;s verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).</p>
+<p class="explain">Each task is scored as its mean over its counted, decided attempts, so n in every interval is the number of tasks. Per-variant rates use the Wilson 95% interval. Differences between variants, and against the baseline, use Newcombe&#39;s paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the attempt&#39;s wall time including hooks; tokens are the attempt&#39;s own count. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each variant and each task; a variant&#39;s verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).</p>
 </section>
 <footer>
 <img src="data:image/svg+xml;base64,PCEtLSAiUG9pbnR5IGhhdCIgYnkgTG9yYywgaHR0cHM6Ly9nYW1lLWljb25zLm5ldC8xeDEvbG9yYy9wb2ludHktaGF0Lmh0bWwsIENDIEJZIDMuMCBodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvMy4wLyA7IGFkYXB0ZWQgKHJlc2NhbGVkIGFuZCByZXN0eWxlZCkuIC0tPgo8c3ZnIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMzkuMDExNyAzLjk3NTU1QzMzLjYxNCA0LjAxODM5IDI5LjE4MDggNi4zOTQ2OCAyNS40MzU1IDEwLjA1NzZDMjEuNDk5NSAxMy45MDcyIDE4LjQwNDMgMTkuMjA4NSAxNi4wNjA1IDI0LjYzNTdDMTYuMTMzNiAyNS4wNTc5IDE2LjM0NzQgMjUuNDc0NCAxNi43MjU2IDI1LjkxNjFDMTcuMjA5MSAyNi40ODA5IDE3Ljk2MTUgMjcuMDUxNyAxOC44OTk0IDI3LjU2NTVDMjAuNzc1NCAyOC41OTMyIDIzLjM3OTggMjkuMzk3OCAyNS45Nzc2IDI5Ljg1OTZDMjguNTc1NCAzMC4zMjEzIDMxLjE4MTIgMzAuNDQxNyAzMy4wMjM0IDMwLjE4MTlDMzMuOTQ0NSAzMC4wNTE5IDM0LjY2NzYgMjkuODE1MyAzNS4wNjg0IDI5LjU2NjZDMzUuNDY5MSAyOS4zMTc5IDM1LjUyOTMgMjkuMTk1NiAzNS41MTk1IDI4Ljk0NTVMMzUuNTg3IDI4Ljk0MjdDMzUuMjY3NSAyNC45Mjc2IDM1LjAyNDUgMjAuNjE4IDM1LjU5NTcgMTYuNTczM0MzNS44NiAxNC43MDA5IDM2LjMxNDUgMTIuODc2NCAzNy4wMjI1IDExLjE3MTFDMzQuMDYyNiAxNC4xMTg2IDMxLjEyNCAxNy4zMDQ2IDI4Ljg4MDkgMjAuMDUxMUMzMi4yMDEzIDEzLjQ2OTggMzYuOTYyMiA4LjY2OTk5IDQyLjExMTQgNC4yMTAxMUM0MS4wNDQ5IDQuMDQ5OCA0MC4wMDk1IDMuOTY3ODYgMzkuMDExNyAzLjk3NTc0VjMuOTc1NTVaTTE0LjU1MDkgMjIuNDA1N0MxNC4xMzQyIDIyLjQwMjkgMTMuNzE3NSAyMi40MDcgMTMuMzAwOSAyMi40MThDMTEuMTMxNyAyMi40NzE5IDkuMTU0NTkgMjIuNjkwOCA3LjUgMjMuMDkxOEM1LjI5Mzg4IDIzLjYyNjUgMy43MDYzMSAyNC40ODc2IDIuOTI2ODggMjUuNTMyMUMyLjE0NzE2IDI2LjU3NjkgMS45ODE4OCAyNy44NDQ3IDIuODM1OTQgMjkuODAwOEM1LjkxNjU2IDM2Ljg1NjcgMTMuODIyIDQyLjAxMjYgMjIuMzIxMyA0My43MzE1QzMwLjgyMDcgNDUuNDQ5OSAzOS43Njg5IDQzLjc0NTIgNDUuMDM1MSAzNy40NzM2QzQ2LjMwOTEgMzUuOTU2MyA0Ni40NjkyIDM0LjcyNTYgNDUuOTY2OCAzMy40MjE4QzQ1LjQ2NDQgMzIuMTE3OSA0NC4xMzA2IDMwLjcxNDUgNDIuMTQzNiAyOS40MTRDNDAuNzYxMyAyOC41MDkzIDM5LjA3OTYgMjcuNjU3NCAzNy4xOTgzIDI2Ljg3OTlDMzcuMzM5NSAyOC45OTc3IDM3LjUzMTYgMzEuMDg3MSAzNy42Nzg3IDMzLjA2NDNWMzMuMDg0OEMzNy43MzU2IDM0LjE1MzggMzcuMTY0IDM1LjEwODQgMzYuMzMzOSAzNS43MDRDMzUuNTA0IDM2LjI5OTYgMzQuNDMzOCAzNi42NDkgMzMuMTk5MiAzNi44NjcxQzMwLjczMDEgMzcuMzAzNCAyNy41NzE4IDM3LjE4NTYgMjQuNDQ4MiAzNi42NjJDMjEuMzI0OCAzNi4xMzg0IDE4LjI1MjggMzUuMjEyIDE1Ljk4NDUgMzMuOTE0QzE0Ljg1MDQgMzMuMjY0OSAxMy45MDg0IDMyLjUyMTggMTMuMjc3NCAzMS42MTk5QzEyLjY0NjUgMzAuNzE4MyAxMi4zNjI0IDI5LjU5OTIgMTIuNjU5MyAyOC40OTExTDEyLjY2ODIgMjguNDU1OUwxMi42Nzk5IDI4LjQyMDlDMTMuMzk1OCAyNi40MzI4IDE0LjIwODggMjQuNDA5MyAxNS4xMjYyIDIyLjQxMjFDMTQuOTM0NSAyMi40MDkgMTQuNzQyOSAyMi40MDY5IDE0LjU1MTIgMjIuNDA1N0gxNC41NTA5Wk0xNS4xNzI5IDI2Ljc4MDJDMTQuODg2NiAyNy41MDU2IDE0LjYxMTIgMjguMjM1MiAxNC4zNDY3IDI4Ljk2ODdDMTQuMTk3MSAyOS41NTQzIDE0LjMwOTIgMzAuMDM4MSAxNC43MTI5IDMwLjYxNTNDMTUuMTIzIDMxLjIwMTIgMTUuODY0MiAzMS44MjY4IDE2Ljg1NDYgMzIuMzkzNUMxOC44MzUzIDMzLjUyNyAyMS43NjcxIDM0LjQzNTQgMjQuNzM4NSAzNC45MzM3QzI3LjcwOTggMzUuNDMxOSAzMC43NCAzNS41MjI0IDMyLjg5NDcgMzUuMTQxOEMzMy45NzIxIDM0Ljk1MTMgMzQuODE5NCAzNC42MzM3IDM1LjMxMTYgMzQuMjgwMkMzNS44MDM4IDMzLjkyNzIgMzUuOTU1MSAzMy42NDk3IDM1LjkyOTkgMzMuMTc1OUMzNS44ODE0IDMyLjUyNjIgMzUuODI3OSAzMS44NjA4IDM1Ljc3MTYgMzEuMTgzN0MzNS4wNzM0IDMxLjU2MTUgMzQuMjI3NiAzMS43ODA2IDMzLjI2NjggMzEuOTE2MUMzMS4xMzU3IDMyLjIxNjcgMjguNDExNSAzMi4wNzIyIDI1LjY3MDMgMzEuNTg1QzIyLjkyODggMzEuMDk3OSAyMC4xODU5IDMwLjI2NzQgMTguMDU1OSAyOS4xMDA2QzE2Ljk5MDkgMjguNTE3MyAxNi4wNzU3IDI3Ljg1IDE1LjM5NTcgMjcuMDU1OEMxNS4zMTg1IDI2Ljk2NjQgMTUuMjQ0MyAyNi44NzQ1IDE1LjE3MyAyNi43ODAzTDE1LjE3MjkgMjYuNzgwMloiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl83M18xNDApIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfNzNfMTQwIiB4MT0iMjQuMjQ4NCIgeTE9IjMuOTc1MjIiIHgyPSIyNC4yNDg0IiB5Mj0iNDQuMzYxNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQkQ3M0Q2Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBCMUI0MiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=" alt="" width="16" height="16">

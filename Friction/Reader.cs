@@ -13,7 +13,7 @@ namespace Proctor;
 /// repair, a lost search, a re-read, a dead end, a work-around). It chooses from a fixed list and must quote the call;
 /// nothing it says is written until the call exists, the label is in the list and the quote is in that call. Its
 /// one-line reason is kept as a note and is prose, never counted. What was sent and what came back is kept in the
-/// cell, and is the cache: the same run, prompt and model are not asked twice.
+/// attempt, and is the cache: the same run, prompt and model are not asked twice.
 /// </summary>
 static class FrictionReader
 {
@@ -60,7 +60,7 @@ static class FrictionReader
     static readonly Regex StdoutEcho = new(@"\n\[stdout\]\n.*", RegexOptions.Singleline);
     static readonly Regex FirstObject = new(@"\{.*\}", RegexOptions.Singleline);
 
-    /// <summary>What one cell's reading came to. <see cref="Says"/> is the line the log prints.</summary>
+    /// <summary>What one attempt's reading came to. <see cref="Says"/> is the line the log prints.</summary>
     public record Reading(bool Asked, int Labelled, int Kept, List<string> Dropped, long? InputTokens, long? OutputTokens, string? Problem)
     {
         public string Says => Problem ?? $"{Kept} of {Labelled} kept{(Asked ? "" : ", reused")}";
@@ -117,18 +117,18 @@ static class FrictionReader
     public static string Prompt(JsonObject trajectory, string? surfaceDescription) =>
         Instructions + (string.IsNullOrEmpty(surfaceDescription) ? "" : $"\nThe thing under test in this run: {surfaceDescription}\n") + "\n===== THE RUN =====\n\n" + Render(trajectory) + "\n";
 
-    /// <summary>The cell's reading file for this judge, prompt and run.</summary>
-    public static string FileOf(string cellDir, string judge, string hash) => Path.Combine(cellDir, $"{Layout.ReadingPrefix}.{judge}.{hash}.json");
+    /// <summary>The attempt's reading file for this judge, prompt and run.</summary>
+    public static string FileOf(string attemptDir, string judge, string hash) => Path.Combine(attemptDir, $"{Layout.ReadingPrefix}.{judge}.{hash}.json");
 
     /// <summary>
-    /// Ask the reader about one run, or reuse the cell's reading, and add its checked points to <paramref name="file"/>.
+    /// Ask the reader about one run, or reuse the attempt's reading, and add its checked points to <paramref name="file"/>.
     /// A reader that did not answer adds nothing and leaves no reading, so the next pass asks again.
     /// </summary>
-    internal static Reading Read(string cellDir, JsonObject trajectory, JsonObject file, List<Friction.Step> steps, string? surfaceDescription, JudgeClient client, string judge)
+    internal static Reading Read(string attemptDir, JsonObject trajectory, JsonObject file, List<Friction.Step> steps, string? surfaceDescription, JudgeClient client, string judge)
     {
         var def = client.Defs[judge];
         var prompt = Prompt(trajectory, surfaceDescription);
-        var path = FileOf(cellDir, judge, Hash(prompt + "\n" + def.Model));
+        var path = FileOf(attemptDir, judge, Hash(prompt + "\n" + def.Model));
         string reply;
         long? input = null, output = null;
         var asked = false;

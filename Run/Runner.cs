@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 
 namespace Proctor;
 
-/// <summary>attempts/&lt;id&gt;/batch.json: what is the same for every cell.</summary>
+/// <summary>attempts/&lt;id&gt;/batch.json: what is the same for every attempt.</summary>
 record Batch(
     string Id, string Exam, string ExamHash, JsonObject ExamDef, List<string> Tasks, int Planned,
     string Created, string CommandLine, string Host,
@@ -26,14 +26,14 @@ record ResolvedNb(string Path, string? Config, ResolvedRunner? Runner = null, Nb
 /// <summary>The runner script as configured (relative to exams/), where it is, and the hash of its text.</summary>
 record ResolvedRunner(string Script, string Path, string Hash);
 
-/// <summary>A cell's manifest.json.</summary>
+/// <summary>An attempt's manifest.json.</summary>
 record Manifest
 {
-    public required string RunId { get; init; }
+    public required string Id { get; init; }
     public required string Batch { get; init; }
     public required string Variant { get; init; }
     public required string Task { get; init; }
-    public required int Sample { get; init; }
+    public required int Attempt { get; init; }
     /// <summary>How an nb variant ran; absent on an agent variant, whose run is <see cref="Agent"/>.</summary>
     public string? Runner { get; init; }
     public string? Harness { get; init; }
@@ -41,7 +41,7 @@ record Manifest
     public string? Model { get; init; }
     public FixtureRef? Fixture { get; init; }
     public ResolvedBundle? Bundle { get; init; }
-    /// <summary>How nb was run for this cell: the host binary, its config and the runner script, if any.</summary>
+    /// <summary>How nb was run for this attempt: the host binary, its config and the runner script, if any.</summary>
     public ResolvedNb? Nb { get; init; }
     public TranscriptRef Transcript { get; init; } = new("transcript.jsonl", "nb-jsonl");
     public string? Started { get; set; }
@@ -51,28 +51,28 @@ record Manifest
     public required Dictionary<string, string> Versions { get; init; }
     public required string ExamHash { get; init; }
     public required string ProgramHash { get; init; }
-    public string Status { get; set; } = CellStatus.Pending;
+    public string Status { get; set; } = AttemptStatus.Pending;
     public string? StatusReason { get; set; }
     public int Tries { get; set; }
     public int? NbExitCode { get; set; }
     /// <summary>An agent variant's run: the agent as the trial reported it, its settings, the Harbor that ran it, and what it used.</summary>
     public AgentRun? Agent { get; set; }
-    /// <summary>An oracle cell's simulated user on the Harbor path (<see cref="Ingest"/>); absent on the bare path, where nb's oracle is in the run.</summary>
+    /// <summary>An oracle attempt's simulated user on the Harbor path (<see cref="Ingest"/>); absent on the bare path, where nb's oracle is in the run.</summary>
     public OracleRun? Oracle { get; set; }
 }
 
 record TranscriptRef(string File, string Format);
 
-/// <summary>What a cell was run against: the fixture and the identity of its source tree.</summary>
+/// <summary>What an attempt was run against: the fixture and the identity of its source tree.</summary>
 record FixtureRef(string Id, string Hash);
 
-static class CellStatus
+static class AttemptStatus
 {
     public const string Pending = "pending", Running = "running", Completed = "completed", Failed = "failed", Skipped = "skipped";
     public static readonly string[] All = [Pending, Running, Completed, Failed, Skipped];
 }
 
-/// <summary>The matrix loop: variants, tasks, samples; hooks at variant and sample level; nb as a subprocess.</summary>
+/// <summary>The matrix loop: variants, tasks, attempts; hooks at variant and attempt level; nb as a subprocess.</summary>
 sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, TextWriter log)
 {
     readonly string batchDir = Layout.Batch(root, batch.Id);
@@ -88,7 +88,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             Id: id, Exam: exam.Id, ExamHash: exam.Hash,
             ExamDef: JsonNode.Parse(File.ReadAllText(Layout.ExamFileIn(exam.Dir)))!.AsObject(),
             Tasks: exam.Tasks.Select(c => c.Id!).ToList(),
-            Planned: exam.PlannedCells,
+            Planned: exam.PlannedAttempts,
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
             Bundles: ResolveBundles(root, exam));
@@ -152,13 +152,13 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         return ReadJson<Batch>(file)!;
     }
 
-    /// <summary>Every cell's coordinates, in declared order.</summary>
-    public static IEnumerable<(Variant Variant, TaskDef Task, int Sample)> Cells(Exam exam) =>
-        from variant in exam.Variants from c in exam.Tasks from s in Enumerable.Range(1, variant.SamplesOrOne) select (variant, c, s);
+    /// <summary>Every attempt's coordinates, in declared order.</summary>
+    public static IEnumerable<(Variant Variant, TaskDef Task, int Attempt)> Attempts(Exam exam) =>
+        from variant in exam.Variants from c in exam.Tasks from s in Enumerable.Range(1, variant.AttemptsOrOne) select (variant, c, s);
 
-    /// <summary>Everything a hook or check needs to know about a cell, for the runner and the grader alike.</summary>
-    public static CellContext Context(string root, Batch batch, Exam exam, Variant variant, TaskDef c, int sample) =>
-        new(exam.Dir, Layout.Cell(Layout.Batch(root, batch.Id), variant.Id!, c.Id!, sample), Layout.Work(root, batch.Id, variant.Id!, c.Id!, sample), batch.Id, variant.Id!, c, sample)
+    /// <summary>Everything a hook or check needs to know about an attempt, for the runner and the grader alike.</summary>
+    public static AttemptContext Context(string root, Batch batch, Exam exam, Variant variant, TaskDef c, int n) =>
+        new(exam.Dir, Layout.Attempt(Layout.Batch(root, batch.Id), variant.Id!, c.Id!, n), Layout.Work(root, batch.Id, variant.Id!, c.Id!, n), batch.Id, variant.Id!, c, n)
         { Expect = exam.ExpectFor(c), Fixture = exam.FixtureOf(c), BundleDir = batch.BundleOf(variant.Id!)?.Path, NbRunner = batch.Nb.Runner?.Script ?? "", NbPath = batch.Nb.Path, NbConfig = batch.Nb.Config, Mounts = batch.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor };
 
     /// <summary>Each variant's bundle, once per batch: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
@@ -193,10 +193,10 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         return bundles;
     }
 
-    public static string ReadStatus(string cellDir)
+    public static string ReadStatus(string attemptDir)
     {
-        var file = Path.Combine(cellDir, Layout.StatusFile);
-        return File.Exists(file) ? File.ReadAllText(file).Trim() : CellStatus.Pending;
+        var file = Path.Combine(attemptDir, Layout.StatusFile);
+        return File.Exists(file) ? File.ReadAllText(file).Trim() : AttemptStatus.Pending;
     }
 
     void RunPending()
@@ -204,8 +204,8 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         WriteStatusCounts();
         foreach (var variant in exam.Variants)
         {
-            var pending = exam.Tasks.SelectMany(c => Enumerable.Range(1, variant.SamplesOrOne).Select(s => (c, s)))
-                .Where(x => ReadStatus(Layout.Cell(batchDir, variant.Id!, x.c.Id!, x.s)) != CellStatus.Completed).ToList();
+            var pending = exam.Tasks.SelectMany(c => Enumerable.Range(1, variant.AttemptsOrOne).Select(s => (c, s)))
+                .Where(x => ReadStatus(Layout.Attempt(batchDir, variant.Id!, x.c.Id!, x.s)) != AttemptStatus.Completed).ToList();
             if (pending.Count == 0) continue;
 
             var variantDir = Layout.Variant(batchDir, variant.Id!);
@@ -219,8 +219,8 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             }
 
             foreach (var (c, s) in pending)
-                if (variant.IsAgent) RunAgentCell(variant, c, s);
-                else RunCell(variant, c, s);
+                if (variant.IsAgent) RunAgentAttempt(variant, c, s);
+                else RunAttempt(variant, c, s);
 
             var teardown = RunHook(exam.Def.Hooks?.Variant?.Teardown, variantEnv, Path.Combine(variantDir, Layout.HooksDir, "variant.teardown.log"));
             if (teardown is not null) log.WriteLine($"  {variant.Id}: variant teardown hook failed: {teardown}");
@@ -228,22 +228,22 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         WriteStatusCounts();
     }
 
-    void RunCell(Variant variant, TaskDef c, int sample)
+    void RunAttempt(Variant variant, TaskDef c, int n)
     {
-        var cell = Context(root, batch, exam, variant, c, sample);
-        var (cellDir, workDir) = (cell.CellDir, cell.WorkDir);
-        Directory.CreateDirectory(Path.Combine(cellDir, Layout.HooksDir));
+        var attempt = Context(root, batch, exam, variant, c, n);
+        var (attemptDir, workDir) = (attempt.AttemptDir, attempt.WorkDir);
+        Directory.CreateDirectory(Path.Combine(attemptDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
 
-        var program = OraclePrefix(exam, c) + ResolveProgram(exam.ProgramTemplate, variant, c, sample, cell.WorkMount, cell.BundleMount);
-        var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
+        var program = OraclePrefix(exam, c) + ResolveProgram(exam.ProgramTemplate, variant, c, n, attempt.WorkMount, attempt.BundleMount);
+        var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample,
+                Id = Layout.NewAttemptId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Attempt = n,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
-                Fixture = cell.Fixture is null ? null : new FixtureRef(cell.Fixture.Id, cell.Fixture.Hash),
+                Fixture = attempt.Fixture is null ? null : new FixtureRef(attempt.Fixture.Id, attempt.Fixture.Hash),
                 Bundle = batch.BundleOf(variant.Id!), Nb = batch.Nb,
                 Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash, ProgramHash = Sha256(program),
             };
@@ -252,27 +252,27 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         manifest.Ended = null;
         manifest.DurationMs = null;
         manifest.StatusReason = null;
-        SetStatus(cellDir, manifest, CellStatus.Running);
-        File.WriteAllText(Path.Combine(cellDir, Layout.ProgramFile), program);
+        SetStatus(attemptDir, manifest, AttemptStatus.Running);
+        File.WriteAllText(Path.Combine(attemptDir, Layout.ProgramFile), program);
 
         var stopwatch = Stopwatch.StartNew();
-        var env = cell.Environment();
+        var env = attempt.Environment();
         // The program is compiled on the host first, then the fixture is checked out, then the setup hook, nb, the teardown hook, and the diff is collected.
-        var (compiled, compileError) = Compile(cellDir, program);
+        var (compiled, compileError) = Compile(attemptDir, program);
         var failure = compileError is not null ? $"program compile failed: {compileError}"
-            : cell.Fixture is not null && Checkout.Materialise(cell.Fixture, workDir) is { } checkoutError ? $"fixture checkout failed: {checkoutError}"
+            : attempt.Fixture is not null && Checkout.Materialise(attempt.Fixture, workDir) is { } checkoutError ? $"fixture checkout failed: {checkoutError}"
             : null;
         var setupRan = failure is null;
         if (setupRan)
-            failure = RunHook(exam.Def.Hooks?.Sample?.Setup, env, Path.Combine(cellDir, Layout.HooksDir, "sample.setup.log")) is { } setupError
-                ? $"sample setup hook failed: {setupError}"
-                : RunNb(cellDir, workDir, compiled!, env, manifest);
-        // Teardown and the diff run whenever setup ran, even when setup failed: a container it half-made must not be left for the resumed cell.
+            failure = RunHook(exam.Def.Hooks?.Attempt?.Setup, env, Path.Combine(attemptDir, Layout.HooksDir, "attempt.setup.log")) is { } setupError
+                ? $"attempt setup hook failed: {setupError}"
+                : RunNb(attemptDir, workDir, compiled!, env, manifest);
+        // Teardown and the diff run whenever setup ran, even when setup failed: a container it half-made must not be left for the resumed attempt.
         if (setupRan)
         {
-            if (RunHook(exam.Def.Hooks?.Sample?.Teardown, env, Path.Combine(cellDir, Layout.HooksDir, "sample.teardown.log")) is { } teardownError)
-                failure ??= $"sample teardown hook failed: {teardownError}";
-            if (cell.Fixture is not null && Checkout.CollectDiff(workDir, cellDir) is { } diffError)
+            if (RunHook(exam.Def.Hooks?.Attempt?.Teardown, env, Path.Combine(attemptDir, Layout.HooksDir, "attempt.teardown.log")) is { } teardownError)
+                failure ??= $"attempt teardown hook failed: {teardownError}";
+            if (attempt.Fixture is not null && Checkout.CollectDiff(workDir, attemptDir) is { } diffError)
                 failure ??= $"diff collection failed: {diffError}";
         }
         stopwatch.Stop();
@@ -280,38 +280,38 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         manifest.Ended = Now();
         manifest.DurationMs = stopwatch.ElapsedMilliseconds;
         manifest.StatusReason = failure;
-        SetStatus(cellDir, manifest, failure is null ? CellStatus.Completed : CellStatus.Failed);
+        SetStatus(attemptDir, manifest, failure is null ? AttemptStatus.Completed : AttemptStatus.Failed);
         WriteStatusCounts();
-        log.WriteLine($"  {variant.Id}/{c.Id}/{sample}  {manifest.Status}  {(failure ?? ExitReasonOf(cellDir))}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+        log.WriteLine($"  {variant.Id}/{c.Id}/{n}  {manifest.Status}  {(failure ?? ExitReasonOf(attemptDir))}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
 
     /// <summary>
-    /// An agent variant's cell: one Harbor trial of the task compiled for the variant, then ingest. The checkout, the setup and
-    /// the diff are the image's and Harbor's; variant hooks still ran on the host around the variant's cells. The variant's bundle is
+    /// An agent variant's attempt: one Harbor trial of the task compiled for the variant, then ingest. The checkout, the setup and
+    /// the diff are the image's and Harbor's; variant hooks still ran on the host around the variant's attempts. The variant's bundle is
     /// the host's too: recorded here and handed to those hooks, never put in the container.
     /// </summary>
-    void RunAgentCell(Variant variant, TaskDef c, int sample)
+    void RunAgentAttempt(Variant variant, TaskDef c, int n)
     {
-        var cellDir = Layout.Cell(batchDir, variant.Id!, c.Id!, sample);
-        Directory.CreateDirectory(cellDir);
+        var attemptDir = Layout.Attempt(batchDir, variant.Id!, c.Id!, n);
+        Directory.CreateDirectory(attemptDir);
         var taskDir = Layout.HarborTask(batchDir, variant.Id!, c.Id!);
         var route = Route(root, config, batch.Nb, variant);
         var fixture = exam.FixtureOf(c)!;
         // nb's program is compiled on the host as on the bare path, with the checkout where the image has it.
-        var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, c, sample, HarborCompile.Workdir);
-        var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
+        var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, c, n, HarborCompile.Workdir);
+        var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample, Model = variant.Model,
+                Id = Layout.NewAttemptId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Attempt = n, Model = variant.Model,
                 Harness = variant.Harness, Provider = variant.Provider,
                 Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = batch.BundleOf(variant.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
                 Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash,
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };
-        var nb = program is null ? null : new NbCell(Path.Combine(cellDir, Layout.CompiledProgramFile), batch.Nb.Config);
-        var oracle = OracleCellOf(variant, c);
+        var nb = program is null ? null : new NbAttempt(Path.Combine(attemptDir, Layout.CompiledProgramFile), batch.Nb.Config);
+        var oracle = OracleAttemptOf(variant, c);
         manifest.Agent = new AgentRun(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, nb), HarborCompile.AgentEnv(variant, route), batch.Harbor!.Version, null);
         manifest.Oracle = null;
         manifest.Tries++;
@@ -319,37 +319,37 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         manifest.Ended = null;
         manifest.DurationMs = null;
         manifest.StatusReason = null;
-        SetStatus(cellDir, manifest, CellStatus.Running);
+        SetStatus(attemptDir, manifest, AttemptStatus.Running);
 
         var stopwatch = Stopwatch.StartNew();
         string? trialDir = null, failure = null;
         if (program is not null)
         {
-            File.WriteAllText(Path.Combine(cellDir, Layout.ProgramFile), program);
-            var (compiled, compileError) = Compile(cellDir, program);
+            File.WriteAllText(Path.Combine(attemptDir, Layout.ProgramFile), program);
+            var (compiled, compileError) = Compile(attemptDir, program);
             if (compileError is not null) failure = $"program compile failed: {compileError}";
             else if (oracle is not null) File.WriteAllText(nb!.Program, HarborCompile.WithoutRun(compiled!));
         }
         if (failure is null)
-            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, batch.Harbor.Version, batch.Harbor.Engine, cellDir, variant, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(batchDir), nb, oracle);
-        if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : batch.Versions["nb"], bridged: oracle is not null);
+            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, batch.Harbor.Version, batch.Harbor.Engine, attemptDir, variant, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(batchDir), nb, oracle);
+        if (trialDir is not null) failure = Ingest.Trial(trialDir, attemptDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : batch.Versions["nb"], bridged: oracle is not null);
         stopwatch.Stop();
 
         manifest.Ended = Now();
         manifest.DurationMs = stopwatch.ElapsedMilliseconds;
         manifest.StatusReason = failure;
-        SetStatus(cellDir, manifest, failure is null ? CellStatus.Completed : CellStatus.Failed);
+        SetStatus(attemptDir, manifest, failure is null ? AttemptStatus.Completed : AttemptStatus.Failed);
         WriteStatusCounts();
-        var exitReason = failure is null ? ReadJson<CountedCore>(Path.Combine(cellDir, Layout.CoreFile))?.ExitReason : null;
-        log.WriteLine($"  {variant.Id}/{c.Id}/{sample}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+        var exitReason = failure is null ? ReadJson<CountedCore>(Path.Combine(attemptDir, Layout.CoreFile))?.ExitReason : null;
+        log.WriteLine($"  {variant.Id}/{c.Id}/{n}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
 
     /// <summary>
     /// An oracle task's simulated user on this variant: the host nb judges, with its config, as the variant's own provider unless
     /// the exam names a judge, which is what nb's in-process oracle does on the bare path.
     /// </summary>
-    OracleCell? OracleCellOf(Variant variant, TaskDef c) => exam.OracleOf(c) is { } sheet
-        ? new OracleCell(sheet, batch.Nb.Path, batch.Nb.Config, exam.Def.Oracle?.Judge ?? variant.Provider, exam.OracleTurns,
+    OracleAttempt? OracleAttemptOf(Variant variant, TaskDef c) => exam.OracleOf(c) is { } sheet
+        ? new OracleAttempt(sheet, batch.Nb.Path, batch.Nb.Config, exam.Def.Oracle?.Judge ?? variant.Provider, exam.OracleTurns,
             Path.Combine(HarborCompile.AgentsDir(batchDir), HarborCompile.OracleTemplateFile))
         : null;
 
@@ -429,7 +429,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// have to carry. Written beside the source as program.jsonl. The program hash stays the source's. A program
     /// nb refuses fails here, on the host, before a checkout or a container exists for it.
     /// </summary>
-    (string? Compiled, string? Error) Compile(string cellDir, string program)
+    (string? Compiled, string? Error) Compile(string attemptDir, string program)
     {
         var nb = batch.Nb;
         var args = new List<string> { "--compile" };
@@ -437,16 +437,16 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         var result = Subprocess.Run(nb.Path, args, exam.Dir, new Dictionary<string, string> { ["NO_COLOR"] = "1" }, stdin: program);
         if (!result.Started) return (null, result.Stderr);
         if (result.ExitCode != 0) return (null, $"nb --compile exited {result.ExitCode}: {result.FirstStderrLine}");
-        File.WriteAllText(Path.Combine(cellDir, Layout.CompiledProgramFile), result.Stdout);
+        File.WriteAllText(Path.Combine(attemptDir, Layout.CompiledProgramFile), result.Stdout);
         return (result.Stdout, null);
     }
 
     /// <summary>
     /// Run nb on the compiled program, which travels on stdin. Bare, that is nb itself with the argv the runner
-    /// contract names; with a runner, it is the script with nothing on argv and the cell environment, which must
-    /// start nb the same way wherever it runs. Null on success; otherwise why the cell is `failed` (infrastructure only).
+    /// contract names; with a runner, it is the script with nothing on argv and the attempt environment, which must
+    /// start nb the same way wherever it runs. Null on success; otherwise why the attempt is `failed` (infrastructure only).
     /// </summary>
-    string? RunNb(string cellDir, string workDir, string program, IDictionary<string, string> cellEnv, Manifest manifest)
+    string? RunNb(string attemptDir, string workDir, string program, IDictionary<string, string> attemptEnv, Manifest manifest)
     {
         var nb = batch.Nb;
         var args = new List<string> { "--output", "jsonl" };
@@ -454,20 +454,20 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         args.Add("-");
         var env = nb.Runner is null
             ? new Dictionary<string, string> { ["NO_COLOR"] = "1" }
-            : new Dictionary<string, string>(cellEnv) { ["NO_COLOR"] = "1" };
+            : new Dictionary<string, string>(attemptEnv) { ["NO_COLOR"] = "1" };
         // nb's own ATIF beside its JSONL, by environment so a runner script passes it on untouched. Grading reads the
         // JSONL on this path; the Harbor gate compares the trajectory.
-        env["NB_TRAJECTORY"] = Path.GetFullPath(Path.Combine(cellDir, Layout.TrajectoryFile));
+        env["NB_TRAJECTORY"] = Path.GetFullPath(Path.Combine(attemptDir, Layout.TrajectoryFile));
         var result = Subprocess.Run(nb.Runner?.Path ?? nb.Path, nb.Runner is null ? args : [], workDir, env,
-            stdoutFile: Path.Combine(cellDir, Layout.TranscriptFile),
-            stderrFile: Path.Combine(cellDir, Layout.StderrFile),
+            stdoutFile: Path.Combine(attemptDir, Layout.TranscriptFile),
+            stderrFile: Path.Combine(attemptDir, Layout.StderrFile),
             stdin: program);
         if (!result.Started) return result.Stderr;
         manifest.NbExitCode = result.ExitCode;
-        var trailer = Transcript.Read(cellDir).Trailer;
+        var trailer = Transcript.Read(attemptDir).Trailer;
         if (trailer is null)
         {
-            var stderr = File.ReadAllLines(Path.Combine(cellDir, Layout.StderrFile)).Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
+            var stderr = File.ReadAllLines(Path.Combine(attemptDir, Layout.StderrFile)).Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
             return $"nb exited {result.ExitCode} without a result trailer: {stderr}";
         }
         return null;
@@ -483,47 +483,47 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         return result.ExitCode == 0 ? null : $"{script} exited {result.ExitCode}: {result.FirstStderrLine}";
     }
 
-    void MarkFailed(Variant variant, TaskDef c, int sample, string reason)
+    void MarkFailed(Variant variant, TaskDef c, int n, string reason)
     {
-        var cellDir = Layout.Cell(batchDir, variant.Id!, c.Id!, sample);
-        Directory.CreateDirectory(cellDir);
-        var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
+        var attemptDir = Layout.Attempt(batchDir, variant.Id!, c.Id!, n);
+        Directory.CreateDirectory(attemptDir);
+        var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample,
+                Id = Layout.NewAttemptId(), Batch = batch.Id, Variant = variant.Id!, Task = c.Id!, Attempt = n,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
                 Host = batch.Host, Versions = batch.Versions, ExamHash = exam.Hash, ProgramHash = "",
             };
         manifest.Tries++;
         manifest.StatusReason = reason;
-        SetStatus(cellDir, manifest, CellStatus.Failed);
-        log.WriteLine($"  {variant.Id}/{c.Id}/{sample}  failed  {reason}");
+        SetStatus(attemptDir, manifest, AttemptStatus.Failed);
+        log.WriteLine($"  {variant.Id}/{c.Id}/{n}  failed  {reason}");
     }
 
-    static void SetStatus(string cellDir, Manifest manifest, string status)
+    static void SetStatus(string attemptDir, Manifest manifest, string status)
     {
         manifest.Status = status;
-        File.WriteAllText(Path.Combine(cellDir, Layout.StatusFile), status + "\n");
-        WriteJson(Path.Combine(cellDir, Layout.ManifestFile), manifest);
+        File.WriteAllText(Path.Combine(attemptDir, Layout.StatusFile), status + "\n");
+        WriteJson(Path.Combine(attemptDir, Layout.ManifestFile), manifest);
     }
 
     void WriteStatusCounts()
     {
-        var counts = CellStatus.All.ToDictionary(s => s, _ => 0);
-        foreach (var (variant, c, s) in Cells(exam)) counts[ReadStatus(Layout.Cell(batchDir, variant.Id!, c.Id!, s))]++;
+        var counts = AttemptStatus.All.ToDictionary(s => s, _ => 0);
+        foreach (var (variant, c, s) in Attempts(exam)) counts[ReadStatus(Layout.Attempt(batchDir, variant.Id!, c.Id!, s))]++;
         WriteJson(Path.Combine(batchDir, Layout.StatusCountsFile), new { planned = batch.Planned, counts, updated = Now() });
     }
 
-    static string? ExitReasonOf(string cellDir)
+    static string? ExitReasonOf(string attemptDir)
     {
-        var file = Path.Combine(cellDir, Layout.TranscriptFile);
-        return File.Exists(file) ? Transcript.Read(cellDir).Trailer?.ExitReason : null;
+        var file = Path.Combine(attemptDir, Layout.TranscriptFile);
+        return File.Exists(file) ? Transcript.Read(attemptDir).Trailer?.ExitReason : null;
     }
 
     /// <summary>
-    /// A bare cell's oracle, as nb's own directives ahead of the template: they apply to every run after them, so the
+    /// A bare attempt's oracle, as nb's own directives ahead of the template: they apply to every run after them, so the
     /// template needs no placeholder. The sheet is the host path, which --compile inlines, so a runner's container never
     /// needs the file. Empty for a task without a sheet.
     /// </summary>
@@ -536,7 +536,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     }
 
     /// <summary>Fill the template. {{work}} and {{bundle}} are the paths the model will see, which a runner may mount elsewhere. A prompt's newlines become nb continuation lines so the program stays one directive.</summary>
-    public static string ResolveProgram(string template, Variant variant, TaskDef c, int sample, string workDir, string? bundleDir = null)
+    public static string ResolveProgram(string template, Variant variant, TaskDef c, int n, string workDir, string? bundleDir = null)
     {
         var values = new Dictionary<string, string>
         {
@@ -548,7 +548,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             ["model"] = variant.Model ?? "",
             ["harness"] = variant.Harness ?? "",
             ["variant"] = variant.Id!,
-            ["sample"] = sample.ToString(),
+            ["attempt"] = n.ToString(),
         };
         return System.Text.RegularExpressions.Regex.Replace(template, @"\{\{\s*([^}]*?)\s*\}\}", m => values[m.Groups[1].Value]);
     }
