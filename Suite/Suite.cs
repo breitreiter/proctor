@@ -107,7 +107,19 @@ record OracleDef(string? Judge = null, int? Turns = null)
 }
 
 /// <summary>Tags is what labels replaced; it is here so a leftover is a problem rather than silently ignored.</summary>
-record SuiteDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, SuiteNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null);
+record SuiteDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, SuiteNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null);
+
+/// <summary>
+/// What the suite is testing, inside a fixture that holds much else: the tools, commands, docs and hosts that are the
+/// surface under test, the surface's own internals (source, private notes), the ordinary ways round it, and patterns
+/// that mark a call to it as failed. `proctor friction` sorts each run's actions by it; nothing else reads it.
+/// Paths are the container's; a path or a tool name is a glob in which `*` crosses directories.
+/// </summary>
+record SurfaceDef(string? Description = null, List<string>? Tools = null, List<string>? Commands = null, List<string>? Docs = null, List<string>? Internals = null,
+    List<string>? Hosts = null, List<string>? Fails = null, SubstitutesDef? Substitutes = null);
+
+/// <summary>The other ways to meet the need the surface meets.</summary>
+record SubstitutesDef(List<string>? Commands = null, List<string>? Tools = null, List<string>? Hosts = null);
 
 /// <summary>
 /// A task: one input and one desired outcome. Expect parameterises the shared checks; Checks are the ones only this task
@@ -528,6 +540,10 @@ sealed class Suite
         foreach (var (field, mount) in new[] { ("work", def.Nb?.Mounts?.Work), ("bundle", def.Nb?.Mounts?.Bundle) })
             if (mount is not null && !Path.IsPathRooted(mount))
                 Add($"nb.mounts.{field}", "a mount is an absolute path inside the container");
+
+        foreach (var (pattern, n) in (def.Surface?.Fails ?? []).Select((p, n) => (p, n)))
+            try { _ = new Regex(pattern); }
+            catch (ArgumentException e) { Add($"surface.fails[{n}]", $"not a regular expression: {e.Message}"); }
 
         if (def.Grading?.Checks is null or { Count: 0 })
         {

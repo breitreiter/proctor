@@ -264,6 +264,67 @@ script check must have one, because from outside a script says nothing:
 { "acceptance": { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" } }
 ```
 
+## The surface under test
+
+A suite usually tests one thing inside a fixture that holds many: a CLI, an
+MCP server, a docs site. A run can pass without ever using it, by going
+round. `surface` in `suite.json` says what the thing is, so
+`proctor friction <id>` can sort each run's actions by it. It is optional,
+and no check, report or other verb reads it.
+
+```json
+"surface": {
+  "description": "Tern's documentation site, served at localhost:8080",
+  "tools": ["mcp__tern__*"],
+  "commands": ["tern"],
+  "hosts": ["localhost:8080"],
+  "docs": ["/opt/tern/docs/*", "/opt/tern/README.md", "tool:Skill"],
+  "internals": ["/opt/tern/*"],
+  "fails": ["<title>Not found</title>"],
+  "substitutes": { "commands": ["git log", "gh"], "tools": [], "hosts": ["localhost:8081"] }
+}
+```
+
+| field | what it names |
+|---|---|
+| `tools` | tool names that are the surface; a glob |
+| `commands` | shell commands that are the surface, matched against the first word of an action |
+| `hosts` | a surface reached by URL: a host and port named in any argument of an action, or in a tool call's `url` |
+| `docs` | paths that describe the surface (globs), or `tool:<name>` for a tool that reads them |
+| `internals` | the surface's own source and private notes; reading them is going round the published surface |
+| `fails` | regular expressions (.NET) that mark the result of a call to the surface as a failure, beside a 4xx or 5xx status line |
+| `substitutes` | the other ways to meet the same need: `commands` (a prefix of an action, so `git log` and not `git status`), `tools`, `hosts` |
+
+Paths are the container's. In a glob `*` crosses directories, so
+`/opt/tern/docs/*` is everything under it. A compound shell call is split
+into actions, one per pipeline, named by the pipeline's first command; a
+heredoc's body is not read; `cd` is followed; a script the run wrote that
+calls a surface command counts as the surface when it is run.
+
+`friction.json` holds a `summary` and `points`. With a surface declared the
+summary says whether the run reached it, which it reached first, whether a
+call to it worked, how many of its calls failed, whether a substitute was
+used, and the actions and cost on, about and around the surface, on
+substitutes, and on everything else. A point is a stretch of adjacent steps
+with one label:
+
+| label | a step where | needs a surface |
+|---|---|---|
+| `off-surface` | the run read the surface's internals, or hunted for where it is installed | yes |
+| `substitute` | a declared substitute was used | yes |
+| `abandoned` | a substitute was used within two steps of a surface call that failed | yes |
+| `surface-search` | the run searched the surface's docs | yes |
+| `help` | `--help`, `-h` or `man` | no |
+| `workaround` | a script run inline, or a file written to `/tmp` | yes |
+| `environment` | the machine refused: command not found, permission, timeout, network | no |
+| `tool-error` | the agent's own tool refused: output too large, a rejected call, an edit that did not apply | no |
+
+Every point carries a quote from the call it cites, checked the way a
+judge's quote is checked; a point with no quote that is in the call is not
+written. The rules use no model, so the same trajectory and declaration
+give the same file. A point is a place to look, not a verdict: what it
+should become, when it matters, is a check.
+
 ## Oracles
 
 A task can name an **answer sheet**, a scripted user that answers when the

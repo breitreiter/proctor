@@ -7,6 +7,14 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- `proctor friction <experiment>` writes `friction.json` beside each
+  completed cell's trajectory: the points where the run paid a cost the
+  task did not ask for, each with a quote from the call it cites, and a
+  summary. Rules only, no model and no key. A suite may declare a
+  `surface` (what is under test, its docs and internals, the ways round
+  it, what a failed call to it looks like), which the rules sort each
+  run's actions by; `docs/configuration.md`, "The surface under test".
+  `suites/tern-docs` declares one.
 - An agent arm may name a `bundle`. It is the host's: hashed when the
   experiment starts, recorded in every cell's manifest, handed to arm
   hooks as `PROCTOR_BUNDLE`, and a changed one refuses `resume`, as on a

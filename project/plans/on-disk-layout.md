@@ -288,6 +288,7 @@ runs/
             sample.teardown.log
           diff.patch                        whatever the teardown hook chose to collect
           checks.json                       {name: {verdict, reason}}, written by `proctor grade` (below)
+          friction.json                     where the run paid a cost the task did not ask for, written by `proctor friction`
           verdicts/
             cf-glm.rubric-a1b2c3.json       judge phase, one file per judge and rubric version
         2/
@@ -415,6 +416,7 @@ and a bump of the bundle never touches a data commit.
 | `proctor run <suite>` | `suites/<suite>/` | a new `runs/<id>/`, every cell |
 | `proctor resume <id>` | `runs/<id>/` | cells whose `status` is not `completed` |
 | `proctor grade <id>` | `runs/<id>/`, `suites/<suite>/checks/` | `checks.json` in each completed cell |
+| `proctor friction <id>` | `runs/<id>/`, the suite's `surface` | `friction.json` in each completed cell that has a `trajectory.json` |
 | `proctor judge <id>` | `runs/<id>/`, `rubric.md` | `verdicts/<judge>.<rubric-hash>.json` where absent |
 | `proctor report <id>` | `runs/<id>/` | `reports/data/<id>/`, `index.json` |
 | `proctor archive <id>` | `runs/<id>/` | the bucket; the archive url into both manifests |

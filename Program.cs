@@ -9,6 +9,7 @@ static class Program
           run <suite>          run every cell of a suite into a new experiment
           resume <experiment> run the cells of an experiment that have not completed
           grade <experiment>  run the checks over every completed cell; a model check's verdict is kept in the cell
+          friction <experiment> write friction.json beside each completed cell's trajectory: where the run paid a cost the task did not ask for; rules only, no model
           report <experiment> write results.jsonl, stats.json, report.html and summary.md
           baseline <experiment> pin an arm's analysed cells as the suite's baseline, per task
           setup                set up providers and keys for this machine, job by job (needs a terminal)
@@ -18,8 +19,8 @@ static class Program
         --label <k[=glob]>    list: only suites carrying the label, or the label with a matching value (repeatable)
         --nb <path>           the nb binary (default: suites/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per cell (default: the suite's nb.runner); none runs nb bare
-        --arm <id>            grade: only this arm's cells, the others left as they are (repeatable); baseline: which arm to pin (required with several arms)
-        --tasks <a,b>         grade: only these tasks' cells; baseline: only these tasks, the rest keep their pins
+        --arm <id>            grade, friction: only this arm's cells, the others left as they are (repeatable); baseline: which arm to pin (required with several arms)
+        --tasks <a,b>         grade, friction: only these tasks' cells; baseline: only these tasks, the rest keep their pins
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the cells' verdict files
         --version             print proctor's version (see CHANGELOG.md for what changed between versions)
@@ -75,6 +76,7 @@ static class Program
                 ("run", [var suite]) => Verbs.Run(root, suite, nbPath, runner, configFile),
                 ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner, configFile),
                 ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge, arms, tasks, configFile),
+                ("friction", [var id]) => Verbs.Friction(root, id, arms, tasks),
                 ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn, against),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, arms, tasks),
                 ("setup", []) => Verbs.Setup(root, check, live),

@@ -39,6 +39,12 @@
   "limits": {
     "wall_ms": 1800000
   },
+  "surface": {
+    "description": "Tern's documentation site, served at localhost:8080: the quickstart, reference and changelog an agent builds the shop's shipping code from",
+    "hosts": ["localhost:8080", "127.0.0.1:8080"],
+    "fails": ["<title>Not found</title>", "\\b404\\b"],
+    "substitutes": { "hosts": ["localhost:8081", "127.0.0.1:8081"] }
+  },
   "grading": {
     "checks": {
       "exit_ok": {

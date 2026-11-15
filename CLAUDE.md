@@ -57,7 +57,7 @@ in the order the verbs run them. Every file is one concern:
 | file | holds |
 |---|---|
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
-| `Verbs.cs` | one method per verb: `list`, `run`, `resume`, `grade`, `report`, `baseline` |
+| `Verbs.cs` | one method per verb: `list`, `run`, `resume`, `grade`, `friction`, `report`, `baseline` |
 | `Suite/Layout.cs` | paths and file names, nothing else |
 | `Suite/Suite.cs` | `proctor.json` (the host binary and its config), `suite.json` (arms, the `nb` block with the runner and mounts, hooks, grading), tasks, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per task |
 | `Suite/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
@@ -79,6 +79,8 @@ in the order the verbs run them. Every file is one concern:
 | `Grade/Window.cs` | what a model check sees: named extractions from the transcript, joined with `+`, compiled into labelled fences |
 | `Grade/Judge.cs` | `JudgeClient` (the transports), the `decide` check over systemone, the `judge` check over chat, the verdict file as cache, the report's judge provenance |
 | `Grade/Grade.cs` | checks over a cell into `checks.json`; the headline pass |
+| `Friction/Shell.cs` | a shell command as the friction rules read it: words, then actions (one per pipeline, named by its first command, heredoc bodies dropped); POSIX path and glob helpers, since the paths are the container's |
+| `Friction/Friction.cs` | `Surface` (the suite's `surface` block, compiled) and the friction rules: a cell's trajectory into `friction.json` (points, each with a checked quote, and the summary by surface part) |
 | `Setup/providers.json` | `proctor setup`'s provider catalogue, embedded: per kind its form fields (a secret's env variable), the jobs it `serves` (`?` untested) or serves `by_hand`, the site help anchor (never a vendor URL; an anchor once released is permanent), where it lists models. The plan and mockups are `project/plans/setup/` |
 | `Setup/Catalogue.cs` | the catalogue as records; `ProviderKind.Fit(job)` |
 | `Setup/KeyCheck.cs` | the key check: list a provider's models (no tokens), the ids sorted, or the provider's words with the key redacted and a reading that is the same for every kind; Azure, and an OpenAI-compatible entry with no endpoint yet, have none. `Proctor.Tests/fixtures/models/` are answers captured from each vendor, trimmed |
@@ -122,6 +124,16 @@ The directories are for reading, not for namespaces: everything is
 - **Grading writes beside the evidence.** `checks.json` is the only file the
   grader adds to a cell. `report` reads it; a completed cell without one is
   reported as not analysed, and `report` says to run `grade`.
+- **Friction is beside grading, not in it.** `proctor friction` writes
+  `friction.json` in a cell and reads only `trajectory.json` and the
+  suite's `surface`; no check, verdict or report reads either. The rules
+  have their own version (`Friction.RulesVersion`, in every file and
+  every point), bumped whenever a rule changes what it flags. They were
+  ported from a Python trial in auspex (`../auspex/project/trials/friction.py`,
+  the contract in `../auspex/project/friction-contract.md`) and held to
+  identical output on 702 runs when ported; a rule change is made in one
+  place now, here. No model: a reader stage that names what rules cannot
+  see is planned and is not this.
 - **A check is one of three kinds by where it is named.** In `grading.pass`
   it is capability; in `grading.validity` it decides whether the sample
   counts (a `fail` excludes the sample with its reason, `error` never does);

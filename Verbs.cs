@@ -73,6 +73,19 @@ static class Verbs
         return 0;
     }
 
+    /// <summary>The friction rules over every completed cell that has a trajectory, into friction.json beside it. No model and no key.</summary>
+    public static int Friction(string root, string experimentId, List<string>? armIds = null, List<string>? taskIds = null)
+    {
+        var (experiment, suite) = LoadExperiment(root, experimentId);
+        RequireKnown(suite, armIds, taskIds);
+        if (suite.Def.Surface is null) Console.WriteLine($"  note: suite '{suite.Id}' declares no surface; only help, environment and tool-error points can be found");
+        var cells = Proctor.Friction.Experiment(root, experiment, suite, Console.Out, armIds, taskIds);
+        var read = cells.Where(c => c.Points is not null).ToList();
+        var skipped = cells.Where(c => c.Skipped is not null).GroupBy(c => c.Skipped!).Select(g => $"{g.Count()} {g.Key}").ToList();
+        Console.WriteLine($"friction: {read.Count} of {cells.Count} cells read, {read.Sum(c => c.Points)} points{(skipped.Count > 0 ? $"; skipped {string.Join(", ", skipped)}" : "")}");
+        return 0;
+    }
+
     static void RequireKnown(Suite suite, List<string>? armIds, List<string>? taskIds)
     {
         foreach (var a in armIds ?? [])
