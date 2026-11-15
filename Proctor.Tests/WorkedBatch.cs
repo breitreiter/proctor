@@ -32,7 +32,7 @@ static class WorkedBatch
     public static Batch Batch(Exam exam) => new(
         "20260917-1432-smoke-k7px", exam.Id, "sha256:9c1e0000", System.Text.Json.JsonSerializer.SerializeToNode(exam.Def, Proctor.Exam.JsonOptions)!.AsObject(),
         exam.Variants.Select(v => new BatchVariant(v.Id!, v.Hash, System.Text.Json.JsonSerializer.SerializeToNode(v, Proctor.Exam.JsonOptions)!.AsObject())).ToList(),
-        exam.Tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(), exam.PlannedAttempts, "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
+        exam.Tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(), (from v in exam.Variants from c in exam.Tasks from n in Enumerable.Range(1, exam.Attempts) select new AttemptRef(v.Id!, c.Id!, n)).ToList(), "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
         new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.0" }, new GitInfo("3f2c1e9a", Dirty: false), new ResolvedNb("/usr/local/bin/nb", null));
 
     /// <summary>Last week's floor, pinned: loops was perfect, plain was perfect, uses-bash was one in three.</summary>

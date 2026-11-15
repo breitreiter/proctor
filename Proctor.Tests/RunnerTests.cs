@@ -4,7 +4,7 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>Steps 2 and 3: one attempt against nb's Mock provider, then the matrix, resume and hook failures.</summary>
+/// <summary>One attempt against nb's Mock provider, then every attempt an exam wants, filling its gaps, continuing an interrupted batch, and hook failures.</summary>
 public class RunnerTests
 {
     static string StartSmoke(TestRepo repo, Action<JsonObject>? editExam = null, string? runner = null, string? runnerOverride = null, object? mounts = null)
@@ -14,7 +14,15 @@ public class RunnerTests
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
-        return Runner.Start(repo.Root, exam, config, null, runnerOverride, "test", TextWriter.Null);
+        return Runner.Run(repo.Root, exam, config, null, runnerOverride, "test", TextWriter.Null);
+    }
+
+    /// <summary>`proctor run smoke` again, as it is on disk now: the batch it made or continued, and what it said.</summary>
+    static (string? Id, string Log) RunAgain(TestRepo repo, string? runnerOverride = null)
+    {
+        var log = new StringWriter();
+        var id = Runner.Run(repo.Root, repo.LoadExam("smoke"), Exam.LoadConfig(repo.Root, []), null, runnerOverride, "test", log);
+        return (id, log.ToString());
     }
 
     /// <summary>Variant a alone, one attempt of each task: an exam edit that also retires variant b's file.</summary>
@@ -102,60 +110,97 @@ public class RunnerTests
     }
 
     [Fact]
-    public void Matrix_RunsEveryVariantTaskAndAttempt_AndABadTranscriptIsStillCompleted()
+    public void Run_MakesEveryAttemptTheExamWants_AndABadTranscriptIsStillCompleted()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo);
-        var statuses = Runner.Attempts(repo.LoadExam("smoke"))
-            .Select(x => Runner.ReadStatus(Attempt(repo, id, x.Variant.Id!, x.Task.Id!, x.Attempt))).ToList();
+        var batch = Runner.LoadBatch(repo.Root, id);
+        Assert.Equal(12, batch.Attempts.Count);
+        var statuses = Pool.Of(repo.Root, repo.LoadExam("smoke")).Select(a => a.Status).ToList();
         Assert.Equal(12, statuses.Count);
         Assert.All(statuses, s => Assert.Equal("completed", s));
 
         // `loops` exhausts the tool-call budget: a transcript with exit_reason max_tool_calls, still `completed`.
         Assert.Equal("max_tool_calls", Transcript.Read(Attempt(repo, id, "b", "loops", 2)).Trailer!.ExitReason);
+
+        // Nothing is missing, so the same command makes nothing.
+        var (again, log) = RunAgain(repo);
+        Assert.Null(again);
+        Assert.Equal("smoke: every variant has its 2 attempts of each task; nothing to make\n", log);
+        Assert.Single(Directory.GetDirectories(Path.Combine(repo.Root, "attempts")));
     }
 
     [Fact]
-    public void Resume_SkipsCompletedAttempts_AndRerunsFailedOnes()
+    public void Run_ContinuesAnInterruptedBatch_SkippingCompletedAttempts_AndMakingFailedOnesAgain()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, e => { repo.KeepOnlyVariant("smoke", "a"); e["attempts"] = 1; });
 
-        // Pretend one attempt died: its status is `failed`, its manifest records an attempt.
+        // Pretend the machine died: one attempt failed, one was running.
         var failedAttempt = Attempt(repo, id, "a", "uses-bash", 1);
         File.WriteAllText(Path.Combine(failedAttempt, "status"), "failed\n");
+        File.WriteAllText(Path.Combine(Attempt(repo, id, "a", "loops", 1), "status"), "running\n");
         var untouched = Attempt(repo, id, "a", "plain", 1);
         var untouchedId = ReadJson(Path.Combine(untouched, "manifest.json"))["id"]!.GetValue<string>();
         var untouchedStarted = File.GetLastWriteTimeUtc(Path.Combine(untouched, "transcript.jsonl"));
+        var exam = repo.LoadExam("smoke");
+        Assert.Equal(id, Assert.Single(Pool.Interrupted(exam, Pool.Of(repo.Root, exam))).Batch.Id);
 
-        Runner.Resume(repo.Root, id, null, null, TextWriter.Null);
+        var (again, log) = RunAgain(repo);
 
+        Assert.Equal(id, again);
+        Assert.StartsWith($"batch {id} was interrupted: 1 of 3 attempts finished, 1 was running, 1 failed\n  continuing it: 2 attempts to make\n", log);
+        Assert.EndsWith("2 made: 2 completed\n", log);
+        Assert.Single(Directory.GetDirectories(Path.Combine(repo.Root, "attempts")));
         Assert.Equal("completed", Runner.ReadStatus(failedAttempt));
         Assert.Equal(2, ReadJson(Path.Combine(failedAttempt, "manifest.json"))["tries"]!.GetValue<int>());
         Assert.Equal(untouchedId, ReadJson(Path.Combine(untouched, "manifest.json"))["id"]!.GetValue<string>());
         Assert.Equal(untouchedStarted, File.GetLastWriteTimeUtc(Path.Combine(untouched, "transcript.jsonl")));
+        Assert.Empty(Pool.Interrupted(exam, Pool.Of(repo.Root, exam)));
     }
 
     [Fact]
-    public void Resume_RefusesWhenTheExamChanged()
+    public void Run_AfterATaskChanged_ItsAttemptsAreStale_AndOnlyItIsMadeAgain()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, e => { repo.KeepOnlyVariant("smoke", "a"); e["attempts"] = 1; });
+        var before = repo.LoadExam("smoke").TaskHashes["plain"];
         repo.EditJson("smoke/tasks/plain.json", c => c["prompt"] = "MOCK:response=changed");
 
-        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("has changed", e.Message);
+        var (again, log) = RunAgain(repo);
+
+        Assert.NotEqual(id, again);
+        Assert.Equal($"batch {again}: 1 attempt to make\n", log.Split('\n')[0] + "\n");
+        var batch = Runner.LoadBatch(repo.Root, again!);
+        // Numbered after the stale one, so a/plain/n names one attempt across the exam.
+        Assert.Equal([new AttemptRef("a", "plain", 2)], batch.Attempts);
+        var exam = repo.LoadExam("smoke");
+        var selection = Pool.Select(repo.Root, exam);
+        Assert.Equal(["a/loops/1", "a/plain/2", "a/uses-bash/1"], selection.Current.Select(a => a.Label).Order());
+        var stale = Assert.Single(selection.Stale);
+        Assert.Equal((id, "a/plain/1"), (stale.Batch, stale.Attempt));
+        Assert.Equal($"task plain changed ({before[7..15]} then, {exam.TaskHashes["plain"][7..15]} now)", stale.Why);
     }
 
     [Fact]
-    public void Resume_RefusesWhenAVariantChanged()
+    public void Run_AfterAVariantIsAdded_MakesOnlyItsAttempts()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, e => { repo.KeepOnlyVariant("smoke", "a"); e["attempts"] = 1; });
-        repo.EditVariant("smoke", "a", v => v["model"] = "other");
+        repo.AddVariant("smoke", """{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock" }""");
 
-        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("exams/smoke/variants/a.json has changed since batch", e.Message);
+        var (again, _) = RunAgain(repo);
+
+        var batch = Runner.LoadBatch(repo.Root, again!);
+        Assert.Equal(["c"], batch.Variants.Select(v => v.Id));
+        Assert.Equal(3, batch.Attempts.Count);
+        Assert.All(batch.Attempts, a => Assert.Equal(("c", 1), (a.Variant, a.Attempt)));
+        Assert.Equal(6, Pool.Select(repo.Root, repo.LoadExam("smoke")).Current.Count);
+
+        // --variant narrows: a has all it wants, so asking for a alone makes nothing.
+        var log = new StringWriter();
+        Assert.Null(Runner.Run(repo.Root, repo.LoadExam("smoke"), Exam.LoadConfig(repo.Root, []), null, null, "test", log, variants: ["a"]));
+        Assert.Equal("smoke: every variant asked for has its 1 attempt of each task; nothing to make\n", log.ToString());
     }
 
     /// <summary>D5: a variant is its content, so a changed one under the id that made attempts would pass for the old one.</summary>
@@ -167,14 +212,14 @@ public class RunnerTests
         repo.EditVariant("smoke", "a", v => { v["model"] = "other"; v["note"] = "a note is no part of it"; });
         var config = Exam.LoadConfig(repo.Root, []);
 
-        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadExam("smoke"), config, null, null, "test", TextWriter.Null));
+        var e = Assert.Throws<ProctorException>(() => Runner.Run(repo.Root, repo.LoadExam("smoke"), config, null, null, "test", TextWriter.Null));
         Assert.Equal("exams/smoke/variants/a.json: this is not the a that made 3 attempts\n"
             + "  (model mock then, other now). A changed variant is a new variant: give it a new id.", e.Message);
         Assert.Single(Directory.GetDirectories(Path.Combine(repo.Root, "attempts")));
 
         // Under a new id it is a new variant, and runs.
         repo.RenameVariant("smoke", "a", "a-other");
-        var id = Runner.Start(repo.Root, repo.LoadExam("smoke"), config, null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, repo.LoadExam("smoke"), config, null, null, "test", TextWriter.Null)!;
         Assert.Equal("completed", Runner.ReadStatus(Attempt(repo, id, "a-other", "plain", 1)));
     }
 
@@ -205,7 +250,7 @@ public class RunnerTests
         repo.EditVariant("smoke", "b", v => v["bundle"] = JsonNode.Parse($$"""{"git": "{{source}}", "rev": "{{rev}}", "paths": ["docs/", "README.md"]}"""));
 
         var exam = repo.LoadExam("smoke");
-        var bundle = Runner.ResolveBundles(repo.Root, exam)["b"];
+        var bundle = Runner.ResolveBundles(repo.Root, exam.Variants)["b"];
         Assert.Equal(["README.md", "docs/deep/page.md"], Tree.Files(bundle.Path, new HashSet<string>()).Select(f => f.Relative).Order(StringComparer.Ordinal));
         Assert.Equal($"git:{rev}:README.md,docs/", bundle.Hash);
 
@@ -214,10 +259,10 @@ public class RunnerTests
         repo.EditVariant("smoke", "b", v => v["bundle"]!["paths"] = JsonNode.Parse("""["README.md"]"""));
         var narrower = repo.LoadExam("smoke");
         Assert.NotEqual(whole, narrower.Variants.Single(v => v.Id == "b").Hash);
-        Assert.NotEqual(bundle.Path, Runner.ResolveBundles(repo.Root, narrower)["b"].Path);
+        Assert.NotEqual(bundle.Path, Runner.ResolveBundles(repo.Root, narrower.Variants)["b"].Path);
 
         repo.EditVariant("smoke", "b", v => v["bundle"]!["paths"] = JsonNode.Parse("""["missing.md"]"""));
-        var e = Assert.Throws<ProctorException>(() => Runner.ResolveBundles(repo.Root, repo.LoadExam("smoke")));
+        var e = Assert.Throws<ProctorException>(() => Runner.ResolveBundles(repo.Root, repo.LoadExam("smoke").Variants));
         Assert.Contains("missing.md is not in", e.Message);
     }
 
@@ -296,7 +341,7 @@ public class RunnerTests
         repo.Write("smoke/program.nb", template);
         repo.WriteProctorConfig();
         var exam = repo.LoadExam("smoke");
-        var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null)!;
 
         var attempt = Attempt(repo, id, "a", "plain", 1);
         Assert.Equal("completed", Runner.ReadStatus(attempt));
@@ -321,7 +366,7 @@ public class RunnerTests
         repo.Write("smoke/program.nb", template);
         repo.WriteProctorConfig();
         var exam = repo.LoadExam("smoke");
-        var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null)!;
 
         var attempt = Attempt(repo, id, "a", "plain", 1);
         Assert.Equal("failed", Runner.ReadStatus(attempt));
@@ -388,7 +433,7 @@ public class RunnerTests
     }
 
     [Fact]
-    public void Bundle_IsResolvedOncePerBatch_RecordedPerAttempt_AndResumeRefusesWhenItChanged()
+    public void Bundle_IsResolvedOncePerBatch_RecordedPerAttempt_AndAChangedOneIsRefused()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, e => { e["attempts"] = 1; });
@@ -407,10 +452,12 @@ public class RunnerTests
         Assert.Null(ReadJson(Path.Combine(a, "manifest.json"))["bundle"]);
         Assert.Contains("# bundle: \n", File.ReadAllText(Path.Combine(a, "program.nb")));
 
+        // A changed bundle is a changed variant, and b made attempts under its old one.
         File.AppendAllText(Path.Combine(bundleDir, "README.md"), "edited\n");
-        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("exams/smoke/variants/b.json has changed since batch", e.Message);
+        var e = Assert.Throws<ProctorException>(() => RunAgain(repo));
+        Assert.StartsWith("exams/smoke/variants/b.json: this is not the b that made 3 attempts\n  (bundle ", e.Message);
     }
+
     [Fact]
     public void Runner_Passthrough_ProducesTheSameAttemptAsABareRun()
     {
@@ -569,7 +616,7 @@ public class RunnerTests
     }
 
     [Fact]
-    public void Resume_RefusesWhenTheRunnerChanged()
+    public void Run_DoesNotContinueABatchWhoseRunnerChanged_AndMakesWhatIsMissingInANewOne()
     {
         using var repo = new TestRepo();
         var script = repo.WriteScript("runners/passthrough.sh", Passthrough);
@@ -577,12 +624,17 @@ public class RunnerTests
         File.WriteAllText(Path.Combine(Attempt(repo, id, "a", "plain", 1), "status"), "failed\n");
 
         File.AppendAllText(script, "# edited\n");
-        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("the runner has changed", e.Message);
+        var (again, log) = RunAgain(repo);
+        Assert.Contains($"batch {id} was interrupted: 2 of 3 attempts finished, 1 failed\n  not continuing it: the runner is runners/passthrough.sh sha256:", log);
+        Assert.NotEqual(id, again);
+        Assert.Contains($"batch {again}: 1 attempt to make\n", log);
+        Assert.Equal("completed", Runner.ReadStatus(Attempt(repo, again!, "a", "plain", 2)));
+        Assert.Equal("failed", Runner.ReadStatus(Attempt(repo, id, "a", "plain", 1)));
 
-        // Dropping the runner is a change too; a bare resume of a runner batch would run nb somewhere else.
-        var none = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, "none", TextWriter.Null));
-        Assert.Contains("none vs runners/passthrough.sh", none.Message);
+        // Dropping the runner is a change too; continuing a runner batch bare would run nb somewhere else.
+        File.WriteAllText(Path.Combine(Attempt(repo, again!, "a", "plain", 2), "status"), "failed\n");
+        var (_, bare) = RunAgain(repo, runnerOverride: "none");
+        Assert.Contains($"batch {again} was interrupted: 0 of 1 attempt finished, 1 failed\n  not continuing it: the runner is none now, runners/passthrough.sh sha256:", bare);
     }
 
     [Fact]

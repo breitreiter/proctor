@@ -55,8 +55,8 @@ public class ConformanceTests
         }));
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("conformance");
-        var id = Runner.Start(repo.Root, exam, config, null, null, "conformance", TextWriter.Null);
-        Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);
+        var id = Runner.Run(repo.Root, exam, config, null, null, "conformance", TextWriter.Null)!;
+        Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
 
         var misses = Misses(repo.Root, id, exam);
         Assert.True(misses.Count == 0, string.Join("\n", misses));

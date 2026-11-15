@@ -2,13 +2,13 @@ using System.Text.Json;
 
 namespace Proctor;
 
-/// <summary>One row of results.jsonl: coordinates on every row, no transcript text.</summary>
+/// <summary>One row of results.jsonl: coordinates on every row, the batch that made the attempt included, no transcript text.</summary>
 record ResultRow(
     string Id, string Variant, string Task, int Attempt,
     string Status, string? StatusReason, string? ExitReason,
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null,
-    Dictionary<string, List<string>>? Labels = null, string? Undecided = null)
+    Dictionary<string, List<string>>? Labels = null, string? Undecided = null, string? Batch = null)
 {
     /// <summary>Graded and counted: an invalid run is graded but does not count. A counted run may still be undecided (Pass null).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -24,14 +24,15 @@ record UsageRow(long? Input, long? Output, long? Total, bool Estimated, double? 
 
 static class Results
 {
-    /// <summary>Read every attempt of a batch into rows, in declared order. Grades come from checks.json; attempts without one are not analysed.</summary>
-    public static List<ResultRow> Collect(string root, Batch batch, Exam exam)
+    /// <summary>Read the given attempts into rows, in the exam's order of variants and tasks, then by attempt. Grades come from checks.json; attempts without one are not analysed.</summary>
+    public static List<ResultRow> Collect(string root, Exam exam, IEnumerable<PoolAttempt> attempts)
     {
-        var batchDir = Layout.Batch(root, batch.Id);
         var rows = new List<ResultRow>();
-        foreach (var (variant, c, n) in Runner.Attempts(exam))
+        var ordered = attempts.OrderBy(a => exam.Variants.FindIndex(v => v.Id == a.Variant)).ThenBy(a => exam.Tasks.FindIndex(t => t.Id == a.Task)).ThenBy(a => a.Attempt);
+        foreach (var a in ordered)
         {
-            var attemptDir = Layout.Attempt(batchDir, variant.Id!, c.Id!, n);
+            var (c, n) = (exam.Tasks.First(t => t.Id == a.Task), a.Attempt);
+            var attemptDir = a.Dir(root);
             var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
             var status = Runner.ReadStatus(attemptDir);
@@ -39,7 +40,7 @@ static class Results
             var checks = status == AttemptStatus.Completed ? Grade.ReadChecks(attemptDir) : null;
             rows.Add(new ResultRow(
                 Id: manifest?.Id ?? "",
-                Variant: variant.Id!, Task: c.Id!, Attempt: n,
+                Variant: a.Variant, Task: c.Id!, Attempt: n,
                 Status: status,
                 StatusReason: manifest?.StatusReason ?? (checks is null && status == AttemptStatus.Completed ? "not graded" : null),
                 ExitReason: trailer?.ExitReason,
@@ -54,7 +55,8 @@ static class Results
                     .ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
                 Invalid: checks is null ? null : Grade.Invalid(checks, exam.Grading.Validity),
                 Labels: exam.LabelsFor(c) is { Count: > 0 } labels ? labels : null,
-                Undecided: checks is null ? null : Grade.Undecided(checks, exam.Grading.Pass!)));
+                Undecided: checks is null ? null : Grade.Undecided(checks, exam.Grading.Pass!),
+                Batch: a.Batch.Id));
         }
         return rows;
     }

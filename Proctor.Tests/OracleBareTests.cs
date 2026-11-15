@@ -31,7 +31,7 @@ public class OracleBareTests
             if (oracle is not null) s["oracle"] = System.Text.Json.JsonSerializer.SerializeToNode(oracle);
         });
         var exam = repo.LoadExam("smoke");
-        var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
         return (repo, Layout.Attempt(Layout.Batch(repo.Root, id), "a", "plain", 1));
     }
 

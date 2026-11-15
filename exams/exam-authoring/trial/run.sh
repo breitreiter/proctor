@@ -32,10 +32,10 @@ jq -n '{Harness: "nb", ActiveProvider: "Mock", Trust: false, ChatProviders: [{Na
 cd "$root"
 proctor() { dotnet /opt/proctor/proctor.dll "$@"; }
 proctor run "$id" --runner /trial/planted.sh >/out/run.log 2>&1 || fail "proctor run refused it: $(grep -v '^ ' /out/run.log | tail -1)"
-batch=$(sed -n 's/^batch //p' /out/run.log)
-proctor grade "$batch" >/out/grade.log 2>&1 || fail "proctor grade failed: $(tail -1 /out/grade.log)"
-proctor report "$batch" >/out/report.log 2>&1 || fail "proctor report failed: $(tail -1 /out/report.log)"
+batch=$(sed -n 's/^batch \([^ :]*\): .*/\1/p' /out/run.log | tail -1)
+proctor grade "$id" >/out/grade.log 2>&1 || fail "proctor grade failed: $(tail -1 /out/grade.log)"
+proctor report "$id" >/out/report.log 2>&1 || fail "proctor report failed: $(tail -1 /out/report.log)"
 cp -r "attempts/$batch" /out/batch
 jq -s '{variants: (group_by(.variant) | map({key: .[0].variant, value: map({task, status, pass, checks})}) | from_entries)}' \
-  "reports/data/$batch/results.jsonl" >/out/trial.json
+  "reports/$id/explore/results.jsonl" >/out/trial.json
 echo "trial $batch: $(jq -r '.variants | to_entries | map("\(.key)=\(.value | map(.pass) | tostring)") | join(" ")' /out/trial.json)"

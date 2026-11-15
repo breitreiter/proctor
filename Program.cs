@@ -5,22 +5,26 @@ static class Program
     const string Usage = """
         usage: proctor <verb> [args] [--root <dir>]
 
-          list [exam]            validate and print the attempts that would run
-          run <exam>             make every attempt of an exam, as a new batch
-          resume <batch>         make the attempts of a batch that have not completed
-          grade <batch>          run the checks over every completed attempt; a model check's verdict is kept in the attempt
-          friction <batch>       write friction.json beside each completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model
-          report <batch>         write results.jsonl, stats.json, report.html and summary.md
-          baseline <batch>       pin a variant's analysed attempts as the exam's baseline, per task
+          list [exam]            validate; per variant, its current attempts against those wanted; an interrupted batch
+          run <exam>             make the attempts the exam lacks. After a crash this is the command: it continues an
+                                 interrupted batch first and says so (there is no resume verb)
+          grade <exam>           run the checks over every current, completed attempt; a model check's verdict is kept in the attempt
+          friction <exam>        write friction.json beside each current, completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model
+          report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json, report.html and summary.md, stamped with what they were built from
+          baseline <batch>       pin a variant's analysed attempts in that batch as the exam's baseline, per task
           setup                  set up providers and keys for this machine, job by job (needs a terminal)
 
+        An attempt is current while its variant's and its task's hashes are today's; one made before either changed is
+        stale, listed and never counted.
+
         --root <dir>          the repository root holding exams/ (default: current directory)
-        --config <file>       list, run, resume, grade: this machine's config in place of exams/proctor.json, such as one for Modal
+        --config <file>       list, run, grade: this machine's config in place of exams/proctor.json, such as one for Modal
         --label <k[=glob]>    list: only exams carrying the label, or the label with a matching value (repeatable)
         --nb <path>           the nb binary (default: exams/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per attempt (default: the exam's nb.runner); none runs nb bare
-        --variant <id>        grade, friction: only this variant's attempts, the others left as they are (repeatable); baseline: which variant to pin (required with several variants)
-        --tasks <a,b>         grade, friction: only these tasks' attempts; baseline: only these tasks, the rest keep their pins
+        --batch <id>          grade, friction, report: only that batch's attempts
+        --variant <id>        run, grade, friction, report: only this variant's attempts, the others left as they are (repeatable); baseline: which variant to pin (required with several variants)
+        --tasks <a,b>         run, grade, friction, report: only these tasks' attempts; baseline: only these tasks, the rest keep their pins
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the attempts' verdict files; friction --reader: ask the reader again
         --reader <judge>      friction: a chat judge reads each attempt too and adds what rules cannot see (repair, lost, reread, dead-end, workaround), each with a checked quote; a model call per attempt, kept in the attempt and reused
@@ -35,7 +39,7 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, failOn = null, against = null, configFile = null, reader = null;
+        string? nbPath = null, runner = null, failOn = null, against = null, configFile = null, reader = null, batch = null;
         List<string>? tasks = null, labels = null, judges = null, variants = null;
         var tolerance = 0;
         var rejudge = false;
@@ -50,6 +54,7 @@ static class Program
                 case "--nb" when i + 1 < args.Length: nbPath = args[++i]; break;
                 case "--config" when i + 1 < args.Length: configFile = args[++i]; break;
                 case "--runner" when i + 1 < args.Length: runner = args[++i]; break;
+                case "--batch" when i + 1 < args.Length: batch = args[++i]; break;
                 case "--variant" when i + 1 < args.Length: (variants ??= []).Add(args[++i]); break;
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
@@ -75,11 +80,10 @@ static class Program
             return (positional[0], positional.Skip(1).ToList()) switch
             {
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels, configFile),
-                ("run", [var exam]) => Verbs.Run(root, exam, nbPath, runner, configFile),
-                ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner, configFile),
-                ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge, variants, tasks, configFile),
-                ("friction", [var id]) => Verbs.Friction(root, id, variants, tasks, reader, rejudge, configFile),
-                ("report", [var id]) => Verbs.Report(root, id, tolerance, failOn, against),
+                ("run", [var exam]) => Verbs.Run(root, exam, nbPath, runner, configFile, variants, tasks),
+                ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, batch, configFile),
+                ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, batch, reader, rejudge, configFile),
+                ("report", [var exam]) => Verbs.Report(root, exam, tolerance, failOn, against, batch, variants, tasks),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, variants, tasks),
                 ("setup", []) => Verbs.Setup(root, check, probe),
                 _ => Fail(Usage),

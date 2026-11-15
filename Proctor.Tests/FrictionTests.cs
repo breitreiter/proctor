@@ -175,14 +175,11 @@ public class FrictionTests
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
-        var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null)!;
         var expDir = Layout.Batch(repo.Root, id);
         File.WriteAllText(Path.Combine(Layout.Attempt(expDir, "a", "loops", 1), "status"), "failed\n");
 
-        // The exam's variant is renamed after the run: friction still reads what was run.
-        repo.RenameVariant("smoke", "a", "renamed");
-
-        var attempts = Friction.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), repo.LoadExam("smoke"), TextWriter.Null);
+        var attempts = Friction.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
 
         Assert.All(attempts, c => Assert.Equal("a", c.Variant));
         Assert.Equal("not completed", attempts.Single(c => c.Task == "loops").Skipped);
@@ -193,6 +190,15 @@ public class FrictionTests
         Assert.Equal(Friction.Schema, file["schema"]!.GetValue<string>());
         Assert.Equal("uses-bash", file["attempt"]!["task"]!.GetValue<string>());
         Assert.Equal("1", file["attempt"]!["attempt"]!.GetValue<string>());
+        Assert.Equal(id, file["attempt"]!["batch"]!.GetValue<string>());
         Assert.True(file["summary"]!["calls"]!.GetValue<int>() > 0);
+
+        // Once the variant is renamed its attempts are stale: listed with why, never read.
+        repo.RenameVariant("smoke", "a", "renamed");
+        var renamed = repo.LoadExam("smoke");
+        var selection = Pool.Select(repo.Root, renamed);
+        Assert.Empty(selection.Current);
+        Assert.All(selection.Stale, s => Assert.Equal("variant a has no file now", s.Why));
+        Assert.Equal(3, selection.Stale.Count);
     }
 }

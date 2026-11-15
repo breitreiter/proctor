@@ -359,7 +359,7 @@ public class HarborTests
         var (repo, keyVar) = AgentRepo(FakeUv(scratch, GoodTrial));
         using var _r = repo;
         var exam = repo.LoadExam("harbor-unit");
-        var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
         var expDir = Layout.Batch(repo.Root, id);
 
         var batch = ReadJson(Path.Combine(expDir, "batch.json"));
@@ -390,12 +390,12 @@ public class HarborTests
         Assert.DoesNotContain(Directory.GetFiles(expDir, "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains($"sk-test-{keyVar}"));
 
         // grade reads the script verdicts the verifier left, and runs the built-ins over the trajectory and the diff.
-        var grade = Assert.Single(Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null));
+        var grade = Assert.Single(Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null));
         Assert.False(grade.Pass);
         Assert.Equal(new Verdict(Verdict.Pass, "dotnet build: 0 errors"), grade.Checks!["builds"]);
         Assert.Equal(new Verdict(Verdict.Fail, "1 of 6 tests failed: Parse_LineWithoutMemo_HasNullMemo"), grade.Checks["tests-pass"]);
         Assert.Equal(new Verdict(Verdict.Fail, "touched 1 outside expected: x"), grade.Checks["diff-in-scope"]);
-        var row = Assert.Single(Results.Collect(repo.Root, Runner.LoadBatch(repo.Root, id), exam));
+        var row = Assert.Single(Results.Collect(repo.Root, exam, Pool.Select(repo.Root, exam).Current));
         Assert.Equal("ok", row.ExitReason);
         Assert.Equal(1, row.ToolCalls);
         Assert.Equal(15, row.Usage!.Total);
@@ -484,37 +484,39 @@ public class HarborTests
     }
 
     [Fact]
-    public void Run_HarborWithoutATrial_FailsTheAttempt_AndResumeRunsItAgain()
+    public void Run_HarborWithoutATrial_FailsTheAttempt_AndTheNextRunContinuesTheBatch()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1"));
         using var _r = repo;
-        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
         var attempt = Layout.Attempt(Layout.Batch(repo.Root, id), "cc-haiku", "fix-null-deref", 1);
         Assert.Equal("failed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
         Assert.Equal("Harbor exited 1 without a trial: docker: Cannot connect to the Docker daemon", ReadJson(Path.Combine(attempt, "manifest.json"))["status_reason"]!.GetValue<string>());
 
         File.WriteAllText(Path.Combine(scratch.Root, "exams", "fake-uv.sh"), File.ReadAllText(Path.Combine(scratch.Root, "exams", "fake-uv.sh")).Replace("echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1", GoodTrial));
-        Runner.Resume(repo.Root, id, null, null, TextWriter.Null);
+        Assert.Equal(id, Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
         Assert.Equal("completed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
         Assert.Equal(2, ReadJson(Path.Combine(attempt, "manifest.json"))["tries"]!.GetValue<int>());
     }
 
     [Fact]
-    public void Resume_RefusesChangedCompiledTasks()
+    public void Run_DoesNotContinueABatchWhoseCompiledTasksChanged()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
         using var _r = repo;
-        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
         File.AppendAllText(Path.Combine(Layout.HarborTask(Layout.Batch(repo.Root, id), "cc-haiku", "fix-null-deref"), "instruction.md"), "and also\n");
-        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("have changed on disk", e.Message);
+        var log = new StringWriter();
+        var again = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", log);
+        Assert.Contains($"batch {id} was interrupted: 0 of 1 attempt finished, 1 failed\n  not continuing it: the Harbor tasks it compiled have changed on disk (harbor/tasks)\n", log.ToString());
+        Assert.NotEqual(id, again);
     }
 
-    /// <summary>Issue #11: an agent variant's bundle is the host's, as on the bare path: hashed, recorded per attempt, handed to variant hooks, guarded on resume; never in the task.</summary>
+    /// <summary>Issue #11: an agent variant's bundle is the host's, as on the bare path: hashed, recorded per attempt, handed to variant hooks, part of the variant; never in the task.</summary>
     [Fact]
-    public void Run_AnAgentVariantsBundle_IsRecorded_HandedToVariantHooks_KeptOutOfTheTask_AndGuardsResume()
+    public void Run_AnAgentVariantsBundle_IsRecorded_HandedToVariantHooks_KeptOutOfTheTask_AndPartOfTheVariant()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
@@ -525,7 +527,7 @@ public class HarborTests
         repo.EditVariant("harbor-unit", "cc-haiku", v => v["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}"""));
         repo.EditJson("harbor-unit/exam.json", e => e["hooks"] = JsonNode.Parse("""{"variant": {"setup": "hooks/serve.sh"}}"""));
 
-        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
         var expDir = Layout.Batch(repo.Root, id);
         var hash = ReadJson(Path.Combine(expDir, "batch.json"))["bundles"]!["cc-haiku"]!["hash"]!.GetValue<string>();
         Assert.StartsWith("sha256:", hash);
@@ -536,12 +538,12 @@ public class HarborTests
             f => File.ReadAllText(f).Contains("corpus page"));
 
         File.AppendAllText(Path.Combine(bundleDir, "page.html"), "rebuilt\n");
-        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("variants/cc-haiku.json has changed since batch", e.Message);
+        var e = Assert.Throws<ProctorException>(() => Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
+        Assert.StartsWith("exams/harbor-unit/variants/cc-haiku.json: this is not the cc-haiku that made 1 attempt\n  (bundle ", e.Message);
     }
 
     [Fact]
-    public void Run_OnPodman_RecordsTheEngine_HandsItToHarbor_AndResumeRefusesAnother()
+    public void Run_OnPodman_RecordsTheEngine_HandsItToHarbor_AndDoesNotContinueTheBatchOnAnother()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
@@ -549,16 +551,17 @@ public class HarborTests
         var config = Path.Combine(repo.Root, "exams", "proctor.json");
         void Engine(string engine) { var c = ReadJson(config); c["harbor"]!["engine"] = engine; File.WriteAllText(config, c.ToJsonString()); }
         Engine("podman");
-        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
         var expDir = Layout.Batch(repo.Root, id);
         Assert.Equal("podman", ReadJson(Path.Combine(expDir, "batch.json"))["harbor"]!["engine"]!.GetValue<string>());
         var job = Path.Combine(Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1), Layout.HarborDir, Layout.HarborJobFile);
         Assert.Equal("podman", ReadJson(job)["environment"]!["type"]!.GetValue<string>());
 
         Engine("docker");
-        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("the engine (exams/proctor.json harbor.engine) is docker, and batch", e.Message);
-        Assert.Contains("resume with the --config it was run with", e.Message);
+        var log = new StringWriter();
+        var again = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", log);
+        Assert.Contains("  not continuing it: the engine (exams/proctor.json harbor.engine) is docker now, podman then; run with the --config it was made with to continue it\n", log.ToString());
+        Assert.Equal("docker", ReadJson(Path.Combine(Layout.Batch(repo.Root, again!), "batch.json"))["harbor"]!["engine"]!.GetValue<string>());
     }
 
     [Fact]
@@ -567,7 +570,7 @@ public class HarborTests
         var (repo, _) = AgentRepo();
         using var _r = repo;
         repo.WriteProctorConfig();
-        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
+        var e = Assert.Throws<ProctorException>(() => Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
         Assert.Contains("no agents.claude-code", e.Message);
         Assert.False(Directory.Exists(Path.Combine(repo.Root, "attempts")));
     }
@@ -672,12 +675,12 @@ public class HarborTests
     }
 
     [Fact]
-    public void Run_OnModal_HandsHarborTheSandboxsLifetime_AndResumeNeedsTheSameConfig()
+    public void Run_OnModal_HandsHarborTheSandboxsLifetime_AndContinuesTheBatchOnlyWithTheSameConfig()
     {
         using var scratch = new TestRepo();
         var (repo, file) = ModalRepo(PublicUrl, FakeUv(scratch, GoodTrial));
         using var _r = repo;
-        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null)!;
         var expDir = Layout.Batch(repo.Root, id);
         Assert.Equal("modal", ReadJson(Path.Combine(expDir, "batch.json"))["harbor"]!["engine"]!.GetValue<string>());
         var attempt = Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1);
@@ -689,9 +692,13 @@ public class HarborTests
         Assert.Equal("tool run --exclude-newer 7 days harbor[modal]@0.24.0 run --config job.json", File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
         Assert.Contains("allowed_hosts = [\"api.anthropic.com\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), "task.toml")));
 
-        var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("is docker, and batch", e.Message);
-        Runner.Resume(repo.Root, id, null, null, TextWriter.Null, file);
+        // Interrupted: continued with the Modal config, and not without it.
+        File.WriteAllText(Path.Combine(attempt, "status"), "failed\n");
+        Assert.Equal(id, Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null));
+        File.WriteAllText(Path.Combine(attempt, "status"), "failed\n");
+        var log = new StringWriter();
+        Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", log);
+        Assert.Contains("not continuing it: the engine (exams/proctor.json harbor.engine) is docker now, modal then", log.ToString());
     }
 
     [Fact]
@@ -703,7 +710,7 @@ public class HarborTests
         File.WriteAllText(Path.Combine(services, "docker-compose.yaml"), "services: {}\n");
         repo.EditJson("../fixtures/ledger/fixture.json", f => f["image"]!["services"] = "services");
 
-        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null));
+        var e = Assert.Throws<ProctorException>(() => Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null));
         Assert.Equal([
             "variant 'cc-haiku': its model is at library, a name without a domain, which only this network resolves, which a sandbox on modal cannot reach; run it on a local engine, or point exams/proctor.modal.json agents.claude-code at a public endpoint",
             "fixture 'ledger' runs services beside the agent (image.services), and modal cannot confine the network of a task with services; its tasks run on docker or podman only",

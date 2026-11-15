@@ -47,8 +47,8 @@ public class GateTests
         var config = Exam.LoadConfig(repo.Root, problems);
         Assert.Empty(problems);
         var exam = repo.LoadExam(examId);
-        var id = Runner.Start(repo.Root, exam, config, null, null, "gate", TextWriter.Null);
-        Grade.Batch(repo.Root, Runner.LoadBatch(repo.Root, id), exam, TextWriter.Null);
+        var id = Runner.Run(repo.Root, exam, config, null, null, "gate", TextWriter.Null)!;
+        Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
         return (exam, id);
     }
 

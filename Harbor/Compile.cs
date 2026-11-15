@@ -61,19 +61,21 @@ static class HarborCompile
     public static bool IsOwnAgent(Variant variant) => OwnAgents.ContainsKey(variant.Agent!);
 
     /// <summary>
-    /// Every agent variant's tasks, under the batch, and proctor's own Harbor agents beside them for the variants that use one. Returns the
-    /// tree's hash, which the batch records and a resume checks. The nb image is the tag of proctor's nb layer; on a
-    /// remote engine, which cannot see a local image, nb's publish directory comes too and is copied into each nb task.
-    /// The bundles are the batch's resolved ones, which reach a task only through its fixture's services.
+    /// The tasks the batch's agent attempts run as, one per agent variant and task it makes attempts of (every agent variant's
+    /// every task when <paramref name="pairs"/> is not given), and proctor's own Harbor agents beside them for the variants
+    /// that use one. Returns the tree's hash, which the batch records and `run` checks before it continues the batch. The nb
+    /// image is the tag of proctor's nb layer; on a remote engine, which cannot see a local image, nb's publish directory
+    /// comes too and is copied into each nb task. The bundles are the batch's resolved ones, which reach a task only through
+    /// its fixture's services.
     /// </summary>
     public static string Tasks(string batchDir, Exam exam, string batchId, Func<Variant, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
-        IReadOnlyDictionary<string, ResolvedBundle>? bundles = null)
+        IReadOnlyDictionary<string, ResolvedBundle>? bundles = null, IReadOnlyCollection<(Variant Variant, TaskDef Task)>? pairs = null)
     {
-        foreach (var variant in exam.Variants.Where(a => a.IsAgent))
-            foreach (var c in exam.Tasks)
-                Task(Layout.HarborTask(batchDir, variant.Id!, c.Id!), exam, variant, c, batchId, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
-        var files = exam.Variants.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
-        var oracle = HasOracle(exam);
+        pairs ??= (from variant in exam.Variants.Where(a => a.IsAgent) from c in exam.Tasks select (variant, c)).ToList();
+        foreach (var (variant, c) in pairs)
+            Task(Layout.HarborTask(batchDir, variant.Id!, c.Id!), exam, variant, c, batchId, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
+        var files = pairs.Select(p => p.Variant).Where(IsOwnAgent).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
+        var oracle = pairs.Any(p => p.Task.Oracle is not null);
         if (oracle) files.Add(OracleUserFile);
         var agents = AgentsDir(batchDir);
         foreach (var file in files)
@@ -86,9 +88,6 @@ static class HarborCompile
         if (oracle) File.WriteAllText(Path.Combine(agents, OracleTemplateFile), OracleTemplate);
         return TreeHash(batchDir);
     }
-
-    /// <summary>Whether an exam's agent variants run with the oracle's simulated user: an agent variant beside a task with an answer sheet (validation keeps vendor variants out).</summary>
-    public static bool HasOracle(Exam exam) => exam.Variants.Any(a => a.IsAgent) && exam.Tasks.Any(c => c.Oracle is not null);
 
     /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
     public static string AgentsDir(string batchDir) => Path.Combine(batchDir, Layout.HarborDir, "agents");

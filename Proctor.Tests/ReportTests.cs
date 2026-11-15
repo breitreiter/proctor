@@ -17,7 +17,7 @@ public class ReportTests
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows();
-        return (Stats.Compute(WorkedBatch.Batch(exam), exam, rows, WorkedBatch.Guard()), rows, WorkedBatch.Batch(exam));
+        return (Stats.Compute(exam, rows, WorkedBatch.Guard()), rows, WorkedBatch.Batch(exam));
     }
 
     static void AssertSnapshot(string name, string actual)
@@ -60,7 +60,7 @@ public class ReportTests
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows().Where(r => r.Variant == "b" || r.Attempt == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
-        var md = Report.Markdown(Stats.Compute(WorkedBatch.Batch(exam), exam, rows), rows, WorkedBatch.Batch(exam));
+        var md = Report.Markdown(Stats.Compute(exam, rows), rows, WorkedBatch.Batch(exam));
         Assert.DoesNotContain("lost attempts unequally", md);
     }
 
@@ -72,7 +72,7 @@ public class ReportTests
         var rows = WorkedBatch.Rows().Select(r => r is { Variant: "b", Task: "uses-bash", Attempt: 1 }
             ? r with { Checks = new(r.Checks!) { ["used-bash"] = Verdict.Error }, Reasons = new() { ["used-bash"] = "judge: line one\nline two" } }
             : r).ToList();
-        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows);
+        var stats = Stats.Compute(exam, rows);
         var b = stats.Variants["b"];
         Assert.Equal((2, 1), (b.Checks["used-bash"].NAttempts, b.Checks["used-bash"].Errors));
         Assert.DoesNotContain(b.Failures, f => f.Check == "used-bash");
@@ -92,7 +92,7 @@ public class ReportTests
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows().Where(r => !(r.Variant == "b" && r.Task == "plain")).ToList();
-        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows, WorkedBatch.Guard());
+        var stats = Stats.Compute(exam, rows, WorkedBatch.Guard());
         Assert.Equal(3, stats.Mde.NPairs);
         Assert.Equal(2, stats.Baseline!.Variants["b"].NPairs);
         Assert.NotNull(stats.Baseline.Variants["b"].MdePoints);
@@ -110,7 +110,7 @@ public class ReportTests
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows();
         var guard = WorkedBatch.Guard();
-        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows, guard);
+        var stats = Stats.Compute(exam, rows, guard);
         var expected = Math.Round(guard.Scores.Values.Average(), 3);
         Assert.Equal(expected, stats.Baseline!.Variants["floor"].Score);
         var html = Report.Html(stats, rows, WorkedBatch.Batch(exam));
@@ -124,10 +124,10 @@ public class ReportTests
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows();
-        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows, WorkedBatch.Guard() with { Pinned = ["floor"] });
+        var stats = Stats.Compute(exam, rows, WorkedBatch.Guard() with { Pinned = ["floor"] });
         var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
         Assert.Contains("The baseline is `floor`'s runs from", md);
-        var pinnedBoth = Stats.Compute(WorkedBatch.Batch(exam), exam, rows, WorkedBatch.Guard() with { Pinned = ["floor", "b"] });
+        var pinnedBoth = Stats.Compute(exam, rows, WorkedBatch.Guard() with { Pinned = ["floor", "b"] });
         Assert.DoesNotContain("The baseline is `", Report.Markdown(pinnedBoth, rows, WorkedBatch.Batch(exam)));
     }
 
@@ -138,7 +138,7 @@ public class ReportTests
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows().Select(r => r.Task == "uses-bash" && r.Checks is not null
             ? r with { Checks = new Dictionary<string, string>(r.Checks) { ["used-bash"] = Verdict.Error } } : r).ToList();
-        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows);
+        var stats = Stats.Compute(exam, rows);
         var x = Assert.Single(stats.ErroredChecks!);
         Assert.Equal("used-bash", x.Check);
         Assert.Equal(x.Attempts, x.Variants.Values.Sum());
@@ -154,7 +154,7 @@ public class ReportTests
     {
         var exam = WorkedBatch.Exam();
         var rows = WorkedBatch.Rows().Select(r => r.Variant == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
-        var stats = Stats.Compute(WorkedBatch.Batch(exam), exam, rows);
+        var stats = Stats.Compute(exam, rows);
         Assert.Equal((0.05, 0.45), (stats.Variants["b"].CostUsd!.Median, stats.Variants["b"].CostTotalUsd!.Value));
         Assert.Null(stats.Variants["floor"].CostUsd);
         var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
@@ -213,7 +213,7 @@ public class ReportTests
         var exam = repo.LoadExam("smoke");
         var rows = WorkedBatch.Rows();
         var exp = WorkedBatch.Batch(exam);
-        var stats = Stats.Compute(exp, exam, rows);
+        var stats = Stats.Compute(exam, rows);
 
         var builds = stats.TaskDetails!["plain"].Checks.Single(k => k.Name == "builds");
         Assert.Equal(("task", "the answer gives `#fbedef`"), (builds.Level, builds.Description));
@@ -234,7 +234,7 @@ public class ReportTests
     {
         var (stats, rows, exp) = Worked();
         rows[0] = rows[0] with { StatusReason = "<b>bold</b> & \"quoted\"", Status = "failed", Pass = null, Checks = null };
-        var html = Report.Html(Stats.Compute(exp, WorkedBatch.Exam(), rows), rows, exp);
+        var html = Report.Html(Stats.Compute(WorkedBatch.Exam(), rows), rows, exp);
         Assert.DoesNotContain("<b>bold</b>", html);
         Assert.Contains("&lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot;", html);
     }

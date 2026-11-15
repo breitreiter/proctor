@@ -86,11 +86,19 @@ record BaselineVariant(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost
 record BaselineTask(double Baseline, double Variant, int DiffPoints, string Verdict);
 
 record StatsFile(
-    string Batch, string Exam, int NTasks, bool Paired,
+    string Exam, int NTasks, bool Paired,
     Dictionary<string, VariantStats> Variants, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
     Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null,
-    List<ErroredCheck>? ErroredChecks = null);
+    List<ErroredCheck>? ErroredChecks = null, BuiltFrom? BuiltFrom = null);
+
+/// <summary>
+/// The report's stamp: when it was built, from which batches, each variant's and task's hash as the exam has them now, how
+/// many current attempts it read and how many stale ones it left out (each with why), the narrowing asked for, and, per
+/// variant, the conditions its attempts were made under when they were not all the same.
+/// </summary>
+record BuiltFrom(string At, List<string> Batches, Dictionary<string, string> Variants, Dictionary<string, string> Tasks, int Current, int Stale,
+    List<StaleAttempt>? StaleAttempts = null, string? Narrowed = null, Dictionary<string, List<string>>? Mixed = null);
 
 /// <summary>What the report knows about the baseline: the resolved per-task scores, where they came from, and the tolerance asked for.</summary>
 /// <summary>What the variants are compared with: one set of task scores for every variant, or with <c>PerVariant</c> (report --against) each variant's own, and none for a variant it lacks.</summary>
@@ -106,10 +114,11 @@ static class Stats
     const double ZPower = 2.801582;      // z_0.975 + z_0.80, for MDE at 80% power
     const double AssumedSdOfPairedDifference = 0.5;
 
-    public static StatsFile Compute(Batch batch, Exam exam, List<ResultRow> rows, GuardInput? guard = null)
+    /// <summary>The statistics of the rows given: the exam's variants and tasks that have an attempt among them, in the exam's order.</summary>
+    public static StatsFile Compute(Exam exam, List<ResultRow> rows, GuardInput? guard = null, BuiltFrom? built = null)
     {
-        var variants = exam.Variants.Select(a => a.Id!).ToList();
-        var tasks = exam.Tasks.Select(c => c.Id!).ToList();
+        var variants = exam.Variants.Select(a => a.Id!).Where(a => rows.Any(r => r.Variant == a)).ToList();
+        var tasks = exam.Tasks.Select(c => c.Id!).Where(c => rows.Any(r => r.Task == c)).ToList();
         var checks = exam.CheckNames;
         var byVariant = variants.ToDictionary(a => a, a => rows.Where(r => r.Variant == a).ToList());
 
@@ -187,14 +196,46 @@ static class Stats
 
         var descriptions = new Descriptions(
             exam.Def.Description,
-            exam.Variants.Where(a => a.Note is not null).ToDictionary(a => a.Id!, a => a.Note!),
-            exam.Tasks.ToDictionary(c => c.Id!, Exam.Describe),
+            exam.Variants.Where(a => a.Note is not null && variants.Contains(a.Id!)).ToDictionary(a => a.Id!, a => a.Note!),
+            exam.Tasks.Where(c => tasks.Contains(c.Id!)).ToDictionary(c => c.Id!, Exam.Describe),
             exam.CheckDescriptions());
 
-        var taskDetails = exam.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, exam.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
+        var taskDetails = exam.Tasks.Where(c => tasks.Contains(c.Id!)).ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, exam.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
-        return new StatsFile(batch.Id, exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
-            erroredChecks.Count > 0 ? erroredChecks : null);
+        return new StatsFile(exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
+            erroredChecks.Count > 0 ? erroredChecks : null, built);
+    }
+
+    /// <summary>
+    /// The report's stamp, from the current attempts it read and the stale ones it left out. A variant's conditions are its
+    /// batches' versions, runner and engine; it is mixed when its attempts came from batches that differ in one.
+    /// </summary>
+    public static BuiltFrom Stamp(Exam exam, PoolSelection selection, string? narrowed, DateTime at)
+    {
+        var current = selection.Current;
+        var mixed = new Dictionary<string, List<string>>();
+        foreach (var variant in exam.Variants.Where(v => current.Any(a => a.Variant == v.Id)))
+        {
+            var conditions = current.Where(a => a.Variant == variant.Id).Select(a => a.Batch).DistinctBy(b => b.Id).Select(b => Conditions(b, variant.IsAgent)).ToList();
+            var differ = conditions.SelectMany(c => c.Keys).Distinct()
+                .Select(k => (k, values: conditions.Select(c => c.GetValueOrDefault(k, "none")).Distinct().Order(StringComparer.Ordinal).ToList()))
+                .Where(x => x.values.Count > 1).Select(x => $"{x.k} {string.Join(", ", x.values)}").ToList();
+            if (differ.Count > 0) mixed[variant.Id!] = differ;
+        }
+        return new BuiltFrom(at.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),
+            current.Select(a => a.Batch.Id).Distinct().Order(StringComparer.Ordinal).ToList(),
+            exam.Variants.Where(v => current.Any(a => a.Variant == v.Id)).ToDictionary(v => v.Id!, v => v.Hash),
+            exam.Tasks.Where(t => current.Any(a => a.Task == t.Id)).ToDictionary(t => t.Id!, t => exam.TaskHashes[t.Id!]),
+            current.Count, selection.Stale.Count, selection.Stale.Count > 0 ? selection.Stale : null, narrowed, mixed.Count > 0 ? mixed : null);
+
+        // Harbor's version and engine are an agent variant's conditions; a bare variant's batch may or may not have had agents beside it.
+        static Dictionary<string, string> Conditions(Batch b, bool agent)
+        {
+            var c = new Dictionary<string, string>(b.Versions) { ["runner"] = b.Nb.Runner is { } r ? $"{r.Script} {r.Hash[..Math.Min(r.Hash.Length, 15)]}" : "none" };
+            if (agent && b.Harbor is { } h) c["engine"] = h.Engine;
+            else c.Remove("harbor");
+            return c;
+        }
     }
 
     static VariantStats VariantStats(List<ResultRow> rows, List<string> tasks, List<string> checks, List<string> validity)

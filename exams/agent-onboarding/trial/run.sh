@@ -58,12 +58,12 @@ jq -n --arg nb "$(command -v nb)" '{nb: {path: $nb, config: "trial-nb.json"}}' >
 export TRIAL_PLANTS="$plants" TRIAL_VARIANTS="$out/variants.json" TRIAL_RECORDS="$out/records"
 cd "$root"
 proctor run "$id" --root "$root" --runner "$here/planted.sh" >"$out/run.log" 2>&1 || fail "proctor run refused it: $(grep -v '^ ' "$out/run.log" | tail -1)"
-batch=$(sed -n 's/^batch //p' "$out/run.log" | head -1)
+batch=$(sed -n 's/^batch \([^ :]*\): .*/\1/p' "$out/run.log" | head -1)
 [ -n "$batch" ] || fail "proctor run printed no batch: $(tail -1 "$out/run.log")"
-proctor grade "$batch" --root "$root" >"$out/grade.log" 2>&1 || fail "proctor grade failed: $(tail -1 "$out/grade.log")"
-proctor report "$batch" --root "$root" >"$out/report.log" 2>&1 || fail "proctor report failed: $(tail -1 "$out/report.log")"
+proctor grade "$id" --root "$root" >"$out/grade.log" 2>&1 || fail "proctor grade failed: $(tail -1 "$out/grade.log")"
+proctor report "$id" --root "$root" >"$out/report.log" 2>&1 || fail "proctor report failed: $(tail -1 "$out/report.log")"
 cp -r "attempts/$batch" "$out/batch"
-cp "reports/data/$batch/results.jsonl" "$out/results.jsonl"
+cp "reports/$id/explore/results.jsonl" "$out/results.jsonl"
 
 jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.json" \
   --slurpfile rec <(cat "$out"/records/*.json 2>/dev/null) --slurpfile res "$out/results.jsonl" '

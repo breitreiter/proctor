@@ -73,8 +73,8 @@ static class Layout
     public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
     /// <summary>The files a bundle's paths name, copied out of its revision's clone; named by the bundle's identity so two subsets of one revision sit apart.</summary>
     public static string GitBundleSubset(string root, string rev, string identityHash) => Path.Combine(root, BundlesDir, $"{rev}-{identityHash[..12]}");
-    public static string ReportData(string root, string batchId) =>
-        Path.Combine(root, ReportsDir, "data", batchId);
+    /// <summary>The exploration report of an exam: the latest here, each earlier one moved into a directory of its own beside it, named by when it was built.</summary>
+    public static string ReportExplore(string root, string examId) => Path.Combine(root, ReportsDir, examId, "explore");
 
     /// <summary>Date prefix so ls sorts, the exam id so a human can tell them apart, four random characters so it is an id.</summary>
     public static string NewBatchId(string examId, DateTime utcNow) =>

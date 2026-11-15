@@ -15,7 +15,7 @@ public class ExamTests
         Assert.Equal("smoke", exam.Id);
         Assert.Equal(2, exam.Variants.Count);
         Assert.Equal(3, exam.Tasks.Count);
-        Assert.Equal(12, exam.PlannedAttempts);
+        Assert.Equal(2, exam.Attempts);
         Assert.Equal(["exit_ok", "says-expected"], exam.Grading.Pass);
         Assert.StartsWith("sha256:", exam.Hash);
         Assert.Equal(exam.Hash, repo.LoadExam("smoke").Hash);

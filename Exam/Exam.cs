@@ -218,7 +218,6 @@ sealed class Exam
     public Grading Grading => Def.Grading!;
     /// <summary>How many attempts of each task every variant should have.</summary>
     public int Attempts => Def.Attempts ?? 1;
-    public int PlannedAttempts => Variants.Count * Attempts * Tasks.Count;
 
     /// <summary>An exam is judged when any check an attempt can carry asks a model (decide or judge); there is no marker to declare.</summary>
     public bool Judged => AllChecks().Any(c => Checks.AsksAModel(c.Spec));

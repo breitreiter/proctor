@@ -517,14 +517,14 @@ public class JudgeTests
         var problems = new List<Problem>();
         var config = Proctor.Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
-        var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
+        var id = Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null)!;
         var batch = Runner.LoadBatch(repo.Root, id);
 
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.99"));
         var chat = new ScriptedChat(Answer("yes", "OK"));
         var judges = new JudgeClient { Defs = JudgeClient.From(config, null, rejudge: false).Defs, Http = new HttpClient(http), ChatClient = (_, _) => chat };
         var log = new StringWriter();
-        var grades = Proctor.Grade.Batch(repo.Root, batch, exam, log, judges);
+        var grades = Proctor.Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, log, judges);
 
         Assert.Contains("variant 'a' (glm-4.7) is in the family of judge 'glm' (glm)", log.ToString());
         var plain = grades.Single(g => g.Task == "plain");
@@ -545,7 +545,7 @@ public class JudgeTests
         var k2 = new ScriptedChat(Answer("no", "OK"));
         var compare = new JudgeClient { Defs = JudgeClient.From(Proctor.Exam.LoadConfig(repo.Root, problems), ["glm=k2"], false).Defs, Remap = new() { ["glm"] = "k2" }, Http = new HttpClient(http), ChatClient = (def, _) => def.Model == "k2" ? k2 : chat };
         var compareLog = new StringWriter();
-        var compared = Proctor.Grade.Batch(repo.Root, batch, exam, compareLog, compare);
+        var compared = Proctor.Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, compareLog, compare);
         Assert.Equal(("pass", "yes 2/2 — \"OK\""), compared.Single(g => g.Task == "uses-bash").Checks!["sensible"].Deconstruct());
         Assert.Equal("pass", Proctor.Grade.ReadChecks(Layout.Attempt(Layout.Batch(repo.Root, id), "a", "uses-bash", 1))!["sensible"].Result);
         Assert.Contains("a/uses-bash/1  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2, expected yes — \"OK\")", compareLog.ToString());
@@ -556,13 +556,13 @@ public class JudgeTests
         var k2File = Directory.GetFiles(Path.Combine(Layout.Attempt(Layout.Batch(repo.Root, id), "a", "uses-bash", 1), Layout.VerdictsDir), "sensible.k2.*").Single();
         Assert.False(JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(k2File), Proctor.Exam.JsonOptions)!.Applied);
 
-        var uses = Judge.Uses(repo.Root, batch, exam);
+        var uses = Judge.Uses(repo.Root, Pool.Select(repo.Root, exam).Current);
         Assert.Equal(["glm", "jev"], uses.Select(u => u.Judge));
         Assert.Equal(["sensible"], uses[0].Checks);
         Assert.Equal(("systemone", "jev-1.13.0"), (uses[1].Kind, uses[1].Model));
 
-        var rows = Results.Collect(repo.Root, batch, exam);
-        var stats = Stats.Compute(batch, exam, rows);
+        var rows = Results.Collect(repo.Root, exam, Pool.Select(repo.Root, exam).Current);
+        var stats = Stats.Compute(exam, rows);
         var html = Report.Html(stats, rows, batch, uses);
         Assert.Contains("<dt>judge jev</dt><dd>systemone jev-1.13.0 at <code class=\"code\">http://judge.test/systemone</code>; graded stance</dd>", html);
         Assert.Contains("| judge glm | chat glm at `http://judge.test/v1`; graded sensible |", Report.Markdown(stats, rows, batch, uses));

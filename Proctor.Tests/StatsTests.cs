@@ -118,8 +118,6 @@ public class StatsTests
 
     static Exam TwoVariantExam(int attempts) => WorkedBatch.Exam(attempts);
 
-    static Batch Exp(Exam exam) => WorkedBatch.Batch(exam);
-
     [Fact]
     public void Compute_TheWorkedBatchShape()
     {
@@ -130,7 +128,7 @@ public class StatsTests
         foreach (var (c, v) in floor) for (var s = 0; s < 3; s++) rows.Add(Row("floor", c, s + 1, v[s], exit: v[s] ? "ok" : "max_tool_calls"));
         foreach (var (c, v) in b) for (var s = 0; s < 3; s++) rows.Add(Row("b", c, s + 1, v[s]));
 
-        var stats = Stats.Compute(Exp(exam), exam, rows);
+        var stats = Stats.Compute(exam, rows);
 
         Assert.Equal(3, stats.NTasks);
         Assert.True(stats.Paired);
@@ -174,7 +172,7 @@ public class StatsTests
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, null, status: "failed"),
             Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(Exp(exam), exam, rows);
+        var stats = Stats.Compute(exam, rows);
         var f = stats.Variants["floor"];
         Assert.Equal((3, 3, 2, 2, 2), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
@@ -200,7 +198,7 @@ public class StatsTests
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, true, invalid: "no_denials: 1 denied call"),
             Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(Exp(exam), exam, rows);
+        var stats = Stats.Compute(exam, rows);
         var f = stats.Variants["floor"];
         Assert.Equal((3, 3, 3, 3, 2), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
@@ -215,16 +213,41 @@ public class StatsTests
     }
 
     [Fact]
-    public void Compute_OneVariant_NoComparisons_MdeFromItsTasks()
+    public void Compute_OneVariantWithAttempts_NoComparisons_MdeFromItsTasks()
     {
         var exam = TwoVariantExam(attempts: 1);
         var rows = new List<ResultRow> { Row("floor", "loops", 1, true), Row("floor", "plain", 1, false), Row("floor", "uses-bash", 1, true) };
-        var stats = Stats.Compute(Exp(exam), exam, rows);
+        var stats = Stats.Compute(exam, rows);
         Assert.Empty(stats.Comparisons);
         Assert.Equal(3, stats.Mde.NPairs);
-        Assert.Null(stats.Variants["b"].Pass);
-        Assert.Equal(0, stats.Variants["b"].Started);
-        Assert.Empty(stats.Matrix["b"]["loops"]);
+        // A variant with no attempts among the rows is not in the statistics at all; `report` says so.
+        Assert.Equal(["floor"], stats.Variants.Keys);
+        Assert.False(stats.Matrix.ContainsKey("b"));
+    }
+
+    /// <summary>The report's stamp: its batches, today's hashes, current and stale counts, and a variant whose attempts came from batches on different versions.</summary>
+    [Fact]
+    public void Stamp_SaysWhatTheReportWasBuiltFrom_AndWhichVariantsWereMadeUnderMixedConditions()
+    {
+        var exam = TwoVariantExam(attempts: 1);
+        var first = WorkedBatch.Batch(exam) with { Id = "20260916-0910-smoke-q2rd" };
+        var second = first with { Id = "20260917-1432-smoke-k7px", Versions = new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.1" } };
+        PoolAttempt A(Batch b, string variant, string task) => new(b, variant, task, 1, "completed", exam.Variants.Single(v => v.Id == variant).Hash, exam.TaskHashes[task]);
+        var selection = new PoolSelection(
+            [A(first, "floor", "loops"), A(second, "floor", "plain"), A(first, "b", "loops"), A(first, "b", "plain")],
+            [new StaleAttempt(first.Id, "b/uses-bash/1", "task uses-bash changed (1a2b3c4d then, 5e6f7a8b now)")]);
+
+        var built = Stats.Stamp(exam, selection, "--tasks loops,plain", new DateTime(2026, 9, 17, 15, 2, 0, DateTimeKind.Utc));
+
+        Assert.Equal("2026-09-17T15:02:00Z", built.At);
+        Assert.Equal([first.Id, second.Id], built.Batches);
+        Assert.Equal(["floor", "b"], built.Variants.Keys);
+        Assert.Equal(exam.TaskHashes["plain"], built.Tasks["plain"]);
+        Assert.False(built.Tasks.ContainsKey("uses-bash"));
+        Assert.Equal((4, 1), (built.Current, built.Stale));
+        Assert.Equal("--tasks loops,plain", built.Narrowed);
+        Assert.Equal(["nb 1.0.0, 1.0.1"], Assert.Single(built.Mixed!, m => m.Key == "floor").Value);
+        Assert.False(built.Mixed!.ContainsKey("b"));
     }
 
     [Fact]
@@ -237,7 +260,7 @@ public class StatsTests
             Row("b", "loops", 1, true), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
         var guard = new GuardInput("2026-09-21T16:40:12Z", "recomputed", new() { ["loops"] = 1.0, ["plain"] = 1.0, ["uses-bash"] = 0.0 }, TolerancePoints: 10);
-        var stats = Stats.Compute(Exp(exam), exam, rows, guard);
+        var stats = Stats.Compute(exam, rows, guard);
         var bl = stats.Baseline!;
         Assert.Equal(("2026-09-21T16:40:12Z", "recomputed", 10), (bl.Set, bl.Scores, bl.TolerancePoints));
 
@@ -252,11 +275,11 @@ public class StatsTests
         Assert.False(floor.Confirmed || b.Confirmed, "an interval that crosses the tolerance does not confirm the verdict");
 
         // Inside the tolerance is held, whichever way it leans; the between-variant comparison is untouched.
-        var held = Stats.Compute(Exp(exam), exam, rows, guard with { TolerancePoints = 40 }).Baseline!;
+        var held = Stats.Compute(exam, rows, guard with { TolerancePoints = 40 }).Baseline!;
         Assert.All(held.Variants.Values, a => Assert.Equal("held", a.Verdict));
         Assert.All(held.Variants.Values, a => Assert.False(a.Confirmed));
         // Held is confirmed only when the whole interval sits inside the tolerance.
-        var wide = Stats.Compute(Exp(exam), exam, rows, guard with { TolerancePoints = 100 }).Baseline!;
+        var wide = Stats.Compute(exam, rows, guard with { TolerancePoints = 100 }).Baseline!;
         Assert.All(wide.Variants.Values, a => Assert.True(a.Confirmed));
         Assert.Equal(67, Assert.Single(stats.Comparisons).DiffPoints);
         Assert.Contains("tolerance of 10 points", stats.Methods);
