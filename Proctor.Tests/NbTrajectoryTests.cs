@@ -20,7 +20,7 @@ public class NbTrajectoryTests
     static Transcript ThroughAtif(JsonObject trajectory)
     {
         var exit = trajectory["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";
-        var (core, unmapped) = Ingest.Count(trajectory, Arm.Nb, exit);
+        var (core, unmapped) = Ingest.Count(trajectory, Variant.Nb, exit);
         Assert.Null(unmapped);
         return Transcript.FromAtif(trajectory, core, "");
     }
@@ -71,7 +71,7 @@ public class NbTrajectoryTests
     [Fact]
     public void CountedCore_CountsTurnsCallsDenialsAndKinds()
     {
-        var (core, unmapped) = Ingest.Count(Trajectory("tool-denied"), Arm.Nb, "ok");
+        var (core, unmapped) = Ingest.Count(Trajectory("tool-denied"), Variant.Nb, "ok");
         Assert.Null(unmapped);
         Assert.Equal(1, core!.ToolCalls);
         Assert.Equal(1, core.Denied);
@@ -89,6 +89,6 @@ public class NbTrajectoryTests
                 ["tool_calls"] = new JsonArray(new JsonObject { ["tool_call_id"] = "c", ["function_name"] = "figma_get", ["arguments"] = new JsonObject() }),
             }),
         };
-        Assert.Equal("tool 'figma_get' has no kind for nb", Ingest.Count(trajectory, Arm.Nb, "ok").Unmapped);
+        Assert.Equal("tool 'figma_get' has no kind for nb", Ingest.Count(trajectory, Variant.Nb, "ok").Unmapped);
     }
 }

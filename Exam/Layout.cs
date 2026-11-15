@@ -36,7 +36,7 @@ static class Layout
     /// <summary>What a reader was sent and answered about a cell: friction-reading.&lt;judge&gt;.&lt;hash&gt;.json, the cache and the record.</summary>
     public const string ReadingPrefix = "friction-reading";
 
-    /// <summary>An agent arm's cells: the compiled Harbor tasks per experiment, Harbor's own job per cell, and what ingest lifts out of the trial.</summary>
+    /// <summary>An agent variant's cells: the compiled Harbor tasks per experiment, Harbor's own job per cell, and what ingest lifts out of the trial.</summary>
     public const string HarborDir = "harbor";
     public const string HarborJobFile = "job.json";
     public const string HarborLogFile = "harbor.log";
@@ -60,13 +60,13 @@ static class Layout
     public static string TasksDirIn(string examDir) => Path.Combine(examDir, TasksDir);
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
     public static string Experiment(string root, string experimentId) => Path.Combine(root, RunsDir, experimentId);
-    public static string Arm(string experimentDir, string arm) => Path.Combine(experimentDir, arm);
-    public static string Cell(string experimentDir, string arm, string task, int sample) =>
-        Path.Combine(experimentDir, arm, task, sample.ToString());
-    public static string Work(string root, string experimentId, string arm, string task, int sample) =>
-        Path.Combine(root, WorkDir, experimentId, arm, task, sample.ToString());
-    /// <summary>The Harbor task an arm runs a task as, compiled once per experiment.</summary>
-    public static string HarborTask(string experimentDir, string arm, string task) => Path.Combine(experimentDir, HarborDir, "tasks", arm, task);
+    public static string Variant(string experimentDir, string variant) => Path.Combine(experimentDir, variant);
+    public static string Cell(string experimentDir, string variant, string task, int sample) =>
+        Path.Combine(experimentDir, variant, task, sample.ToString());
+    public static string Work(string root, string experimentId, string variant, string task, int sample) =>
+        Path.Combine(root, WorkDir, experimentId, variant, task, sample.ToString());
+    /// <summary>The Harbor task a variant runs a task as, compiled once per experiment.</summary>
+    public static string HarborTask(string experimentDir, string variant, string task) => Path.Combine(experimentDir, HarborDir, "tasks", variant, task);
     public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
     public static string ReportData(string root, string experimentId) =>
         Path.Combine(root, ReportsDir, "data", experimentId);

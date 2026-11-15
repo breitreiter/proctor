@@ -85,7 +85,7 @@ sealed class Transcript
     public static Transcript FromAtif(JsonObject trajectory, CountedCore? core, string? diff = null)
     {
         var t = new Transcript { Diff = diff };
-        var nb = Str(trajectory["agent"] as JsonObject ?? [], "name") == Arm.Nb;
+        var nb = Str(trajectory["agent"] as JsonObject ?? [], "name") == Variant.Nb;
         foreach (var step in (trajectory["steps"]?.AsArray() ?? []).OfType<JsonObject>())
         {
             var text = AtifText(step["message"]);
@@ -125,7 +125,7 @@ sealed class Transcript
                 Estimated: usage?["estimated"] is JsonValue est && est.TryGetValue<bool>(out var estimated) && estimated,
                 core.Turns, core.ToolCalls, core.DurationMs,
                 Provider: own is null ? null : Str(own, "provider"),
-                Harness: nb ? (own is null ? null : Str(own, "harness")) ?? Arm.Nb : Str(trajectory["agent"] as JsonObject ?? [], "name"),
+                Harness: nb ? (own is null ? null : Str(own, "harness")) ?? Variant.Nb : Str(trajectory["agent"] as JsonObject ?? [], "name"),
                 core.Denied, OracleTurns: (int?)Num(own, "oracle_turns") ?? 0, CostUsd: core.CostUsd);
         }
         return t;

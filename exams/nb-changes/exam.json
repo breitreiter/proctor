@@ -5,10 +5,10 @@
     "area": "coding/change",
     "stack": "dotnet"
   },
-  "arms": [
+  "variants": [
     {
       "id": "qwen",
-      "description": "Qwen Code on the local model: the free shakedown arm",
+      "description": "Qwen Code on the local model: the free shakedown variant",
       "agent": "qwen-code",
       "agent_version": "0.25.2",
       "model": "qwen3-coder-next",
@@ -22,7 +22,7 @@
     "wall_ms": 2700000
   },
   "hooks": {
-    "arm": {
+    "variant": {
       "setup": "../code-change/hooks/ensure-model.sh"
     }
   },

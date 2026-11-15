@@ -1,4 +1,4 @@
-# readme-answers: the arm's README is the whole context; no tools, nothing else to read.
+# readme-answers: the variant's README is the whole context; no tools, nothing else to read.
 # model before provider: nb builds the provider's client as soon as it reads `provider`, and
 # setup's entries name no Model.
 model {{model}}

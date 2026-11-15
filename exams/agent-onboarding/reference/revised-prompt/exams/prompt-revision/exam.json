@@ -1,7 +1,7 @@
 {
   "id": "prompt-revision",
   "description": "Does the rewritten system prompt change how the allotment bot answers the questions people ask? The same five questions under the live prompt and the draft, every other setting equal, each passing only on the handbook's figure.",
-  "arms": [
+  "variants": [
     {
       "id": "live",
       "description": "the system prompt that runs today (a copy of bot/system.md)",

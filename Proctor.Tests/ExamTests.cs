@@ -13,7 +13,7 @@ public class ExamTests
         var exam = repo.LoadExam("smoke");
 
         Assert.Equal("smoke", exam.Id);
-        Assert.Equal(2, exam.Arms.Count);
+        Assert.Equal(2, exam.Variants.Count);
         Assert.Equal(3, exam.Tasks.Count);
         Assert.Equal(12, exam.PlannedCells);
         Assert.Equal(["exit_ok", "says-expected"], exam.Grading.Pass);
@@ -124,10 +124,10 @@ public class ExamTests
     [InlineData("labels", "{\"area\": []}", "smoke/exam.json", "labels.area")]
     [InlineData("labels", "{\"area\": [\"x\", \"\"]}", "smoke/exam.json", "labels.area")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"judge\": {}}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.judge")]
-    [InlineData("arms", "[]", "smoke/exam.json", "arms")]
-    [InlineData("hooks", "{\"run\": {\"setup\": \"hooks/arm-setup.sh\"}}", "smoke/exam.json", "hooks.run")]
-    [InlineData("hooks", "{\"task\": {\"setup\": \"hooks/arm-setup.sh\"}}", "smoke/exam.json", "hooks.task")]
-    [InlineData("hooks", "{\"arm\": {\"setup\": \"hooks/missing.sh\"}}", "smoke/exam.json", "hooks.arm.setup")]
+    [InlineData("variants", "[]", "smoke/exam.json", "variants")]
+    [InlineData("hooks", "{\"run\": {\"setup\": \"hooks/variant-setup.sh\"}}", "smoke/exam.json", "hooks.run")]
+    [InlineData("hooks", "{\"task\": {\"setup\": \"hooks/variant-setup.sh\"}}", "smoke/exam.json", "hooks.task")]
+    [InlineData("hooks", "{\"variant\": {\"setup\": \"hooks/missing.sh\"}}", "smoke/exam.json", "hooks.variant.setup")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"y\"]}", "smoke/exam.json", "grading.pass")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"], \"validity\": [\"y\"]}", "smoke/exam.json", "grading.validity")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"], \"validity\": [\"x\"]}", "smoke/exam.json", "grading.validity")]
@@ -151,16 +151,16 @@ public class ExamTests
     }
 
     [Theory]
-    [InlineData("{\"id\": \"a\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "arms[1].id")]
-    [InlineData("{\"id\": \"c\", \"runner\": \"command\", \"harness\": \"codex\", \"command\": \"codex\"}", "arms[1].runner")]
-    [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\"}", "arms[1].provider")]
-    [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\", \"samples\": 0}", "arms[1].samples")]
-    [InlineData("{\"id\": \"Bad Id\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "arms[1].id")]
-    public void Arms_AreValidated(string secondArm, string expectedField)
+    [InlineData("{\"id\": \"a\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "variants[1].id")]
+    [InlineData("{\"id\": \"c\", \"runner\": \"command\", \"harness\": \"codex\", \"command\": \"codex\"}", "variants[1].runner")]
+    [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\"}", "variants[1].provider")]
+    [InlineData("{\"id\": \"c\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\", \"samples\": 0}", "variants[1].samples")]
+    [InlineData("{\"id\": \"Bad Id\", \"runner\": \"nb\", \"harness\": \"nb\", \"provider\": \"Mock\"}", "variants[1].id")]
+    public void Variants_AreValidated(string secondVariant, string expectedField)
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => e["arms"]![1] = JsonNode.Parse(secondArm));
+        repo.EditJson("smoke/exam.json", e => e["variants"]![1] = JsonNode.Parse(secondVariant));
 
         Assert.Contains(repo.Problems("smoke"), p => p.Field == expectedField);
     }
@@ -289,16 +289,16 @@ public class ExamTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => e["arms"]![1]!["bundle"]!["path"] = "bundles/nope");
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "arms[1].bundle.path");
-        repo.EditJson("smoke/exam.json", e => e["arms"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\"}"));
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "arms[1].bundle.rev");
-        repo.EditJson("smoke/exam.json", e => e["arms"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\", \"rev\": \"abc\"}"));
+        repo.EditJson("smoke/exam.json", e => e["variants"]![1]!["bundle"]!["path"] = "bundles/nope");
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "variants[1].bundle.path");
+        repo.EditJson("smoke/exam.json", e => e["variants"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\"}"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "variants[1].bundle.rev");
+        repo.EditJson("smoke/exam.json", e => e["variants"]![1]!["bundle"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/b\", \"rev\": \"abc\"}"));
         Assert.Empty(repo.Problems("smoke"));
     }
 
     [Theory]
-    [InlineData("smoke/exam.json", "arms", "arms[2]")]
+    [InlineData("smoke/exam.json", "variants", "variants[2]")]
     [InlineData("smoke/exam.json", "grading.checks", "grading.checks.nothing")]
     [InlineData("smoke/exam.json", "grading.pass", "grading.pass")]
     [InlineData("smoke/exam.json", "grading.validity", "grading.validity")]

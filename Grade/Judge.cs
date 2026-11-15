@@ -467,9 +467,9 @@ static class Judge
     public static List<JudgeUse> Uses(string root, Experiment experiment, Exam exam)
     {
         var uses = new Dictionary<(string, string, string?, string), List<string>>();
-        foreach (var (arm, c, sample) in Runner.Cells(exam))
+        foreach (var (variant, c, sample) in Runner.Cells(exam))
         {
-            var dir = Path.Combine(Layout.Cell(Layout.Experiment(root, experiment.Id), arm.Id!, c.Id!, sample), Layout.VerdictsDir);
+            var dir = Path.Combine(Layout.Cell(Layout.Experiment(root, experiment.Id), variant.Id!, c.Id!, sample), Layout.VerdictsDir);
             if (!Directory.Exists(dir)) continue;
             foreach (var file in Directory.GetFiles(dir, "*.json").Order(StringComparer.Ordinal))
             {
@@ -484,7 +484,7 @@ static class Judge
         return uses.OrderBy(u => u.Key.Item1, StringComparer.Ordinal).Select(u => new JudgeUse(u.Key.Item1, u.Key.Item2, u.Key.Item3, u.Key.Item4, u.Value)).ToList();
     }
 
-    /// <summary>An arm whose model or provider carries a judge's family name, so the grader can say so once; the off-family rule is the brief's to keep.</summary>
+    /// <summary>A variant whose model or provider carries a judge's family name, so the grader can say so once; the off-family rule is the brief's to keep.</summary>
     public static IEnumerable<string> SameFamilyNotes(Exam exam, JudgeClient client)
     {
         var specs = exam.Grading.Checks!.Concat(exam.Fixtures.Values.SelectMany(f => f.Checks));
@@ -495,9 +495,9 @@ static class Judge
                 if (spec[name] is not JsonObject s) continue;
                 var (judge, def) = client.Resolve(KindOf(name), (s["with"] as JsonValue)?.GetValue<string>(), check);
                 if (def.Family is not { } family) continue;
-                foreach (var arm in exam.Arms.Where(a => $"{a.Model} {a.Provider}".Contains(family, StringComparison.OrdinalIgnoreCase)))
-                    if (seen.Add((arm.Id!, judge)))
-                        yield return $"arm '{arm.Id}' ({arm.Model}) is in the family of judge '{judge}' ({family}); a judge should be off-family from every arm it grades";
+                foreach (var variant in exam.Variants.Where(a => $"{a.Model} {a.Provider}".Contains(family, StringComparison.OrdinalIgnoreCase)))
+                    if (seen.Add((variant.Id!, judge)))
+                        yield return $"variant '{variant.Id}' ({variant.Model}) is in the family of judge '{judge}' ({family}); a judge should be off-family from every variant it grades";
             }
     }
 

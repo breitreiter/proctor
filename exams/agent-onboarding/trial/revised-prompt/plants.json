@@ -1,12 +1,12 @@
 {
-  "about": "The allotment bot's five logged questions under its two system prompts. Which prompt a run carries is read from the program proctor compiled for it, so the exam must give each arm one version. In `same` the rewrite answers as well as the live prompt, and every run must pass; in `regressed` the rewrite gives the gist instead of the figures, and every run on it must fail. A task asking something else is answered and not counted.",
+  "about": "The allotment bot's five logged questions under its two system prompts. Which prompt a run carries is read from the program proctor compiled for it, so the exam must give each variant one version. In `same` the rewrite answers as well as the live prompt, and every run must pass; in `regressed` the rewrite gives the gist instead of the figures, and every run on it must fail. A task asking something else is answered and not counted.",
   "versions": {
     "live": ["Quote figures exactly as the handbook gives them", "Troughs can be used at any time"],
     "draft": ["give them the gist rather than a wall of rules", "Troughs can be used at any time"]
   },
   "missing": {
-    "live": "no arm gives the bot the live system prompt (bot/system.md) with its handbook (bot/knowledge.md), so there is nothing to compare the rewrite with",
-    "draft": "no arm gives the bot the rewritten system prompt (bot/system-draft.md) with its handbook (bot/knowledge.md), so the exam cannot see the rewrite"
+    "live": "no variant gives the bot the live system prompt (bot/system.md) with its handbook (bot/knowledge.md), so there is nothing to compare the rewrite with",
+    "draft": "no variant gives the bot the rewritten system prompt (bot/system-draft.md) with its handbook (bot/knowledge.md), so the exam cannot see the rewrite"
   },
   "compare": true,
   "dodge": "I'm not sure. Please write to the site secretary.",
@@ -19,7 +19,7 @@
   ],
   "fallback": "*",
   "unrecognised": "none of the written tasks asks one of the questions in docs/questions-log.md",
-  "variants": {
+  "plants": {
     "same": {
       "expect": "pass",
       "by_version": {

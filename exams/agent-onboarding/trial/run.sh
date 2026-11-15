@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # The trial: the exam the agent wrote, run by proctor against planted runs of its own tasks and graded, so it is
-# judged by what it passes and fails rather than by how it reads. Each written arm is cloned once per planted
-# variant in <task>/plants.json, with one sample, its bundle and everything else kept; hooks and the nb runner
+# judged by what it passes and fails rather than by how it reads. Each written variant is cloned once per plant
+# in <task>/plants.json, with one sample, its bundle and everything else kept; hooks and the nb runner
 # are dropped and trial/planted.sh answers for the bot. Model checks are dropped too, since nothing here can
 # answer one; a model check named in pass or validity is a problem, since then no run could be decided.
 # It needs no network: proctor and nb from PATH, the bot on nb's Mock provider.
 #   env: TRIAL_TASK, TRIAL_OUT (a writable directory), WRITTEN_ROOT, WRITTEN_ID (checks/written.sh)
-#   writes: $TRIAL_OUT/trial.json {problems: [...], cells: [{variant, arm, task, key, version, expect, status, pass, failed}]},
+#   writes: $TRIAL_OUT/trial.json {problems: [...], cells: [{plant, variant, task, key, version, expect, status, pass, failed}]},
 #   the logs, the records planted.sh made, and the graded experiment.
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -21,8 +21,8 @@ cp -r "$WRITTEN_ROOT" "$root" || fail "could not copy the written exam"
 id=$WRITTEN_ID; dir="$root/exams/$id"; def="$dir/exam.json"
 rm -rf "$root/runs" "$root/reports" "$root/.proctor" "$dir/baseline.json"
 jq -e . "$def" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
-agents=$(jq -r '[.arms // [] | .[] | select(.agent != null) | .id] | join(", ")' "$def")
-[ -z "$agents" ] || fail "arm(s) $agents run an agent through Harbor; a chat exam's arms are bare nb"
+agents=$(jq -r '[.variants // [] | .[] | select(.agent != null) | .id] | join(", ")' "$def")
+[ -z "$agents" ] || fail "variant(s) $agents run an agent through Harbor; a chat exam's variants are bare nb"
 
 # Model checks, wherever they are declared: the exam, its tasks, the fixtures.
 spec_files=("$def" "$dir"/tasks/*.json "$root"/fixtures/*/fixture.json)
@@ -36,20 +36,20 @@ for f in "${spec_files[@]}"; do
     if .grading.checks then .grading.checks |= drop elif .checks then .checks |= drop else . end' "$f" >"$f.trial" && mv "$f.trial" "$f"
 done
 
-jq -c '.arms' "$def" >"$out/written-arms.json"
-variants=$(jq -c '.variants | keys_unsorted' "$plants")
-jq -n --argjson v "$variants" --slurpfile arms "$out/written-arms.json" \
-  '[$v[] as $variant | $arms[0][] | {key: "\($variant)-\(.id)", value: {variant: $variant, arm: .id}}] | from_entries' >"$out/arms.json"
-jq --argjson v "$variants" '.arms as $arms | .arms = [$v[] as $variant | $arms[] | . + {id: "\($variant)-\(.id)", samples: 1}] | del(.hooks, .nb)' \
+jq -c '.variants' "$def" >"$out/written-variants.json"
+names=$(jq -c ".plants | keys_unsorted" "$plants")
+jq -n --argjson v "$names" --slurpfile variants "$out/written-variants.json" \
+  '[$v[] as $plant | $variants[0][] | {key: "\($plant)-\(.id)", value: {plant: $plant, variant: .id}}] | from_entries' >"$out/variants.json"
+jq --argjson v "$names" '.variants as $variants | .variants = [$v[] as $plant | $variants[] | . + {id: "\($plant)-\(.id)", samples: 1}] | del(.hooks, .nb)' \
   "$def" >"$def.trial" && mv "$def.trial" "$def"
 
 # nb on Mock under every provider name the exam uses, so its program compiles whatever it names.
-providers=$( { jq -r '.arms[].provider // empty' "$def"; sed -nE 's/^[[:space:]]*provider[[:space:]]+([^[:space:]{]+)[[:space:]]*$/\1/p' "$dir/program.nb" 2>/dev/null; } | sort -u | grep -vx Mock)
+providers=$( { jq -r '.variants[].provider // empty' "$def"; sed -nE 's/^[[:space:]]*provider[[:space:]]+([^[:space:]{]+)[[:space:]]*$/\1/p' "$dir/program.nb" 2>/dev/null; } | sort -u | grep -vx Mock)
 jq -n --arg p "$providers" '{Harness: "nb", ActiveProvider: "Mock", Trust: false,
   ChatProviders: ([{Name: "Mock"}] + [$p | split("\n")[] | select(. != "") | {Name: ., Provider: "Mock"}])}' >"$root/exams/trial-nb.json"
 jq -n --arg nb "$(command -v nb)" '{nb: {path: $nb, config: "trial-nb.json"}}' >"$root/exams/proctor.json"
 
-export TRIAL_PLANTS="$plants" TRIAL_ARMS="$out/arms.json" TRIAL_RECORDS="$out/records"
+export TRIAL_PLANTS="$plants" TRIAL_VARIANTS="$out/variants.json" TRIAL_RECORDS="$out/records"
 cd "$root"
 proctor run "$id" --root "$root" --runner "$here/planted.sh" >"$out/run.log" 2>&1 || fail "proctor run refused it: $(grep -v '^ ' "$out/run.log" | tail -1)"
 experiment=$(sed -n 's/^experiment //p' "$out/run.log" | head -1)
@@ -59,32 +59,32 @@ proctor report "$experiment" --root "$root" >"$out/report.log" 2>&1 || fail "pro
 cp -r "runs/$experiment" "$out/experiment"
 cp "reports/data/$experiment/results.jsonl" "$out/results.jsonl"
 
-jq -n --slurpfile plants "$plants" --slurpfile arms "$out/written-arms.json" \
+jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.json" \
   --slurpfile rec <(cat "$out"/records/*.json 2>/dev/null) --slurpfile res "$out/results.jsonl" '
-  $plants[0] as $p | $arms[0] as $written | $rec as $r
+  $plants[0] as $p | $variants[0] as $written | $rec as $r
   | ($p.versions | keys) as $required
   | ([$r[].version] | unique) as $seen
-  | ($r | group_by(.written_arm) | map({key: .[0].written_arm, value: ([.[].version] | unique)}) | from_entries) as $by_arm
+  | ($r | group_by(.written_variant) | map({key: .[0].written_variant, value: ([.[].version] | unique)}) | from_entries) as $by_variant
   | ($written | map({key: .id, value: .}) | from_entries) as $def
   | [ ($required[] | select(. as $v | $seen | index($v) | not) | $p.missing[.]),
-      ([$r[] | select(.version == "ambiguous") | .written_arm] | unique | select(length > 0)
-        | "arm(s) \(join(", ")) give the bot more than one version of its system prompt in one program"),
-      ($by_arm | to_entries[] | select(.value | length > 1) | "arm \(.key) gives the bot a different prompt on different tasks (\(.value | join(", ")))"),
+      ([$r[] | select(.version == "ambiguous") | .written_variant] | unique | select(length > 0)
+        | "variant(s) \(join(", ")) give the bot more than one version of its system prompt in one program"),
+      ($by_variant | to_entries[] | select(.value | length > 1) | "variant \(.key) gives the bot a different prompt on different tasks (\(.value | join(", ")))"),
       ( if $p.compare then
-          ([$by_arm | to_entries[] | select(.value == ["live"]) | .key]) as $live
-          | ([$by_arm | to_entries[] | select(.value == ["draft"]) | .key]) as $draft
+          ([$by_variant | to_entries[] | select(.value == ["live"]) | .key]) as $live
+          | ([$by_variant | to_entries[] | select(.value == ["draft"]) | .key]) as $draft
           | $live[] as $l | $draft[] as $d
           | ($def[$l] | del(.id, .description, .samples, .bundle, .labels)) as $a
           | ($def[$d] | del(.id, .description, .samples, .bundle, .labels)) as $b
-          | (if $a != $b then "arms \($l) and \($d) differ in \([($a + $b) | keys[] | select($a[.] != $b[.])] | join(", ")) as well as the prompt, so a difference between them is not the rewrite alone" else empty end),
-            (if $def[$l].bundle == $def[$d].bundle then "arms \($l) and \($d) have the same bundle, so their bundle is not what gives them different prompts" else empty end)
+          | (if $a != $b then "variants \($l) and \($d) differ in \([($a + $b) | keys[] | select($a[.] != $b[.])] | join(", ")) as well as the prompt, so a difference between them is not the rewrite alone" else empty end),
+            (if $def[$l].bundle == $def[$d].bundle then "variants \($l) and \($d) have the same bundle, so their bundle is not what gives them different prompts" else empty end)
         else empty end ),
-      ([$res[] | select(.status != "completed") | . as $row | select([$r[] | select(.arm == $row.arm and .task == $row.task)] | length == 0)]
+      ([$res[] | select(.status != "completed") | . as $row | select([$r[] | select(.variant == $row.variant and .task == $row.task)] | length == 0)]
         | select(length > 0) | "\(length) run(s) failed before the bot answered, so the exam never asked it: \(.[0].status_reason // .[0].reason // .[0].status)")
     ] as $problems
   | { problems: $problems,
-      cells: [ $r[] | . as $c | ([$res[] | select(.arm == $c.arm and .task == $c.task)] | first) as $row
-        | {variant, arm: .written_arm, task, key, version, expect,
+      cells: [ $r[] | . as $c | ([$res[] | select(.variant == $c.variant and .task == $c.task)] | first) as $row
+        | {plant, variant: .written_variant, task, key, version, expect,
            status: ($row.status // "missing"), pass: $row.pass, invalid: $row.invalid,
            failed: [($row.checks // {}) | to_entries[] | select(.value != "pass") | "\(.key) \(.value)"]} ] }' >"$out/trial.json" \
   || fail "the trial could not read its own results: $(tail -1 "$out/results.jsonl" 2>/dev/null | cut -c1-120)"

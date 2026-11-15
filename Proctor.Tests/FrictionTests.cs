@@ -171,7 +171,7 @@ public class FrictionTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
@@ -179,12 +179,12 @@ public class FrictionTests
         var expDir = Layout.Experiment(repo.Root, id);
         File.WriteAllText(Path.Combine(Layout.Cell(expDir, "a", "loops", 1), "status"), "failed\n");
 
-        // The exam's arm is renamed after the run: friction still reads what was run.
-        repo.EditJson("smoke/exam.json", e => e["arms"]![0]!["id"] = "renamed");
+        // The exam's variant is renamed after the run: friction still reads what was run.
+        repo.EditJson("smoke/exam.json", e => e["variants"]![0]!["id"] = "renamed");
 
         var cells = Friction.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), repo.LoadExam("smoke"), TextWriter.Null);
 
-        Assert.All(cells, c => Assert.Equal("a", c.Arm));
+        Assert.All(cells, c => Assert.Equal("a", c.Variant));
         Assert.Equal("not completed", cells.Single(c => c.Task == "loops").Skipped);
         Assert.False(File.Exists(Path.Combine(Layout.Cell(expDir, "a", "loops", 1), Layout.FrictionFile)));
         var read = cells.Single(c => c.Task == "uses-bash");

@@ -13,8 +13,8 @@ problem=$(jq -r '.problems[0] // empty' "$t")
 right=$(jq '[.cells[] | select(.expect == "pass")] | length' "$t")
 [ "$right" -gt 0 ] || { echo "no right reply to pass: $(jq -r .unrecognised "$PROCTOR_EXAM_DIR/trial/$PROCTOR_TASK/plants.json")"; exit 1; }
 failed=$(jq -r '[.cells[] | select(.expect == "pass" and (.pass != true or .invalid != null))
-  | "\(.variant) on \(.task): \(if .status != "completed" then .status elif .invalid != null then "excluded (\(.invalid))" else (.failed | join(", ")) end)"] | unique | .[]' "$t")
+  | "\(.plant) on \(.task): \(if .status != "completed" then .status elif .invalid != null then "excluded (\(.invalid))" else (.failed | join(", ")) end)"] | unique | .[]' "$t")
 if [ -z "$failed" ]; then
-  echo "passes all $right right replies ($(jq -r '[.cells[] | select(.expect == "pass") | .variant] | unique | join(", ")' "$t"))"; exit 0
+  echo "passes all $right right replies ($(jq -r '[.cells[] | select(.expect == "pass") | .plant] | unique | join(", ")' "$t"))"; exit 0
 fi
 echo "fails $(grep -c . <<<"$failed") of $right right replies: $(head -3 <<<"$failed" | paste -sd';' - | sed 's/;/; /g' | cut -c1-300)"; exit 1

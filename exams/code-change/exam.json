@@ -5,7 +5,7 @@
     "area": "coding/change",
     "stack": "dotnet"
   },
-  "arms": [
+  "variants": [
     {
       "id": "floor",
       "description": "the local floor: nb on qwen3-coder-next",
@@ -55,7 +55,7 @@
     "wall_ms": 1800000
   },
   "hooks": {
-    "arm": {
+    "variant": {
       "setup": "hooks/ensure-model.sh"
     }
   },

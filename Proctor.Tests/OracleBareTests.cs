@@ -27,8 +27,8 @@ public class OracleBareTests
         repo.EditJson("smoke/tasks/plain.json", t => { t["prompt"] = prompt; t["oracle"] = "oracle/plain.md"; });
         repo.EditJson("smoke/exam.json", s =>
         {
-            s["arms"]!.AsArray().RemoveAt(1);
-            s["arms"]![0]!["samples"] = 1;
+            s["variants"]!.AsArray().RemoveAt(1);
+            s["variants"]![0]!["samples"] = 1;
             if (oracle is not null) s["oracle"] = System.Text.Json.JsonSerializer.SerializeToNode(oracle);
         });
         var exam = repo.LoadExam("smoke");

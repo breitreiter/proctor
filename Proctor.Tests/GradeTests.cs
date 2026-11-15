@@ -10,7 +10,7 @@ public class GradeTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
@@ -49,28 +49,28 @@ public class GradeTests
     }
 
     [Fact]
-    public void Grade_LimitedToArmsAndTasks_LeavesTheOtherCellsAsTheyWere()
+    public void Grade_LimitedToVariantsAndTasks_LeavesTheOtherCellsAsTheyWere()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { foreach (var arm in e["arms"]!.AsArray()) arm!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { foreach (var variant in e["variants"]!.AsArray()) variant!["samples"] = 1; });
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
         var experiment = Runner.LoadExperiment(repo.Root, id);
-        bool Graded(string arm, string task) => File.Exists(Path.Combine(Layout.Cell(expDir, arm, task, 1), "checks.json"));
+        bool Graded(string variant, string task) => File.Exists(Path.Combine(Layout.Cell(expDir, variant, task, 1), "checks.json"));
 
-        var onlyA = Grade.Experiment(repo.Root, experiment, exam, TextWriter.Null, arms: ["a"]);
-        Assert.All(onlyA, g => Assert.Equal("a", g.Arm));
+        var onlyA = Grade.Experiment(repo.Root, experiment, exam, TextWriter.Null, variants: ["a"]);
+        Assert.All(onlyA, g => Assert.Equal("a", g.Variant));
         Assert.True(Graded("a", "plain"));
         Assert.False(Graded("b", "plain"));
 
         // a later pass over b's plain task leaves a's checks.json untouched
         var aPlain = Path.Combine(Layout.Cell(expDir, "a", "plain", 1), "checks.json");
         File.WriteAllText(aPlain, "{}");
-        var bPlain = Grade.Experiment(repo.Root, experiment, exam, TextWriter.Null, arms: ["b"], tasks: ["plain"]);
-        Assert.Equal(("b", "plain"), (Assert.Single(bPlain).Arm, bPlain[0].Task));
+        var bPlain = Grade.Experiment(repo.Root, experiment, exam, TextWriter.Null, variants: ["b"], tasks: ["plain"]);
+        Assert.Equal(("b", "plain"), (Assert.Single(bPlain).Variant, bPlain[0].Task));
         Assert.True(Graded("b", "plain"));
         Assert.False(Graded("b", "loops"));
         Assert.Equal("{}", File.ReadAllText(aPlain));

@@ -45,7 +45,7 @@ static class SandboxPlan
         var wanted = wantedAgents.ToList();
         var b = new StringBuilder();
         b.AppendLine("# Setting up a sandbox for proctor on this machine").AppendLine();
-        b.AppendLine("You are helping the user make this machine able to run proctor's agent arms (Claude Code, Codex, Qwen Code, "
+        b.AppendLine("You are helping the user make this machine able to run proctor's agent variants (Claude Code, Codex, Qwen Code, "
             + "nb with tools). Those run through Harbor, in containers, so the agent under test cannot touch the user's files, keys "
             + $"or settings. `proctor setup` wrote this file on {today:yyyy-MM-dd} from what it could see; it does not know this "
             + "user's constraints. Find them out before acting.").AppendLine();
@@ -53,8 +53,8 @@ static class SandboxPlan
         b.AppendLine("## What the user said").AppendLine();
         b.AppendLine("- Sandbox: on this machine (step 2 of `proctor setup`).");
         b.AppendLine(wanted.Count == 0
-            ? "- Agent arms wanted: none chosen yet (steps 3 and 4 come after this one; `proctor setup --check` has the latest)."
-            : $"- Agent arms wanted: {string.Join(", ", wanted)}.");
+            ? "- Agent variants wanted: none chosen yet (steps 3 and 4 come after this one; `proctor setup --check` has the latest)."
+            : $"- Agent variants wanted: {string.Join(", ", wanted)}.");
         b.AppendLine();
 
         b.AppendLine("## What setup observed").AppendLine();
@@ -75,7 +75,7 @@ static class SandboxPlan
             : $"- `harbor.engine` in `exams/proctor.json` naming the engine (`docker` is the default; setup wrote `{engine}` here, from what it found).");
         b.AppendLine();
         b.AppendLine("Why each of these exists, and the known traps (Ubuntu's pasta AppArmor profile among them), are in "
-            + "`docs/podman.md` for podman and `docs/configuration.md`, \"Agent arms\", for both.");
+            + "`docs/podman.md` for podman and `docs/configuration.md`, \"Agent variants\", for both.");
         if (OperatingSystem.IsWindows())
             b.AppendLine().AppendLine("This is Windows. Harbor on a Windows host has not been tried with proctor; Docker Desktop on WSL2 is the "
                 + "likely route, and `docs/podman.md` is Linux-only. Say so to the user before they spend effort on it.");
@@ -90,7 +90,7 @@ static class SandboxPlan
         b.AppendLine("- Propose the steps as a short plan and let the user approve it. Run nothing that needs root without saying so "
             + "first. Do not put any API key on a command line or in a file other than the user's proctor env file.");
         b.AppendLine("- If this machine cannot be made to work within the user's constraints, say so plainly. Exams with no agent "
-            + "(the built-in harness) need no sandbox, and agent arms can run on Modal instead (experimental; `docs/modal.md`); `proctor setup` offers both.");
+            + "(the built-in harness) need no sandbox, and agent variants can run on Modal instead (experimental; `docs/modal.md`); `proctor setup` offers both.");
         b.AppendLine();
 
         b.AppendLine("## Done means").AppendLine();

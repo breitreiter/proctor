@@ -6,7 +6,7 @@ Can a local coder model make a small change to a .NET repository so that it buil
 
 **Against the baseline pinned 14 Sep 2026**
 
-| Arm | Passed | 95% interval | Change against the baseline | 95% interval |
+| Variant | Passed | 95% interval | Change against the baseline | 95% interval |
 |---|---|---|---|---|
 | floor (reference) | 56% | 15% to 90% | −22 points, **worse** (unconfirmed) | −67 to +39 |
 | b | 89% | 35% to 99% | +11 points, **better** (unconfirmed) | −46 to +63 |
@@ -22,22 +22,22 @@ Can a local coder model make a small change to a .NET repository so that it buil
 | | |
 |---|---|
 | Host | bench |
-| Arms | 2: `floor` (the reference), `b` |
-| Tasks | 3, each run 3 times per arm |
+| Variants | 2: `floor` (the reference), `b` |
+| Tasks | 3, each run 3 times per variant |
 | Runs | 18 planned, 16 counted |
 
-## Arms
+## Variants
 
-An arm is one configuration under test: a harness, a provider and a model, run over every task. The first arm is the reference the others are compared with.
+A variant is one configuration under test: a harness, a provider and a model, run over every task. The first variant is the reference the others are compared with.
 
-| Arm | What it is | Harness | Provider | Model | Runs per task |
+| Variant | What it is | Harness | Provider | Model | Runs per task |
 |---|---|---|---|---|---|
 | `floor` | the local floor | nb | local-qcoder | qwen-coder | 3 |
 | `b` |  | nb | local-glm | glm | 3 |
 
 ## Tasks
 
-A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt.
+A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per variant, so a score is not one lucky or unlucky attempt.
 
 A check is one yes-or-no test over a finished run. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to a run:
 
@@ -63,11 +63,11 @@ Each task's results show one mark per run: ● passed, ○ failed, ? undecided, 
 
 The model repeats a bash command until nb nudges it out of the loop
 
-Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the exam, none of its own
+Fixture **note** · Run **3 times** per variant · **3 checks**: 3 from the exam, none of its own
 
 **Results**
 
-| Arm | Runs | Score | Passed / decided | vs baseline (100%) | Verdict |
+| Variant | Runs | Score | Passed / decided | vs baseline (100%) | Verdict |
 |---|---|---|---|---|---|
 | floor | ● ● ○ | **67%** | 2 of 3 | −33 points | worse |
 | b | ● ● ● | **100%** | 3 of 3 | ±0 points | same |
@@ -78,11 +78,11 @@ Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the exam, no
 
 The model answers in one turn with no tools
 
-Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the exam, none of its own
+Fixture **note** · Run **3 times** per variant · **3 checks**: 3 from the exam, none of its own
 
 **Results**
 
-| Arm | Runs | Score | Passed / decided | vs baseline (100%) | Verdict |
+| Variant | Runs | Score | Passed / decided | vs baseline (100%) | Verdict |
 |---|---|---|---|---|---|
 | floor | ● ● × | **100%** | 2 of 2 | ±0 points | same |
 | b | ● ● ● | **100%** | 3 of 3 | ±0 points | same |
@@ -93,7 +93,7 @@ Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the exam, no
 
 The model runs one bash command and answers
 
-Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the exam, 1 of its own
+Fixture **note** · Run **3 times** per variant · **4 checks**: 3 from the exam, 1 of its own
 
 **Checks beyond the exam's**
 
@@ -103,7 +103,7 @@ Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the exam, 1 
 
 **Results**
 
-| Arm | Runs | Score | Passed / decided | vs baseline (33%) | Verdict |
+| Variant | Runs | Score | Passed / decided | vs baseline (33%) | Verdict |
 |---|---|---|---|---|---|
 | floor | ○ × ○ | **0%** | 0 of 2 | −33 points | worse |
 | b | ● ○ ● | **67%** | 2 of 3 | +33 points | better |
@@ -117,22 +117,22 @@ Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the exam, 1 
 
 Pass rate is the share of counted runs in which every headline check held, averaged task by task so that one task with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 tasks it is wide.
 
-| Arm | Pass rate | 95% interval | Passed / decided runs |
+| Variant | Pass rate | 95% interval | Passed / decided runs |
 |---|---|---|---|
 | `floor` | 56% | 15% to 90% | 4 / 7 |
 | `b` | 89% | 35% to 99% | 8 / 9 |
 
-**Against the reference arm, `floor`.** Each arm's pass rate minus `floor`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with 3 tasks, it could be noise.
+**Against the reference variant, `floor`.** Each variant's pass rate minus `floor`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with 3 tasks, it could be noise.
 
-| Arm | Difference from `floor` | 95% interval | Tasks better / worse / same | Verdict |
+| Variant | Difference from `floor` | 95% interval | Tasks better / worse / same | Verdict |
 |---|---|---|---|---|
 | `b` | +33 points | −31 to +75 | 2 / 0 / 1 | **better** (unconfirmed) |
 
 With 3 paired tasks this experiment can reliably detect a difference of about 81 points. To detect 10 points you need about 200 tasks.
 
-**Against the baseline.** The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each arm's score with it and calls anything more than 10 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.
+**Against the baseline.** The baseline is the score pinned for each task on 2026-09-14, scores as pinned. The verdict compares each variant's score with it and calls anything more than 10 points either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.
 
-| Arm | Difference from baseline | 95% interval | Tasks better / worse / same | Verdict |
+| Variant | Difference from baseline | 95% interval | Tasks better / worse / same | Verdict |
 |---|---|---|---|---|
 | `floor` | −22 points | −67 to +39 | 0 / 2 / 1 | **Worse** (unconfirmed) |
 | `b` | +11 points | −46 to +63 | 1 / 0 / 2 | **Better** (unconfirmed) |
@@ -141,7 +141,7 @@ How each task scored against its baseline, and why runs failed, is shown with th
 
 ## Failures
 
-For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check's weakness, not the arm's.
+For each variant, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check's weakness, not the variant's.
 
 **`floor`** (the local floor) failed 2 checks:
 
@@ -156,28 +156,28 @@ For each arm, the checks that failed in at least one counted run, most frequent 
 
 This is how far each run in the exam got before terminating. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.
 
-| Arm | Planned | Attempted | Completed | Graded | Counted | Decided |
+| Variant | Planned | Attempted | Completed | Graded | Counted | Decided |
 |---|---|---|---|---|---|---|
 | `floor` | 9 | 9 | 8 | 8 | 7 | 7 |
 | `b` | 9 | 9 | 9 | 9 | 9 | 9 |
 
-> **Warning.** Arms lost runs unequally: `floor` decided 7 of 9, `b` decided 9 of 9. The rates are over decided runs; the runs lost are listed here.
+> **Warning.** Variants lost runs unequally: `floor` decided 7 of 9, `b` decided 9 of 9. The rates are over decided runs; the runs lost are listed here.
 
 Runs left out, and why:
 
 - floor/plain/3: not counted, failed a validity check. no_denials: 1 denied call: bash (no-match)
 - floor/uses-bash/2: never completed. sample setup hook failed: `hooks/reset-fixture.sh` exited 1: clone failed
 
-How each completed run ended, per arm. `ok` is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.
+How each completed run ended, per variant. `ok` is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.
 
-| Arm | `ok` | `max_tool_calls` |
+| Variant | `ok` | `max_tool_calls` |
 |---|---|---|
 | `floor` | 7 | 1 (`loops` run 3) |
 | `b` | 9 | 0 |
 
 ## Check pass rates
 
-How often each check held, per arm, over the runs it applies to. Headline and guardrail checks are over counted runs; a validity check is over every graded run, because it says how many were counted. A run the check could not decide is out of its rate and counted beside it.
+How often each check held, per variant, over the runs it applies to. Headline and guardrail checks are over counted runs; a validity check is over every graded run, because it says how many were counted. A run the check could not decide is out of its rate and counted beside it.
 
 | Check | What it tests | Role | `floor` | `b` |
 |---|---|---|---|---|
@@ -188,9 +188,9 @@ How often each check held, per arm, over the runs it applies to. Headline and gu
 
 ## Cost and effort
 
-Per completed run. Duration is wall time in minutes, hooks included; tokens are the run's own count. Cost is not shown: no arm's harness reports one.
+Per completed run. Duration is wall time in minutes, hooks included; tokens are the run's own count. Cost is not shown: no variant's harness reports one.
 
-| Arm | Duration (min): median | p90 | mean | range | Tokens: median | p90 | mean | range |
+| Variant | Duration (min): median | p90 | mean | range | Tokens: median | p90 | mean | range |
 |---|---|---|---|---|---|---|---|---|
 | `floor` | 16.9 | 23.5 | 17.7 | 13.5–23.5 | 47,200 | 67,200 | 51,700 | 41,200–67,200 |
 | `b` | 17.3 | 18.2 | 17.3 | 16.5–18.2 | 63,000 | 65,000 | 63,000 | 61,000–65,000 |
@@ -199,7 +199,7 @@ Per completed run. Duration is wall time in minutes, hooks included; tokens are 
 
 Every run, failures first. *Reason* is the first check that did not hold and what it saw, or why the run never completed.
 
-| Arm | Task | Run | Result | Ended | Duration (min) | Tokens | Reason |
+| Variant | Task | Run | Result | Ended | Duration (min) | Tokens | Reason |
 |---|---|---|---|---|---|---|---|
 | `b` | `uses-bash` | 2 | ○ failed | `ok` | 17.3 | 63,000 | builds: 2 of 41 tests failed |
 | `floor` | `loops` | 3 | ○ failed | `max_tool_calls` | 23.5 | 47,200 | exit_ok: exit_reason=max_tool_calls |
@@ -234,4 +234,4 @@ What produced this report, so it can be run again, and how the numbers were comp
 | command | `proctor run smoke` |
 | created | 2026-09-17T14:32:00Z |
 
-Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-arm rates use the Wilson 95% interval. Differences between arms, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run's wall time including hooks; tokens are the run's own count. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).
+Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. Per-variant rates use the Wilson 95% interval. Differences between variants, and against the baseline, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). The detectable difference assumes 80% power and a per-task paired-difference sd of 0.5. Durations are the run's wall time including hooks; tokens are the run's own count. No multiplicity adjustment; 1 comparison shown. The baseline verdict is the point estimate against a tolerance of 10 points, for each variant and each task; a variant's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).

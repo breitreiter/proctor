@@ -6,7 +6,7 @@ set -uo pipefail
 t="$PROCTOR_CELL/trial/trial.json"
 [ -f "$t" ] || { echo "the trial did not run: $(tail -1 "$PROCTOR_CELL/trial/trial.log" 2>/dev/null)"; exit 3; }
 err=$(jq -r '.error // empty' "$t"); [ -z "$err" ] || { echo "$err"; exit 1; }
-failed=$(jq -r '.arms | to_entries[] | select(.key | startswith("good-")) | .key as $arm | .value[] | select(.pass != true)
-  | "\($arm) on \(.task): \(if .status != "completed" then .status else ([.checks // {} | to_entries[] | select(.value != "pass") | "\(.key) \(.value)"] | join(", ")) end)"' "$t")
-if [ -z "$failed" ]; then echo "passes $(jq -r '[.arms | keys[] | select(startswith("good-"))] | join(", ")' "$t")"; exit 0; fi
+failed=$(jq -r '.variants | to_entries[] | select(.key | startswith("good-")) | .key as $variant | .value[] | select(.pass != true)
+  | "\($variant) on \(.task): \(if .status != "completed" then .status else ([.checks // {} | to_entries[] | select(.value != "pass") | "\(.key) \(.value)"] | join(", ")) end)"' "$t")
+if [ -z "$failed" ]; then echo "passes $(jq -r '[.variants | keys[] | select(startswith("good-"))] | join(", ")' "$t")"; exit 0; fi
 echo "fails a correct run: $(paste -sd';' <<<"$failed")"; exit 1

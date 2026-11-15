@@ -47,7 +47,7 @@ record AgentEndpoint(string? BaseUrl, string? ApiKey, string? Config = null);
 
 /// <summary>
 /// proctor.json's harbor block: the uv that runs the exam's pinned Harbor (default: uv on PATH), nb's self-contained
-/// linux-x64 publish directory, which an nb arm's image carries (relative to exams/, like nb.path), and the container
+/// linux-x64 publish directory, which an nb variant's image carries (relative to exams/, like nb.path), and the container
 /// engine Harbor drives, its environment type: docker (the default) or podman on this machine, or modal, Modal's
 /// sandboxes on the user's Modal login.
 /// </summary>
@@ -61,11 +61,11 @@ record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker
 }
 
 /// <summary>
-/// An arm is what is under test. Without an agent it is nb, run bare: runner, harness and provider say how. With an
+/// A variant is what is under test. Without an agent it is nb, run bare: runner, harness and provider say how. With an
 /// agent it runs through Harbor in the fixture's image: a vendor agent is that agent's real CLI at a pinned version;
-/// agent nb is nb itself, the binary proctor.json's harbor.nb names, on the provider the arm names.
+/// agent nb is nb itself, the binary proctor.json's harbor.nb names, on the provider the variant names.
 /// </summary>
-record Arm(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null, string? Description = null, string? Agent = null, string? AgentVersion = null)
+record Variant(string? Id, string? Runner, string? Harness, string? Provider, string? Model, int? Samples, string? Command, BundleSource? Bundle = null, string? Description = null, string? Agent = null, string? AgentVersion = null)
 {
     public const string Nb = "nb", ClaudeCode = "claude-code", Codex = "codex", QwenCode = "qwen-code";
     /// <summary>The vendor agents, each its vendor's CLI on its vendor's models only.</summary>
@@ -78,13 +78,13 @@ record Arm(string? Id, string? Runner, string? Harness, string? Provider, string
     public bool IsVendor => IsAgent && Agent != Nb;
 }
 
-/// <summary>exam.json's harbor block: the Harbor release every agent arm runs on, pinned.</summary>
+/// <summary>exam.json's harbor block: the Harbor release every agent variant runs on, pinned.</summary>
 record HarborDef(string? Version);
 
-/// <summary>exam.json's limits: run policy for agent arms. wall_ms is Harbor's agent timeout; the rest are not yet.</summary>
+/// <summary>exam.json's limits: run policy for agent variants. wall_ms is Harbor's agent timeout; the rest are not yet.</summary>
 record Limits(long? WallMs, int? ToolCalls, long? Tokens, double? CostUsd);
 
-/// <summary>The pinned version of what an arm puts under test: a directory in this repository, or a git revision. What is inside is the exam's business.</summary>
+/// <summary>The pinned version of what a variant puts under test: a directory in this repository, or a git revision. What is inside is the exam's business.</summary>
 record BundleSource(string? Path, string? Git, string? Rev)
 {
     public string Describe() => Git is not null ? $"{Git}@{Rev}" : Path ?? "";
@@ -92,12 +92,12 @@ record BundleSource(string? Path, string? Git, string? Rev)
 
 record HookPair(string? Setup, string? Teardown);
 
-record Hooks(HookPair? Run, HookPair? Arm, HookPair? Task, HookPair? Sample);
+record Hooks(HookPair? Run, HookPair? Variant, HookPair? Task, HookPair? Sample);
 
 record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<string>? Validity);
 
 /// <summary>
-/// exam.json's oracle block, for the tasks that name an answer sheet: the nb config entry that judges (absent, the arm's
+/// exam.json's oracle block, for the tasks that name an answer sheet: the nb config entry that judges (absent, the variant's
 /// own provider, as nb's in-process oracle does) and how many answers a run may get. See plans/oracle-in-proctor.md.
 /// </summary>
 record OracleDef(string? Judge = null, int? Turns = null)
@@ -107,7 +107,7 @@ record OracleDef(string? Judge = null, int? Turns = null)
 }
 
 /// <summary>Tags is what labels replaced; it is here so a leftover is a problem rather than silently ignored.</summary>
-record ExamDef(string? Id, List<Arm>? Arms, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null);
+record ExamDef(string? Id, List<Variant>? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null);
 
 /// <summary>
 /// What the exam is testing, inside a fixture that holds much else: the tools, commands, docs and hosts that are the
@@ -184,7 +184,7 @@ record Problem(string File, string Field, string Message)
 sealed class Exam
 {
     /// <summary>Placeholders a program template may use; resolved per cell by the runner.</summary>
-    public static readonly string[] Placeholders = ["prompt", "task", "work", "bundle", "provider", "model", "harness", "arm", "sample"];
+    public static readonly string[] Placeholders = ["prompt", "task", "work", "bundle", "provider", "model", "harness", "variant", "sample"];
 
     public required string Id { get; init; }
     public required string Dir { get; init; }
@@ -196,11 +196,11 @@ sealed class Exam
     /// <summary>sha256 over every definition file, so a changed exam is a different exam in the manifest.</summary>
     public required string Hash { get; init; }
 
-    public List<Arm> Arms => Def.Arms!;
-    /// <summary>Whether any arm runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
-    public bool HasAgentArms => Arms.Any(a => a.IsAgent);
+    public List<Variant> Variants => Def.Variants!;
+    /// <summary>Whether any variant runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
+    public bool HasAgentVariants => Variants.Any(a => a.IsAgent);
     public Grading Grading => Def.Grading!;
-    public int PlannedCells => Arms.Sum(a => a.SamplesOrOne) * Tasks.Count;
+    public int PlannedCells => Variants.Sum(a => a.SamplesOrOne) * Tasks.Count;
 
     /// <summary>An exam is judged when any check a cell can carry asks a model (decide or judge); there is no marker to declare.</summary>
     public bool Judged => AllChecks().Any(c => Checks.AsksAModel(c.Spec));
@@ -292,9 +292,9 @@ sealed class Exam
         Judges.Validate(config?.Judges, (field, message) => problems.Add(new Problem(Path.GetRelativePath(root, file), field, message)));
         foreach (var (name, endpoint) in config?.Agents ?? [])
         {
-            if (!Arm.Vendors.Contains(name)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}", $"unknown agent; known: {string.Join(", ", Arm.Vendors)}"));
+            if (!Variant.Vendors.Contains(name)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}", $"unknown agent; known: {string.Join(", ", Variant.Vendors)}"));
             else if (string.IsNullOrWhiteSpace(endpoint?.BaseUrl)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.base_url", "required: where the agent's model calls go"));
-            if (endpoint?.Config is not null && name != Arm.Codex) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.config", $"not yet: only {Arm.Codex} takes a native config"));
+            if (endpoint?.Config is not null && name != Variant.Codex) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.config", $"not yet: only {Variant.Codex} takes a native config"));
         }
         return (config ?? new ProctorConfig(null)) with { Source = Path.GetRelativePath(root, file) };
     }
@@ -355,11 +355,11 @@ sealed class Exam
             foreach (Match m in Regex.Matches(template, @"\{\{\s*([^}]*?)\s*\}\}"))
                 if (!Placeholders.Contains(m.Groups[1].Value))
                     problems.Add(new Problem(rel(templateFile), m.Value, $"unknown placeholder; known: {string.Join(", ", Placeholders.Select(p => "{{" + p + "}}"))}"));
-            // An agent arm's bundle stays on the host (hooks, the hash, resume); its container never holds it.
-            if (Regex.IsMatch(template, @"\{\{\s*bundle\s*\}\}") && def.Arms?.FirstOrDefault(a => a is { IsAgent: true, IsVendor: false, Bundle: not null }) is { } nbAgent)
-                problems.Add(new Problem(rel(templateFile), "{{bundle}}", $"arm '{nbAgent.Id}' runs nb through Harbor, where its bundle is not in the container; serve it from an arm hook, or run the arm bare"));
+            // An agent variant's bundle stays on the host (hooks, the hash, resume); its container never holds it.
+            if (Regex.IsMatch(template, @"\{\{\s*bundle\s*\}\}") && def.Variants?.FirstOrDefault(a => a is { IsAgent: true, IsVendor: false, Bundle: not null }) is { } nbAgent)
+                problems.Add(new Problem(rel(templateFile), "{{bundle}}", $"variant '{nbAgent.Id}' runs nb through Harbor, where its bundle is not in the container; serve it from a variant hook, or run the variant bare"));
             if (tasks.Any(c => c.Oracle is not null))
-                foreach (var problem in OracleTemplateProblems(template, def.Arms?.Any(a => a is { IsAgent: true, IsVendor: false }) == true))
+                foreach (var problem in OracleTemplateProblems(template, def.Variants?.Any(a => a is { IsAgent: true, IsVendor: false }) == true))
                     problems.Add(new Problem(rel(templateFile), "", problem));
         }
 
@@ -379,7 +379,7 @@ sealed class Exam
 
     /// <summary>
     /// What an oracle task needs of the program template. The exam's oracle block owns the oracle's directives, which
-    /// proctor prepends, so the template may not state its own. On an nb arm through Harbor the prompt is sent by the
+    /// proctor prepends, so the template may not state its own. On an nb variant through Harbor the prompt is sent by the
     /// simulated user rather than run by the program, so the template's one run must be the last directive and run the
     /// task's prompt as it is, or the bridge would run something other than what the bare path does.
     /// </summary>
@@ -392,7 +392,7 @@ sealed class Exam
         if (directives.Any(d => Regex.IsMatch(d, @"^budget\s+oracle_turns\b")))
             problems.Add("budget oracle_turns with a task naming an answer sheet: set oracle.turns in exam.json instead");
         if (bridged && (directives.Count(d => Verb(d) == "run") != 1 || directives.LastOrDefault() != "run {{prompt}}"))
-            problems.Add("an oracle task on an nb agent arm needs the template to end in its one run, exactly `run {{prompt}}`: the simulated user sends the prompt over the bridge");
+            problems.Add("an oracle task on an nb agent variant needs the template to end in its one run, exactly `run {{prompt}}`: the simulated user sends the prompt over the bridge");
         return problems;
     }
 
@@ -481,37 +481,37 @@ sealed class Exam
         if (def.Tags is not null) Add("tags", "removed: an exam's own metadata is labels, and whether it is judged follows from its checks");
         Labels.Validate(def.Labels, Add);
 
-        if (def.Arms is null or { Count: 0 }) Add("arms", "at least one arm is required");
+        if (def.Variants is null or { Count: 0 }) Add("variants", "at least one variant is required");
         var seen = new HashSet<string>();
-        foreach (var (arm, i) in (def.Arms ?? []).Select((a, i) => (a, i)))
+        foreach (var (variant, i) in (def.Variants ?? []).Select((a, i) => (a, i)))
         {
-            var f = $"arms[{i}]";
-            if (arm is null) { Add(f, "an arm is an object, not null"); continue; }
-            if (string.IsNullOrWhiteSpace(arm.Id)) Add($"{f}.id", "required");
-            else if (!seen.Add(arm.Id)) Add($"{f}.id", $"duplicate arm id '{arm.Id}'");
-            else if (!Regex.IsMatch(arm.Id, "^[a-z0-9][a-z0-9-]*$")) Add($"{f}.id", "arm ids are path segments: lowercase letters, digits and hyphens");
-            else if (arm.Id == Layout.HarborDir) Add($"{f}.id", $"'{Layout.HarborDir}' is the experiment's directory for the tasks compiled for Harbor; name the arm something else");
-            if (arm.IsVendor) { ValidateAgentArm(arm, f, Add); continue; }
-            if (arm.IsAgent) { ValidateNbAgentArm(arm, f, Add); continue; }
-            switch (arm.Runner)
+            var f = $"variants[{i}]";
+            if (variant is null) { Add(f, "a variant is an object, not null"); continue; }
+            if (string.IsNullOrWhiteSpace(variant.Id)) Add($"{f}.id", "required");
+            else if (!seen.Add(variant.Id)) Add($"{f}.id", $"duplicate variant id '{variant.Id}'");
+            else if (!Regex.IsMatch(variant.Id, "^[a-z0-9][a-z0-9-]*$")) Add($"{f}.id", "variant ids are path segments: lowercase letters, digits and hyphens");
+            else if (variant.Id == Layout.HarborDir) Add($"{f}.id", $"'{Layout.HarborDir}' is the experiment's directory for the tasks compiled for Harbor; name the variant something else");
+            if (variant.IsVendor) { ValidateAgentVariant(variant, f, Add); continue; }
+            if (variant.IsAgent) { ValidateNbAgentVariant(variant, f, Add); continue; }
+            switch (variant.Runner)
             {
                 case "nb":
-                    if (string.IsNullOrWhiteSpace(arm.Provider)) Add($"{f}.provider", "required for the nb runner (a provider entry name in nb's config)");
-                    if (string.IsNullOrWhiteSpace(arm.Harness)) Add($"{f}.harness", "required for the nb runner: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
+                    if (string.IsNullOrWhiteSpace(variant.Provider)) Add($"{f}.provider", "required for the nb runner (a provider entry name in nb's config)");
+                    if (string.IsNullOrWhiteSpace(variant.Harness)) Add($"{f}.harness", "required for the nb runner: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
                     break;
                 case "command":
-                    Add($"{f}.runner", "'command' is not yet implemented; only 'nb' arms run in this version");
+                    Add($"{f}.runner", "'command' is not yet implemented; only 'nb' variants run in this version");
                     break;
                 case null or "":
                     Add($"{f}.runner", "required");
                     break;
                 default:
-                    Add($"{f}.runner", $"unknown runner '{arm.Runner}'; known: nb");
+                    Add($"{f}.runner", $"unknown runner '{variant.Runner}'; known: nb");
                     break;
             }
-            if (arm.Samples is < 1) Add($"{f}.samples", "must be at least 1");
-            if (arm.Description is not null && string.IsNullOrWhiteSpace(arm.Description)) Add($"{f}.description", "a description is a sentence, not an empty string");
-            switch (arm.Bundle)
+            if (variant.Samples is < 1) Add($"{f}.samples", "must be at least 1");
+            if (variant.Description is not null && string.IsNullOrWhiteSpace(variant.Description)) Add($"{f}.description", "a description is a sentence, not an empty string");
+            switch (variant.Bundle)
             {
                 case null: break;
                 case { Path: not null, Git: not null }: Add($"{f}.bundle", "path or git, not both"); break;
@@ -525,9 +525,9 @@ sealed class Exam
         ValidateOracle(def, Add, tasks, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), field, message)),
             (f, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(f.Dir, Layout.FixtureFile)), field, message)));
 
-        if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use arm or sample");
-        if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use arm or sample");
-        foreach (var (level, pair) in new[] { ("arm", def.Hooks?.Arm), ("sample", def.Hooks?.Sample) })
+        if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use variant or sample");
+        if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use variant or sample");
+        foreach (var (level, pair) in new[] { ("variant", def.Hooks?.Variant), ("sample", def.Hooks?.Sample) })
         {
             if (pair is null) continue;
             foreach (var (kind, script) in new[] { ("setup", pair.Setup), ("teardown", pair.Teardown) })
@@ -586,66 +586,66 @@ sealed class Exam
         foreach (var name in def.Grading.Pass ?? [])
             if (name is null) Add("grading.pass", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.pass", why);
-            else if (NbOnlyBesideVendor(name)) Add("grading.pass", $"'{name}' reads only nb's loop nudge, which a vendor agent arm's runs do not carry, so they could never pass; make it a guardrail");
+            else if (NbOnlyBesideVendor(name)) Add("grading.pass", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's runs do not carry, so they could never pass; make it a guardrail");
         foreach (var name in def.Grading.Validity ?? [])
         {
             if (name is null) Add("grading.validity", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.validity", why);
             else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the sample counts, not both");
-            else if (NbOnlyBesideVendor(name)) Add("grading.validity", $"'{name}' reads only nb's loop nudge, which a vendor agent arm's runs do not carry; make it a guardrail");
+            else if (NbOnlyBesideVendor(name)) Add("grading.validity", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's runs do not carry; make it a guardrail");
         }
 
         bool NbOnlyBesideVendor(string name) =>
-            def.Arms?.Any(a => a?.IsVendor == true) == true
+            def.Variants?.Any(a => a?.IsVendor == true) == true
             && (def.Grading.Checks.TryGetValue(name, out var spec) ? [spec] : tasks.Select(c => c.Checks?.GetValueOrDefault(name) ?? (c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture)?.Checks.GetValueOrDefault(name))))
                 .Any(s => s is not null && Checks.NbOnly(s));
     }
 
     /// <summary>
-    /// A vendor agent arm: a model of the agent's own vendor, with no provider prefix (Harbor passes it to the gateway
+    /// A vendor agent variant: a model of the agent's own vendor, with no provider prefix (Harbor passes it to the gateway
     /// verbatim), at a pinned agent version. The nb fields have no meaning on it.
     /// </summary>
-    static void ValidateAgentArm(Arm arm, string f, Action<string, string> add)
+    static void ValidateAgentVariant(Variant variant, string f, Action<string, string> add)
     {
-        var (vendor, models, example) = arm.Agent switch
+        var (vendor, models, example) = variant.Agent switch
         {
-            Arm.ClaudeCode => ("an Anthropic", @"^claude-", "claude-haiku-5-5"),
-            Arm.Codex => ("an OpenAI", @"^(gpt-|o\d|codex-)", "gpt-5-mini"),
-            Arm.QwenCode => ("a Qwen", @"^qwen", "qwen3-coder-next"),
+            Variant.ClaudeCode => ("an Anthropic", @"^claude-", "claude-haiku-5-5"),
+            Variant.Codex => ("an OpenAI", @"^(gpt-|o\d|codex-)", "gpt-5-mini"),
+            Variant.QwenCode => ("a Qwen", @"^qwen", "qwen3-coder-next"),
             _ => (null, null, null),
         };
-        if (vendor is null) { add($"{f}.agent", $"unknown agent '{arm.Agent}'; known: {Arm.Nb}, {string.Join(", ", Arm.Vendors)}"); return; }
-        foreach (var (field, value) in new[] { ("runner", arm.Runner), ("harness", arm.Harness), ("provider", arm.Provider), ("command", arm.Command) })
-            if (value is not null) add($"{f}.{field}", $"an nb field; an arm with agent {arm.Agent} is that agent, on the model it names");
-        if (string.IsNullOrWhiteSpace(arm.Model)) add($"{f}.model", $"required for agent {arm.Agent}");
-        else if (arm.Model.Contains('/')) add($"{f}.model", $"'{arm.Model}' has a provider prefix; name the model bare ({example}), as the gateway receives it");
-        else if (!Regex.IsMatch(arm.Model, models!)) add($"{f}.model", $"'{arm.Model}' is not {vendor} model; {arm.Agent} runs {vendor[(vendor.IndexOf(' ') + 1)..]} models only, so the harness and the model are one vendor's");
-        if (string.IsNullOrWhiteSpace(arm.AgentVersion)) add($"{f}.agent_version", $"required: the {arm.Agent} release under test, pinned (there is no latest)");
-        else if (!Regex.IsMatch(arm.AgentVersion, @"^\d+(\.\d+)*$")) add($"{f}.agent_version", $"'{arm.AgentVersion}' is not a version number");
+        if (vendor is null) { add($"{f}.agent", $"unknown agent '{variant.Agent}'; known: {Variant.Nb}, {string.Join(", ", Variant.Vendors)}"); return; }
+        foreach (var (field, value) in new[] { ("runner", variant.Runner), ("harness", variant.Harness), ("provider", variant.Provider), ("command", variant.Command) })
+            if (value is not null) add($"{f}.{field}", $"an nb field; a variant with agent {variant.Agent} is that agent, on the model it names");
+        if (string.IsNullOrWhiteSpace(variant.Model)) add($"{f}.model", $"required for agent {variant.Agent}");
+        else if (variant.Model.Contains('/')) add($"{f}.model", $"'{variant.Model}' has a provider prefix; name the model bare ({example}), as the gateway receives it");
+        else if (!Regex.IsMatch(variant.Model, models!)) add($"{f}.model", $"'{variant.Model}' is not {vendor} model; {variant.Agent} runs {vendor[(vendor.IndexOf(' ') + 1)..]} models only, so the harness and the model are one vendor's");
+        if (string.IsNullOrWhiteSpace(variant.AgentVersion)) add($"{f}.agent_version", $"required: the {variant.Agent} release under test, pinned (there is no latest)");
+        else if (!Regex.IsMatch(variant.AgentVersion, @"^\d+(\.\d+)*$")) add($"{f}.agent_version", $"'{variant.AgentVersion}' is not a version number");
     }
 
     /// <summary>
     /// nb as a Harbor agent: the harness and provider as on the bare path, the model optional likewise. The runner is the
-    /// bare path's (Harbor runs nb here) and the version is the binary's, so neither is the arm's to say.
+    /// bare path's (Harbor runs nb here) and the version is the binary's, so neither is the variant's to say.
     /// </summary>
-    static void ValidateNbAgentArm(Arm arm, string f, Action<string, string> add)
+    static void ValidateNbAgentVariant(Variant variant, string f, Action<string, string> add)
     {
-        if (arm.Runner is not null) add($"{f}.runner", "the bare path's; an arm with agent nb runs nb through Harbor");
-        if (arm.Command is not null) add($"{f}.command", "the bare path's; an arm with agent nb runs nb through Harbor");
-        if (arm.AgentVersion is not null) add($"{f}.agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
-        if (string.IsNullOrWhiteSpace(arm.Provider)) add($"{f}.provider", "required for agent nb (a provider entry name in nb's config)");
-        if (string.IsNullOrWhiteSpace(arm.Harness)) add($"{f}.harness", "required for agent nb: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
-        if (arm.Samples is < 1) add($"{f}.samples", "must be at least 1");
+        if (variant.Runner is not null) add($"{f}.runner", "the bare path's; a variant with agent nb runs nb through Harbor");
+        if (variant.Command is not null) add($"{f}.command", "the bare path's; a variant with agent nb runs nb through Harbor");
+        if (variant.AgentVersion is not null) add($"{f}.agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
+        if (string.IsNullOrWhiteSpace(variant.Provider)) add($"{f}.provider", "required for agent nb (a provider entry name in nb's config)");
+        if (string.IsNullOrWhiteSpace(variant.Harness)) add($"{f}.harness", "required for agent nb: nb, the only value since nb retired its costumes; for claude-code, codex or qwen-code use that agent");
+        if (variant.Samples is < 1) add($"{f}.samples", "must be at least 1");
     }
 
     /// <summary>
-    /// What an agent arm needs from the rest of the exam: a pinned Harbor, a wall limit (Harbor's agent timeout) and an
+    /// What an agent variant needs from the rest of the exam: a pinned Harbor, a wall limit (Harbor's agent timeout) and an
     /// image on every task's fixture. A sample hook runs on the host, which an agent's container never sees; the setup it
     /// did belongs in the fixture's image.
     /// </summary>
     static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
     {
-        var agents = (def.Arms ?? []).Any(a => a?.IsAgent == true);
+        var agents = (def.Variants ?? []).Any(a => a?.IsAgent == true);
         if (def.Harbor is { } harbor && (string.IsNullOrWhiteSpace(harbor.Version) || !Regex.IsMatch(harbor.Version, @"^\d+(\.\d+)*$")))
             add("harbor.version", "required: the Harbor release, pinned (0.24.0)");
         foreach (var (field, value) in new (string, object?)[] { ("tool_calls", def.Limits?.ToolCalls), ("tokens", def.Limits?.Tokens), ("cost_usd", def.Limits?.CostUsd) })
@@ -653,23 +653,23 @@ sealed class Exam
         if (def.Limits?.WallMs is < 1000) add("limits.wall_ms", "at least 1000");
         if (!agents)
         {
-            if (def.Harbor is not null) add("harbor", "no arm names an agent, so nothing runs through Harbor");
-            if (def.Limits is not null) add("limits", "applies to agent arms; an nb arm's limits are budget directives in the program");
+            if (def.Harbor is not null) add("harbor", "no variant names an agent, so nothing runs through Harbor");
+            if (def.Limits is not null) add("limits", "applies to agent variants; an nb variant's limits are budget directives in the program");
             return;
         }
-        if (def.Harbor is null) add("harbor.version", "required with an agent arm: the Harbor release it runs on, pinned (0.24.0)");
-        if (def.Limits?.WallMs is null) add("limits.wall_ms", "required with an agent arm: how long its run may take");
-        if (def.Hooks?.Sample is not null) add("hooks.sample", "not yet with an agent arm: a sample hook runs on the host, the agent in its container; move the setup into the fixture's image");
+        if (def.Harbor is null) add("harbor.version", "required with an agent variant: the Harbor release it runs on, pinned (0.24.0)");
+        if (def.Limits?.WallMs is null) add("limits.wall_ms", "required with an agent variant: how long its run may take");
+        if (def.Hooks?.Sample is not null) add("hooks.sample", "not yet with an agent variant: a sample hook runs on the host, the agent in its container; move the setup into the fixture's image");
         foreach (var c in tasks)
         {
-            if (c.Fixture is null) problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), "fixture", "required with an agent arm: the agent runs in the fixture's image"));
+            if (c.Fixture is null) problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), "fixture", "required with an agent variant: the agent runs in the fixture's image"));
             else if (fixtures.GetValueOrDefault(c.Fixture) is { Def.Image: null } fixture)
-                problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(fixture.Dir, Layout.FixtureFile)), "image", "required by an agent arm of this exam: {from, run, env}, the image the agent and the checks run in"));
+                problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(fixture.Dir, Layout.FixtureFile)), "image", "required by an agent variant of this exam: {from, run, env}, the image the agent and the checks run in"));
         }
     }
 
     /// <summary>
-    /// The oracle block needs a task to serve, and an oracle task needs arms that can take one: nb, bare or through
+    /// The oracle block needs a task to serve, and an oracle task needs variants that can take one: nb, bare or through
     /// Harbor. A vendor agent can be a bridge target, but bridged it leaves no ATIF (Harbor converts the user agent's
     /// log, not the target's), and Qwen Code cannot be a target at all (plans/oracle-in-proctor.md, question 4).
     /// </summary>
@@ -681,7 +681,7 @@ sealed class Exam
         {
             if (oracleTasks.Count == 0) add("oracle", "no task names an answer sheet (a task's oracle), so there is nothing for the oracle to serve");
             if (oracle.Turns is < 1) add("oracle.turns", "must be at least 1");
-            if (oracle.Judge is not null && string.IsNullOrWhiteSpace(oracle.Judge)) add("oracle.judge", "an nb config entry name, or absent for the arm's own provider");
+            if (oracle.Judge is not null && string.IsNullOrWhiteSpace(oracle.Judge)) add("oracle.judge", "an nb config entry name, or absent for the variant's own provider");
         }
         if (oracleTasks.Count == 0)
         {
@@ -694,9 +694,9 @@ sealed class Exam
             foreach (var c in tasks) foreach (var name in Oracular(c.Checks)) addToTask(c, $"checks.{name}", never);
             return;
         }
-        foreach (var (arm, i) in (def.Arms ?? []).Select((a, i) => (a, i)))
-            if (arm?.IsVendor == true)
-                add($"arms[{i}].agent", $"not yet: task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb arms only. Through Harbor's simulated user, {arm.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
+        foreach (var (variant, i) in (def.Variants ?? []).Select((a, i) => (a, i)))
+            if (variant?.IsVendor == true)
+                add($"variants[{i}].agent", $"not yet: task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb variants only. Through Harbor's simulated user, {variant.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
     }
 
     /// <summary>Every definition file: the exam's own, plus each named fixture's fixture.json and check scripts. Not the fixture's source tree; that is the fixture hash, recorded per cell.</summary>
@@ -707,7 +707,7 @@ sealed class Exam
         files.AddRange(tasks.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));
         foreach (var spec in def.Grading!.Checks!.Values.Concat(tasks.SelectMany(c => (c.Checks ?? []).Values)))
             if (spec["script"] is JsonValue v && v.TryGetValue<string>(out var script)) files.Add(Path.Combine(dir, script));
-        foreach (var pair in new[] { def.Hooks?.Arm, def.Hooks?.Sample })
+        foreach (var pair in new[] { def.Hooks?.Variant, def.Hooks?.Sample })
             foreach (var script in new[] { pair?.Setup, pair?.Teardown })
                 if (script is not null) files.Add(Path.Combine(dir, script));
         foreach (var fixture in fixtures) files.AddRange(fixture.DefinitionFiles());

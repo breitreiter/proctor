@@ -1,11 +1,11 @@
 {
   "id": "exam-authoring",
-  "description": "Can a coding agent write a proctor exam from proctor's documentation, one that passes a correct run and fails the wrong ones? The two arms show the agent the same pinned documentation, one with the example exams beside it.",
+  "description": "Can a coding agent write a proctor exam from proctor's documentation, one that passes a correct run and fails the wrong ones? The two variants show the agent the same pinned documentation, one with the example exams beside it.",
   "labels": {
     "area": "authoring/exams",
     "stack": "dotnet"
   },
-  "arms": [
+  "variants": [
     {
       "id": "docs",
       "description": "the README and the layout plans, no example exams",
@@ -35,8 +35,8 @@
     }
   },
   "hooks": {
-    "arm": {
-      "setup": "hooks/arm-setup.sh"
+    "variant": {
+      "setup": "hooks/variant-setup.sh"
     },
     "sample": {
       "setup": "hooks/sample-setup.sh",
@@ -75,7 +75,7 @@
       },
       "describes-everything": {
         "script": "checks/describes-everything.sh",
-        "description": "the written exam, its arms and its tasks each carry a description for the report's reader"
+        "description": "the written exam, its variants and its tasks each carry a description for the report's reader"
       },
       "read-examples": {
         "script": "checks/read-examples.sh",

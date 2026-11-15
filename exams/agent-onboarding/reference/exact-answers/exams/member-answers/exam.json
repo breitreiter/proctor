@@ -1,7 +1,7 @@
 {
   "id": "member-answers",
   "description": "Does the tool library's help bot give members the figure the handbook gives? Five questions members ask, each passing only on the exact figure and its unit.",
-  "arms": [
+  "variants": [
     {
       "id": "local",
       "description": "the bot as it runs: bot/system.md and bot/knowledge.md on qwen3-coder-next behind the local llama-server",

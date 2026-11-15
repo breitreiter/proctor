@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Did the agent open an example exam or fixture from the bundle? Only the docs-and-examples arm has
+# Did the agent open an example exam or fixture from the bundle? Only the docs-and-examples variant has
 # any, so this rate is the measure of borrowing: how often an agent with examples looks at them.
 set -uo pipefail
 b=${PROCTOR_BUNDLE_MOUNT:-/bundle}

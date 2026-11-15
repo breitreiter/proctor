@@ -1,12 +1,12 @@
 {
   "id": "smoke",
   "description": "Proctor's own shakedown: three scripted tasks against nb's Mock provider, so the pipeline and the report can be tested without a model.",
-  "arms": [
+  "variants": [
     { "id": "a", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 2 },
     { "id": "b", "runner": "nb", "harness": "nb", "provider": "MockB", "model": "mock", "samples": 2, "bundle": { "path": "bundles/smoke" } }
   ],
   "hooks": {
-    "arm":    { "setup": "hooks/arm-setup.sh" },
+    "variant":    { "setup": "hooks/variant-setup.sh" },
     "sample": { "setup": "hooks/sample-setup.sh", "teardown": "hooks/sample-teardown.sh" }
   },
   "grading": {

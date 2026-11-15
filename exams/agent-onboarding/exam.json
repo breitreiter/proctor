@@ -5,10 +5,10 @@
     "area": "onboarding/agents",
     "purpose": "report-study"
   },
-  "arms": [
+  "variants": [
     {
       "id": "qwen",
-      "description": "Qwen Code on the local model: the free shakedown arm",
+      "description": "Qwen Code on the local model: the free shakedown variant",
       "agent": "qwen-code",
       "agent_version": "0.25.2",
       "model": "qwen3-coder-next",
@@ -22,7 +22,7 @@
     "wall_ms": 2700000
   },
   "hooks": {
-    "arm": {
+    "variant": {
       "setup": "../code-change/hooks/ensure-model.sh"
     }
   },
@@ -55,7 +55,7 @@
       },
       "chat-only": {
         "script": "checks/chat-only.sh",
-        "description": "every arm of the written exam is bare nb and its program has no tools, so the bot only reads and answers"
+        "description": "every variant of the written exam is bare nb and its program has no tools, so the bot only reads and answers"
       },
       "no-secrets": {
         "script": "checks/no-secrets.sh",
@@ -63,7 +63,7 @@
       },
       "describes-everything": {
         "script": "checks/describes-everything.sh",
-        "description": "the written exam, each of its arms and each of its tasks carry a description for the report's reader"
+        "description": "the written exam, each of its variants and each of its tasks carry a description for the report's reader"
       }
     },
     "pass": [

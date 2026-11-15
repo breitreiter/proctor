@@ -13,12 +13,12 @@ record Verdict(string Result, string Reason)
 }
 
 /// <summary>Everything the runner and the grader need to know about one cell, without the transcript.</summary>
-record CellContext(string ExamDir, string CellDir, string WorkDir, string Experiment, string Arm, TaskDef Task, int Sample)
+record CellContext(string ExamDir, string CellDir, string WorkDir, string Experiment, string Variant, TaskDef Task, int Sample)
 {
     /// <summary>What the task expects, its fixture's defaults included; the task's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Task.Expect;
     public Fixture? Fixture { get; init; }
-    /// <summary>The arm's resolved bundle directory, when the arm has one.</summary>
+    /// <summary>The variant's resolved bundle directory, when the variant has one.</summary>
     public string? BundleDir { get; init; }
     /// <summary>The runner script in effect, relative to exams/; empty on a bare run.</summary>
     public string NbRunner { get; init; } = "";
@@ -36,11 +36,11 @@ record CellContext(string ExamDir, string CellDir, string WorkDir, string Experi
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
     public string WorkMount => Mounts?.Work ?? WorkDir;
-    /// <summary>The path the model is told the bundle is at, when the arm has one.</summary>
+    /// <summary>The path the model is told the bundle is at, when the variant has one.</summary>
     public string? BundleMount => BundleDir is null ? null : Mounts?.Bundle ?? BundleDir;
 
     /// <summary>A container name for this cell, derived from its coordinates. Proctor never uses it; hooks and runners that own a container agree on it through this.</summary>
-    public string Container => $"proctor-{Experiment}-{Arm}-{Task.Id}-{Sample}";
+    public string Container => $"proctor-{Experiment}-{Variant}-{Task.Id}-{Sample}";
 
     public IDictionary<string, string> Environment() => new Dictionary<string, string>
     {
@@ -48,7 +48,7 @@ record CellContext(string ExamDir, string CellDir, string WorkDir, string Experi
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
         ["PROCTOR_BUNDLE"] = BundleDir ?? "",
         ["PROCTOR_EXPERIMENT"] = Experiment,
-        ["PROCTOR_ARM"] = Arm,
+        ["PROCTOR_VARIANT"] = Variant,
         ["PROCTOR_TASK"] = Task.Id ?? "",
         ["PROCTOR_SAMPLE"] = Sample.ToString(),
         ["PROCTOR_CELL"] = CellDir,

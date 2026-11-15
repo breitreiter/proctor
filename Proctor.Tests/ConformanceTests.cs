@@ -73,7 +73,7 @@ public class ConformanceTests
         using var repo = new TestRepo();
         repo.CopyExam("code-change");
         var exam = repo.LoadExam("code-change");
-        var arm = exam.Arms.First(a => a.IsVendor);
+        var variant = exam.Variants.First(a => a.IsVendor);
         var (uv, engine) = MachineHarbor();
         var expDir = Path.Combine(repo.Root, "runs", "oracle");
         HarborCompile.Tasks(expDir, exam, "oracle", _ => new AgentRoute(null, null));
@@ -81,7 +81,7 @@ public class ConformanceTests
         var misses = new List<string>();
         foreach (var c in exam.Tasks)
         {
-            var taskDir = Layout.HarborTask(expDir, arm.Id!, c.Id!);
+            var taskDir = Layout.HarborTask(expDir, variant.Id!, c.Id!);
             var solution = Path.Combine(taskDir, "solution");
             Directory.CreateDirectory(solution);
             foreach (var file in Directory.GetFiles(Path.Combine(exam.Dir, "reference"), $"{c.Id}.*")) File.Copy(file, Path.Combine(solution, Path.GetFileName(file)));
@@ -89,7 +89,7 @@ public class ConformanceTests
 
             var harborDir = Path.Combine(expDir, "oracle-jobs", c.Id!);
             Directory.CreateDirectory(harborDir);
-            var job = HarborCompile.Job(arm, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null), engine: engine);
+            var job = HarborCompile.Job(variant, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null), engine: engine);
             job["agents"] = new JsonArray(new JsonObject { ["name"] = "oracle" });
             Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), job);
             var run = Subprocess.Run(uv, HarborRun.UvArgs(exam.Def.Harbor!.Version), harborDir,
@@ -103,15 +103,15 @@ public class ConformanceTests
         Assert.True(misses.Count == 0, string.Join("\n", misses));
     }
 
-    /// <summary>Every way a cell differs from the stub's script, as "arm/task: what"; empty when conformance is green.</summary>
+    /// <summary>Every way a cell differs from the stub's script, as "variant/task: what"; empty when conformance is green.</summary>
     internal static List<string> Misses(string root, string experimentId, Exam exam)
     {
         var expDir = Layout.Experiment(root, experimentId);
         var misses = new List<string>();
-        foreach (var arm in exam.Arms)
+        foreach (var variant in exam.Variants)
         {
-            void Miss(string task, string what) => misses.Add($"{arm.Id}/{task}: {what}");
-            string Cell(string task) => Layout.Cell(expDir, arm.Id!, task, 1);
+            void Miss(string task, string what) => misses.Add($"{variant.Id}/{task}: {what}");
+            string Cell(string task) => Layout.Cell(expDir, variant.Id!, task, 1);
             string Reason(string task) => Runner.ReadManifest(Path.Combine(Cell(task), Layout.ManifestFile)).StatusReason ?? "";
             CountedCore? Core(string task) => File.Exists(Path.Combine(Cell(task), Layout.CoreFile)) ? Runner.ReadJson<CountedCore>(Path.Combine(Cell(task), Layout.CoreFile)) : null;
 
@@ -130,7 +130,7 @@ public class ConformanceTests
                 if (!answer.StartsWith("tools: ")) Miss("ok", $"the answer is not the stub's tool list: '{answer}'");
                 else
                 {
-                    var unmapped = answer["tools: ".Length..].Split(", ").Where(t => !Ingest.Kinds[arm.Agent!].ContainsKey(t)).ToList();
+                    var unmapped = answer["tools: ".Length..].Split(", ").Where(t => !Ingest.Kinds[variant.Agent!].ContainsKey(t)).ToList();
                     if (unmapped.Count > 0) Miss("ok", $"tools the agent offers that Ingest.Kinds lacks: {string.Join(", ", unmapped)}");
                 }
             }

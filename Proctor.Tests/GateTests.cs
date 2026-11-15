@@ -15,7 +15,7 @@ sealed class GateFactAttribute : FactAttribute
 }
 
 /// <summary>
-/// The deterministic gate (agent-neutral-runs decision 12): exams/gate's Mock arm run bare and the same arm run
+/// The deterministic gate (agent-neutral-runs decision 12): exams/gate's Mock variant run bare and the same variant run
 /// through Harbor give the same nb transcript, the same counted core and the same checks.json, apart from timings and
 /// the checkout's path.
 /// </summary>
@@ -30,7 +30,7 @@ public class GateTests
         Assert.True(differences.Count == 0, string.Join("\n", differences));
     }
 
-    /// <summary>A gate exam run, both arms, and graded, with the publish and the engine the environment names.</summary>
+    /// <summary>A gate exam run, both variants, and graded, with the publish and the engine the environment names.</summary>
     internal static (Exam Exam, string Id) RunGraded(TestRepo repo, string examId)
     {
         repo.CopyExam(examId);
@@ -57,8 +57,8 @@ public class GateTests
     {
         var expDir = Layout.Experiment(root, experimentId);
         var differences = new List<string>();
-        var harbor = exam.Arms.Single(a => a.IsAgent);
-        var bare = exam.Arms.Single(a => !a.IsAgent);
+        var harbor = exam.Variants.Single(a => a.IsAgent);
+        var bare = exam.Variants.Single(a => !a.IsAgent);
         foreach (var c in exam.Tasks)
             foreach (var sample in Enumerable.Range(1, harbor.SamplesOrOne))
             {
@@ -79,7 +79,7 @@ public class GateTests
 
                 var trajectory = JsonNode.Parse(File.ReadAllText(Path.Combine(b, Layout.TrajectoryFile)))!.AsObject();
                 var exit = trajectory!["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";
-                var bareCore = Ingest.Count(trajectory, Arm.Nb, exit).Core! with { DurationMs = null };
+                var bareCore = Ingest.Count(trajectory, Variant.Nb, exit).Core! with { DurationMs = null };
                 var harborCore = Runner.ReadJson<CountedCore>(Path.Combine(h, Layout.CoreFile))! with { DurationMs = null };
                 var (bc, hc) = (JsonSerializer.Serialize(bareCore, Exam.JsonOptions), JsonSerializer.Serialize(harborCore, Exam.JsonOptions));
                 if (bc != hc) differences.Add($"{at}: counted core differs\n--- bare\n{bc}\n--- harbor\n{hc}");
@@ -100,7 +100,7 @@ public class GateTests
 }
 
 /// <summary>
-/// The oracle's gate (plans/oracle-in-proctor.md, *The gate*): exams/gate-oracle's Mock arm bare, with nb's in-process
+/// The oracle's gate (plans/oracle-in-proctor.md, *The gate*): exams/gate-oracle's Mock variant bare, with nb's in-process
 /// oracle, and through Harbor, with the simulated user over the ACP bridge, give the same counted core, the same user
 /// turns (text, source, keys) and the same checks.json, for each of the endings ok, oracle_miss and oracle_budget. The
 /// one known difference is the judge's tokens: bare, nb charges them to the run; bridged, they are the manifest's.
@@ -123,8 +123,8 @@ public class OracleGateTests
     {
         var expDir = Layout.Experiment(root, experimentId);
         var differences = new List<string>();
-        var harbor = exam.Arms.Single(a => a.IsAgent);
-        var bare = exam.Arms.Single(a => !a.IsAgent);
+        var harbor = exam.Variants.Single(a => a.IsAgent);
+        var bare = exam.Variants.Single(a => !a.IsAgent);
         foreach (var c in exam.Tasks)
         {
             var at = c.Id!;
@@ -140,7 +140,7 @@ public class OracleGateTests
 
             var trajectory = JsonNode.Parse(File.ReadAllText(Path.Combine(b, Layout.TrajectoryFile)))!.AsObject();
             var exit = trajectory["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";
-            var bareCore = Ingest.Count(trajectory, Arm.Nb, exit).Core! with { DurationMs = null };
+            var bareCore = Ingest.Count(trajectory, Variant.Nb, exit).Core! with { DurationMs = null };
             var judge = manifest.Oracle;
             if (judge is null) { differences.Add($"{at}: the harbor cell's manifest has no oracle"); continue; }
             bareCore = bareCore with

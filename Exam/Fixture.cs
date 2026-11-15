@@ -11,7 +11,7 @@ namespace Proctor;
 record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclude);
 
 /// <summary>
-/// The image an agent arm runs the fixture in: a base image, the environment, and the commands that make the checkout
+/// The image an agent variant runs the fixture in: a base image, the environment, and the commands that make the checkout
 /// ready (a package restore), run in the work directory after the fixture is committed, at build time and with network,
 /// so neither the agent nor the checks need any. Services is a directory beside repo/ holding a docker-compose.yaml of
 /// extra services (and whatever it mounts), copied into the task's environment/: Harbor runs them beside the agent, in

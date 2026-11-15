@@ -17,7 +17,7 @@
     <None Remove="Proctor.Tests\**;bench\**;exams\**;fixtures\**;runs\**;reports\**" />
   </ItemGroup>
 
-  <!-- The report's logo, inlined as a data URI; proctor's own Harbor agents (nb, Qwen Code), compiled into each experiment with an arm that uses one; setup's provider catalogue. -->
+  <!-- The report's logo, inlined as a data URI; proctor's own Harbor agents (nb, Qwen Code), compiled into each experiment with a variant that uses one; setup's provider catalogue. -->
   <ItemGroup>
     <EmbeddedResource Include="assets\pointy-hat.svg" LogicalName="pointy-hat.svg" />
     <EmbeddedResource Include="Harbor\nb_agent.py" LogicalName="nb_agent.py" />

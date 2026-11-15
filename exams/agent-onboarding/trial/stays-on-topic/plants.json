@@ -4,7 +4,7 @@
     "bot": ["fix their own bikes with our tools", "We provide tools, stands, gloves and tea"]
   },
   "missing": {
-    "bot": "no arm's program gives the bot both its system prompt (bot/system.md) and its information sheet (bot/knowledge.md), so the exam does not measure the bot"
+    "bot": "no variant's program gives the bot both its system prompt (bot/system.md) and its information sheet (bot/knowledge.md), so the exam does not measure the bot"
   },
   "dodge": "Hello! How can I help?",
   "questions": [
@@ -13,7 +13,7 @@
   ],
   "fallback": "off-topic",
   "unrecognised": "none of the written tasks makes an off-topic request",
-  "variants": {
+  "plants": {
     "good": {
       "expect": { "off-topic": "pass", "in-scope": "pass" },
       "answers": {

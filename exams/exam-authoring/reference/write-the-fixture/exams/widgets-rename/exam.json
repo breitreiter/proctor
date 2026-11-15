@@ -1,7 +1,7 @@
 {
   "id": "widgets-rename",
   "description": "Can the agent rename a namespace everywhere it is declared and used, the project file included?",
-  "arms": [
+  "variants": [
     {
       "id": "floor",
       "description": "the local floor",

@@ -32,25 +32,25 @@ record Summary(int N, double Median, double P90, double Mean, double Min, double
 
 record Exclusion(string Cell, string Status, string Reason);
 
-record ArmStats(
+record VariantStats(
     int Planned, int Attempted, int Completed, int Graded, int Analysed, int Decided, List<Exclusion> Excluded, List<Exclusion> Undecided,
     RateJson? Pass, Dictionary<string, RateJson> Checks, List<CheckFailure> Failures, Dictionary<string, int> ExitReasons,
     Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated, Dictionary<string, TaskScore> Tasks, Summary? CostUsd = null, double? CostTotalUsd = null, List<CheckFailure>? Errored = null);
 
-/// <summary>One arm on one task: its score (the mean over its decided runs, null when none was decided) and the runs behind it.</summary>
+/// <summary>One variant on one task: its score (the mean over its decided runs, null when none was decided) and the runs behind it.</summary>
 record TaskScore(double? Score, int Passed, int Decided);
 
-/// <summary>A check that could not decide too many of the runs it applies to, across arms: the check needs rewriting before the experiment is conclusive.</summary>
+/// <summary>A check that could not decide too many of the runs it applies to, across variants: the check needs rewriting before the experiment is conclusive.</summary>
 record UndecidedCheck(string Check, int Runs, int Of);
 
-/// <summary>A check that could not grade more than a few of the runs it applies to, with how many per arm: the check's defect, said once above the numbers.</summary>
-record ErroredCheck(string Check, int Runs, int Of, Dictionary<string, int> Arms);
+/// <summary>A check that could not grade more than a few of the runs it applies to, with how many per variant: the check's defect, said once above the numbers.</summary>
+record ErroredCheck(string Check, int Runs, int Of, Dictionary<string, int> Variants);
 
-/// <summary>Where an arm fell down: a check that did not pass in some analysed cells, most often first, with the tasks it happened in.</summary>
+/// <summary>Where a variant fell down: a check that did not pass in some analysed cells, most often first, with the tasks it happened in.</summary>
 record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Tasks);
 
 /// <summary>What the ids mean, in the exam author's words (or derived from a built-in check), so the report can carry them.</summary>
-record Descriptions(string? Exam, Dictionary<string, string> Arms, Dictionary<string, string> Tasks, Dictionary<string, string> Checks);
+record Descriptions(string? Exam, Dictionary<string, string> Variants, Dictionary<string, string> Tasks, Dictionary<string, string> Checks);
 
 /// <summary>What a task is made of: the fixture it runs against and the checks its runs carry (the exam's, the fixture's and its own, in that order), each with the level that declared it and what it tests in that task's words, so the report can show a task's criterion on its row.</summary>
 record TaskJson(string? Fixture, List<TaskCheck> Checks);
@@ -60,44 +60,44 @@ record TaskCheck(string Name, string Level, string Description);
 /// <summary>What a rate looks like in stats.json: the rate and interval, with the task and cell counts behind it.</summary>
 record RateJson(double Rate, Interval Ci95, int N, int KCells, int NCells, int? Errors = null, int? NeedsJudge = null);
 
-/// <summary>One arm against another, paired by task; <c>Tasks</c> is the difference on each shared task, in points.</summary>
+/// <summary>One variant against another, paired by task; <c>Tasks</c> is the difference on each shared task, in points.</summary>
 /// <summary><c>MdePoints</c> is set only when this pair rests on fewer tasks than the run's widest: the change it alone can confirm.</summary>
-record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, int> Tasks, int? MdePoints = null);
+record Comparison(string Variant, string Vs, int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, int> Tasks, int? MdePoints = null);
 
 record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
 /// <summary>
-/// The guard comparison: every arm against the exam's pinned baseline, with a tolerance on the point estimate.
-/// With <c>Against</c> (report --against), each arm against the arm of the same id in that experiment instead, and
-/// <c>Set</c> is when it was created; <c>Unpaired</c> are the arms it does not have. <c>Pinned</c> are the arms
-/// the exam's baseline pinned its runs from, so the report can say whose scores every arm is compared with.
+/// The guard comparison: every variant against the exam's pinned baseline, with a tolerance on the point estimate.
+/// With <c>Against</c> (report --against), each variant against the variant of the same id in that experiment instead, and
+/// <c>Set</c> is when it was created; <c>Unpaired</c> are the variants it does not have. <c>Pinned</c> are the variants
+/// the exam's baseline pinned its runs from, so the report can say whose scores every variant is compared with.
 /// </summary>
-record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms, List<BaselineGap>? Gaps = null, string? Against = null, List<string>? Unpaired = null, List<string>? Pinned = null);
+record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineVariant> Variants, List<BaselineGap>? Gaps = null, string? Against = null, List<string>? Unpaired = null, List<string>? Pinned = null);
 
 /// <summary>
 /// <c>Verdict</c> is the point estimate against the tolerance, and is what <c>--fail-on regression</c> reads.
 /// <c>Confirmed</c> says the whole 95% interval lies in the region the verdict names: beyond the tolerance on
 /// that side for <c>regressed</c> or <c>improved</c>, within it for <c>held</c>. <c>Score</c> is the baseline's own
-/// score over the paired tasks (the mean of their pinned scores), which the report's chart marks beside the arm's rate.
+/// score over the paired tasks (the mean of their pinned scores), which the report's chart marks beside the variant's rate.
 /// </summary>
-record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, bool Confirmed, Dictionary<string, BaselineTask> Tasks, int? MdePoints = null, double? Score = null);
+record BaselineVariant(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, bool Confirmed, Dictionary<string, BaselineTask> Tasks, int? MdePoints = null, double? Score = null);
 
 /// <summary>One task against its pinned score, with the same tolerance on the difference.</summary>
-record BaselineTask(double Baseline, double Arm, int DiffPoints, string Verdict);
+record BaselineTask(double Baseline, double Variant, int DiffPoints, string Verdict);
 
 record StatsFile(
     string Experiment, string Exam, int NTasks, bool Paired,
-    Dictionary<string, ArmStats> Arms, List<Comparison> Comparisons, Mde Mde, string Methods,
+    Dictionary<string, VariantStats> Variants, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
     Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null,
     List<ErroredCheck>? ErroredChecks = null);
 
 /// <summary>What the report knows about the baseline: the resolved per-task scores, where they came from, and the tolerance asked for.</summary>
-/// <summary>What the arms are compared with: one set of task scores for every arm, or with <c>PerArm</c> (report --against) each arm's own, and none for an arm it lacks.</summary>
+/// <summary>What the variants are compared with: one set of task scores for every variant, or with <c>PerVariant</c> (report --against) each variant's own, and none for a variant it lacks.</summary>
 record GuardInput(string Set, string Source, Dictionary<string, double> Scores, int TolerancePoints, List<BaselineGap>? Gaps = null,
-    string? Against = null, Dictionary<string, Dictionary<string, double>>? PerArm = null, List<string>? Pinned = null)
+    string? Against = null, Dictionary<string, Dictionary<string, double>>? PerVariant = null, List<string>? Pinned = null)
 {
-    public Dictionary<string, double>? ScoresFor(string arm) => PerArm is null ? Scores : PerArm.GetValueOrDefault(arm);
+    public Dictionary<string, double>? ScoresFor(string variant) => PerVariant is null ? Scores : PerVariant.GetValueOrDefault(variant);
 }
 
 static class Stats
@@ -108,30 +108,30 @@ static class Stats
 
     public static StatsFile Compute(Experiment experiment, Exam exam, List<ResultRow> rows, GuardInput? guard = null)
     {
-        var arms = exam.Arms.Select(a => a.Id!).ToList();
+        var variants = exam.Variants.Select(a => a.Id!).ToList();
         var tasks = exam.Tasks.Select(c => c.Id!).ToList();
         var checks = exam.CheckNames;
-        var byArm = arms.ToDictionary(a => a, a => rows.Where(r => r.Arm == a).ToList());
+        var byVariant = variants.ToDictionary(a => a, a => rows.Where(r => r.Variant == a).ToList());
 
         var validity = exam.Grading.Validity ?? [];
-        var armStats = arms.ToDictionary(a => a, a => ArmStats(byArm[a], tasks, checks, validity));
+        var variantStats = variants.ToDictionary(a => a, a => VariantStats(byVariant[a], tasks, checks, validity));
 
-        var scores = arms.ToDictionary(a => a, a => TaskScores(byArm[a].Where(r => r.Decided).ToList(), tasks, r => r.Pass == true));
+        var scores = variants.ToDictionary(a => a, a => TaskScores(byVariant[a].Where(r => r.Decided).ToList(), tasks, r => r.Pass == true));
         var comparisons = new List<Comparison>();
-        foreach (var other in arms.Skip(1))
+        foreach (var other in variants.Skip(1))
         {
-            var c = Compare(other, arms[0], scores[other], scores[arms[0]], tasks);
+            var c = Compare(other, variants[0], scores[other], scores[variants[0]], tasks);
             if (c is not null) comparisons.Add(c);
         }
 
         BaselineStats? baseline = null;
         if (guard is not null)
         {
-            var against = new Dictionary<string, BaselineArm>();
-            foreach (var arm in arms)
+            var against = new Dictionary<string, BaselineVariant>();
+            foreach (var variant in variants)
             {
-                if (guard.ScoresFor(arm) is not { } theirs) continue;
-                var c = Compare(arm, "baseline", scores[arm], theirs, tasks);
+                if (guard.ScoresFor(variant) is not { } theirs) continue;
+                var c = Compare(variant, "baseline", scores[variant], theirs, tasks);
                 if (c is null) continue;
                 var tol = guard.TolerancePoints;
                 var verdict = GuardVerdict(c.DiffPoints, tol);
@@ -141,26 +141,26 @@ static class Stats
                     "improved" => c.Ci95[0] > tol,
                     _ => c.Ci95[0] >= -tol && c.Ci95[1] <= tol,
                 };
-                var perTask = c.Tasks.ToDictionary(x => x.Key, x => new BaselineTask(Round3(theirs[x.Key]), Round3(scores[arm][x.Key]), x.Value, GuardVerdict(x.Value, tol)));
-                against[arm] = new BaselineArm(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, confirmed, perTask,
+                var perTask = c.Tasks.ToDictionary(x => x.Key, x => new BaselineTask(Round3(theirs[x.Key]), Round3(scores[variant][x.Key]), x.Value, GuardVerdict(x.Value, tol)));
+                against[variant] = new BaselineVariant(c.NPairs, c.DiffPoints, c.Ci95, c.Won, c.Lost, c.Tied, verdict, confirmed, perTask,
                     Score: Round3(c.Tasks.Keys.Average(x => theirs[x])));
             }
-            var unpaired = guard.PerArm is null ? null : arms.Where(a => !guard.PerArm.ContainsKey(a)).ToList();
+            var unpaired = guard.PerVariant is null ? null : variants.Where(a => !guard.PerVariant.ContainsKey(a)).ToList();
             baseline = new BaselineStats(guard.Set, guard.Source, guard.TolerancePoints, against, guard.Gaps is { Count: > 0 } ? guard.Gaps : null,
                 guard.Against, unpaired is { Count: > 0 } ? unpaired : null, guard.Pinned);
         }
 
         // The run's reach is its widest pairing; a pair on fewer tasks carries its own, smaller reach.
-        var pairs = comparisons.Select(c => c.NPairs).Concat(baseline?.Arms.Values.Select(g => g.NPairs) ?? []).ToList();
-        var nPairs = pairs.Count > 0 ? pairs.Max() : tasks.Count(c => byArm[arms[0]].Any(r => r.Task == c && r.Decided));
+        var pairs = comparisons.Select(c => c.NPairs).Concat(baseline?.Variants.Values.Select(g => g.NPairs) ?? []).ToList();
+        var nPairs = pairs.Count > 0 ? pairs.Max() : tasks.Count(c => byVariant[variants[0]].Any(r => r.Task == c && r.Decided));
         var mde = Mde(nPairs);
         int? Short(int n) => n < nPairs ? Mde(n).Points : null;
         comparisons = comparisons.Select(c => c with { MdePoints = Short(c.NPairs) }).ToList();
         if (baseline is not null)
-            baseline = baseline with { Arms = baseline.Arms.ToDictionary(g => g.Key, g => g.Value with { MdePoints = Short(g.Value.NPairs) }) };
+            baseline = baseline with { Variants = baseline.Variants.ToDictionary(g => g.Key, g => g.Value with { MdePoints = Short(g.Value.NPairs) }) };
 
-        var matrix = arms.ToDictionary(a => a, a => tasks.ToDictionary(c => c,
-            c => byArm[a].Where(r => r.Task == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
+        var matrix = variants.ToDictionary(a => a, a => tasks.ToDictionary(c => c,
+            c => byVariant[a].Where(r => r.Task == c).OrderBy(r => r.Sample).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
 
         // A check undecided in more than a few of the runs it applies to is a defect in the check; the report says so above the numbers.
         var undecidedChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
@@ -169,50 +169,50 @@ static class Stats
             return new UndecidedCheck(name, counted.Count(r => r.Checks![name] == Verdict.NeedsJudge), counted.Count);
         }).Where(u => u.Runs > 5 || (u.Of > 0 && u.Runs > 0.05 * u.Of)).ToList();
 
-        // Likewise a check that could not grade them: one warning with the count per arm, not a line under every arm's failures.
+        // Likewise a check that could not grade them: one warning with the count per variant, not a line under every variant's failures.
         var erroredChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
         {
             var counted = rows.Where(r => r.Analysed && r.Checks!.ContainsKey(name)).ToList();
             var errors = counted.Where(r => r.Checks![name] == Verdict.Error).ToList();
-            return new ErroredCheck(name, errors.Count, counted.Count, arms.Where(a => errors.Any(r => r.Arm == a)).ToDictionary(a => a, a => errors.Count(r => r.Arm == a)));
-        }).Where(u => u.Runs > 1 && (u.Runs > 5 || u.Runs > 0.05 * u.Of)).ToList();   // one error is a blip, listed under its arm
+            return new ErroredCheck(name, errors.Count, counted.Count, variants.Where(a => errors.Any(r => r.Variant == a)).ToDictionary(a => a, a => errors.Count(r => r.Variant == a)));
+        }).Where(u => u.Runs > 1 && (u.Runs > 5 || u.Runs > 0.05 * u.Of)).ToList();   // one error is a blip, listed under its variant
 
-        var vs = guard?.Against is null ? "the baseline" : "each arm's earlier run";
+        var vs = guard?.Against is null ? "the baseline" : "each variant's earlier run";
         var methods = "Each task is scored as its mean over its counted, decided runs, so n in every interval is the number of tasks. "
-            + $"Per-arm rates use the Wilson 95% interval. Differences between arms, and against {vs}, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
+            + $"Per-variant rates use the Wilson 95% interval. Differences between variants, and against {vs}, use Newcombe's paired method (Wilson square-and-add, with phi from the per-task scores). "
             + $"The detectable difference assumes 80% power and a per-task paired-difference sd of {AssumedSdOfPairedDifference}. "
             + "Durations are the run's wall time including hooks; tokens are the run's own count. "
             + $"No multiplicity adjustment; {comparisons.Count} comparison{(comparisons.Count == 1 ? "" : "s")} shown."
-            + (baseline is null ? "" : $" The {(guard?.Against is null ? "baseline verdict" : "verdict against each arm's earlier run")} is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
+            + (baseline is null ? "" : $" The {(guard?.Against is null ? "baseline verdict" : "verdict against each variant's earlier run")} is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each variant and each task; a variant's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
 
         var descriptions = new Descriptions(
             exam.Def.Description,
-            exam.Arms.Where(a => a.Description is not null).ToDictionary(a => a.Id!, a => a.Description!),
+            exam.Variants.Where(a => a.Description is not null).ToDictionary(a => a.Id!, a => a.Description!),
             exam.Tasks.ToDictionary(c => c.Id!, Exam.Describe),
             exam.CheckDescriptions());
 
         var taskDetails = exam.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, exam.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
-        return new StatsFile(experiment.Id, exam.Id, tasks.Count, Paired: true, armStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
+        return new StatsFile(experiment.Id, exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
             erroredChecks.Count > 0 ? erroredChecks : null);
     }
 
-    static ArmStats ArmStats(List<ResultRow> rows, List<string> tasks, List<string> checks, List<string> validity)
+    static VariantStats VariantStats(List<ResultRow> rows, List<string> tasks, List<string> checks, List<string> validity)
     {
         var analysed = rows.Where(r => r.Analysed).ToList();
         var excluded = rows.Where(r => r.Status != CellStatus.Pending && !r.Analysed)
             .Select(r => r.Invalid is not null
-                ? new Exclusion($"{r.Arm}/{r.Task}/{r.Sample}", "invalid", r.Invalid)
-                : new Exclusion($"{r.Arm}/{r.Task}/{r.Sample}", r.Status, r.StatusReason ?? "")).ToList();
+                ? new Exclusion($"{r.Variant}/{r.Task}/{r.Sample}", "invalid", r.Invalid)
+                : new Exclusion($"{r.Variant}/{r.Task}/{r.Sample}", r.Status, r.StatusReason ?? "")).ToList();
 
         var decided = analysed.Where(r => r.Decided).ToList();
-        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Arm}/{r.Task}/{r.Sample}", "undecided", r.Undecided!)).ToList();
+        var undecided = analysed.Where(r => r.Undecided is not null).Select(r => new Exclusion($"{r.Variant}/{r.Task}/{r.Sample}", "undecided", r.Undecided!)).ToList();
         var pass = TaskRate(decided, tasks, r => r.Pass == true);
         var checkRates = checks.ToDictionary(name => name, name =>
         {
             // A validity check's rate is over every graded run: it says how many counted. Other checks are over the runs that count.
             // A run the check could not decide, or could not grade at all (an error), is out of its denominator on both sides, and counted beside the rate:
-            // either is the check's weakness, not the arm's.
+            // either is the check's weakness, not the variant's.
             var pool = validity.Contains(name) ? rows.Where(r => r.Checks is not null) : analysed;
             var graded = pool.Where(r => r.Checks!.ContainsKey(name)).ToList();
             var decidedByCheck = graded.Where(r => r.Checks![name] is not (Verdict.NeedsJudge or Verdict.Error)).ToList();
@@ -240,7 +240,7 @@ static class Stats
         var exitReasons = completed.Where(r => r.ExitReason is not null).GroupBy(r => r.ExitReason!)
             .OrderByDescending(g => g.Count()).ThenBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count());
 
-        return new ArmStats(
+        return new VariantStats(
             Planned: rows.Count,
             Attempted: rows.Count(r => r.Status != CellStatus.Pending),
             Completed: completed.Count,
@@ -290,7 +290,7 @@ static class Stats
     }
 
     /// <summary>
-    /// Newcombe 1998 method 10 for paired proportions: the Wilson limits of each arm combined
+    /// Newcombe 1998 method 10 for paired proportions: the Wilson limits of each variant combined
     /// square-and-add, with phi estimated from the 2x2 task table with Newcombe's continuity
     /// correction (so phi is 0 when a margin is empty and below 1 when no task is discordant).
     /// With one sample per task the table is the literal count of tasks both passed, only the
@@ -326,7 +326,7 @@ static class Stats
         return num / Math.Sqrt(margins);
     }
 
-    static Comparison? Compare(string arm, string vs, Dictionary<string, double> a, Dictionary<string, double> b, List<string> tasks)
+    static Comparison? Compare(string variant, string vs, Dictionary<string, double> a, Dictionary<string, double> b, List<string> tasks)
     {
         var shared = tasks.Where(c => a.ContainsKey(c) && b.ContainsKey(c)).ToList();
         if (shared.Count == 0) return null;
@@ -335,7 +335,7 @@ static class Stats
         var (diff, ci) = NewcombePaired(sa, sb);
         var lo = Points(ci.Lo);
         var hi = Points(ci.Hi);
-        return new Comparison(arm, vs, shared.Count, Points(diff), [lo, hi],
+        return new Comparison(variant, vs, shared.Count, Points(diff), [lo, hi],
             Won: shared.Count(c => a[c] > b[c]), Lost: shared.Count(c => a[c] < b[c]), Tied: shared.Count(c => a[c] == b[c]),
             Verdict: lo > 0 ? "better" : hi < 0 ? "worse" : "no-detectable-difference",
             Tasks: shared.ToDictionary(c => c, c => Points(a[c] - b[c])));

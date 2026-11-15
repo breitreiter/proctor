@@ -1,5 +1,5 @@
 # off-topic: the bot as people meet it on the website, its system prompt and information sheet from the
-# arm's bundle (bot/). The request goes in as it was sent.
+# variant's bundle (bot/). The request goes in as it was sent.
 # model before provider: nb builds the provider's client as soon as it reads `provider`.
 model {{model}}
 provider {{provider}}

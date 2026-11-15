@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The trial, inside a container: the exam the agent wrote, run by proctor against planted runs of
 # its own task and graded, so it is judged by what it passes and fails rather than by how it reads.
-# Its arms are replaced by one arm per planted run in /trial/$TRIAL_TASK (good-* must pass, bad-*
+# Its variants are replaced by one variant per planted run in /trial/$TRIAL_TASK (good-* must pass, bad-*
 # must fail), its hooks and runner by planted.sh, and its model checks dropped: a guardrail that
 # asks a model decides nothing here, and one named in pass or validity makes the trial fail.
 #   usage: run.sh <exam id>    mounts: /authored (the work directory, read-only), /trial (read-only),
@@ -20,11 +20,11 @@ jq -e . "$e" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
 asks_model=$(jq -c '[.grading.checks // {} | to_entries[] | select(.value | type == "object" and (keys | any(test("(decide|judge)$")))) | .key]' "$e")
 in_headline=$(jq -r --argjson m "$asks_model" '[(.grading.pass // []) + (.grading.validity // []) | .[] | select(. as $n | $m | index($n))] | first // empty' "$e")
 [ -z "$in_headline" ] || fail "'$in_headline' asks a model and is named in pass or validity, so no run can be decided without one"
-arms=$(for f in "/trial/$TRIAL_TASK"/*.sh; do
+variants=$(for f in "/trial/$TRIAL_TASK"/*.sh; do
          jq -n --arg id "$(basename "$f" .sh)" '{id: $id, runner: "nb", harness: "nb", provider: "Mock", model: "mock", samples: 1}'
        done | jq -s .)
-jq --argjson arms "$arms" --argjson m "$asks_model" \
-   '.arms = $arms | del(.hooks, .nb) | .grading.checks |= with_entries(select(.key as $k | $m | index($k) | not))' "$e" >"$e.trial"
+jq --argjson variants "$variants" --argjson m "$asks_model" \
+   '.variants = $variants | del(.hooks, .nb) | .grading.checks |= with_entries(select(.key as $k | $m | index($k) | not))' "$e" >"$e.trial"
 mv "$e.trial" "$e"
 jq -n '{nb: {path: "/opt/nb/nb", config: "trial-nb.json"}}' >"$defs/proctor.json"
 jq -n '{Harness: "nb", ActiveProvider: "Mock", Trust: false, ChatProviders: [{Name: "Mock"}]}' >"$defs/trial-nb.json"
@@ -36,6 +36,6 @@ experiment=$(sed -n 's/^experiment //p' /out/run.log)
 proctor grade "$experiment" >/out/grade.log 2>&1 || fail "proctor grade failed: $(tail -1 /out/grade.log)"
 proctor report "$experiment" >/out/report.log 2>&1 || fail "proctor report failed: $(tail -1 /out/report.log)"
 cp -r "runs/$experiment" /out/experiment
-jq -s '{arms: (group_by(.arm) | map({key: .[0].arm, value: map({task, status, pass, checks})}) | from_entries)}' \
+jq -s '{variants: (group_by(.variant) | map({key: .[0].variant, value: map({task, status, pass, checks})}) | from_entries)}' \
   "reports/data/$experiment/results.jsonl" >/out/trial.json
-echo "trial $experiment: $(jq -r '.arms | to_entries | map("\(.key)=\(.value | map(.pass) | tostring)") | join(" ")' /out/trial.json)"
+echo "trial $experiment: $(jq -r '.variants | to_entries | map("\(.key)=\(.value | map(.pass) | tostring)") | join(" ")' /out/trial.json)"

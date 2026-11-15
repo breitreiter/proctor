@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Sample setup: the cell's container, as code-change's was, except that the bundle mount is the arm's view
-# (see arm-setup.sh) rather than the clone itself, read-only. exam.json puts it inside the work mount,
+# Sample setup: the cell's container, as code-change's was, except that the bundle mount is the variant's view
+# (see variant-setup.sh) rather than the clone itself, read-only. exam.json puts it inside the work mount,
 # since nb's file tools read nothing outside the working directory; on the host that leaves an empty
 # mount point in the checkout, which git does not see.
 set -euo pipefail
 [ -n "$PROCTOR_RUNNER" ] || { echo "bare run: nb stays on the host, no container"; exit 0; }
 engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)
 root=$(cd "$PROCTOR_EXAM_DIR/../.." && pwd)
-view="$root/.proctor/views/$(git -C "$PROCTOR_BUNDLE" rev-parse HEAD)/$PROCTOR_ARM"
+view="$root/.proctor/views/$(git -C "$PROCTOR_BUNDLE" rev-parse HEAD)/$PROCTOR_VARIANT"
 "$engine" rm -f "$PROCTOR_CONTAINER" >/dev/null 2>&1 || true
 args=(-d --name "$PROCTOR_CONTAINER"
       -v "$PROCTOR_WORK:$PROCTOR_WORK_MOUNT"

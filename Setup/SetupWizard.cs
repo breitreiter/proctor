@@ -161,7 +161,7 @@ static partial class SetupWizard
             chosen = [.. chosen, name];
             w.State.Jobs["nb"] = new SetupJob(SetupJob.Set, chosen);
             AnsiConsole.MarkupLine($"\n  Written: {Esc(SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.NbFile)))}  provider \"{Esc(name)}\"{(Catalogue.Get(provider.Kind).CompletedByAgent ? " [grey](Endpoint and Model left for your agent)[/]" : "")}\n");
-            AnsiConsole.WriteLine("Add another provider for the built-in harness? Exams name a provider per arm, so two providers let one exam compare them.");
+            AnsiConsole.WriteLine("Add another provider for the built-in harness? Exams name a provider per variant, so two providers let one exam compare them.");
         }
         if (chosen.Count == 0) w.State.Jobs["nb"] = new SetupJob(SetupJob.Later);
     }
@@ -195,7 +195,7 @@ static partial class SetupWizard
                 .UseConverter(c => c == "Modal" ? $"{"Modal",-20} [grey]experimental[/]" : $"{c,-20} [grey]not supported yet[/]"));
             if (service == "Modal") { Modal(w); return; }
             w.State.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: service.StartsWith("Another") ? null : service.ToLowerInvariant());
-            AnsiConsole.WriteLine($"\nRecorded as wanted: hosted sandbox ({service}). Until it is supported, agent arms need Modal, or Docker or podman on this machine; nb runs need neither.");
+            AnsiConsole.WriteLine($"\nRecorded as wanted: hosted sandbox ({service}). Until it is supported, agent variants need Modal, or Docker or podman on this machine; nb runs need neither.");
             return;
         }
 
@@ -263,7 +263,7 @@ static partial class SetupWizard
         }
         SetupFiles.RemoveAgent(w.ExamsDir, id);
         w.State.Jobs[id] = new SetupJob(SetupJob.ByHand, [name]);
-        AnsiConsole.WriteLine($"\nRecorded: {Title(id)} on {name}, by hand. Setup has the key; ask your coding agent to write agents.{id} in exams/proctor.json (base_url, and api_key as ${{{provider.Env ?? "VAR"}}}). See docs/configuration.md, \"Agent arms\".");
+        AnsiConsole.WriteLine($"\nRecorded: {Title(id)} on {name}, by hand. Setup has the key; ask your coding agent to write agents.{id} in exams/proctor.json (base_url, and api_key as ${{{provider.Env ?? "VAR"}}}). See docs/configuration.md, \"Agent variants\".");
     }
 
     static async Task Judge(Session w, string id)
@@ -547,7 +547,7 @@ static partial class SetupWizard
         {
             JobFit.Untested => "untested for this job",
             JobFit.ByHand => "by hand: your agent writes the config",
-            _ when job == "judge" && otherUse.Contains(p.Name) => "also used for arms: a judge from another family is better",
+            _ when job == "judge" && otherUse.Contains(p.Name) => "also used for variants: a judge from another family is better",
             _ => "",
         };
 

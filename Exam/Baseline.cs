@@ -26,7 +26,7 @@ record Baseline(string Set, string Command, string SuiteHash, Dictionary<string,
     /// <summary>An arm's pin for one task: its decided cells in the experiment, scored as that experiment's suite decided them; null when it decided none.</summary>
     public static BaselinePin? PinOf(Experiment experiment, Exam suite, List<ResultRow> rows, string arm, TaskDef task)
     {
-        var decided = rows.Where(r => r.Arm == arm && r.Task == task.Id && r.Decided).OrderBy(r => r.Sample).ToList();
+        var decided = rows.Where(r => r.Variant == arm && r.Task == task.Id && r.Decided).OrderBy(r => r.Sample).ToList();
         return decided.Count == 0 ? null : new BaselinePin(experiment.Id, arm, decided.Select(r => r.Sample).ToList(),
             experiment.BundleOf(arm)?.Hash, suite.FixtureOf(task)?.Hash, Math.Round(decided.Average(r => r.Pass == true ? 1.0 : 0.0), 3));
     }

@@ -4,7 +4,7 @@
     "bot": ["a volunteer-run lending library for tools", "Every tool carries a yellow tag with its number"]
   },
   "missing": {
-    "bot": "no arm's program gives the bot both its system prompt (bot/system.md) and its handbook (bot/knowledge.md), so the exam does not measure the bot"
+    "bot": "no variant's program gives the bot both its system prompt (bot/system.md) and its handbook (bot/knowledge.md), so the exam does not measure the bot"
   },
   "dodge": "I'm not able to help with that. Please ask a volunteer at the counter.",
   "questions": [
@@ -16,7 +16,7 @@
   ],
   "fallback": "*",
   "unrecognised": "none of the written tasks asks one of the questions in notes/member-questions.md",
-  "variants": {
+  "plants": {
     "good-terse": {
       "expect": "pass",
       "answers": {

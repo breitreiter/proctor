@@ -3,20 +3,20 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>The work experiment's shape from project/plans/first-slice.md as fixed data: two arms, three tasks, three samples.</summary>
+/// <summary>The work experiment's shape from project/plans/first-slice.md as fixed data: two variants, three tasks, three samples.</summary>
 static class WorkedExperiment
 {
-    public static Exam Exam(int samples = 3, bool twoArms = true)
+    public static Exam Exam(int samples = 3, bool twoVariants = true)
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
         repo.EditJson("smoke/exam.json", e =>
         {
             e["description"] = "Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?";
-            e["arms"]![0]!["description"] = "the local floor";
-            e["arms"]![0]!["id"] = "floor"; e["arms"]![0]!["samples"] = samples; e["arms"]![0]!["model"] = "qwen-coder"; e["arms"]![0]!["provider"] = "local-qcoder";
-            e["arms"]![1]!["id"] = "b"; e["arms"]![1]!["samples"] = samples; e["arms"]![1]!["model"] = "glm"; e["arms"]![1]!["provider"] = "local-glm";
-            if (!twoArms) e["arms"]!.AsArray().RemoveAt(1);
+            e["variants"]![0]!["description"] = "the local floor";
+            e["variants"]![0]!["id"] = "floor"; e["variants"]![0]!["samples"] = samples; e["variants"]![0]!["model"] = "qwen-coder"; e["variants"]![0]!["provider"] = "local-qcoder";
+            e["variants"]![1]!["id"] = "b"; e["variants"]![1]!["samples"] = samples; e["variants"]![1]!["model"] = "glm"; e["variants"]![1]!["provider"] = "local-glm";
+            if (!twoVariants) e["variants"]!.AsArray().RemoveAt(1);
             e["grading"]!["checks"] = JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}, \"builds\": {\"script\": \"checks/answer-nonempty.sh\", \"description\": \"the repository builds after the change\"}, \"no_denials\": {\"denied_calls\": {\"max\": 0}}}");
             e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"builds\"]");
             e["grading"]!["validity"] = JsonNode.Parse("[\"no_denials\"]");
@@ -34,8 +34,8 @@ static class WorkedExperiment
     public static GuardInput Guard() =>
         new("2026-09-14T09:12:00Z", "as pinned", new() { ["loops"] = 1.0, ["plain"] = 1.0, ["uses-bash"] = 0.333 }, TolerancePoints: 10);
 
-    public static ResultRow Row(string arm, string task, int sample, bool? pass, string status = "completed", string exit = "ok", long tokens = 57331, long durationMs = 1118000, string? reason = null, string? invalid = null) =>
-        new(RunId: $"{arm[0]}{@task[0]}{sample}0000000000000", Arm: arm, Task: task, Sample: sample, Status: status,
+    public static ResultRow Row(string variant, string task, int sample, bool? pass, string status = "completed", string exit = "ok", long tokens = 57331, long durationMs = 1118000, string? reason = null, string? invalid = null) =>
+        new(RunId: $"{variant[0]}{@task[0]}{sample}0000000000000", Variant: variant, Task: task, Sample: sample, Status: status,
             StatusReason: pass is null && status != "completed" ? (reason ?? "sample setup hook failed: hooks/reset-fixture.sh exited 1: clone failed") : null,
             ExitReason: status == "completed" ? exit : null,
             Usage: status == "completed" ? new UsageRow(tokens - 9120, 9120, tokens, false) : null,
@@ -52,7 +52,7 @@ static class WorkedExperiment
         return checks;
     }
 
-    /// <summary>Nine cells per arm; the floor loses one cell to a hook failure and one to a validity check, so the warning band and both kinds of exclusion render.</summary>
+    /// <summary>Nine cells per variant; the floor loses one cell to a hook failure and one to a validity check, so the warning band and both kinds of exclusion render.</summary>
     public static List<ResultRow> Rows()
     {
         var rows = new List<ResultRow>();

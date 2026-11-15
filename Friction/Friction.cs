@@ -123,46 +123,46 @@ static class Friction
 
     internal record Step(string Id, List<Call> Calls);
 
-    public record CellFriction(string Arm, string Task, int Sample, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
+    public record CellFriction(string Variant, string Task, int Sample, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
 
     /// <summary>
-    /// The cells an experiment ran, from its own record of its arms and tasks. Friction reads what was run, not what
-    /// the exam says now, so an experiment whose exam has since changed its arms is still read.
+    /// The cells an experiment ran, from its own record of its variants and tasks. Friction reads what was run, not what
+    /// the exam says now, so an experiment whose exam has since changed its variants is still read.
     /// </summary>
-    public static IEnumerable<(string Arm, string Task, int Sample)> Cells(Experiment experiment) =>
-        from arm in (experiment.ExamDef["arms"] as JsonArray ?? []).OfType<JsonObject>()
-        let id = String(arm["id"])
+    public static IEnumerable<(string Variant, string Task, int Sample)> Cells(Experiment experiment) =>
+        from variant in (experiment.ExamDef["variants"] as JsonArray ?? []).OfType<JsonObject>()
+        let id = String(variant["id"])
         where id is not null
         from task in experiment.Tasks
-        from sample in Enumerable.Range(1, arm["samples"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : 1)
+        from sample in Enumerable.Range(1, variant["samples"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : 1)
         select (id, task, sample);
 
     /// <summary>friction.json beside each completed cell's trajectory. A cell with no trajectory is skipped and said so.</summary>
     /// <param name="reader">A chat judge of the machine's config that reads each run for what rules cannot see; its points are added with a model source. Null for rules only.</param>
     public static List<CellFriction> Experiment(string root, Experiment experiment, Exam exam, TextWriter log,
-        IReadOnlyCollection<string>? arms = null, IReadOnlyCollection<string>? tasks = null, JudgeClient? judges = null, string? reader = null)
+        IReadOnlyCollection<string>? variants = null, IReadOnlyCollection<string>? tasks = null, JudgeClient? judges = null, string? reader = null)
     {
         var surface = new Surface(exam.Def.Surface);
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var done = new List<CellFriction>();
-        foreach (var (arm, task, sample) in Cells(experiment).Where(x => (arms is null || arms.Contains(x.Arm)) && (tasks is null || tasks.Contains(x.Task))))
+        foreach (var (variant, task, sample) in Cells(experiment).Where(x => (variants is null || variants.Contains(x.Variant)) && (tasks is null || tasks.Contains(x.Task))))
         {
-            var cellDir = Layout.Cell(experimentDir, arm, task, sample);
+            var cellDir = Layout.Cell(experimentDir, variant, task, sample);
             var trajectory = Path.Combine(cellDir, Layout.TrajectoryFile);
             var skipped = Runner.ReadStatus(cellDir) != CellStatus.Completed ? "not completed" : !File.Exists(trajectory) ? "no trajectory" : null;
             if (skipped is not null)
             {
-                done.Add(new CellFriction(arm, task, sample, null, skipped));
+                done.Add(new CellFriction(variant, task, sample, null, skipped));
                 continue;
             }
-            var run = new JsonObject { ["experiment"] = experiment.Id, ["arm"] = arm, ["task"] = task, ["sample"] = sample.ToString() };
+            var run = new JsonObject { ["experiment"] = experiment.Id, ["variant"] = variant, ["task"] = task, ["sample"] = sample.ToString() };
             var parsed = JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject();
             var (file, steps) = Detect(parsed, surface, run);
             var reading = reader is null ? null : FrictionReader.Read(cellDir, parsed, file, steps, exam.Def.Surface?.Description, judges!, reader);
             File.WriteAllText(Path.Combine(cellDir, Layout.FrictionFile), file.ToJsonString(Written) + "\n");
             var points = file["points"]!.AsArray();
-            done.Add(new CellFriction(arm, task, sample, points.Count, null, reading));
-            log.WriteLine($"  {arm}/{task}/{sample}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}{(reading is null ? "" : $"  [reader: {reading.Says}]")}");
+            done.Add(new CellFriction(variant, task, sample, points.Count, null, reading));
+            log.WriteLine($"  {variant}/{task}/{sample}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}{(reading is null ? "" : $"  [reader: {reading.Says}]")}");
         }
         return done;
     }

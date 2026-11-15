@@ -8,7 +8,7 @@ public class OracleExamTests
 {
     const string Sheet = "# Answers\n\n## deploy-target\nStaging only.\n";
 
-    /// <summary>The gate exam with its plain task naming a sheet: one bare nb arm and one through Harbor.</summary>
+    /// <summary>The gate exam with its plain task naming a sheet: one bare nb variant and one through Harbor.</summary>
     static TestRepo GateWithOracle(string sheet = Sheet, string path = "oracle/plain.md")
     {
         var repo = new TestRepo();
@@ -79,16 +79,16 @@ public class OracleExamTests
         Assert.Contains(problems, p => p.Field == "oracle.judge");
     }
 
-    // Decided 2026-10-29: bridged, a vendor agent leaves no ATIF, so an oracle runs on nb arms only.
+    // Decided 2026-10-29: bridged, a vendor agent leaves no ATIF, so an oracle runs on nb variants only.
     [Fact]
-    public void AVendorArm_IsRefused_WhenATaskHasAnOracle()
+    public void AVendorVariant_IsRefused_WhenATaskHasAnOracle()
     {
         using var repo = GateWithOracle();
-        repo.EditJson("gate/exam.json", s => s["arms"]!.AsArray().Add(JsonNode.Parse(
+        repo.EditJson("gate/exam.json", s => s["variants"]!.AsArray().Add(JsonNode.Parse(
             """{"id": "cc", "agent": "claude-code", "model": "claude-haiku-5-5", "agent_version": "2.1.290"}""")));
         var problem = Assert.Single(repo.Problems("gate"));
 
-        Assert.Equal("arms[2].agent", problem.Field);
+        Assert.Equal("variants[2].agent", problem.Field);
         Assert.StartsWith("not yet: task plain names an answer sheet", problem.Message);
     }
 
@@ -107,7 +107,7 @@ public class OracleExamTests
     [InlineData("provider {{provider}}\nrun Task: {{prompt}}\n")]
     [InlineData("provider {{provider}}\nrun {{prompt}}\nrun and again\n")]
     [InlineData("run {{prompt}}\nprovider {{provider}}\n")]
-    public void OnAnNbAgentArm_TheTemplateMustEndInItsOneRun(string template)
+    public void OnAnNbAgentVariant_TheTemplateMustEndInItsOneRun(string template)
     {
         using var repo = GateWithOracle();
         repo.Write("gate/program.nb", template);
@@ -117,11 +117,11 @@ public class OracleExamTests
     [Fact]
     public void TheRunRule_IsTheBridgesOnly_AndIgnoresCommentsAndContinuations()
     {
-        // Bare arms only: the program runs the prompt itself, so any run is fine.
+        // Bare variants only: the program runs the prompt itself, so any run is fine.
         using var bare = GateWithOracle();
         bare.EditJson("gate/exam.json", s =>
         {
-            s["arms"]!.AsArray().RemoveAt(1);
+            s["variants"]!.AsArray().RemoveAt(1);
             s.Remove("harbor");
             s.Remove("limits");
         });

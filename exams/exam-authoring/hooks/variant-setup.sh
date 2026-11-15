@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Arm setup: the model on the model box, proctor built from the arm's bundle, and the arm's view of
-# that bundle: what the agent is shown at /work/.bundle. Both arms pin the same revision; the view is
-# what differs, so the comparison between arms is the examples and nothing else. The image is
+# Variant setup: the model on the model box, proctor built from the variant's bundle, and the variant's view of
+# that bundle: what the agent is shown at /work/.bundle. Both variants pin the same revision; the view is
+# what differs, so the comparison between variants is the examples and nothing else. The image is
 # runners/Containerfile's, the package cache warmed for this exam's fixtures.
 set -euo pipefail
 "$PROCTOR_EXAM_DIR/../code-change/hooks/ensure-model.sh" qcoder
@@ -13,18 +13,18 @@ build="$root/.proctor/proctor-builds/$rev"
 [ -f "$build/proctor.dll" ] || dotnet build "$PROCTOR_BUNDLE/Proctor.csproj" -c Release -o "$build" --nologo -v q >/dev/null
 echo "proctor $rev built at $build"
 
-# The view: documentation for every arm, the examples for the arm named for them. This exam is never
+# The view: documentation for every variant, the examples for the variant named for them. This exam is never
 # shown, since its checks and trial are the grader and its reference/ the answer key; nor are the
 # workspace fixtures the tasks run in.
-view="$root/.proctor/views/$rev/$PROCTOR_ARM"
+view="$root/.proctor/views/$rev/$PROCTOR_VARIANT"
 rm -rf "$view" && mkdir -p "$view/project/plans"
 cp "$PROCTOR_BUNDLE/README.md" "$view/"
 # The configuration reference left the README on 2026-11-08; a revision before that has none.
 [ -f "$PROCTOR_BUNDLE/docs/configuration.md" ] && mkdir -p "$view/docs" && cp "$PROCTOR_BUNDLE/docs/configuration.md" "$view/docs/"
 # The commands and guard mode left it on 2026-11-09.
 [ -f "$PROCTOR_BUNDLE/docs/cli.md" ] && mkdir -p "$view/docs" && cp "$PROCTOR_BUNDLE/docs/cli.md" "$view/docs/"
-cp "$PROCTOR_BUNDLE"/project/plans/{on-disk-layout,fixtures-arms-baselines,containerised-runs,judge,report-structure}.md "$view/project/plans/"
-case "$PROCTOR_ARM" in
+cp "$PROCTOR_BUNDLE"/project/plans/{on-disk-layout,report-structure}.md "$view/project/plans/"
+case "$PROCTOR_VARIANT" in
   docs) ;;
   docs-and-examples)
     # A revision has exams/ or, before the rename, evals/; find fails on a start path that is missing.
@@ -33,10 +33,10 @@ case "$PROCTOR_ARM" in
        -not -path 'exams/exam-authoring/*' -not -path 'evals/eval-authoring/*' -not -path 'fixtures/authoring-*' \
        -not -path '*/bin/*' -not -path '*/obj/*' -not -name baseline.json -print0 \
      | xargs -0 cp --parents -t "$view") ;;
-  *) echo "no view for arm $PROCTOR_ARM"; exit 1 ;;
+  *) echo "no view for variant $PROCTOR_VARIANT"; exit 1 ;;
 esac
 cp -r "$build" "$view/proctor"
-echo "view for $PROCTOR_ARM: $(find "$view" -type f -not -path "$view/proctor/*" | wc -l) files beside the build"
+echo "view for $PROCTOR_VARIANT: $(find "$view" -type f -not -path "$view/proctor/*" | wc -l) files beside the build"
 
 [ -n "$PROCTOR_RUNNER" ] || { echo "bare run: no image"; exit 0; }
 engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)

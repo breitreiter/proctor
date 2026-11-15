@@ -6,8 +6,8 @@ set -uo pipefail
 t="$PROCTOR_CELL/trial/trial.json"
 [ -f "$t" ] || { echo "the trial did not run: $(tail -1 "$PROCTOR_CELL/trial/trial.log" 2>/dev/null)"; exit 3; }
 err=$(jq -r '.error // empty' "$t"); [ -z "$err" ] || { echo "$err"; exit 1; }
-through=$(jq -r '[.arms | to_entries[] | select(.key | startswith("bad-")) | select(any(.value[]; .pass != false)) | .key] | join(", ")' "$t")
-total=$(jq '[.arms | keys[] | select(startswith("bad-"))] | length' "$t")
+through=$(jq -r '[.variants | to_entries[] | select(.key | startswith("bad-")) | select(any(.value[]; .pass != false)) | .key] | join(", ")' "$t")
+total=$(jq '[.variants | keys[] | select(startswith("bad-"))] | length' "$t")
 if [ -n "$through" ]; then echo "lets through $through (of $total wrong runs)"; exit 1; fi
-echo "rejects all $total: $(jq -r '[.arms | to_entries[] | select(.key | startswith("bad-"))
+echo "rejects all $total: $(jq -r '[.variants | to_entries[] | select(.key | startswith("bad-"))
   | "\(.key) by \([.value[].checks // {} | to_entries[] | select(.value == "fail") | .key] | unique | join("+"))"] | join("; ")' "$t")"

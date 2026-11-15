@@ -12,9 +12,9 @@ problem=$(jq -r '.problems[0] // empty' "$t")
 wrong=$(jq '[.cells[] | select(.expect == "fail")] | length' "$t")
 [ "$wrong" -gt 0 ] || { echo "no wrong reply to reject: $(jq -r .unrecognised "$PROCTOR_EXAM_DIR/trial/$PROCTOR_TASK/plants.json")"; exit 1; }
 through=$(jq -r '[.cells[] | select(.expect == "fail" and (.status != "completed" or .invalid != null or .pass != false))]
-  | group_by(.variant) | map("\(.[0].variant) on \(length) task(s) (\([.[].task] | unique | join(", ")))") | .[]' "$t")
+  | group_by(.plant) | map("\(.[0].plant) on \(length) task(s) (\([.[].task] | unique | join(", ")))") | .[]' "$t")
 if [ -n "$through" ]; then
   echo "lets through $(paste -sd';' <<<"$through" | sed 's/;/; /g' | cut -c1-300) (of $wrong wrong replies)"; exit 1
 fi
-echo "rejects all $wrong: $(jq -r '[.cells[] | select(.expect == "fail")] | group_by(.variant)
-  | map("\(.[0].variant) by \([.[].failed[] | split(" ")[0]] | unique | join("+"))") | join("; ")' "$t")"
+echo "rejects all $wrong: $(jq -r '[.cells[] | select(.expect == "fail")] | group_by(.plant)
+  | map("\(.[0].plant) by \([.[].failed[] | split(" ")[0]] | unique | join("+"))") | join("; ")' "$t")"

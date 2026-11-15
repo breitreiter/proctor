@@ -116,7 +116,7 @@ static class SetupCheck
                 var uv = Runner.FindOnPath("uv");
                 var plan = Path.Combine(examsDir, SetupFiles.SandboxPlan);
                 return Runner.FindOnPath(engine) is not null && uv is not null
-                    ? $"engine {engine} and uv found; Harbor itself is not proven until an exam's agent arm runs (or conformance)"
+                    ? $"engine {engine} and uv found; Harbor itself is not proven until an exam's agent variant runs (or conformance)"
                     : $"planned: {engine} or uv not found yet" + (File.Exists(plan) ? $" ({Shown(plan)})" : "");
             case "nb":
                 foreach (var name in job.Providers ?? [])

@@ -40,8 +40,8 @@ sealed class TestRepo : IDisposable
         CopyDirectory(source, Path.Combine(Root, "exams", examId));
         foreach (var file in Directory.GetFiles(Path.Combine(Root, "exams", examId, "tasks"), "*.json"))
             if (JsonNode.Parse(File.ReadAllText(file))?["fixture"]?.GetValue<string>() is { } fixture) CopyFixture(fixture);
-        foreach (var arm in JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "exams", examId, "exam.json")))?["arms"]?.AsArray() ?? [])
-            if (arm?["bundle"]?["path"]?.GetValue<string>() is { } bundle && !Directory.Exists(Path.Combine(Root, bundle)))
+        foreach (var variant in JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "exams", examId, "exam.json")))?["variants"]?.AsArray() ?? [])
+            if (variant?["bundle"]?["path"]?.GetValue<string>() is { } bundle && !Directory.Exists(Path.Combine(Root, bundle)))
                 CopyDirectory(Path.Combine(SourceRoot, bundle), Path.Combine(Root, bundle));
         WriteProctorConfig();
         return Path.Combine(Root, "exams", examId);

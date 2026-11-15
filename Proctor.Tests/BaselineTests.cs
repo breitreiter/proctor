@@ -3,7 +3,7 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>Steps 4 and 5 of fixtures-arms-baselines.md: the baseline verb pins cells; the report compares against them and can fail on a regression.</summary>
+/// <summary>Steps 4 and 5 of project/archive/fixtures-arms-baselines.md: the baseline verb pins cells; the report compares against them and can fail on a regression.</summary>
 public class BaselineTests
 {
     [Fact]
@@ -11,7 +11,7 @@ public class BaselineTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
@@ -39,8 +39,8 @@ public class BaselineTests
         Assert.Equal(0, Verbs.Report(repo.Root, id, failOn: "regression"));
         var bl = JsonNode.Parse(File.ReadAllText(statsFile))!["baseline"]!;
         Assert.Equal("recomputed", bl["scores"]!.GetValue<string>());
-        Assert.Equal(0, bl["arms"]!["a"]!["diff_points"]!.GetValue<int>());
-        Assert.Equal("held", bl["arms"]!["a"]!["verdict"]!.GetValue<string>());
+        Assert.Equal(0, bl["variants"]!["a"]!["diff_points"]!.GetValue<int>());
+        Assert.Equal("held", bl["variants"]!["a"]!["verdict"]!.GetValue<string>());
         Assert.Contains("Against the baseline", File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md")));
 
         // A baseline whose cells are gone stands as pinned; a higher pinned score is a regression at tolerance 0 and held at 40.
@@ -51,8 +51,8 @@ public class BaselineTests
         Assert.Equal(1, Verbs.Report(repo.Root, id, tolerancePoints: 0, failOn: "regression"));
         bl = JsonNode.Parse(File.ReadAllText(statsFile))!["baseline"]!;
         Assert.Equal("as pinned", bl["scores"]!.GetValue<string>());
-        Assert.Equal(-33, bl["arms"]!["a"]!["diff_points"]!.GetValue<int>());
-        Assert.Equal("regressed", bl["arms"]!["a"]!["verdict"]!.GetValue<string>());
+        Assert.Equal(-33, bl["variants"]!["a"]!["diff_points"]!.GetValue<int>());
+        Assert.Equal("regressed", bl["variants"]!["a"]!["verdict"]!.GetValue<string>());
         Assert.Equal(0, Verbs.Report(repo.Root, id, tolerancePoints: 40, failOn: "regression"));
 
         // Re-baselining one task keeps the other pins.
@@ -67,7 +67,7 @@ public class BaselineTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; });
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
@@ -88,29 +88,29 @@ public class BaselineTests
         Assert.Equal("answer-short", gap["check"]!.GetValue<string>());
         Assert.Equal(id, gap["experiment"]!.GetValue<string>());
         Assert.Equal(exam.Tasks.Count, gap["tasks"]!.AsArray().Count);
-        Assert.Equal(1.0, bl["arms"]!["a"]!["tasks"]!["plain"]!["baseline"]!.GetValue<double>());
+        Assert.Equal(1.0, bl["variants"]!["a"]!["tasks"]!["plain"]!["baseline"]!.GetValue<double>());
         Assert.Contains("never graded on the headline check `answer-short`", File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md")));
     }
 
     [Fact]
-    public void ReportAgainst_PairsEachArmWithItsOwnEarlierRun_AndNamesAnArmTheOtherLacks()
+    public void ReportAgainst_PairsEachVariantWithItsOwnEarlierRun_AndNamesAnVariantTheOtherLacks()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => { foreach (var a in e["arms"]!.AsArray()) a!["samples"] = 1; });
+        repo.EditJson("smoke/exam.json", e => { foreach (var a in e["variants"]!.AsArray()) a!["samples"] = 1; });
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var earlier = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, earlier), exam, TextWriter.Null);
 
-        // Arm b did worse on plain last time; arm a did not. A single pin could not show both.
+        // Variant b did worse on plain last time; variant a did not. A single pin could not show both.
         var cell = Layout.Cell(Layout.Experiment(repo.Root, earlier), "b", "plain", 1);
         var checks = JsonNode.Parse(File.ReadAllText(Path.Combine(cell, "checks.json")))!;
         checks["says-expected"]!["result"] = "fail";
         File.WriteAllText(Path.Combine(cell, "checks.json"), checks.ToJsonString());
 
-        // The new experiment adds an arm the earlier one never had.
-        repo.EditJson("smoke/exam.json", e => e["arms"]!.AsArray().Add(JsonNode.Parse("""{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 1 }""")));
+        // The new experiment adds a variant the earlier one never had.
+        repo.EditJson("smoke/exam.json", e => e["variants"]!.AsArray().Add(JsonNode.Parse("""{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 1 }""")));
         exam = repo.LoadExam("smoke");
         var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
@@ -119,13 +119,13 @@ public class BaselineTests
         var bl = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "stats.json")))!["baseline"]!;
         Assert.Equal(earlier, bl["against"]!.GetValue<string>());
         Assert.Equal("recomputed", bl["scores"]!.GetValue<string>());
-        Assert.Equal("held", bl["arms"]!["a"]!["verdict"]!.GetValue<string>());
-        Assert.Equal("improved", bl["arms"]!["b"]!["verdict"]!.GetValue<string>());
-        Assert.Equal(100, bl["arms"]!["b"]!["tasks"]!["plain"]!["diff_points"]!.GetValue<int>());
-        Assert.Null(bl["arms"]!["c"]);
+        Assert.Equal("held", bl["variants"]!["a"]!["verdict"]!.GetValue<string>());
+        Assert.Equal("improved", bl["variants"]!["b"]!["verdict"]!.GetValue<string>());
+        Assert.Equal(100, bl["variants"]!["b"]!["tasks"]!["plain"]!["diff_points"]!.GetValue<int>());
+        Assert.Null(bl["variants"]!["c"]);
         Assert.Equal(["c"], bl["unpaired"]!.AsArray().Select(x => x!.GetValue<string>()));
         var summary = File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md"));
-        Assert.Contains($"Against {earlier}, arm by arm", summary);
+        Assert.Contains($"Against {earlier}, variant by variant", summary);
         Assert.Contains($"not in {earlier}", summary);
 
         Assert.Throws<ProctorException>(() => Verbs.Report(repo.Root, earlier, againstId: "no-such-experiment"));

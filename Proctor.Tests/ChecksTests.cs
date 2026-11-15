@@ -215,7 +215,7 @@ public class ChecksTests
     public void Script_SeesTheCellInItsEnvironment()
     {
         using var repo = new TestRepo();
-        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_TASK\" = c ] && [ \"$PROCTOR_ARM\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_CELL\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
+        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_TASK\" = c ] && [ \"$PROCTOR_VARIANT\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_CELL\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
         File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var cell = Cell(JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject(), Path.Combine(repo.Root, "exams", "e"), repo.Root);
         Assert.Equal("pass", Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/env.sh\"}")!.AsObject(), cell, Fixture("plain")).Result);

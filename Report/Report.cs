@@ -27,8 +27,8 @@ static class Report
     record Pairs(List<(string Key, string Value)> Items, string? Class = null) : Block;  // "roles": the keys are check roles
     record Table(List<string> Header, List<List<Cell>> Rows, HashSet<int> Numeric, string? Class = null) : Block;
     record Label(string Text) : Block;                                             // a small heading inside a task card
-    record Card(string Title, string? DiffTitle, List<CardArm> Arms, List<Block> Lines, List<Block> Foot) : Block;  // the verdict: a chart, then what moved
-    record CardArm(string Arm, bool Reference, RateJson? Pass, double? Mark, CardDiff? Diff);                      // one chart row; Mark is the baseline's own score
+    record Card(string Title, string? DiffTitle, List<CardVariant> Variants, List<Block> Lines, List<Block> Foot) : Block;  // the verdict: a chart, then what moved
+    record CardVariant(string Variant, bool Reference, RateJson? Pass, double? Mark, CardDiff? Diff);                      // one chart row; Mark is the baseline's own score
     record CardDiff(int Points, int Lo, int Hi, string Word, string? Tone, bool Confirmed);
     record TaskCard(string Name, string Prompt, List<string> Facts, List<Block> Body) : Block;
     /// <summary>A table cell: the text both renderings show, and the HTML to use instead when the page can carry a link or a hover.</summary>
@@ -43,8 +43,8 @@ static class Report
 
     static List<Block> Blocks(StatsFile stats, List<ResultRow> rows, Experiment exp, List<JudgeUse>? judges)
     {
-        var arms = stats.Arms.Keys.ToList();
-        var first = arms[0];
+        var variants = stats.Variants.Keys.ToList();
+        var first = variants[0];
         var d = stats.Descriptions;
         var bl = stats.Baseline;
         var vs = Vs(bl);
@@ -57,43 +57,43 @@ static class Report
         b.Add(new Title(stats.Exam, created.ToString("dddd, d MMMM yyyy"), created.ToString("HH:mm")));
         if (d.Exam is { } about) b.Add(new Para(about));
         b.Add(VerdictCard(stats));
-        var bySamples = arms.GroupBy(a => Samples(exp, a)).ToList();
-        var tasksLine = bySamples.Count == 1 ? $"{stats.NTasks}, each run {Times(bySamples[0].Key)} per arm"
+        var bySamples = variants.GroupBy(a => Samples(exp, a)).ToList();
+        var tasksLine = bySamples.Count == 1 ? $"{stats.NTasks}, each run {Times(bySamples[0].Key)} per variant"
             : $"{stats.NTasks}, each run " + string.Join("; ", bySamples.Select(g => $"{Times(g.Key)} by {Join(g.Select(a => $"`{a}`"))}"));
-        var runsPerArm = bySamples.Count == 1 ? $"Run **{Times(bySamples[0].Key)}** per arm"
-            : $"Run **{string.Join("** or **", bySamples.Select(g => Times(g.Key)))}** per arm, as [Arms](#arms) lists";
+        var runsPerVariant = bySamples.Count == 1 ? $"Run **{Times(bySamples[0].Key)}** per variant"
+            : $"Run **{string.Join("** or **", bySamples.Select(g => Times(g.Key)))}** per variant, as [Variants](#variants) lists";
         b.Add(new Pairs(
         [
             ("Host", exp.Host),
-            ("Arms", $"{arms.Count}: " + string.Join(", ", arms.Select(a => a == first && arms.Count > 1 ? $"`{a}` (the reference)" : $"`{a}`"))),
+            ("Variants", $"{variants.Count}: " + string.Join(", ", variants.Select(a => a == first && variants.Count > 1 ? $"`{a}` (the reference)" : $"`{a}`"))),
             ("Tasks", tasksLine),
-            ("Runs", $"{stats.Arms.Values.Sum(a => a.Planned)} planned, {stats.Arms.Values.Sum(a => a.Analysed)} counted"),
+            ("Runs", $"{stats.Variants.Values.Sum(a => a.Planned)} planned, {stats.Variants.Values.Sum(a => a.Analysed)} counted"),
         ]));
         foreach (var u in stats.UndecidedChecks)
             b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Runs} of the {u.Of} runs it applies to. Its pass rates below are over the {u.Of - u.Runs} runs it decided, and the check needs rewriting before this experiment is conclusive."));
         foreach (var x in stats.ErroredChecks ?? [])
         {
             var headline = stats.PassChecks.Contains(x.Check);
-            var where = x.Arms.Count == arms.Count && arms.Count > 1 ? "on every arm" : $"on {Join(x.Arms.Keys.Select(a => $"`{a}`"))}";
-            b.Add(new Warning($"The check `{x.Check}` ({CheckText(stats, x.Check)}) could not grade {x.Runs} of the {x.Of} runs it applies to, {where} ({string.Join(", ", x.Arms.Select(a => $"`{a.Key}` {a.Value}"))}). "
+            var where = x.Variants.Count == variants.Count && variants.Count > 1 ? "on every variant" : $"on {Join(x.Variants.Keys.Select(a => $"`{a}`"))}";
+            b.Add(new Warning($"The check `{x.Check}` ({CheckText(stats, x.Check)}) could not grade {x.Runs} of the {x.Of} runs it applies to, {where} ({string.Join(", ", x.Variants.Select(a => $"`{a.Key}` {a.Value}"))}). "
                 + (headline ? "It is a headline check, so each of those runs counts as failed and the pass rates are lower by as much. " : $"Its rates below are over the {x.Of - x.Runs} runs it graded. ")
                 + "Each run's reason says why; the check needs fixing before its result means much."));
         }
         foreach (var g in bl?.Gaps ?? [])
-            b.Add(new Warning($"{(bl!.Against is null ? "The baseline's pinned runs" : "The earlier runs")}, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the {vs} is the score {(bl.Against is null ? "as pinned" : "that experiment gave")}, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the arm."));
+            b.Add(new Warning($"{(bl!.Against is null ? "The baseline's pinned runs" : "The earlier runs")}, from ``{g.Experiment}``, were never graded on the headline check `{g.Check}`. On {(g.Tasks.Count == 1 ? "its task" : $"those {g.Tasks.Count} tasks")} ({string.Join(", ", g.Tasks.Select(t => $"`{t}`"))}) the {vs} is the score {(bl.Against is null ? "as pinned" : "that experiment gave")}, decided by the headline checks of the time, so a difference there is partly the change in checks and not only the variant."));
 
-        // 2. Arms
-        b.Add(new Heading("Arms", "arms"));
-        b.Add(new Para("An arm is one configuration under test: a harness, a provider and a model, run over every task." + (arms.Count > 1 ? " The first arm is the reference the others are compared with." : ""), "explain"));
+        // 2. Variants
+        b.Add(new Heading("Variants", "variants"));
+        b.Add(new Para("A variant is one configuration under test: a harness, a provider and a model, run over every task." + (variants.Count > 1 ? " The first variant is the reference the others are compared with." : ""), "explain"));
         var bundles = exp.Bundles is { Count: > 0 };
-        b.Add(new Table(["Arm", "What it is", "Harness", "Provider", "Model", "Runs per task", .. bundles ? ["Bundle"] : Array.Empty<string>()],
-            arms.Select(a => (List<Cell>)[Id(a), T(d.Arms.GetValueOrDefault(a, "")), T(Harness(exp, a)), T(ArmField(exp, a, "provider", "—")), T(ArmField(exp, a, "model")), T(Samples(exp, a).ToString()),
+        b.Add(new Table(["Variant", "What it is", "Harness", "Provider", "Model", "Runs per task", .. bundles ? ["Bundle"] : Array.Empty<string>()],
+            variants.Select(a => (List<Cell>)[Id(a), T(d.Variants.GetValueOrDefault(a, "")), T(Harness(exp, a)), T(VariantField(exp, a, "provider", "—")), T(VariantField(exp, a, "model")), T(Samples(exp, a).ToString()),
                 .. bundles ? [T(exp.BundleOf(a) is { } bu ? $"``{bu.Source}``" : "")] : Array.Empty<Cell>()]).ToList(),
             [5]));
 
-        // 3. Tasks: what each asks, what it is checked for, and how every arm did on it
+        // 3. Tasks: what each asks, what it is checked for, and how every variant did on it
         b.Add(new Heading("Tasks", "tasks"));
-        b.Add(new Para($"A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(bySamples.Count == 1 ? (bySamples[0].Key == 1 ? "Each task is run once per arm, so one attempt decides its score." : $"Each task is run {Times(bySamples[0].Key)} per arm, so a score is not one lucky or unlucky attempt.") : "Each arm runs each task the number of times Arms lists; a task run more than once scores the mean of its runs, so one lucky or unlucky attempt does not decide it.")}", "explain"));
+        b.Add(new Para($"A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(bySamples.Count == 1 ? (bySamples[0].Key == 1 ? "Each task is run once per variant, so one attempt decides its score." : $"Each task is run {Times(bySamples[0].Key)} per variant, so a score is not one lucky or unlucky attempt.") : "Each variant runs each task the number of times Variants lists; a task run more than once scores the mean of its runs, so one lucky or unlucky attempt does not decide it.")}", "explain"));
         b.Add(new Para("A check is one yes-or-no test over a finished run. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to a run:", "explain"));
         b.Add(new Pairs(
         [
@@ -111,19 +111,19 @@ static class Report
         }
         b.Add(new Para($"Each task's results show one mark per run: {Pass} passed, {Fail} failed, {Undecided} undecided, {NotCounted} not counted. Hover a mark for the reason; click it for the run. A task scores its mean over its counted, decided runs"
             + (bl is null ? "." : bl.TolerancePoints == 0 ? $", and is called better or worse than its {vs} on any difference." : $", and is called better or worse than its {vs} beyond {bl.TolerancePoints} points either way."), "explain"));
-        foreach (var task in stats.Tasks) b.Add(TaskBlock(stats, rows, task, runsPerArm));
+        foreach (var task in stats.Tasks) b.Add(TaskBlock(stats, rows, task, runsPerVariant));
 
         // 4. Results: only the numbers across all tasks
         b.Add(new Heading("Results", "results"));
         b.Add(new Para($"Pass rate is the share of counted runs in which every headline check held, averaged task by task so that one task with many runs does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with {stats.NTasks} task{(stats.NTasks == 1 ? "" : "s")} it is {(stats.NTasks < 10 ? "wide" : "what it is")}.", "explain"));
-        b.Add(new Table(["Arm", "Pass rate", "95% interval", "Passed / decided runs"],
-            arms.Select(a => (List<Cell>)[Id(a), T(RatePct(stats.Arms[a].Pass)), T(IntervalText(stats.Arms[a].Pass)), T(stats.Arms[a].Pass is { } p ? $"{p.KCells} / {p.NCells}" : "—")]).ToList(),
+        b.Add(new Table(["Variant", "Pass rate", "95% interval", "Passed / decided runs"],
+            variants.Select(a => (List<Cell>)[Id(a), T(RatePct(stats.Variants[a].Pass)), T(IntervalText(stats.Variants[a].Pass)), T(stats.Variants[a].Pass is { } p ? $"{p.KCells} / {p.NCells}" : "—")]).ToList(),
             [1, 2, 3]));
         if (stats.Comparisons.Count > 0)
         {
-            b.Add(new Para($"**Against the reference arm, `{first}`.** Each arm's pass rate minus `{first}`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with {stats.Mde.NPairs} task{(stats.Mde.NPairs == 1 ? "" : "s")}, it could be noise.", "explain"));
-            b.Add(new Table(["Arm", $"Difference from `{first}`", "95% interval", "Tasks better / worse / same", "Verdict"],
-                stats.Comparisons.Select(c => (List<Cell>)[Id(c.Arm), T(SignedPoints(c.DiffPoints)), T($"{Signed(c.Ci95[0])} to {Signed(c.Ci95[1])}"), T($"{c.Won} / {c.Lost} / {c.Tied}"),
+            b.Add(new Para($"**Against the reference variant, `{first}`.** Each variant's pass rate minus `{first}`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with {stats.Mde.NPairs} task{(stats.Mde.NPairs == 1 ? "" : "s")}, it could be noise.", "explain"));
+            b.Add(new Table(["Variant", $"Difference from `{first}`", "95% interval", "Tasks better / worse / same", "Verdict"],
+                stats.Comparisons.Select(c => (List<Cell>)[Id(c.Variant), T(SignedPoints(c.DiffPoints)), T($"{Signed(c.Ci95[0])} to {Signed(c.Ci95[1])}"), T($"{c.Won} / {c.Lost} / {c.Tied}"),
                     ComparisonVerdict(c)]).ToList(),
                 [1, 2, 3]));
         }
@@ -132,12 +132,12 @@ static class Report
         {
             b.Add(new Para((bl.Against is null
                 ? $"**Against the baseline.** The baseline is the score pinned for each task on {bl.Set[..10]}, scores {bl.Scores}."
-                : $"**Against ``{bl.Against}``.** Each arm is compared with its earlier run: the arm of the same id in experiment ``{bl.Against}``, from {bl.Set[..10]}, task by task, scores {bl.Scores}.")
-                + $" The verdict compares each arm's score with it and calls anything more than {bl.TolerancePoints} point{(bl.TolerancePoints == 1 ? "" : "s")} either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.", "explain"));
-            b.Add(new Table(["Arm", $"Difference from {vs}", "95% interval", "Tasks better / worse / same", "Verdict"],
-                arms.Select(a => bl.Arms.TryGetValue(a, out var g)
+                : $"**Against ``{bl.Against}``.** Each variant is compared with its earlier run: the variant of the same id in experiment ``{bl.Against}``, from {bl.Set[..10]}, task by task, scores {bl.Scores}.")
+                + $" The verdict compares each variant's score with it and calls anything more than {bl.TolerancePoints} point{(bl.TolerancePoints == 1 ? "" : "s")} either way a change; it is confirmed only when the whole 95% interval agrees, so a small number of tasks cannot hide behind the verdict.", "explain"));
+            b.Add(new Table(["Variant", $"Difference from {vs}", "95% interval", "Tasks better / worse / same", "Verdict"],
+                variants.Select(a => bl.Variants.TryGetValue(a, out var g)
                     ? (List<Cell>)[Id(a), T(SignedPoints(g.DiffPoints)), T($"{Signed(g.Ci95[0])} to {Signed(g.Ci95[1])}"), T($"{g.Won} / {g.Lost} / {g.Tied}"),
-                        new Cell($"**{ArmWord(g.Verdict)}** {Confirmation(g.Confirmed)}", $"<b class=\"{ToneClass(ArmTone(g.Verdict))}\">{ArmWord(g.Verdict)}</b> {Confirmation(g.Confirmed)}")]
+                        new Cell($"**{VariantWord(g.Verdict)}** {Confirmation(g.Confirmed)}", $"<b class=\"{ToneClass(VariantTone(g.Verdict))}\">{VariantWord(g.Verdict)}</b> {Confirmation(g.Confirmed)}")]
                     : [Id(a), T("—"), T("—"), T("—"), T(Unpaired(bl, a))]).ToList(),
                 [1, 2, 3]));
         }
@@ -145,11 +145,11 @@ static class Report
 
         // 5. Failures
         b.Add(new Heading("Failures", "failures"));
-        b.Add(new Para("For each arm, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check's weakness, not the arm's.", "explain"));
-        foreach (var a in arms)
+        b.Add(new Para("For each variant, the checks that failed in at least one counted run, most frequent first, with the tasks they failed on. A check that could not decide a run, or could not grade it at all, is listed apart: that is the check's weakness, not the variant's.", "explain"));
+        foreach (var a in variants)
         {
-            var s = stats.Arms[a];
-            var who = d.Arms.TryGetValue(a, out var ad) ? $"**`{a}`** ({ad})" : $"**`{a}`**";
+            var s = stats.Variants[a];
+            var who = d.Variants.TryGetValue(a, out var ad) ? $"**`{a}`** ({ad})" : $"**`{a}`**";
             if (s.Analysed == 0) { b.Add(new Para($"{who}: no run was counted.")); continue; }
             b.Add(new Para(s.Failures.Count == 0 ? $"{who} failed no check in any of its {s.Analysed} counted run{(s.Analysed == 1 ? "" : "s")}." : $"{who} failed {s.Failures.Count} check{(s.Failures.Count == 1 ? "" : "s")}:"));
             if (s.Failures.Count > 0)
@@ -163,7 +163,7 @@ static class Report
         }
         if (stats.ErroredChecks is { Count: > 0 } erroredChecks)
             b.Add(new Para($"{Join(erroredChecks.Select(x => $"`{x.Check}`"))} could not grade {(erroredChecks.Count == 1 ? "many runs" : "many runs each")}, and {(erroredChecks.Count == 1 ? "is" : "are")} left out of the lists above; see the warning at the top."));
-        var undecided = arms.SelectMany(a => stats.Arms[a].Undecided).ToList();
+        var undecided = variants.SelectMany(a => stats.Variants[a].Undecided).ToList();
         if (undecided.Count > 0 && undecided.Count <= 5)
         {
             b.Add(new Para($"{undecided.Count} run{(undecided.Count == 1 ? " was" : "s were")} undecided, and can be reviewed top to bottom:"));
@@ -176,47 +176,47 @@ static class Report
         var unequal = UnequalLoss(stats);
         b.Add(new Heading("Run summary", "run-summary", Flagged: unequal is not null));
         b.Add(new Para("This is how far each run in the exam got before terminating. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.", "explain"));
-        b.Add(new Table(["Arm", "Planned", "Attempted", "Completed", "Graded", "Counted", "Decided"],
-            arms.Select(a => { var s = stats.Arms[a]; return (List<Cell>)[Id(a), T($"{s.Planned}"), T($"{s.Attempted}"), T($"{s.Completed}"), T($"{s.Graded}"), T($"{s.Analysed}"), T($"{s.Decided}")]; }).ToList(),
+        b.Add(new Table(["Variant", "Planned", "Attempted", "Completed", "Graded", "Counted", "Decided"],
+            variants.Select(a => { var s = stats.Variants[a]; return (List<Cell>)[Id(a), T($"{s.Planned}"), T($"{s.Attempted}"), T($"{s.Completed}"), T($"{s.Graded}"), T($"{s.Analysed}"), T($"{s.Decided}")]; }).ToList(),
             [1, 2, 3, 4, 5, 6]));
         if (unequal is not null) b.Add(new Warning(unequal));
-        var excluded = arms.SelectMany(a => stats.Arms[a].Excluded).ToList();
+        var excluded = variants.SelectMany(a => stats.Variants[a].Excluded).ToList();
         if (excluded.Count == 0) b.Add(new Para("No run was left out."));
         else
         {
             b.Add(new Para("Runs left out, and why:"));
             b.Add(new Bullets(excluded.Select(ex => $"{RunLink(rows, ex.Cell)}: {ExclusionText(ex)}").ToList()));
         }
-        b.Add(new Para("How each completed run ended, per arm. `ok` is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.", "explain"));
+        b.Add(new Para("How each completed run ended, per variant. `ok` is a normal finish; anything else is the harness stopping the run (a limit, an error from the provider), which the checks then grade like any other.", "explain"));
         var reasons = ExitReasons(stats).ToList();
-        b.Add(new Table(["Arm", .. reasons.Select(r => $"`{r}`")],
-            arms.Select(a => (List<Cell>)[Id(a), .. reasons.Select(r => T(ExitCell(stats.Arms[a], rows, a, r)))]).ToList(),
+        b.Add(new Table(["Variant", .. reasons.Select(r => $"`{r}`")],
+            variants.Select(a => (List<Cell>)[Id(a), .. reasons.Select(r => T(ExitCell(stats.Variants[a], rows, a, r)))]).ToList(),
             Enumerable.Range(1, reasons.Count).ToHashSet()));
 
         // 7. Check pass rates
         b.Add(new Heading("Check pass rates", "check-rates"));
-        b.Add(new Para("How often each check held, per arm, over the runs it applies to. Headline and guardrail checks are over counted runs; a validity check is over every graded run, because it says how many were counted. A run the check could not decide is out of its rate and counted beside it.", "explain"));
-        b.Add(new Table(["Check", "What it tests", "Role", .. arms.Select(a => $"`{a}`")],
-            CheckNames(stats).Select(c => (List<Cell>)[Id(c), T(CheckText(stats, c)), T(Role(stats, c)), .. arms.Select(a => T(CheckRateText(stats.Arms[a].Checks.GetValueOrDefault(c))))]).ToList(),
-            Enumerable.Range(3, arms.Count).ToHashSet()));
+        b.Add(new Para("How often each check held, per variant, over the runs it applies to. Headline and guardrail checks are over counted runs; a validity check is over every graded run, because it says how many were counted. A run the check could not decide is out of its rate and counted beside it.", "explain"));
+        b.Add(new Table(["Check", "What it tests", "Role", .. variants.Select(a => $"`{a}`")],
+            CheckNames(stats).Select(c => (List<Cell>)[Id(c), T(CheckText(stats, c)), T(Role(stats, c)), .. variants.Select(a => T(CheckRateText(stats.Variants[a].Checks.GetValueOrDefault(c))))]).ToList(),
+            Enumerable.Range(3, variants.Count).ToHashSet()));
 
         // 8. Cost and effort
         var unit = DurationUnit(stats);
         b.Add(new Heading("Cost and effort", "cost"));
-        var costed = arms.Any(a => stats.Arms[a].CostUsd is not null);
-        b.Add(new Para($"Per completed run. Duration is wall time in {(unit == "min" ? "minutes" : "seconds")}, hooks included; tokens are the run's own count{(arms.Any(a => stats.Arms[a].TokensEstimated) ? ", and some counts are the harness's estimate rather than the provider's" : "")}. "
-            + (costed ? "Cost is what the agent reported for its runs (Claude Code its own count, Codex as Harbor priced its tokens); an arm whose harness reports none shows none." : "Cost is not shown: no arm's harness reports one."), "explain"));
-        b.Add(new Table(["Arm", $"Duration ({unit}): median", "p90", "mean", "range", "Tokens: median", "p90", "mean", "range", .. costed ? ["Cost: median", "total"] : Array.Empty<string>()],
-            arms.Select(a => { var s = stats.Arms[a]; return (List<Cell>)[Id(a), .. SummaryText(s.DurationMs, v => Duration(v, unit)).Select(T), .. SummaryText(s.TokensTotal, Tokens).Select(T),
+        var costed = variants.Any(a => stats.Variants[a].CostUsd is not null);
+        b.Add(new Para($"Per completed run. Duration is wall time in {(unit == "min" ? "minutes" : "seconds")}, hooks included; tokens are the run's own count{(variants.Any(a => stats.Variants[a].TokensEstimated) ? ", and some counts are the harness's estimate rather than the provider's" : "")}. "
+            + (costed ? "Cost is what the agent reported for its runs (Claude Code its own count, Codex as Harbor priced its tokens); a variant whose harness reports none shows none." : "Cost is not shown: no variant's harness reports one."), "explain"));
+        b.Add(new Table(["Variant", $"Duration ({unit}): median", "p90", "mean", "range", "Tokens: median", "p90", "mean", "range", .. costed ? ["Cost: median", "total"] : Array.Empty<string>()],
+            variants.Select(a => { var s = stats.Variants[a]; return (List<Cell>)[Id(a), .. SummaryText(s.DurationMs, v => Duration(v, unit)).Select(T), .. SummaryText(s.TokensTotal, Tokens).Select(T),
                 .. costed ? [T(s.CostUsd is { } c ? Dollars(c.Median) : ""), T(s.CostTotalUsd is { } total ? Dollars(total) : "")] : Array.Empty<Cell>()]; }).ToList(),
             Enumerable.Range(1, costed ? 10 : 8).ToHashSet()));
 
         // 9. Every run
         b.Add(new Heading("Every run", "every-run"));
         b.Add(new Para("Every run, failures first. *Reason* is the first check that did not hold and what it saw, or why the run never completed.", "explain"));
-        b.Add(new Table(["Arm", "Task", "Run", "Result", "Ended", $"Duration ({unit})", "Tokens", "Reason"],
+        b.Add(new Table(["Variant", "Task", "Run", "Result", "Ended", $"Duration ({unit})", "Tokens", "Reason"],
             Ordered(rows).Select(r => (List<Cell>)[
-                new Cell($"`{r.Arm}`", Anchor: $"run-{r.RunId}"), Id(r.Task), T($"{r.Sample}"),
+                new Cell($"`{r.Variant}`", Anchor: $"run-{r.RunId}"), Id(r.Task), T($"{r.Sample}"),
                 new Cell($"{Glyph(r)} {Outcome(r)}", $"<span class=\"{GlyphClass(r)}\" title=\"{E(r.RunId)}\">{Glyph(r)} {E(Outcome(r))}</span>"),
                 T(r.ExitReason is null ? "" : $"`{r.ExitReason}`"), T(r.DurationMs is { } dm ? Duration(dm, unit) : ""), T(r.Usage?.Total is { } t ? Tokens(t) : ""), T(Paths(Reason(r)))]).ToList(),
             [2, 5, 6]));
@@ -232,67 +232,67 @@ static class Report
     // ---- The verdict card ----
 
     /// <summary>
-    /// The chart (each arm's pass rate with its interval; with a baseline, or several arms, each arm's change with its
-    /// interval), then a line for each arm that moved, one for every arm that did not, and the foot.
-    /// Against the baseline when there is one, every arm; otherwise every arm against the reference.
+    /// The chart (each variant's pass rate with its interval; with a baseline, or several variants, each variant's change with its
+    /// interval), then a line for each variant that moved, one for every variant that did not, and the foot.
+    /// Against the baseline when there is one, every variant; otherwise every variant against the reference.
     /// </summary>
     static Card VerdictCard(StatsFile stats)
     {
-        var arms = stats.Arms.Keys.ToList();
-        var first = arms[0];
+        var variants = stats.Variants.Keys.ToList();
+        var first = variants[0];
         var foot = new List<Block>();
         var lines = new List<Block>();
         var same = new List<string>();
         var confirmedAll = true;
         string title;
         string? diffTitle = null;
-        var rows = new List<CardArm>();
+        var rows = new List<CardVariant>();
 
-        void Moved(string arm, string drivers, string reach, bool allHeld)
+        void Moved(string variant, string drivers, string reach, bool allHeld)
         {
-            if (allHeld && reach.Length == 0) { same.Add(arm); return; }
+            if (allHeld && reach.Length == 0) { same.Add(variant); return; }
             var text = drivers.Length > 0 ? char.ToLowerInvariant(drivers[0]) + drivers[1..] : "";
-            lines.Add(new Para(Sentences($"**{arm}**: {text}", reach)));
+            lines.Add(new Para(Sentences($"**{variant}**: {text}", reach)));
         }
 
         if (stats.Baseline is { } bl)
         {
-            title = bl.Against is null ? $"Against the baseline pinned {ShortDate(bl.Set)}" : $"Against {bl.Against}, arm by arm";
+            title = bl.Against is null ? $"Against the baseline pinned {ShortDate(bl.Set)}" : $"Against {bl.Against}, variant by variant";
             diffTitle = bl.Against is null ? "Change against the baseline" : $"Change against {bl.Against}";
-            foreach (var a in arms)
+            foreach (var a in variants)
             {
-                var reference = a == first && arms.Count > 1;
-                if (!bl.Arms.TryGetValue(a, out var g))
+                var reference = a == first && variants.Count > 1;
+                if (!bl.Variants.TryGetValue(a, out var g))
                 {
-                    rows.Add(new CardArm(a, reference, stats.Arms[a].Pass, null, null));
+                    rows.Add(new CardVariant(a, reference, stats.Variants[a].Pass, null, null));
                     lines.Add(new Para($"**{a}**: {Unpaired(bl, a)}."));
                     continue;
                 }
-                rows.Add(new CardArm(a, reference, stats.Arms[a].Pass, g.Score, new CardDiff(g.DiffPoints, g.Ci95[0], g.Ci95[1], TaskWord(g.Verdict), ArmTone(g.Verdict), g.Confirmed)));
+                rows.Add(new CardVariant(a, reference, stats.Variants[a].Pass, g.Score, new CardDiff(g.DiffPoints, g.Ci95[0], g.Ci95[1], TaskWord(g.Verdict), VariantTone(g.Verdict), g.Confirmed)));
                 confirmedAll &= g.Confirmed;
                 Moved(a, Drivers(g.Tasks.Select(t => (t.Key, t.Value.DiffPoints, t.Value.Verdict)), g.Verdict),
                     ShortReach(g.NPairs, g.MdePoints, stats.Mde.NPairs), g.Tasks.Values.All(t => t.Verdict == "held"));
             }
             if (same.Count > 0) lines.Add(new Para($"{Join(same.Select(s => $"**{s}**"))}: same as the {Vs(bl)} on every task."));
-            if (bl.Pinned is { Count: > 0 } pinned && arms.Any(a => bl.Arms.ContainsKey(a) && !pinned.Contains(a)))
-                lines.Add(new Para($"The baseline is {Join(pinned.Select(a => $"`{a}`"))}'s runs from {ShortDate(bl.Set)}; every arm is compared with those scores, including arms the baseline never ran.", "explain"));
+            if (bl.Pinned is { Count: > 0 } pinned && variants.Any(a => bl.Variants.ContainsKey(a) && !pinned.Contains(a)))
+                lines.Add(new Para($"The baseline is {Join(pinned.Select(a => $"`{a}`"))}'s runs from {ShortDate(bl.Set)}; every variant is compared with those scores, including variants the baseline never ran.", "explain"));
         }
-        else if (arms.Count > 1)
+        else if (variants.Count > 1)
         {
-            title = $"Against the reference arm, {first}";
+            title = $"Against the reference variant, {first}";
             diffTitle = $"Change against {first}";
-            var byArm = stats.Comparisons.ToDictionary(c => c.Arm);
-            foreach (var a in arms)
+            var byVariant = stats.Comparisons.ToDictionary(c => c.Variant);
+            foreach (var a in variants)
             {
-                if (!byArm.TryGetValue(a, out var c))
+                if (!byVariant.TryGetValue(a, out var c))
                 {
-                    rows.Add(new CardArm(a, a == first, stats.Arms[a].Pass, null, null));
+                    rows.Add(new CardVariant(a, a == first, stats.Variants[a].Pass, null, null));
                     if (a != first) lines.Add(new Para($"**{a}**: no task decided on both sides."));
                     continue;
                 }
                 var verdict = GuardVerdict(c.DiffPoints);
                 var confirmed = verdict != "held" && c.Verdict != "no-detectable-difference";
-                rows.Add(new CardArm(a, false, stats.Arms[a].Pass, null, new CardDiff(c.DiffPoints, c.Ci95[0], c.Ci95[1], TaskWord(verdict), ArmTone(verdict), confirmed)));
+                rows.Add(new CardVariant(a, false, stats.Variants[a].Pass, null, new CardDiff(c.DiffPoints, c.Ci95[0], c.Ci95[1], TaskWord(verdict), VariantTone(verdict), confirmed)));
                 confirmedAll &= confirmed;
                 Moved(a, Drivers(c.Tasks.Select(t => (t.Key, t.Value, GuardVerdict(t.Value))), verdict),
                     ShortReach(c.NPairs, c.MdePoints, stats.Mde.NPairs), c.Tasks.Values.All(v => v == 0));
@@ -302,8 +302,8 @@ static class Report
         else
         {
             title = "Result";
-            rows.Add(new CardArm(first, false, stats.Arms[first].Pass, null, null));
-            if (stats.Arms[first].Pass is null) lines.Add(new Para($"**{first}** has no decided run."));
+            rows.Add(new CardVariant(first, false, stats.Variants[first].Pass, null, null));
+            if (stats.Variants[first].Pass is null) lines.Add(new Para($"**{first}** has no decided run."));
         }
 
         if (!confirmedAll)
@@ -318,60 +318,60 @@ static class Report
         return new Card(title, diffTitle, rows, lines, foot);
     }
 
-    /// <summary>What an arm is compared with, in a sentence: the exam's pinned baseline, or with report --against, its earlier run.</summary>
+    /// <summary>What a variant is compared with, in a sentence: the exam's pinned baseline, or with report --against, its earlier run.</summary>
     static string Vs(BaselineStats? bl) => bl?.Against is null ? "baseline" : "earlier run";
 
-    /// <summary>Why an arm has no row against the baseline: the other experiment has no such arm, or they share no task.</summary>
-    static string Unpaired(BaselineStats bl, string arm) => bl.Unpaired?.Contains(arm) == true ? $"not in {bl.Against}" : "no shared tasks";
+    /// <summary>Why a variant has no row against the baseline: the other experiment has no such variant, or they share no task.</summary>
+    static string Unpaired(BaselineStats bl, string variant) => bl.Unpaired?.Contains(variant) == true ? $"not in {bl.Against}" : "no shared tasks";
 
     static string Capital(string s) => char.ToUpperInvariant(s[0]) + s[1..];
 
-    /// <summary>The tasks behind an arm's verdict: the ones that moved, the arm's own direction first, then the ones that held.</summary>
-    static string Drivers(IEnumerable<(string Task, int Diff, string Verdict)> tasks, string armVerdict)
+    /// <summary>The tasks behind a variant's verdict: the ones that moved, the variant's own direction first, then the ones that held.</summary>
+    static string Drivers(IEnumerable<(string Task, int Diff, string Verdict)> tasks, string variantVerdict)
     {
         var list = tasks.ToList();
         string Moved(string verdict) => Join(list.Where(t => t.Verdict == verdict).Select(t => $"{TaskLink(t.Task)} ({Signed(t.Diff)})"));
         var lower = list.Any(t => t.Verdict == "regressed") ? $"lower on {Moved("regressed")}" : null;
         var higher = list.Any(t => t.Verdict == "improved") ? $"higher on {Moved("improved")}" : null;
         var same = list.Any(t => t.Verdict == "held") ? $"same on {Join(list.Where(t => t.Verdict == "held").Select(t => TaskLink(t.Task)))}" : null;
-        var parts = (armVerdict == "improved" ? [higher, lower, same] : new[] { lower, higher, same }).OfType<string>().ToList();
+        var parts = (variantVerdict == "improved" ? [higher, lower, same] : new[] { lower, higher, same }).OfType<string>().ToList();
         if (parts.Count == 0) return "";
         var text = string.Join("; ", parts) + ".";
         return char.ToUpperInvariant(text[0]) + text[1..];
     }
 
-    /// <summary>An arm paired on fewer tasks than the run reaches less far than the card's foot says; its row says how far.</summary>
+    /// <summary>A variant paired on fewer tasks than the run reaches less far than the card's foot says; its row says how far.</summary>
     static string ShortReach(int nPairs, int? mdePoints, int runPairs) => mdePoints is { } p
         ? $"Paired on {nPairs} of {runPairs} tasks, so it can only confirm a change of about {p} points."
         : "";
 
     static string Sentences(params string[] parts) => string.Join(" ", parts.Where(p => p.Length > 0));
 
-    /// <summary>An arm that lost more of its runs than another rests on fewer of them; the card says so and points at Run summary.</summary>
+    /// <summary>A variant that lost more of its runs than another rests on fewer of them; the card says so and points at Run summary.</summary>
     static IEnumerable<string> Careful(StatsFile stats)
     {
         if (UnequalLoss(stats) is null) yield break;
-        var lost = stats.Arms.ToDictionary(a => a.Key, a => a.Value.Planned - a.Value.Decided);
+        var lost = stats.Variants.ToDictionary(a => a.Key, a => a.Value.Planned - a.Value.Decided);
         var least = lost.Values.Min();
-        foreach (var (arm, n) in lost.Where(l => l.Value > least))
+        foreach (var (variant, n) in lost.Where(l => l.Value > least))
         {
-            var others = Join(lost.Where(o => o.Key != arm).Select(o => $"{o.Key} lost {(o.Value == 0 ? "none" : o.Value.ToString())}"));
-            yield return $"**Read {arm} with care:** it lost {n} of its {stats.Arms[arm].Planned} runs and {others}, so {arm}'s rate rests on fewer runs. See [Run summary](#run-summary).";
+            var others = Join(lost.Where(o => o.Key != variant).Select(o => $"{o.Key} lost {(o.Value == 0 ? "none" : o.Value.ToString())}"));
+            yield return $"**Read {variant} with care:** it lost {n} of its {stats.Variants[variant].Planned} runs and {others}, so {variant}'s rate rests on fewer runs. See [Run summary](#run-summary).";
         }
     }
 
     static string GuardVerdict(int diffPoints) => diffPoints < 0 ? "regressed" : diffPoints > 0 ? "improved" : "held";
-    static string ArmWord(string verdict) => verdict switch { "regressed" => "Worse", "improved" => "Better", _ => "Unchanged" };
-    static string? ArmTone(string verdict) => verdict switch { "regressed" => "bad", "improved" => "good", _ => null };
+    static string VariantWord(string verdict) => verdict switch { "regressed" => "Worse", "improved" => "Better", _ => "Unchanged" };
+    static string? VariantTone(string verdict) => verdict switch { "regressed" => "bad", "improved" => "good", _ => null };
     static string TaskWord(string verdict) => verdict switch { "regressed" => "worse", "improved" => "better", _ => "same" };
     static string ToneClass(string? tone) => tone is null ? "vsame" : $"v{tone}";
     static string Confirmation(bool confirmed) => confirmed ? "(confirmed)" : "(unconfirmed)";
 
     // ---- A task card ----
 
-    static TaskCard TaskBlock(StatsFile stats, List<ResultRow> rows, string task, string runsPerArm)
+    static TaskCard TaskBlock(StatsFile stats, List<ResultRow> rows, string task, string runsPerVariant)
     {
-        var arms = stats.Arms.Keys.ToList();
+        var variants = stats.Variants.Keys.ToList();
         var bl = stats.Baseline;
         var checks = (stats.TaskDetails?.GetValueOrDefault(task)?.Checks ?? [])
             .OrderBy(k => k.Level switch { "task" => 0, "fixture" => 1, _ => 2 }).ToList();
@@ -385,7 +385,7 @@ static class Report
 
         var facts = new List<string>();
         if (FixtureOf(stats, task) is { } fixture) facts.Add($"Fixture **{fixture}**");
-        facts.Add(runsPerArm);
+        facts.Add(runsPerVariant);
         facts.Add($"**{checks.Count} check{(checks.Count == 1 ? "" : "s")}**: {string.Join(", ", where)}");
 
         var body = new List<Block>();
@@ -399,14 +399,14 @@ static class Report
                 [], "checks"));
         }
 
-        var baseline = bl?.Against is null ? bl?.Arms.Values.Select(a => a.Tasks.GetValueOrDefault(task)).FirstOrDefault(x => x is not null)?.Baseline : null;
+        var baseline = bl?.Against is null ? bl?.Variants.Values.Select(a => a.Tasks.GetValueOrDefault(task)).FirstOrDefault(x => x is not null)?.Baseline : null;
         body.Add(new Label("Results"));
-        body.Add(new Table(["Arm", "Runs", "Score", "Passed / decided", .. bl is null ? Array.Empty<string>() : [baseline is { } p ? $"vs baseline ({Pct(p)})" : $"vs {Vs(bl)}", "Verdict"]],
-            arms.Select(a =>
+        body.Add(new Table(["Variant", "Runs", "Score", "Passed / decided", .. bl is null ? Array.Empty<string>() : [baseline is { } p ? $"vs baseline ({Pct(p)})" : $"vs {Vs(bl)}", "Verdict"]],
+            variants.Select(a =>
             {
-                var runs = rows.Where(r => r.Arm == a && r.Task == task).OrderBy(r => r.Sample).ToList();
-                var score = stats.Arms[a].Tasks.GetValueOrDefault(task);
-                var against = bl?.Arms.GetValueOrDefault(a)?.Tasks.GetValueOrDefault(task);
+                var runs = rows.Where(r => r.Variant == a && r.Task == task).OrderBy(r => r.Sample).ToList();
+                var score = stats.Variants[a].Tasks.GetValueOrDefault(task);
+                var against = bl?.Variants.GetValueOrDefault(a)?.Tasks.GetValueOrDefault(task);
                 return (List<Cell>)[
                     new(a),
                     new(string.Join(" ", runs.Select(Glyph)), "<span class=\"marks\">" + string.Join("", runs.Select(r => $"<a href=\"#run-{E(r.RunId)}\" class=\"{GlyphClass(r)}\" title=\"{E(GlyphTitle(r))}\">{Glyph(r)}</a>")) + "</span>"),
@@ -415,26 +415,26 @@ static class Report
                     .. bl is null ? Array.Empty<Cell>() : against is null ? [new("—"), new("—")] :
                     [
                         new(SignedPoints(against.DiffPoints)),
-                        new(TaskWord(against.Verdict), $"<b class=\"{ToneClass(ArmTone(against.Verdict))}\">{TaskWord(against.Verdict)}</b>"),
+                        new(TaskWord(against.Verdict), $"<b class=\"{ToneClass(VariantTone(against.Verdict))}\">{TaskWord(against.Verdict)}</b>"),
                     ],
                 ];
             }).ToList(),
             [2, 3, 4], "results"));
 
-        var missed = arms.SelectMany(a => rows.Where(r => r.Arm == a && r.Task == task && !(r.Analysed && r.Pass == true)).OrderBy(r => r.Sample)).ToList();
+        var missed = variants.SelectMany(a => rows.Where(r => r.Variant == a && r.Task == task && !(r.Analysed && r.Pass == true)).OrderBy(r => r.Sample)).ToList();
         if (missed.Count > 0)
-            body.Add(new Bullets(missed.Select(r => $"[{r.Arm} run {r.Sample}](#run-{r.RunId}) {Outcome(r)}: {Paths(FirstReason(r))}").ToList(), "why"));
+            body.Add(new Bullets(missed.Select(r => $"[{r.Variant} run {r.Sample}](#run-{r.RunId}) {Outcome(r)}: {Paths(FirstReason(r))}").ToList(), "why"));
         return new TaskCard(task, TaskText(stats, task), facts, body);
     }
 
-    /// <summary>An arm against the reference in the card's words: the direction, and whether the interval confirms it.</summary>
+    /// <summary>A variant against the reference in the card's words: the direction, and whether the interval confirms it.</summary>
     static Cell ComparisonVerdict(Comparison c)
     {
         var verdict = GuardVerdict(c.DiffPoints);
         if (verdict == "held") return new("same");
         var word = TaskWord(verdict);
         var confirmed = Confirmation(c.Verdict != "no-detectable-difference");
-        return new($"**{word}** {confirmed}", $"<b class=\"{ToneClass(ArmTone(verdict))}\">{word}</b> {confirmed}");
+        return new($"**{word}** {confirmed}", $"<b class=\"{ToneClass(VariantTone(verdict))}\">{word}</b> {confirmed}");
     }
 
     static Cell RoleCell(StatsFile stats, string check) => new(Role(stats, check), $"<span class=\"role role-{Role(stats, check)}\">{Role(stats, check)}</span>");
@@ -445,9 +445,9 @@ static class Report
 
     static string? UnequalLoss(StatsFile stats)
     {
-        // A share, not a count: arms with different sample counts lose nothing by deciding different numbers of runs.
-        if (stats.Arms.Values.Select(a => (double)a.Decided / Math.Max(1, a.Planned)).Distinct().Count() <= 1) return null;
-        return "Arms lost runs unequally: " + string.Join(", ", stats.Arms.Select(a => $"`{a.Key}` decided {a.Value.Decided} of {a.Value.Planned}")) + ". The rates are over decided runs; the runs lost are listed here.";
+        // A share, not a count: variants with different sample counts lose nothing by deciding different numbers of runs.
+        if (stats.Variants.Values.Select(a => (double)a.Decided / Math.Max(1, a.Planned)).Distinct().Count() <= 1) return null;
+        return "Variants lost runs unequally: " + string.Join(", ", stats.Variants.Select(a => $"`{a.Key}` decided {a.Value.Decided} of {a.Value.Planned}")) + ". The rates are over decided runs; the runs lost are listed here.";
     }
 
     static string ExclusionText(Exclusion ex) => ex.Status switch
@@ -457,18 +457,18 @@ static class Report
         _ => $"{ex.Status}. {Paths(ex.Reason)}".TrimEnd('.', ' '),
     };
 
-    static string ExitCell(ArmStats a, List<ResultRow> rows, string arm, string reason)
+    static string ExitCell(VariantStats a, List<ResultRow> rows, string variant, string reason)
     {
         var n = a.ExitReasons.GetValueOrDefault(reason);
         if (a.Completed == 0) return "—";
         if (n == 0 || n > 3 || reason == "ok") return $"{n}";
-        var which = rows.Where(r => r.Arm == arm && r.ExitReason == reason).Select(r => $"`{r.Task}` run {r.Sample}");
+        var which = rows.Where(r => r.Variant == variant && r.ExitReason == reason).Select(r => $"`{r.Task}` run {r.Sample}");
         return $"{n} ({string.Join(", ", which)})";
     }
 
-    /// <summary>An exclusion's cell (arm/task/sample) as a link to its row under Every run.</summary>
+    /// <summary>An exclusion's cell (variant/task/sample) as a link to its row under Every run.</summary>
     static string RunLink(List<ResultRow> rows, string cell) =>
-        rows.FirstOrDefault(r => $"{r.Arm}/{r.Task}/{r.Sample}" == cell) is { } r ? $"[{cell}](#run-{r.RunId})" : $"`{cell}`";
+        rows.FirstOrDefault(r => $"{r.Variant}/{r.Task}/{r.Sample}" == cell) is { } r ? $"[{cell}](#run-{r.RunId})" : $"`{cell}`";
 
     static string TaskLink(string task) => $"[{task}](#task-{task})";
 
@@ -486,7 +486,7 @@ static class Report
     static string GlyphTitle(ResultRow r) => $"run {r.Sample}: {Outcome(r)}{(Reason(r).Length > 0 ? " — " + Reason(r) : "")} ({r.RunId})";
 
     static IEnumerable<ResultRow> Ordered(List<ResultRow> rows) =>
-        rows.OrderBy(r => !r.Analysed ? 1 : r.Undecided is not null ? 2 : r.Pass == true ? 3 : 0).ThenBy(r => r.Arm).ThenBy(r => r.Task).ThenBy(r => r.Sample);
+        rows.OrderBy(r => !r.Analysed ? 1 : r.Undecided is not null ? 2 : r.Pass == true ? 3 : 0).ThenBy(r => r.Variant).ThenBy(r => r.Task).ThenBy(r => r.Sample);
 
     /// <summary>A file path in free text (a hook, a script) set as code: `dir/name.ext`, at least one slash and an extension.</summary>
     static string Paths(string text) => Regex.Replace(text, @"(?<![\w/`.'""-])(?:[\w.-]+/)+[\w-]+\.\w+(?![\w/`])", "``$0``");
@@ -515,7 +515,7 @@ static class Report
     static string TaskText(StatsFile stats, string c) => stats.Descriptions.Tasks.GetValueOrDefault(c, c);
 
     static IEnumerable<string> CheckNames(StatsFile stats) =>
-        stats.PassChecks.Concat(stats.ValidityChecks).Concat(stats.Arms.Values.SelectMany(a => a.Checks.Keys)).Distinct();
+        stats.PassChecks.Concat(stats.ValidityChecks).Concat(stats.Variants.Values.SelectMany(a => a.Checks.Keys)).Distinct();
 
     static string? FixtureOf(StatsFile stats, string task) => stats.TaskDetails?.GetValueOrDefault(task)?.Fixture;
 
@@ -523,17 +523,17 @@ static class Report
         stats.PassChecks.Contains(check) ? "headline" : stats.ValidityChecks.Contains(check) ? "validity" : "guardrail";
 
     static IEnumerable<string> ExitReasons(StatsFile stats) =>
-        stats.Arms.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
+        stats.Variants.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
 
-    static string ArmField(Experiment exp, string arm, string field, string missing = "?") =>
-        exp.ExamDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?[field]?.GetValue<string>() ?? missing;
+    static string VariantField(Experiment exp, string variant, string field, string missing = "?") =>
+        exp.ExamDef["variants"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == variant)?[field]?.GetValue<string>() ?? missing;
 
-    /// <summary>nb's harness on an nb arm; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the experiment does not record.</summary>
-    static string Harness(Experiment exp, string arm) =>
-        ArmField(exp, arm, "harness", "") is { Length: > 0 } h ? h : $"{ArmField(exp, arm, "agent")} {ArmField(exp, arm, "agent_version", "")}".TrimEnd();
+    /// <summary>nb's harness on an nb variant; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the experiment does not record.</summary>
+    static string Harness(Experiment exp, string variant) =>
+        VariantField(exp, variant, "harness", "") is { Length: > 0 } h ? h : $"{VariantField(exp, variant, "agent")} {VariantField(exp, variant, "agent_version", "")}".TrimEnd();
 
-    static int Samples(Experiment exp, string arm) =>
-        exp.ExamDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?["samples"]?.GetValue<int>() ?? 1;
+    static int Samples(Experiment exp, string variant) =>
+        exp.ExamDef["variants"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == variant)?["samples"]?.GetValue<int>() ?? 1;
 
     /// <summary>Monospace only for what is typed or opened: the command, paths, endpoints.</summary>
     static IEnumerable<(string, string)> ReproFacts(Experiment exp, List<JudgeUse>? judges)
@@ -542,7 +542,7 @@ static class Report
         yield return ("proctor", exp.Versions.GetValueOrDefault("proctor", "unknown"));
         yield return ("nb", $"{exp.Versions.GetValueOrDefault("nb", "unknown")} at ``{exp.Nb.Path}``");
         yield return ("exam hash", exp.ExamHash);
-        foreach (var (arm, bundle) in exp.Bundles ?? []) yield return ($"bundle {arm}", $"``{bundle.Source}`` {bundle.Hash}");
+        foreach (var (variant, bundle) in exp.Bundles ?? []) yield return ($"bundle {variant}", $"``{bundle.Source}`` {bundle.Hash}");
         foreach (var j in judges ?? [])
             yield return ($"judge {j.Judge}", $"{j.Kind}{(j.Model is null ? "" : " " + j.Model)} at ``{j.Endpoint}``; graded {string.Join(", ", j.Checks)}");
         yield return ("repository", exp.Repo is null ? "not a git repository" : $"{exp.Repo.Commit}{(exp.Repo.Dirty ? " (dirty)" : "")}");
@@ -563,7 +563,7 @@ static class Report
     }
 
     static string DurationUnit(StatsFile stats) =>
-        stats.Arms.Values.Any(a => a.DurationMs is { Median: >= 120_000 }) ? "min" : "s";
+        stats.Variants.Values.Any(a => a.DurationMs is { Median: >= 120_000 }) ? "min" : "s";
 
     static string Duration(double ms, string unit) => unit == "min" ? $"{ms / 60_000:F1}" : $"{ms / 1000:F1}";
     static string Tokens(double n) => ((long)n).ToString("N0");
@@ -592,7 +592,7 @@ static class Report
     // ---- The chart ----
 
     /// <summary>
-    /// The verdict card's chart as inline SVG: a row per arm, its pass rate as a dot on its 95% interval over 0–100%
+    /// The verdict card's chart as inline SVG: a row per variant, its pass rate as a dot on its 95% interval over 0–100%
     /// (with the baseline's own score as a dashed tick), and beside it the change in points with its interval over
     /// −100 to +100, filled when confirmed. It draws what stats.json holds and computes nothing; the hover is a title.
     /// </summary>
@@ -600,10 +600,10 @@ static class Report
     {
         const int Row = 34, Rate = 250, Gap = 70, Diff = 200, Value = 96;
         var diff = c.DiffTitle is not null;
-        var anyRef = c.Arms.Any(a => a.Reference);
-        var label = Math.Clamp(c.Arms.Max(a => a.Arm.Length) * 8 + (anyRef ? 74 : 0) + 16, 90, 240);
-        var top = c.Arms.Any(a => a.Mark is not null) ? 72 : 56;
-        var bottom = top + Row * c.Arms.Count;
+        var anyRef = c.Variants.Any(a => a.Reference);
+        var label = Math.Clamp(c.Variants.Max(a => a.Variant.Length) * 8 + (anyRef ? 74 : 0) + 16, 90, 240);
+        var top = c.Variants.Any(a => a.Mark is not null) ? 72 : 56;
+        var bottom = top + Row * c.Variants.Count;
         var width = diff ? label + Rate + Gap + Diff + Value : label + Rate + 60;
         var height = bottom + 30;
         double X1(double r) => label + r * Rate;
@@ -612,7 +612,7 @@ static class Report
         static string Tone(string? tone) => tone switch { "bad" => "#a52d15", "good" => "#17603a", _ => "#1b1b1b" };
 
         var sb = new StringBuilder();
-        var aria = diff ? $"Pass rate per arm with its 95% interval, and each arm's {c.DiffTitle!.ToLowerInvariant()} in points" : "Pass rate with its 95% interval";
+        var aria = diff ? $"Pass rate per variant with its 95% interval, and each variant's {c.DiffTitle!.ToLowerInvariant()} in points" : "Pass rate with its 95% interval";
         sb.Append($"<svg class=\"chart\" viewBox=\"0 0 {width} {height}\" width=\"{width}\" height=\"{height}\" role=\"img\" aria-label=\"{E(aria)}\">\n");
         sb.Append($"<text x=\"{label}\" y=\"16\" class=\"ch\">Pass rate</text><text x=\"{label}\" y=\"33\" class=\"cs\">dot: share of runs passed · bar: 95% interval</text>\n");
         if (diff)
@@ -623,18 +623,18 @@ static class Report
             foreach (var p in new[] { -100, -50, 0, 50, 100 })
                 sb.Append($"<line x1=\"{F(X2(p))}\" x2=\"{F(X2(p))}\" y1=\"{top - 8}\" y2=\"{bottom}\" class=\"{(p == 0 ? "zero" : "grid")}\"/><text x=\"{F(X2(p))}\" y=\"{bottom + 17}\" class=\"ax\" text-anchor=\"middle\">{Signed(p)}</text>\n");
 
-        var marks = c.Arms.Where(a => a.Mark is not null).Select(a => a.Mark!.Value).Distinct().ToList();
+        var marks = c.Variants.Where(a => a.Mark is not null).Select(a => a.Mark!.Value).Distinct().ToList();
         if (marks.Count == 1)
             sb.Append($"<text x=\"{F(X1(marks[0]))}\" y=\"{top - 14}\" class=\"ax\" text-anchor=\"middle\">baseline {Pct(marks[0])}</text>\n");
-        foreach (var (a, i) in c.Arms.Select((a, i) => (a, i)))
+        foreach (var (a, i) in c.Variants.Select((a, i) => (a, i)))
         {
             var y = top + Row * i + Row / 2;
-            sb.Append($"<text x=\"0\" y=\"{y + 5}\" class=\"arm\">{E(a.Arm)}{(a.Reference ? " <tspan class=\"cs\">reference</tspan>" : "")}</text>\n");
+            sb.Append($"<text x=\"0\" y=\"{y + 5}\" class=\"variant\">{E(a.Variant)}{(a.Reference ? " <tspan class=\"cs\">reference</tspan>" : "")}</text>\n");
             if (a.Mark is { } m)
                 sb.Append($"<line x1=\"{F(X1(m))}\" x2=\"{F(X1(m))}\" y1=\"{y - 13}\" y2=\"{y + 13}\" class=\"mark\"><title>{E(Capital(BaselineWord(c)))}: {Pct(m)}</title></line>\n");
             if (a.Pass is { } p)
             {
-                sb.Append($"<g><title>{E(a.Arm)}: {Pct(p.Rate)} of runs passed ({p.KCells} of {p.NCells}); 95% interval {E(IntervalText(p))} over {p.N} task{(p.N == 1 ? "" : "s")}</title>");
+                sb.Append($"<g><title>{E(a.Variant)}: {Pct(p.Rate)} of runs passed ({p.KCells} of {p.NCells}); 95% interval {E(IntervalText(p))} over {p.N} task{(p.N == 1 ? "" : "s")}</title>");
                 sb.Append($"<rect x=\"{F(X1(p.Ci95.Lo) - 6)}\" y=\"{y - 13}\" width=\"{F(X1(p.Ci95.Hi) - X1(p.Ci95.Lo) + 12)}\" height=\"26\" fill=\"transparent\"/>");
                 sb.Append($"<line x1=\"{F(X1(p.Ci95.Lo))}\" x2=\"{F(X1(p.Ci95.Hi))}\" y1=\"{y}\" y2=\"{y}\" class=\"bar\"/>");
                 sb.Append($"<circle cx=\"{F(X1(p.Rate))}\" cy=\"{y}\" r=\"5\" class=\"dot\"/></g>");
@@ -644,7 +644,7 @@ static class Report
             if (a.Diff is { } d)
             {
                 var colour = Tone(d.Tone);
-                sb.Append($"<g><title>{E(a.Arm)}: {E(SignedPoints(d.Points))}; 95% interval {Signed(d.Lo)} to {Signed(d.Hi)}; {d.Word}, {(d.Confirmed ? "confirmed" : "not confirmed")}</title>");
+                sb.Append($"<g><title>{E(a.Variant)}: {E(SignedPoints(d.Points))}; 95% interval {Signed(d.Lo)} to {Signed(d.Hi)}; {d.Word}, {(d.Confirmed ? "confirmed" : "not confirmed")}</title>");
                 sb.Append($"<rect x=\"{F(X2(d.Lo) - 6)}\" y=\"{y - 13}\" width=\"{F(X2(d.Hi) - X2(d.Lo) + 12)}\" height=\"26\" fill=\"transparent\"/>");
                 sb.Append($"<line x1=\"{F(X2(d.Lo))}\" x2=\"{F(X2(d.Hi))}\" y1=\"{y}\" y2=\"{y}\" class=\"bar\" style=\"stroke:{colour}\"/>");
                 sb.Append($"<circle cx=\"{F(X2(d.Points))}\" cy=\"{y}\" r=\"5\" class=\"ddot\" style=\"stroke:{colour};fill:{(d.Confirmed ? colour : "#fff")}\"/></g>");
@@ -737,7 +737,7 @@ static class Report
                 sb.Append($"<h4>{E(l.Text)}</h4>\n");
                 break;
             case Table t:
-                // A wide table (many arms) scrolls within the column rather than running off the page.
+                // A wide table (many variants) scrolls within the column rather than running off the page.
                 sb.Append($"<div class=\"table-wrap\"><table{Class(t.Class)}>\n<thead><tr>");
                 foreach (var (h, i) in t.Header.Select((h, i) => (h, i))) sb.Append($"<th{(t.Numeric.Contains(i) ? " class=\"num\"" : "")}>{Inline(h)}</th>");
                 sb.Append("</tr></thead>\n<tbody>\n");
@@ -882,7 +882,7 @@ static class Report
         .chart .ch { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
         .chart .cs { font-size: 12px; font-weight: 400; fill: #595959; }
         .chart .ax { font-size: 11.5px; fill: #595959; font-variant-numeric: tabular-nums; }
-        .chart .arm { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
+        .chart .variant { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
         .chart .val { font-size: 13px; font-weight: 600; fill: #1b1b1b; font-variant-numeric: tabular-nums; }
         .chart .grid { stroke: #e4e4e0; } .chart .zero { stroke: #9a9a9a; }
         .chart .bar { stroke: #595959; stroke-width: 2; stroke-linecap: round; }
@@ -980,10 +980,10 @@ static class Report
             case Card c:
                 sb.Append($"**{c.Title}**\n\n");
                 var diffs = c.DiffTitle is not null;
-                sb.Append(diffs ? $"| Arm | Passed | 95% interval | {c.DiffTitle} | 95% interval |\n|---|---|---|---|---|\n" : "| Arm | Passed | 95% interval |\n|---|---|---|\n");
-                foreach (var a in c.Arms)
+                sb.Append(diffs ? $"| Variant | Passed | 95% interval | {c.DiffTitle} | 95% interval |\n|---|---|---|---|---|\n" : "| Variant | Passed | 95% interval |\n|---|---|---|\n");
+                foreach (var a in c.Variants)
                 {
-                    sb.Append($"| {a.Arm}{(a.Reference ? " (reference)" : "")} | {RatePct(a.Pass)} | {IntervalText(a.Pass)} |");
+                    sb.Append($"| {a.Variant}{(a.Reference ? " (reference)" : "")} | {RatePct(a.Pass)} | {IntervalText(a.Pass)} |");
                     if (diffs)
                         sb.Append(a.Diff is { } d
                             ? $" {(d.Points == 0 ? "±0" : Signed(d.Points))} points, **{d.Word}** {Confirmation(d.Confirmed)} | {Signed(d.Lo)} to {Signed(d.Hi)} |"

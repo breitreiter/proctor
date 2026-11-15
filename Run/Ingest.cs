@@ -31,7 +31,7 @@ static class Ingest
     /// <summary>Each agent's tools by proctor's kind, as the trajectory names them. A tool missing here is adapter_unmapped.</summary>
     internal static readonly Dictionary<string, Dictionary<string, string>> Kinds = new()
     {
-        [Arm.ClaudeCode] = new()
+        [Variant.ClaudeCode] = new()
         {
             ["Bash"] = "shell", ["BashOutput"] = "shell", ["KillShell"] = "shell", ["KillBash"] = "shell", ["TaskStop"] = "shell",
             ["EnterWorktree"] = "shell", ["ExitWorktree"] = "shell",
@@ -47,7 +47,7 @@ static class Ingest
             ["ReportFindings"] = "ask",
         },
         // Codex's names are its rollout's (Harbor keeps them): unified exec's two calls, the older shells, apply_patch for every file change.
-        [Arm.Codex] = new()
+        [Variant.Codex] = new()
         {
             ["exec_command"] = "shell", ["write_stdin"] = "shell", ["shell"] = "shell", ["local_shell"] = "shell", ["shell_command"] = "shell",
             ["view_image"] = "read",
@@ -57,7 +57,7 @@ static class Ingest
             ["web_search_call"] = "web", ["web_search"] = "web",
             ["multi_agent_v1"] = "agent",
         },
-        [Arm.QwenCode] = new()
+        [Variant.QwenCode] = new()
         {
             ["run_shell_command"] = "shell",
             ["read_file"] = "read", ["read_many_files"] = "read", ["list_directory"] = "read",
@@ -72,7 +72,7 @@ static class Ingest
             ["tool_search"] = "meta", ["tool_call"] = "meta",
         },
         // Mirrored by nb's nb.Tests/ProctorContractTests.cs, which fails when nb advertises a tool not listed here.
-        [Arm.Nb] = new()
+        [Variant.Nb] = new()
         {
             ["bash"] = "shell",
             ["read_file"] = "read", ["list_dir"] = "read",
@@ -87,10 +87,10 @@ static class Ingest
 
     /// <summary>
     /// Lift the trial into the cell and fill the manifest. Null when the cell completed; otherwise why it failed
-    /// (infrastructure only). The version is the arm's pin for a vendor agent, the host nb's for nb. A bridged trial is an
+    /// (infrastructure only). The version is the variant's pin for a vendor agent, the host nb's for nb. A bridged trial is an
     /// oracle cell's: nb served over ACP, driven by the simulated user (<see cref="Oracle"/>).
     /// </summary>
-    public static string? Trial(string trialDir, string cellDir, Arm arm, Manifest manifest, string expectedVersion, bool bridged = false)
+    public static string? Trial(string trialDir, string cellDir, Variant variant, Manifest manifest, string expectedVersion, bool bridged = false)
     {
         var result = JsonNode.Parse(File.ReadAllText(Path.Combine(trialDir, "result.json")))!.AsObject();
         CopyTree(Path.Combine(trialDir, "agent"), Path.Combine(cellDir, Layout.AgentLogsDir));
@@ -125,10 +125,10 @@ static class Ingest
         if (exceptionType == "NonZeroAgentExitCodeError" && !hasTrajectory)
             return $"agent exited without a trajectory: {exceptionLine}";
         if (manifest.Agent.Version != expectedVersion)
-            return arm.IsVendor
-                ? $"agent_version_mismatch: the trial ran {arm.Agent} {manifest.Agent.Version ?? "unknown"}, the arm pins {arm.AgentVersion}"
+            return variant.IsVendor
+                ? $"agent_version_mismatch: the trial ran {variant.Agent} {manifest.Agent.Version ?? "unknown"}, the variant pins {variant.AgentVersion}"
                 : $"agent_version_mismatch: the image ran nb {manifest.Agent.Version ?? "unknown"}, the host nb that compiled the program is {expectedVersion}";
-        if (!arm.IsVendor)
+        if (!variant.IsVendor)
         {
             if (Nb(trialDir, cellDir, exceptionType, manifest, bridged) is { } nbFailure) return nbFailure;
             hasTrajectory = true;
@@ -139,7 +139,7 @@ static class Ingest
         if (!File.Exists(diff))
             return $"the trial collected no diff (artifacts/logs/artifacts/{Layout.DiffFile}); the verifier's collect step did not run";
 
-        if (arm.IsVendor) File.Copy(trajectoryFile, Path.Combine(cellDir, Layout.TrajectoryFile), overwrite: true);
+        if (variant.IsVendor) File.Copy(trajectoryFile, Path.Combine(cellDir, Layout.TrajectoryFile), overwrite: true);
         var trajectory = JsonNode.Parse(File.ReadAllText(trajectoryFile))!.AsObject();
         string? ending = null;
         if (bridged)
@@ -156,11 +156,11 @@ static class Ingest
             // nb names its own ending, as on the bare path.
             _ => trajectory["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok",
         };
-        var (core, unmapped) = Count(trajectory, arm.Agent!, exitReason);
+        var (core, unmapped) = Count(trajectory, variant.Agent!, exitReason);
         if (unmapped is not null) return $"adapter_unmapped: {unmapped}";
         // A vendor agent that never took a turn never heard from its model (Codex retries an unreachable endpoint until
         // the timeout): an outage, not a run. nb names its own ending, as on the bare path.
-        if (arm.IsVendor && core!.Turns == 0)
+        if (variant.IsVendor && core!.Turns == 0)
             return $"the agent took no turn ({exitReason}): its model never answered; see agent/ for why";
         // Tokens are the trajectory's when it carries them, else Harbor's account of the agent's run.
         Runner.WriteJson(Path.Combine(cellDir, Layout.CoreFile), core! with
@@ -195,7 +195,7 @@ static class Ingest
         trajectory ??= new JsonObject
         {
             ["schema_version"] = "ATIF-v1.7",
-            ["agent"] = new JsonObject { ["name"] = Arm.Nb, ["version"] = manifest.Agent!.Version },
+            ["agent"] = new JsonObject { ["name"] = Variant.Nb, ["version"] = manifest.Agent!.Version },
             ["steps"] = new JsonArray(),
         };
         Runner.WriteJson(Path.Combine(cellDir, Layout.TrajectoryFile), trajectory);

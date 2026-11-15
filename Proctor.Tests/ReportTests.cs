@@ -54,12 +54,12 @@ public class ReportTests
         AssertSnapshot("summary.md", Report.Markdown(stats, rows, exp));
     }
 
-    /// <summary>Arms with different sample counts that lost nothing are not "unequal": the warning compares the share each arm decided.</summary>
+    /// <summary>Variants with different sample counts that lost nothing are not "unequal": the warning compares the share each variant decided.</summary>
     [Fact]
     public void Markdown_DifferentSampleCounts_LosingNothing_WarnsNothing()
     {
         var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Where(r => r.Arm == "b" || r.Sample == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
+        var rows = WorkedExperiment.Rows().Where(r => r.Variant == "b" || r.Sample == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
         var md = Report.Markdown(Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows), rows, WorkedExperiment.Experiment(exam));
         Assert.DoesNotContain("lost runs unequally", md);
     }
@@ -69,11 +69,11 @@ public class ReportTests
     public void AnErroredCheck_IsOutOfItsRate_AndListedApartFromFailures()
     {
         var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Select(r => r is { Arm: "b", Task: "uses-bash", Sample: 1 }
+        var rows = WorkedExperiment.Rows().Select(r => r is { Variant: "b", Task: "uses-bash", Sample: 1 }
             ? r with { Checks = new(r.Checks!) { ["used-bash"] = Verdict.Error }, Reasons = new() { ["used-bash"] = "judge: line one\nline two" } }
             : r).ToList();
         var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows);
-        var b = stats.Arms["b"];
+        var b = stats.Variants["b"];
         Assert.Equal((2, 1), (b.Checks["used-bash"].NCells, b.Checks["used-bash"].Errors));
         Assert.DoesNotContain(b.Failures, f => f.Check == "used-bash");
         Assert.Equal(("used-bash", 1, 3), Assert.Single(b.Errored!) is var e ? (e.Check, e.Cells, e.Of) : default);
@@ -84,26 +84,26 @@ public class ReportTests
     }
 
     /// <summary>
-    /// The card's foot gives the run's reach once; an arm paired on fewer tasks says its own on its row, and with a
-    /// baseline each row carries the arm against the reference rather than the foot repeating it.
+    /// The card's foot gives the run's reach once; a variant paired on fewer tasks says its own on its row, and with a
+    /// baseline each row carries the variant against the reference rather than the foot repeating it.
     /// </summary>
     [Fact]
-    public void AnArmPairedOnFewerTasks_SaysItsOwnReach_OnItsRow()
+    public void AnVariantPairedOnFewerTasks_SaysItsOwnReach_OnItsRow()
     {
         var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Where(r => !(r.Arm == "b" && r.Task == "plain")).ToList();
+        var rows = WorkedExperiment.Rows().Where(r => !(r.Variant == "b" && r.Task == "plain")).ToList();
         var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows, WorkedExperiment.Guard());
         Assert.Equal(3, stats.Mde.NPairs);
-        Assert.Equal(2, stats.Baseline!.Arms["b"].NPairs);
-        Assert.NotNull(stats.Baseline.Arms["b"].MdePoints);
-        Assert.Null(stats.Baseline.Arms["floor"].MdePoints);
+        Assert.Equal(2, stats.Baseline!.Variants["b"].NPairs);
+        Assert.NotNull(stats.Baseline.Variants["b"].MdePoints);
+        Assert.Null(stats.Baseline.Variants["floor"].MdePoints);
         var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(exam));
         var bRow = md.Split('\n').Single(l => l.StartsWith("**b**:"));
-        Assert.Contains($"Paired on 2 of 3 tasks, so it can only confirm a change of about {stats.Baseline.Arms["b"].MdePoints} points.", bRow);
+        Assert.Contains($"Paired on 2 of 3 tasks, so it can only confirm a change of about {stats.Baseline.Variants["b"].MdePoints} points.", bRow);
         Assert.DoesNotContain("For the same reason", md);
     }
 
-    /// <summary>The chart marks the baseline's own score beside each arm's rate: the mean of its pinned task scores, from stats.json.</summary>
+    /// <summary>The chart marks the baseline's own score beside each variant's rate: the mean of its pinned task scores, from stats.json.</summary>
     [Fact]
     public void Chart_MarksTheBaselinesScore_FromStats()
     {
@@ -112,15 +112,15 @@ public class ReportTests
         var guard = WorkedExperiment.Guard();
         var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows, guard);
         var expected = Math.Round(guard.Scores.Values.Average(), 3);
-        Assert.Equal(expected, stats.Baseline!.Arms["floor"].Score);
+        Assert.Equal(expected, stats.Baseline!.Variants["floor"].Score);
         var html = Report.Html(stats, rows, WorkedExperiment.Experiment(exam));
         Assert.Contains("class=\"mark\"", html);
         Assert.Contains($"baseline {Math.Round(expected * 100):F0}%", html);
     }
 
-    /// <summary>An arm the baseline never ran is compared with the pinned arm's scores, and the card says whose they are.</summary>
+    /// <summary>A variant the baseline never ran is compared with the pinned variant's scores, and the card says whose they are.</summary>
     [Fact]
-    public void Card_SaysWhoseRunsTheBaselineIs_WhenAnArmWasNeverPinned()
+    public void Card_SaysWhoseRunsTheBaselineIs_WhenAnVariantWasNeverPinned()
     {
         var exam = WorkedExperiment.Exam();
         var rows = WorkedExperiment.Rows();
@@ -131,9 +131,9 @@ public class ReportTests
         Assert.DoesNotContain("The baseline is `", Report.Markdown(pinnedBoth, rows, WorkedExperiment.Experiment(exam)));
     }
 
-    /// <summary>A check that could not grade many runs is one warning with its count per arm, and leaves the per-arm failure lists.</summary>
+    /// <summary>A check that could not grade many runs is one warning with its count per variant, and leaves the per-variant failure lists.</summary>
     [Fact]
-    public void ACheckThatErroredOften_IsOneWarning_NotALineUnderEachArm()
+    public void ACheckThatErroredOften_IsOneWarning_NotALineUnderEachVariant()
     {
         var exam = WorkedExperiment.Exam();
         var rows = WorkedExperiment.Rows().Select(r => r.Task == "uses-bash" && r.Checks is not null
@@ -141,22 +141,22 @@ public class ReportTests
         var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows);
         var x = Assert.Single(stats.ErroredChecks!);
         Assert.Equal("used-bash", x.Check);
-        Assert.Equal(x.Runs, x.Arms.Values.Sum());
+        Assert.Equal(x.Runs, x.Variants.Values.Sum());
         var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(exam));
-        Assert.Contains($"> **Warning.** The check `used-bash` (uses bash) could not grade {x.Runs} of the {x.Of} runs it applies to, on every arm", md);
+        Assert.Contains($"> **Warning.** The check `used-bash` (uses bash) could not grade {x.Runs} of the {x.Of} runs it applies to, on every variant", md);
         Assert.DoesNotContain("could not grade some of", md);
         Assert.Contains("`used-bash` could not grade many runs, and is left out of the lists above", md);
     }
 
-    /// <summary>An agent's reported cost reaches the Cost and effort table; an arm without one shows none.</summary>
+    /// <summary>An agent's reported cost reaches the Cost and effort table; a variant without one shows none.</summary>
     [Fact]
-    public void Markdown_ShowsCost_WhenAnArmReportsIt()
+    public void Markdown_ShowsCost_WhenAnVariantReportsIt()
     {
         var exam = WorkedExperiment.Exam();
-        var rows = WorkedExperiment.Rows().Select(r => r.Arm == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
+        var rows = WorkedExperiment.Rows().Select(r => r.Variant == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
         var stats = Stats.Compute(WorkedExperiment.Experiment(exam), exam, rows);
-        Assert.Equal((0.05, 0.45), (stats.Arms["b"].CostUsd!.Median, stats.Arms["b"].CostTotalUsd!.Value));
-        Assert.Null(stats.Arms["floor"].CostUsd);
+        Assert.Equal((0.05, 0.45), (stats.Variants["b"].CostUsd!.Median, stats.Variants["b"].CostTotalUsd!.Value));
+        Assert.Null(stats.Variants["floor"].CostUsd);
         var md = Report.Markdown(stats, rows, WorkedExperiment.Experiment(exam));
         Assert.Contains("| Cost: median | total |", md);
         Assert.Contains("| $0.05 | $0.45 |", md);
@@ -180,10 +180,10 @@ public class ReportTests
         var (stats, rows, exp) = Worked();
         var html = Report.Html(stats, rows, exp);
         var md = Report.Markdown(stats, rows, exp);
-        foreach (var arm in stats.Arms.Values)
+        foreach (var variant in stats.Variants.Values)
         {
-            var interval = $"{Math.Round(100 * arm.Pass!.Ci95.Lo):F0}% to {Math.Round(100 * arm.Pass.Ci95.Hi):F0}%";
-            var runs = $"{arm.Pass.KCells} / {arm.Pass.NCells}";
+            var interval = $"{Math.Round(100 * variant.Pass!.Ci95.Lo):F0}% to {Math.Round(100 * variant.Pass.Ci95.Hi):F0}%";
+            var runs = $"{variant.Pass.KCells} / {variant.Pass.NCells}";
             Assert.Contains(interval, html);
             Assert.Contains(interval, md);
             Assert.Contains(runs, html);
@@ -191,8 +191,8 @@ public class ReportTests
         }
         Assert.Contains(stats.Mde.Sentence, html);
         Assert.Contains(stats.Mde.Sentence, md);
-        Assert.Contains("Arms lost runs unequally", html);
-        Assert.Contains("Arms lost runs unequally", md);
+        Assert.Contains("Variants lost runs unequally", html);
+        Assert.Contains("Variants lost runs unequally", md);
         foreach (var row in rows) Assert.Contains(row.RunId, html);
     }
 

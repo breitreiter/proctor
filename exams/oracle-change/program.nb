@@ -1,5 +1,5 @@
 # oracle-change: code-change's template, except that someone answers. On the Harbor
-# arm the run is the simulated user's, so the template ends in its one run.
+# variant the run is the simulated user's, so the template ends in its one run.
 provider {{provider}}
 harness {{harness}}
 approval default deny

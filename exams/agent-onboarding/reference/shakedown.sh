@@ -42,7 +42,7 @@ unexpected=0
 for task_file in "$here"/tasks/*.json; do
   c=$(basename "$task_file" .json)
   f=$(jq -r .fixture "$task_file")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXPERIMENT=shakedown PROCTOR_ARM=ref PROCTOR_TASK="$c" PROCTOR_SAMPLE=1
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXPERIMENT=shakedown PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_SAMPLE=1
   export PROCTOR_CELL="$tmp/$c/cell" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/cell/diff.patch"
   export PROCTOR_TASK_JSON="$(cat "$task_file")" PROCTOR_EXPECT="$(jq -c '.expect // {}' "$task_file")" PROCTOR_TRANSCRIPT=""
   mkdir -p "$PROCTOR_CELL" "$PROCTOR_WORK"
@@ -56,7 +56,7 @@ for task_file in "$here"/tasks/*.json; do
       exact-answers)  # the bare number, so 19 days passes for 9 and $12 a month for $12 a year
         declare -A bare=([loan-period]=9 [late-fee]=75 [membership]=12 [reserve-ahead]=3 [deposit-refund]=5)
         for t in "$s"/tasks/*.json; do edit "$t" ".expect.answer_regex = \"${bare[$(basename "$t" .json)]}\""; done ;;
-      revised-prompt)  # compares the arms but checks only that the bot answered
+      revised-prompt)  # compares the variants but checks only that the bot answered
         edit "$s/exam.json" '.grading.pass = ["answered"] | .grading.validity = []' ;;
       stays-on-topic)  # looks for the sentence anywhere, so declining and then playing along passes
         for t in "$s"/tasks/*.json; do edit "$t" 'if (.expect.answer_regex | startswith("^")) then .expect.answer_regex = "Sorry, I can only help with questions about the Bike Kitchen" else . end'; done ;;
@@ -64,7 +64,7 @@ for task_file in "$here"/tasks/*.json; do
   fi
   if [ "$mode" = --sloppy ]; then
     edit "$PROCTOR_WORK/exams/nb.json" '.ChatProviders[0].ApiKey = "sk-proj-shakedownFAKEkey000000000000"'
-    edit "$s/exam.json" 'del(.description) | .arms |= map(del(.description))'
+    edit "$s/exam.json" 'del(.description) | .variants |= map(del(.description))'
     sed -i '/^tools none$/d' "$s/program.nb"
   fi
   (cd "$PROCTOR_WORK" && git add -A -N . && git diff --no-color --binary >"$PROCTOR_DIFF")

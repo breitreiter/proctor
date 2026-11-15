@@ -4,7 +4,7 @@ namespace Proctor;
 
 /// <summary>One row of results.jsonl: coordinates on every row, no transcript text.</summary>
 record ResultRow(
-    string RunId, string Arm, string Task, int Sample,
+    string RunId, string Variant, string Task, int Sample,
     string Status, string? StatusReason, string? ExitReason,
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null,
@@ -29,9 +29,9 @@ static class Results
     {
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var rows = new List<ResultRow>();
-        foreach (var (arm, c, sample) in Runner.Cells(exam))
+        foreach (var (variant, c, sample) in Runner.Cells(exam))
         {
-            var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
+            var cellDir = Layout.Cell(experimentDir, variant.Id!, c.Id!, sample);
             var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
             var status = Runner.ReadStatus(cellDir);
@@ -39,7 +39,7 @@ static class Results
             var checks = status == CellStatus.Completed ? Grade.ReadChecks(cellDir) : null;
             rows.Add(new ResultRow(
                 RunId: manifest?.RunId ?? "",
-                Arm: arm.Id!, Task: c.Id!, Sample: sample,
+                Variant: variant.Id!, Task: c.Id!, Sample: sample,
                 Status: status,
                 StatusReason: manifest?.StatusReason ?? (checks is null && status == CellStatus.Completed ? "not graded" : null),
                 ExitReason: trailer?.ExitReason,

@@ -507,7 +507,7 @@ public class JudgeTests
         repo.CopyExam("smoke");
         repo.EditJson("smoke/exam.json", e =>
         {
-            e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; e["arms"]![0]!["model"] = "glm-4.7";
+            e["variants"]!.AsArray().RemoveAt(1); e["variants"]![0]!["samples"] = 1; e["variants"]![0]!["model"] = "glm-4.7";
             e["grading"]!["checks"]!["stance"] = JsonNode.Parse("{\"decide\": {\"ask\": \"Does it claim completion?\", \"window\": \"answer\"}}");
             e["grading"]!["checks"]!["sensible"] = JsonNode.Parse("{\"judge\": {\"ask\": \"Is the answer sensible?\", \"window\": \"prompt+answer\", \"samples\": 2, \"with\": \"glm\"}}");
             e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"sensible\"]");
@@ -525,7 +525,7 @@ public class JudgeTests
         var log = new StringWriter();
         var grades = Proctor.Grade.Experiment(repo.Root, experiment, exam, log, judges);
 
-        Assert.Contains("arm 'a' (glm-4.7) is in the family of judge 'glm' (glm)", log.ToString());
+        Assert.Contains("variant 'a' (glm-4.7) is in the family of judge 'glm' (glm)", log.ToString());
         var plain = grades.Single(g => g.Task == "plain");
         Assert.Equal("pass", plain.Checks!["stance"].Result);
         Assert.Equal("yes p=0.99", plain.Checks["stance"].Reason);

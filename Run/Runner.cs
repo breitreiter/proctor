@@ -12,10 +12,10 @@ record Experiment(
     Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
     Dictionary<string, ResolvedBundle>? Bundles = null, ResolvedHarbor? Harbor = null)
 {
-    public ResolvedBundle? BundleOf(string arm) => Bundles?.GetValueOrDefault(arm);
+    public ResolvedBundle? BundleOf(string variant) => Bundles?.GetValueOrDefault(variant);
 }
 
-/// <summary>An arm's bundle as resolved for this experiment: where it was read from, the directory handed to the run, and its identity.</summary>
+/// <summary>A variant's bundle as resolved for this experiment: where it was read from, the directory handed to the run, and its identity.</summary>
 record ResolvedBundle(string Source, string Path, string Hash);
 
 record GitInfo(string Commit, bool Dirty);
@@ -31,10 +31,10 @@ record Manifest
 {
     public required string RunId { get; init; }
     public required string Experiment { get; init; }
-    public required string Arm { get; init; }
+    public required string Variant { get; init; }
     public required string Task { get; init; }
     public required int Sample { get; init; }
-    /// <summary>How an nb arm ran; absent on an agent arm, whose run is <see cref="Agent"/>.</summary>
+    /// <summary>How an nb variant ran; absent on an agent variant, whose run is <see cref="Agent"/>.</summary>
     public string? Runner { get; init; }
     public string? Harness { get; init; }
     public string? Provider { get; init; }
@@ -55,7 +55,7 @@ record Manifest
     public string? StatusReason { get; set; }
     public int Tries { get; set; }
     public int? NbExitCode { get; set; }
-    /// <summary>An agent arm's run: the agent as the trial reported it, its settings, the Harbor that ran it, and what it used.</summary>
+    /// <summary>An agent variant's run: the agent as the trial reported it, its settings, the Harbor that ran it, and what it used.</summary>
     public AgentRun? Agent { get; set; }
     /// <summary>An oracle cell's simulated user on the Harbor path (<see cref="Ingest"/>); absent on the bare path, where nb's oracle is in the run.</summary>
     public OracleRun? Oracle { get; set; }
@@ -72,7 +72,7 @@ static class CellStatus
     public static readonly string[] All = [Pending, Running, Completed, Failed, Skipped];
 }
 
-/// <summary>The matrix loop: arms, tasks, samples; hooks at arm and sample level; nb as a subprocess.</summary>
+/// <summary>The matrix loop: variants, tasks, samples; hooks at variant and sample level; nb as a subprocess.</summary>
 sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig config, TextWriter log)
 {
     readonly string experimentDir = Layout.Experiment(root, experiment.Id);
@@ -82,7 +82,7 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     public static string Start(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log)
     {
         var nb = ResolveNb(root, exam, config, nbOverride, runnerOverride);
-        foreach (var arm in exam.Arms.Where(a => a.IsAgent)) Route(root, config, nb, arm);   // a missing endpoint fails before anything is made
+        foreach (var variant in exam.Variants.Where(a => a.IsAgent)) Route(root, config, nb, variant);   // a missing endpoint fails before anything is made
         var id = Layout.NewExperimentId(exam.Id, DateTime.UtcNow);
         var experiment = new Experiment(
             Id: id, Exam: exam.Id, ExamHash: exam.Hash,
@@ -92,22 +92,22 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
             Bundles: ResolveBundles(root, exam));
-        if (exam.HasAgentArms)
+        if (exam.HasAgentVariants)
         {
             HarborRun.Preflight(config.HarborOrDefault);
-            if (config.HarborOrDefault.Remote) RequireReachable(exam, config, arm => Route(root, config, nb, arm));
+            if (config.HarborOrDefault.Remote) RequireReachable(exam, config, variant => Route(root, config, nb, variant));
         }
         var dir = Layout.Experiment(root, id);
         Directory.CreateDirectory(dir);
-        if (exam.HasAgentArms)
+        if (exam.HasAgentVariants)
         {
             var version = exam.Def.Harbor!.Version!;
             var engine = config.HarborOrDefault.Engine;
-            var nbImage = exam.Arms.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, experiment.Versions["nb"]) : null;
+            var nbImage = exam.Variants.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, experiment.Versions["nb"]) : null;
             experiment = experiment with
             {
                 Versions = new(experiment.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, id, arm => Route(root, config, nb, arm), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, experiment.Bundles), nbImage, engine),
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, id, variant => Route(root, config, nb, variant), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, experiment.Bundles), nbImage, engine),
             };
         }
         WriteJson(Path.Combine(dir, Layout.ExperimentFile), experiment);
@@ -125,9 +125,9 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
             ?? throw new ProctorException($"exam '{experiment.Exam}' no longer loads:\n" + string.Join("\n", problems));
         if (exam.Hash != experiment.ExamHash)
             throw new ProctorException($"exams/{exam.Id} has changed since experiment {experimentId} was created ({exam.Hash} vs {experiment.ExamHash}); a changed exam is a new experiment");
-        foreach (var (arm, bundle) in ResolveBundles(root, exam))
-            if (experiment.BundleOf(arm)?.Hash != bundle.Hash)
-                throw new ProctorException($"the bundle of arm '{arm}' ({bundle.Source}) has changed since experiment {experimentId} was created ({bundle.Hash} vs {experiment.BundleOf(arm)?.Hash ?? "none"}); a changed bundle is a new experiment");
+        foreach (var (variant, bundle) in ResolveBundles(root, exam))
+            if (experiment.BundleOf(variant)?.Hash != bundle.Hash)
+                throw new ProctorException($"the bundle of variant '{variant}' ({bundle.Source}) has changed since experiment {experimentId} was created ({bundle.Hash} vs {experiment.BundleOf(variant)?.Hash ?? "none"}); a changed bundle is a new experiment");
         var runner = ResolveRunner(root, exam, runnerOverride);
         if ((runner?.Script, runner?.Hash) != (experiment.Nb.Runner?.Script, experiment.Nb.Runner?.Hash))
             throw new ProctorException($"the runner has changed since experiment {experimentId} was created ({Describe(runner)} vs {Describe(experiment.Nb.Runner)}); a changed runner is a new experiment");
@@ -153,21 +153,21 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     }
 
     /// <summary>Every cell's coordinates, in declared order.</summary>
-    public static IEnumerable<(Arm Arm, TaskDef Task, int Sample)> Cells(Exam exam) =>
-        from arm in exam.Arms from c in exam.Tasks from s in Enumerable.Range(1, arm.SamplesOrOne) select (arm, c, s);
+    public static IEnumerable<(Variant Variant, TaskDef Task, int Sample)> Cells(Exam exam) =>
+        from variant in exam.Variants from c in exam.Tasks from s in Enumerable.Range(1, variant.SamplesOrOne) select (variant, c, s);
 
     /// <summary>Everything a hook or check needs to know about a cell, for the runner and the grader alike.</summary>
-    public static CellContext Context(string root, Experiment experiment, Exam exam, Arm arm, TaskDef c, int sample) =>
-        new(exam.Dir, Layout.Cell(Layout.Experiment(root, experiment.Id), arm.Id!, c.Id!, sample), Layout.Work(root, experiment.Id, arm.Id!, c.Id!, sample), experiment.Id, arm.Id!, c, sample)
-        { Expect = exam.ExpectFor(c), Fixture = exam.FixtureOf(c), BundleDir = experiment.BundleOf(arm.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", NbPath = experiment.Nb.Path, NbConfig = experiment.Nb.Config, Mounts = experiment.Nb.Mounts, ScriptsInVerifier = arm.IsAgent, Vendor = arm.IsVendor };
+    public static CellContext Context(string root, Experiment experiment, Exam exam, Variant variant, TaskDef c, int sample) =>
+        new(exam.Dir, Layout.Cell(Layout.Experiment(root, experiment.Id), variant.Id!, c.Id!, sample), Layout.Work(root, experiment.Id, variant.Id!, c.Id!, sample), experiment.Id, variant.Id!, c, sample)
+        { Expect = exam.ExpectFor(c), Fixture = exam.FixtureOf(c), BundleDir = experiment.BundleOf(variant.Id!)?.Path, NbRunner = experiment.Nb.Runner?.Script ?? "", NbPath = experiment.Nb.Path, NbConfig = experiment.Nb.Config, Mounts = experiment.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor };
 
-    /// <summary>Each arm's bundle, once per experiment: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
+    /// <summary>Each variant's bundle, once per experiment: a path is hashed in place; a git revision is cloned under .proctor/bundles/ and identified by its revision.</summary>
     public static Dictionary<string, ResolvedBundle> ResolveBundles(string root, Exam exam)
     {
         var bundles = new Dictionary<string, ResolvedBundle>();
-        foreach (var arm in exam.Arms.Where(a => a.Bundle is not null))
+        foreach (var variant in exam.Variants.Where(a => a.Bundle is not null))
         {
-            var source = arm.Bundle!;
+            var source = variant.Bundle!;
             if (source.Git is { } url)
             {
                 var dir = Layout.GitBundle(root, source.Rev!);
@@ -179,15 +179,15 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
                     {
                         var result = Subprocess.Run("git", args, dir);
                         if (!result.Started || result.ExitCode != 0)
-                            throw new ProctorException($"bundle of arm '{arm.Id}': git {args[0]} {url} failed: {(result.Started ? result.FirstStderrLine : result.Stderr)}");
+                            throw new ProctorException($"bundle of variant '{variant.Id}': git {args[0]} {url} failed: {(result.Started ? result.FirstStderrLine : result.Stderr)}");
                     }
                 }
-                bundles[arm.Id!] = new ResolvedBundle(source.Describe(), dir, $"git:{source.Rev}");
+                bundles[variant.Id!] = new ResolvedBundle(source.Describe(), dir, $"git:{source.Rev}");
             }
             else
             {
                 var dir = Path.GetFullPath(Path.Combine(root, source.Path!));
-                bundles[arm.Id!] = new ResolvedBundle(source.Describe(), dir, Tree.Hash(dir, new HashSet<string> { ".git" }));
+                bundles[variant.Id!] = new ResolvedBundle(source.Describe(), dir, Tree.Hash(dir, new HashSet<string> { ".git" }));
             }
         }
         return bundles;
@@ -202,49 +202,49 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     void RunPending()
     {
         WriteStatusCounts();
-        foreach (var arm in exam.Arms)
+        foreach (var variant in exam.Variants)
         {
-            var pending = exam.Tasks.SelectMany(c => Enumerable.Range(1, arm.SamplesOrOne).Select(s => (c, s)))
-                .Where(x => ReadStatus(Layout.Cell(experimentDir, arm.Id!, x.c.Id!, x.s)) != CellStatus.Completed).ToList();
+            var pending = exam.Tasks.SelectMany(c => Enumerable.Range(1, variant.SamplesOrOne).Select(s => (c, s)))
+                .Where(x => ReadStatus(Layout.Cell(experimentDir, variant.Id!, x.c.Id!, x.s)) != CellStatus.Completed).ToList();
             if (pending.Count == 0) continue;
 
-            var armDir = Layout.Arm(experimentDir, arm.Id!);
-            Directory.CreateDirectory(Path.Combine(armDir, Layout.HooksDir));
-            var armEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_ARM"] = arm.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = experiment.BundleOf(arm.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = experiment.Nb.Runner?.Script ?? "" };
-            var setup = RunHook(exam.Def.Hooks?.Arm?.Setup, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.setup.log"));
+            var variantDir = Layout.Variant(experimentDir, variant.Id!);
+            Directory.CreateDirectory(Path.Combine(variantDir, Layout.HooksDir));
+            var variantEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_VARIANT"] = variant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = experiment.BundleOf(variant.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = experiment.Nb.Runner?.Script ?? "" };
+            var setup = RunHook(exam.Def.Hooks?.Variant?.Setup, variantEnv, Path.Combine(variantDir, Layout.HooksDir, "variant.setup.log"));
             if (setup is not null)
             {
-                foreach (var (c, s) in pending) MarkFailed(arm, c, s, $"arm setup hook failed: {setup}");
+                foreach (var (c, s) in pending) MarkFailed(variant, c, s, $"variant setup hook failed: {setup}");
                 continue;
             }
 
             foreach (var (c, s) in pending)
-                if (arm.IsAgent) RunAgentCell(arm, c, s);
-                else RunCell(arm, c, s);
+                if (variant.IsAgent) RunAgentCell(variant, c, s);
+                else RunCell(variant, c, s);
 
-            var teardown = RunHook(exam.Def.Hooks?.Arm?.Teardown, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.teardown.log"));
-            if (teardown is not null) log.WriteLine($"  {arm.Id}: arm teardown hook failed: {teardown}");
+            var teardown = RunHook(exam.Def.Hooks?.Variant?.Teardown, variantEnv, Path.Combine(variantDir, Layout.HooksDir, "variant.teardown.log"));
+            if (teardown is not null) log.WriteLine($"  {variant.Id}: variant teardown hook failed: {teardown}");
         }
         WriteStatusCounts();
     }
 
-    void RunCell(Arm arm, TaskDef c, int sample)
+    void RunCell(Variant variant, TaskDef c, int sample)
     {
-        var cell = Context(root, experiment, exam, arm, c, sample);
+        var cell = Context(root, experiment, exam, variant, c, sample);
         var (cellDir, workDir) = (cell.CellDir, cell.WorkDir);
         Directory.CreateDirectory(Path.Combine(cellDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
 
-        var program = OraclePrefix(exam, c) + ResolveProgram(exam.ProgramTemplate, arm, c, sample, cell.WorkMount, cell.BundleMount);
+        var program = OraclePrefix(exam, c) + ResolveProgram(exam.ProgramTemplate, variant, c, sample, cell.WorkMount, cell.BundleMount);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample,
-                Runner = arm.Runner, Harness = arm.Harness, Provider = arm.Provider, Model = arm.Model,
+                RunId = Layout.NewRunId(), Experiment = experiment.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample,
+                Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
                 Fixture = cell.Fixture is null ? null : new FixtureRef(cell.Fixture.Id, cell.Fixture.Hash),
-                Bundle = experiment.BundleOf(arm.Id!), Nb = experiment.Nb,
+                Bundle = experiment.BundleOf(variant.Id!), Nb = experiment.Nb,
                 Host = experiment.Host, Versions = experiment.Versions, ExamHash = exam.Hash, ProgramHash = Sha256(program),
             };
         manifest.Tries++;
@@ -282,37 +282,37 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
         manifest.StatusReason = failure;
         SetStatus(cellDir, manifest, failure is null ? CellStatus.Completed : CellStatus.Failed);
         WriteStatusCounts();
-        log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {manifest.Status}  {(failure ?? ExitReasonOf(cellDir))}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+        log.WriteLine($"  {variant.Id}/{c.Id}/{sample}  {manifest.Status}  {(failure ?? ExitReasonOf(cellDir))}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
 
     /// <summary>
-    /// An agent arm's cell: one Harbor trial of the task compiled for the arm, then ingest. The checkout, the setup and
-    /// the diff are the image's and Harbor's; arm hooks still ran on the host around the arm's cells. The arm's bundle is
+    /// An agent variant's cell: one Harbor trial of the task compiled for the variant, then ingest. The checkout, the setup and
+    /// the diff are the image's and Harbor's; variant hooks still ran on the host around the variant's cells. The variant's bundle is
     /// the host's too: recorded here and handed to those hooks, never put in the container.
     /// </summary>
-    void RunAgentCell(Arm arm, TaskDef c, int sample)
+    void RunAgentCell(Variant variant, TaskDef c, int sample)
     {
-        var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
+        var cellDir = Layout.Cell(experimentDir, variant.Id!, c.Id!, sample);
         Directory.CreateDirectory(cellDir);
-        var taskDir = Layout.HarborTask(experimentDir, arm.Id!, c.Id!);
-        var route = Route(root, config, experiment.Nb, arm);
+        var taskDir = Layout.HarborTask(experimentDir, variant.Id!, c.Id!);
+        var route = Route(root, config, experiment.Nb, variant);
         var fixture = exam.FixtureOf(c)!;
         // nb's program is compiled on the host as on the bare path, with the checkout where the image has it.
-        var program = arm.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, arm, c, sample, HarborCompile.Workdir);
+        var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, c, sample, HarborCompile.Workdir);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample, Model = arm.Model,
-                Harness = arm.Harness, Provider = arm.Provider,
-                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = experiment.BundleOf(arm.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
+                RunId = Layout.NewRunId(), Experiment = experiment.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample, Model = variant.Model,
+                Harness = variant.Harness, Provider = variant.Provider,
+                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = experiment.BundleOf(variant.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
                 Host = experiment.Host, Versions = experiment.Versions, ExamHash = exam.Hash,
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };
         var nb = program is null ? null : new NbCell(Path.Combine(cellDir, Layout.CompiledProgramFile), experiment.Nb.Config);
-        var oracle = OracleCellOf(arm, c);
-        manifest.Agent = new AgentRun(arm.Agent!, null, arm.Model ?? "", HarborCompile.AgentKwargs(arm, route, nb), HarborCompile.AgentEnv(arm, route), experiment.Harbor!.Version, null);
+        var oracle = OracleCellOf(variant, c);
+        manifest.Agent = new AgentRun(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, nb), HarborCompile.AgentEnv(variant, route), experiment.Harbor!.Version, null);
         manifest.Oracle = null;
         manifest.Tries++;
         manifest.Started = Now();
@@ -331,8 +331,8 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
             else if (oracle is not null) File.WriteAllText(nb!.Program, HarborCompile.WithoutRun(compiled!));
         }
         if (failure is null)
-            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, experiment.Harbor.Engine, cellDir, arm, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb, oracle);
-        if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, arm, manifest, arm.IsVendor ? arm.AgentVersion! : experiment.Versions["nb"], bridged: oracle is not null);
+            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, experiment.Harbor.Version, experiment.Harbor.Engine, cellDir, variant, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(experimentDir), nb, oracle);
+        if (trialDir is not null) failure = Ingest.Trial(trialDir, cellDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : experiment.Versions["nb"], bridged: oracle is not null);
         stopwatch.Stop();
 
         manifest.Ended = Now();
@@ -341,48 +341,48 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
         SetStatus(cellDir, manifest, failure is null ? CellStatus.Completed : CellStatus.Failed);
         WriteStatusCounts();
         var exitReason = failure is null ? ReadJson<CountedCore>(Path.Combine(cellDir, Layout.CoreFile))?.ExitReason : null;
-        log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+        log.WriteLine($"  {variant.Id}/{c.Id}/{sample}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
 
     /// <summary>
-    /// An oracle task's simulated user on this arm: the host nb judges, with its config, as the arm's own provider unless
+    /// An oracle task's simulated user on this variant: the host nb judges, with its config, as the variant's own provider unless
     /// the exam names a judge, which is what nb's in-process oracle does on the bare path.
     /// </summary>
-    OracleCell? OracleCellOf(Arm arm, TaskDef c) => exam.OracleOf(c) is { } sheet
-        ? new OracleCell(sheet, experiment.Nb.Path, experiment.Nb.Config, exam.Def.Oracle?.Judge ?? arm.Provider, exam.OracleTurns,
+    OracleCell? OracleCellOf(Variant variant, TaskDef c) => exam.OracleOf(c) is { } sheet
+        ? new OracleCell(sheet, experiment.Nb.Path, experiment.Nb.Config, exam.Def.Oracle?.Judge ?? variant.Provider, exam.OracleTurns,
             Path.Combine(HarborCompile.AgentsDir(experimentDir), HarborCompile.OracleTemplateFile))
         : null;
 
     /// <summary>
-    /// Where an agent arm's model calls go, ${VAR} resolved now: the key never reaches a file. A vendor agent's is
+    /// Where an agent variant's model calls go, ${VAR} resolved now: the key never reaches a file. A vendor agent's is
     /// proctor.json's agents block; nb's is its own config's provider entry, whose endpoint variables go to the agent's
     /// process by value and whose key goes by name, as on the bare path, where nb resolves them itself. A provider
     /// with no endpoint (Mock) reaches nothing.
     /// </summary>
-    static AgentRoute Route(string root, ProctorConfig config, ResolvedNb nb, Arm arm)
+    static AgentRoute Route(string root, ProctorConfig config, ResolvedNb nb, Variant variant)
     {
-        if (!arm.IsVendor) return NbRoute(nb, arm);
-        var endpoint = config.Agents?.GetValueOrDefault(arm.Agent!)
-            ?? throw new ProctorException($"{config.Source} has no agents.{arm.Agent} (arm '{arm.Id}'): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
-        var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"{config.Source} agents.{arm.Agent}.base_url").TrimEnd('/');
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"{config.Source} agents.{arm.Agent}.base_url: '{baseUrl}' is not a URL");
+        if (!variant.IsVendor) return NbRoute(nb, variant);
+        var endpoint = config.Agents?.GetValueOrDefault(variant.Agent!)
+            ?? throw new ProctorException($"{config.Source} has no agents.{variant.Agent} (variant '{variant.Id}'): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
+        var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"{config.Source} agents.{variant.Agent}.base_url").TrimEnd('/');
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"{config.Source} agents.{variant.Agent}.base_url: '{baseUrl}' is not a URL");
         var agentConfig = endpoint.Config is null ? null : Path.GetFullPath(Path.Combine(Layout.Exams(root), endpoint.Config));
-        if (agentConfig is not null && !File.Exists(agentConfig)) throw new ProctorException($"{config.Source} agents.{arm.Agent}.config: {agentConfig} not found");
-        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"{config.Source} agents.{arm.Agent}.api_key"), HarborCompile.KeyEnv(arm.Agent!), Config: agentConfig);
+        if (agentConfig is not null && !File.Exists(agentConfig)) throw new ProctorException($"{config.Source} agents.{variant.Agent}.config: {agentConfig} not found");
+        return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"{config.Source} agents.{variant.Agent}.api_key"), HarborCompile.KeyEnv(variant.Agent!), Config: agentConfig);
     }
 
     /// <summary>
-    /// On a remote engine, every agent arm must reach its model from the internet, and no task may have a service beside
+    /// On a remote engine, every agent variant must reach its model from the internet, and no task may have a service beside
     /// it: Harbor's Modal environment runs a compose task as docker-in-docker with no allowlist, and refuses it rather
     /// than run it unconfined. Everything wrong is said at once, before anything is made.
     /// </summary>
-    static void RequireReachable(Exam exam, ProctorConfig config, Func<Arm, AgentRoute> route)
+    static void RequireReachable(Exam exam, ProctorConfig config, Func<Variant, AgentRoute> route)
     {
         var engine = config.HarborOrDefault.Engine;
         var problems = new List<string>();
-        foreach (var arm in exam.Arms.Where(a => a.IsAgent))
-            if (route(arm).Host is { } host && HarborRun.Unreachable(host) is { } why)
-                problems.Add($"arm '{arm.Id}': its model is at {host}, {why}, which a sandbox on {engine} cannot reach; run it on a local engine, or point {(arm.IsVendor ? $"{config.Source} agents.{arm.Agent}" : $"nb's config {arm.Provider}")} at a public endpoint");
+        foreach (var variant in exam.Variants.Where(a => a.IsAgent))
+            if (route(variant).Host is { } host && HarborRun.Unreachable(host) is { } why)
+                problems.Add($"variant '{variant.Id}': its model is at {host}, {why}, which a sandbox on {engine} cannot reach; run it on a local engine, or point {(variant.IsVendor ? $"{config.Source} agents.{variant.Agent}" : $"nb's config {variant.Provider}")} at a public endpoint");
         foreach (var fixture in exam.Tasks.Select(exam.FixtureOf).OfType<Fixture>().DistinctBy(f => f.Id))
             if (fixture.Def.Image?.Services is not null)
                 problems.Add($"fixture '{fixture.Id}' runs services beside the agent (image.services), and {engine} cannot confine the network of a task with services; its tasks run on docker or podman only");
@@ -391,25 +391,25 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
 
     static readonly System.Text.RegularExpressions.Regex EnvRef = new(@"\$\{([A-Za-z_][A-Za-z0-9_]*)\}");
 
-    static AgentRoute NbRoute(ResolvedNb nb, Arm arm)
+    static AgentRoute NbRoute(ResolvedNb nb, Variant variant)
     {
         var where = nb.Config ?? "nb's config";
         var providers = nb.Config is null ? null : JsonNode.Parse(File.ReadAllText(nb.Config), documentOptions: new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })?["ChatProviders"] as JsonArray;
-        var entry = providers?.OfType<JsonObject>().FirstOrDefault(p => p["Name"]?.GetValue<string>() == arm.Provider)
-            ?? throw new ProctorException($"arm '{arm.Id}': provider '{arm.Provider}' is not in {where} ChatProviders; an nb arm in Harbor reads its endpoint from there");
+        var entry = providers?.OfType<JsonObject>().FirstOrDefault(p => p["Name"]?.GetValue<string>() == variant.Provider)
+            ?? throw new ProctorException($"variant '{variant.Id}': provider '{variant.Provider}' is not in {where} ChatProviders; an nb variant in Harbor reads its endpoint from there");
         var endpoint = entry["Endpoint"]?.GetValue<string>();
         if (endpoint is null) return new AgentRoute(null, null);
-        var env = EnvRef.Matches(endpoint).Select(m => m.Groups[1].Value).Distinct().ToDictionary(v => v, v => ResolveEnv($"${{{v}}}", $"{where} {arm.Provider}.Endpoint"));
+        var env = EnvRef.Matches(endpoint).Select(m => m.Groups[1].Value).Distinct().ToDictionary(v => v, v => ResolveEnv($"${{{v}}}", $"{where} {variant.Provider}.Endpoint"));
         var baseUrl = EnvRef.Replace(endpoint, m => env[m.Groups[1].Value]);
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"{where} {arm.Provider}.Endpoint: '{baseUrl}' is not a URL");
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"{where} {variant.Provider}.Endpoint: '{baseUrl}' is not a URL");
         var key = entry["ApiKey"]?.GetValue<string>() is { } k && EnvRef.Match(k) is { Success: true } m ? m.Groups[1].Value : null;
-        return new AgentRoute(baseUrl, key is null ? null : ResolveEnv($"${{{key}}}", $"{where} {arm.Provider}.ApiKey"), key, env);
+        return new AgentRoute(baseUrl, key is null ? null : ResolveEnv($"${{{key}}}", $"{where} {variant.Provider}.ApiKey"), key, env);
     }
 
-    /// <summary>nb's layer from proctor.json harbor.nb, which must be the same nb as the host binary that compiles the programs and runs the bare arms.</summary>
+    /// <summary>nb's layer from proctor.json harbor.nb, which must be the same nb as the host binary that compiles the programs and runs the bare variants.</summary>
     static string NbImage(string root, ProctorConfig config, string hostVersion)
     {
-        var publish = config.Harbor?.Nb ?? throw new ProctorException($"an nb arm runs through Harbor on nb's self-contained linux-x64 publish: set harbor.nb in {config.Source} to its directory");
+        var publish = config.Harbor?.Nb ?? throw new ProctorException($"an nb variant runs through Harbor on nb's self-contained linux-x64 publish: set harbor.nb in {config.Source} to its directory");
         var (tag, version) = HarborRun.NbImage(NbPublish(root, config), config.HarborOrDefault);
         if (version != hostVersion)
             throw new ProctorException($"nb's publish ({config.Source} harbor.nb) is {version}, the host nb is {hostVersion}: publish the same nb, so the program compiled on the host is the program the image runs");
@@ -483,23 +483,23 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
         return result.ExitCode == 0 ? null : $"{script} exited {result.ExitCode}: {result.FirstStderrLine}";
     }
 
-    void MarkFailed(Arm arm, TaskDef c, int sample, string reason)
+    void MarkFailed(Variant variant, TaskDef c, int sample, string reason)
     {
-        var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
+        var cellDir = Layout.Cell(experimentDir, variant.Id!, c.Id!, sample);
         Directory.CreateDirectory(cellDir);
         var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                RunId = Layout.NewRunId(), Experiment = experiment.Id, Arm = arm.Id!, Task = c.Id!, Sample = sample,
-                Runner = arm.Runner, Harness = arm.Harness, Provider = arm.Provider, Model = arm.Model,
+                RunId = Layout.NewRunId(), Experiment = experiment.Id, Variant = variant.Id!, Task = c.Id!, Sample = sample,
+                Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
                 Host = experiment.Host, Versions = experiment.Versions, ExamHash = exam.Hash, ProgramHash = "",
             };
         manifest.Tries++;
         manifest.StatusReason = reason;
         SetStatus(cellDir, manifest, CellStatus.Failed);
-        log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  failed  {reason}");
+        log.WriteLine($"  {variant.Id}/{c.Id}/{sample}  failed  {reason}");
     }
 
     static void SetStatus(string cellDir, Manifest manifest, string status)
@@ -512,7 +512,7 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     void WriteStatusCounts()
     {
         var counts = CellStatus.All.ToDictionary(s => s, _ => 0);
-        foreach (var (arm, c, s) in Cells(exam)) counts[ReadStatus(Layout.Cell(experimentDir, arm.Id!, c.Id!, s))]++;
+        foreach (var (variant, c, s) in Cells(exam)) counts[ReadStatus(Layout.Cell(experimentDir, variant.Id!, c.Id!, s))]++;
         WriteJson(Path.Combine(experimentDir, Layout.StatusCountsFile), new { planned = experiment.Planned, counts, updated = Now() });
     }
 
@@ -536,7 +536,7 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
     }
 
     /// <summary>Fill the template. {{work}} and {{bundle}} are the paths the model will see, which a runner may mount elsewhere. A prompt's newlines become nb continuation lines so the program stays one directive.</summary>
-    public static string ResolveProgram(string template, Arm arm, TaskDef c, int sample, string workDir, string? bundleDir = null)
+    public static string ResolveProgram(string template, Variant variant, TaskDef c, int sample, string workDir, string? bundleDir = null)
     {
         var values = new Dictionary<string, string>
         {
@@ -544,10 +544,10 @@ sealed class Runner(string root, Experiment experiment, Exam exam, ProctorConfig
             ["task"] = c.Id!,
             ["work"] = workDir,
             ["bundle"] = bundleDir ?? "",
-            ["provider"] = arm.Provider ?? "",
-            ["model"] = arm.Model ?? "",
-            ["harness"] = arm.Harness ?? "",
-            ["arm"] = arm.Id!,
+            ["provider"] = variant.Provider ?? "",
+            ["model"] = variant.Model ?? "",
+            ["harness"] = variant.Harness ?? "",
+            ["variant"] = variant.Id!,
             ["sample"] = sample.ToString(),
         };
         return System.Text.RegularExpressions.Regex.Replace(template, @"\{\{\s*([^}]*?)\s*\}\}", m => values[m.Groups[1].Value]);
