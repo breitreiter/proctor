@@ -13,14 +13,14 @@ record Verdict(string Result, string Reason)
 }
 
 /// <summary>Everything the runner and the grader need to know about one cell, without the transcript.</summary>
-record CellContext(string SuiteDir, string CellDir, string WorkDir, string Experiment, string Arm, TaskDef Task, int Sample)
+record CellContext(string ExamDir, string CellDir, string WorkDir, string Experiment, string Arm, TaskDef Task, int Sample)
 {
     /// <summary>What the task expects, its fixture's defaults included; the task's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Task.Expect;
     public Fixture? Fixture { get; init; }
     /// <summary>The arm's resolved bundle directory, when the arm has one.</summary>
     public string? BundleDir { get; init; }
-    /// <summary>The runner script in effect, relative to suites/; empty on a bare run.</summary>
+    /// <summary>The runner script in effect, relative to exams/; empty on a bare run.</summary>
     public string NbRunner { get; init; } = "";
     /// <summary>The host nb binary and its config, resolved: what a bare run starts, and what a hook mounts for a runner.</summary>
     public string NbPath { get; init; } = "";
@@ -44,7 +44,7 @@ record CellContext(string SuiteDir, string CellDir, string WorkDir, string Exper
 
     public IDictionary<string, string> Environment() => new Dictionary<string, string>
     {
-        ["PROCTOR_SUITE_DIR"] = SuiteDir,
+        ["PROCTOR_EXAM_DIR"] = ExamDir,
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
         ["PROCTOR_BUNDLE"] = BundleDir ?? "",
         ["PROCTOR_EXPERIMENT"] = Experiment,
@@ -55,7 +55,7 @@ record CellContext(string SuiteDir, string CellDir, string WorkDir, string Exper
         ["PROCTOR_WORK"] = WorkDir,
         ["PROCTOR_WORK_MOUNT"] = WorkMount,
         ["PROCTOR_BUNDLE_MOUNT"] = BundleMount ?? "",
-        ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(Task, Suite.JsonOptions),
+        ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(Task, Exam.JsonOptions),
         ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(CellDir, Layout.TranscriptFile),
         ["PROCTOR_DIFF"] = Path.Combine(CellDir, Layout.DiffFile),
@@ -102,7 +102,7 @@ static class Checks
     /// check describes itself (<see cref="Describe"/>); a script is a black box from outside, so its author must.
     /// Yields (field, problem); an empty field is the check itself.
     /// </summary>
-    public static IEnumerable<(string Field, string Problem)> ValidateCheck(JsonObject? spec, string suiteDir)
+    public static IEnumerable<(string Field, string Problem)> ValidateCheck(JsonObject? spec, string examDir)
     {
         var fields = spec?.Where(f => f.Key != Description).ToList() ?? [];
         if (fields.Count == 0) { yield return ("", "a check is an object with at least one check field"); yield break; }
@@ -112,7 +112,7 @@ static class Checks
         if (description is null && spec.ContainsKey("script"))
             yield return (Description, "required for a script check: say in a sentence what the script tests, for the report's reader");
         foreach (var (key, value) in fields)
-            if (ValidateSpec(key, value, suiteDir) is { } problem) yield return (key, problem);
+            if (ValidateSpec(key, value, examDir) is { } problem) yield return (key, problem);
     }
 
     /// <summary>What a check tests, for a reader: its description, else a sentence derived from its built-in fields.</summary>
@@ -185,7 +185,7 @@ static class Checks
     };
 
     /// <summary>Shape-check one field of a check spec at load time. Null when fine.</summary>
-    public static string? ValidateSpec(string key, JsonNode? value, string suiteDir)
+    public static string? ValidateSpec(string key, JsonNode? value, string examDir)
     {
         var (name, negated) = Split(key);
         if (NotYet.TryGetValue(name, out var why)) return $"not yet: {why}";
@@ -197,7 +197,7 @@ static class Checks
         return name switch
         {
             "script" when value is not JsonValue => "a script is a path string",
-            "script" when !File.Exists(Path.Combine(suiteDir, value!.GetValue<string>())) => $"script not found: {value}",
+            "script" when !File.Exists(Path.Combine(examDir, value!.GetValue<string>())) => $"script not found: {value}",
             "exit_reason" or "answer_contains" or "answer_regex" or "answer_equals" or "result_matches" when value is not JsonValue => "expects a string",
             "answer_regex" or "result_matches" when !IsRegex(value!.GetValue<string>()) => "not a valid regular expression",
             "tools_used" or "tools_used_any" when value is not JsonArray => "expects a list of tool names",
@@ -236,8 +236,8 @@ static class Checks
         return worst with { Reason = string.Join("; ", verdicts.OrderBy(v => v.Result != worst.Result).Select(v => v.Reason)) };
     }
 
-    /// <summary>A suite's check: its script path is relative to the suite directory.</summary>
-    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, cell.SuiteDir, "suite"), cell, t, name);
+    /// <summary>An exam's check: its script path is relative to the exam directory.</summary>
+    public static Verdict Evaluate(JsonObject spec, CellContext cell, Transcript t, string name = "check") => Evaluate(new CheckDef(spec, cell.ExamDir, "exam"), cell, t, name);
 
     private static Verdict EvaluateField(string key, JsonNode? value, string scriptDir, string check, CellContext cell, Transcript t)
     {

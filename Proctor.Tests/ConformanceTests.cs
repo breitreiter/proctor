@@ -6,7 +6,7 @@ namespace Proctor.Tests;
 
 /// <summary>
 /// Runs only when PROCTOR_CONFORMANCE is set; it needs Docker or podman, uv and Harbor, and network to build the images.
-/// `1` takes harbor.uv and harbor.engine from this repository's suites/proctor.json; a path takes them from that file.
+/// `1` takes harbor.uv and harbor.engine from this repository's exams/proctor.json; a path takes them from that file.
 /// </summary>
 sealed class ConformanceFactAttribute : FactAttribute
 {
@@ -18,7 +18,7 @@ sealed class ConformanceFactAttribute : FactAttribute
 }
 
 /// <summary>
-/// Harbor conformance (project/plans/harbor-conformance.md, rows 3 to 9): suites/conformance runs each vendor agent at
+/// Harbor conformance (project/plans/harbor-conformance.md, rows 3 to 9): exams/conformance runs each vendor agent at
 /// its pin against the stub fixture's scripted model, which costs nothing, and every cell must come back as the stub
 /// scripted it: ok completes with one shell call, the verifier's check and every offered tool mapped; fail is an
 /// outage; hang is a completed run that hit its time budget.
@@ -31,7 +31,7 @@ public class ConformanceTests
     static (string Uv, string Engine) MachineHarbor()
     {
         var named = Environment.GetEnvironmentVariable("PROCTOR_CONFORMANCE");
-        var file = named is null or "1" ? Path.Combine(TestRepo.SourceRoot, "suites", "proctor.json") : Path.GetFullPath(named);
+        var file = named is null or "1" ? Path.Combine(TestRepo.SourceRoot, "exams", "proctor.json") : Path.GetFullPath(named);
         var harbor = File.Exists(file) ? JsonNode.Parse(File.ReadAllText(file))?["harbor"] : null;
         return (harbor?["uv"]?.GetValue<string>() ?? "uv", harbor?["engine"]?.GetValue<string>() ?? "docker");
     }
@@ -40,9 +40,9 @@ public class ConformanceTests
     public void EveryVendorAgent_RunsAndReadsBack_AsTheStubScriptedIt()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("conformance");
+        repo.CopyExam("conformance");
         var (uv, engine) = MachineHarbor();
-        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), JsonSerializer.Serialize(new
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
             agents = new Dictionary<string, object>
@@ -53,38 +53,38 @@ public class ConformanceTests
             },
             harbor = new { uv, engine },
         }));
-        var config = Suite.LoadConfig(repo.Root, []);
-        var suite = repo.LoadSuite("conformance");
-        var id = Runner.Start(repo.Root, suite, config, null, null, "conformance", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
+        var config = Exam.LoadConfig(repo.Root, []);
+        var exam = repo.LoadExam("conformance");
+        var id = Runner.Start(repo.Root, exam, config, null, null, "conformance", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
 
-        var misses = Misses(repo.Root, id, suite);
+        var misses = Misses(repo.Root, id, exam);
         Assert.True(misses.Count == 0, string.Join("\n", misses));
     }
 
     /// <summary>
     /// Row 10: each code-change task, compiled as proctor compiles it, with its reference solution (reference/<task>.*) as the
     /// task's solution/ and Harbor's oracle agent in place of a model, passes every script check in the verifier.
-    /// That proves the image and the offline verifier for the suite's own tasks; no model, no network in the agent phase.
+    /// That proves the image and the offline verifier for the exam's own tasks; no model, no network in the agent phase.
     /// </summary>
     [ConformanceFact]
     public void EveryCodeChangeTask_PassesItsChecks_WithItsReferenceSolution()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("code-change");
-        var suite = repo.LoadSuite("code-change");
-        var arm = suite.Arms.First(a => a.IsVendor);
+        repo.CopyExam("code-change");
+        var exam = repo.LoadExam("code-change");
+        var arm = exam.Arms.First(a => a.IsVendor);
         var (uv, engine) = MachineHarbor();
         var expDir = Path.Combine(repo.Root, "runs", "oracle");
-        HarborCompile.Tasks(expDir, suite, "oracle", _ => new AgentRoute(null, null));
+        HarborCompile.Tasks(expDir, exam, "oracle", _ => new AgentRoute(null, null));
 
         var misses = new List<string>();
-        foreach (var c in suite.Tasks)
+        foreach (var c in exam.Tasks)
         {
             var taskDir = Layout.HarborTask(expDir, arm.Id!, c.Id!);
             var solution = Path.Combine(taskDir, "solution");
             Directory.CreateDirectory(solution);
-            foreach (var file in Directory.GetFiles(Path.Combine(suite.Dir, "reference"), $"{c.Id}.*")) File.Copy(file, Path.Combine(solution, Path.GetFileName(file)));
+            foreach (var file in Directory.GetFiles(Path.Combine(exam.Dir, "reference"), $"{c.Id}.*")) File.Copy(file, Path.Combine(solution, Path.GetFileName(file)));
             File.WriteAllText(Path.Combine(solution, "solve.sh"), $"#!/usr/bin/env bash\nset -euo pipefail\nbash \"$(dirname \"$0\")/{c.Id}.sh\" {HarborCompile.Workdir}\n");
 
             var harborDir = Path.Combine(expDir, "oracle-jobs", c.Id!);
@@ -92,7 +92,7 @@ public class ConformanceTests
             var job = HarborCompile.Job(arm, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null), engine: engine);
             job["agents"] = new JsonArray(new JsonObject { ["name"] = "oracle" });
             Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), job);
-            var run = Subprocess.Run(uv, HarborRun.UvArgs(suite.Def.Harbor!.Version), harborDir,
+            var run = Subprocess.Run(uv, HarborRun.UvArgs(exam.Def.Harbor!.Version), harborDir,
                 new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" }, timeout: TimeSpan.FromMinutes(30));
 
             var reward = Directory.GetFiles(Path.Combine(harborDir, "jobs"), Layout.RewardFile, SearchOption.AllDirectories).FirstOrDefault();
@@ -104,11 +104,11 @@ public class ConformanceTests
     }
 
     /// <summary>Every way a cell differs from the stub's script, as "arm/task: what"; empty when conformance is green.</summary>
-    internal static List<string> Misses(string root, string experimentId, Suite suite)
+    internal static List<string> Misses(string root, string experimentId, Exam exam)
     {
         var expDir = Layout.Experiment(root, experimentId);
         var misses = new List<string>();
-        foreach (var arm in suite.Arms)
+        foreach (var arm in exam.Arms)
         {
             void Miss(string task, string what) => misses.Add($"{arm.Id}/{task}: {what}");
             string Cell(string task) => Layout.Cell(expDir, arm.Id!, task, 1);
@@ -124,7 +124,7 @@ public class ConformanceTests
                 if (reward["made-file"]?.GetValue<double>() != 1) Miss("ok", $"the verifier's made-file is {reward["made-file"]?.ToJsonString() ?? "missing"}");
                 var checks = Grade.ReadChecks(Cell("ok"));
                 if (checks is null) Miss("ok", "not graded");
-                else if (Grade.Pass(checks, suite.Grading.Pass!) != true)
+                else if (Grade.Pass(checks, exam.Grading.Pass!) != true)
                     Miss("ok", "does not pass: " + string.Join("; ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result} ({k.Value.Reason})")));
                 var answer = Transcript.Read(Cell("ok")).Answer ?? "";
                 if (!answer.StartsWith("tools: ")) Miss("ok", $"the answer is not the stub's tool list: '{answer}'");

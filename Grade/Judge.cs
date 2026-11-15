@@ -14,7 +14,7 @@ namespace Proctor;
 // `judge` asks a chat model a criterion over a window and reads a label with verbatim evidence, reasoning discarded.
 // Both write everything they sent and received to verdicts/ beside the evidence; checks.json gets a Verdict like any other.
 
-/// <summary>The judges of suites/proctor.json with the transports the checks call through. Tests hand in fakes; the verbs hand in the real ones.</summary>
+/// <summary>The judges of exams/proctor.json with the transports the checks call through. Tests hand in fakes; the verbs hand in the real ones.</summary>
 sealed class JudgeClient
 {
     public required Dictionary<string, JudgeDef> Defs { get; init; }
@@ -67,7 +67,7 @@ sealed class JudgeClient
             var parts = r.Split('=', 2);
             if (parts.Length != 2 || parts.Any(string.IsNullOrWhiteSpace)) throw new ProctorException($"--judge expects from=to, got '{r}'");
             foreach (var name in parts)
-                if (config.Judges?.ContainsKey(name) != true) throw new ProctorException($"--judge {r}: no judge '{name}' in suites/proctor.json");
+                if (config.Judges?.ContainsKey(name) != true) throw new ProctorException($"--judge {r}: no judge '{name}' in exams/proctor.json");
             remap[parts[0]] = parts[1];
         }
         return new JudgeClient { Defs = config.Judges ?? [], Remap = remap, Rejudge = rejudge, Note = note ?? (_ => { }) };
@@ -82,7 +82,7 @@ sealed class JudgeClient
         return (to, Defs[to]);
     }
 
-    /// <summary>The judge the suite declares for a check, remap aside.</summary>
+    /// <summary>The judge the exam declares for a check, remap aside.</summary>
     public (string Name, JudgeDef Def) Declared(string kind, string? with, string check) =>
         Judges.Resolve(Defs, kind, with, out var problem) ?? throw new ProctorException($"check '{check}': {problem}");
 
@@ -189,7 +189,7 @@ static class Judge
         if (spec.FirstOrDefault(f => !known.Contains(f.Key)) is { Key: { } extra }) return $"unknown field '{extra}'; known: {string.Join(", ", known)}";
         if (spec["ask"] is not JsonValue a || !a.TryGetValue<string>(out var ask) || string.IsNullOrWhiteSpace(ask)) return "ask is required: the question, in a sentence, or @expect";
         if (Window.Validate((spec["window"] as JsonValue)?.GetValue<string>()) is { } w) return $"window: {w}";
-        if (spec["with"] is { } with && (with is not JsonValue wv || !wv.TryGetValue<string>(out _))) return "with is a judge name from suites/proctor.json";
+        if (spec["with"] is { } with && (with is not JsonValue wv || !wv.TryGetValue<string>(out _))) return "with is a judge name from exams/proctor.json";
         var expect = spec["expect"];
         var fromCase = IsFromExpect(expect);
         if (name == Decide)
@@ -210,7 +210,7 @@ static class Judge
         return null;
     }
 
-    /// <summary>The check's judge exists in proctor.json; null when it does. Called when the suite is loaded with the config in hand.</summary>
+    /// <summary>The check's judge exists in proctor.json; null when it does. Called when the exam is loaded with the config in hand.</summary>
     public static string? ValidateUse(string name, JsonObject spec, Dictionary<string, JudgeDef>? judges)
     {
         Judges.Resolve(judges, KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), out var problem);
@@ -230,7 +230,7 @@ static class Judge
 
     public static Verdict Evaluate(string name, JsonObject spec, string check, CellContext cell, Transcript t)
     {
-        var client = cell.Judges ?? throw new ProctorException($"check '{check}': grading a {name} check needs the judges of suites/proctor.json");
+        var client = cell.Judges ?? throw new ProctorException($"check '{check}': grading a {name} check needs the judges of exams/proctor.json");
         var (judge, def) = client.Resolve(KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), check);
 
         // What the task supplies under the check's name: the expectation itself, or {ask, expect} when the question is the task's too.
@@ -447,7 +447,7 @@ static class Judge
     {
         var file = FileOf(call, hash);
         if (call.Client.Rejudge || !File.Exists(file)) return null;
-        var on = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Suite.JsonOptions);
+        var on = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Exam.JsonOptions);
         if (on is null || on.Verdict.Result == Verdict.Error) return null;
         if (!on.Applied && !call.Client.Comparing) Runner.WriteJson(file, on with { Applied = true });
         return on.Verdict;
@@ -464,17 +464,17 @@ static class Judge
     }
 
     /// <summary>The judges whose verdicts the experiment's checks.json files hold, for the report's reproducibility section. A comparison pass's files are not counted.</summary>
-    public static List<JudgeUse> Uses(string root, Experiment experiment, Suite suite)
+    public static List<JudgeUse> Uses(string root, Experiment experiment, Exam exam)
     {
         var uses = new Dictionary<(string, string, string?, string), List<string>>();
-        foreach (var (arm, c, sample) in Runner.Cells(suite))
+        foreach (var (arm, c, sample) in Runner.Cells(exam))
         {
             var dir = Path.Combine(Layout.Cell(Layout.Experiment(root, experiment.Id), arm.Id!, c.Id!, sample), Layout.VerdictsDir);
             if (!Directory.Exists(dir)) continue;
             foreach (var file in Directory.GetFiles(dir, "*.json").Order(StringComparer.Ordinal))
             {
                 VerdictFile? v;
-                try { v = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Suite.JsonOptions); }
+                try { v = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Exam.JsonOptions); }
                 catch (JsonException) { continue; }
                 if (v is null || !v.Applied) continue;
                 var checks = uses.GetValueOrDefault((v.Judge, v.Kind, v.Model, v.Endpoint)) ?? (uses[(v.Judge, v.Kind, v.Model, v.Endpoint)] = []);
@@ -485,9 +485,9 @@ static class Judge
     }
 
     /// <summary>An arm whose model or provider carries a judge's family name, so the grader can say so once; the off-family rule is the brief's to keep.</summary>
-    public static IEnumerable<string> SameFamilyNotes(Suite suite, JudgeClient client)
+    public static IEnumerable<string> SameFamilyNotes(Exam exam, JudgeClient client)
     {
-        var specs = suite.Grading.Checks!.Concat(suite.Fixtures.Values.SelectMany(f => f.Checks));
+        var specs = exam.Grading.Checks!.Concat(exam.Fixtures.Values.SelectMany(f => f.Checks));
         var seen = new HashSet<(string, string)>();
         foreach (var (check, spec) in specs)
             foreach (var name in new[] { Decide, JudgeCheck })
@@ -495,7 +495,7 @@ static class Judge
                 if (spec[name] is not JsonObject s) continue;
                 var (judge, def) = client.Resolve(KindOf(name), (s["with"] as JsonValue)?.GetValue<string>(), check);
                 if (def.Family is not { } family) continue;
-                foreach (var arm in suite.Arms.Where(a => $"{a.Model} {a.Provider}".Contains(family, StringComparison.OrdinalIgnoreCase)))
+                foreach (var arm in exam.Arms.Where(a => $"{a.Model} {a.Provider}".Contains(family, StringComparison.OrdinalIgnoreCase)))
                     if (seen.Add((arm.Id!, judge)))
                         yield return $"arm '{arm.Id}' ({arm.Model}) is in the family of judge '{judge}' ({family}); a judge should be off-family from every arm it grades";
             }

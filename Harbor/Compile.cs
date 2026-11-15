@@ -5,8 +5,8 @@ using System.Text.Json.Nodes;
 
 namespace Proctor;
 
-// A suite's agent arms as Harbor tasks: one task directory per arm and task, under the experiment, and one job file
-// per cell. Only the fixture's repo/ enters the image the agent runs in; its checks, the suite and the expectations go
+// An exam's agent arms as Harbor tasks: one task directory per arm and task, under the experiment, and one job file
+// per cell. Only the fixture's repo/ enters the image the agent runs in; its checks, the exam and the expectations go
 // to tests/, which Harbor copies into the separate verifier container only.
 
 /// <summary>
@@ -65,14 +65,14 @@ static class HarborCompile
     /// remote engine, which cannot see a local image, nb's publish directory comes too and is copied into each nb task.
     /// The bundles are the experiment's resolved ones, which reach a task only through its fixture's services.
     /// </summary>
-    public static string Tasks(string experimentDir, Suite suite, string experimentId, Func<Arm, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
+    public static string Tasks(string experimentDir, Exam exam, string experimentId, Func<Arm, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
         IReadOnlyDictionary<string, ResolvedBundle>? bundles = null)
     {
-        foreach (var arm in suite.Arms.Where(a => a.IsAgent))
-            foreach (var c in suite.Tasks)
-                Task(Layout.HarborTask(experimentDir, arm.Id!, c.Id!), suite, arm, c, experimentId, route(arm), nbImage, nbPublish, bundles?.GetValueOrDefault(arm.Id!)?.Path);
-        var files = suite.Arms.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
-        var oracle = HasOracle(suite);
+        foreach (var arm in exam.Arms.Where(a => a.IsAgent))
+            foreach (var c in exam.Tasks)
+                Task(Layout.HarborTask(experimentDir, arm.Id!, c.Id!), exam, arm, c, experimentId, route(arm), nbImage, nbPublish, bundles?.GetValueOrDefault(arm.Id!)?.Path);
+        var files = exam.Arms.Where(a => a.IsAgent && IsOwnAgent(a)).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
+        var oracle = HasOracle(exam);
         if (oracle) files.Add(OracleUserFile);
         var agents = AgentsDir(experimentDir);
         foreach (var file in files)
@@ -86,8 +86,8 @@ static class HarborCompile
         return TreeHash(experimentDir);
     }
 
-    /// <summary>Whether a suite's agent arms run with the oracle's simulated user: an agent arm beside a task with an answer sheet (validation keeps vendor arms out).</summary>
-    public static bool HasOracle(Suite suite) => suite.Arms.Any(a => a.IsAgent) && suite.Tasks.Any(c => c.Oracle is not null);
+    /// <summary>Whether an exam's agent arms run with the oracle's simulated user: an agent arm beside a task with an answer sheet (validation keeps vendor arms out).</summary>
+    public static bool HasOracle(Exam exam) => exam.Arms.Any(a => a.IsAgent) && exam.Tasks.Any(c => c.Oracle is not null);
 
     /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
     public static string AgentsDir(string experimentDir) => Path.Combine(experimentDir, Layout.HarborDir, "agents");
@@ -108,14 +108,14 @@ static class HarborCompile
     /// fixture has services, the arm's bundle is copied beside them as environment/bundle/ (empty without one), so a
     /// service can serve it, a docs site say, while the agent's own container never holds it.
     /// </summary>
-    public static void Task(string dir, Suite suite, Arm arm, TaskDef c, string experimentId, AgentRoute route, string? nbImage = null, string? nbPublish = null,
+    public static void Task(string dir, Exam exam, Arm arm, TaskDef c, string experimentId, AgentRoute route, string? nbImage = null, string? nbPublish = null,
         string? bundleDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
-        var fixture = suite.FixtureOf(c)!;
+        var fixture = exam.FixtureOf(c)!;
         Directory.CreateDirectory(Path.Combine(dir, "environment"));
         File.WriteAllText(Path.Combine(dir, "instruction.md"), c.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
-        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(suite, c, route, bridged: c.Oracle is not null));
+        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, c, route, bridged: c.Oracle is not null));
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
         var nbInContext = arm.Agent == Arm.Nb && nbPublish is not null;
         if (nbInContext) CopyTree(nbPublish!, Path.Combine(dir, "environment", NbContextDir), []);
@@ -128,11 +128,11 @@ static class HarborCompile
         }
 
         var tests = Path.Combine(dir, "tests");
-        CopyTree(suite.Dir, Path.Combine(tests, "suite"), []);
+        CopyTree(exam.Dir, Path.Combine(tests, "exam"), []);
         CopyTree(fixture.Dir, Path.Combine(tests, "fixture"), [Path.GetFullPath(fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo"))]);
-        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(suite, arm, c, experimentId));
+        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, arm, c, experimentId));
         var test = Path.Combine(tests, "test.sh");
-        File.WriteAllText(test, TestScript(suite, c));
+        File.WriteAllText(test, TestScript(exam, c));
         File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
     }
 
@@ -263,15 +263,15 @@ static class HarborCompile
     /// none, so the image restores packages. A bridged task's diff leaves out the bridge's acpx config, which Harbor
     /// writes into the work directory (its exec's default cwd, the image's WORKDIR).
     /// </summary>
-    static string TaskToml(Suite suite, TaskDef c, AgentRoute route, bool bridged) => $"""
+    static string TaskToml(Exam exam, TaskDef c, AgentRoute route, bool bridged) => $"""
         version = "1.0"
 
         [task]
         name = {Toml($"proctor/{c.Id}")}
-        description = {Toml(Suite.Describe(c))}
+        description = {Toml(Exam.Describe(c))}
 
         [agent]
-        timeout_sec = {suite.Def.Limits!.WallMs!.Value / 1000.0:0.0##}
+        timeout_sec = {exam.Def.Limits!.WallMs!.Value / 1000.0:0.0##}
         {(route.Host is { } host ? $"network_mode = \"allowlist\"\nallowed_hosts = [{Toml(host)}]" : "network_mode = \"no-network\"")}
 
         [environment]
@@ -352,11 +352,11 @@ static class HarborCompile
     /// meaning there (the cell, the sample, nb, a runner) is empty. There is no transcript in the verifier: a check that
     /// reads one cannot run there yet.
     /// </summary>
-    static string VerifierEnv(Suite suite, Arm arm, TaskDef c, string experimentId)
+    static string VerifierEnv(Exam exam, Arm arm, TaskDef c, string experimentId)
     {
         var values = new Dictionary<string, string>
         {
-            ["PROCTOR_SUITE_DIR"] = "/tests/suite",
+            ["PROCTOR_EXAM_DIR"] = "/tests/exam",
             ["PROCTOR_FIXTURE"] = "/tests/fixture",
             ["PROCTOR_BUNDLE"] = "",
             ["PROCTOR_EXPERIMENT"] = experimentId,
@@ -367,8 +367,8 @@ static class HarborCompile
             ["PROCTOR_WORK"] = Workdir,
             ["PROCTOR_WORK_MOUNT"] = Workdir,
             ["PROCTOR_BUNDLE_MOUNT"] = "",
-            ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(c, Suite.JsonOptions),
-            ["PROCTOR_EXPECT"] = suite.ExpectFor(c)?.ToJsonString() ?? "{}",
+            ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(c, Exam.JsonOptions),
+            ["PROCTOR_EXPECT"] = exam.ExpectFor(c)?.ToJsonString() ?? "{}",
             ["PROCTOR_TRANSCRIPT"] = "",
             ["PROCTOR_DIFF"] = DiffInContainer,
             ["PROCTOR_RUNNER"] = "",
@@ -385,7 +385,7 @@ static class HarborCompile
     /// order. One reward key per check: 1 pass, 0 fail, 2 needs-judge; any other exit leaves the key out, which is
     /// error. Each check's output is kept as verifier/&lt;check&gt;.out and its exit code as &lt;check&gt;.exit.
     /// </summary>
-    static string TestScript(Suite suite, TaskDef c)
+    static string TestScript(Exam exam, TaskDef c)
     {
         var sb = new StringBuilder("""
             #!/bin/bash
@@ -407,10 +407,10 @@ static class HarborCompile
             }
 
             """);
-        foreach (var (name, check) in suite.ChecksFor(c))
+        foreach (var (name, check) in exam.ChecksFor(c))
         {
             if (check.Spec["script"] is not JsonValue v || !v.TryGetValue<string>(out var script)) continue;
-            var root = check.Level == "fixture" ? "/tests/fixture" : "/tests/suite";
+            var root = check.Level == "fixture" ? "/tests/fixture" : "/tests/exam";
             sb.Append($"check {Shell(name)} {Shell($"{root}/{script}")}\n");
         }
         sb.Append("""

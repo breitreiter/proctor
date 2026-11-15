@@ -116,21 +116,21 @@ public class StatsTests
     static ResultRow Row(string arm, string task, int sample, bool? pass, string status = "completed", string exit = "ok", string? invalid = null) =>
         WorkedExperiment.Row(arm, task, sample, pass, status, exit, reason: "hook failed", invalid: invalid);
 
-    static Suite TwoArmSuite(int samples) => WorkedExperiment.Suite(samples);
+    static Exam TwoArmExam(int samples) => WorkedExperiment.Exam(samples);
 
-    static Experiment Exp(Suite suite) => WorkedExperiment.Experiment(suite);
+    static Experiment Exp(Exam exam) => WorkedExperiment.Experiment(exam);
 
     [Fact]
     public void Compute_TheWorkedExperimentShape()
     {
-        var suite = TwoArmSuite(samples: 3);   // tasks: loops, plain, uses-bash
+        var exam = TwoArmExam(samples: 3);   // tasks: loops, plain, uses-bash
         var rows = new List<ResultRow>();
         var floor = new Dictionary<string, bool[]> { ["loops"] = [true, true, false], ["plain"] = [true, true, true], ["uses-bash"] = [false, true, false] };
         var b = new Dictionary<string, bool[]> { ["loops"] = [true, true, true], ["plain"] = [true, true, true], ["uses-bash"] = [true, false, true] };
         foreach (var (c, v) in floor) for (var s = 0; s < 3; s++) rows.Add(Row("floor", c, s + 1, v[s], exit: v[s] ? "ok" : "max_tool_calls"));
         foreach (var (c, v) in b) for (var s = 0; s < 3; s++) rows.Add(Row("b", c, s + 1, v[s]));
 
-        var stats = Stats.Compute(Exp(suite), suite, rows);
+        var stats = Stats.Compute(Exp(exam), exam, rows);
 
         Assert.Equal(3, stats.NTasks);
         Assert.True(stats.Paired);
@@ -168,13 +168,13 @@ public class StatsTests
     [Fact]
     public void Compute_ExcludedCellsStayInAccounting_AndOutOfRates()
     {
-        var suite = TwoArmSuite(samples: 1);
+        var exam = TwoArmExam(samples: 1);
         var rows = new List<ResultRow>
         {
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, null, status: "failed"),
             Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(Exp(suite), suite, rows);
+        var stats = Stats.Compute(Exp(exam), exam, rows);
         var f = stats.Arms["floor"];
         Assert.Equal((3, 3, 2, 2, 2), (f.Planned, f.Attempted, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
@@ -194,13 +194,13 @@ public class StatsTests
     [Fact]
     public void Compute_InvalidSamplesAreExcluded_ValidityRateIsOverEveryGradedSample()
     {
-        var suite = TwoArmSuite(samples: 1);
+        var exam = TwoArmExam(samples: 1);
         var rows = new List<ResultRow>
         {
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, true, invalid: "no_denials: 1 denied call"),
             Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(Exp(suite), suite, rows);
+        var stats = Stats.Compute(Exp(exam), exam, rows);
         var f = stats.Arms["floor"];
         Assert.Equal((3, 3, 3, 3, 2), (f.Planned, f.Attempted, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
@@ -217,9 +217,9 @@ public class StatsTests
     [Fact]
     public void Compute_OneArm_NoComparisons_MdeFromItsTasks()
     {
-        var suite = TwoArmSuite(samples: 1);
+        var exam = TwoArmExam(samples: 1);
         var rows = new List<ResultRow> { Row("floor", "loops", 1, true), Row("floor", "plain", 1, false), Row("floor", "uses-bash", 1, true) };
-        var stats = Stats.Compute(Exp(suite), suite, rows);
+        var stats = Stats.Compute(Exp(exam), exam, rows);
         Assert.Empty(stats.Comparisons);
         Assert.Equal(3, stats.Mde.NPairs);
         Assert.Null(stats.Arms["b"].Pass);
@@ -230,14 +230,14 @@ public class StatsTests
     [Fact]
     public void Compute_AgainstBaseline_VerdictIsThePointEstimateAgainstTheTolerance()
     {
-        var suite = TwoArmSuite(samples: 1);
+        var exam = TwoArmExam(samples: 1);
         var rows = new List<ResultRow>
         {
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, false), Row("floor", "uses-bash", 1, false),
             Row("b", "loops", 1, true), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
         var guard = new GuardInput("2026-09-21T16:40:12Z", "recomputed", new() { ["loops"] = 1.0, ["plain"] = 1.0, ["uses-bash"] = 0.0 }, TolerancePoints: 10);
-        var stats = Stats.Compute(Exp(suite), suite, rows, guard);
+        var stats = Stats.Compute(Exp(exam), exam, rows, guard);
         var bl = stats.Baseline!;
         Assert.Equal(("2026-09-21T16:40:12Z", "recomputed", 10), (bl.Set, bl.Scores, bl.TolerancePoints));
 
@@ -252,11 +252,11 @@ public class StatsTests
         Assert.False(floor.Confirmed || b.Confirmed, "an interval that crosses the tolerance does not confirm the verdict");
 
         // Inside the tolerance is held, whichever way it leans; the between-arm comparison is untouched.
-        var held = Stats.Compute(Exp(suite), suite, rows, guard with { TolerancePoints = 40 }).Baseline!;
+        var held = Stats.Compute(Exp(exam), exam, rows, guard with { TolerancePoints = 40 }).Baseline!;
         Assert.All(held.Arms.Values, a => Assert.Equal("held", a.Verdict));
         Assert.All(held.Arms.Values, a => Assert.False(a.Confirmed));
         // Held is confirmed only when the whole interval sits inside the tolerance.
-        var wide = Stats.Compute(Exp(suite), suite, rows, guard with { TolerancePoints = 100 }).Baseline!;
+        var wide = Stats.Compute(Exp(exam), exam, rows, guard with { TolerancePoints = 100 }).Baseline!;
         Assert.All(wide.Arms.Values, a => Assert.True(a.Confirmed));
         Assert.Equal(67, Assert.Single(stats.Comparisons).DiffPoints);
         Assert.Contains("tolerance of 10 points", stats.Methods);

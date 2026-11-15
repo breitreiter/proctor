@@ -43,7 +43,7 @@ static class HarborRun
     {
         var engine = harbor.Engine;
         var binary = Path.Combine(publishDir, "nb");
-        if (!File.Exists(binary)) throw new ProctorException($"no nb binary in {publishDir} (suites/proctor.json harbor.nb): publish one with `dotnet publish nb.csproj -c Release -r linux-x64 --self-contained -o <dir>` in nb's repository");
+        if (!File.Exists(binary)) throw new ProctorException($"no nb binary in {publishDir} (exams/proctor.json harbor.nb): publish one with `dotnet publish nb.csproj -c Release -r linux-x64 --self-contained -o <dir>` in nb's repository");
         var asked = Subprocess.Run(binary, ["--version"], publishDir, new Dictionary<string, string> { ["NO_COLOR"] = "1" });
         if (!asked.Started || asked.ExitCode != 0) throw new ProctorException($"{binary} --version failed: {(asked.Started ? asked.FirstStderrLine : asked.Stderr)}");
         var tag = (engine == "podman" ? "localhost/" : "") + "proctor-nb:" + Tree.Hash(publishDir, new HashSet<string>()).Split(':')[1][..16];
@@ -144,7 +144,7 @@ static class HarborRun
         if (HarborCompile.IsOwnAgent(arm) || oracle is not null) env["PYTHONPATH"] = agentsDir;
         var result = Subprocess.Run(uv, UvArgs(version, engine), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);
-        if (!result.Started) return (null, $"could not start Harbor: {result.Stderr} (suites/proctor.json harbor.uv)");
+        if (!result.Started) return (null, $"could not start Harbor: {result.Stderr} (exams/proctor.json harbor.uv)");
         if (result.TimedOut) return (null, $"Harbor did not finish within {timeout.TotalMinutes:0} minutes; killed. {TearDown(engine, jobsDir)}");
 
         var trial = Directory.Exists(Path.Combine(jobsDir, "job"))

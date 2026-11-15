@@ -4,8 +4,8 @@ Larkspur Tea's shop backend (`repo/`, invented) beside two services (`services/`
 `localhost:8081` and Tern's documentation site on `localhost:8080`. Tern is an invented parcel carrier.
 
 The API is the fixture's and the same in every arm. The docs site serves the arm's bundle, which proctor copies
-beside the services as `bundle/` (empty for an arm with none, so every page is a 404). The suite that uses this
-fixture, `suites/tern-docs`, compares versions of those docs.
+beside the services as `bundle/` (empty for an arm with none, so every page is a 404). The exam that uses this
+fixture, `exams/tern-docs`, compares versions of those docs.
 
 ## Planted on purpose
 
@@ -21,4 +21,4 @@ quietly. The README says so in case a reader takes them for bugs.
 - Error bodies name a missing field or an unknown parameter, never a unit.
 
 `tern_api.py` answers `/_test/*` (reset, drop the next response, set a status) only with `TERN_TEST_CONTROL=1`,
-which the suite's acceptance tests set and the agent's sandbox does not.
+which the exam's acceptance tests set and the agent's sandbox does not.

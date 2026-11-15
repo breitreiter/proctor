@@ -5,20 +5,20 @@ using System.Text.Json.Nodes;
 namespace Proctor;
 
 /// <summary>
-/// What setup writes into <c>suites/</c>: nb.json's provider entries, proctor.json's <c>agents</c> and <c>harbor.engine</c>,
-/// and <c>suites/.gitignore</c>. Each file is read as a JSON tree and written back whole, so entries setup did not
+/// What setup writes into <c>exams/</c>: nb.json's provider entries, proctor.json's <c>agents</c> and <c>harbor.engine</c>,
+/// and <c>exams/.gitignore</c>. Each file is read as a JSON tree and written back whole, so entries setup did not
 /// write (named nowhere in setup.json) are kept as they were; setup replaces or removes only its own.
 /// </summary>
 static class SetupFiles
 {
     public const string NbFile = "nb.json", GitIgnore = ".gitignore", SandboxPlan = "sandbox-plan.md";
 
-    /// <summary>Everything setup writes in suites/ that names this machine, and so is never committed.</summary>
+    /// <summary>Everything setup writes in exams/ that names this machine, and so is never committed.</summary>
     public static readonly string[] Ignored = [Layout.ProctorConfigFile, NbFile, SetupState.FileName, SandboxPlan];
 
     static readonly JsonSerializerOptions Write = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-    /// <summary>A fresh nb.json: nb's Mock provider, which the playground suite runs on with no key.</summary>
+    /// <summary>A fresh nb.json: nb's Mock provider, which the playground exam runs on with no key.</summary>
     static JsonObject FreshNb() => new()
     {
         ["Harness"] = "nb",
@@ -30,7 +30,7 @@ static class SetupFiles
     /// <summary>A fresh proctor.json: nb on PATH and its config beside this file. The examples are not copied, since they route through a gateway a new user does not have.</summary>
     static JsonObject FreshProctor() => new() { ["nb"] = new JsonObject { ["config"] = NbFile } };
 
-    /// <summary>The entry nb.json gets for a provider: the kind's fixed fields, the form's values, the key as <c>${ENV}</c>. No Model: the model is the suite's.</summary>
+    /// <summary>The entry nb.json gets for a provider: the kind's fixed fields, the form's values, the key as <c>${ENV}</c>. No Model: the model is the exam's.</summary>
     public static JsonObject NbEntry(SetupProvider provider, ProviderKind kind, IReadOnlyDictionary<string, string> values)
     {
         var entry = new JsonObject { ["Name"] = provider.Name };
@@ -44,15 +44,15 @@ static class SetupFiles
     }
 
     /// <summary>Names in nb.json's ChatProviders that setup did not write: kept, never edited, and not available as a new provider's name.</summary>
-    public static List<string> ForeignNbEntries(string suitesDir, SetupState state) =>
-        NbProviders(ReadObject(Path.Combine(suitesDir, NbFile)) ?? FreshNb())
+    public static List<string> ForeignNbEntries(string examsDir, SetupState state) =>
+        NbProviders(ReadObject(Path.Combine(examsDir, NbFile)) ?? FreshNb())
             .Select(e => (string?)e["Name"]).OfType<string>()
             .Where(n => state.Provider(n) is null && n != "Mock").ToList();
 
     /// <summary>Adds or replaces setup's entry for one provider. Returns the file written.</summary>
-    public static string PutNbEntry(string suitesDir, JsonObject entry)
+    public static string PutNbEntry(string examsDir, JsonObject entry)
     {
-        var path = Path.Combine(suitesDir, NbFile);
+        var path = Path.Combine(examsDir, NbFile);
         var root = ReadObject(path) ?? FreshNb();
         var array = root["ChatProviders"] as JsonArray ?? (JsonArray)(root["ChatProviders"] = new JsonArray());
         var name = (string)entry["Name"]!;
@@ -62,23 +62,23 @@ static class SetupFiles
         return path;
     }
 
-    public static void RemoveNbEntry(string suitesDir, string name)
+    public static void RemoveNbEntry(string examsDir, string name)
     {
-        var path = Path.Combine(suitesDir, NbFile);
+        var path = Path.Combine(examsDir, NbFile);
         if (ReadObject(path) is not { } root || root["ChatProviders"] is not JsonArray array) return;
         foreach (var e in array.Where(e => (string?)e?["Name"] == name).ToList()) array.Remove(e);
         Save(path, root);
     }
 
     /// <summary>Whether nb.json has an entry by that name, and the fields it sets (names only).</summary>
-    public static HashSet<string>? NbEntryFields(string suitesDir, string name) =>
-        NbProviders(ReadObject(Path.Combine(suitesDir, NbFile)) ?? new JsonObject())
+    public static HashSet<string>? NbEntryFields(string examsDir, string name) =>
+        NbProviders(ReadObject(Path.Combine(examsDir, NbFile)) ?? new JsonObject())
             .FirstOrDefault(e => (string?)e["Name"] == name) is { } entry ? entry.Select(p => p.Key).ToHashSet() : null;
 
     /// <summary>proctor.json <c>agents.&lt;agent&gt;</c>: the kind's base URL for that agent and the provider's key as <c>${ENV}</c>.</summary>
-    public static string PutAgent(string suitesDir, string agent, string baseUrl, string env)
+    public static string PutAgent(string examsDir, string agent, string baseUrl, string env)
     {
-        var path = Path.Combine(suitesDir, Layout.ProctorConfigFile);
+        var path = Path.Combine(examsDir, Layout.ProctorConfigFile);
         var root = ReadObject(path) ?? FreshProctor();
         var agents = root["agents"] as JsonObject ?? (JsonObject)(root["agents"] = new JsonObject());
         agents[agent] = new JsonObject { ["base_url"] = baseUrl, ["api_key"] = $"${{{env}}}" };
@@ -86,16 +86,16 @@ static class SetupFiles
         return path;
     }
 
-    public static void RemoveAgent(string suitesDir, string agent)
+    public static void RemoveAgent(string examsDir, string agent)
     {
-        var path = Path.Combine(suitesDir, Layout.ProctorConfigFile);
+        var path = Path.Combine(examsDir, Layout.ProctorConfigFile);
         if (ReadObject(path) is not { } root || root["agents"] is not JsonObject agents || !agents.Remove(agent)) return;
         Save(path, root);
     }
 
-    public static string PutEngine(string suitesDir, string engine)
+    public static string PutEngine(string examsDir, string engine)
     {
-        var path = Path.Combine(suitesDir, Layout.ProctorConfigFile);
+        var path = Path.Combine(examsDir, Layout.ProctorConfigFile);
         var root = ReadObject(path) ?? FreshProctor();
         var harbor = root["harbor"] as JsonObject ?? (JsonObject)(root["harbor"] = new JsonObject());
         harbor["engine"] = engine;
@@ -104,31 +104,31 @@ static class SetupFiles
     }
 
     /// <summary>proctor.json exists, so a verb that needs it finds it; created fresh when missing.</summary>
-    public static string EnsureProctor(string suitesDir)
+    public static string EnsureProctor(string examsDir)
     {
-        var path = Path.Combine(suitesDir, Layout.ProctorConfigFile);
+        var path = Path.Combine(examsDir, Layout.ProctorConfigFile);
         if (!File.Exists(path)) Save(path, FreshProctor());
         return path;
     }
 
     /// <summary>nb.json exists, with Mock in it, so the playground runs before any provider is added; created fresh when missing.</summary>
-    public static string EnsureNb(string suitesDir)
+    public static string EnsureNb(string examsDir)
     {
-        var path = Path.Combine(suitesDir, NbFile);
+        var path = Path.Combine(examsDir, NbFile);
         if (!File.Exists(path)) Save(path, FreshNb());
         return path;
     }
 
-    /// <summary>Adds to <c>suites/.gitignore</c> each of setup's files it does not already name. Returns whether it changed.</summary>
-    public static bool EnsureGitIgnore(string suitesDir)
+    /// <summary>Adds to <c>exams/.gitignore</c> each of setup's files it does not already name. Returns whether it changed.</summary>
+    public static bool EnsureGitIgnore(string examsDir)
     {
-        var path = Path.Combine(suitesDir, GitIgnore);
+        var path = Path.Combine(examsDir, GitIgnore);
         var lines = File.Exists(path) ? File.ReadAllLines(path).ToList() : [];
         var missing = Ignored.Where(f => !lines.Any(l => l.Trim() == f || l.Trim() == "/" + f)).ToList();
         if (missing.Count == 0) return false;
         if (lines.Count == 0) lines.Add("# Written by proctor setup: this machine's config and choices; keys live in your profile, never here.");
         lines.AddRange(missing);
-        Directory.CreateDirectory(suitesDir);
+        Directory.CreateDirectory(examsDir);
         File.WriteAllText(path, string.Join('\n', lines) + "\n");
         return true;
     }

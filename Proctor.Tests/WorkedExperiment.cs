@@ -6,11 +6,11 @@ namespace Proctor.Tests;
 /// <summary>The work experiment's shape from project/plans/first-slice.md as fixed data: two arms, three tasks, three samples.</summary>
 static class WorkedExperiment
 {
-    public static Suite Suite(int samples = 3, bool twoArms = true)
+    public static Exam Exam(int samples = 3, bool twoArms = true)
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e =>
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e =>
         {
             e["description"] = "Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?";
             e["arms"]![0]!["description"] = "the local floor";
@@ -22,12 +22,12 @@ static class WorkedExperiment
             e["grading"]!["validity"] = JsonNode.Parse("[\"no_denials\"]");
         });
         repo.EditJson("smoke/tasks/uses-bash.json", t => t["checks"] = JsonNode.Parse("{\"used-bash\": {\"tools_used\": [\"bash\"]}}"));
-        return repo.LoadSuite("smoke");
+        return repo.LoadExam("smoke");
     }
 
-    public static Experiment Experiment(Suite suite) => new(
-        "20260917-1432-smoke-k7px", suite.Id, "sha256:9c1e0000", System.Text.Json.JsonSerializer.SerializeToNode(suite.Def, Proctor.Suite.JsonOptions)!.AsObject(),
-        suite.Tasks.Select(c => c.Id!).ToList(), suite.PlannedCells, "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
+    public static Experiment Experiment(Exam exam) => new(
+        "20260917-1432-smoke-k7px", exam.Id, "sha256:9c1e0000", System.Text.Json.JsonSerializer.SerializeToNode(exam.Def, Proctor.Exam.JsonOptions)!.AsObject(),
+        exam.Tasks.Select(c => c.Id!).ToList(), exam.PlannedCells, "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
         new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.0" }, new GitInfo("3f2c1e9a", Dirty: false), new ResolvedNb("/usr/local/bin/nb", null));
 
     /// <summary>Last week's floor, pinned: loops was perfect, plain was perfect, uses-bash was one in three.</summary>

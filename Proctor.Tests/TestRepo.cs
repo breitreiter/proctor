@@ -4,14 +4,14 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>A throwaway repository root with a suites/ directory, built per test.</summary>
+/// <summary>A throwaway repository root with an exams/ directory, built per test.</summary>
 sealed class TestRepo : IDisposable
 {
     public string Root { get; } = Path.Combine(Path.GetTempPath(), "proctor-tests", Guid.NewGuid().ToString("N")[..8]);
 
     public TestRepo()
     {
-        Directory.CreateDirectory(Path.Combine(Root, "suites"));
+        Directory.CreateDirectory(Path.Combine(Root, "exams"));
     }
 
     /// <summary>The repository this test assembly was built from: walk up to the directory holding Proctor.csproj.</summary>
@@ -25,26 +25,26 @@ sealed class TestRepo : IDisposable
         }
     }
 
-    /// <summary>nb's built binary: $NB_PATH, else the sibling checkout, as suites/proctor.json in this repo assumes.</summary>
+    /// <summary>nb's built binary: $NB_PATH, else the sibling checkout, as exams/proctor.json in this repo assumes.</summary>
     public static string NbPath =>
         Environment.GetEnvironmentVariable("NB_PATH")
         ?? Path.GetFullPath(Path.Combine(SourceRoot, "..", "nb", "bin", "Debug", "net10.0", "nb"));
 
-    public static string NbMockConfig => Path.Combine(SourceRoot, "suites", "nb.example.json");
+    public static string NbMockConfig => Path.Combine(SourceRoot, "exams", "nb.example.json");
 
-    /// <summary>Copy a suite from this repository's suites/ into the temp root, with a proctor.json pointing at nb.</summary>
-    public string CopySuite(string suiteId)
+    /// <summary>Copy an exam from this repository's exams/ into the temp root, with a proctor.json pointing at nb.</summary>
+    public string CopyExam(string examId)
     {
-        var source = Path.Combine(SourceRoot, "suites", suiteId);
-        if (!Directory.Exists(source)) source = Path.Combine(SourceRoot, "Proctor.Tests", "suites", suiteId);   // test data, never a suite to run
-        CopyDirectory(source, Path.Combine(Root, "suites", suiteId));
-        foreach (var file in Directory.GetFiles(Path.Combine(Root, "suites", suiteId, "tasks"), "*.json"))
+        var source = Path.Combine(SourceRoot, "exams", examId);
+        if (!Directory.Exists(source)) source = Path.Combine(SourceRoot, "Proctor.Tests", "exams", examId);   // test data, never an exam to run
+        CopyDirectory(source, Path.Combine(Root, "exams", examId));
+        foreach (var file in Directory.GetFiles(Path.Combine(Root, "exams", examId, "tasks"), "*.json"))
             if (JsonNode.Parse(File.ReadAllText(file))?["fixture"]?.GetValue<string>() is { } fixture) CopyFixture(fixture);
-        foreach (var arm in JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "suites", suiteId, "suite.json")))?["arms"]?.AsArray() ?? [])
+        foreach (var arm in JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "exams", examId, "exam.json")))?["arms"]?.AsArray() ?? [])
             if (arm?["bundle"]?["path"]?.GetValue<string>() is { } bundle && !Directory.Exists(Path.Combine(Root, bundle)))
                 CopyDirectory(Path.Combine(SourceRoot, bundle), Path.Combine(Root, bundle));
         WriteProctorConfig();
-        return Path.Combine(Root, "suites", suiteId);
+        return Path.Combine(Root, "exams", examId);
     }
 
     /// <summary>Copy a fixture from this repository's fixtures/ into the temp root.</summary>
@@ -55,20 +55,20 @@ sealed class TestRepo : IDisposable
     }
 
     public void WriteProctorConfig(object? judges = null) =>
-        File.WriteAllText(Path.Combine(Root, "suites", "proctor.json"),
+        File.WriteAllText(Path.Combine(Root, "exams", "proctor.json"),
             JsonSerializer.Serialize(new { nb = new { path = NbPath, config = NbMockConfig }, judges }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
 
-    /// <summary>The suite's nb block: a runner named relative to suites/ (where the tests write them), rewritten relative to the suite directory as suite.json wants it.</summary>
-    public static void SetNb(JsonObject suite, string? runner, object? mounts)
+    /// <summary>The exam's nb block: a runner named relative to exams/ (where the tests write them), rewritten relative to the exam directory as exam.json wants it.</summary>
+    public static void SetNb(JsonObject exam, string? runner, object? mounts)
     {
         if (runner is null && mounts is null) return;
         var nb = new JsonObject();
         if (runner is not null) nb["runner"] = "../" + runner;
         if (mounts is not null) nb["mounts"] = JsonSerializer.SerializeToNode(mounts);
-        suite["nb"] = nb;
+        exam["nb"] = nb;
     }
 
-    /// <summary>Write an executable script under suites/. Returns the full path.</summary>
+    /// <summary>Write an executable script under exams/. Returns the full path.</summary>
     public string WriteScript(string relativePath, string content)
     {
         var path = Write(relativePath, content);
@@ -76,36 +76,36 @@ sealed class TestRepo : IDisposable
         return path;
     }
 
-    /// <summary>Write a file under suites/, creating directories. Returns the full path.</summary>
+    /// <summary>Write a file under exams/, creating directories. Returns the full path.</summary>
     public string Write(string relativePath, string content)
     {
-        var path = Path.Combine(Root, "suites", relativePath);
+        var path = Path.Combine(Root, "exams", relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
         return path;
     }
 
-    /// <summary>Edit a JSON file under suites/ in place.</summary>
+    /// <summary>Edit a JSON file under exams/ in place.</summary>
     public void EditJson(string relativePath, Action<JsonObject> edit)
     {
-        var path = Path.Combine(Root, "suites", relativePath);
+        var path = Path.Combine(Root, "exams", relativePath);
         var node = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
         edit(node);
         File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    public Suite LoadSuite(string suiteId)
+    public Exam LoadExam(string examId)
     {
         var problems = new List<Problem>();
-        var suite = Suite.Load(Root, suiteId, problems);
-        Assert.True(suite is not null, string.Join("\n", problems));
-        return suite!;
+        var exam = Exam.Load(Root, examId, problems);
+        Assert.True(exam is not null, string.Join("\n", problems));
+        return exam!;
     }
 
-    public List<Problem> Problems(string suiteId)
+    public List<Problem> Problems(string examId)
     {
         var problems = new List<Problem>();
-        Suite.Load(Root, suiteId, problems);
+        Exam.Load(Root, examId, problems);
         return problems;
     }
 

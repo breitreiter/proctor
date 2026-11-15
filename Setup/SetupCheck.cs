@@ -12,20 +12,20 @@ static class SetupCheck
 {
     public static async Task<int> RunAsync(string root, bool live, TextWriter output, HttpClient? http = null, string? envPath = null)
     {
-        var suitesDir = Path.Combine(root, Layout.SuitesDir);
+        var examsDir = Path.Combine(root, Layout.ExamsDir);
         envPath ??= EnvFile.DefaultPath();
         var problems = new List<string>();
-        var state = SetupState.Load(suitesDir);
+        var state = SetupState.Load(examsDir);
         if (state is null)
         {
-            output.WriteLine($"setup: not run ({Shown(SetupState.PathIn(suitesDir))} does not exist)");
+            output.WriteLine($"setup: not run ({Shown(SetupState.PathIn(examsDir))} does not exist)");
             output.WriteLine("problem: proctor setup has not been run here; ask the user to run `proctor setup` at a terminal");
             return 1;
         }
 
-        var proctorPath = Path.Combine(suitesDir, Layout.ProctorConfigFile);
-        var nbPath = Path.Combine(suitesDir, SetupFiles.NbFile);
-        output.WriteLine($"setup: {Shown(SetupState.PathIn(suitesDir))} ({state.Updated.ToLocalTime():yyyy-MM-dd HH:mm}), "
+        var proctorPath = Path.Combine(examsDir, Layout.ProctorConfigFile);
+        var nbPath = Path.Combine(examsDir, SetupFiles.NbFile);
+        output.WriteLine($"setup: {Shown(SetupState.PathIn(examsDir))} ({state.Updated.ToLocalTime():yyyy-MM-dd HH:mm}), "
             + string.Join(", ", new[] { proctorPath, nbPath }.Select(p => File.Exists(p) ? Shown(p) : $"{Shown(p)} missing")));
 
         var inFile = EnvFile.Names(envPath);
@@ -34,7 +34,7 @@ static class SetupCheck
         foreach (var env in envs.Where(e => KeySource(e, inFile) is null))
             problems.Add($"{env} is not set (not in the environment or {envPath}); ask the user to run `proctor setup` and enter the key again");
 
-        output.WriteLine(NbLine(root, suitesDir, problems));
+        output.WriteLine(NbLine(root, examsDir, problems));
 
         foreach (var provider in state.Providers.ToList())
         {
@@ -53,11 +53,11 @@ static class SetupCheck
             if (p.Check == SetupProvider.CheckFailed && state.JobsUsing(p.Name).Count > 0)
                 problems.Add($"provider {p.Name}: the last key check failed ({p.Words}); ask the user to run `proctor setup` and change the key");
         }
-        if (live) state.Save(suitesDir);
+        if (live) state.Save(examsDir);
 
         var config = ReadConfig(proctorPath);
         foreach (var (id, _) in SetupState.JobOrder)
-            output.WriteLine($"job {id}: {JobLine(id, state, suitesDir, config, problems)}");
+            output.WriteLine($"job {id}: {JobLine(id, state, examsDir, config, problems)}");
         if (state.Job("sandbox") is { Where: "hosted", Engine: not HarborConfig.Modal } hosted)
             output.WriteLine($"want: hosted sandbox ({hosted.Service ?? "not sure which"}), not supported yet");
 
@@ -87,13 +87,13 @@ static class SetupCheck
 
     static string ProviderStatus(SetupProvider p) => p.Check switch
     {
-        SetupProvider.CheckOk => $"checked ok {p.Checked:yyyy-MM-dd}, {p.Models?.Count ?? 0} models (suites/setup.json)",
+        SetupProvider.CheckOk => $"checked ok {p.Checked:yyyy-MM-dd}, {p.Models?.Count ?? 0} models (exams/setup.json)",
         SetupProvider.CheckFailed => $"check failed {p.Checked:yyyy-MM-dd}: {p.Words}",
         SetupProvider.CheckNotAvailable => $"not checked: {p.Words}",
         _ => "unchecked (kept without a passing check)",
     };
 
-    static string JobLine(string id, SetupState state, string suitesDir, JsonObject? config, List<string> problems)
+    static string JobLine(string id, SetupState state, string examsDir, JsonObject? config, List<string> problems)
     {
         var job = state.Job(id);
         if (job is null) return "not asked yet";
@@ -108,45 +108,45 @@ static class SetupCheck
                         problems.Add($"{login} (the user runs it: it opens their browser)");
                     if (Runner.FindOnPath("uv") is null) problems.Add("sandbox is Modal, but uv is not installed; proctor runs Harbor with it");
                     if ((string?)config?["harbor"]?["engine"] is not HarborConfig.Modal)
-                        problems.Add("sandbox is Modal, but suites/proctor.json harbor.engine is not modal; ask the user to rerun `proctor setup`, or pass a Modal machine file with --config (docs/modal.md)");
+                        problems.Add("sandbox is Modal, but exams/proctor.json harbor.engine is not modal; ask the user to rerun `proctor setup`, or pass a Modal machine file with --config (docs/modal.md)");
                     return "Modal (experimental): agent cells run as sandboxes on the user's Modal account; their models must be public endpoints and fixtures with image.services cannot run there (docs/modal.md)";
                 }
                 if (job.Where == "hosted") return $"wanted: hosted ({job.Service ?? "not sure which"}), not supported yet";
                 var engine = (string?)config?["harbor"]?["engine"] ?? "docker";
                 var uv = Runner.FindOnPath("uv");
-                var plan = Path.Combine(suitesDir, SetupFiles.SandboxPlan);
+                var plan = Path.Combine(examsDir, SetupFiles.SandboxPlan);
                 return Runner.FindOnPath(engine) is not null && uv is not null
-                    ? $"engine {engine} and uv found; Harbor itself is not proven until a suite's agent arm runs (or conformance)"
+                    ? $"engine {engine} and uv found; Harbor itself is not proven until an exam's agent arm runs (or conformance)"
                     : $"planned: {engine} or uv not found yet" + (File.Exists(plan) ? $" ({Shown(plan)})" : "");
             case "nb":
                 foreach (var name in job.Providers ?? [])
-                    if (SetupFiles.NbEntryFields(suitesDir, name) is null)
-                        problems.Add($"job nb names provider {name}, but {Shown(Path.Combine(suitesDir, SetupFiles.NbFile))} has no entry for it; ask the user to rerun `proctor setup`");
+                    if (SetupFiles.NbEntryFields(examsDir, name) is null)
+                        problems.Add($"job nb names provider {name}, but {Shown(Path.Combine(examsDir, SetupFiles.NbFile))} has no entry for it; ask the user to rerun `proctor setup`");
                 return $"ready ({providers})";
             case "claude-code" or "codex":
                 var written = config?["agents"]?[id] is JsonObject;
                 if (job.State == SetupJob.ByHand)
-                    return written ? $"by hand ({providers}), agents.{id} written" : $"by hand ({providers}): agents.{id} in suites/proctor.json is yours to write; the key is in the env file";
-                if (!written) problems.Add($"job {id} names provider {providers}, but suites/proctor.json has no agents.{id}; ask the user to rerun `proctor setup`");
+                    return written ? $"by hand ({providers}), agents.{id} written" : $"by hand ({providers}): agents.{id} in exams/proctor.json is yours to write; the key is in the env file";
+                if (!written) problems.Add($"job {id} names provider {providers}, but exams/proctor.json has no agents.{id}; ask the user to rerun `proctor setup`");
                 var untested = job.Providers?.Any(p => state.Provider(p) is { } sp && Catalogue.Get(sp.Kind).Fit(id) == JobFit.Untested) == true;
                 return $"ready ({providers}{(untested ? ", untested pairing" : "")}){(state.HasSandbox ? "" : "; no sandbox chosen")}";
-            default:   // judge, classifier: the entry needs a model, which is the suite's choice, so setup writes none
+            default:   // judge, classifier: the entry needs a model, which is the exam's choice, so setup writes none
                 var kind = id == "classifier" ? JudgeDef.SystemOne : JudgeDef.Chat;
                 var judges = (config?["judges"] as JsonObject ?? []).Where(j => (string?)j.Value?["kind"] == kind).Select(j => j.Key).ToList();
                 return judges.Count > 0
                     ? $"ready ({providers}; judges: {string.Join(", ", judges)})"
-                    : $"provider chosen ({providers}); no {kind} entry in suites/proctor.json judges yet: write one with a model from the provider's list";
+                    : $"provider chosen ({providers}); no {kind} entry in exams/proctor.json judges yet: write one with a model from the provider's list";
         }
     }
 
-    static string NbLine(string root, string suitesDir, List<string> problems)
+    static string NbLine(string root, string examsDir, List<string> problems)
     {
-        var config = ReadConfig(Path.Combine(suitesDir, Layout.ProctorConfigFile));
+        var config = ReadConfig(Path.Combine(examsDir, Layout.ProctorConfigFile));
         var path = (string?)config?["nb"]?["path"] ?? "nb";
         var found = path.Contains('/') || path.Contains('\\')
-            ? (File.Exists(Path.GetFullPath(Path.Combine(suitesDir, path))) ? Path.GetFullPath(Path.Combine(suitesDir, path)) : null)
+            ? (File.Exists(Path.GetFullPath(Path.Combine(examsDir, path))) ? Path.GetFullPath(Path.Combine(examsDir, path)) : null)
             : Runner.FindOnPath(path);
-        if (found is null) problems.Add($"nb not found ('{path}', suites/proctor.json nb.path, else PATH); every suite needs it");
+        if (found is null) problems.Add($"nb not found ('{path}', exams/proctor.json nb.path, else PATH); every exam needs it");
         return $"nb: {found ?? "not found"}";
     }
 

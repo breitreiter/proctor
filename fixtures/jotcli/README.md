@@ -4,7 +4,7 @@ A tiny TypeScript to-do CLI (`repo/`): `add`, `list`, `done <n>`, `clear`,
 tasks in a JSON file, one devDependency (`typescript`), tests on Node's own
 runner. `npm ci && npm test` is the whole build. Small enough to read in two
 minutes, which is what it is for: the first repository a new proctor user
-meets, and a fixture for suites about how agents cope with a CLI.
+meets, and a fixture for exams about how agents cope with a CLI.
 
 ## The planted behaviour
 
@@ -39,7 +39,7 @@ test, so `tests-pass` is a regression guard, not the acceptance check.
 The natural task is the one the planted behaviour invites: *make `clear`
 usable from a script or an agent.* A good solution adds a `--yes` (or
 `-y`) flag, and, better, exits non-zero when it aborts. The acceptance
-check belongs to the suite, beside the task, and is a script that:
+check belongs to the exam, beside the task, and is a script that:
 
 1. seeds a store with tasks, runs `node dist/src/cli.js clear --yes` with
    stdin closed and no TTY, and expects exit 0 and an empty store, within

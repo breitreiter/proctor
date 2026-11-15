@@ -15,7 +15,7 @@ sealed class GateFactAttribute : FactAttribute
 }
 
 /// <summary>
-/// The deterministic gate (agent-neutral-runs decision 12): suites/gate's Mock arm run bare and the same arm run
+/// The deterministic gate (agent-neutral-runs decision 12): exams/gate's Mock arm run bare and the same arm run
 /// through Harbor give the same nb transcript, the same counted core and the same checks.json, apart from timings and
 /// the checkout's path.
 /// </summary>
@@ -25,16 +25,16 @@ public class GateTests
     public void BareAndHarbor_AreIdentical_ApartFromTimingsAndTheCheckoutPath()
     {
         using var repo = new TestRepo();
-        var (suite, id) = RunGraded(repo, "gate");
-        var differences = Differences(repo.Root, id, suite);
+        var (exam, id) = RunGraded(repo, "gate");
+        var differences = Differences(repo.Root, id, exam);
         Assert.True(differences.Count == 0, string.Join("\n", differences));
     }
 
-    /// <summary>A gate suite run, both arms, and graded, with the publish and the engine the environment names.</summary>
-    internal static (Suite Suite, string Id) RunGraded(TestRepo repo, string suiteId)
+    /// <summary>A gate exam run, both arms, and graded, with the publish and the engine the environment names.</summary>
+    internal static (Exam Exam, string Id) RunGraded(TestRepo repo, string examId)
     {
-        repo.CopySuite(suiteId);
-        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), JsonSerializer.Serialize(new
+        repo.CopyExam(examId);
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
             harbor = new
@@ -44,22 +44,22 @@ public class GateTests
             },
         }));
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(repo.Root, problems);
+        var config = Exam.LoadConfig(repo.Root, problems);
         Assert.Empty(problems);
-        var suite = repo.LoadSuite(suiteId);
-        var id = Runner.Start(repo.Root, suite, config, null, null, "gate", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
-        return (suite, id);
+        var exam = repo.LoadExam(examId);
+        var id = Runner.Start(repo.Root, exam, config, null, null, "gate", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
+        return (exam, id);
     }
 
     /// <summary>Every way a Harbor cell differs from its bare twin, as "task/sample: what"; empty when the gate is green.</summary>
-    internal static List<string> Differences(string root, string experimentId, Suite suite)
+    internal static List<string> Differences(string root, string experimentId, Exam exam)
     {
         var expDir = Layout.Experiment(root, experimentId);
         var differences = new List<string>();
-        var harbor = suite.Arms.Single(a => a.IsAgent);
-        var bare = suite.Arms.Single(a => !a.IsAgent);
-        foreach (var c in suite.Tasks)
+        var harbor = exam.Arms.Single(a => a.IsAgent);
+        var bare = exam.Arms.Single(a => !a.IsAgent);
+        foreach (var c in exam.Tasks)
             foreach (var sample in Enumerable.Range(1, harbor.SamplesOrOne))
             {
                 var at = $"{c.Id}/{sample}";
@@ -81,7 +81,7 @@ public class GateTests
                 var exit = trajectory!["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";
                 var bareCore = Ingest.Count(trajectory, Arm.Nb, exit).Core! with { DurationMs = null };
                 var harborCore = Runner.ReadJson<CountedCore>(Path.Combine(h, Layout.CoreFile))! with { DurationMs = null };
-                var (bc, hc) = (JsonSerializer.Serialize(bareCore, Suite.JsonOptions), JsonSerializer.Serialize(harborCore, Suite.JsonOptions));
+                var (bc, hc) = (JsonSerializer.Serialize(bareCore, Exam.JsonOptions), JsonSerializer.Serialize(harborCore, Exam.JsonOptions));
                 if (bc != hc) differences.Add($"{at}: counted core differs\n--- bare\n{bc}\n--- harbor\n{hc}");
 
                 var (bk, hk) = (File.ReadAllText(Path.Combine(b, Layout.ChecksFile)), File.ReadAllText(Path.Combine(h, Layout.ChecksFile)));
@@ -100,7 +100,7 @@ public class GateTests
 }
 
 /// <summary>
-/// The oracle's gate (plans/oracle-in-proctor.md, *The gate*): suites/gate-oracle's Mock arm bare, with nb's in-process
+/// The oracle's gate (plans/oracle-in-proctor.md, *The gate*): exams/gate-oracle's Mock arm bare, with nb's in-process
 /// oracle, and through Harbor, with the simulated user over the ACP bridge, give the same counted core, the same user
 /// turns (text, source, keys) and the same checks.json, for each of the endings ok, oracle_miss and oracle_budget. The
 /// one known difference is the judge's tokens: bare, nb charges them to the run; bridged, they are the manifest's.
@@ -111,21 +111,21 @@ public class OracleGateTests
     public void BareAndBridged_Agree_ApartFromTheJudgesTokens()
     {
         using var repo = new TestRepo();
-        var (suite, id) = GateTests.RunGraded(repo, "gate-oracle");
-        var differences = Differences(repo.Root, id, suite);
+        var (exam, id) = GateTests.RunGraded(repo, "gate-oracle");
+        var differences = Differences(repo.Root, id, exam);
         Assert.True(differences.Count == 0, string.Join("\n", differences));
     }
 
     /// <summary>The answers each gate-oracle task's sheet scripts before its ending (oracle.turns is 2).</summary>
     static readonly Dictionary<string, int> Answers = new() { ["asks-twice"] = 2, ["misses"] = 0, ["over-budget"] = 2 };
 
-    internal static List<string> Differences(string root, string experimentId, Suite suite)
+    internal static List<string> Differences(string root, string experimentId, Exam exam)
     {
         var expDir = Layout.Experiment(root, experimentId);
         var differences = new List<string>();
-        var harbor = suite.Arms.Single(a => a.IsAgent);
-        var bare = suite.Arms.Single(a => !a.IsAgent);
-        foreach (var c in suite.Tasks)
+        var harbor = exam.Arms.Single(a => a.IsAgent);
+        var bare = exam.Arms.Single(a => !a.IsAgent);
+        foreach (var c in exam.Tasks)
         {
             var at = c.Id!;
             var b = Layout.Cell(expDir, bare.Id!, c.Id!, 1);
@@ -149,7 +149,7 @@ public class OracleGateTests
                 OutputTokens = bareCore.OutputTokens - judge.JudgeOutputTokens,
             };
             var harborCore = Runner.ReadJson<CountedCore>(Path.Combine(h, Layout.CoreFile))! with { DurationMs = null };
-            var (bc, hc) = (JsonSerializer.Serialize(bareCore, Suite.JsonOptions), JsonSerializer.Serialize(harborCore, Suite.JsonOptions));
+            var (bc, hc) = (JsonSerializer.Serialize(bareCore, Exam.JsonOptions), JsonSerializer.Serialize(harborCore, Exam.JsonOptions));
             if (bc != hc) differences.Add($"{at}: counted core differs, the judge's tokens taken out of the bare one\n--- bare\n{bc}\n--- harbor\n{hc}");
 
             // Not only alike: each ending is the one its task scripts, with the answers it takes to get there.

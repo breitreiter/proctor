@@ -15,10 +15,10 @@ public class HarborTests
     static (TestRepo Repo, string KeyVar) AgentRepo(string? uv = null)
     {
         var repo = new TestRepo();
-        repo.CopySuite("harbor-unit");
+        repo.CopyExam("harbor-unit");
         var keyVar = "PROCTOR_TEST_KEY_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
         Environment.SetEnvironmentVariable(keyVar, "sk-test-" + keyVar);
-        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), JsonSerializer.Serialize(new
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
             agents = new Dictionary<string, object> { ["claude-code"] = new { base_url = BaseUrl, api_key = "${" + keyVar + "}" } },
@@ -32,15 +32,15 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        var suite = repo.LoadSuite("harbor-unit");
-        var arm = Assert.Single(suite.Arms);
+        var exam = repo.LoadExam("harbor-unit");
+        var arm = Assert.Single(exam.Arms);
         Assert.True(arm.IsAgent);
-        Assert.True(suite.HasAgentArms);
+        Assert.True(exam.HasAgentArms);
         Assert.Equal("claude-code", arm.Agent);
         Assert.Equal("2.1.301", arm.AgentVersion);
-        Assert.Equal("0.24.0", suite.Def.Harbor!.Version);
-        Assert.Equal(900_000, suite.Def.Limits!.WallMs);
-        Assert.Equal(["builds", "diff-in-scope", "tests-pass"], suite.ChecksFor(suite.Tasks[0]).Keys.Order(StringComparer.Ordinal));
+        Assert.Equal("0.24.0", exam.Def.Harbor!.Version);
+        Assert.Equal(900_000, exam.Def.Limits!.WallMs);
+        Assert.Equal(["builds", "diff-in-scope", "tests-pass"], exam.ChecksFor(exam.Tasks[0]).Keys.Order(StringComparer.Ordinal));
     }
 
     [Theory]
@@ -55,7 +55,7 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        repo.EditJson("harbor-unit/suite.json", e => e["arms"]![0]![field] = JsonNode.Parse(value));
+        repo.EditJson("harbor-unit/exam.json", e => e["arms"]![0]![field] = JsonNode.Parse(value));
         Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == problemField && p.Message.Contains(message));
     }
 
@@ -64,7 +64,7 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        repo.EditJson("harbor-unit/suite.json", e => { e.Remove("harbor"); e["limits"] = JsonNode.Parse("{\"tool_calls\": 60}"); });
+        repo.EditJson("harbor-unit/exam.json", e => { e.Remove("harbor"); e["limits"] = JsonNode.Parse("{\"tool_calls\": 60}"); });
         repo.EditJson("../fixtures/ledger/fixture.json", f => f.Remove("image"));
         var problems = repo.Problems("harbor-unit");
         Assert.Contains(problems, p => p.Field == "harbor.version" && p.Message.Contains("required with an agent arm"));
@@ -74,16 +74,16 @@ public class HarborTests
     }
 
     [Fact]
-    public void AgentArm_RefusesSampleHooks_AndANbSuiteRefusesTheHarborBlocks()
+    public void AgentArm_RefusesSampleHooks_AndANbExamRefusesTheHarborBlocks()
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
         repo.WriteScript("harbor-unit/hooks/setup.sh", "#!/bin/sh\nexit 0\n");
-        repo.EditJson("harbor-unit/suite.json", e => e["hooks"] = JsonNode.Parse("{\"sample\": {\"setup\": \"hooks/setup.sh\"}}"));
+        repo.EditJson("harbor-unit/exam.json", e => e["hooks"] = JsonNode.Parse("{\"sample\": {\"setup\": \"hooks/setup.sh\"}}"));
         Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == "hooks.sample" && p.Message.Contains("fixture's image"));
 
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => { e["harbor"] = JsonNode.Parse("{\"version\": \"0.24.0\"}"); e["limits"] = JsonNode.Parse("{\"wall_ms\": 60000}"); });
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => { e["harbor"] = JsonNode.Parse("{\"version\": \"0.24.0\"}"); e["limits"] = JsonNode.Parse("{\"wall_ms\": 60000}"); });
         var problems = repo.Problems("smoke");
         Assert.Contains(problems, p => p.Field == "harbor" && p.Message.Contains("nothing runs through Harbor"));
         Assert.Contains(problems, p => p.Field == "limits" && p.Message.Contains("budget directives"));
@@ -131,13 +131,13 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        var suite = repo.LoadSuite("harbor-unit");
+        var exam = repo.LoadExam("harbor-unit");
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        var hash = HarborCompile.Tasks(expDir, suite, "exp", _ => new AgentRoute(BaseUrl, "sk-secret"));
+        var hash = HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute(BaseUrl, "sk-secret"));
         Assert.Equal(hash, HarborCompile.TreeHash(expDir));
         var task = Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref");
 
-        Assert.Equal(suite.Tasks[0].Prompt!.TrimEnd() + "\n", File.ReadAllText(Path.Combine(task, "instruction.md")));
+        Assert.Equal(exam.Tasks[0].Prompt!.TrimEnd() + "\n", File.ReadAllText(Path.Combine(task, "instruction.md")));
 
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
         Assert.Contains("name = \"proctor/fix-null-deref\"", toml);
@@ -159,11 +159,11 @@ public class HarborTests
         Assert.False(Directory.Exists(Path.Combine(context, "checks")));
         Assert.Empty(Directory.GetDirectories(context, "obj", SearchOption.AllDirectories));
 
-        // The checks, the suite and the expectations are the verifier's.
+        // The checks, the exam and the expectations are the verifier's.
         var tests = Path.Combine(task, "tests");
         Assert.True(File.Exists(Path.Combine(tests, "fixture", "checks", "builds.sh")));
         Assert.False(Directory.Exists(Path.Combine(tests, "fixture", "repo")));
-        Assert.True(File.Exists(Path.Combine(tests, "suite", "tasks", "fix-null-deref.json")));
+        Assert.True(File.Exists(Path.Combine(tests, "exam", "tasks", "fix-null-deref.json")));
         var test = File.ReadAllText(Path.Combine(tests, "test.sh"));
         Assert.Contains("check 'builds' '/tests/fixture/checks/builds.sh'\n", test);
         Assert.Contains("check 'tests-pass' '/tests/fixture/checks/tests-pass.sh'\n", test);
@@ -240,7 +240,7 @@ public class HarborTests
 
     static Manifest NewManifest() => new()
     {
-        RunId = "r", Experiment = "e", Arm = "cc-haiku", Task = "fix-null-deref", Sample = 1, Host = "h", Versions = [], SuiteHash = "s", ProgramHash = "p",
+        RunId = "r", Experiment = "e", Arm = "cc-haiku", Task = "fix-null-deref", Sample = 1, Host = "h", Versions = [], ExamHash = "s", ProgramHash = "p",
         Agent = new AgentRun("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
     };
 
@@ -358,8 +358,8 @@ public class HarborTests
         using var scratch = new TestRepo();
         var (repo, keyVar) = AgentRepo(FakeUv(scratch, GoodTrial));
         using var _r = repo;
-        var suite = repo.LoadSuite("harbor-unit");
-        var id = Runner.Start(repo.Root, suite, Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var exam = repo.LoadExam("harbor-unit");
+        var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
 
         var experiment = ReadJson(Path.Combine(expDir, "experiment.json"));
@@ -390,35 +390,35 @@ public class HarborTests
         Assert.DoesNotContain(Directory.GetFiles(expDir, "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains($"sk-test-{keyVar}"));
 
         // grade reads the script verdicts the verifier left, and runs the built-ins over the trajectory and the diff.
-        var grade = Assert.Single(Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null));
+        var grade = Assert.Single(Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null));
         Assert.False(grade.Pass);
         Assert.Equal(new Verdict(Verdict.Pass, "dotnet build: 0 errors"), grade.Checks!["builds"]);
         Assert.Equal(new Verdict(Verdict.Fail, "1 of 6 tests failed: Parse_LineWithoutMemo_HasNullMemo"), grade.Checks["tests-pass"]);
         Assert.Equal(new Verdict(Verdict.Fail, "touched 1 outside expected: x"), grade.Checks["diff-in-scope"]);
-        var row = Assert.Single(Results.Collect(repo.Root, Runner.LoadExperiment(repo.Root, id), suite));
+        var row = Assert.Single(Results.Collect(repo.Root, Runner.LoadExperiment(repo.Root, id), exam));
         Assert.Equal("ok", row.ExitReason);
         Assert.Equal(1, row.ToolCalls);
         Assert.Equal(15, row.Usage!.Total);
         Assert.Equal(0.001, row.Usage.CostUsd);
-        // The failed headline check leads the reasons, ahead of the guardrail the suite declares first.
+        // The failed headline check leads the reasons, ahead of the guardrail the exam declares first.
         Assert.Equal(["tests-pass", "diff-in-scope"], row.Reasons!.Keys);
     }
 
     /// <summary>An agent cell as ingest leaves it, graded on its own: script verdicts from the verifier, the rest from the trajectory and the diff.</summary>
-    static Dictionary<string, Verdict> GradeAgentCell(Action<string> edit, Action<JsonObject>? editSuite = null)
+    static Dictionary<string, Verdict> GradeAgentCell(Action<string> edit, Action<JsonObject>? editExam = null)
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        if (editSuite is not null) repo.EditJson("harbor-unit/suite.json", editSuite);
-        var suite = repo.LoadSuite("harbor-unit");
+        if (editExam is not null) repo.EditJson("harbor-unit/exam.json", editExam);
+        var exam = repo.LoadExam("harbor-unit");
         var cell = Directory.CreateDirectory(Path.Combine(repo.Root, "cell")).FullName;
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
         File.WriteAllText(Path.Combine(trial, "verifier", "tests-pass.out"), "6 of 6 tests pass\n");
         Assert.Null(Ingest.Trial(trial, cell, CcArm, NewManifest(), CcArm.AgentVersion!));
         edit(cell);
-        var context = new CellContext(suite.Dir, cell, Path.Combine(repo.Root, "work"), "e", "cc-haiku", suite.Tasks[0], 1)
-            { Expect = suite.ExpectFor(suite.Tasks[0]), Fixture = suite.FixtureOf(suite.Tasks[0]), ScriptsInVerifier = true, Vendor = true };
-        return Grade.Cell(context, suite, Transcript.Read(cell));
+        var context = new CellContext(exam.Dir, cell, Path.Combine(repo.Root, "work"), "e", "cc-haiku", exam.Tasks[0], 1)
+            { Expect = exam.ExpectFor(exam.Tasks[0]), Fixture = exam.FixtureOf(exam.Tasks[0]), ScriptsInVerifier = true, Vendor = true };
+        return Grade.Cell(context, exam, Transcript.Read(cell));
     }
 
     [Fact]
@@ -475,7 +475,7 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        repo.EditJson("harbor-unit/suite.json", e =>
+        repo.EditJson("harbor-unit/exam.json", e =>
         {
             e["grading"]!["checks"]!["not-nudged"] = JsonNode.Parse("{\"loop_nudged\": false}");
             e["grading"]![list] = new JsonArray([.. (e["grading"]![list]?.AsArray().Select(n => n!.DeepClone()) ?? []), "not-nudged"]);
@@ -489,12 +489,12 @@ public class HarborTests
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1"));
         using var _r = repo;
-        var id = Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         var cell = Layout.Cell(Layout.Experiment(repo.Root, id), "cc-haiku", "fix-null-deref", 1);
         Assert.Equal("failed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
         Assert.Equal("Harbor exited 1 without a trial: docker: Cannot connect to the Docker daemon", ReadJson(Path.Combine(cell, "manifest.json"))["status_reason"]!.GetValue<string>());
 
-        File.WriteAllText(Path.Combine(scratch.Root, "suites", "fake-uv.sh"), File.ReadAllText(Path.Combine(scratch.Root, "suites", "fake-uv.sh")).Replace("echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1", GoodTrial));
+        File.WriteAllText(Path.Combine(scratch.Root, "exams", "fake-uv.sh"), File.ReadAllText(Path.Combine(scratch.Root, "exams", "fake-uv.sh")).Replace("echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1", GoodTrial));
         Runner.Resume(repo.Root, id, null, null, TextWriter.Null);
         Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
         Assert.Equal(2, ReadJson(Path.Combine(cell, "manifest.json"))["tries"]!.GetValue<int>());
@@ -506,7 +506,7 @@ public class HarborTests
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
         using var _r = repo;
-        var id = Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         File.AppendAllText(Path.Combine(Layout.HarborTask(Layout.Experiment(repo.Root, id), "cc-haiku", "fix-null-deref"), "instruction.md"), "and also\n");
         var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
         Assert.Contains("have changed on disk", e.Message);
@@ -522,13 +522,13 @@ public class HarborTests
         var bundleDir = Directory.CreateDirectory(Path.Combine(repo.Root, "bundles", "corpus")).FullName;
         File.WriteAllText(Path.Combine(bundleDir, "page.html"), "<h1>corpus page</h1>\n");
         repo.WriteScript("harbor-unit/hooks/serve.sh", $"#!/usr/bin/env bash\necho \"$PROCTOR_BUNDLE\" > \"{scratch.Root}/hook.bundle\"\n");
-        repo.EditJson("harbor-unit/suite.json", e =>
+        repo.EditJson("harbor-unit/exam.json", e =>
         {
             e["arms"]![0]!["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}""");
             e["hooks"] = JsonNode.Parse("""{"arm": {"setup": "hooks/serve.sh"}}""");
         });
 
-        var id = Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
         var hash = ReadJson(Path.Combine(expDir, "experiment.json"))["bundles"]!["cc-haiku"]!["hash"]!.GetValue<string>();
         Assert.StartsWith("sha256:", hash);
@@ -549,10 +549,10 @@ public class HarborTests
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
         using var _r = repo;
-        var config = Path.Combine(repo.Root, "suites", "proctor.json");
+        var config = Path.Combine(repo.Root, "exams", "proctor.json");
         void Engine(string engine) { var c = ReadJson(config); c["harbor"]!["engine"] = engine; File.WriteAllText(config, c.ToJsonString()); }
         Engine("podman");
-        var id = Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
         Assert.Equal("podman", ReadJson(Path.Combine(expDir, "experiment.json"))["harbor"]!["engine"]!.GetValue<string>());
         var job = Path.Combine(Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1), Layout.HarborDir, Layout.HarborJobFile);
@@ -560,7 +560,7 @@ public class HarborTests
 
         Engine("docker");
         var e = Assert.Throws<ProctorException>(() => Runner.Resume(repo.Root, id, null, null, TextWriter.Null));
-        Assert.Contains("the engine (suites/proctor.json harbor.engine) is docker, and experiment", e.Message);
+        Assert.Contains("the engine (exams/proctor.json harbor.engine) is docker, and experiment", e.Message);
         Assert.Contains("resume with the --config it was run with", e.Message);
     }
 
@@ -570,7 +570,7 @@ public class HarborTests
         var (repo, _) = AgentRepo();
         using var _r = repo;
         repo.WriteProctorConfig();
-        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
+        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
         Assert.Contains("no agents.claude-code", e.Message);
         Assert.False(Directory.Exists(Path.Combine(repo.Root, "runs")));
     }
@@ -629,12 +629,12 @@ public class HarborTests
     public void Compile_NbArm_OnARemoteEngine_CarriesNbsPublishInTheBuildContext()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("gate");
+        repo.CopyExam("gate");
         var publish = Directory.CreateDirectory(Path.Combine(repo.Root, "publish")).FullName;
         File.WriteAllText(Path.Combine(publish, "nb"), "#!/bin/sh\necho nb\n");
         File.SetUnixFileMode(Path.Combine(publish, "nb"), (UnixFileMode)0b111_101_101);
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        HarborCompile.Tasks(expDir, repo.LoadSuite("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef", publish);
+        HarborCompile.Tasks(expDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef", publish);
         var environment = Path.Combine(Layout.HarborTask(expDir, "nb-harbor", "writes"), "environment");
 
         Assert.Contains("COPY proctor-nb /opt/nb\nENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1\nRUN /opt/nb/nb --version\n", File.ReadAllText(Path.Combine(environment, "Dockerfile")));
@@ -644,13 +644,13 @@ public class HarborTests
         Assert.True(File.GetUnixFileMode(nb).HasFlag(UnixFileMode.UserExecute));
     }
 
-    /// <summary>harbor-unit on Modal, from a machine file of its own beside suites/proctor.json, with a login in the environment.</summary>
+    /// <summary>harbor-unit on Modal, from a machine file of its own beside exams/proctor.json, with a login in the environment.</summary>
     static (TestRepo Repo, string ConfigFile) ModalRepo(string baseUrl, string? uv = null)
     {
         var (repo, keyVar) = AgentRepo(uv);
         Environment.SetEnvironmentVariable("MODAL_TOKEN_ID", "ak-test");
         Environment.SetEnvironmentVariable("MODAL_TOKEN_SECRET", "as-test");
-        var file = Path.Combine(repo.Root, "suites", "proctor.modal.json");
+        var file = Path.Combine(repo.Root, "exams", "proctor.modal.json");
         File.WriteAllText(file, JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
@@ -665,13 +665,13 @@ public class HarborTests
     {
         var (repo, file) = ModalRepo(PublicUrl);
         using var _r = repo;
-        var config = Suite.LoadConfig(repo.Root, [], file);
+        var config = Exam.LoadConfig(repo.Root, [], file);
         Assert.Equal("modal", config.HarborOrDefault.Engine);
         Assert.True(config.HarborOrDefault.Remote);
-        Assert.Equal(Path.Combine("suites", "proctor.modal.json"), config.Source);
-        Assert.Equal("docker", Suite.LoadConfig(repo.Root, []).HarborOrDefault.Engine);
-        Assert.Equal(Path.Combine("suites", "proctor.json"), Suite.LoadConfig(repo.Root, []).Source);
-        Assert.Contains("--config nowhere.json: no such file", Assert.Throws<ProctorException>(() => Suite.LoadConfig(repo.Root, [], "nowhere.json")).Message);
+        Assert.Equal(Path.Combine("exams", "proctor.modal.json"), config.Source);
+        Assert.Equal("docker", Exam.LoadConfig(repo.Root, []).HarborOrDefault.Engine);
+        Assert.Equal(Path.Combine("exams", "proctor.json"), Exam.LoadConfig(repo.Root, []).Source);
+        Assert.Contains("--config nowhere.json: no such file", Assert.Throws<ProctorException>(() => Exam.LoadConfig(repo.Root, [], "nowhere.json")).Message);
     }
 
     [Fact]
@@ -680,14 +680,14 @@ public class HarborTests
         using var scratch = new TestRepo();
         var (repo, file) = ModalRepo(PublicUrl, FakeUv(scratch, GoodTrial));
         using var _r = repo;
-        var id = Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null);
+        var id = Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
         Assert.Equal("modal", ReadJson(Path.Combine(expDir, "experiment.json"))["harbor"]!["engine"]!.GetValue<string>());
         var cell = Layout.Cell(expDir, "cc-haiku", "fix-null-deref", 1);
         Assert.Equal("completed", File.ReadAllText(Path.Combine(cell, "status")).Trim());
         var job = ReadJson(Path.Combine(cell, "harbor", "job.json"));
         Assert.Equal("modal", job["environment"]!["type"]!.GetValue<string>());
-        // The suite's 900 s wall limit and the build, verifier and start overhead.
+        // The exam's 900 s wall limit and the build, verifier and start overhead.
         Assert.Equal(900 + 3300, job["environment"]!["kwargs"]!["sandbox_timeout_secs"]!.GetValue<int>());
         Assert.Equal("tool run --exclude-newer 7 days harbor[modal]@0.24.0 run --config job.json", File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
         Assert.Contains("allowed_hosts = [\"api.anthropic.com\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), "task.toml")));
@@ -706,9 +706,9 @@ public class HarborTests
         File.WriteAllText(Path.Combine(services, "docker-compose.yaml"), "services: {}\n");
         repo.EditJson("../fixtures/ledger/fixture.json", f => f["image"]!["services"] = "services");
 
-        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadSuite("harbor-unit"), Suite.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null));
+        var e = Assert.Throws<ProctorException>(() => Runner.Start(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null));
         Assert.Equal([
-            "arm 'cc-haiku': its model is at library, a name without a domain, which only this network resolves, which a sandbox on modal cannot reach; run it on a local engine, or point suites/proctor.modal.json agents.claude-code at a public endpoint",
+            "arm 'cc-haiku': its model is at library, a name without a domain, which only this network resolves, which a sandbox on modal cannot reach; run it on a local engine, or point exams/proctor.modal.json agents.claude-code at a public endpoint",
             "fixture 'ledger' runs services beside the agent (image.services), and modal cannot confine the network of a task with services; its tasks run on docker or podman only",
         ], e.Message.Split('\n'));
         Assert.False(Directory.Exists(Path.Combine(repo.Root, "runs")));
@@ -731,7 +731,7 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        repo.EditJson("harbor-unit/suite.json", e => { e["arms"]![0]!["agent"] = agent; e["arms"]![0]!["model"] = model; });
+        repo.EditJson("harbor-unit/exam.json", e => { e["arms"]![0]!["agent"] = agent; e["arms"]![0]!["model"] = model; });
         var problems = repo.Problems("harbor-unit").Where(p => p.Field.StartsWith("arms[0]")).ToList();
         if (message is null) Assert.Empty(problems);
         else Assert.Contains(problems, p => p.Field == "arms[0].model" && p.Message.Contains(message));
@@ -742,9 +742,9 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), """{"agents": {"codex": {"base_url": "http://x/v1"}, "qwen-code": {"base_url": "http://x/v1"}, "cursor": {"base_url": "http://x"}}}""");
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), """{"agents": {"codex": {"base_url": "http://x/v1"}, "qwen-code": {"base_url": "http://x/v1"}, "cursor": {"base_url": "http://x"}}}""");
         var problems = new List<Problem>();
-        Suite.LoadConfig(repo.Root, problems);
+        Exam.LoadConfig(repo.Root, problems);
         Assert.Equal(["agents.cursor"], problems.Select(p => p.Field));
     }
 
@@ -757,9 +757,9 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"), $$$"""{"harbor": {"engine": "{{{engine}}}"}}""");
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), $$$"""{"harbor": {"engine": "{{{engine}}}"}}""");
         var problems = new List<Problem>();
-        Suite.LoadConfig(repo.Root, problems);
+        Exam.LoadConfig(repo.Root, problems);
         Assert.Equal(message is null ? [] : [("harbor.engine", message)], problems.Select(p => (p.Field, p.Message)));
     }
 
@@ -780,17 +780,17 @@ public class HarborTests
     [Fact]
     public void Job_Codex_PassesTheRoutesNativeConfig()
     {
-        var job = HarborCompile.Job(CodexArm, "/t", "/j", new AgentRoute(OpenAiUrl, "sk-secret", HarborCompile.KeyEnv("codex"), Config: "/suites/codex.toml"));
-        Assert.Equal("""{"version":"0.163.0","config":"/suites/codex.toml"}""", job["agents"]![0]!["kwargs"]!.ToJsonString());
+        var job = HarborCompile.Job(CodexArm, "/t", "/j", new AgentRoute(OpenAiUrl, "sk-secret", HarborCompile.KeyEnv("codex"), Config: "/exams/codex.toml"));
+        Assert.Equal("""{"version":"0.163.0","config":"/exams/codex.toml"}""", job["agents"]![0]!["kwargs"]!.ToJsonString());
     }
 
     [Fact]
     public void Compile_CopiesTheFixturesServices_BesideTheImage()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("conformance");
+        repo.CopyExam("conformance");
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        HarborCompile.Tasks(expDir, repo.LoadSuite("conformance"), "exp", _ => new AgentRoute("http://localhost:8765/v1", "stub"));
+        HarborCompile.Tasks(expDir, repo.LoadExam("conformance"), "exp", _ => new AgentRoute("http://localhost:8765/v1", "stub"));
         var environment = Path.Combine(Layout.HarborTask(expDir, "codex", "ok"), "environment");
 
         Assert.Equal(File.ReadAllText(Path.Combine(TestRepo.SourceRoot, "fixtures", "stub", "services", "docker-compose.yaml")), File.ReadAllText(Path.Combine(environment, "docker-compose.yaml")));
@@ -804,19 +804,19 @@ public class HarborTests
     public void Compile_PutsTheArmsBundle_BesideTheFixturesServices()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("conformance");
+        repo.CopyExam("conformance");
         var bundleDir = Directory.CreateDirectory(Path.Combine(repo.Root, "bundles", "docs", "guide")).FullName;
         File.WriteAllText(Path.Combine(bundleDir, "index.html"), "<h1>docs page</h1>\n");
-        var suite = repo.LoadSuite("conformance");
-        var withBundle = suite.Arms.First(a => a.IsAgent).Id!;
+        var exam = repo.LoadExam("conformance");
+        var withBundle = exam.Arms.First(a => a.IsAgent).Id!;
         var bundles = new Dictionary<string, ResolvedBundle> { [withBundle] = new("bundles/docs", Path.Combine(repo.Root, "bundles", "docs"), "sha256:x") };
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        HarborCompile.Tasks(expDir, suite, "exp", _ => new AgentRoute("http://localhost:8765/v1", "stub"), bundles: bundles);
+        HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute("http://localhost:8765/v1", "stub"), bundles: bundles);
 
         var environment = Path.Combine(Layout.HarborTask(expDir, withBundle, "ok"), "environment");
         Assert.Equal("<h1>docs page</h1>\n", File.ReadAllText(Path.Combine(environment, "bundle", "guide", "index.html")));
         Assert.DoesNotContain("bundle", File.ReadAllText(Path.Combine(environment, "Dockerfile")));
-        var without = suite.Arms.First(a => a.IsAgent && a.Id != withBundle).Id!;
+        var without = exam.Arms.First(a => a.IsAgent && a.Id != withBundle).Id!;
         Assert.Empty(Directory.GetFileSystemEntries(Path.Combine(Layout.HarborTask(expDir, without, "ok"), "environment", "bundle")));
     }
 
@@ -826,7 +826,7 @@ public class HarborTests
     public void FixtureServices_AreValidated(string services, string message)
     {
         using var repo = new TestRepo();
-        repo.CopySuite("conformance");
+        repo.CopyExam("conformance");
         Directory.CreateDirectory(Path.Combine(repo.Root, "fixtures", "stub", "clash"));
         File.WriteAllText(Path.Combine(repo.Root, "fixtures", "stub", "clash", "docker-compose.yaml"), "services: {}\n");
         File.WriteAllText(Path.Combine(repo.Root, "fixtures", "stub", "clash", "Dockerfile"), "FROM scratch\n");
@@ -850,13 +850,13 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        repo.EditJson("harbor-unit/suite.json", e => e["arms"] = JsonNode.Parse("""
+        repo.EditJson("harbor-unit/exam.json", e => e["arms"] = JsonNode.Parse("""
             [{"id": "codex-mini", "agent": "codex", "agent_version": "0.163.0", "model": "gpt-5-mini"},
              {"id": "qwen", "agent": "qwen-code", "agent_version": "0.25.2", "model": "qwen3-coder-next"}]
             """));
-        var suite = repo.LoadSuite("harbor-unit");
+        var exam = repo.LoadExam("harbor-unit");
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        HarborCompile.Tasks(expDir, suite, "exp", _ => new AgentRoute(OpenAiUrl, "sk-secret"));
+        HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute(OpenAiUrl, "sk-secret"));
 
         var codex = File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "codex-mini", "fix-null-deref"), "environment", "Dockerfile"));
         Assert.Contains("npm install -g @openai/codex@0.163.0", codex);
@@ -878,7 +878,7 @@ public class HarborTests
         var (repo, _) = AgentRepo();
         using var _r = repo;
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        var hash = HarborCompile.Tasks(expDir, repo.LoadSuite("harbor-unit"), "exp", _ => new AgentRoute(BaseUrl, "sk-secret"));
+        var hash = HarborCompile.Tasks(expDir, repo.LoadExam("harbor-unit"), "exp", _ => new AgentRoute(BaseUrl, "sk-secret"));
         Assert.False(Directory.Exists(HarborCompile.AgentsDir(expDir)));
         Assert.DoesNotContain("+", hash);
     }
@@ -920,7 +920,7 @@ public class HarborTests
         Assert.Equal("tool 'bash' has no kind for claude-code", Ingest.Count(With(isError: false), Arm.ClaudeCode, "ok").Unmapped);
     }
 
-    // nb as a Harbor agent: the gate suite's harbor arm.
+    // nb as a Harbor agent: the gate exam's harbor arm.
 
     static readonly Arm NbArm = new("nb-harbor", null, "nb", "Mock", "mock", 2, null, Agent: "nb");
 
@@ -928,13 +928,13 @@ public class HarborTests
     public void NbAgentArm_IsAHarborArm_ButNotAVendors()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("gate");
-        var suite = repo.LoadSuite("gate");
-        var (bare, harbor) = (suite.Arms[0], suite.Arms[1]);
+        repo.CopyExam("gate");
+        var exam = repo.LoadExam("gate");
+        var (bare, harbor) = (exam.Arms[0], exam.Arms[1]);
         Assert.False(bare.IsAgent);
         Assert.True(harbor.IsAgent);
         Assert.False(harbor.IsVendor);
-        Assert.True(suite.HasAgentArms);
+        Assert.True(exam.HasAgentArms);
     }
 
     [Theory]
@@ -945,8 +945,8 @@ public class HarborTests
     public void NbAgentArm_IsValidated(string field, string value, string problemField, string message)
     {
         using var repo = new TestRepo();
-        repo.CopySuite("gate");
-        repo.EditJson("gate/suite.json", e => e["arms"]![1]![field] = JsonNode.Parse(value));
+        repo.CopyExam("gate");
+        repo.EditJson("gate/exam.json", e => e["arms"]![1]![field] = JsonNode.Parse(value));
         Assert.Contains(repo.Problems("gate"), p => p.Field == problemField && p.Message.Contains(message));
     }
 
@@ -954,12 +954,12 @@ public class HarborTests
     public void NbAgentArm_TakesABundle_ButItsTemplateCannotNameIt()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("gate");
+        repo.CopyExam("gate");
         Directory.CreateDirectory(Path.Combine(repo.Root, "bundles", "corpus"));
-        repo.EditJson("gate/suite.json", e => e["arms"]![1]!["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}"""));
+        repo.EditJson("gate/exam.json", e => e["arms"]![1]!["bundle"] = JsonNode.Parse("""{"path": "bundles/corpus"}"""));
         Assert.Empty(repo.Problems("gate"));
 
-        File.AppendAllText(Path.Combine(repo.Root, "suites", "gate", "program.nb"), "# corpus: {{bundle}}\n");
+        File.AppendAllText(Path.Combine(repo.Root, "exams", "gate", "program.nb"), "# corpus: {{bundle}}\n");
         var problem = Assert.Single(repo.Problems("gate"));
         Assert.Equal("{{bundle}}", problem.Field);
         Assert.Contains("arm 'nb-harbor' runs nb through Harbor, where its bundle is not in the container", problem.Message);
@@ -969,10 +969,10 @@ public class HarborTests
     public void Compile_NbArm_CopiesNbsLayer_ReachesNothingOnMock_AndCompilesTheAgent()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("gate");
-        var suite = repo.LoadSuite("gate");
+        repo.CopyExam("gate");
+        var exam = repo.LoadExam("gate");
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        var hash = HarborCompile.Tasks(expDir, suite, "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        var hash = HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
         var task = Layout.HarborTask(expDir, "nb-harbor", "writes");
         Assert.False(Directory.Exists(Layout.HarborTask(expDir, "nb-bare", "writes")));
 
@@ -981,7 +981,7 @@ public class HarborTests
         var dockerfile = File.ReadAllText(Path.Combine(task, "environment", "Dockerfile"));
         Assert.Contains("COPY --from=proctor-nb:0123456789abcdef /opt/nb /opt/nb\nENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1\nRUN /opt/nb/nb --version\n", dockerfile);
         Assert.DoesNotContain("claude", dockerfile);
-        Assert.Contains("check 'new-file' '/tests/suite/checks/new-file.sh'\n", File.ReadAllText(Path.Combine(task, "tests", "test.sh")));
+        Assert.Contains("check 'new-file' '/tests/exam/checks/new-file.sh'\n", File.ReadAllText(Path.Combine(task, "tests", "test.sh")));
 
         // The agent is compiled beside the tasks, and a changed agent is a changed tree.
         var agent = Path.Combine(HarborCompile.AgentsDir(expDir), "nb_agent.py");
@@ -995,11 +995,11 @@ public class HarborTests
     public void Job_NbArm_ImportsProctorsAgent_WithTheCellsProgram_AndTheKeyByNameOnly()
     {
         var route = new AgentRoute("http://library:8086/x/qcoder/v1", "sk-secret", "LLM_GATEWAY_KEY", new() { ["LLM_GATEWAY"] = "http://library:8086/x" });
-        var job = HarborCompile.Job(NbArm, "/t", "/j", route, new NbCell("/cell/program.jsonl", "/suites/nb.json"));
+        var job = HarborCompile.Job(NbArm, "/t", "/j", route, new NbCell("/cell/program.jsonl", "/exams/nb.json"));
         var agent = job["agents"]![0]!.AsObject();
         Assert.Null(agent["name"]);
         Assert.Equal("nb_agent:NbAgent", agent["import_path"]!.GetValue<string>());
-        Assert.Equal("""{"program":"/cell/program.jsonl","workdir":"/app","config":"/suites/nb.json","secret":"LLM_GATEWAY_KEY"}""", agent["kwargs"]!.ToJsonString());
+        Assert.Equal("""{"program":"/cell/program.jsonl","workdir":"/app","config":"/exams/nb.json","secret":"LLM_GATEWAY_KEY"}""", agent["kwargs"]!.ToJsonString());
         Assert.Equal("""{"LLM_GATEWAY":"http://library:8086/x"}""", agent["env"]!.ToJsonString());
         Assert.DoesNotContain("sk-secret", job.ToJsonString());
     }

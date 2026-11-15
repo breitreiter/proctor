@@ -1,0 +1,77 @@
+{
+  "id": "tern-docs",
+  "description": "Does a restructure of an API's documentation change what a coding agent builds from it? Claude Code on Sonnet implements six shipping functions in a small shop's Python backend against Tern, an invented carrier, with Tern's docs as shipped, as restructured, or absent. The arms differ only in the docs bundle.",
+  "labels": {
+    "area": "docs/api",
+    "purpose": "showcase"
+  },
+  "arms": [
+    {
+      "id": "as-shipped",
+      "description": "Claude Code on Sonnet with Tern's docs as shipped: one quickstart on /v2 that states the units, a reference, a changelog that retires /v1",
+      "agent": "claude-code",
+      "agent_version": "2.1.301",
+      "model": "claude-sonnet-5-5",
+      "samples": 2,
+      "bundle": { "path": "exams/tern-docs/bundles/as-shipped" }
+    },
+    {
+      "id": "restructure",
+      "description": "Claude Code on Sonnet with Tern's docs restructured: a quickstart per language, the Python one still on /v1 in kilograms, the units only in the reference, no changelog",
+      "agent": "claude-code",
+      "agent_version": "2.1.301",
+      "model": "claude-sonnet-5-5",
+      "samples": 2,
+      "bundle": { "path": "exams/tern-docs/bundles/restructure" }
+    },
+    {
+      "id": "no-docs",
+      "description": "Claude Code on Sonnet with no docs: the docs site answers 404 to every page",
+      "agent": "claude-code",
+      "agent_version": "2.1.301",
+      "model": "claude-sonnet-5-5",
+      "samples": 2
+    }
+  ],
+  "harbor": {
+    "version": "0.24.0"
+  },
+  "limits": {
+    "wall_ms": 1800000
+  },
+  "surface": {
+    "description": "Tern's documentation site, served at localhost:8080: the quickstart, reference and changelog an agent builds the shop's shipping code from",
+    "hosts": ["localhost:8080", "127.0.0.1:8080"],
+    "fails": ["<title>Not found</title>", "\\b404\\b"],
+    "substitutes": { "hosts": ["localhost:8081", "127.0.0.1:8081"] }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "acceptance": {
+        "script": "checks/acceptance.sh",
+        "description": "the task's hidden tests pass against Tern's sandbox: the right price, every shipment, one booking per order, the right status"
+      },
+      "current-endpoint": {
+        "script": "checks/current-endpoint.sh",
+        "description": "the change calls no retired /v1/ endpoint (it still answers, so a run that uses it can pass)"
+      },
+      "docs-fetched": {
+        "tool_args": { "name": "WebFetch", "args": { "url": "localhost:8080" }, "match": "regex" },
+        "description": "the agent opened the docs site with WebFetch"
+      },
+      "docs-curled": {
+        "tool_args": { "name": "Bash", "args": { "command": "localhost:8080" }, "match": "regex" },
+        "description": "the agent opened the docs site from the shell"
+      }
+    },
+    "pass": [
+      "exit_ok",
+      "acceptance",
+      "tests-pass"
+    ],
+    "validity": []
+  }
+}

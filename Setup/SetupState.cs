@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 namespace Proctor;
 
 /// <summary>
-/// One provider setup knows: its name in the suites, its catalogue kind, the env variable holding its key (none for a
+/// One provider setup knows: its name in the exams, its catalogue kind, the env variable holding its key (none for a
 /// keyless OpenAI-compatible server), and what the key check last said. <see cref="Models"/> are the ids the key could
-/// reach on <see cref="Checked"/>: a hint for whoever plans a suite, never a choice setup made. <see cref="Values"/>
+/// reach on <see cref="Checked"/>: a hint for whoever plans an exam, never a choice setup made. <see cref="Values"/>
 /// are the form's fields that are not secret (an Azure endpoint and deployment), so a later job can write the entry.
 /// </summary>
 record SetupProvider(string Name, string Kind, string? Env, string Check, DateOnly? Checked = null, List<string>? Models = null, string? Words = null, Dictionary<string, string>? Values = null)
@@ -27,7 +27,7 @@ record SetupJob(string State, List<string>? Providers = null, string? Where = nu
 }
 
 /// <summary>
-/// <c>suites/setup.json</c>: the wizard's answers minus keys, intent and skips included, so a rerun starts where the
+/// <c>exams/setup.json</c>: the wizard's answers minus keys, intent and skips included, so a rerun starts where the
 /// last ended and <c>setup --check</c> can report what the user wants as well as what works. Gitignored: it names this
 /// machine's providers. Setup owns exactly the config entries its providers and jobs name, and edits no other.
 /// </summary>
@@ -52,20 +52,20 @@ record SetupState(DateTime Updated, List<SetupProvider> Providers, Dictionary<st
 
     public static SetupState Empty() => new(DateTime.UtcNow, [], []);
 
-    public static string PathIn(string suitesDir) => Path.Combine(suitesDir, FileName);
+    public static string PathIn(string examsDir) => Path.Combine(examsDir, FileName);
 
-    public static SetupState? Load(string suitesDir)
+    public static SetupState? Load(string examsDir)
     {
-        var path = PathIn(suitesDir);
+        var path = PathIn(examsDir);
         if (!File.Exists(path)) return null;
         try { return JsonSerializer.Deserialize<SetupState>(File.ReadAllText(path), Options); }
         catch (JsonException e) { throw new ProctorException($"{path}: {e.Message}"); }
     }
 
-    public void Save(string suitesDir)
+    public void Save(string examsDir)
     {
-        Directory.CreateDirectory(suitesDir);
-        File.WriteAllText(PathIn(suitesDir), JsonSerializer.Serialize(this with { Updated = DateTime.UtcNow }, Options) + "\n");
+        Directory.CreateDirectory(examsDir);
+        File.WriteAllText(PathIn(examsDir), JsonSerializer.Serialize(this with { Updated = DateTime.UtcNow }, Options) + "\n");
     }
 
     public SetupProvider? Provider(string name) => Providers.FirstOrDefault(p => p.Name == name);

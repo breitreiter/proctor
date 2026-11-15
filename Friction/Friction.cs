@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-/// <summary>The suite's surface declaration, compiled: what is under test, what an agent would use in its place, and what a failed call to it looks like.</summary>
+/// <summary>The exam's surface declaration, compiled: what is under test, what an agent would use in its place, and what a failed call to it looks like.</summary>
 sealed class Surface
 {
     public bool Declared { get; }
@@ -127,10 +127,10 @@ static class Friction
 
     /// <summary>
     /// The cells an experiment ran, from its own record of its arms and tasks. Friction reads what was run, not what
-    /// the suite says now, so an experiment whose suite has since changed its arms is still read.
+    /// the exam says now, so an experiment whose exam has since changed its arms is still read.
     /// </summary>
     public static IEnumerable<(string Arm, string Task, int Sample)> Cells(Experiment experiment) =>
-        from arm in (experiment.SuiteDef["arms"] as JsonArray ?? []).OfType<JsonObject>()
+        from arm in (experiment.ExamDef["arms"] as JsonArray ?? []).OfType<JsonObject>()
         let id = String(arm["id"])
         where id is not null
         from task in experiment.Tasks
@@ -139,10 +139,10 @@ static class Friction
 
     /// <summary>friction.json beside each completed cell's trajectory. A cell with no trajectory is skipped and said so.</summary>
     /// <param name="reader">A chat judge of the machine's config that reads each run for what rules cannot see; its points are added with a model source. Null for rules only.</param>
-    public static List<CellFriction> Experiment(string root, Experiment experiment, Suite suite, TextWriter log,
+    public static List<CellFriction> Experiment(string root, Experiment experiment, Exam exam, TextWriter log,
         IReadOnlyCollection<string>? arms = null, IReadOnlyCollection<string>? tasks = null, JudgeClient? judges = null, string? reader = null)
     {
-        var surface = new Surface(suite.Def.Surface);
+        var surface = new Surface(exam.Def.Surface);
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var done = new List<CellFriction>();
         foreach (var (arm, task, sample) in Cells(experiment).Where(x => (arms is null || arms.Contains(x.Arm)) && (tasks is null || tasks.Contains(x.Task))))
@@ -158,7 +158,7 @@ static class Friction
             var run = new JsonObject { ["experiment"] = experiment.Id, ["arm"] = arm, ["task"] = task, ["sample"] = sample.ToString() };
             var parsed = JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject();
             var (file, steps) = Detect(parsed, surface, run);
-            var reading = reader is null ? null : FrictionReader.Read(cellDir, parsed, file, steps, suite.Def.Surface?.Description, judges!, reader);
+            var reading = reader is null ? null : FrictionReader.Read(cellDir, parsed, file, steps, exam.Def.Surface?.Description, judges!, reader);
             File.WriteAllText(Path.Combine(cellDir, Layout.FrictionFile), file.ToJsonString(Written) + "\n");
             var points = file["points"]!.AsArray();
             done.Add(new CellFriction(arm, task, sample, points.Count, null, reading));

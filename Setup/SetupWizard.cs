@@ -30,9 +30,9 @@ static partial class SetupWizard
             Console.Error.WriteLine("Ask the user to run `proctor setup` themselves. To see what is already set up, run `proctor setup --check`.");
             return 2;
         }
-        var w = new Session(Path.Combine(root, Layout.SuitesDir), EnvFile.DefaultPath());
-        var first = SetupState.Load(w.SuitesDir) is null;
-        w.State = SetupState.Load(w.SuitesDir) ?? SetupState.Empty();
+        var w = new Session(Path.Combine(root, Layout.ExamsDir), EnvFile.DefaultPath());
+        var first = SetupState.Load(w.ExamsDir) is null;
+        w.State = SetupState.Load(w.ExamsDir) ?? SetupState.Empty();
         Banner();
 
         if (first)
@@ -44,16 +44,16 @@ static partial class SetupWizard
             foreach (var (id, title) in SetupState.JobOrder)
             {
                 await Job(w, id, $"{n++}. {title}");
-                w.State.Save(w.SuitesDir);
+                w.State.Save(w.ExamsDir);
             }
             Summary(w);
             return 0;
         }
 
         Prepare(w);
-        var foreign = SetupFiles.ForeignNbEntries(w.SuitesDir, w.State);
+        var foreign = SetupFiles.ForeignNbEntries(w.ExamsDir, w.State);
         if (foreign.Count > 0)
-            AnsiConsole.MarkupLine($"[grey]{Esc(SetupCheck.Shown(Path.Combine(w.SuitesDir, SetupFiles.NbFile)))} has entries setup did not write ({Esc(string.Join(", ", foreign))}). Setup leaves them alone.[/]\n");
+            AnsiConsole.MarkupLine($"[grey]{Esc(SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.NbFile)))} has entries setup did not write ({Esc(string.Join(", ", foreign))}). Setup leaves them alone.[/]\n");
         while (true)
         {
             var pick = AnsiConsole.Prompt(new SelectionPrompt<string>()
@@ -69,16 +69,16 @@ static partial class SetupWizard
             if (pick == Done) break;
             if (pick == "providers") await Providers(w);
             else await Job(w, pick, Title(pick));
-            w.State.Save(w.SuitesDir);
+            w.State.Save(w.ExamsDir);
         }
         Summary(w);
         return 0;
     }
 
     /// <summary>What one run of the wizard has touched, for the summary.</summary>
-    sealed class Session(string suitesDir, string envPath)
+    sealed class Session(string examsDir, string envPath)
     {
-        public string SuitesDir { get; } = suitesDir;
+        public string ExamsDir { get; } = examsDir;
         public string EnvPath { get; } = envPath;
         public SetupState State { get; set; } = SetupState.Empty();
         public SortedDictionary<string, SortedSet<string>> Written { get; } = [];
@@ -107,25 +107,25 @@ static partial class SetupWizard
         var rows = new (string Path, string What)[]
         {
             (w.EnvPath, "your API keys (only you can read it)"),
-            (SetupCheck.Shown(Path.Combine(w.SuitesDir, Layout.ProctorConfigFile)), "proctor's config for this machine"),
-            (SetupCheck.Shown(Path.Combine(w.SuitesDir, SetupFiles.NbFile)), "AI providers for nb, proctor's built-in harness"),
-            (SetupCheck.Shown(SetupState.PathIn(w.SuitesDir)), "your choices from this wizard, minus keys"),
+            (SetupCheck.Shown(Path.Combine(w.ExamsDir, Layout.ProctorConfigFile)), "proctor's config for this machine"),
+            (SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.NbFile)), "AI providers for nb, proctor's built-in harness"),
+            (SetupCheck.Shown(SetupState.PathIn(w.ExamsDir)), "your choices from this wizard, minus keys"),
         };
         Columns(rows.Select(r => new[] { r.Path, r.What }));
         AnsiConsole.WriteLine();
-        var suites = SetupCheck.Shown(w.SuitesDir);
-        AnsiConsole.WriteLine($"Setup creates {Path.Combine(suites, SetupFiles.GitIgnore)} which excludes setup's files.");
+        var exams = SetupCheck.Shown(w.ExamsDir);
+        AnsiConsole.WriteLine($"Setup creates {Path.Combine(exams, SetupFiles.GitIgnore)} which excludes setup's files.");
         AnsiConsole.WriteLine("API keys are only written to your user profile, never to this repository.");
         AnsiConsole.WriteLine();
     }
 
     static void Prepare(Session w)
     {
-        if (SetupFiles.EnsureGitIgnore(w.SuitesDir)) w.Wrote(Path.Combine(w.SuitesDir, SetupFiles.GitIgnore), "setup's files excluded");
-        var proctor = Path.Combine(w.SuitesDir, Layout.ProctorConfigFile);
-        if (!File.Exists(proctor)) w.Wrote(SetupFiles.EnsureProctor(w.SuitesDir), "created: nb from PATH, nb.json beside it");
-        var nb = Path.Combine(w.SuitesDir, SetupFiles.NbFile);
-        if (!File.Exists(nb)) w.Wrote(SetupFiles.EnsureNb(w.SuitesDir), "created: nb's Mock provider, for the playground");
+        if (SetupFiles.EnsureGitIgnore(w.ExamsDir)) w.Wrote(Path.Combine(w.ExamsDir, SetupFiles.GitIgnore), "setup's files excluded");
+        var proctor = Path.Combine(w.ExamsDir, Layout.ProctorConfigFile);
+        if (!File.Exists(proctor)) w.Wrote(SetupFiles.EnsureProctor(w.ExamsDir), "created: nb from PATH, nb.json beside it");
+        var nb = Path.Combine(w.ExamsDir, SetupFiles.NbFile);
+        if (!File.Exists(nb)) w.Wrote(SetupFiles.EnsureNb(w.ExamsDir), "created: nb's Mock provider, for the playground");
     }
 
     static async Task Job(Session w, string id, string heading)
@@ -157,11 +157,11 @@ static partial class SetupWizard
             if (name is null) break;
             var provider = w.State.Provider(name)!;
             var entry = SetupFiles.NbEntry(provider, Catalogue.Get(provider.Kind), provider.Values ?? []);
-            w.Wrote(SetupFiles.PutNbEntry(w.SuitesDir, entry), $"provider \"{name}\"");
+            w.Wrote(SetupFiles.PutNbEntry(w.ExamsDir, entry), $"provider \"{name}\"");
             chosen = [.. chosen, name];
             w.State.Jobs["nb"] = new SetupJob(SetupJob.Set, chosen);
-            AnsiConsole.MarkupLine($"\n  Written: {Esc(SetupCheck.Shown(Path.Combine(w.SuitesDir, SetupFiles.NbFile)))}  provider \"{Esc(name)}\"{(Catalogue.Get(provider.Kind).CompletedByAgent ? " [grey](Endpoint and Model left for your agent)[/]" : "")}\n");
-            AnsiConsole.WriteLine("Add another provider for the built-in harness? Suites name a provider per arm, so two providers let one suite compare them.");
+            AnsiConsole.MarkupLine($"\n  Written: {Esc(SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.NbFile)))}  provider \"{Esc(name)}\"{(Catalogue.Get(provider.Kind).CompletedByAgent ? " [grey](Endpoint and Model left for your agent)[/]" : "")}\n");
+            AnsiConsole.WriteLine("Add another provider for the built-in harness? Exams name a provider per arm, so two providers let one exam compare them.");
         }
         if (chosen.Count == 0) w.State.Jobs["nb"] = new SetupJob(SetupJob.Later);
     }
@@ -201,10 +201,10 @@ static partial class SetupWizard
 
         var seen = AnsiConsole.Status().Start("Looking at what is installed ...", _ => SandboxPlan.Observe());
         var engine = SandboxPlan.EngineFrom(seen);
-        if (engine is not null) w.Wrote(SetupFiles.PutEngine(w.SuitesDir, engine), $"harbor.engine {engine}");
+        if (engine is not null) w.Wrote(SetupFiles.PutEngine(w.ExamsDir, engine), $"harbor.engine {engine}");
         w.State.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "local", Engine: engine);
         var wanted = new[] { "claude-code", "codex" }.Where(a => w.State.Job(a) is { State: not SetupJob.Later }).Select(Title);
-        var plan = Path.Combine(w.SuitesDir, SetupFiles.SandboxPlan);
+        var plan = Path.Combine(w.ExamsDir, SetupFiles.SandboxPlan);
         File.WriteAllText(plan, SandboxPlan.Render(DateOnly.FromDateTime(DateTime.Now), seen, wanted, engine));
         w.Wrote(plan, "the brief for your coding agent");
 
@@ -215,7 +215,7 @@ static partial class SetupWizard
 
     static void Modal(Session w)
     {
-        w.Wrote(SetupFiles.PutEngine(w.SuitesDir, HarborConfig.Modal), $"harbor.engine {HarborConfig.Modal}");
+        w.Wrote(SetupFiles.PutEngine(w.ExamsDir, HarborConfig.Modal), $"harbor.engine {HarborConfig.Modal}");
         w.State.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: HarborConfig.Modal, Engine: HarborConfig.Modal);
         AnsiConsole.WriteLine("\nModal support is experimental: it has run proctor's own checks, not yet a hosted model's agent. Each agent cell runs in a Modal sandbox on your account, billed by the second; nb runs stay on this machine.");
         AnsiConsole.WriteLine("Two limits: the agent's model must be on the internet (a vendor's API, not a model on your network), and a fixture with services cannot run there.");
@@ -256,14 +256,14 @@ static partial class SetupWizard
         var fit = kind.Fit(id);
         if (fit is (JobFit.Yes or JobFit.Untested) && kind.Agents?.GetValueOrDefault(id) is { } baseUrl && provider.Env is not null)
         {
-            w.Wrote(SetupFiles.PutAgent(w.SuitesDir, id, baseUrl, provider.Env), $"agents.{id}");
+            w.Wrote(SetupFiles.PutAgent(w.ExamsDir, id, baseUrl, provider.Env), $"agents.{id}");
             w.State.Jobs[id] = new SetupJob(SetupJob.Set, [name]);
-            AnsiConsole.MarkupLine($"\n  Written: suites/proctor.json  agents.{id} → {Esc(baseUrl)}{(fit == JobFit.Untested ? " [yellow](untested pairing: the first shakedown run is the check)[/]" : "")}");
+            AnsiConsole.MarkupLine($"\n  Written: exams/proctor.json  agents.{id} → {Esc(baseUrl)}{(fit == JobFit.Untested ? " [yellow](untested pairing: the first shakedown run is the check)[/]" : "")}");
             return;
         }
-        SetupFiles.RemoveAgent(w.SuitesDir, id);
+        SetupFiles.RemoveAgent(w.ExamsDir, id);
         w.State.Jobs[id] = new SetupJob(SetupJob.ByHand, [name]);
-        AnsiConsole.WriteLine($"\nRecorded: {Title(id)} on {name}, by hand. Setup has the key; ask your coding agent to write agents.{id} in suites/proctor.json (base_url, and api_key as ${{{provider.Env ?? "VAR"}}}). See docs/configuration.md, \"Agent arms\".");
+        AnsiConsole.WriteLine($"\nRecorded: {Title(id)} on {name}, by hand. Setup has the key; ask your coding agent to write agents.{id} in exams/proctor.json (base_url, and api_key as ${{{provider.Env ?? "VAR"}}}). See docs/configuration.md, \"Agent arms\".");
     }
 
     static async Task Judge(Session w, string id)
@@ -289,7 +289,7 @@ static partial class SetupWizard
         var name = await ChooseProvider(w, id, exclude: [], current is { State: not SetupJob.Later } ? (Keep, $"Keep {string.Join(", ", current.Providers ?? [])}") : (Skip, $"Skip for now      [grey]You won't be able to create {noun}[/]"));
         if (name is null) { if (current is null) w.State.Jobs[id] = new SetupJob(SetupJob.Later); return; }
         w.State.Jobs[id] = new SetupJob(SetupJob.Set, [name]);
-        AnsiConsole.WriteLine($"\nRecorded: {noun} on {name}. A judge entry names its model, which is the suite's choice, so setup writes none: your coding agent adds it to suites/proctor.json \"judges\" with a model from the list `proctor setup --check` reports.");
+        AnsiConsole.WriteLine($"\nRecorded: {noun} on {name}. A judge entry names its model, which is the exam's choice, so setup writes none: your coding agent adds it to exams/proctor.json \"judges\" with a model from the list `proctor setup --check` reports.");
     }
 
     /// <summary>Runs the key check again, changes a key, or removes a provider no job uses.</summary>
@@ -338,9 +338,9 @@ static partial class SetupWizard
                 {
                     var rest = w.State.Jobs[job].Providers!.Where(p => p != pick).ToList();
                     w.State.Jobs[job] = rest.Count > 0 ? w.State.Jobs[job] with { Providers = rest } : new SetupJob(SetupJob.Later);
-                    if (job is "claude-code" or "codex") SetupFiles.RemoveAgent(w.SuitesDir, job);
+                    if (job is "claude-code" or "codex") SetupFiles.RemoveAgent(w.ExamsDir, job);
                 }
-                SetupFiles.RemoveNbEntry(w.SuitesDir, pick);
+                SetupFiles.RemoveNbEntry(w.ExamsDir, pick);
                 w.State.Providers.Remove(provider);
                 AnsiConsole.MarkupLine(provider.Env is null ? $"Removed {Esc(pick)}." : $"Removed {Esc(pick)}. Its key stays in {Esc(w.EnvPath)} as {Esc(provider.Env)}; delete that line by hand if no longer needed.");
                 break;
@@ -394,7 +394,7 @@ static partial class SetupWizard
         var provider = await Form(w, kind);
         if (provider is null) return null;
         w.State.Providers.Add(provider);
-        w.State.Save(w.SuitesDir);
+        w.State.Save(w.ExamsDir);
         return provider.Name;
     }
 
@@ -497,10 +497,10 @@ static partial class SetupWizard
 
     static string AskName(Session w, ProviderKind kind)
     {
-        var foreign = SetupFiles.ForeignNbEntries(w.SuitesDir, w.State);
+        var foreign = SetupFiles.ForeignNbEntries(w.ExamsDir, w.State);
         var taken = w.State.Providers.Select(p => p.Name).Concat(foreign).Append("Mock").ToHashSet(StringComparer.OrdinalIgnoreCase);
         var suggestion = kind.CompletedByAgent ? null : Enumerable.Range(1, 99).Select(i => i == 1 ? kind.Kind : $"{kind.Kind}-{i}").First(n => !taken.Contains(n));
-        var prompt = new TextPrompt<string>("  Name for this provider in your suites:")
+        var prompt = new TextPrompt<string>("  Name for this provider in your exams:")
             .Validate(n => !NameRule().IsMatch(n) ? ValidationResult.Error("[red]lowercase letters, digits, '-' and '_' only[/]")
                 : taken.Contains(n) ? ValidationResult.Error($"[red]{Esc(n)} is taken{(foreign.Contains(n) ? " by an entry in nb.json setup did not write" : "")}[/]")
                 : ValidationResult.Success());
@@ -571,7 +571,7 @@ static partial class SetupWizard
             var job = w.State.Job(j.Id);
             var detail = job switch
             {
-                { Where: "local" } => $"{job.Engine ?? "no engine yet"} on this machine; see {SetupCheck.Shown(Path.Combine(w.SuitesDir, SetupFiles.SandboxPlan))}",
+                { Where: "local" } => $"{job.Engine ?? "no engine yet"} on this machine; see {SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.SandboxPlan))}",
                 { Engine: HarborConfig.Modal } => "agent cells on your Modal account; see docs/modal.md",
                 { Where: "hosted" } => $"{job.Service ?? "hosted"} (not supported yet)",
                 _ => string.Join(", ", job?.Providers ?? []),

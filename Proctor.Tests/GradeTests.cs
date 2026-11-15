@@ -9,16 +9,16 @@ public class GradeTests
     public void Grade_WritesChecksJsonPerCompletedCell_AndComputesPass()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(repo.Root, problems);
-        var suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
+        var config = Exam.LoadConfig(repo.Root, problems);
+        var exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
         File.WriteAllText(Path.Combine(Layout.Cell(expDir, "a", "uses-bash", 1), "status"), "failed\n");
 
-        var grades = Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
+        var grades = Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
 
         Assert.Equal(3, grades.Count);
         var plain = grades.Single(g => g.Task == "plain");
@@ -42,7 +42,7 @@ public class GradeTests
 
         // checks.json is the map the plan shows, re-readable.
         var written = Grade.ReadChecks(Layout.Cell(expDir, "a", "plain", 1))!;
-        Assert.Equal(suite.Grading.Checks!.Keys.Order(), written.Keys.Order());
+        Assert.Equal(exam.Grading.Checks!.Keys.Order(), written.Keys.Order());
         var raw = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.Cell(expDir, "a", "plain", 1), "checks.json")))!;
         Assert.Equal("exit_reason=ok", raw["exit_ok"]!["reason"]!.GetValue<string>());
         Assert.Equal("pass", raw["exit_ok"]!["result"]!.GetValue<string>());
@@ -52,16 +52,16 @@ public class GradeTests
     public void Grade_LimitedToArmsAndTasks_LeavesTheOtherCellsAsTheyWere()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => { foreach (var arm in e["arms"]!.AsArray()) arm!["samples"] = 1; });
-        var config = Suite.LoadConfig(repo.Root, []);
-        var suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => { foreach (var arm in e["arms"]!.AsArray()) arm!["samples"] = 1; });
+        var config = Exam.LoadConfig(repo.Root, []);
+        var exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
         var experiment = Runner.LoadExperiment(repo.Root, id);
         bool Graded(string arm, string task) => File.Exists(Path.Combine(Layout.Cell(expDir, arm, task, 1), "checks.json"));
 
-        var onlyA = Grade.Experiment(repo.Root, experiment, suite, TextWriter.Null, arms: ["a"]);
+        var onlyA = Grade.Experiment(repo.Root, experiment, exam, TextWriter.Null, arms: ["a"]);
         Assert.All(onlyA, g => Assert.Equal("a", g.Arm));
         Assert.True(Graded("a", "plain"));
         Assert.False(Graded("b", "plain"));
@@ -69,7 +69,7 @@ public class GradeTests
         // a later pass over b's plain task leaves a's checks.json untouched
         var aPlain = Path.Combine(Layout.Cell(expDir, "a", "plain", 1), "checks.json");
         File.WriteAllText(aPlain, "{}");
-        var bPlain = Grade.Experiment(repo.Root, experiment, suite, TextWriter.Null, arms: ["b"], tasks: ["plain"]);
+        var bPlain = Grade.Experiment(repo.Root, experiment, exam, TextWriter.Null, arms: ["b"], tasks: ["plain"]);
         Assert.Equal(("b", "plain"), (Assert.Single(bPlain).Arm, bPlain[0].Task));
         Assert.True(Graded("b", "plain"));
         Assert.False(Graded("b", "loops"));

@@ -39,7 +39,7 @@ An arm is one configuration under test: a harness, a provider and a model, run o
 
 A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt.
 
-A check is one yes-or-no test over a finished run. Every task carries the checks the suite declares; a fixture or the task itself can add more. A check's role decides what it does to a run:
+A check is one yes-or-no test over a finished run. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to a run:
 
 | | |
 |---|---|
@@ -49,7 +49,7 @@ A check is one yes-or-no test over a finished run. Every task carries the checks
 
 A check that cannot decide a run leaves that run out of its rate on both sides.
 
-**Checks the suite declares, carried by every task**
+**Checks the exam declares, carried by every task**
 
 | Check | What it tests | Role |
 |---|---|---|
@@ -63,7 +63,7 @@ Each task's results show one mark per run: ● passed, ○ failed, ? undecided, 
 
 The model repeats a bash command until nb nudges it out of the loop
 
-Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, none of its own
+Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the exam, none of its own
 
 **Results**
 
@@ -78,7 +78,7 @@ Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, n
 
 The model answers in one turn with no tools
 
-Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, none of its own
+Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the exam, none of its own
 
 **Results**
 
@@ -93,9 +93,9 @@ Fixture **note** · Run **3 times** per arm · **3 checks**: 3 from the suite, n
 
 The model runs one bash command and answers
 
-Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the suite, 1 of its own
+Fixture **note** · Run **3 times** per arm · **4 checks**: 3 from the exam, 1 of its own
 
-**Checks beyond the suite's**
+**Checks beyond the exam's**
 
 | Check | What it tests | Role | Declared by |
 |---|---|---|---|
@@ -154,7 +154,7 @@ For each arm, the checks that failed in at least one counted run, most frequent 
 
 ## Run summary
 
-This is how far each run in the suite got before terminating. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.
+This is how far each run in the exam got before terminating. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.
 
 | Arm | Planned | Attempted | Completed | Graded | Counted | Decided |
 |---|---|---|---|---|---|---|
@@ -229,7 +229,7 @@ What produced this report, so it can be run again, and how the numbers were comp
 | run id | 20260917-1432-smoke-k7px |
 | proctor | 0.1.0 |
 | nb | 1.0.0 at `/usr/local/bin/nb` |
-| suite hash | sha256:9c1e0000 |
+| exam hash | sha256:9c1e0000 |
 | repository | 3f2c1e9a |
 | command | `proctor run smoke` |
 | created | 2026-09-17T14:32:00Z |

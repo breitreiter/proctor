@@ -8,22 +8,22 @@ namespace Proctor.Tests;
 // work items 3 and 4).
 public class OracleHarborTests
 {
-    /// <summary>The gate suite with its plain task naming a sheet: one bare nb arm and one through Harbor.</summary>
+    /// <summary>The gate exam with its plain task naming a sheet: one bare nb arm and one through Harbor.</summary>
     static TestRepo GateWithOracle()
     {
         var repo = new TestRepo();
-        repo.CopySuite("gate");
+        repo.CopyExam("gate");
         repo.Write("gate/oracle/plain.md", "# Answers\n\n## deploy-target\nStaging only.\n");
         repo.EditJson("gate/tasks/plain.json", t => t["oracle"] = "oracle/plain.md");
         return repo;
     }
 
     [Fact]
-    public void Compile_AnOracleSuite_BringsTheSimulatedUser_AndItsTemplate()
+    public void Compile_AnOracleExam_BringsTheSimulatedUser_AndItsTemplate()
     {
         using var repo = GateWithOracle();
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        var hash = HarborCompile.Tasks(expDir, repo.LoadSuite("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        var hash = HarborCompile.Tasks(expDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
         var agents = HarborCompile.AgentsDir(expDir);
 
         Assert.Equal(["nb_agent.py", "oracle_user.j2", "oracle_user.py"], Directory.GetFiles(agents).Select(Path.GetFileName).Order(StringComparer.Ordinal));
@@ -38,12 +38,12 @@ public class OracleHarborTests
     }
 
     [Fact]
-    public void Compile_ASuiteWithNoOracleTask_BringsNoSimulatedUser()
+    public void Compile_AExamWithNoOracleTask_BringsNoSimulatedUser()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("gate");
+        repo.CopyExam("gate");
         var expDir = Path.Combine(repo.Root, "runs", "exp");
-        HarborCompile.Tasks(expDir, repo.LoadSuite("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        HarborCompile.Tasks(expDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
         Assert.Equal(["nb_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(expDir)).Select(Path.GetFileName));
     }
 
@@ -52,11 +52,11 @@ public class OracleHarborTests
     [Fact]
     public void Job_AnOracleCell_IsBridged_ToOracleUserOnTheHost()
     {
-        var oracle = new OracleCell("/suite/oracle/plain.md", "/host/nb", "/suites/nb.json", "Judge", 3, "/exp/harbor/agents/oracle_user.j2");
-        var job = HarborCompile.Job(NbArm, "/t", "/j", new AgentRoute(null, null), new NbCell("/cell/program.jsonl", "/suites/nb.json"), oracle: oracle);
+        var oracle = new OracleCell("/exam/oracle/plain.md", "/host/nb", "/exams/nb.json", "Judge", 3, "/exp/harbor/agents/oracle_user.j2");
+        var job = HarborCompile.Job(NbArm, "/t", "/j", new AgentRoute(null, null), new NbCell("/cell/program.jsonl", "/exams/nb.json"), oracle: oracle);
 
         Assert.Equal("""
-            {"import_path":"oracle_user:OracleUser","user_prompt_template_path":"/exp/harbor/agents/oracle_user.j2","bridge":{"kind":"acp"},"kwargs":{"sheet":"/suite/oracle/plain.md","nb":"/host/nb","turns":3,"config":"/suites/nb.json","judge":"Judge"}}
+            {"import_path":"oracle_user:OracleUser","user_prompt_template_path":"/exp/harbor/agents/oracle_user.j2","bridge":{"kind":"acp"},"kwargs":{"sheet":"/exam/oracle/plain.md","nb":"/host/nb","turns":3,"config":"/exams/nb.json","judge":"Judge"}}
             """, job["user_agent"]!.ToJsonString());
         Assert.Equal("nb_agent:NbAgent", job["agents"]![0]!["import_path"]!.GetValue<string>());
         Assert.Null(HarborCompile.Job(NbArm, "/t", "/j", new AgentRoute(null, null), new NbCell("/cell/program.jsonl", null))["user_agent"]);
@@ -117,7 +117,7 @@ public class OracleHarborTests
 
     static Manifest NbManifest() => new()
     {
-        RunId = "r", Experiment = "e", Arm = "nb-harbor", Task = "plain", Sample = 1, Host = "h", Versions = [], SuiteHash = "s", ProgramHash = "p",
+        RunId = "r", Experiment = "e", Arm = "nb-harbor", Task = "plain", Sample = 1, Host = "h", Versions = [], ExamHash = "s", ProgramHash = "p",
         Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null),
     };
 

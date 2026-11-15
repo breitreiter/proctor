@@ -49,10 +49,10 @@ record ErroredCheck(string Check, int Runs, int Of, Dictionary<string, int> Arms
 /// <summary>Where an arm fell down: a check that did not pass in some analysed cells, most often first, with the tasks it happened in.</summary>
 record CheckFailure(string Check, int Cells, int Of, Dictionary<string, int> Tasks);
 
-/// <summary>What the ids mean, in the suite author's words (or derived from a built-in check), so the report can carry them.</summary>
-record Descriptions(string? Suite, Dictionary<string, string> Arms, Dictionary<string, string> Tasks, Dictionary<string, string> Checks);
+/// <summary>What the ids mean, in the exam author's words (or derived from a built-in check), so the report can carry them.</summary>
+record Descriptions(string? Exam, Dictionary<string, string> Arms, Dictionary<string, string> Tasks, Dictionary<string, string> Checks);
 
-/// <summary>What a task is made of: the fixture it runs against and the checks its runs carry (the suite's, the fixture's and its own, in that order), each with the level that declared it and what it tests in that task's words, so the report can show a task's criterion on its row.</summary>
+/// <summary>What a task is made of: the fixture it runs against and the checks its runs carry (the exam's, the fixture's and its own, in that order), each with the level that declared it and what it tests in that task's words, so the report can show a task's criterion on its row.</summary>
 record TaskJson(string? Fixture, List<TaskCheck> Checks);
 
 record TaskCheck(string Name, string Level, string Description);
@@ -67,10 +67,10 @@ record Comparison(string Arm, string Vs, int NPairs, int DiffPoints, int[] Ci95,
 record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
 
 /// <summary>
-/// The guard comparison: every arm against the suite's pinned baseline, with a tolerance on the point estimate.
+/// The guard comparison: every arm against the exam's pinned baseline, with a tolerance on the point estimate.
 /// With <c>Against</c> (report --against), each arm against the arm of the same id in that experiment instead, and
 /// <c>Set</c> is when it was created; <c>Unpaired</c> are the arms it does not have. <c>Pinned</c> are the arms
-/// the suite's baseline pinned its runs from, so the report can say whose scores every arm is compared with.
+/// the exam's baseline pinned its runs from, so the report can say whose scores every arm is compared with.
 /// </summary>
 record BaselineStats(string Set, string Scores, int TolerancePoints, Dictionary<string, BaselineArm> Arms, List<BaselineGap>? Gaps = null, string? Against = null, List<string>? Unpaired = null, List<string>? Pinned = null);
 
@@ -86,7 +86,7 @@ record BaselineArm(int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, in
 record BaselineTask(double Baseline, double Arm, int DiffPoints, string Verdict);
 
 record StatsFile(
-    string Experiment, string Suite, int NTasks, bool Paired,
+    string Experiment, string Exam, int NTasks, bool Paired,
     Dictionary<string, ArmStats> Arms, List<Comparison> Comparisons, Mde Mde, string Methods,
     List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
     Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, BaselineStats? Baseline = null, Dictionary<string, TaskJson>? TaskDetails = null,
@@ -106,14 +106,14 @@ static class Stats
     const double ZPower = 2.801582;      // z_0.975 + z_0.80, for MDE at 80% power
     const double AssumedSdOfPairedDifference = 0.5;
 
-    public static StatsFile Compute(Experiment experiment, Suite suite, List<ResultRow> rows, GuardInput? guard = null)
+    public static StatsFile Compute(Experiment experiment, Exam exam, List<ResultRow> rows, GuardInput? guard = null)
     {
-        var arms = suite.Arms.Select(a => a.Id!).ToList();
-        var tasks = suite.Tasks.Select(c => c.Id!).ToList();
-        var checks = suite.CheckNames;
+        var arms = exam.Arms.Select(a => a.Id!).ToList();
+        var tasks = exam.Tasks.Select(c => c.Id!).ToList();
+        var checks = exam.CheckNames;
         var byArm = arms.ToDictionary(a => a, a => rows.Where(r => r.Arm == a).ToList());
 
-        var validity = suite.Grading.Validity ?? [];
+        var validity = exam.Grading.Validity ?? [];
         var armStats = arms.ToDictionary(a => a, a => ArmStats(byArm[a], tasks, checks, validity));
 
         var scores = arms.ToDictionary(a => a, a => TaskScores(byArm[a].Where(r => r.Decided).ToList(), tasks, r => r.Pass == true));
@@ -186,14 +186,14 @@ static class Stats
             + (baseline is null ? "" : $" The {(guard?.Against is null ? "baseline verdict" : "verdict against each arm's earlier run")} is the point estimate against a tolerance of {baseline.TolerancePoints} points, for each arm and each task; an arm's verdict is confirmed only when its whole 95% interval lies beyond the tolerance on the same side (within it, for unchanged).");
 
         var descriptions = new Descriptions(
-            suite.Def.Description,
-            suite.Arms.Where(a => a.Description is not null).ToDictionary(a => a.Id!, a => a.Description!),
-            suite.Tasks.ToDictionary(c => c.Id!, Suite.Describe),
-            suite.CheckDescriptions());
+            exam.Def.Description,
+            exam.Arms.Where(a => a.Description is not null).ToDictionary(a => a.Id!, a => a.Description!),
+            exam.Tasks.ToDictionary(c => c.Id!, Exam.Describe),
+            exam.CheckDescriptions());
 
-        var taskDetails = suite.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, suite.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
+        var taskDetails = exam.Tasks.ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, exam.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
-        return new StatsFile(experiment.Id, suite.Id, tasks.Count, Paired: true, armStats, comparisons, mde, methods, tasks, matrix, suite.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
+        return new StatsFile(experiment.Id, exam.Id, tasks.Count, Paired: true, armStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, baseline, taskDetails,
             erroredChecks.Count > 0 ? erroredChecks : null);
     }
 

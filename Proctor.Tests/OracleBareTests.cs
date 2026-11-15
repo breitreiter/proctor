@@ -21,18 +21,18 @@ public class OracleBareTests
     static (TestRepo Repo, string CellDir) RunOne(string prompt, object? oracle = null)
     {
         var repo = new TestRepo();
-        repo.CopySuite("smoke");
+        repo.CopyExam("smoke");
         repo.Write("smoke/oracle/plain.md", Sheet);
-        foreach (var other in new[] { "loops", "uses-bash" }) File.Delete(Path.Combine(repo.Root, "suites", "smoke", "tasks", other + ".json"));
+        foreach (var other in new[] { "loops", "uses-bash" }) File.Delete(Path.Combine(repo.Root, "exams", "smoke", "tasks", other + ".json"));
         repo.EditJson("smoke/tasks/plain.json", t => { t["prompt"] = prompt; t["oracle"] = "oracle/plain.md"; });
-        repo.EditJson("smoke/suite.json", s =>
+        repo.EditJson("smoke/exam.json", s =>
         {
             s["arms"]!.AsArray().RemoveAt(1);
             s["arms"]![0]!["samples"] = 1;
             if (oracle is not null) s["oracle"] = System.Text.Json.JsonSerializer.SerializeToNode(oracle);
         });
-        var suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, Suite.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
+        var exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         return (repo, Layout.Cell(Layout.Experiment(repo.Root, id), "a", "plain", 1));
     }
 
@@ -75,7 +75,7 @@ public class OracleBareTests
     }
 
     [Fact]
-    public void TheSuitesTurns_BoundTheAnswers_AndTheJudgeIsTheNamedEntry()
+    public void TheExamsTurns_BoundTheAnswers_AndTheJudgeIsTheNamedEntry()
     {
         var (repo, cell) = RunOne("MOCK:response=Again? MOCK:oracle=again", new { turns = 2, judge = "MockB" });
         using var _ = repo;
@@ -84,7 +84,7 @@ public class OracleBareTests
         Assert.Equal("oracle_budget", t.Trailer!.ExitReason);
         Assert.Equal(2, t.UserTurns.Count(u => u.IsOracle));
         var program = File.ReadAllText(Path.Combine(cell, Layout.ProgramFile));
-        Assert.StartsWith($"oracle @{Path.Combine(repo.Root, "suites", "smoke", "oracle", "plain.md")}\noracle provider MockB\nbudget oracle_turns 2\n", program);
+        Assert.StartsWith($"oracle @{Path.Combine(repo.Root, "exams", "smoke", "oracle", "plain.md")}\noracle provider MockB\nbudget oracle_turns 2\n", program);
         // The compiled program carries the sheet's text, not its path: a runner's container never needs the file.
         var compiled = File.ReadAllText(Path.Combine(cell, Layout.CompiledProgramFile));
         Assert.Contains("deploy-target", compiled);
@@ -95,9 +95,9 @@ public class OracleBareTests
     public void AnOracleCheck_WithNoOracleTask_IsAProblem()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", s => s["grading"]!["checks"]!["answered"] = JsonNode.Parse("""{"oracle_turns": {"max": 1}}"""));
-        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("suite.json") && p.Field == "grading.checks.answered" && p.Message.Contains("no task names an answer sheet"));
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", s => s["grading"]!["checks"]!["answered"] = JsonNode.Parse("""{"oracle_turns": {"max": 1}}"""));
+        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("exam.json") && p.Field == "grading.checks.answered" && p.Message.Contains("no task names an answer sheet"));
     }
 
     [Fact]

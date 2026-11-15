@@ -10,13 +10,13 @@ public class BaselineTests
     public void Baseline_PinsAnalysedCellsPerCase_ReportComparesAgainstThem_AndFailsOnRegressionWhenAsked()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(repo.Root, problems);
-        var suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
+        var config = Exam.LoadConfig(repo.Root, problems);
+        var exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
 
         // No baseline yet: the report has no baseline block and --fail-on has nothing to fail on.
         Assert.Equal(0, Verbs.Report(repo.Root, id, failOn: "regression"));
@@ -24,9 +24,9 @@ public class BaselineTests
         Assert.Null(JsonNode.Parse(File.ReadAllText(statsFile))!["baseline"]);
 
         Assert.Equal(0, Verbs.Baseline(repo.Root, id, null, null));
-        var file = Path.Combine(repo.Root, "suites/smoke/baseline.json");
+        var file = Path.Combine(repo.Root, "exams/smoke/baseline.json");
         var baseline = JsonNode.Parse(File.ReadAllText(file))!;
-        Assert.Equal(suite.Hash, baseline["suite_hash"]!.GetValue<string>());
+        Assert.Equal(exam.Hash, baseline["suite_hash"]!.GetValue<string>());
         var loops = baseline["tasks"]!["loops"]!;
         Assert.Equal(id, loops["experiment"]!.GetValue<string>());
         Assert.Equal("a", loops["arm"]!.GetValue<string>());
@@ -66,17 +66,17 @@ public class BaselineTests
     public void Baseline_PinnedCellsMissingAPassCheck_StandAsPinned_AndTheReportNamesTheCheck()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
-        var config = Suite.LoadConfig(repo.Root, []);
-        var suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        var config = Exam.LoadConfig(repo.Root, []);
+        var exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
         Assert.Equal(0, Verbs.Baseline(repo.Root, id, null, null));
 
         // The pass list grows after pinning: the pinned cells were never graded on the new check. Rescoring them
         // would read it as an error and every task as 0; instead each task stands as pinned and the gap is named.
-        repo.EditJson("smoke/suite.json", e =>
+        repo.EditJson("smoke/exam.json", e =>
         {
             e["grading"]!["checks"]!["answer-short"] = JsonNode.Parse("""{ "max_tokens": 100000 }""");
             e["grading"]!["pass"]!.AsArray().Add("answer-short");
@@ -87,7 +87,7 @@ public class BaselineTests
         var gap = Assert.Single(bl["gaps"]!.AsArray())!;
         Assert.Equal("answer-short", gap["check"]!.GetValue<string>());
         Assert.Equal(id, gap["experiment"]!.GetValue<string>());
-        Assert.Equal(suite.Tasks.Count, gap["tasks"]!.AsArray().Count);
+        Assert.Equal(exam.Tasks.Count, gap["tasks"]!.AsArray().Count);
         Assert.Equal(1.0, bl["arms"]!["a"]!["tasks"]!["plain"]!["baseline"]!.GetValue<double>());
         Assert.Contains("never graded on the headline check `answer-short`", File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "summary.md")));
     }
@@ -96,12 +96,12 @@ public class BaselineTests
     public void ReportAgainst_PairsEachArmWithItsOwnEarlierRun_AndNamesAnArmTheOtherLacks()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => { foreach (var a in e["arms"]!.AsArray()) a!["samples"] = 1; });
-        var config = Suite.LoadConfig(repo.Root, []);
-        var suite = repo.LoadSuite("smoke");
-        var earlier = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, earlier), suite, TextWriter.Null);
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => { foreach (var a in e["arms"]!.AsArray()) a!["samples"] = 1; });
+        var config = Exam.LoadConfig(repo.Root, []);
+        var exam = repo.LoadExam("smoke");
+        var earlier = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, earlier), exam, TextWriter.Null);
 
         // Arm b did worse on plain last time; arm a did not. A single pin could not show both.
         var cell = Layout.Cell(Layout.Experiment(repo.Root, earlier), "b", "plain", 1);
@@ -110,10 +110,10 @@ public class BaselineTests
         File.WriteAllText(Path.Combine(cell, "checks.json"), checks.ToJsonString());
 
         // The new experiment adds an arm the earlier one never had.
-        repo.EditJson("smoke/suite.json", e => e["arms"]!.AsArray().Add(JsonNode.Parse("""{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 1 }""")));
-        suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
-        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), suite, TextWriter.Null);
+        repo.EditJson("smoke/exam.json", e => e["arms"]!.AsArray().Add(JsonNode.Parse("""{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock", "samples": 1 }""")));
+        exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
+        Grade.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), exam, TextWriter.Null);
 
         Assert.Equal(0, Verbs.Report(repo.Root, id, againstId: earlier, failOn: "regression"));
         var bl = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.ReportData(repo.Root, id), "stats.json")))!["baseline"]!;

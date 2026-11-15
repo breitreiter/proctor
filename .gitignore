@@ -13,13 +13,13 @@ obj/
 # Local config with keys
 appsettings.json
 !appsettings.example.json
-suites/proctor.json
-suites/nb.json
-# A second machine's config, such as suites/proctor.modal.json
-suites/proctor.*.json
-suites/nb.*.json
-!suites/*.example.json
-suites/codex.toml
+exams/proctor.json
+exams/nb.json
+# A second machine's config, such as exams/proctor.modal.json
+exams/proctor.*.json
+exams/nb.*.json
+!exams/*.example.json
+exams/codex.toml
 
 # Fixture checkouts made by sample setup hooks
 .proctor/

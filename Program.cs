@@ -5,20 +5,20 @@ static class Program
     const string Usage = """
         usage: proctor <verb> [args] [--root <dir>]
 
-          list [suite]         validate and print the cells that would run
-          run <suite>          run every cell of a suite into a new experiment
+          list [exam]         validate and print the cells that would run
+          run <exam>          run every cell of an exam into a new experiment
           resume <experiment> run the cells of an experiment that have not completed
           grade <experiment>  run the checks over every completed cell; a model check's verdict is kept in the cell
           friction <experiment> write friction.json beside each completed cell's trajectory: where the run paid a cost the task did not ask for; rules only, no model
           report <experiment> write results.jsonl, stats.json, report.html and summary.md
-          baseline <experiment> pin an arm's analysed cells as the suite's baseline, per task
+          baseline <experiment> pin an arm's analysed cells as the exam's baseline, per task
           setup                set up providers and keys for this machine, job by job (needs a terminal)
 
-        --root <dir>          the repository root holding suites/ (default: current directory)
-        --config <file>       list, run, resume, grade: this machine's config in place of suites/proctor.json, such as one for Modal
-        --label <k[=glob]>    list: only suites carrying the label, or the label with a matching value (repeatable)
-        --nb <path>           the nb binary (default: suites/proctor.json nb.path, else PATH)
-        --runner <script>     the script that runs nb per cell (default: the suite's nb.runner); none runs nb bare
+        --root <dir>          the repository root holding exams/ (default: current directory)
+        --config <file>       list, run, resume, grade: this machine's config in place of exams/proctor.json, such as one for Modal
+        --label <k[=glob]>    list: only exams carrying the label, or the label with a matching value (repeatable)
+        --nb <path>           the nb binary (default: exams/proctor.json nb.path, else PATH)
+        --runner <script>     the script that runs nb per cell (default: the exam's nb.runner); none runs nb bare
         --arm <id>            grade, friction: only this arm's cells, the others left as they are (repeatable); baseline: which arm to pin (required with several arms)
         --tasks <a,b>         grade, friction: only these tasks' cells; baseline: only these tasks, the rest keep their pins
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
@@ -75,7 +75,7 @@ static class Program
             return (positional[0], positional.Skip(1).ToList()) switch
             {
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels, configFile),
-                ("run", [var suite]) => Verbs.Run(root, suite, nbPath, runner, configFile),
+                ("run", [var exam]) => Verbs.Run(root, exam, nbPath, runner, configFile),
                 ("resume", [var id]) => Verbs.Resume(root, id, nbPath, runner, configFile),
                 ("grade", [var id]) => Verbs.Grade(root, id, judges, rejudge, arms, tasks, configFile),
                 ("friction", [var id]) => Verbs.Friction(root, id, arms, tasks, reader, rejudge, configFile),

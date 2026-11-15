@@ -4,7 +4,7 @@ using System.Text;
 namespace Proctor;
 
 /// <summary>
-/// <c>suites/sandbox-plan.md</c>: a brief for the user's coding agent, written when the sandbox is to run on this machine.
+/// <c>exams/sandbox-plan.md</c>: a brief for the user's coding agent, written when the sandbox is to run on this machine.
 /// It holds what setup could see and what proctor needs, never a fixed list of commands: the route depends on the OS,
 /// the distro, licences and what a work laptop allows, which takes a strong model talking to the user to resolve. The
 /// mockup and its reasoning are <c>project/plans/setup/sandbox-plan.md</c>.
@@ -71,8 +71,8 @@ static class SandboxPlan
             + "`compose_warning_logs = false` (Harbor reads the compose banner as agent output).");
         b.AppendLine("- uv on PATH; it runs the pinned Harbor.");
         b.AppendLine(engine is null
-            ? "- `harbor.engine` in `suites/proctor.json` naming the engine (`docker` is the default; setup found neither, so wrote nothing)."
-            : $"- `harbor.engine` in `suites/proctor.json` naming the engine (`docker` is the default; setup wrote `{engine}` here, from what it found).");
+            ? "- `harbor.engine` in `exams/proctor.json` naming the engine (`docker` is the default; setup found neither, so wrote nothing)."
+            : $"- `harbor.engine` in `exams/proctor.json` naming the engine (`docker` is the default; setup wrote `{engine}` here, from what it found).");
         b.AppendLine();
         b.AppendLine("Why each of these exists, and the known traps (Ubuntu's pasta AppArmor profile among them), are in "
             + "`docs/podman.md` for podman and `docs/configuration.md`, \"Agent arms\", for both.");
@@ -89,7 +89,7 @@ static class SandboxPlan
         b.AppendLine("- Prefer what is already installed" + (engine is null ? "." : $". Here {engine} is present, so finishing it is likely cheaper than adding another engine, unless the user says otherwise."));
         b.AppendLine("- Propose the steps as a short plan and let the user approve it. Run nothing that needs root without saying so "
             + "first. Do not put any API key on a command line or in a file other than the user's proctor env file.");
-        b.AppendLine("- If this machine cannot be made to work within the user's constraints, say so plainly. Suites with no agent "
+        b.AppendLine("- If this machine cannot be made to work within the user's constraints, say so plainly. Exams with no agent "
             + "(the built-in harness) need no sandbox, and agent arms can run on Modal instead (experimental; `docs/modal.md`); `proctor setup` offers both.");
         b.AppendLine();
 

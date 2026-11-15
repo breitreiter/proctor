@@ -157,11 +157,11 @@ public class FrictionTests
     public void AFailsPatternThatIsNotARegex_IsAProblem()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => e["surface"] = new JsonObject { ["commands"] = new JsonArray("jot"), ["fails"] = new JsonArray("(unclosed") });
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => e["surface"] = new JsonObject { ["commands"] = new JsonArray("jot"), ["fails"] = new JsonArray("(unclosed") });
         var problems = new List<Problem>();
 
-        Suite.Load(repo.Root, "smoke", problems);
+        Exam.Load(repo.Root, "smoke", problems);
 
         Assert.Contains(problems, p => p.Field == "surface.fails[0]");
     }
@@ -170,19 +170,19 @@ public class FrictionTests
     public void Friction_WritesFrictionJsonBesideEachCompletedCellsTrajectory()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(repo.Root, problems);
-        var suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, config, null, null, "test", TextWriter.Null);
+        var config = Exam.LoadConfig(repo.Root, problems);
+        var exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, config, null, null, "test", TextWriter.Null);
         var expDir = Layout.Experiment(repo.Root, id);
         File.WriteAllText(Path.Combine(Layout.Cell(expDir, "a", "loops", 1), "status"), "failed\n");
 
-        // The suite's arm is renamed after the run: friction still reads what was run.
-        repo.EditJson("smoke/suite.json", e => e["arms"]![0]!["id"] = "renamed");
+        // The exam's arm is renamed after the run: friction still reads what was run.
+        repo.EditJson("smoke/exam.json", e => e["arms"]![0]!["id"] = "renamed");
 
-        var cells = Friction.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), repo.LoadSuite("smoke"), TextWriter.Null);
+        var cells = Friction.Experiment(repo.Root, Runner.LoadExperiment(repo.Root, id), repo.LoadExam("smoke"), TextWriter.Null);
 
         Assert.All(cells, c => Assert.Equal("a", c.Arm));
         Assert.Equal("not completed", cells.Single(c => c.Task == "loops").Skipped);

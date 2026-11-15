@@ -7,14 +7,14 @@ namespace Proctor.Tests;
 /// <summary>Steps 2 and 3: one cell against nb's Mock provider, then the matrix, resume and hook failures.</summary>
 public class RunnerTests
 {
-    static string StartSmoke(TestRepo repo, Action<JsonObject>? editSuite = null, string? runner = null, string? runnerOverride = null, object? mounts = null)
+    static string StartSmoke(TestRepo repo, Action<JsonObject>? editExam = null, string? runner = null, string? runnerOverride = null, object? mounts = null)
     {
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => { editSuite?.Invoke(e); TestRepo.SetNb(e, runner, mounts); });
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => { editExam?.Invoke(e); TestRepo.SetNb(e, runner, mounts); });
         var problems = new List<Problem>();
-        var config = Suite.LoadConfig(repo.Root, problems);
-        var suite = repo.LoadSuite("smoke");
-        return Runner.Start(repo.Root, suite, config, null, runnerOverride, "test", TextWriter.Null);
+        var config = Exam.LoadConfig(repo.Root, problems);
+        var exam = repo.LoadExam("smoke");
+        return Runner.Start(repo.Root, exam, config, null, runnerOverride, "test", TextWriter.Null);
     }
 
     static void OneArmOneSample(JsonObject e) { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; }
@@ -66,7 +66,7 @@ public class RunnerTests
         Assert.Equal("nb-jsonl", manifest["transcript"]!["format"]!.GetValue<string>());
         Assert.Equal("completed", manifest["status"]!.GetValue<string>());
         Assert.Equal(1, manifest["tries"]!.GetValue<int>());
-        Assert.StartsWith("sha256:", manifest["suite_hash"]!.GetValue<string>());
+        Assert.StartsWith("sha256:", manifest["exam_hash"]!.GetValue<string>());
         Assert.StartsWith("sha256:", manifest["program_hash"]!.GetValue<string>());
         Assert.True(manifest["duration_ms"]!.GetValue<long>() > 0);
         Assert.Null(manifest["status_reason"]);
@@ -96,7 +96,7 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo);
-        var statuses = Runner.Cells(repo.LoadSuite("smoke"))
+        var statuses = Runner.Cells(repo.LoadExam("smoke"))
             .Select(x => Runner.ReadStatus(Cell(repo, id, x.Arm.Id!, x.Task.Id!, x.Sample))).ToList();
         Assert.Equal(12, statuses.Count);
         Assert.All(statuses, s => Assert.Equal("completed", s));
@@ -127,7 +127,7 @@ public class RunnerTests
     }
 
     [Fact]
-    public void Resume_RefusesWhenTheSuiteChanged()
+    public void Resume_RefusesWhenTheExamChanged()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, e => { e["arms"]!.AsArray().RemoveAt(1); e["arms"]![0]!["samples"] = 1; });
@@ -141,9 +141,9 @@ public class RunnerTests
     public void SampleHookFailure_MarksTheCellFailed_AndTheMatrixContinues()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
+        repo.CopyExam("smoke");
         repo.Write("smoke/hooks/flaky-setup.sh", "#!/usr/bin/env bash\nif [ \"$PROCTOR_TASK\" = plain ]; then echo 'no fixture for plain' >&2; exit 7; fi\nmkdir -p \"$PROCTOR_WORK\"\n");
-        File.SetUnixFileMode(Path.Combine(repo.Root, "suites/smoke/hooks/flaky-setup.sh"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        File.SetUnixFileMode(Path.Combine(repo.Root, "exams/smoke/hooks/flaky-setup.sh"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var id = StartSmoke(repo, e =>
         {
             e["arms"]!.AsArray().RemoveAt(1);
@@ -171,9 +171,9 @@ public class RunnerTests
     public void ArmHookFailure_FailsEveryCellOfThatArm_AndTheNextArmRuns()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
+        repo.CopyExam("smoke");
         repo.Write("smoke/hooks/arm-b-fails.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_ARM\" = b ] && { echo 'fakes did not start' >&2; exit 1; }\nexit 0\n");
-        File.SetUnixFileMode(Path.Combine(repo.Root, "suites/smoke/hooks/arm-b-fails.sh"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        File.SetUnixFileMode(Path.Combine(repo.Root, "exams/smoke/hooks/arm-b-fails.sh"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var id = StartSmoke(repo, e =>
         {
             foreach (var arm in e["arms"]!.AsArray()) arm!["samples"] = 1;
@@ -208,13 +208,13 @@ public class RunnerTests
     public void Compile_InlinesIncludesOnTheHost_AndTheHashStaysTheSources()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
+        repo.CopyExam("smoke");
         repo.Write("smoke/notes.md", "Never mention the sheet.\n");
-        var template = File.ReadAllText(Path.Combine(repo.Root, "suites/smoke/program.nb")).Replace("run {{prompt}}", "system @notes.md\nrun {{prompt}}");
+        var template = File.ReadAllText(Path.Combine(repo.Root, "exams/smoke/program.nb")).Replace("run {{prompt}}", "system @notes.md\nrun {{prompt}}");
         repo.Write("smoke/program.nb", template);
         repo.WriteProctorConfig();
-        var suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, Suite.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
+        var exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
 
         var cell = Cell(repo, id, "a", "plain", 1);
         Assert.Equal("completed", Runner.ReadStatus(cell));
@@ -234,12 +234,12 @@ public class RunnerTests
     public void Compile_Failure_IsFailed_BeforeAnyHookRuns()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        var template = File.ReadAllText(Path.Combine(repo.Root, "suites/smoke/program.nb")).Replace("run {{prompt}}", "system @missing.md\nrun {{prompt}}");
+        repo.CopyExam("smoke");
+        var template = File.ReadAllText(Path.Combine(repo.Root, "exams/smoke/program.nb")).Replace("run {{prompt}}", "system @missing.md\nrun {{prompt}}");
         repo.Write("smoke/program.nb", template);
         repo.WriteProctorConfig();
-        var suite = repo.LoadSuite("smoke");
-        var id = Runner.Start(repo.Root, suite, Suite.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
+        var exam = repo.LoadExam("smoke");
+        var id = Runner.Start(repo.Root, exam, Exam.LoadConfig(repo.Root, new List<Problem>()), null, null, "test", TextWriter.Null);
 
         var cell = Cell(repo, id, "a", "plain", 1);
         Assert.Equal("failed", Runner.ReadStatus(cell));
@@ -286,8 +286,8 @@ public class RunnerTests
     public void Checkout_RestoresTheFixturePlusTheDiff_WhenTheWorkDirectoryIsGone()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        var fixture = repo.LoadSuite("smoke").Fixtures["note"];
+        repo.CopyExam("smoke");
+        var fixture = repo.LoadExam("smoke").Fixtures["note"];
         var work = Path.Combine(repo.Root, ".proctor/work/x");
         var cell = Path.Combine(repo.Root, "runs/x");
         Directory.CreateDirectory(cell);
@@ -436,7 +436,7 @@ public class RunnerTests
     /// <summary>The smoke template names the bundle in a comment; add the checkout the same way, so the resolved program shows what the model was told.</summary>
     static void WithWorkComment(TestRepo repo)
     {
-        var file = Path.Combine(repo.Root, "suites", "smoke", "program.nb");
+        var file = Path.Combine(repo.Root, "exams", "smoke", "program.nb");
         File.WriteAllText(file, "# work: {{work}}\n" + File.ReadAllText(file));
     }
 
@@ -444,8 +444,8 @@ public class RunnerTests
     public void Mounts_MustBeAbsolute()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => TestRepo.SetNb(e, null, new { work = "work" }));
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => TestRepo.SetNb(e, null, new { work = "work" }));
         var problem = Assert.Single(repo.Problems("smoke"));
         Assert.Equal("nb.mounts.work", problem.Field);
     }
@@ -454,13 +454,13 @@ public class RunnerTests
     public void RunnerAndMounts_LeftInProctorJson_AreAProblem_NotIgnored()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        File.WriteAllText(Path.Combine(repo.Root, "suites", "proctor.json"),
+        repo.CopyExam("smoke");
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"),
             $$"""{ "nb": { "path": "{{TestRepo.NbPath}}", "runner": "runners/x.sh", "mounts": { "work": "/work" } } }""");
         var problems = new List<Problem>();
-        Suite.LoadConfig(repo.Root, problems);
+        Exam.LoadConfig(repo.Root, problems);
         Assert.Equal(["nb.runner", "nb.mounts"], problems.Select(p => p.Field));
-        Assert.All(problems, p => Assert.Contains("suite.json", p.Message));
+        Assert.All(problems, p => Assert.Contains("exam.json", p.Message));
     }
 
     [Fact]
@@ -507,8 +507,8 @@ public class RunnerTests
     public void Runner_NotFound_IsAUserFacingFailure()
     {
         using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        repo.EditJson("smoke/suite.json", e => TestRepo.SetNb(e, "runners/missing.sh", null));
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => TestRepo.SetNb(e, "runners/missing.sh", null));
         var problem = Assert.Single(repo.Problems("smoke"));
         Assert.Equal("nb.runner", problem.Field);
         Assert.Contains("script not found", problem.Message);

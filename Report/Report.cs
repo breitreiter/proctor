@@ -19,7 +19,7 @@ static class Report
     // ---- The blocks ----
 
     abstract record Block;
-    record Title(string Suite, string Date, string Time) : Block;                  // the page's h1 and when it ran
+    record Title(string Exam, string Date, string Time) : Block;                  // the page's h1 and when it ran
     record Heading(string Text, string Id, bool Flagged = false) : Block;          // a section; Flagged marks it in the rail
     record Para(string Text, string? Class = null) : Block;                        // "explain": skippable once known; "caution": a warning inside the card
     record Warning(string Text) : Block;
@@ -54,8 +54,8 @@ static class Report
 
         // 1. Summary
         var created = When(exp.Created);
-        b.Add(new Title(stats.Suite, created.ToString("dddd, d MMMM yyyy"), created.ToString("HH:mm")));
-        if (d.Suite is { } about) b.Add(new Para(about));
+        b.Add(new Title(stats.Exam, created.ToString("dddd, d MMMM yyyy"), created.ToString("HH:mm")));
+        if (d.Exam is { } about) b.Add(new Para(about));
         b.Add(VerdictCard(stats));
         var bySamples = arms.GroupBy(a => Samples(exp, a)).ToList();
         var tasksLine = bySamples.Count == 1 ? $"{stats.NTasks}, each run {Times(bySamples[0].Key)} per arm"
@@ -94,7 +94,7 @@ static class Report
         // 3. Tasks: what each asks, what it is checked for, and how every arm did on it
         b.Add(new Heading("Tasks", "tasks"));
         b.Add(new Para($"A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(bySamples.Count == 1 ? (bySamples[0].Key == 1 ? "Each task is run once per arm, so one attempt decides its score." : $"Each task is run {Times(bySamples[0].Key)} per arm, so a score is not one lucky or unlucky attempt.") : "Each arm runs each task the number of times Arms lists; a task run more than once scores the mean of its runs, so one lucky or unlucky attempt does not decide it.")}", "explain"));
-        b.Add(new Para("A check is one yes-or-no test over a finished run. Every task carries the checks the suite declares; a fixture or the task itself can add more. A check's role decides what it does to a run:", "explain"));
+        b.Add(new Para("A check is one yes-or-no test over a finished run. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to a run:", "explain"));
         b.Add(new Pairs(
         [
             ("headline", "Together, the headline checks decide whether a run passed."),
@@ -102,12 +102,12 @@ static class Report
             ("guardrail", "Reported, not part of the pass."),
         ], "roles"));
         b.Add(new Para("A check that cannot decide a run leaves that run out of its rate on both sides.", "explain"));
-        var suiteChecks = (stats.TaskDetails ?? []).Values.SelectMany(td => td.Checks).Where(k => k.Level == "suite").DistinctBy(k => k.Name).ToList();
-        if (suiteChecks.Count > 0)
+        var examChecks = (stats.TaskDetails ?? []).Values.SelectMany(td => td.Checks).Where(k => k.Level == "exam").DistinctBy(k => k.Name).ToList();
+        if (examChecks.Count > 0)
         {
-            b.Add(new Label("Checks the suite declares, carried by every task"));
+            b.Add(new Label("Checks the exam declares, carried by every task"));
             b.Add(new Table(["Check", "What it tests", "Role"],
-                suiteChecks.Select(k => (List<Cell>)[new(k.Name), new(CheckText(stats, k.Name)), RoleCell(stats, k.Name)]).ToList(), [], "checks"));
+                examChecks.Select(k => (List<Cell>)[new(k.Name), new(CheckText(stats, k.Name)), RoleCell(stats, k.Name)]).ToList(), [], "checks"));
         }
         b.Add(new Para($"Each task's results show one mark per run: {Pass} passed, {Fail} failed, {Undecided} undecided, {NotCounted} not counted. Hover a mark for the reason; click it for the run. A task scores its mean over its counted, decided runs"
             + (bl is null ? "." : bl.TolerancePoints == 0 ? $", and is called better or worse than its {vs} on any difference." : $", and is called better or worse than its {vs} beyond {bl.TolerancePoints} points either way."), "explain"));
@@ -175,7 +175,7 @@ static class Report
         // 6. Run summary
         var unequal = UnequalLoss(stats);
         b.Add(new Heading("Run summary", "run-summary", Flagged: unequal is not null));
-        b.Add(new Para("This is how far each run in the suite got before terminating. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.", "explain"));
+        b.Add(new Para("This is how far each run in the exam got before terminating. *Attempted* runs started; *completed* runs ended with a transcript; *graded* runs have their checks; *counted* runs are graded and passed every validity check; *decided* runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.", "explain"));
         b.Add(new Table(["Arm", "Planned", "Attempted", "Completed", "Graded", "Counted", "Decided"],
             arms.Select(a => { var s = stats.Arms[a]; return (List<Cell>)[Id(a), T($"{s.Planned}"), T($"{s.Attempted}"), T($"{s.Completed}"), T($"{s.Graded}"), T($"{s.Analysed}"), T($"{s.Decided}")]; }).ToList(),
             [1, 2, 3, 4, 5, 6]));
@@ -318,7 +318,7 @@ static class Report
         return new Card(title, diffTitle, rows, lines, foot);
     }
 
-    /// <summary>What an arm is compared with, in a sentence: the suite's pinned baseline, or with report --against, its earlier run.</summary>
+    /// <summary>What an arm is compared with, in a sentence: the exam's pinned baseline, or with report --against, its earlier run.</summary>
     static string Vs(BaselineStats? bl) => bl?.Against is null ? "baseline" : "earlier run";
 
     /// <summary>Why an arm has no row against the baseline: the other experiment has no such arm, or they share no task.</summary>
@@ -375,11 +375,11 @@ static class Report
         var bl = stats.Baseline;
         var checks = (stats.TaskDetails?.GetValueOrDefault(task)?.Checks ?? [])
             .OrderBy(k => k.Level switch { "task" => 0, "fixture" => 1, _ => 2 }).ToList();
-        var fromSuite = checks.Count(k => k.Level == "suite");
+        var fromExam = checks.Count(k => k.Level == "exam");
         var fromFixture = checks.Count(k => k.Level == "fixture");
         var own = checks.Count(k => k.Level == "task");
         var where = new List<string>();
-        if (fromSuite > 0) where.Add($"{fromSuite} from the suite");
+        if (fromExam > 0) where.Add($"{fromExam} from the exam");
         if (fromFixture > 0) where.Add($"{fromFixture} from its fixture");
         where.Add(own == 0 ? "none of its own" : $"{own} of its own");
 
@@ -389,10 +389,10 @@ static class Report
         facts.Add($"**{checks.Count} check{(checks.Count == 1 ? "" : "s")}**: {string.Join(", ", where)}");
 
         var body = new List<Block>();
-        var particular = checks.Where(k => k.Level != "suite").ToList();
+        var particular = checks.Where(k => k.Level != "exam").ToList();
         if (particular.Count > 0)
         {
-            body.Add(new Label(fromSuite > 0 ? "Checks beyond the suite's" : "Checks"));
+            body.Add(new Label(fromExam > 0 ? "Checks beyond the exam's" : "Checks"));
             body.Add(new Table(["Check", "What it tests", "Role", "Declared by"],
                 particular.Select(k => (List<Cell>)[new(k.Name), new(k.Description), RoleCell(stats, k.Name),
                     new(Declared(k.Level), $"<span class=\"src\">{Declared(k.Level)}</span>")]).ToList(),
@@ -439,7 +439,7 @@ static class Report
 
     static Cell RoleCell(StatsFile stats, string check) => new(Role(stats, check), $"<span class=\"role role-{Role(stats, check)}\">{Role(stats, check)}</span>");
 
-    static string Declared(string level) => level switch { "task" => "this task", "fixture" => "its fixture", _ => "suite" };
+    static string Declared(string level) => level switch { "task" => "this task", "fixture" => "its fixture", _ => "exam" };
 
     // ---- Sentences ----
 
@@ -526,14 +526,14 @@ static class Report
         stats.Arms.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
 
     static string ArmField(Experiment exp, string arm, string field, string missing = "?") =>
-        exp.SuiteDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?[field]?.GetValue<string>() ?? missing;
+        exp.ExamDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?[field]?.GetValue<string>() ?? missing;
 
     /// <summary>nb's harness on an nb arm; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the experiment does not record.</summary>
     static string Harness(Experiment exp, string arm) =>
         ArmField(exp, arm, "harness", "") is { Length: > 0 } h ? h : $"{ArmField(exp, arm, "agent")} {ArmField(exp, arm, "agent_version", "")}".TrimEnd();
 
     static int Samples(Experiment exp, string arm) =>
-        exp.SuiteDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?["samples"]?.GetValue<int>() ?? 1;
+        exp.ExamDef["arms"]?.AsArray().FirstOrDefault(a => a?["id"]?.GetValue<string>() == arm)?["samples"]?.GetValue<int>() ?? 1;
 
     /// <summary>Monospace only for what is typed or opened: the command, paths, endpoints.</summary>
     static IEnumerable<(string, string)> ReproFacts(Experiment exp, List<JudgeUse>? judges)
@@ -541,7 +541,7 @@ static class Report
         yield return ("run id", exp.Id);
         yield return ("proctor", exp.Versions.GetValueOrDefault("proctor", "unknown"));
         yield return ("nb", $"{exp.Versions.GetValueOrDefault("nb", "unknown")} at ``{exp.Nb.Path}``");
-        yield return ("suite hash", exp.SuiteHash);
+        yield return ("exam hash", exp.ExamHash);
         foreach (var (arm, bundle) in exp.Bundles ?? []) yield return ($"bundle {arm}", $"``{bundle.Source}`` {bundle.Hash}");
         foreach (var j in judges ?? [])
             yield return ($"judge {j.Judge}", $"{j.Kind}{(j.Model is null ? "" : " " + j.Model)} at ``{j.Endpoint}``; graded {string.Join(", ", j.Checks)}");
@@ -669,7 +669,7 @@ static class Report
             <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>{E(stats.Suite)} — {created:d MMM yyyy} — proctor</title>
+            <title>{E(stats.Exam)} — {created:d MMM yyyy} — proctor</title>
             <link rel="icon" href="{Logo}">
             <style>
             {Css}
@@ -679,7 +679,7 @@ static class Report
             <div class="page">
 
             """);
-        sb.Append(Rail(blocks, stats.Suite, created));
+        sb.Append(Rail(blocks, stats.Exam, created));
         sb.Append("<main class=\"rpt\" id=\"top\">\n<section id=\"summary\">\n");
         foreach (var block in blocks) Html(sb, block);
         sb.Append("</section>\n");
@@ -707,8 +707,8 @@ static class Report
             case Title t:
                 sb.Append($"""
                     <header>
-                    <div class="kicker">Suite</div>
-                    <h1>{E(t.Suite)}</h1>
+                    <div class="kicker">Exam</div>
+                    <h1>{E(t.Exam)}</h1>
                     <div class="when">{E(t.Date)}</div>
                     <div class="time">Started {E(t.Time)} UTC</div>
                     </header>
@@ -777,14 +777,14 @@ static class Report
         }
     }
 
-    /// <summary>The sticky table of contents: logo, suite and date, every section with the tasks under Tasks, and back to top.</summary>
-    static string Rail(List<Block> blocks, string suite, DateTimeOffset created)
+    /// <summary>The sticky table of contents: logo, exam and date, every section with the tasks under Tasks, and back to top.</summary>
+    static string Rail(List<Block> blocks, string exam, DateTimeOffset created)
     {
         var sb = new StringBuilder();
         sb.Append($"""
             <nav class="toc-rail" aria-label="Report sections">
             <div class="brand"><img src="{Logo}" alt="" width="22" height="22"><span>proctor</span></div>
-            <div class="rail-suite"><div class="name">{E(suite)}</div><div class="date">{created:d MMM yyyy}</div></div>
+            <div class="rail-exam"><div class="name">{E(exam)}</div><div class="date">{created:d MMM yyyy}</div></div>
             <div class="rail-toc">
             <div class="kicker">On this page</div>
             <div class="toc">
@@ -908,9 +908,9 @@ static class Report
         .toc-rail { position: sticky; top: 0; align-self: flex-start; flex-shrink: 0; width: 220px; max-height: 100vh; overflow-y: auto; box-sizing: border-box; padding: 32px 0 24px; display: flex; flex-direction: column; gap: 16px; }
         .brand { display: flex; align-items: center; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid #e4e4e0; }
         .brand span { font-weight: 600; color: #3b2f6e; letter-spacing: .01em; }
-        .rail-suite { display: flex; flex-direction: column; gap: 2px; }
-        .rail-suite .name { font-size: 15px; font-weight: 650; }
-        .rail-suite .date { font-size: 12.5px; color: #595959; }
+        .rail-exam { display: flex; flex-direction: column; gap: 2px; }
+        .rail-exam .name { font-size: 15px; font-weight: 650; }
+        .rail-exam .date { font-size: 12.5px; color: #595959; }
         .rail-toc { display: flex; flex-direction: column; gap: 6px; }
         .rail-toc .kicker { font-size: 11px; }
         .toc { display: flex; flex-direction: column; border-left: 1px solid #d8d8d8; }
@@ -962,7 +962,7 @@ static class Report
     {
         switch (block)
         {
-            case Title t: sb.Append($"# {t.Suite}\n\n{t.Date}, started {t.Time} UTC\n\n"); break;
+            case Title t: sb.Append($"# {t.Exam}\n\n{t.Date}, started {t.Time} UTC\n\n"); break;
             case Heading h: sb.Append($"## {h.Text}\n\n"); break;
             case Label l: sb.Append($"**{l.Text}**\n\n"); break;
             case Para p: sb.Append($"{Md(p.Text)}\n\n"); break;

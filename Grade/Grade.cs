@@ -10,15 +10,15 @@ static class Grade
 
     /// <param name="arms">Only these arms' cells, when given; the others are not read and their checks.json is left as it was.</param>
     /// <param name="tasks">Only these tasks' cells, when given, likewise.</param>
-    public static List<CellGrade> Experiment(string root, Experiment experiment, Suite suite, TextWriter log, JudgeClient? judges = null,
+    public static List<CellGrade> Experiment(string root, Experiment experiment, Exam exam, TextWriter log, JudgeClient? judges = null,
         IReadOnlyCollection<string>? arms = null, IReadOnlyCollection<string>? tasks = null)
     {
-        var cells = Runner.Cells(suite).Where(x => (arms is null || arms.Contains(x.Arm.Id!)) && (tasks is null || tasks.Contains(x.Task.Id!))).ToList();
-        if (judges is { Comparing: true }) return Compare(root, experiment, suite, cells, log, judges);
+        var cells = Runner.Cells(exam).Where(x => (arms is null || arms.Contains(x.Arm.Id!)) && (tasks is null || tasks.Contains(x.Task.Id!))).ToList();
+        if (judges is { Comparing: true }) return Compare(root, experiment, exam, cells, log, judges);
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var grades = new List<CellGrade>();
         if (judges is not null)
-            foreach (var note in Judge.SameFamilyNotes(suite, judges)) log.WriteLine($"  note: {note}");
+            foreach (var note in Judge.SameFamilyNotes(exam, judges)) log.WriteLine($"  note: {note}");
         foreach (var (arm, c, sample) in cells)
         {
             var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
@@ -28,13 +28,13 @@ static class Grade
                 grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, null, null, null));
                 continue;
             }
-            var cell = Runner.Context(root, experiment, suite, arm, c, sample) with { Judges = judges };
+            var cell = Runner.Context(root, experiment, exam, arm, c, sample) with { Judges = judges };
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree. An agent cell's scripts ran in the verifier.
-            if (!arm.IsAgent && cell.Fixture is not null && suite.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(cell.Fixture, cell.WorkDir, cellDir) is { } error)
+            if (!arm.IsAgent && cell.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(cell.Fixture, cell.WorkDir, cellDir) is { } error)
                 log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  could not restore the checkout: {error}");
-            var checks = Cell(cell, suite, Transcript.Read(cellDir));
-            var pass = Pass(checks, suite.Grading.Pass!);
-            var invalid = Invalid(checks, suite.Grading.Validity);
+            var checks = Cell(cell, exam, Transcript.Read(cellDir));
+            var pass = Pass(checks, exam.Grading.Pass!);
+            var invalid = Invalid(checks, exam.Grading.Validity);
             grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, checks, pass, invalid));
             log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => "undecided" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}"))}");
         }
@@ -45,7 +45,7 @@ static class Grade
     /// A `--judge a=b` pass: only the checks whose declared judge is remapped are evaluated, by b, into b's verdict files
     /// beside a's; checks.json is read, compared against and never written. The grades returned are the ones on file.
     /// </summary>
-    static List<CellGrade> Compare(string root, Experiment experiment, Suite suite, List<(Arm Arm, TaskDef Task, int Sample)> cells, TextWriter log, JudgeClient judges)
+    static List<CellGrade> Compare(string root, Experiment experiment, Exam exam, List<(Arm Arm, TaskDef Task, int Sample)> cells, TextWriter log, JudgeClient judges)
     {
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var grades = new List<CellGrade>();
@@ -61,9 +61,9 @@ static class Grade
                 if (status == CellStatus.Completed) log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  no checks.json; run grade without --judge first");
                 continue;
             }
-            var cell = Runner.Context(root, experiment, suite, arm, c, sample) with { Judges = judges };
+            var cell = Runner.Context(root, experiment, exam, arm, c, sample) with { Judges = judges };
             var transcript = Transcript.Read(cellDir);
-            foreach (var (name, check) in suite.ChecksFor(c))
+            foreach (var (name, check) in exam.ChecksFor(c))
             {
                 if (!Checks.ModelChecks(check.Spec).Any(m => judges.Remaps(m.Name, m.Spec, name))) continue;
                 var (from, to) = Checks.ModelChecks(check.Spec).Select(m => (judges.Declared(Judge.KindOf(m.Name), (m.Spec["with"] as JsonValue)?.GetValue<string>(), name).Name, judges.Resolve(Judge.KindOf(m.Name), (m.Spec["with"] as JsonValue)?.GetValue<string>(), name).Name)).First();
@@ -73,16 +73,16 @@ static class Grade
                 if (applied?.Result == other.Result) agreed++;
                 log.WriteLine($"  {arm.Id}/{c.Id}/{sample}  {name}: {from}={applied?.Result ?? "none"} ({applied?.Reason})  {to}={other.Result} ({other.Reason})");
             }
-            grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, existing, Pass(existing, suite.Grading.Pass!), Invalid(existing, suite.Grading.Validity)));
+            grades.Add(new CellGrade(arm.Id!, c.Id!, sample, status, existing, Pass(existing, exam.Grading.Pass!), Invalid(existing, exam.Grading.Validity)));
         }
         log.WriteLine($"  {agreed} of {compared} verdicts agree; checks.json unchanged");
         return grades;
     }
 
     /// <summary>Grade one cell and write its checks.json. Returns the verdict map.</summary>
-    public static Dictionary<string, Verdict> Cell(CellContext cell, Suite suite, Transcript transcript)
+    public static Dictionary<string, Verdict> Cell(CellContext cell, Exam exam, Transcript transcript)
     {
-        var verdicts = suite.ChecksFor(cell.Task).Where(k => !(cell.Vendor && Checks.NbOnly(k.Value.Spec))).ToDictionary(k => k.Key, k => Checks.Evaluate(k.Value, cell, transcript, k.Key));
+        var verdicts = exam.ChecksFor(cell.Task).Where(k => !(cell.Vendor && Checks.NbOnly(k.Value.Spec))).ToDictionary(k => k.Key, k => Checks.Evaluate(k.Value, cell, transcript, k.Key));
         Runner.WriteJson(Path.Combine(cell.CellDir, Layout.ChecksFile), verdicts);
         return verdicts;
     }
@@ -90,7 +90,7 @@ static class Grade
     public static Dictionary<string, Verdict>? ReadChecks(string cellDir)
     {
         var file = Path.Combine(cellDir, Layout.ChecksFile);
-        return File.Exists(file) ? JsonSerializer.Deserialize<Dictionary<string, Verdict>>(File.ReadAllText(file), Suite.JsonOptions) : null;
+        return File.Exists(file) ? JsonSerializer.Deserialize<Dictionary<string, Verdict>>(File.ReadAllText(file), Exam.JsonOptions) : null;
     }
 
     /// <summary>

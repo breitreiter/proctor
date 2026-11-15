@@ -76,9 +76,9 @@ b { font-weight: 600; }
 .toc-rail { position: sticky; top: 0; align-self: flex-start; flex-shrink: 0; width: 220px; max-height: 100vh; overflow-y: auto; box-sizing: border-box; padding: 32px 0 24px; display: flex; flex-direction: column; gap: 16px; }
 .brand { display: flex; align-items: center; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid #e4e4e0; }
 .brand span { font-weight: 600; color: #3b2f6e; letter-spacing: .01em; }
-.rail-suite { display: flex; flex-direction: column; gap: 2px; }
-.rail-suite .name { font-size: 15px; font-weight: 650; }
-.rail-suite .date { font-size: 12.5px; color: #595959; }
+.rail-exam { display: flex; flex-direction: column; gap: 2px; }
+.rail-exam .name { font-size: 15px; font-weight: 650; }
+.rail-exam .date { font-size: 12.5px; color: #595959; }
 .rail-toc { display: flex; flex-direction: column; gap: 6px; }
 .rail-toc .kicker { font-size: 11px; }
 .toc { display: flex; flex-direction: column; border-left: 1px solid #d8d8d8; }
@@ -96,7 +96,7 @@ b { font-weight: 600; }
 <div class="page">
 <nav class="toc-rail" aria-label="Report sections">
 <div class="brand"><img src="data:image/svg+xml;base64,PCEtLSAiUG9pbnR5IGhhdCIgYnkgTG9yYywgaHR0cHM6Ly9nYW1lLWljb25zLm5ldC8xeDEvbG9yYy9wb2ludHktaGF0Lmh0bWwsIENDIEJZIDMuMCBodHRwczovL2NyZWF0aXZlY29tbW9ucy5vcmcvbGljZW5zZXMvYnkvMy4wLyA7IGFkYXB0ZWQgKHJlc2NhbGVkIGFuZCByZXN0eWxlZCkuIC0tPgo8c3ZnIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDQ4IDQ4IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMzkuMDExNyAzLjk3NTU1QzMzLjYxNCA0LjAxODM5IDI5LjE4MDggNi4zOTQ2OCAyNS40MzU1IDEwLjA1NzZDMjEuNDk5NSAxMy45MDcyIDE4LjQwNDMgMTkuMjA4NSAxNi4wNjA1IDI0LjYzNTdDMTYuMTMzNiAyNS4wNTc5IDE2LjM0NzQgMjUuNDc0NCAxNi43MjU2IDI1LjkxNjFDMTcuMjA5MSAyNi40ODA5IDE3Ljk2MTUgMjcuMDUxNyAxOC44OTk0IDI3LjU2NTVDMjAuNzc1NCAyOC41OTMyIDIzLjM3OTggMjkuMzk3OCAyNS45Nzc2IDI5Ljg1OTZDMjguNTc1NCAzMC4zMjEzIDMxLjE4MTIgMzAuNDQxNyAzMy4wMjM0IDMwLjE4MTlDMzMuOTQ0NSAzMC4wNTE5IDM0LjY2NzYgMjkuODE1MyAzNS4wNjg0IDI5LjU2NjZDMzUuNDY5MSAyOS4zMTc5IDM1LjUyOTMgMjkuMTk1NiAzNS41MTk1IDI4Ljk0NTVMMzUuNTg3IDI4Ljk0MjdDMzUuMjY3NSAyNC45Mjc2IDM1LjAyNDUgMjAuNjE4IDM1LjU5NTcgMTYuNTczM0MzNS44NiAxNC43MDA5IDM2LjMxNDUgMTIuODc2NCAzNy4wMjI1IDExLjE3MTFDMzQuMDYyNiAxNC4xMTg2IDMxLjEyNCAxNy4zMDQ2IDI4Ljg4MDkgMjAuMDUxMUMzMi4yMDEzIDEzLjQ2OTggMzYuOTYyMiA4LjY2OTk5IDQyLjExMTQgNC4yMTAxMUM0MS4wNDQ5IDQuMDQ5OCA0MC4wMDk1IDMuOTY3ODYgMzkuMDExNyAzLjk3NTc0VjMuOTc1NTVaTTE0LjU1MDkgMjIuNDA1N0MxNC4xMzQyIDIyLjQwMjkgMTMuNzE3NSAyMi40MDcgMTMuMzAwOSAyMi40MThDMTEuMTMxNyAyMi40NzE5IDkuMTU0NTkgMjIuNjkwOCA3LjUgMjMuMDkxOEM1LjI5Mzg4IDIzLjYyNjUgMy43MDYzMSAyNC40ODc2IDIuOTI2ODggMjUuNTMyMUMyLjE0NzE2IDI2LjU3NjkgMS45ODE4OCAyNy44NDQ3IDIuODM1OTQgMjkuODAwOEM1LjkxNjU2IDM2Ljg1NjcgMTMuODIyIDQyLjAxMjYgMjIuMzIxMyA0My43MzE1QzMwLjgyMDcgNDUuNDQ5OSAzOS43Njg5IDQzLjc0NTIgNDUuMDM1MSAzNy40NzM2QzQ2LjMwOTEgMzUuOTU2MyA0Ni40NjkyIDM0LjcyNTYgNDUuOTY2OCAzMy40MjE4QzQ1LjQ2NDQgMzIuMTE3OSA0NC4xMzA2IDMwLjcxNDUgNDIuMTQzNiAyOS40MTRDNDAuNzYxMyAyOC41MDkzIDM5LjA3OTYgMjcuNjU3NCAzNy4xOTgzIDI2Ljg3OTlDMzcuMzM5NSAyOC45OTc3IDM3LjUzMTYgMzEuMDg3MSAzNy42Nzg3IDMzLjA2NDNWMzMuMDg0OEMzNy43MzU2IDM0LjE1MzggMzcuMTY0IDM1LjEwODQgMzYuMzMzOSAzNS43MDRDMzUuNTA0IDM2LjI5OTYgMzQuNDMzOCAzNi42NDkgMzMuMTk5MiAzNi44NjcxQzMwLjczMDEgMzcuMzAzNCAyNy41NzE4IDM3LjE4NTYgMjQuNDQ4MiAzNi42NjJDMjEuMzI0OCAzNi4xMzg0IDE4LjI1MjggMzUuMjEyIDE1Ljk4NDUgMzMuOTE0QzE0Ljg1MDQgMzMuMjY0OSAxMy45MDg0IDMyLjUyMTggMTMuMjc3NCAzMS42MTk5QzEyLjY0NjUgMzAuNzE4MyAxMi4zNjI0IDI5LjU5OTIgMTIuNjU5MyAyOC40OTExTDEyLjY2ODIgMjguNDU1OUwxMi42Nzk5IDI4LjQyMDlDMTMuMzk1OCAyNi40MzI4IDE0LjIwODggMjQuNDA5MyAxNS4xMjYyIDIyLjQxMjFDMTQuOTM0NSAyMi40MDkgMTQuNzQyOSAyMi40MDY5IDE0LjU1MTIgMjIuNDA1N0gxNC41NTA5Wk0xNS4xNzI5IDI2Ljc4MDJDMTQuODg2NiAyNy41MDU2IDE0LjYxMTIgMjguMjM1MiAxNC4zNDY3IDI4Ljk2ODdDMTQuMTk3MSAyOS41NTQzIDE0LjMwOTIgMzAuMDM4MSAxNC43MTI5IDMwLjYxNTNDMTUuMTIzIDMxLjIwMTIgMTUuODY0MiAzMS44MjY4IDE2Ljg1NDYgMzIuMzkzNUMxOC44MzUzIDMzLjUyNyAyMS43NjcxIDM0LjQzNTQgMjQuNzM4NSAzNC45MzM3QzI3LjcwOTggMzUuNDMxOSAzMC43NCAzNS41MjI0IDMyLjg5NDcgMzUuMTQxOEMzMy45NzIxIDM0Ljk1MTMgMzQuODE5NCAzNC42MzM3IDM1LjMxMTYgMzQuMjgwMkMzNS44MDM4IDMzLjkyNzIgMzUuOTU1MSAzMy42NDk3IDM1LjkyOTkgMzMuMTc1OUMzNS44ODE0IDMyLjUyNjIgMzUuODI3OSAzMS44NjA4IDM1Ljc3MTYgMzEuMTgzN0MzNS4wNzM0IDMxLjU2MTUgMzQuMjI3NiAzMS43ODA2IDMzLjI2NjggMzEuOTE2MUMzMS4xMzU3IDMyLjIxNjcgMjguNDExNSAzMi4wNzIyIDI1LjY3MDMgMzEuNTg1QzIyLjkyODggMzEuMDk3OSAyMC4xODU5IDMwLjI2NzQgMTguMDU1OSAyOS4xMDA2QzE2Ljk5MDkgMjguNTE3MyAxNi4wNzU3IDI3Ljg1IDE1LjM5NTcgMjcuMDU1OEMxNS4zMTg1IDI2Ljk2NjQgMTUuMjQ0MyAyNi44NzQ1IDE1LjE3MyAyNi43ODAzTDE1LjE3MjkgMjYuNzgwMloiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcl83M18xNDApIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfNzNfMTQwIiB4MT0iMjQuMjQ4NCIgeTE9IjMuOTc1MjIiIHgyPSIyNC4yNDg0IiB5Mj0iNDQuMzYxNCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjQkQ3M0Q2Ii8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzBCMUI0MiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8L2RlZnM+Cjwvc3ZnPgo=" alt="" width="22" height="22"><span>proctor</span></div>
-<div class="rail-suite"><div class="name">smoke</div><div class="date">17 Sep 2026</div></div>
+<div class="rail-exam"><div class="name">smoke</div><div class="date">17 Sep 2026</div></div>
 <div class="rail-toc">
 <div class="kicker">On this page</div>
 <div class="toc">
@@ -120,7 +120,7 @@ b { font-weight: 600; }
 <main class="rpt" id="top">
 <section id="summary">
 <header>
-<div class="kicker">Suite</div>
+<div class="kicker">Exam</div>
 <h1>smoke</h1>
 <div class="when">Thursday, 17 September 2026</div>
 <div class="time">Started 14:32 UTC</div>
@@ -183,14 +183,14 @@ b { font-weight: 600; }
 <section id="tasks">
 <h2>Tasks</h2>
 <p class="explain">A task is one input and one desired outcome, given to every arm: a prompt against a fixture repository, with the checks that say whether the outcome was reached. Each task is run 3 times per arm, so a score is not one lucky or unlucky attempt.</p>
-<p class="explain">A check is one yes-or-no test over a finished run. Every task carries the checks the suite declares; a fixture or the task itself can add more. A check&#39;s role decides what it does to a run:</p>
+<p class="explain">A check is one yes-or-no test over a finished run. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check&#39;s role decides what it does to a run:</p>
 <dl class="explain">
 <dt><span class="role role-headline">headline</span></dt><dd>Together, the headline checks decide whether a run passed.</dd>
 <dt><span class="role role-validity">validity</span></dt><dd>Decides whether a run counts at all: a run that fails one is left out of every rate, not counted as a failure.</dd>
 <dt><span class="role role-guardrail">guardrail</span></dt><dd>Reported, not part of the pass.</dd>
 </dl>
 <p class="explain">A check that cannot decide a run leaves that run out of its rate on both sides.</p>
-<h4>Checks the suite declares, carried by every task</h4>
+<h4>Checks the exam declares, carried by every task</h4>
 <div class="table-wrap"><table class="checks">
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th></tr></thead>
 <tbody>
@@ -203,7 +203,7 @@ b { font-weight: 600; }
 <section id="task-loops" class="task">
 <h3>loops</h3>
 <p class="prompt">The model repeats a bash command until nb nudges it out of the loop</p>
-<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>3 checks</b>: 3 from the suite, none of its own</span></div>
+<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>3 checks</b>: 3 from the exam, none of its own</span></div>
 <h4>Results</h4>
 <div class="table-wrap"><table class="results">
 <thead><tr><th>Arm</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
@@ -219,7 +219,7 @@ b { font-weight: 600; }
 <section id="task-plain" class="task">
 <h3>plain</h3>
 <p class="prompt">The model answers in one turn with no tools</p>
-<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>3 checks</b>: 3 from the suite, none of its own</span></div>
+<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>3 checks</b>: 3 from the exam, none of its own</span></div>
 <h4>Results</h4>
 <div class="table-wrap"><table class="results">
 <thead><tr><th>Arm</th><th>Runs</th><th class="num">Score</th><th class="num">Passed / decided</th><th class="num">vs baseline (100%)</th><th>Verdict</th></tr></thead>
@@ -235,8 +235,8 @@ b { font-weight: 600; }
 <section id="task-uses-bash" class="task">
 <h3>uses-bash</h3>
 <p class="prompt">The model runs one bash command and answers</p>
-<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>4 checks</b>: 3 from the suite, 1 of its own</span></div>
-<h4>Checks beyond the suite&#39;s</h4>
+<div class="facts"><span>Fixture <b>note</b></span><span>Run <b>3 times</b> per arm</span><span><b>4 checks</b>: 3 from the exam, 1 of its own</span></div>
+<h4>Checks beyond the exam&#39;s</h4>
 <div class="table-wrap"><table class="checks">
 <thead><tr><th>Check</th><th>What it tests</th><th>Role</th><th>Declared by</th></tr></thead>
 <tbody>
@@ -305,7 +305,7 @@ b { font-weight: 600; }
 
 <section id="run-summary">
 <h2>Run summary</h2>
-<p class="explain">This is how far each run in the suite got before terminating. <i>Attempted</i> runs started; <i>completed</i> runs ended with a transcript; <i>graded</i> runs have their checks; <i>counted</i> runs are graded and passed every validity check; <i>decided</i> runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.</p>
+<p class="explain">This is how far each run in the exam got before terminating. <i>Attempted</i> runs started; <i>completed</i> runs ended with a transcript; <i>graded</i> runs have their checks; <i>counted</i> runs are graded and passed every validity check; <i>decided</i> runs are counted runs whose headline checks all reached a verdict. Pass rates are over decided runs only.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Arm</th><th class="num">Planned</th><th class="num">Attempted</th><th class="num">Completed</th><th class="num">Graded</th><th class="num">Counted</th><th class="num">Decided</th></tr></thead>
 <tbody>
@@ -390,7 +390,7 @@ b { font-weight: 600; }
 <dt>run id</dt><dd>20260917-1432-smoke-k7px</dd>
 <dt>proctor</dt><dd>0.1.0</dd>
 <dt>nb</dt><dd>1.0.0 at <code class="code">/usr/local/bin/nb</code></dd>
-<dt>suite hash</dt><dd>sha256:9c1e0000</dd>
+<dt>exam hash</dt><dd>sha256:9c1e0000</dd>
 <dt>repository</dt><dd>3f2c1e9a</dd>
 <dt>command</dt><dd><code class="code">proctor run smoke</code></dd>
 <dt>created</dt><dd>2026-09-17T14:32:00Z</dd>

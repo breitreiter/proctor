@@ -25,11 +25,11 @@ record UsageRow(long? Input, long? Output, long? Total, bool Estimated, double? 
 static class Results
 {
     /// <summary>Read every cell of an experiment into rows, in declared order. Grades come from checks.json; cells without one are not analysed.</summary>
-    public static List<ResultRow> Collect(string root, Experiment experiment, Suite suite)
+    public static List<ResultRow> Collect(string root, Experiment experiment, Exam exam)
     {
         var experimentDir = Layout.Experiment(root, experiment.Id);
         var rows = new List<ResultRow>();
-        foreach (var (arm, c, sample) in Runner.Cells(suite))
+        foreach (var (arm, c, sample) in Runner.Cells(exam))
         {
             var cellDir = Layout.Cell(experimentDir, arm.Id!, c.Id!, sample);
             var manifestFile = Path.Combine(cellDir, Layout.ManifestFile);
@@ -48,18 +48,18 @@ static class Results
                 DeniedCalls: trailer is null ? null : trailer.Denied,
                 DurationMs: manifest?.DurationMs,
                 Checks: checks?.ToDictionary(k => k.Key, k => k.Value.Result),
-                Pass: checks is null ? null : Grade.Pass(checks, suite.Grading.Pass!),
+                Pass: checks is null ? null : Grade.Pass(checks, exam.Grading.Pass!),
                 // The headline checks lead, so a failed run's first reason is what failed it, not a guardrail declared before it.
-                Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).OrderBy(k => !suite.Grading.Pass!.Contains(k.Key))
+                Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).OrderBy(k => !exam.Grading.Pass!.Contains(k.Key))
                     .ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
-                Invalid: checks is null ? null : Grade.Invalid(checks, suite.Grading.Validity),
-                Labels: suite.LabelsFor(c) is { Count: > 0 } labels ? labels : null,
-                Undecided: checks is null ? null : Grade.Undecided(checks, suite.Grading.Pass!)));
+                Invalid: checks is null ? null : Grade.Invalid(checks, exam.Grading.Validity),
+                Labels: exam.LabelsFor(c) is { Count: > 0 } labels ? labels : null,
+                Undecided: checks is null ? null : Grade.Undecided(checks, exam.Grading.Pass!)));
         }
         return rows;
     }
 
-    static readonly JsonSerializerOptions RowOptions = new(Suite.JsonOptions) { WriteIndented = false };
+    static readonly JsonSerializerOptions RowOptions = new(Exam.JsonOptions) { WriteIndented = false };
 
     public static void Write(string file, IEnumerable<ResultRow> rows) =>
         File.WriteAllLines(file, rows.Select(r => JsonSerializer.Serialize(r, RowOptions)));

@@ -3,18 +3,18 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>What setup writes into suites/ and what <c>setup --check</c> reads back. The wizard's prompts are driven by hand (a pty); these cover everything under them.</summary>
+/// <summary>What setup writes into exams/ and what <c>setup --check</c> reads back. The wizard's prompts are driven by hand (a pty); these cover everything under them.</summary>
 public class SetupFilesTests : IDisposable
 {
     readonly string root = Directory.CreateTempSubdirectory("proctor-setup-").FullName;
     readonly string env;
-    readonly string suites;
+    readonly string exams;
     // Process-wide: a key name of this test's own, so parallel tests cannot collide.
     readonly string keyVar = "PROCTOR_TEST_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() + "_API_KEY";
 
     public SetupFilesTests()
     {
-        suites = Path.Combine(root, "suites");
+        exams = Path.Combine(root, "exams");
         env = Path.Combine(root, "profile", "env");
     }
 
@@ -27,7 +27,7 @@ public class SetupFilesTests : IDisposable
     static SetupProvider Provider(string name, string kind, string? env, string check = SetupProvider.CheckOk, Dictionary<string, string>? values = null) =>
         new(name, kind, env, check, new DateOnly(2026, 11, 8), check == SetupProvider.CheckOk ? ["m1", "m2"] : null, Values: values);
 
-    JsonObject Read(string file) => (JsonObject)JsonNode.Parse(File.ReadAllText(Path.Combine(suites, file)))!;
+    JsonObject Read(string file) => (JsonObject)JsonNode.Parse(File.ReadAllText(Path.Combine(exams, file)))!;
 
     // ── nb.json ──
 
@@ -53,18 +53,18 @@ public class SetupFilesTests : IDisposable
     [Fact]
     public void PutNbEntry_OnAFreshDirectory_KeepsMockForThePlayground()
     {
-        SetupFiles.PutNbEntry(suites, SetupFiles.NbEntry(Provider("gemini", "gemini", "GEMINI_API_KEY"), Catalogue.Get("gemini"), new Dictionary<string, string>()));
+        SetupFiles.PutNbEntry(exams, SetupFiles.NbEntry(Provider("gemini", "gemini", "GEMINI_API_KEY"), Catalogue.Get("gemini"), new Dictionary<string, string>()));
         Assert.Equal(["Mock", "gemini"], Read("nb.json")["ChatProviders"]!.AsArray().Select(e => (string?)e!["Name"]));
     }
 
     [Fact]
     public void PutNbEntry_ReplacesOnlyItsOwnEntry_AndLeavesTheRestAsWritten()
     {
-        Directory.CreateDirectory(suites);
-        File.WriteAllText(Path.Combine(suites, "nb.json"), """
+        Directory.CreateDirectory(exams);
+        File.WriteAllText(Path.Combine(exams, "nb.json"), """
             { "//": "mine", "Harness": "nb", "ChatProviders": [ { "Name": "local-qcoder", "Provider": "LocalLlm", "Model": "q" }, { "Name": "gemini", "Provider": "Gemini" } ] }
             """);
-        SetupFiles.PutNbEntry(suites, SetupFiles.NbEntry(Provider("gemini", "gemini", "GEMINI_API_KEY"), Catalogue.Get("gemini"), new Dictionary<string, string>()));
+        SetupFiles.PutNbEntry(exams, SetupFiles.NbEntry(Provider("gemini", "gemini", "GEMINI_API_KEY"), Catalogue.Get("gemini"), new Dictionary<string, string>()));
 
         var nb = Read("nb.json");
         Assert.Equal("mine", (string?)nb["//"]);
@@ -77,20 +77,20 @@ public class SetupFilesTests : IDisposable
     [Fact]
     public void ForeignNbEntries_AreTheOnesSetupDidNotWrite()
     {
-        Directory.CreateDirectory(suites);
-        File.WriteAllText(Path.Combine(suites, "nb.json"), """{ "ChatProviders": [ { "Name": "Mock" }, { "Name": "local-qcoder" }, { "Name": "gemini" } ] }""");
+        Directory.CreateDirectory(exams);
+        File.WriteAllText(Path.Combine(exams, "nb.json"), """{ "ChatProviders": [ { "Name": "Mock" }, { "Name": "local-qcoder" }, { "Name": "gemini" } ] }""");
         var state = SetupState.Empty() with { Providers = [Provider("gemini", "gemini", "GEMINI_API_KEY")] };
-        Assert.Equal(["local-qcoder"], SetupFiles.ForeignNbEntries(suites, state));
+        Assert.Equal(["local-qcoder"], SetupFiles.ForeignNbEntries(exams, state));
     }
 
     [Fact]
     public void AnUnreadableConfig_IsRefused_NotOverwritten()
     {
-        Directory.CreateDirectory(suites);
-        File.WriteAllText(Path.Combine(suites, "nb.json"), "{ not json");
+        Directory.CreateDirectory(exams);
+        File.WriteAllText(Path.Combine(exams, "nb.json"), "{ not json");
         Assert.Contains("fix it by hand", Assert.Throws<ProctorException>(() =>
-            SetupFiles.PutNbEntry(suites, new JsonObject { ["Name"] = "x" })).Message);
-        Assert.Equal("{ not json", File.ReadAllText(Path.Combine(suites, "nb.json")));
+            SetupFiles.PutNbEntry(exams, new JsonObject { ["Name"] = "x" })).Message);
+        Assert.Equal("{ not json", File.ReadAllText(Path.Combine(exams, "nb.json")));
     }
 
     // ── proctor.json and .gitignore ──
@@ -98,10 +98,10 @@ public class SetupFilesTests : IDisposable
     [Fact]
     public void PutAgent_WritesTheRoute_AndKeepsTheRestOfProctorJson()
     {
-        Directory.CreateDirectory(suites);
-        File.WriteAllText(Path.Combine(suites, "proctor.json"), """{ "nb": { "path": "/opt/nb" }, "judges": { "glm": { "kind": "chat" } } }""");
-        SetupFiles.PutAgent(suites, "claude-code", "https://api.anthropic.com", "ANTHROPIC_API_KEY");
-        SetupFiles.PutEngine(suites, "podman");
+        Directory.CreateDirectory(exams);
+        File.WriteAllText(Path.Combine(exams, "proctor.json"), """{ "nb": { "path": "/opt/nb" }, "judges": { "glm": { "kind": "chat" } } }""");
+        SetupFiles.PutAgent(exams, "claude-code", "https://api.anthropic.com", "ANTHROPIC_API_KEY");
+        SetupFiles.PutEngine(exams, "podman");
 
         var config = Read("proctor.json");
         Assert.Equal("/opt/nb", (string?)config["nb"]!["path"]);
@@ -109,35 +109,35 @@ public class SetupFilesTests : IDisposable
         Assert.Equal("""{"base_url":"https://api.anthropic.com","api_key":"${ANTHROPIC_API_KEY}"}""", config["agents"]!["claude-code"]!.ToJsonString());
         Assert.Equal("podman", (string?)config["harbor"]!["engine"]);
 
-        SetupFiles.RemoveAgent(suites, "claude-code");
+        SetupFiles.RemoveAgent(exams, "claude-code");
         Assert.Null(Read("proctor.json")["agents"]!["claude-code"]);
     }
 
     [Fact]
     public void EnsureProctor_CreatesOneWithoutTheExamplesGateway()
     {
-        SetupFiles.EnsureProctor(suites);
+        SetupFiles.EnsureProctor(exams);
         Assert.Equal("""{"nb":{"config":"nb.json"}}""", Read("proctor.json").ToJsonString());
     }
 
     [Fact]
     public void EnsureNb_CreatesOneWithMockOnly_AndLeavesAnExistingOneAlone()
     {
-        SetupFiles.EnsureNb(suites);
+        SetupFiles.EnsureNb(exams);
         Assert.Equal(["Mock"], Read("nb.json")["ChatProviders"]!.AsArray().Select(e => (string?)e!["Name"]));
-        File.WriteAllText(Path.Combine(suites, "nb.json"), "{\"ChatProviders\":[]}");
-        SetupFiles.EnsureNb(suites);
-        Assert.Equal("{\"ChatProviders\":[]}", File.ReadAllText(Path.Combine(suites, "nb.json")));
+        File.WriteAllText(Path.Combine(exams, "nb.json"), "{\"ChatProviders\":[]}");
+        SetupFiles.EnsureNb(exams);
+        Assert.Equal("{\"ChatProviders\":[]}", File.ReadAllText(Path.Combine(exams, "nb.json")));
     }
 
     [Fact]
     public void EnsureGitIgnore_AddsWhatIsMissing_Once()
     {
-        Directory.CreateDirectory(suites);
-        File.WriteAllText(Path.Combine(suites, ".gitignore"), "/nb.json\n*.log\n");
-        Assert.True(SetupFiles.EnsureGitIgnore(suites));
-        Assert.False(SetupFiles.EnsureGitIgnore(suites));
-        Assert.Equal(["/nb.json", "*.log", "proctor.json", "setup.json", "sandbox-plan.md"], File.ReadAllLines(Path.Combine(suites, ".gitignore")));
+        Directory.CreateDirectory(exams);
+        File.WriteAllText(Path.Combine(exams, ".gitignore"), "/nb.json\n*.log\n");
+        Assert.True(SetupFiles.EnsureGitIgnore(exams));
+        Assert.False(SetupFiles.EnsureGitIgnore(exams));
+        Assert.Equal(["/nb.json", "*.log", "proctor.json", "setup.json", "sandbox-plan.md"], File.ReadAllLines(Path.Combine(exams, ".gitignore")));
     }
 
     [Theory]
@@ -154,11 +154,11 @@ public class SetupFilesTests : IDisposable
         var state = SetupState.Empty() with { Providers = [Provider("gemini", "gemini", "GEMINI_API_KEY")] };
         state.Jobs["nb"] = new SetupJob(SetupJob.Set, ["gemini"]);
         state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "local", Engine: "podman");
-        state.Save(suites);
-        var text = File.ReadAllText(SetupState.PathIn(suites));
+        state.Save(exams);
+        var text = File.ReadAllText(SetupState.PathIn(exams));
         Assert.DoesNotContain("has_sandbox", text);
 
-        var back = SetupState.Load(suites)!;
+        var back = SetupState.Load(exams)!;
         Assert.True(back.HasSandbox);
         Assert.Equal(["m1", "m2"], back.Provider("gemini")!.Models);
         Assert.Equal(["nb"], back.JobsUsing("gemini"));
@@ -186,32 +186,32 @@ public class SetupFilesTests : IDisposable
     void WriteState(params SetupProvider[] providers)
     {
         var nbPath = typeof(SetupFilesTests).Assembly.Location;   // any file that exists stands in for nb
-        Directory.CreateDirectory(suites);
-        File.WriteAllText(Path.Combine(suites, "proctor.json"), new JsonObject { ["nb"] = new JsonObject { ["path"] = nbPath } }.ToJsonString());
+        Directory.CreateDirectory(exams);
+        File.WriteAllText(Path.Combine(exams, "proctor.json"), new JsonObject { ["nb"] = new JsonObject { ["path"] = nbPath } }.ToJsonString());
         var state = SetupState.Empty() with { Providers = [.. providers] };
         foreach (var p in providers)
-            SetupFiles.PutNbEntry(suites, SetupFiles.NbEntry(p, Catalogue.Get(p.Kind), p.Values ?? []));
+            SetupFiles.PutNbEntry(exams, SetupFiles.NbEntry(p, Catalogue.Get(p.Kind), p.Values ?? []));
         state.Jobs["nb"] = new SetupJob(SetupJob.Set, providers.Select(p => p.Name).ToList());
         state.Jobs["sandbox"] = new SetupJob(SetupJob.Later);
         state.Jobs["judge"] = new SetupJob(SetupJob.Set, [providers[0].Name]);
-        state.Save(suites);
+        state.Save(exams);
     }
 
     [Fact]
     public async Task Check_Modal_IsExperimental_AndNamesAProctorJsonOnAnotherEngine()
     {
         WriteState(Provider("gem", "gemini", "GEM_KEY"));
-        var state = SetupState.Load(suites)!;
+        var state = SetupState.Load(exams)!;
         state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: "modal", Engine: "modal");
-        state.Save(suites);
+        state.Save(exams);
 
         var (exit, output) = await Check();
         Assert.Equal(1, exit);
         Assert.Contains("job sandbox: Modal (experimental)", output);
         Assert.DoesNotContain("not supported yet", output);
-        Assert.Contains("problem: sandbox is Modal, but suites/proctor.json harbor.engine is not modal", output);
+        Assert.Contains("problem: sandbox is Modal, but exams/proctor.json harbor.engine is not modal", output);
 
-        SetupFiles.PutEngine(suites, "modal");
+        SetupFiles.PutEngine(exams, "modal");
         Assert.DoesNotContain("harbor.engine is not modal", (await Check()).Output);
     }
 
@@ -279,7 +279,7 @@ public class SetupFilesTests : IDisposable
     {
         EnvFile.Set(env, keyVar, "x");
         WriteState(Provider("gem", "gemini", keyVar));
-        SetupFiles.RemoveNbEntry(suites, "gem");
+        SetupFiles.RemoveNbEntry(exams, "gem");
         var (exit, output) = await Check();
         Assert.Equal(1, exit);
         Assert.Contains("job nb names provider gem, but", output);
