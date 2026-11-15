@@ -5,6 +5,8 @@ created: 2026-11-08
 status: dropped 2026-11-08; kept as the record of why
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 > **Dropped.** A host CLI on the user's login meets the leakage and guardrail
 > problems that took months to fight on Harbor, as soon as a task is complex
 > enough to want Claude Code or Codex; the same reason nb dropped costumes.

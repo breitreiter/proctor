@@ -7,6 +7,8 @@ fixed: 2026-09-23, 0.2.3
 found-by: the design-system docs-qa suite, reading its first 0.2.2 report
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # A decide check's reason omits the expected answer, so a failure reads as a pass
 
 A `decide` check's reason is the model's label and its probability, and

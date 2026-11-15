@@ -18,7 +18,7 @@ sealed class ConformanceFactAttribute : FactAttribute
 }
 
 /// <summary>
-/// Harbor conformance (project/plans/harbor-conformance.md, rows 3 to 9): exams/conformance runs each vendor agent at
+/// Harbor conformance (project/archive/harbor-conformance.md, rows 3 to 9): exams/conformance runs each vendor agent at
 /// its pin against the stub fixture's scripted model, which costs nothing, and every attempt must come back as the stub
 /// scripted it: ok completes with one shell call, the verifier's check and every offered tool mapped; fail is an
 /// outage; hang is a completed run that hit its time budget.

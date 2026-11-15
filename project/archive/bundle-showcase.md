@@ -5,6 +5,8 @@ created: 2026-11-12
 status: built 2026-11-12 (`suites/tern-docs`, `fixtures/tern-shop`), shaken down at $0, run once on Sonnet ($1.83; "First results" below). This is step 7 of `lab.md`, brought forward onto today's report. Where the build departs from this plan, "As built" below says so
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # The bundle showcase
 
 ## As built (2026-11-12)

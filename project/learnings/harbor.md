@@ -341,7 +341,7 @@ with the gateway unresolvable from the box (so: everything but the model).
 
 ### Conformance at $0 (2026-10-20)
 
-`project/plans/harbor-conformance.md`: each vendor agent at its pin against a
+`project/archive/harbor-conformance.md`: each vendor agent at its pin against a
 scripted model (`fixtures/stub`), and Harbor's `oracle` agent over
 `code-change`'s reference solutions. No hosted model, judge or gateway.
 

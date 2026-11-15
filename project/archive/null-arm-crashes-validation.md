@@ -7,6 +7,8 @@ fixed: 2026-10-10, 0.2.4
 found-by: a downstream suite, building a throwaway shakedown suite with jq
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # A null entry in a suite's arms crashes validation with a NullReferenceException
 
 If `suite.json` has `null` in its `arms` array, `run` (and presumably `list`)

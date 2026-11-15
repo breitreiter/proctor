@@ -5,6 +5,8 @@ created: 2026-11-08
 status: built 2026-11-10 (steps 2–4 and 6); conformance stays local (spike 2)
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # Modal runs
 
 ## Why

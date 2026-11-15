@@ -7,6 +7,8 @@ fixed: 2026-09-23, 0.2.1
 found-by: the design-system docs-qa suite, restructuring for 0.2
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # A task's own description of a shared check never reaches the report
 
 0.2 moved the success criteria onto the task: "the prompt is what the user

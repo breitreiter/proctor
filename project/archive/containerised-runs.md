@@ -5,6 +5,8 @@ created: 2026-09-21
 status: done (2026-09-22); coordinated with nb (`../nb/plans/container-runs.md`)
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 > Vocabulary: written before [suite-task-check.md](suite-task-check.md)
 > (2026-09-23). Read eval as suite, case as task, `evals/` as `suites/`,
 > `eval.json` as `suite.json` and `cases/` as `tasks/`.

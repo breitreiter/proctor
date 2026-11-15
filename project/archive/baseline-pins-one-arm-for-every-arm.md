@@ -7,6 +7,8 @@ fixed: 2026-10-10, 0.2.4
 found-by: a downstream suite, planning a variant of itself with tools enabled
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # A baseline pins one arm, so a suite that reruns the same arms under a new condition cannot compare arm to arm
 
 `baseline <experiment> --arm <id>` pins one arm's cells per task, and `report`

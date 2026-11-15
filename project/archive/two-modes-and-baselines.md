@@ -4,6 +4,8 @@ title: Two modes and a baseline — from a bench that is already running
 created: 2026-09-21
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # Two modes and a baseline — from a bench that is already running
 
 Taken from an interview with someone running a working agent bench in

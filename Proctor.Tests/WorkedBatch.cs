@@ -3,7 +3,7 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>The work batch's shape from project/plans/first-slice.md as fixed data: two variants, three tasks, three attempts.</summary>
+/// <summary>The work batch's shape from project/archive/first-slice.md as fixed data: two variants, three tasks, three attempts.</summary>
 static class WorkedBatch
 {
     public static Exam Exam(int attempts = 3, bool twoVariants = true)

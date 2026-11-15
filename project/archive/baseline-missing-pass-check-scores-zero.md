@@ -7,6 +7,8 @@ fixed: 2026-10-10, 0.2.4
 found-by: a downstream suite, planning a second suite to compare against the first's baseline
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # A baseline pin graded without one of the suite's pass checks recomputes to 0, silently
 
 When `report` resolves a baseline, it rereads each pinned cell's `checks.json`

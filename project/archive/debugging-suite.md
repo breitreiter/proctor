@@ -5,6 +5,8 @@ created: 2026-11-11
 status: built as `suites/nb-changes`, five defect tasks and the feature task, each shaken down on the host three ways (`reference/shakedown.sh`). Harbor's oracle agent with each reference as the solution passes every script check in the real images. No model has run. Spend not agreed. The cut it tests is `project/todo.md`, "Beats, second cut"
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # A debugging suite
 
 ## Why this suite

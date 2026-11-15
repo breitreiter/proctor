@@ -5,6 +5,8 @@ created: 2026-10-20
 status: done 2026-10-20 (proctor 0.3.3); rows stay as the regression benchmark
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # Harbor conformance
 
 ## Why this plan exists

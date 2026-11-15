@@ -6,7 +6,7 @@ created: 2026-09-17
 
 # Prior art — what has already been solved, and what has not
 
-The research pass in `plans/research-pass.md`, done 2026-09-17 by reading, not
+The research pass in `archive/research-pass.md`, done 2026-09-17 by reading, not
 by running anything. Six source groups: LLM eval frameworks, experiment
 trackers, the LLM-as-judge literature, statistics for small-N evals, readout
 conventions from adjacent fields, and our own two in-house harnesses. The raw

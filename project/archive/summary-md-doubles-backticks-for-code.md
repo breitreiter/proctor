@@ -8,6 +8,8 @@ severity: low
 found-by: the design-system docs-qa suite, reading its first 0.2.2 report
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # summary.md writes code as ``double-backtick`` spans, which are noisy to read raw
 
 The report uses two inline forms: `` `id` `` for identifiers and

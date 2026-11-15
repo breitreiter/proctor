@@ -7,6 +7,8 @@ fixed: 2026-09-23, 0.2.3
 found-by: the design-system docs-qa suite, reading its first 0.2.2 report
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # A check with several fields lists its reasons in declaration order, so the failing part is buried
 
 A check spec with more than one field (for example a `script` and a `decide`)

@@ -5,6 +5,8 @@ created: 2026-09-23
 status: built 2026-09-23 as written; readers accept the old spellings for one release; the suite-authoring bundle rev and its checked-in report still predate the rename
 ---
 
+Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
+
 # Suite, task, sample, check
 
 The first live consumer of proctor outside this repository is the company's
