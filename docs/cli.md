@@ -53,7 +53,7 @@ proctor friction <exam>       # friction.json beside each current, completed att
 proctor friction <exam> --variant a [--tasks x,y] [--batch <id>]   # only those attempts
 proctor friction <exam> --reader haiku   # a chat judge from proctor.json reads each attempt too: repair, lost, reread, dead-end, workaround; one model call per attempt, kept in the attempt and reused (--rejudge asks again)
 proctor report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json,report.html,summary.md}, stamped with what they were built from
-proctor report <exam> --batch <id> | --variant a | --tasks x,y   # a report over only those attempts
+proctor report <exam> [--batch <id>] [--variant a] [--tasks x,y]   # a report over only those attempts; the three combine
 proctor live <exam> <variant> # mark the variant live in exams/<exam>/live.json (commit it): the one in use now, which the report compares the others with
 proctor live <exam>           # which variant is live, and whether its mark still holds
 proctor --version
@@ -110,7 +110,7 @@ exams/tern-docs/live.json: as-shipped is live
 }
 ```
 
-Marking another variant replaces the mark (`py38-quickstart is live (was
+Marking another variant replaces the mark (`restructure is live (was
 as-shipped)`). There is no verb to clear it: delete the file and nothing is
 live.
 

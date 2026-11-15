@@ -2,12 +2,15 @@
 type: plan
 title: Exam, variant, attempt — the data model as a worked example
 created: 2026-11-15
-status: agreed with the user 2026-11-15 (D1 to D15, D8 and D12 as revised); nothing built. The work-list is `exam-variant-attempt-removal.md`. The reasoning is in `/srv/aiwork/auspex/project/model.md`. This file is the target written out as files and commands, so that a wrong assumption is a wrong line
+status: agreed with the user 2026-11-15 (D1 to D15, D8 and D12 as revised); built through steps 1 to 4 of the work-list (the words, variants as files, the pool, live), claims and the change report not. The work-list is `exam-variant-attempt-removal.md`. The reasoning is in `/srv/aiwork/auspex/project/model.md`. This file is the target written out as files and commands, so that a wrong assumption is a wrong line
 ---
 
 # Exam, variant, attempt
 
-Everything here is the target, not what proctor does today. Values from
+Everything here was the target when written. Steps 1 to 4 of
+`exam-variant-attempt-removal.md` are built (the words, variants as
+files, the pool, live); claims and the change report (stage 3) are not,
+and where this file shows them it is still the target. Values from
 the `tern-docs` runs of 2026-11-13 are real. Anything marked
 **(invented)** is made up to carry the example forward.
 

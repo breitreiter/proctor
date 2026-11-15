@@ -9,7 +9,8 @@ status: draft
 
 The first of the design plans the research pass made obvious. Everything else
 in proctor reads or writes this layout: the runner fills it, the grader adds to
-it, the reporter derives from it, and `archive` and `fetch` move part of it.
+it, and the reporter derives from it (`archive` and `fetch`, which were to
+move part of it, were never built).
 So it goes first, and it is written as a worked example of the batch in
 `brief.md` rather than as a schema, because a wrong assumption is easier to
 see as a wrong line in a tree than as a wrong sentence in a table.
@@ -29,12 +30,13 @@ A repository that uses proctor has three directories, one per tier from
 | `attempts/` | raw | no, gitignored | the runner, grader and judge |
 | `reports/` | derived | yes | the reporter, never by hand |
 
-`exams/` is the sidecar the brief asks for. `attempts/` is what `archive` uploads.
+`exams/` is the sidecar the brief asks for. `attempts/` is what `archive` would
+have uploaded.
 `reports/` is what the site bundle reads and what CI posts.
 
-The root names are fixed. A repo that wants them elsewhere sets paths in
-`exams/proctor.json`, but the default has to work with no configuration, and
-a reader should be able to guess where things are.
+The root names are fixed, with no setting to move them (`exams/proctor.json`
+has none): the default has to work with no configuration, and a reader
+should be able to guess where things are.
 
 ## The definition tier: `exams/`
 
@@ -285,7 +287,7 @@ attempts/
       add-retry-flag/                       task
         1/                                  attempt
           manifest.json                     random id, coordinates with hashes, timing, versions
-          status                            one word: pending | running | completed | failed | skipped
+          status                            one word: pending | running | completed | failed (skipped is reserved; nothing sets it)
           program.nb                        the program exactly as run, placeholders resolved
           program.jsonl                     what went down stdin: the program compiled on the host by `nb --compile`, includes inlined
           transcript.jsonl                  nb's output, untouched

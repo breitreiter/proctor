@@ -15,7 +15,8 @@ proctor report cli-for-agents
 | | |
 |---|---|
 | fixture | `fixtures/jotcli`: `jot clear` waits for a keypress on the terminal, with no `--yes`, and exits 0 when it gives up |
-| variant | `local`: nb bare on the local qwen3-coder model, 3 attempts. Add a variant for any model nb's config names |
+| variant | `local`: nb bare on the local qwen3-coder model. Add a variant for any model nb's config names |
+| attempts | 3 of each task per variant, set in `exam.json` |
 | task | `clear-for-scripts`: add `--yes`, refuse without a terminal instead of waiting, exit non-zero whenever nothing was cleared |
 | pass | the attempt ended cleanly, `acceptance/clear-for-scripts.sh` passes against the changed checkout, and the repository still compiles and passes its own tests |
 | guardrails | no denied tool calls, no loop nudges, under 60 tool calls and 20 minutes, changes confined to `src/`, `tests/` and `README.md` |

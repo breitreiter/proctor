@@ -106,13 +106,13 @@ in the order the verbs run them. Every file is one concern:
 | `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json`; the report's stamp (`built_from`: batches, hashes, current and stale counts, mixed conditions) |
 | `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results; `Td` is a table cell |
 | `exams/smoke/` | proctor's own exam: every task scripts nb's Mock provider |
-| `exams/code-change/` | the first real exam: three tasks on three fixtures, acceptance tests, reference solutions; four agent variants through Harbor (nb, Qwen Code, Claude Code, Codex) |
+| `exams/code-change/` | the first real exam: three tasks on three fixtures, acceptance tests, reference solutions; five agent variants through Harbor (nb, Qwen Code, Claude Code on Haiku and on Sonnet, Codex) |
 | `exams/gate/` | the deterministic gate: one Mock variant bare and the same variant as a Harbor agent; `GateTests` (with `PROCTOR_GATE`) asserts they agree |
 | `exams/gate-oracle/` | the oracle's gate: the same pair on three oracle tasks, one per ending (`ok`, `oracle_miss`, `oracle_budget`); `OracleGateTests` (with `PROCTOR_GATE`) asserts the in-process oracle and the bridged simulated user agree, apart from the judge's tokens |
 | `exams/oracle-change/` | the oracle on a real model: `add-retry-flag` with its semantics only in the answer sheet, chosen to be unconventional so a guess fails acceptance; nb on Anthropic Haiku bare and through Harbor, judged by Haiku. Real API calls (about $1 a batch) |
 | `exams/conformance/` | Harbor conformance at $0: every vendor agent at its pin against `fixtures/stub`'s scripted model, tasks `ok`, `fail`, `hang`; `ConformanceTests` (with `PROCTOR_CONFORMANCE`, `1` or a `proctor.json` whose `harbor` block to run on) asserts each attempt came back as scripted. The plan and its benchmark are `project/archive/harbor-conformance.md` |
 | `exams/tern-docs/` | the bundle showcase: Claude Code on Sonnet implements six shipping functions in `fixtures/tern-shop` against Tern, an invented carrier, with its docs bundle as shipped, restructured or absent, served by the fixture's docs service; hidden acceptance runs against Tern's sandbox API started in the verifier; `reference/shakedown.sh` proves the checks for free (`--unsolved`, `--v1`, `--kilograms`). The plan is `project/archive/bundle-showcase.md` |
-| `exams/exam-authoring/` | the demo project: an agent writes exams, graded by running them against planted good and bad attempts (`trial/`), and finishes a batch a crash interrupted (`continue-the-batch`, made by `hooks/interrupt.sh`; D15); a batch's report is meant to be copied into `report/`, which has none yet. Its variants pin proctor at a GitHub revision as their bundle, each naming the `paths` it shows (the docs; the docs and the examples); the pin predates the rename and has none of those paths, so the exam stops at bundle resolution until the pin moves |
+| `exams/exam-authoring/` | the demo project: an agent writes exams, graded by running them against planted good and bad attempts (`trial/`), and finishes a batch a crash interrupted (`continue-the-batch`, made by `hooks/interrupt.sh`; D15 of `exam-variant-attempt.md`); a batch's report is meant to be copied into `report/`, which has none yet. Its variants pin proctor at a GitHub revision as their bundle, each naming the `paths` it shows (the docs; the docs and the examples); the pin predates the rename and has none of those paths, so the exam stops at bundle resolution until the pin moves |
 | `exams/playground/` | the first exam a new user runs: two scripted Mock tasks on `fixtures/jotcli`, no model and no key; the fixture's `builds` and `tests-pass` run for real on the checkout, so the first report is about a repository |
 | `exams/cli-for-agents/` | the first exam with a real model: one task on `jotcli` (`clear-for-scripts`: add `--yes`, refuse without a terminal, exit non-zero when nothing was cleared), nb bare on the local model; `acceptance/<task>.sh` runs the built CLI with no TTY under a ten-second limit; `reference/shakedown.sh` proves the checks solved and `--unsolved` without a model |
 | `exams/agent-onboarding/` | a shipped coding agent, given proctor's skill, docs and CLI at a pinned revision, stages a chat-only exam for a small bot project; each written exam is graded by a trial against planted attempts (`trial/<task>/plants.json`) |
@@ -138,9 +138,10 @@ The directories are for reading, not for namespaces: everything is
   exits non-zero or an nb startup error (exit 1, no `result` trailer) marks the
   attempt failed with a reason. A transcript whose exit reason is `max_tool_calls`
   is completed; grading decides what it means.
-- **Grading writes beside the evidence.** `checks.json` is the only file the
-  grader adds to an attempt. `report` reads it; a completed attempt without one is
-  reported as not analysed, and `report` says to run `grade`.
+- **Grading writes beside the evidence.** `checks.json`, and a model check's
+  `verdicts/`, are the only files the grader adds to an attempt. `report`
+  reads `checks.json`; a completed attempt without one is reported as not
+  analysed, and `report` says to run `grade`.
 - **Friction is beside grading, not in it.** `proctor friction` writes
   `friction.json` in an attempt and reads only `trajectory.json` and the
   exam's `surface`; no check, verdict or report reads either. The rules
@@ -194,8 +195,8 @@ The directories are for reading, not for namespaces: everything is
   `agent_version` and a bare model of the agent's vendor, the nb fields
   refused; or `nb`, nb itself as a Harbor agent, with `harness`,
   `provider` and `model` as on the bare path and `runner`, `command` and
-  `agent_version` refused. (Decision 1's rule, Harbor exactly when the
-  program has tools, waits for validation to refuse tools on the bare path;
+  `agent_version` refused. (Decision 1 of
+  `project/plans/agent-neutral-runs.md`, Harbor exactly when the program has tools, waits for validation to refuse tools on the bare path;
   until then `agent: nb` is how an nb variant asks for Harbor.) The plan is
   `project/plans/agent-neutral-runs.md`; what Harbor writes is
   `project/learnings/harbor.md`. `run` compiles each (agent variant, task) once
@@ -236,7 +237,7 @@ The directories are for reading, not for namespaces: everything is
   as a vendor agent's. Bare attempts get one too (`NB_TRAJECTORY`, so a runner
   script passes it on), though grading reads their JSONL. `NbTrajectoryTests`
   holds every `fixtures/nb-run` pair to reading the same both ways. The gate
-  (`exams/gate`, `GateTests`, decision 12) is opt-in:
+  (`exams/gate`, `GateTests`, decision 12 of `agent-neutral-runs.md`) is opt-in:
   `PROCTOR_GATE=<publish dir> dotnet test --no-build --filter GateTests`,
   about ten minutes, Docker (or podman, with `PROCTOR_GATE_ENGINE=podman`)
   and uv needed. The filter takes `OracleGateTests` too (`exams/gate-oracle`,
@@ -398,7 +399,8 @@ The directories are for reading, not for namespaces: everything is
 - **nb's trailer carries `duration_ms` since nb 0.9** (nb f7df67f); the
   `max_duration_ms` check reads it and falls back to the attempt's wall time
   from the manifest, hooks included, which is what the report shows. It
-  carries no cost, so the report has no cost column rather than an estimate.
+  carries no cost, so an nb attempt has none; the report shows a cost column
+  only when an agent reports its own (Claude Code, Codex as Harbor priced it).
 - **nb emits no `assistant_json` event**; the `answer_json` window is the last
   ` ```json ` fence in the last assistant message.
 - **Program templates.** Placeholders are `{{prompt}}`, `{{task}}`, `{{work}}`
@@ -527,8 +529,8 @@ The directories are for reading, not for namespaces: everything is
   stores, prints, filters on (`list --label k[=glob]`) and records on every
   `results.jsonl` row, never interprets. `Exam.LabelsFor` merges fixture,
   then exam, then task, key by key. A `tags` field is reported as removed.
-  Whether an exam is judged is `Exam.Judged`, derived from a check naming a
-  `judge` (not yet a known check), not declared.
+  Whether an exam is judged is `Exam.Judged`, derived from a check naming
+  `judge` or `decide` (`Checks.AsksAModel`), not declared.
 - **A variant is declared data in its own file, and its hash is its
   identity.** `exams/<exam>/variants/<id>.json` holds agent or runner,
   harness, provider, model, bundle and a free-text `note`; `exam.json`
@@ -545,8 +547,8 @@ The directories are for reading, not for namespaces: everything is
   variant it made attempts of as `{id, hash, def}`, each such task as
   `{id, hash}`, and the attempts it set out to make (`attempts`, each
   `{variant, task, attempt}`). `run`
-  refuses a variant whose id made attempts under another hash (D5), with
-  what changed field by field from the batch's copy of the file
+  refuses a variant whose id made attempts under another hash (D5 of
+  `exam-variant-attempt.md`), with what changed field by field from the batch's copy of the file
   (`Runner.RefuseChangedVariants`). A `batch.json` from before a batch
   listed its attempts is refused, not read. Hooks are the exam's; one that branches on
   `PROCTOR_VARIANT` to change what the agent sees hides it from the hash.

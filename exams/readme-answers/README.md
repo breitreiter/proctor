@@ -16,7 +16,8 @@ proctor report readme-answers     # then open reports/readme-answers/explore/rep
 | | |
 |---|---|
 | fixture | `fixtures/empty`: nothing; the model's whole context is the README |
-| variants | `as-shipped`: jot's README as it ships. `for-scripts`: the same README with a section on using jot from a script. Both on Gemini Flash-Lite (`gemini-flash-lite-latest`), 3 attempts |
+| variants | `as-shipped`: jot's README as it ships. `for-scripts`: the same README with a section on using jot from a script. Both on Gemini Flash-Lite (`gemini-flash-lite-latest`) |
+| attempts | 3 of each task per variant, set in `exam.json` |
 | tasks | six questions about jot (`fixtures/jotcli`). Three the README as shipped answers (how to add a task, an exit code, where the tasks live); three only the section for scripts does (what exit code `clear` gives with no terminal, whether `echo y \| jot clear` works, how long it waits) |
 | pass | `correct`: the `ANSWER:` line matches the task's expected answer |
 | validity | `answered`: the attempt ended cleanly. An attempt cut short by the provider (a rate limit, say) is left out rather than counted wrong |

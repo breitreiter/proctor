@@ -1,5 +1,5 @@
-# Raw run tier: transcripts, stderr, config snapshots (may carry API keys).
-# Archived to object storage via `proctor archive`; see project/learnings/where-runs-live.md
+# Raw attempt tier: transcripts, stderr, config snapshots (may carry API keys).
+# Where it could live beyond this machine: project/learnings/where-runs-live.md (no archive verb is built)
 attempts/
 **/attempts/
 
@@ -21,16 +21,16 @@ exams/nb.*.json
 !exams/*.example.json
 exams/codex.toml
 
-# Fixture checkouts made by attempt setup hooks
+# Fixture checkouts and resolved bundles, made by proctor
 .proctor/
 
-# Reports are derived data written by `proctor report`; the smoke eval's are not worth committing
+# Reports are derived data written by `proctor report`; the smoke exam's are not worth committing
 /reports/
 
 # Snapshot tests: the received rendering awaiting review (see Proctor.Tests/ReportTests.cs)
 *.received
 
-# the bench's runs, raw tier
+# the bench's raw tier (bench is its own proctor root at an earlier version, which wrote runs/)
 bench/systemone/root/runs/
 
 # Python

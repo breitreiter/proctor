@@ -70,7 +70,9 @@ compares each other variant with it on the tasks they share: better, worse
 or the same, and whether the interval confirms it.
 
 Two example reports from proctor's own exams are in
-[`docs/reports/`](docs/reports/).
+[`docs/reports/`](docs/reports/), HTML only. They were rendered by an
+earlier version and use its words: suite for exam, arm for variant
+and baseline for the live variant.
 
 ## Install
 
