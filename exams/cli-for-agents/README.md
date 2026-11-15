@@ -7,9 +7,9 @@ its one task is the change that CLI is asking for.
 
 ```bash
 proctor list cli-for-agents
-proctor run cli-for-agents      # 3 attempts on the local model; prints a batch id
-proctor grade <id>
-proctor report <id>
+proctor run cli-for-agents      # 3 attempts on the local model
+proctor grade cli-for-agents
+proctor report cli-for-agents
 ```
 
 | | |

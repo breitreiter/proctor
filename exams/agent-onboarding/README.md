@@ -65,8 +65,8 @@ moves to a pushed revision with the new words, every written exam fails
 
 The revision must be pushed to GitHub, since the image clones it. A fixture's
 image block cannot be shared between fixtures, so the pin appears three times.
-The exam hash and each task's hash cover the fixtures, so `resume` refuses a
-batch whose pin changed.
+Each task's hash covers its fixture, so the attempts made before a pin
+change are stale: listed, never counted, and `proctor run` makes them again.
 
 ## How a written exam is graded
 
@@ -150,8 +150,8 @@ reference through Harbor's oracle agent, with `reference/solve.sh` and
 dotnet build
 exams/agent-onboarding/reference/shakedown.sh      # optional, ~3 min
 proctor run agent-onboarding                         # every variant file: qwen, the free local one, alone as shipped
-proctor grade <id>
-proctor report <id>
+proctor grade agent-onboarding
+proctor report agent-onboarding
 ```
 
 **Cost.** A Sonnet attempt reads the skill, the README, `docs/configuration.md`,

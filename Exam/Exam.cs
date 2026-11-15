@@ -373,7 +373,7 @@ sealed class Exam
             foreach (Match m in Regex.Matches(template, @"\{\{\s*([^}]*?)\s*\}\}"))
                 if (!Placeholders.Contains(m.Groups[1].Value))
                     problems.Add(new Problem(rel(templateFile), m.Value, $"unknown placeholder; known: {string.Join(", ", Placeholders.Select(p => "{{" + p + "}}"))}"));
-            // An agent variant's bundle stays on the host (hooks, the hash, resume); its container never holds it.
+            // An agent variant's bundle stays on the host (hooks, the hash); its container never holds it.
             if (Regex.IsMatch(template, @"\{\{\s*bundle\s*\}\}") && variants.FirstOrDefault(a => a is { IsAgent: true, IsVendor: false, Bundle: not null }) is { } nbAgent)
                 problems.Add(new Problem(rel(templateFile), "{{bundle}}", $"variant '{nbAgent.Id}' runs nb through Harbor, where its bundle is not in the container; serve it from a variant hook, or run the variant bare"));
             if (tasks.Any(c => c.Oracle is not null))

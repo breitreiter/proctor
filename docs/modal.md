@@ -85,11 +85,15 @@ stops after ten minutes with nothing running. A batch you kill leaves
 nothing billing for longer than that. Harbor's own default would keep a
 sandbox for a day.
 
-## Resume
+## After an interruption
 
-A batch keeps the engine it started on. Resume it with the same
-file:
+A batch keeps the engine it started on. To continue one you stopped, run
+the exam again with the same file:
 
 ```bash
-proctor resume <id> --config exams/proctor.modal.json
+proctor run code-change --config exams/proctor.modal.json
 ```
+
+Without it, `run` finds the engine changed, says it is not continuing the
+batch, and makes what is missing in a new batch on the engine your
+`exams/proctor.json` names.

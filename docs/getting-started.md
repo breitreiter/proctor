@@ -34,9 +34,9 @@ otherwise (`nb.path`).
 
 ```bash
 proctor setup                   # skip every job for now: this writes the config the playground runs on
-proctor run playground          # prints a batch id
-proctor grade <id>
-proctor report <id>             # then open reports/data/<id>/report.html
+proctor run playground          # makes its attempts; run it again and it has nothing to do
+proctor grade playground
+proctor report playground       # then open reports/playground/explore/report.html
 ```
 
 The playground's one variant is nb's Mock provider, which answers from a
@@ -70,9 +70,9 @@ For this step you need one job, the built-in harness, on one provider:
 Then:
 
 ```bash
-proctor run readme-answers
-proctor grade <id>
-proctor report <id>
+proctor run readme-answers      # if it stops part way (a throttle, a closed laptop), run it again: it continues the batch
+proctor grade readme-answers
+proctor report readme-answers
 ```
 
 `readme-answers` asks Gemini Flash-Lite six questions about the

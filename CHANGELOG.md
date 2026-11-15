@@ -58,6 +58,42 @@ formats or the vocabulary; a patch bump does not.
   reference (the first variant) is the first file by name. A `batch.json`
   from before this is refused, not read: make it again.
 
+- **Breaking: an exam's attempts are a pool, and `run` fills its gaps**
+  (step 3 of `project/plans/exam-variant-attempt-removal.md`). An exam's
+  attempts are every attempt of every batch of it under `attempts/`; one is
+  current while its variant's and its task's hashes are today's, and stale
+  after. `proctor run <exam>` makes, per variant and task, the exam's
+  `attempts` less the current, completed ones, in a new batch, numbering
+  each after the attempts already on disk; with nothing missing it says so
+  and makes nothing. Adding a variant makes only its attempts; changing a
+  task makes only that task's again. **`proctor resume` is gone, with no
+  alias:** after a crash, `proctor run <exam>` continues the interrupted
+  batch in place (attempts `pending`, `running` or `failed`) while its
+  runner, Harbor version, compiled Harbor tasks, engine and nb image still
+  hold, says so, and otherwise says which changed and makes what is missing
+  in a new batch. `proctor list <exam>` shows each variant's current
+  attempts against those wanted, the stale ones and an interrupted batch.
+  `grade`, `friction` and `report` take the exam, not a batch id, and read
+  its current attempts; `--batch <id>`, `--variant` and `--tasks` narrow
+  them (and `--variant`, `--tasks` narrow `run`). Stale attempts are listed
+  with the hash that moved and never graded, read or counted; friction no
+  longer reads attempts of a variant whose file is gone. `report` writes
+  `reports/<exam>/explore/` in place of `reports/data/<batch>/`, moves an
+  earlier report there into a directory named by when it was built, and no
+  longer copies `batch.json`; `stats.json` drops `batch` for `built_from`
+  (when, the batches, each variant's and task's hash, current and stale
+  counts with each stale attempt's reason, the narrowing, and per variant
+  the conditions that differed between its batches), which the page's
+  reproducibility section shows, with a warning when one variant's
+  attempts were made under mixed conditions. A report leaves out a variant
+  with no current attempt. `results.jsonl` rows carry `batch`.
+  `batch.json` lists the attempts it set out to make (`attempts`, each
+  `{variant, task, attempt}`) in place of `planned`, and its `variants` and
+  `tasks` are only those it made attempts of; a `batch.json` without
+  `attempts` is refused, not read. `proctor baseline <batch>` and
+  `report --against <batch>` still take a batch id until `live` replaces
+  them.
+
 Entries below this line, the unreleased ones above 0.3.6 included, use the
 earlier words: suite (exam), arm (variant), experiment (batch), sample,
 cell or run (attempt).

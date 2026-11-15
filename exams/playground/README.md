@@ -8,9 +8,9 @@ own.
 
 ```bash
 proctor list playground
-proctor run playground          # prints a batch id
-proctor grade <id>
-proctor report <id>             # then open reports/data/<id>/report.html
+proctor run playground          # makes its attempts; run it again and it has nothing to do
+proctor grade playground
+proctor report playground       # then open reports/playground/explore/report.html
 ```
 
 | | |

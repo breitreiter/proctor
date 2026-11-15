@@ -3,8 +3,8 @@ using System.Text.Json.Nodes;
 namespace Proctor;
 
 /// <summary>
-/// A batch's Harbor: the pinned release and the hash of the tasks compiled for it, which a resume must find
-/// unchanged; with an nb variant, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
+/// A batch's Harbor: the pinned release and the hash of the tasks compiled for it, which `run` must find
+/// unchanged to continue the batch; with an nb variant, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
 /// engine every attempt runs on (proctor.json harbor.engine), which holds that layer.
 /// </summary>
 record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, string Engine = "docker");
@@ -132,7 +132,7 @@ static class HarborRun
     public static (string? TrialDir, string? Failure) Trial(string uv, string version, string engine, string attemptDir, Variant variant, string taskDir, AgentRoute route, long wallMs, string agentsDir, NbAttempt? nb = null, OracleAttempt? oracle = null)
     {
         var harborDir = Path.Combine(attemptDir, Layout.HarborDir);
-        if (Directory.Exists(harborDir)) Directory.Delete(harborDir, recursive: true);   // a resumed attempt starts clean
+        if (Directory.Exists(harborDir)) Directory.Delete(harborDir, recursive: true);   // an attempt made again starts clean
         Directory.CreateDirectory(harborDir);
         var jobsDir = Path.Combine(harborDir, "jobs");
         var timeout = TimeSpan.FromMilliseconds(wallMs) + Overhead;

@@ -19,7 +19,7 @@ The words, which the report and every file use the same way:
 | **fixture** | The repository a task runs against and what "done" looks like in it; reused across exams. |
 | **variant** | What is under test: an agent or nb's harness and provider, a model and a bundle, as declared data, one file per variant. Its identity is its content. |
 | **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
-| **batch** | The attempts one `proctor run` made: every variant over every task, as many attempts as the exam asks for. |
+| **batch** | The attempts one `proctor run` made: what the exam lacked at the time. An exam's attempts are every batch's; one is current while its variant's and its task's hashes are today's, and stale after. |
 | **baseline** | Pinned attempts from an earlier batch, compared with as a virtual variant. |
 
 An exam is one business goal probed by many tasks. Every task in it is
@@ -42,13 +42,13 @@ relative to `exams/`:
 Without it, `nb` is taken from `PATH` and nb resolves its own config.
 `--nb <path>` overrides either.
 
-`--config <file>` on `list`, `run`, `resume` and `grade` reads another
+`--config <file>` on `list`, `run` and `grade` reads another
 machine file in place of `exams/proctor.json`, with the same fields and
 its relative paths still resolved against `exams/`. An exam is the
 question and this file is the machine, so the same exam runs somewhere
 else by naming a different file: `proctor run code-change --config
-exams/proctor.modal.json`. `resume` needs the `--config` the batch
-was run with. Files named `exams/proctor.*.json` and `exams/nb.*.json`
+exams/proctor.modal.json`. `run` continues an interrupted batch only with
+the `--config` it was made with. Files named `exams/proctor.*.json` and `exams/nb.*.json`
 are gitignored, apart from the `*.example.json` ones.
 
 The same file names the judges that the model checks call at grade time,
@@ -127,7 +127,8 @@ so hooks and the runner can agree on one container: the attempt setup hook
 creates it, the runner execs into it, the attempt teardown hook removes it.
 Hooks see which is in effect in `PROCTOR_RUNNER`, empty on a bare run, and
 skip the container. The manifest records the script and its hash, and
-`resume` refuses a changed one. The worked example is
+`run` does not continue a batch whose runner changed: it makes what is
+missing in a new batch. The worked example is
 `exams/runners/container.sh` with the `exam-authoring` exam's hooks and the
 `Containerfile` beside the runner, which puts nb's own image
 (`podman build -t nb .` in the nb repository) on the .NET SDK:
@@ -358,7 +359,7 @@ script check must have one, because from outside a script says nothing:
 An exam usually tests one thing inside a fixture that holds many: a CLI, an
 MCP server, a docs site. An attempt can pass without ever using it, by going
 round. `surface` in `exam.json` says what the thing is, so
-`proctor friction <id>` can sort each attempt's actions by it. It is optional,
+`proctor friction <exam>` can sort each attempt's actions by it. It is optional,
 and no check, report or other verb reads it.
 
 ```json
@@ -414,7 +415,7 @@ written. The rules use no model, so the same trajectory and declaration
 give the same file.
 
 Rules see what a call was and what came back, not what it was for.
-`proctor friction <id> --reader <judge>` adds a reader: a chat judge from
+`proctor friction <exam> --reader <judge>` adds a reader: a chat judge from
 `proctor.json` reads each attempt once and names five more kinds of point,
 `repair` (fixing its own work after something it ran failed), `lost` (a
 search or read that led to nothing used later), `reread`, `dead-end`
@@ -599,7 +600,7 @@ self-contained linux-x64 publish is, for an `agent: nb` variant:
 
 While the agent works, its container reaches only the host of its model's
 base URL; the checks run afterwards with no network at all. A batch
-keeps the engine it started on, and `resume` refuses a different one. What
+keeps the engine it started on, and `run` continues it on no other. What
 a fixture's image needs and how an exam moves to agent variants is
 [`porting-to-agent-neutral.md`](porting-to-agent-neutral.md);
 `exams/code-change/` runs the same three tasks on all four agents.

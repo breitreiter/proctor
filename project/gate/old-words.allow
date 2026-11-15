@@ -33,7 +33,7 @@ Proctor.Tests/BaselineTests.cs		# tests of the baseline: deleted in step 4
 exams/code-change/baseline.json		# a pinned baseline in its own format: deleted in step 4
 Verbs.cs	\bpin(s|ned)?\b	# proctor baseline prints a pin's own fields (baseline.json's format): deleted in step 4
 **	baseline	# the baseline verb, file, types, report text and their tests: deleted in step 4
-**	resum	# proctor resume and Runner.Resume: run continues a batch instead in step 3
+**	\bno resume verb\b	# D15: after a crash a person or an agent looks for "resume", so the CLI help, docs/cli.md, the skill and exam-authoring say there is none
 
 # Ordinary English or another tool's word.
 **	\btest suites?\b	# a project's own tests

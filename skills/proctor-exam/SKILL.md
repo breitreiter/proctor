@@ -143,8 +143,13 @@ exam, task, attempt, check, variant, fixture, batch, baseline.
   file and id. Hooks are the exam's: one that branches on `PROCTOR_VARIANT`
   to change what the agent sees hides that difference from proctor; put it
   in the bundle (a git bundle's `paths` can pick part of a revision).
-- **A changed exam is a new batch.** `resume` refuses one, so settle
-  the files before a long batch.
+- **A changed task makes its attempts stale.** A task's hash covers its
+  file, its answer sheet, its fixture and the exam's checks, so editing any
+  of them (adding a check included) leaves the attempts already made out of
+  every count; `run` makes them again. Settle the files before a long batch.
+- **After a crash, `proctor run <id>` again.** There is no resume verb: run
+  continues the interrupted batch and says so, and `proctor list <id>`
+  names an interrupted batch.
 
 ### Prove it before anyone pays
 
@@ -158,8 +163,9 @@ exam, task, attempt, check, variant, fixture, batch, baseline.
    (`exams/readme-answers/reference/shakedown.sh`, with `--wrong`).
 3. One attempt of one task on a free or local model, read the transcript
    and the report, and fix what looks wrong.
-4. Then the agreed batch: `proctor run <id>`, then `proctor grade <batch>` and
-   `proctor report <batch>` with the batch id `run` printed. Walk the user through the report: the verdict,
+4. Then the agreed batch: `proctor run <id>`, then `proctor grade <id>` and
+   `proctor report <id>` (the exam's id: they read every current attempt of it,
+   whichever batch made it). Walk the user through the report: the verdict,
    the intervals, the failures and their quoted reasons.
 
 If a check fails an attempt that looks right to you, the check is the suspect

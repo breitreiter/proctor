@@ -6,8 +6,8 @@ docker-compose 2.40.3 and Harbor 0.24.0: conformance (every vendor agent
 against the stub) and the oracle pass over `code-change` both run green.
 Earlier findings came from podman 6.1.3. Docker needs none of this.
 
-`run` and `resume` check the compose frontend, the compose banner and the
-search registry before a batch starts, and say which step is
+`run` checks the compose frontend, the compose banner and the
+search registry before a batch starts, and says which step is
 missing. The other steps cannot be checked from outside a trial.
 
 ## 1. Packages, once, as root

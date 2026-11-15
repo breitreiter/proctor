@@ -19,7 +19,7 @@ buildx plugins) or rootless podman, whose setup is
 [`podman.md`](podman.md). In `exams/proctor.json`:
 
 - `harbor.engine`: `docker` (the default) or `podman`. A batch keeps
-  the engine it started on; `resume` refuses another.
+  the engine it started on; `run` continues it only on that engine.
 
 - `agents.<agent>`: `base_url` and `api_key` for each vendor agent the exam
   names (`claude-code` an Anthropic route, `codex` and `qwen-code` an
@@ -49,7 +49,7 @@ committed; nothing else of the fixture enters the image the agent runs in.
 
 ## 4. The exam: Harbor, limits, and no runner
 
-- Add `"harbor": {"version": "0.24.0"}` (pinned; `resume` refuses a change)
+- Add `"harbor": {"version": "0.24.0"}` (pinned; `run` does not continue a batch made under another version)
   and `"limits": {"wall_ms": …}` (Harbor's agent timeout; an attempt that hits it
   is completed with `time_budget`, not failed).
 - Remove the `nb` block (`runner`, `mounts`). The image is the container now,

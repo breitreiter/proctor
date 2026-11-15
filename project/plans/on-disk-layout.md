@@ -49,7 +49,7 @@ second column is the word the evals literature uses for the same thing.
 | **variant** | agent harness + configuration | What is under test: a harness, a provider, a model and a bundle, given every task. |
 | **fixture** | environment | The repository a task runs against and what "done" looks like in it; reused across exams. |
 | **attempt** | trial | One measurement of a stochastic system: one variant at one task, once. On disk, the directory its evidence lives in. |
-| **batch** | eval run | The attempts one `proctor run` made: one exam across every variant, task and attempt number. |
+| **batch** | eval run | The attempts one `proctor run` made: what the exam lacked at the time. An exam's attempts are every batch's. |
 | **baseline** | regression eval | Pinned attempts from an earlier batch, compared with as a virtual variant (`baseline.json`; to be replaced by a live variant). |
 
 > Superseded in part by [the fixtures plan](../archive/fixtures-arms-baselines.md)
@@ -258,22 +258,23 @@ reported; and a `needs-judge` fallback below the bar, not a replacement.
 
 One directory per batch, attempts addressed by their coordinates, one file
 per concern inside an attempt so `ls`, `cat`, `jq` and `grep -l` are the query
-language.
+language. An exam's attempts are every attempt of every batch of it (the
+pool); the nesting under the batch that made an attempt is where it lives,
+not what it belongs to.
 
 ```
 attempts/
   20260917-1432-code-change-k7px/           batch id: date, exam, 4 random chars
-    batch.json                         the resolved matrix and provenance (below)
-    status.json                             counts by attempt status; rewritten as attempts finish
-    hooks/
-      run.setup.log                         output of the run-level hooks
+    batch.json                              what is the same for every attempt of the batch, and the attempts it set out to make (below)
+    status.json                             {planned, counts by attempt status, updated}; rewritten as attempts finish
+    harbor/                                 agent variants only: tasks/<variant>/<task>/ compiled once per batch, agents/
     floor/                                  variant
       hooks/
         variant.setup.log
         variant.teardown.log
       add-retry-flag/                       task
         1/                                  attempt
-          manifest.json                     random id, coordinates, timing, versions
+          manifest.json                     random id, coordinates with hashes, timing, versions
           status                            one word: pending | running | completed | failed | skipped
           program.nb                        the program exactly as run, placeholders resolved
           program.jsonl                     what went down stdin: the program compiled on the host by `nb --compile`, includes inlined
@@ -283,26 +284,28 @@ attempts/
           hooks/
             attempt.setup.log
             attempt.teardown.log
-          diff.patch                        whatever the teardown hook chose to collect
-          checks.json                       {name: {verdict, reason}}, written by `proctor grade` (below)
+          diff.patch                        the checkout's diff against the fixture, collected after teardown
+          checks.json                       {name: {result, reason}}, written by `proctor grade` (below)
           friction.json                     where the attempt paid a cost the task did not ask for, written by `proctor friction`
           friction-reading.haiku.9f2c1ab04d7e.json   what `friction --reader` sent a reader and what it answered; the cache
           verdicts/
-            cf-glm.rubric-a1b2c3.json       judge phase, one file per judge and rubric version
+            sensible.glm.a1b2c3d4.json      a model check's verdict: check, judge, hash of the request
         2/
-        3/
       fix-null-deref/
       rename-module/
-    codex/
+  20260918-0910-code-change-p2xv/           a later batch: only what the exam still lacked
+    batch.json
+    floor/
       add-retry-flag/
-        1/
-          manifest.json
-          status
-          prompt.txt                        what the command runner passed
-          transcript.txt                    the CLI's raw output; format named in the manifest
-          ...
-    claude/
+        3/                                  numbered after every attempt of floor/add-retry-flag on disk
 ```
+
+> Never built, kept from the first draft: run-level hooks
+> (`hooks/run.setup.log`, refused by validation as not yet) and the
+> `command` runner's attempts (`prompt.txt`, `transcript.txt`; a `command`
+> variant is refused as not yet). Agent variants run through Harbor
+> instead, and their attempts hold `trajectory.json`, `core.json` and
+> `harbor/` (`CLAUDE.md`).
 
 **Batch id.** The trackers all warned against timestamp-only names and
 against parameter-derived ids. This takes both halves: a date prefix so `ls`
@@ -311,8 +314,17 @@ four random characters so two batches started in the same minute do not
 collide. The random part is what makes it an id; the rest is a courtesy.
 
 **Attempt path is coordinates.** `<variant>/<task>/<n>/` is the compound id from
-the test-framework learnings, and it is deliberately not random: it is the
-key `resume` uses. The random id lives inside the manifest.
+the test-framework learnings, and it is deliberately not random. A new
+attempt is numbered after every attempt of its variant and task in any
+batch, so `variant/task/n` names one attempt across the exam's pool. The
+random id lives inside the manifest.
+
+**Current and stale.** An attempt is current while the variant hash and task
+hash it was made under (its manifest's; for one never started, its batch's)
+are the exam's today, and stale otherwise. `run` makes, per variant and
+task, the exam's `attempts` less the current, completed ones; `grade`,
+`friction` and `report` read the current ones and list the stale ones with
+the hash that moved.
 
 **`status` is a one-word file** so `grep -l completed attempts/*/*/*/*/status`
 answers "what finished" without parsing anything. The five values are the
@@ -356,29 +368,63 @@ model, which the manifest holds as plain fields. If a future need for a full
 config snapshot appears, it is written with every value of a key-like field
 replaced by `<redacted>`, and that rule is a test.
 
-The attempt manifest:
+The attempt manifest, as `run` writes it now:
 
 ```json
 {
   "id": "b7e2f9c04d1a4e6b",
+  "exam": "code-change",
   "batch": "20260917-1432-code-change-k7px",
-  "variant": "floor", "task": "add-retry-flag", "attempt": 1,
+  "variant": { "id": "floor", "hash": "sha256:4b1e…" },
+  "task": { "id": "add-retry-flag", "hash": "sha256:0c3f…" },
+  "attempt": 1,
   "runner": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen-coder",
+  "fixture": { "id": "ledger", "hash": "sha256:c744…" },
+  "nb": { "path": "/usr/local/bin/nb", "config": "/repo/exams/nb.json" },
   "transcript": { "file": "transcript.jsonl", "format": "nb-jsonl" },
   "started": "2026-09-17T14:33:02Z", "ended": "2026-09-17T14:51:40Z", "duration_ms": 1118000,
   "host": "bench",
-  "versions": { "proctor": "0.1.0", "nb": "0.9.0" },
-  "exam_hash": "sha256:9c1e…", "program_hash": "sha256:41ab…",
+  "versions": { "proctor": "0.3.6", "nb": "0.9.0" },
+  "program_hash": "sha256:41ab…",
   "status": "completed", "tries": 1
 }
 ```
 
-The batch manifest holds what is the same for every attempt, so attempts do
-not repeat it: the resolved `exam.json`, the git commit and dirty flag of the
-repository under test, the command line, the proctor and nb versions, the
-planned attempt count, and the archive location once `archive` has run. This is
-Hydra's triple (resolved config, what was typed, tool runtime) plus Inspect's
-provenance fields, in one file.
+`bundle` (source, path, hash) is added when the variant has one, `agent`
+and `oracle` on an agent variant's attempt, `status_reason` on a failed
+one, and `nb_exit_code` once nb ran.
+
+The batch manifest, `batch.json`, holds what is the same for every attempt
+of the batch, so attempts do not repeat it, and the attempts it set out to
+make, which is how the pool knows an attempt that never started:
+
+```json
+{
+  "id": "20260918-0910-code-change-p2xv",
+  "exam": "code-change",
+  "exam_hash": "sha256:9c1e…",
+  "exam_def": { "id": "code-change", "attempts": 3, "grading": { "…": "…" } },
+  "variants": [ { "id": "floor", "hash": "sha256:4b1e…", "def": { "id": "floor", "runner": "nb", "…": "…" } } ],
+  "tasks": [ { "id": "add-retry-flag", "hash": "sha256:0c3f…" } ],
+  "attempts": [ { "variant": "floor", "task": "add-retry-flag", "attempt": 3 } ],
+  "created": "2026-09-18T09:10:00Z",
+  "command_line": "proctor run code-change",
+  "host": "bench",
+  "versions": { "proctor": "0.3.6", "nb": "0.9.0" },
+  "repo": { "commit": "3f2c1e9a…", "dirty": false },
+  "nb": { "path": "/usr/local/bin/nb", "config": "/repo/exams/nb.json", "runner": { "script": "runners/container.sh", "path": "…", "hash": "sha256:…" } },
+  "bundles": { "floor": { "source": "bundles/floor", "path": "/repo/bundles/floor", "hash": "sha256:…" } },
+  "harbor": { "version": "0.24.0", "tasks_hash": "sha256:…", "nb_image": "proctor-nb:…", "engine": "docker" }
+}
+```
+
+`variants` and `tasks` are only those the batch made attempts of. `harbor`
+is there when it made an agent variant's attempts; `run` continues an
+interrupted batch only while its runner, `harbor.version`,
+`harbor.tasks_hash`, `harbor.engine` and `harbor.nb_image` still hold. A
+`batch.json` without `attempts` was written by an earlier proctor and is
+refused, not read. The archive location the first draft put here was never
+built.
 
 ## The derived tier: `reports/`
 
@@ -388,48 +434,56 @@ the markdown renderer both read these files and neither computes anything.
 
 ```
 reports/
-  data/
-    index.json                              every batch: id, exam, date, headline, verdict, archive url
-    20260917-1432-code-change-k7px/
-      batch.json                       the raw-tier manifest, verbatim (it has no secrets)
-      results.jsonl                         one row per attempt: coordinates, status, exit_reason, trailer fields, check results, verdict labels, id
-      stats.json                            per-variant rates with intervals, pairwise differences, MDE sentence, methods footnote
+  code-change/
+    explore/                                the exploration report of an exam: the latest
+      results.jsonl                         one row per current attempt read: coordinates, batch, status, exit_reason, trailer fields, check results, id
+      stats.json                            per-variant rates with intervals, pairwise differences, MDE sentence, methods footnote; built_from, the stamp
+      report.html
       summary.md                            the markdown rendering, for CI and humans
+      20261115-183450/                      an earlier report, moved aside by the next, named by when it was built
 ```
 
-`results.jsonl` carries the coordinates and the attempt id on every row, which is
-the oracle bench's `--variant` lesson generalised: a row can be joined to
-anything without opening another file. It carries no transcript text. The
-judge's evidence quotes are in the raw-tier verdict files and reachable by
-attempt id through `fetch`.
+`stats.json` `built_from` says what the report was built from: when, the
+batches its attempts came from, each variant's and task's hash, how many
+current attempts it read and how many stale ones it left out (each with
+why), the narrowing asked for (`--batch`, `--variant`, `--tasks`), and per
+variant the conditions (versions, runner, engine) that differed between
+the batches its attempts came from.
 
-The site bundle is not in `reports/`. It is a versioned asset of proctor,
-copied beside `reports/data/` at deploy time, so `reports/` stays pure data
-and a bump of the bundle never touches a data commit.
+> Never built: `reports/data/index.json` (every batch with its headline and
+> archive url) and the site bundle that would read it. The change report
+> under `reports/<exam>/<claim>/` waits on claims
+> (`exam-variant-attempt.md`, stage 3).
+
+`results.jsonl` carries the coordinates, the batch and the attempt id on
+every row, which is the oracle bench's `--variant` lesson generalised: a
+row can be joined to anything without opening another file. It carries no
+transcript text. The judge's evidence quotes are in the raw-tier verdict
+files.
 
 ## The verbs, and what each touches
 
 | verb | reads | writes |
 |---|---|---|
-| `proctor run <exam>` | `exams/<exam>/` | a new batch, `attempts/<id>/`, every attempt |
-| `proctor resume <id>` | `attempts/<id>/` | attempts whose `status` is not `completed` |
-| `proctor grade <id>` | `attempts/<id>/`, `exams/<exam>/checks/` | `checks.json` in each completed attempt |
-| `proctor friction <id>` | `attempts/<id>/`, the exam's `surface` | `friction.json` in each completed attempt that has a `trajectory.json` |
-| `proctor judge <id>` | `attempts/<id>/`, `rubric.md` | `verdicts/<judge>.<rubric-hash>.json` where absent |
-| `proctor report <id>` | `attempts/<id>/` | `reports/data/<id>/`, `index.json` |
-| `proctor archive <id>` | `attempts/<id>/` | the bucket; the archive url into both manifests |
-| `proctor fetch <attempt-id>` | the bucket, `index.json` | one attempt back under `attempts/` |
-| `proctor list` | `exams/` | nothing; prints attempts and a cost estimate |
+| `proctor run <exam>` | `exams/<exam>/`, every batch of the exam | an interrupted batch's missing attempts, in place; then what is still missing as a new batch, `attempts/<id>/` |
+| `proctor grade <exam>` | the exam's current attempts, `exams/<exam>/checks/` | `checks.json` (and `verdicts/`) in each current, completed attempt |
+| `proctor friction <exam>` | the exam's current attempts, the exam's `surface` | `friction.json` in each current, completed attempt that has a `trajectory.json` |
+| `proctor report <exam>` | the exam's current attempts | `reports/<exam>/explore/`, an earlier report moved aside |
+| `proctor baseline <batch>` | that batch's current attempts | `exams/<exam>/baseline.json` (until `live`, step 4) |
+| `proctor list` | `exams/`, every batch | nothing; prints each variant's current attempts against those wanted, the stale ones, an interrupted batch |
 
-`run` is `resume` on an empty directory. `judge` is idempotent per judge and
-rubric hash, which is how a nightly judged pass can run against transcripts
-the PR pass produced. `report` is a pure function of `attempts/<id>/` and can be
-re-run after any regrade.
+`--batch`, `--variant` and `--tasks` narrow `grade`, `friction` and
+`report`; `--variant` and `--tasks` narrow `run`. `report` is a pure
+function of the attempts it reads and can be re-run after any regrade.
+
+> Never built, from the first draft: `proctor judge` (model checks are
+> graded by `grade`), `proctor archive` and `proctor fetch` (the bucket,
+> the archive url), and `list`'s cost estimate.
 
 ## Decisions taken here
 
 - **Coordinates in the path, random id in the manifest.** Not one or the
-  other. Resume needs the path key; joins need the id.
+  other. Continuing a batch needs the path key; joins need the id.
 - **No content-addressed input store in the first version.** The research
   recommended it so N attempts do not carry N copies of shared inputs. A
   resolved `program.nb` is a few kilobytes and a task's fixture is a git
@@ -460,10 +514,9 @@ re-run after any regrade.
   is simplest and makes `archive` upload them, which is wrong. Under a
   gitignored `.proctor/work/` beside `attempts/`, deleted on teardown, is the
   likely answer, with the teardown hook deciding what to keep (the diff).
-- **Whether `reports/data/<id>/batch.json` should be a copy or a
-  pointer.** A copy makes the site self-contained after `archive` removes
-  the raw tier locally; a pointer avoids duplication. Copy, until the file
-  grows.
+- **Whether a report should copy `batch.json`.** Settled by the pool: a
+  report reads several batches, so it copies none, and `stats.json`
+  `built_from` names them.
 
 ## Not in this plan
 

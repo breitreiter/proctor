@@ -106,9 +106,9 @@ a first report in three steps:
 The loop is always the same:
 
 ```bash
-proctor run <exam>      # prints a batch id
-proctor grade <batch>
-proctor report <batch>  # reports/data/<batch>/report.html
+proctor run <exam>      # makes the attempts the exam lacks; after a crash, the same command continues
+proctor grade <exam>
+proctor report <exam>   # reports/<exam>/explore/report.html
 ```
 
 ## Documentation
