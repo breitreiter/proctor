@@ -92,7 +92,7 @@ static class Grade
 
     /// <summary>
     /// The headline pass: true when every check named in grading.pass passed; false when any failed, errored or is missing;
-    /// null (undecided) when none failed but one could not decide. An undecided run is out of the pass rate on both sides:
+    /// null (undecided) when none failed but one could not decide. An undecided attempt is out of the pass rate on both sides:
     /// a check that cannot decide is the check's weakness, not the variant's.
     /// </summary>
     public static bool? Pass(Dictionary<string, Verdict> checks, List<string> passChecks)
@@ -102,7 +102,7 @@ static class Grade
         return results.Any(r => r == Verdict.NeedsJudge) ? null : true;
     }
 
-    /// <summary>Why the run is undecided, or null: the first pass check that needs a judge, as "check: reason", when nothing failed.</summary>
+    /// <summary>Why the attempt is undecided, or null: the first pass check that needs a judge, as "check: reason", when nothing failed.</summary>
     public static string? Undecided(Dictionary<string, Verdict> checks, List<string> passChecks) =>
         Pass(checks, passChecks) is null
             ? passChecks.Where(name => checks.TryGetValue(name, out var v) && v.Result == Verdict.NeedsJudge).Select(name => $"{name}: {checks[name].Reason}").First()

@@ -22,19 +22,19 @@ public class OracleHarborTests
     public void Compile_AnOracleExam_BringsTheSimulatedUser_AndItsTemplate()
     {
         using var repo = GateWithOracle();
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        var hash = HarborCompile.Tasks(expDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
-        var agents = HarborCompile.AgentsDir(expDir);
+        var batchDir = Path.Combine(repo.Root, "attempts", "exp");
+        var hash = HarborCompile.Tasks(batchDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        var agents = HarborCompile.AgentsDir(batchDir);
 
         Assert.Equal(["nb_agent.py", "oracle_user.j2", "oracle_user.py"], Directory.GetFiles(agents).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Contains("class OracleUser(BaseAgent)", File.ReadAllText(Path.Combine(agents, "oracle_user.py")));
         Assert.Equal("{{ instruction }}\n<<<PROCTOR-BRIDGE>>>\n{{ bridge_instructions }}\n", File.ReadAllText(Path.Combine(agents, HarborCompile.OracleTemplateFile)));
         File.AppendAllText(Path.Combine(agents, "oracle_user.py"), "# edited\n");
-        Assert.NotEqual(hash, HarborCompile.TreeHash(expDir));
+        Assert.NotEqual(hash, HarborCompile.TreeHash(batchDir));
 
         // The bridge's acpx config lands in the work directory; an oracle task's diff leaves it out, and no other task's does.
-        Assert.Contains("git add -A -- . ':(exclude).acpxrc.json' && git diff", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "nb-harbor", "plain"), "task.toml")));
-        Assert.Contains("git add -A && git diff", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "nb-harbor", "writes"), "task.toml")));
+        Assert.Contains("git add -A -- . ':(exclude).acpxrc.json' && git diff", File.ReadAllText(Path.Combine(Layout.HarborTask(batchDir, "nb-harbor", "plain"), "task.toml")));
+        Assert.Contains("git add -A && git diff", File.ReadAllText(Path.Combine(Layout.HarborTask(batchDir, "nb-harbor", "writes"), "task.toml")));
     }
 
     [Fact]
@@ -42,9 +42,9 @@ public class OracleHarborTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("gate");
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        HarborCompile.Tasks(expDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
-        Assert.Equal(["nb_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(expDir)).Select(Path.GetFileName));
+        var batchDir = Path.Combine(repo.Root, "attempts", "exp");
+        HarborCompile.Tasks(batchDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        Assert.Equal(["nb_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(batchDir)).Select(Path.GetFileName));
     }
 
     static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", null, Agent: "nb");
@@ -118,7 +118,7 @@ public class OracleHarborTests
     static Manifest NbManifest() => new()
     {
         Id = "r", Batch = "e", Exam = "x", Variant = new("nb-harbor", "sha256:v"), Task = new("plain", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
-        Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null),
+        Agent = new AgentTrial("nb", null, "mock", [], [], "0.24.0", null),
     };
 
     static JsonObject ReadJson(string file) => JsonNode.Parse(File.ReadAllText(file))!.AsObject();
@@ -148,7 +148,7 @@ public class OracleHarborTests
         Assert.Equal("ok", core["exit_reason"]!.GetValue<string>());
         Assert.Equal(2, core["turns"]!.GetValue<int>());
         Assert.Equal(20, core["input_tokens"]!.GetValue<long>());
-        Assert.Equal(new OracleRun("ok", 1, 20, 10), manifest.Oracle);
+        Assert.Equal(new OracleOutcome("ok", 1, 20, 10), manifest.Oracle);
     }
 
     [Theory]

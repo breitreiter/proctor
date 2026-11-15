@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-// An attempt's run read into the fixed windows the checks look at: nb's JSONL, or an agent attempt's ATIF trajectory with
+// An attempt's record read into the fixed windows the checks look at: nb's JSONL, or an agent attempt's ATIF trajectory with
 // proctor's counted core. Nothing here judges anything.
 
 record Trailer(
@@ -36,7 +36,7 @@ record UserTurn(string Text, string? Source, IReadOnlyList<string>? Keys = null)
 {
     public bool IsOracle => Source == "oracle";
 
-    // By value, keys included: a record compares a list by reference, and two reads of one run must be equal.
+    // By value, keys included: a record compares a list by reference, and two reads of one attempt must be equal.
     public virtual bool Equals(UserTurn? other) =>
         other is not null && Text == other.Text && Source == other.Source && (Keys ?? []).SequenceEqual(other.Keys ?? []);
 
@@ -56,7 +56,7 @@ sealed class Transcript
     public string? Diff { get; init; }
     public bool LoopNudged => UserTurns.Any(u => u.IsLoopNudge);
 
-    /// <summary>Whether an attempt holds a run to read: nb's transcript, or an agent attempt's trajectory.</summary>
+    /// <summary>Whether an attempt holds a record to read: nb's transcript, or an agent attempt's trajectory.</summary>
     public static bool Exists(string attemptDir) =>
         File.Exists(Path.Combine(attemptDir, Layout.TranscriptFile)) || File.Exists(Path.Combine(attemptDir, Layout.TrajectoryFile));
 
@@ -80,7 +80,7 @@ sealed class Transcript
     /// listed), and the core as the trailer, so a check reads proctor's count and never the agent's. The answer is the
     /// last agent step with text; a tool result is an error when the agent marked it so (Claude Code's is_error). What
     /// nb's conversion keeps under extra (a turn's source, a call's approval, a result's structured result, the parsed
-    /// answer, nb's own trailer) is read back, so an nb run reads the same through Harbor as bare.
+    /// answer, nb's own trailer) is read back, so an nb attempt reads the same through Harbor as bare.
     /// </summary>
     public static Transcript FromAtif(JsonObject trajectory, CountedCore? core, string? diff = null)
     {
@@ -147,7 +147,7 @@ sealed class Transcript
             if (string.IsNullOrWhiteSpace(line)) continue;
             JsonObject? ev;
             try { ev = JsonNode.Parse(line) as JsonObject; }
-            catch (JsonException) { continue; }   // a torn last line from a killed run is not evidence
+            catch (JsonException) { continue; }   // a torn last line from a killed attempt is not evidence
             if (ev is null) continue;
             switch (Str(ev, "type"))
             {

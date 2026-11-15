@@ -154,14 +154,14 @@ public class JudgeTests
         Assert.Equal("done", JsonNode.Parse(http.LastBody!)!["questions"]!["q"]!["criteria"]!["complete"]!.GetValue<string>());
 
         // expect from the task, keyed by the check's name
-        var fromCase = Exam(spec.Replace("\"EXPECT\"", "\"@expect\""), Fixture("plain"), Client(http), new JsonObject { ["stance"] = "complete" }, name: "stance");
-        Assert.Equal("pass", fromCase.Result);
+        var fromTask = Exam(spec.Replace("\"EXPECT\"", "\"@expect\""), Fixture("plain"), Client(http), new JsonObject { ["stance"] = "complete" }, name: "stance");
+        Assert.Equal("pass", fromTask.Result);
         var missing = Exam(spec.Replace("\"EXPECT\"", "\"@expect\""), Fixture("plain"), Client(http), new JsonObject(), name: "stance");
         Assert.Equal(("error", "decide: task has no expect.stance"), missing.Deconstruct());
     }
 
     [Fact]
-    public void AskFromTheCase_IsSentAsTheQuestion_AndMissingIsAnError()
+    public void AskFromTheTask_IsSentAsTheQuestion_AndMissingIsAnError()
     {
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.98"));
         const string spec = "{\"decide\": {\"ask\": \"@expect\", \"window\": \"answer\"}}";
@@ -460,7 +460,7 @@ public class JudgeTests
     }
 
     [Fact]
-    public void Config_ValidatesTheJudgesBlock_AndTheEvalResolvesItsJudges()
+    public void Config_ValidatesTheJudgesBlock_AndTheExamResolvesItsJudges()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");

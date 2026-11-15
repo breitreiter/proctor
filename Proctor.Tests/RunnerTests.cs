@@ -44,21 +44,21 @@ public class RunnerTests
         {
             repo.KeepOnlyVariant("smoke", "a"); e["attempts"] = 1;
         });
-        var expDir = Layout.Batch(repo.Root, id);
+        var batchDir = Layout.Batch(repo.Root, id);
         Assert.Matches(@"^\d{8}-\d{4}-smoke-[a-z0-9]{4}$", id);
 
         // Batch level.
-        Assert.True(File.Exists(Path.Combine(expDir, "batch.json")));
-        Assert.True(File.Exists(Path.Combine(expDir, "status.json")));
-        Assert.True(File.Exists(Path.Combine(expDir, "a", "hooks", "variant.setup.log")));
-        var batch = ReadJson(Path.Combine(expDir, "batch.json"));
+        Assert.True(File.Exists(Path.Combine(batchDir, "batch.json")));
+        Assert.True(File.Exists(Path.Combine(batchDir, "status.json")));
+        Assert.True(File.Exists(Path.Combine(batchDir, "a", "hooks", "variant.setup.log")));
+        var batch = ReadJson(Path.Combine(batchDir, "batch.json"));
         Assert.Equal(1, batch["exam_def"]!["attempts"]!.GetValue<int>());
         Assert.Null(batch["exam_def"]!["variants"]);
         var variant = Assert.Single(batch["variants"]!.AsArray())!;
         Assert.Equal(("a", "Mock"), (variant["id"]!.GetValue<string>(), variant["def"]!["provider"]!.GetValue<string>()));
         Assert.StartsWith("sha256:", variant["hash"]!.GetValue<string>());
         Assert.Equal(["loops", "plain", "uses-bash"], batch["tasks"]!.AsArray().Select(t => t!["id"]!.GetValue<string>()));
-        var status = ReadJson(Path.Combine(expDir, "status.json"));
+        var status = ReadJson(Path.Combine(batchDir, "status.json"));
         Assert.Equal(3, status["planned"]!.GetValue<int>());
         Assert.Equal(3, status["counts"]!["completed"]!.GetValue<int>());
 
@@ -388,7 +388,7 @@ public class RunnerTests
     }
 
     [Fact]
-    public void Fixture_IsCheckedOutBeforeTheRun_AndTheDiffCollectedAfter()
+    public void Fixture_IsCheckedOutBeforeTheAttempt_AndTheDiffCollectedAfter()
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, e => { repo.KeepOnlyVariant("smoke", "a"); e["attempts"] = 1; });

@@ -22,7 +22,7 @@ sealed class Surface
     public IReadOnlyList<string> SubstituteHosts { get; }
     /// <summary>A surface call's own failure: a 4xx or 5xx status line, or a declared pattern.</summary>
     public Regex Fails { get; }
-    /// <summary>A surface command named anywhere in a text, such as a script the run wrote.</summary>
+    /// <summary>A surface command named anywhere in a text, such as a script the attempt wrote.</summary>
     public Regex? Named { get; }
     public Regex? InstalledCheck { get; }
     public Regex? Locating { get; }
@@ -68,7 +68,7 @@ sealed class Surface
 }
 
 /// <summary>
-/// The friction rules: a finished run's trajectory into friction.json, the points where the run paid a cost the task
+/// The friction rules: a finished attempt's trajectory into friction.json, the points where the attempt paid a cost the task
 /// did not ask for. Rules only, no model: the same trajectory and declaration give the same file. Each call is split
 /// into actions; with a surface declared each action is on, about or around the surface, a substitute for it, or
 /// background. A point is a stretch of adjacent steps with one label, and it is written only with a quote that is in
@@ -230,7 +230,7 @@ static class Friction
         return ("background", null, []);
     }
 
-    /// <summary>The actions of one tool call. <paramref name="cwd"/> follows `cd`; <paramref name="scripts"/> gains each file the run writes that calls a surface command.</summary>
+    /// <summary>The actions of one tool call. <paramref name="cwd"/> follows `cd`; <paramref name="scripts"/> gains each file the attempt writes that calls a surface command.</summary>
     static List<Action> ActionsOf(JsonObject call, ref string cwd, Surface d, HashSet<string> scripts)
     {
         var name = String(call["function_name"]) ?? "";
@@ -276,7 +276,7 @@ static class Friction
         return [new("background", null, [], name)];
     }
 
-    // ---------- a run ----------
+    // ---------- an attempt ----------
 
     /// <summary>The first line of a result the pattern matches: the line, trimmed and cut, and what matched. Long results are read at both ends only.</summary>
     static (string Line, string Match)? FirstLine(Regex pattern, string result)
@@ -425,7 +425,7 @@ static class Friction
 
     static string Cut(string text, int length) => text.Length > length ? text[..length] : text;
 
-    /// <summary>An error line with its paths, hashes and numbers blanked, so the same trouble in two runs is the same string.</summary>
+    /// <summary>An error line with its paths, hashes and numbers blanked, so the same trouble in two attempts is the same string.</summary>
     public static string Normalise(string line)
     {
         line = Regex.Replace(line, @"HTTP/[\d.]+ (?=\d{3})", "HTTP ");

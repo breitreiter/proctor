@@ -28,7 +28,7 @@ record AttemptRef(string Variant, string Task, int Attempt);
 /// <summary>A variant as batch.json keeps it: its id, its hash and its file as it was.</summary>
 record BatchVariant(string Id, string Hash, JsonObject Def);
 
-/// <summary>A variant's bundle as resolved for this batch: where it was read from, the directory handed to the run, and its identity.</summary>
+/// <summary>A variant's bundle as resolved for this batch: where it was read from, the directory handed to the attempt, and its identity.</summary>
 record ResolvedBundle(string Source, string Path, string Hash);
 
 record GitInfo(string Commit, bool Dirty);
@@ -48,7 +48,7 @@ record Manifest
     public required Ref Variant { get; init; }
     public required Ref Task { get; init; }
     public required int Attempt { get; init; }
-    /// <summary>How an nb variant ran; absent on an agent variant, whose run is <see cref="Agent"/>.</summary>
+    /// <summary>How an nb variant ran; absent on an agent variant, whose attempt is described by <see cref="Agent"/>.</summary>
     public string? Runner { get; init; }
     public string? Harness { get; init; }
     public string? Provider { get; init; }
@@ -68,10 +68,10 @@ record Manifest
     public string? StatusReason { get; set; }
     public int Tries { get; set; }
     public int? NbExitCode { get; set; }
-    /// <summary>An agent variant's run: the agent as the trial reported it, its settings, the Harbor that ran it, and what it used.</summary>
-    public AgentRun? Agent { get; set; }
-    /// <summary>An oracle attempt's simulated user on the Harbor path (<see cref="Ingest"/>); absent on the bare path, where nb's oracle is in the run.</summary>
-    public OracleRun? Oracle { get; set; }
+    /// <summary>An agent variant's attempt: the agent as the trial reported it, its settings, the Harbor that ran it, and what it used.</summary>
+    public AgentTrial? Agent { get; set; }
+    /// <summary>An oracle attempt's simulated user on the Harbor path (<see cref="Ingest"/>); absent on the bare path, where nb's oracle is in the program.</summary>
+    public OracleOutcome? Oracle { get; set; }
 }
 
 record TranscriptRef(string File, string Format);
@@ -81,6 +81,7 @@ record FixtureRef(string Id, string Hash);
 
 static class AttemptStatus
 {
+    // Nothing sets skipped yet; it stays so status.json's counts keep the key.
     public const string Pending = "pending", Running = "running", Completed = "completed", Failed = "failed", Skipped = "skipped";
     public static readonly string[] All = [Pending, Running, Completed, Failed, Skipped];
 }
@@ -254,9 +255,9 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     }
 
     /// <summary>Everything a hook or check needs to know about an attempt, for the runner and the grader alike.</summary>
-    public static AttemptContext Context(string root, Batch batch, Exam exam, Variant variant, TaskDef c, int n) =>
-        new(exam.Dir, Layout.Attempt(Layout.Batch(root, batch.Id), variant.Id!, c.Id!, n), Layout.Work(root, batch.Id, variant.Id!, c.Id!, n), batch.Id, variant.Id!, c, n)
-        { Expect = exam.ExpectFor(c), Fixture = exam.FixtureOf(c), BundleDir = batch.BundleOf(variant.Id!)?.Path, NbRunner = batch.Nb.Runner?.Script ?? "", NbPath = batch.Nb.Path, NbConfig = batch.Nb.Config, Mounts = batch.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor };
+    public static AttemptContext Context(string root, Batch batch, Exam exam, Variant variant, TaskDef task, int n) =>
+        new(exam.Dir, Layout.Attempt(Layout.Batch(root, batch.Id), variant.Id!, task.Id!, n), Layout.Work(root, batch.Id, variant.Id!, task.Id!, n), batch.Id, variant.Id!, task, n)
+        { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = batch.BundleOf(variant.Id!)?.Path, NbRunner = batch.Nb.Runner?.Script ?? "", NbPath = batch.Nb.Path, NbConfig = batch.Nb.Config, Mounts = batch.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor };
 
     /// <summary>
     /// Each variant's bundle, once per batch, for the variants it makes attempts of: a path is hashed in place; a git revision
@@ -335,20 +336,20 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         foreach (var group in attempts.GroupBy(a => a.Variant))
         {
             var variant = group.Key;
-            var pending = group.Select(a => (c: a.Task, s: a.Attempt)).ToList();
+            var pending = group.Select(a => (a.Task, a.Attempt)).ToList();
             var variantDir = Layout.Variant(batchDir, variant.Id!);
             Directory.CreateDirectory(Path.Combine(variantDir, Layout.HooksDir));
             var variantEnv = new Dictionary<string, string> { ["PROCTOR_BATCH"] = batch.Id, ["PROCTOR_VARIANT"] = variant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = batch.BundleOf(variant.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = batch.Nb.Runner?.Script ?? "" };
             var setup = RunHook(exam.Def.Hooks?.Variant?.Setup, variantEnv, Path.Combine(variantDir, Layout.HooksDir, "variant.setup.log"));
             if (setup is not null)
             {
-                foreach (var (c, s) in pending) MarkFailed(variant, c, s, $"variant setup hook failed: {setup}");
+                foreach (var (task, n) in pending) MarkFailed(variant, task, n, $"variant setup hook failed: {setup}");
                 continue;
             }
 
-            foreach (var (c, s) in pending)
-                if (variant.IsAgent) RunAgentAttempt(variant, c, s);
-                else RunAttempt(variant, c, s);
+            foreach (var (task, n) in pending)
+                if (variant.IsAgent) RunAgentAttempt(variant, task, n);
+                else RunAttempt(variant, task, n);
 
             var teardown = RunHook(exam.Def.Hooks?.Variant?.Teardown, variantEnv, Path.Combine(variantDir, Layout.HooksDir, "variant.teardown.log"));
             if (teardown is not null) log.WriteLine($"  {variant.Id}: variant teardown hook failed: {teardown}");
@@ -359,20 +360,20 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         log.WriteLine($"{statuses.Count} made: {statuses.Count(s => s == AttemptStatus.Completed)} completed{(failed > 0 ? $", {failed} failed" : "")}");
     }
 
-    void RunAttempt(Variant variant, TaskDef c, int n)
+    void RunAttempt(Variant variant, TaskDef task, int n)
     {
-        var attempt = Context(root, batch, exam, variant, c, n);
+        var attempt = Context(root, batch, exam, variant, task, n);
         var (attemptDir, workDir) = (attempt.AttemptDir, attempt.WorkDir);
         Directory.CreateDirectory(Path.Combine(attemptDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
 
-        var program = OraclePrefix(exam, c) + ResolveProgram(exam.ProgramTemplate, variant, c, n, attempt.WorkMount, attempt.BundleMount);
+        var program = OraclePrefix(exam, task) + ResolveProgram(exam.ProgramTemplate, variant, task, n, attempt.WorkMount, attempt.BundleMount);
         var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(c), Attempt = n,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
                 Fixture = attempt.Fixture is null ? null : new FixtureRef(attempt.Fixture.Id, attempt.Fixture.Hash),
                 Bundle = batch.BundleOf(variant.Id!), Nb = batch.Nb,
@@ -413,7 +414,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         manifest.StatusReason = failure;
         SetStatus(attemptDir, manifest, failure is null ? AttemptStatus.Completed : AttemptStatus.Failed);
         WriteStatusCounts();
-        log.WriteLine($"  {variant.Id}/{c.Id}/{n}  {manifest.Status}  {(failure ?? ExitReasonOf(attemptDir))}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+        log.WriteLine($"  {variant.Id}/{task.Id}/{n}  {manifest.Status}  {(failure ?? ExitReasonOf(attemptDir))}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
 
     /// <summary>
@@ -421,29 +422,29 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// the diff are the image's and Harbor's; variant hooks still ran on the host around the variant's attempts. The variant's bundle is
     /// the host's too: recorded here and handed to those hooks, never put in the container.
     /// </summary>
-    void RunAgentAttempt(Variant variant, TaskDef c, int n)
+    void RunAgentAttempt(Variant variant, TaskDef task, int n)
     {
-        var attemptDir = Layout.Attempt(batchDir, variant.Id!, c.Id!, n);
+        var attemptDir = Layout.Attempt(batchDir, variant.Id!, task.Id!, n);
         Directory.CreateDirectory(attemptDir);
-        var taskDir = Layout.HarborTask(batchDir, variant.Id!, c.Id!);
+        var taskDir = Layout.HarborTask(batchDir, variant.Id!, task.Id!);
         var route = Route(root, config, batch.Nb, variant);
-        var fixture = exam.FixtureOf(c)!;
+        var fixture = exam.FixtureOf(task)!;
         // nb's program is compiled on the host as on the bare path, with the checkout where the image has it.
-        var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, c, n, HarborCompile.Workdir);
+        var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, task, n, HarborCompile.Workdir);
         var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(c), Attempt = n, Model = variant.Model,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n, Model = variant.Model,
                 Harness = variant.Harness, Provider = variant.Provider,
                 Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = batch.BundleOf(variant.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
                 Host = batch.Host, Versions = batch.Versions,
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };
         var nb = program is null ? null : new NbAttempt(Path.Combine(attemptDir, Layout.CompiledProgramFile), batch.Nb.Config);
-        var oracle = OracleAttemptOf(variant, c);
-        manifest.Agent = new AgentRun(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, nb), HarborCompile.AgentEnv(variant, route), batch.Harbor!.Version, null);
+        var oracle = OracleAttemptOf(variant, task);
+        manifest.Agent = new AgentTrial(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, nb), HarborCompile.AgentEnv(variant, route), batch.Harbor!.Version, null);
         manifest.Oracle = null;
         manifest.Tries++;
         manifest.Started = Now();
@@ -472,14 +473,14 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         SetStatus(attemptDir, manifest, failure is null ? AttemptStatus.Completed : AttemptStatus.Failed);
         WriteStatusCounts();
         var exitReason = failure is null ? ReadJson<CountedCore>(Path.Combine(attemptDir, Layout.CoreFile))?.ExitReason : null;
-        log.WriteLine($"  {variant.Id}/{c.Id}/{n}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+        log.WriteLine($"  {variant.Id}/{task.Id}/{n}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
 
     /// <summary>
     /// An oracle task's simulated user on this variant: the host nb judges, with its config, as the variant's own provider unless
     /// the exam names a judge, which is what nb's in-process oracle does on the bare path.
     /// </summary>
-    OracleAttempt? OracleAttemptOf(Variant variant, TaskDef c) => exam.OracleOf(c) is { } sheet
+    OracleAttempt? OracleAttemptOf(Variant variant, TaskDef task) => exam.OracleOf(task) is { } sheet
         ? new OracleAttempt(sheet, batch.Nb.Path, batch.Nb.Config, exam.Def.Oracle?.Judge ?? variant.Provider, exam.OracleTurns,
             Path.Combine(HarborCompile.AgentsDir(batchDir), HarborCompile.OracleTemplateFile))
         : null;
@@ -614,27 +615,27 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         return result.ExitCode == 0 ? null : $"{script} exited {result.ExitCode}: {result.FirstStderrLine}";
     }
 
-    void MarkFailed(Variant variant, TaskDef c, int n, string reason)
+    void MarkFailed(Variant variant, TaskDef task, int n, string reason)
     {
-        var attemptDir = Layout.Attempt(batchDir, variant.Id!, c.Id!, n);
+        var attemptDir = Layout.Attempt(batchDir, variant.Id!, task.Id!, n);
         Directory.CreateDirectory(attemptDir);
         var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(c), Attempt = n,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
                 Host = batch.Host, Versions = batch.Versions, ProgramHash = "",
             };
         manifest.Tries++;
         manifest.StatusReason = reason;
         SetStatus(attemptDir, manifest, AttemptStatus.Failed);
-        log.WriteLine($"  {variant.Id}/{c.Id}/{n}  failed  {reason}");
+        log.WriteLine($"  {variant.Id}/{task.Id}/{n}  failed  {reason}");
     }
 
     Ref RefOf(Variant variant) => new(variant.Id!, variant.Hash);
-    Ref RefOf(TaskDef c) => new(c.Id!, exam.TaskHashes[c.Id!]);
+    Ref RefOf(TaskDef task) => new(task.Id!, exam.TaskHashes[task.Id!]);
 
     static void SetStatus(string attemptDir, Manifest manifest, string status)
     {
@@ -661,9 +662,9 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// template needs no placeholder. The sheet is the host path, which --compile inlines, so a runner's container never
     /// needs the file. Empty for a task without a sheet.
     /// </summary>
-    public static string OraclePrefix(Exam exam, TaskDef c)
+    public static string OraclePrefix(Exam exam, TaskDef task)
     {
-        if (exam.OracleOf(c) is not { } sheet) return "";
+        if (exam.OracleOf(task) is not { } sheet) return "";
         var prefix = $"oracle @{sheet}\n";
         if (exam.Def.Oracle?.Judge is { } judge) prefix += $"oracle provider {judge}\n";
         return prefix + $"budget oracle_turns {exam.OracleTurns}\n";
@@ -726,7 +727,6 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             .SelectMany(d => names.Select(n => Path.Combine(d, n))).FirstOrDefault(File.Exists);
     }
 
-    /// <summary>Proctor's own version and nb's, asked of the host binary so a wrapper or a self-contained publish reports the same as the DLL would.</summary>
     /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every batch records.</summary>
     public static string ProctorVersion =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0";

@@ -6,7 +6,7 @@ namespace Proctor.Tests;
 public class ExamTests
 {
     [Fact]
-    public void SmokeEval_Loads()
+    public void SmokeExam_Loads()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
@@ -236,7 +236,7 @@ public class ExamTests
     }
 
     [Fact]
-    public void Labels_MergeFixtureThenEvalThenCase_AndReachEveryRow()
+    public void Labels_MergeFixtureThenExamThenTask_AndReachEveryRow()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
@@ -274,7 +274,7 @@ public class ExamTests
     }
 
     [Fact]
-    public void Case_IdMustMatchFileName_AndPromptRequired()
+    public void Task_IdMustMatchFileName_AndPromptRequired()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
@@ -306,7 +306,7 @@ public class ExamTests
     }
 
     [Fact]
-    public void Fixtures_AreLoadedByName_AndTheirChecksAndExpectMergeIntoTheCase()
+    public void Fixtures_AreLoadedByName_AndTheirChecksAndExpectMergeIntoTheTask()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");

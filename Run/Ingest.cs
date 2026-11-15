@@ -2,19 +2,19 @@ using System.Text.Json.Nodes;
 
 namespace Proctor;
 
-/// <summary>An agent attempt's run as Harbor reported it, in the manifest: the agent as it ran, the Harbor that ran it, and what it used.</summary>
-record AgentRun(string Name, string? Version, string Model, Dictionary<string, string> Kwargs, Dictionary<string, string> Env, string Harbor, string? Trial,
+/// <summary>An agent attempt as Harbor reported it, in the manifest: the agent as it ran, the Harbor that ran it, and what it used.</summary>
+record AgentTrial(string Name, string? Version, string Model, Dictionary<string, string> Kwargs, Dictionary<string, string> Env, string Harbor, string? Trial,
     long? InputTokens = null, long? CachedTokens = null, long? OutputTokens = null, double? CostUsd = null);
 
 /// <summary>
 /// An oracle attempt's simulated user on the Harbor path, in the manifest: its ending (oracle-user.json's, null when the
 /// trial was killed mid-loop), the answers it sent, and the judge's tokens. The judge is a separate process, so they are
-/// not in the counted core; on the bare path nb charges them to the run.
+/// not in the counted core; on the bare path nb charges them to the attempt.
 /// </summary>
-record OracleRun(string? Ending, int Answers, long? JudgeInputTokens, long? JudgeOutputTokens);
+record OracleOutcome(string? Ending, int Answers, long? JudgeInputTokens, long? JudgeOutputTokens);
 
 /// <summary>
-/// core.json: proctor's own count of a run, by its own definitions, from the ATIF steps, never the agent's own count.
+/// core.json: proctor's own count of an attempt, by its own definitions, from the ATIF steps, never the agent's own count.
 /// A turn is one agent step (one model response); a tool call is one entry of a step's tool_calls, subagents' included;
 /// kinds tally the calls by proctor's normalised tool kind; the duration is the agent's phase alone.
 /// </summary>
@@ -23,7 +23,7 @@ record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dict
 /// <summary>
 /// A Harbor trial into an attempt: the trajectory, the agent's native logs, the diff, the verifier's rewards and outputs,
 /// and the counted core. Strict: a step or tool the agent's mapping does not know fails the attempt as adapter_unmapped
-/// rather than being dropped, so a vendor or Harbor format change shows on the first run after the bump. The one
+/// rather than being dropped, so a vendor or Harbor format change shows on the first attempt after the bump. The one
 /// exception is a tool name the model made up and the agent refused with an error result, counted as kind "none".
 /// </summary>
 static class Ingest
@@ -159,7 +159,7 @@ static class Ingest
         var (core, unmapped) = Count(trajectory, variant.Agent!, exitReason);
         if (unmapped is not null) return $"adapter_unmapped: {unmapped}";
         // A vendor agent that never took a turn never heard from its model (Codex retries an unreachable endpoint until
-        // the timeout): an outage, not a run. nb names its own ending, as on the bare path.
+        // the timeout): an outage, not an attempt. nb names its own ending, as on the bare path.
         if (variant.IsVendor && core!.Turns == 0)
             return $"the agent took no turn ({exitReason}): its model never answered; see agent/ for why";
         // Tokens are the trajectory's when it carries them, else Harbor's account of the agent's run.
@@ -177,7 +177,7 @@ static class Ingest
     /// <summary>
     /// nb's own trajectory (agent/trajectory.json, which nb wrote with --trajectory beside its JSONL, stderr and exit
     /// code) as the attempt's. Failed as on the bare path: nb that ends without one before its time is up did not run.
-    /// Out of time is a completed run with nothing written: nb writes both files when the run ends. Bridged, nb is the
+    /// Out of time is a completed attempt with nothing written: nb writes both files when its run ends. Bridged, nb is the
     /// ACP server Harbor started, with no JSONL, stderr or exit code of its own, and rewrites the trajectory after each
     /// prompt.
     /// </summary>
@@ -206,8 +206,8 @@ static class Ingest
     /// An oracle attempt's simulated user (user-agent/oracle-user.json, from Harbor/oracle_user.py) against nb's trajectory.
     /// The trajectory's last user steps must be the prompts it sent, in order, compared with trailing whitespace trimmed
     /// (acpx trims a prompt's); the answers among them are marked as the bare path's are, extra {source: oracle, keys}.
-    /// Strict: any other shape is adapter_unmapped. A judge that failed fails the attempt, since the run then measures the
-    /// judge, not the agent. Null when it lines up, with the ending out and the manifest's <see cref="OracleRun"/> filled.
+    /// Strict: any other shape is adapter_unmapped. A judge that failed fails the attempt, since the attempt then measures the
+    /// judge, not the agent. Null when it lines up, with the ending out and the manifest's <see cref="OracleOutcome"/> filled.
     /// </summary>
     static string? Oracle(string trialDir, JsonObject trajectory, Manifest manifest, out string? ending)
     {
@@ -219,7 +219,7 @@ static class Ingest
         var prompts = (record["prompts"]?.AsArray() ?? []).OfType<JsonObject>().ToList();
         var usage = (record["judgements"]?.AsArray() ?? []).Select(j => j?["usage"]).OfType<JsonObject>().ToList();
         long? Judge(string field) => usage.Count == 0 ? null : usage.Sum(u => Long(u[field]) ?? 0);
-        manifest.Oracle = new OracleRun(ending, prompts.Count(p => p["keys"] is not null), Judge("input"), Judge("output"));
+        manifest.Oracle = new OracleOutcome(ending, prompts.Count(p => p["keys"] is not null), Judge("input"), Judge("output"));
         if (ending == "judge_error") return $"judge_error: {record["error"]?.GetValue<string>()}";
 
         var users = (trajectory["steps"]?.AsArray() ?? []).OfType<JsonObject>().Where(s => s["source"]?.GetValue<string>() == "user").ToList();

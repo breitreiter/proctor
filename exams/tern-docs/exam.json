@@ -29,7 +29,7 @@
       },
       "current-endpoint": {
         "script": "checks/current-endpoint.sh",
-        "description": "the change calls no retired /v1/ endpoint (it still answers, so a run that uses it can pass)"
+        "description": "the change calls no retired /v1/ endpoint (it still answers, so an attempt that uses it can pass)"
       },
       "docs-fetched": {
         "tool_args": { "name": "WebFetch", "args": { "url": "localhost:8080" }, "match": "regex" },

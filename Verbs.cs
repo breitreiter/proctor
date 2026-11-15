@@ -153,10 +153,10 @@ static class Verbs
 
     static void RequireKnown(Exam exam, List<string>? variantIds, List<string>? taskIds)
     {
-        foreach (var a in variantIds ?? [])
-            if (exam.Variants.All(x => x.Id != a)) throw new ProctorException($"no variant '{a}' in exam '{exam.Id}' ({string.Join(", ", exam.Variants.Select(x => x.Id))})");
-        foreach (var c in taskIds ?? [])
-            if (exam.Tasks.All(x => x.Id != c)) throw new ProctorException($"no task '{c}' in exam '{exam.Id}'");
+        foreach (var variant in variantIds ?? [])
+            if (exam.Variants.All(x => x.Id != variant)) throw new ProctorException($"no variant '{variant}' in exam '{exam.Id}' ({string.Join(", ", exam.Variants.Select(x => x.Id))})");
+        foreach (var task in taskIds ?? [])
+            if (exam.Tasks.All(x => x.Id != task)) throw new ProctorException($"no task '{task}' in exam '{exam.Id}'");
     }
 
     static Exam LoadExam(string root, string examId)

@@ -125,13 +125,13 @@ static class Checks
     private static string DescribeField(string key, JsonNode? v)
     {
         var (name, negated) = Split(key);
-        var fromCase = v is JsonValue jv && jv.TryGetValue<string>(out var s) && s == FromExpect;
+        var fromTask = v is JsonValue jv && jv.TryGetValue<string>(out var s) && s == FromExpect;
         string List(JsonNode? n) => string.Join(", ", n!.AsArray().Select(x => x!.GetValue<string>()));
         string Max(string what) => v!["max"]!.GetValue<long>() == 0 ? $"no {what}" : $"at most {v["max"]} {what}";
         var phrase = name switch
         {
-            _ when fromCase && name == "files_touched" => "the files changed are the ones the task expects",
-            _ when fromCase => name switch
+            _ when fromTask && name == "files_touched" => "the files changed are the ones the task expects",
+            _ when fromTask => name switch
             {
                 "answer_contains" => "the answer contains what the task expects",
                 "answer_equals" => "the answer is exactly what the task expects",
@@ -272,7 +272,7 @@ static class Checks
                 return Verdict.Of(trailer.Total <= v.GetValue<long>(), $"{trailer.Total} tokens{(trailer.Estimated ? " (estimated)" : "")} (max {v})");
             case "max_duration_ms":
             {
-                // nb's trailer carries no duration (2026-09); the attempt's wall time from the manifest is the fallback, as in the report.
+                // The trailer's duration_ms (nb 0.9 on; an agent attempt's core.json) comes first; the attempt's wall time from the manifest is the fallback, as in the report.
                 var (ms, source) = trailer?.DurationMs is { } d ? (d, "trailer") : (WallTime(attempt), "wall time");
                 if (ms is null) return Verdict.Err("no duration on the trailer or in the manifest");
                 return Verdict.Of(ms <= v.GetValue<long>(), $"{ms} ms {source} (max {v})");
@@ -301,7 +301,7 @@ static class Checks
                 var answered = keys.Count == 0 ? "the oracle never answered" : $"the oracle answered with {string.Join(", ", keys)}";
                 return Verdict.Of(missing.Count == 0, missing.Count == 0 ? answered : $"{answered}; never {string.Join(", ", missing)}");
             }
-            // One run ends on at most one miss: nb ends it there, as oracle_miss.
+            // One attempt ends on at most one miss: nb ends it there, as oracle_miss.
             case "oracle_misses":
             {
                 if (trailer is null) return Verdict.Err("no result trailer");
@@ -325,7 +325,7 @@ static class Checks
                 return Verdict.Of(hit, $"answer {(hit ? "matches" : "does not match")} /{v}/");
             case "result_matches":
             {
-                // What a run was shown, whatever it did next: a docs line that cannot be followed, an error it stepped past.
+                // What an attempt was shown, whatever it did next: a docs line that cannot be followed, an error it stepped past.
                 var pattern = new Regex(v.GetValue<string>());
                 foreach (var result in t.ToolResults)
                     if (pattern.Match(result.Output) is { Success: true } m)

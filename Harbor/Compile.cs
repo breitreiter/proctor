@@ -26,7 +26,7 @@ record NbAttempt(string Program, string? Config);
 
 /// <summary>
 /// An oracle attempt's simulated user, all host paths: the task's answer sheet, the host nb that judges and its config, the
-/// config entry that judges, how many answers the run may get, and the compiled user prompt template.
+/// config entry that judges, how many answers the attempt may get, and the compiled user prompt template.
 /// </summary>
 record OracleAttempt(string Sheet, string Nb, string? Config, string? Judge, int Turns, string Template);
 
@@ -34,7 +34,7 @@ static class HarborCompile
 {
     /// <summary>Where the checkout is in the image, for the agent and the verifier alike.</summary>
     public const string Workdir = "/app";
-    /// <summary>What Harbor's verifier collect step writes and the verifier applies: the run's change against the fixture commit.</summary>
+    /// <summary>What Harbor's verifier collect step writes and the verifier applies: the attempt's change against the fixture commit.</summary>
     const string DiffInContainer = "/logs/artifacts/diff.patch";
     /// <summary>
     /// The agents proctor brings itself, as Harbor imports them from the batch's harbor/agents/ on PYTHONPATH: nb,
@@ -108,14 +108,14 @@ static class HarborCompile
     /// fixture has services, the variant's bundle is copied beside them as environment/bundle/ (empty without one), so a
     /// service can serve it, a docs site say, while the agent's own container never holds it.
     /// </summary>
-    public static void Task(string dir, Exam exam, Variant variant, TaskDef c, string batchId, AgentRoute route, string? nbImage = null, string? nbPublish = null,
+    public static void Task(string dir, Exam exam, Variant variant, TaskDef task, string batchId, AgentRoute route, string? nbImage = null, string? nbPublish = null,
         string? bundleDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
-        var fixture = exam.FixtureOf(c)!;
+        var fixture = exam.FixtureOf(task)!;
         Directory.CreateDirectory(Path.Combine(dir, "environment"));
-        File.WriteAllText(Path.Combine(dir, "instruction.md"), c.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
-        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, c, route, bridged: c.Oracle is not null));
+        File.WriteAllText(Path.Combine(dir, "instruction.md"), task.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
+        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, task, route, bridged: task.Oracle is not null));
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
         var nbInContext = variant.Agent == Variant.Nb && nbPublish is not null;
         if (nbInContext) CopyTree(nbPublish!, Path.Combine(dir, "environment", NbContextDir), []);
@@ -130,9 +130,9 @@ static class HarborCompile
         var tests = Path.Combine(dir, "tests");
         CopyTree(exam.Dir, Path.Combine(tests, "exam"), []);
         CopyTree(fixture.Dir, Path.Combine(tests, "fixture"), [Path.GetFullPath(fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo"))]);
-        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant, c, batchId));
+        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant, task, batchId));
         var test = Path.Combine(tests, "test.sh");
-        File.WriteAllText(test, TestScript(exam, c));
+        File.WriteAllText(test, TestScript(exam, task));
         File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
     }
 
@@ -352,7 +352,7 @@ static class HarborCompile
     /// meaning there (the attempt's directory and number, nb, a runner) is empty. There is no transcript in the verifier: a check that
     /// reads one cannot run there yet.
     /// </summary>
-    static string VerifierEnv(Exam exam, Variant variant, TaskDef c, string batchId)
+    static string VerifierEnv(Exam exam, Variant variant, TaskDef task, string batchId)
     {
         var values = new Dictionary<string, string>
         {
@@ -361,14 +361,14 @@ static class HarborCompile
             ["PROCTOR_BUNDLE"] = "",
             ["PROCTOR_BATCH"] = batchId,
             ["PROCTOR_VARIANT"] = variant.Id!,
-            ["PROCTOR_TASK"] = c.Id!,
+            ["PROCTOR_TASK"] = task.Id!,
             ["PROCTOR_ATTEMPT"] = "",
             ["PROCTOR_ATTEMPT_DIR"] = "",
             ["PROCTOR_WORK"] = Workdir,
             ["PROCTOR_WORK_MOUNT"] = Workdir,
             ["PROCTOR_BUNDLE_MOUNT"] = "",
-            ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(c, Exam.JsonOptions),
-            ["PROCTOR_EXPECT"] = exam.ExpectFor(c)?.ToJsonString() ?? "{}",
+            ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(task, Exam.JsonOptions),
+            ["PROCTOR_EXPECT"] = exam.ExpectFor(task)?.ToJsonString() ?? "{}",
             ["PROCTOR_TRANSCRIPT"] = "",
             ["PROCTOR_DIFF"] = DiffInContainer,
             ["PROCTOR_RUNNER"] = "",
@@ -381,11 +381,11 @@ static class HarborCompile
     }
 
     /// <summary>
-    /// The verifier: the run's diff on the clean fixture commit, then each script check the task carries, in declared
+    /// The verifier: the attempt's diff on the clean fixture commit, then each script check the task carries, in declared
     /// order. One reward key per check: 1 pass, 0 fail, 2 needs-judge; any other exit leaves the key out, which is
     /// error. Each check's output is kept as verifier/&lt;check&gt;.out and its exit code as &lt;check&gt;.exit.
     /// </summary>
-    static string TestScript(Exam exam, TaskDef c)
+    static string TestScript(Exam exam, TaskDef task)
     {
         var sb = new StringBuilder("""
             #!/bin/bash
@@ -407,7 +407,7 @@ static class HarborCompile
             }
 
             """);
-        foreach (var (name, check) in exam.ChecksFor(c))
+        foreach (var (name, check) in exam.ChecksFor(task))
         {
             if (check.Spec["script"] is not JsonValue v || !v.TryGetValue<string>(out var script)) continue;
             var root = check.Level == "fixture" ? "/tests/fixture" : "/tests/exam";

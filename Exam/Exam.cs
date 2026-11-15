@@ -14,9 +14,9 @@ namespace Proctor;
 record NbConfig(string Path = "nb", string? Config = null);
 
 /// <summary>
-/// exam.json's nb block: the runner script that runs nb for an attempt instead of the binary (see the runner contract in the
-/// README), relative to the exam directory like a hook, and where it shows nb the checkout and the bundle. It sits beside
-/// the hooks because it only works with the hooks that make its container; --runner overrides it for one run.
+/// exam.json's nb block: the runner script that runs nb for an attempt instead of the binary (see the runner contract in
+/// docs/configuration.md), relative to the exam directory like a hook, and where it shows nb the checkout and the bundle. It sits beside
+/// the hooks because it only works with the hooks that make its container; --runner overrides it for one batch.
 /// </summary>
 record ExamNb(string? Runner = null, NbMounts? Mounts = null);
 
@@ -85,7 +85,7 @@ record Variant(string? Id, string? Runner, string? Harness, string? Provider, st
 /// <summary>exam.json's harbor block: the Harbor release every agent variant runs on, pinned.</summary>
 record HarborDef(string? Version);
 
-/// <summary>exam.json's limits: run policy for agent variants. wall_ms is Harbor's agent timeout; the rest are not yet.</summary>
+/// <summary>exam.json's limits: the policy each agent variant's attempts run under. wall_ms is Harbor's agent timeout; the rest are not yet.</summary>
 record Limits(long? WallMs, int? ToolCalls, long? Tokens, double? CostUsd);
 
 /// <summary>
@@ -108,7 +108,7 @@ record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<
 
 /// <summary>
 /// exam.json's oracle block, for the tasks that name an answer sheet: the nb config entry that judges (absent, the variant's
-/// own provider, as nb's in-process oracle does) and how many answers a run may get. See plans/oracle-in-proctor.md.
+/// own provider, as nb's in-process oracle does) and how many answers an attempt may get. See plans/oracle-in-proctor.md.
 /// </summary>
 record OracleDef(string? Judge = null, int? Turns = null)
 {
@@ -125,7 +125,7 @@ record ExamDef(string? Id, JsonNode? Variants, Hooks? Hooks, Grading? Grading, E
 /// <summary>
 /// What the exam is testing, inside a fixture that holds much else: the tools, commands, docs and hosts that are the
 /// surface under test, the surface's own internals (source, private notes), the ordinary ways round it, and patterns
-/// that mark a call to it as failed. `proctor friction` sorts each run's actions by it; nothing else reads it.
+/// that mark a call to it as failed. `proctor friction` sorts each attempt's actions by it; nothing else reads it.
 /// Paths are the container's; a path or a tool name is a glob in which `*` crosses directories.
 /// </summary>
 record SurfaceDef(string? Description = null, List<string>? Tools = null, List<string>? Commands = null, List<string>? Docs = null, List<string>? Internals = null,
@@ -184,7 +184,6 @@ static class Labels
         string.Join(" ", labels.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => $"{k.Key}={string.Join(",", k.Value)}"));
 }
 
-/// <summary>A check as declared, with the directory its script path is relative to: the exam's (for the exam's own and a task's) or a fixture's.</summary>
 /// <summary>A check as a task carries it: its spec, the directory its script resolves against, and the level that declared it (exam, fixture or task).</summary>
 record CheckDef(JsonObject Spec, string Dir, string Level);
 
@@ -210,11 +209,11 @@ sealed class Exam
     public required string Hash { get; init; }
     /// <summary>The variants, one per file under variants/, in file-name order; each carries its hash.</summary>
     public required List<Variant> Variants { get; init; }
-    /// <summary>Each task's hash by id: its file, its answer sheet, its fixture's definition and the checks that apply to it.</summary>
+    /// <summary>Each task's hash by id: what the agent meets (its prompt, its answer sheet, the program template, the hooks and its fixture), not its checks or expected values.</summary>
     public required Dictionary<string, string> TaskHashes { get; init; }
 
     /// <summary>Whether any variant runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
-    public bool HasAgentVariants => Variants.Any(a => a.IsAgent);
+    public bool HasAgentVariants => Variants.Any(v => v.IsAgent);
     public Grading Grading => Def.Grading!;
     /// <summary>How many attempts of each task every variant should have.</summary>
     public int Attempts => Def.Attempts ?? 1;
@@ -223,7 +222,7 @@ sealed class Exam
     public bool Judged => AllChecks().Any(c => Checks.AsksAModel(c.Spec));
 
     /// <summary>A task's labels: its fixture's, the exam's laid over them, the task's own over both.</summary>
-    public Dictionary<string, List<string>> LabelsFor(TaskDef c) => Labels.Merge(FixtureOf(c)?.Def.Labels, Def.Labels, c.Labels);
+    public Dictionary<string, List<string>> LabelsFor(TaskDef task) => Labels.Merge(FixtureOf(task)?.Def.Labels, Def.Labels, task.Labels);
 
     /// <summary>Every label any task of the exam carries, for finding the exam by one.</summary>
     public Dictionary<string, List<string>> AllLabels()
@@ -234,12 +233,12 @@ sealed class Exam
         return all;
     }
 
-    public Fixture? FixtureOf(TaskDef c) => c.Fixture is null ? null : Fixtures[c.Fixture];
+    public Fixture? FixtureOf(TaskDef task) => task.Fixture is null ? null : Fixtures[task.Fixture];
 
     /// <summary>The task's answer sheet on the host, or null when it has none.</summary>
-    public string? OracleOf(TaskDef c) => c.Oracle is null ? null : Path.GetFullPath(Path.Combine(Dir, c.Oracle));
+    public string? OracleOf(TaskDef task) => task.Oracle is null ? null : Path.GetFullPath(Path.Combine(Dir, task.Oracle));
 
-    /// <summary>How many answers a run of an oracle task may get.</summary>
+    /// <summary>How many answers an attempt at an oracle task may get.</summary>
     public int OracleTurns => Def.Oracle?.Turns ?? OracleDef.DefaultTurns;
 
     /// <summary>The checks that apply to a task, the union of three levels: the exam's, its fixture's, then its own. A task's scripts resolve against the exam directory, as the exam's do.</summary>
@@ -267,15 +266,15 @@ sealed class Exam
             .Concat(Tasks.SelectMany(c => (FixtureOf(c)?.Checks ?? []).Concat(c.Checks ?? []).Select(k => (k.Key, k.Value))));
 
     /// <summary>What the task is about, for a reader: its description, else the first line of its prompt.</summary>
-    public static string Describe(TaskDef c) => c.Description ?? c.Prompt!.Split('\n')[0].Trim();
+    public static string Describe(TaskDef task) => task.Description ?? task.Prompt!.Split('\n')[0].Trim();
 
     /// <summary>What the task expects: its fixture's defaults with the task's own block laid over them, key by key.</summary>
-    public JsonObject? ExpectFor(TaskDef c)
+    public JsonObject? ExpectFor(TaskDef task)
     {
-        var fixture = FixtureOf(c)?.Def.Expect;
-        if (fixture is null) return c.Expect;
+        var fixture = FixtureOf(task)?.Def.Expect;
+        if (fixture is null) return task.Expect;
         var merged = JsonNode.Parse(fixture.ToJsonString())!.AsObject();
-        foreach (var (key, value) in c.Expect ?? []) merged[key] = value?.DeepClone();
+        foreach (var (key, value) in task.Expect ?? []) merged[key] = value?.DeepClone();
         return merged;
     }
 
@@ -374,8 +373,8 @@ sealed class Exam
                 if (!Placeholders.Contains(m.Groups[1].Value))
                     problems.Add(new Problem(rel(templateFile), m.Value, $"unknown placeholder; known: {string.Join(", ", Placeholders.Select(p => "{{" + p + "}}"))}"));
             // An agent variant's bundle stays on the host (hooks, the hash); its container never holds it.
-            if (Regex.IsMatch(template, @"\{\{\s*bundle\s*\}\}") && variants.FirstOrDefault(a => a is { IsAgent: true, IsVendor: false, Bundle: not null }) is { } nbAgent)
-                problems.Add(new Problem(rel(templateFile), "{{bundle}}", $"variant '{nbAgent.Id}' runs nb through Harbor, where its bundle is not in the container; serve it from a variant hook, or run the variant bare"));
+            if (Regex.IsMatch(template, @"\{\{\s*bundle\s*\}\}") && variants.FirstOrDefault(v => v is { IsAgent: true, IsVendor: false, Bundle: not null }) is { } nbAgent)
+                problems.Add(new Problem(rel(templateFile), "{{bundle}}", $"variant '{nbAgent.Id}' runs nb through Harbor, where its bundle is not in the container; serve it from the fixture's services, which are handed it as bundle/, or run the variant bare"));
             if (tasks.Any(c => c.Oracle is not null))
                 foreach (var problem in OracleTemplateProblems(template, variants.Any(a => a is { IsAgent: true, IsVendor: false })))
                     problems.Add(new Problem(rel(templateFile), "", problem));
@@ -435,7 +434,7 @@ sealed class Exam
 
     static string Verb(string directive) => directive.Split(' ', 2)[0];
 
-    static string TaskFile(string dir, TaskDef c) => Path.Combine(Layout.TasksDirIn(dir), c.Id + ".json");
+    static string TaskFile(string dir, TaskDef task) => Path.Combine(Layout.TasksDirIn(dir), task.Id + ".json");
 
     /// <summary>A variant's file, as problems and messages name it.</summary>
     public static string VariantFile(string dir, string id) => Path.Combine(Layout.VariantsDirIn(dir), id + ".json");
@@ -515,7 +514,7 @@ sealed class Exam
             return "an answer sheet is a path inside the exam directory, relative to it, so it never reaches a fixture or the agent's container";
         if (!File.Exists(full)) return $"answer sheet not found: {oracle}";
         if (!File.ReadLines(full).Any(l => l.StartsWith('#')))
-            return "the answer sheet has no headed entries (# id, then the answer), so the oracle could select nothing";
+            return "the answer sheet has no headed entries (## <id>, then the answer), so the oracle could select nothing";
         return null;
     }
 
@@ -537,7 +536,7 @@ sealed class Exam
         ValidateOracle(def, Add, tasks, variants, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), field, message)),
             (f, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(f.Dir, Layout.FixtureFile)), field, message)));
 
-        if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use variant or attempt");
+        if (def.Hooks?.Run is not null) Add("hooks.run", "batch-level hooks are not yet implemented; use variant or attempt");
         if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use variant or attempt");
         foreach (var (level, pair) in new[] { ("variant", def.Hooks?.Variant), ("attempt", def.Hooks?.Attempt) })
         {
@@ -608,7 +607,7 @@ sealed class Exam
         }
 
         bool NbOnlyBesideVendor(string name) =>
-            variants.Any(a => a.IsVendor)
+            variants.Any(v => v.IsVendor)
             && (def.Grading.Checks.TryGetValue(name, out var spec) ? [spec] : tasks.Select(c => c.Checks?.GetValueOrDefault(name) ?? (c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture)?.Checks.GetValueOrDefault(name))))
                 .Any(s => s is not null && Checks.NbOnly(s));
     }
@@ -700,7 +699,7 @@ sealed class Exam
     /// </summary>
     static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, List<Variant> variants, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
     {
-        var agents = variants.Any(a => a.IsAgent);
+        var agents = variants.Any(v => v.IsAgent);
         if (def.Harbor is { } harbor && (string.IsNullOrWhiteSpace(harbor.Version) || !Regex.IsMatch(harbor.Version, @"^\d+(\.\d+)*$")))
             add("harbor.version", "required: the Harbor release, pinned (0.24.0)");
         foreach (var (field, value) in new (string, object?)[] { ("tool_calls", def.Limits?.ToolCalls), ("tokens", def.Limits?.Tokens), ("cost_usd", def.Limits?.CostUsd) })
@@ -759,15 +758,15 @@ sealed class Exam
     /// checks, their scripts or the expected values: those are the standard an attempt is graded by, so a change
     /// there means grading again, not attempting again.
     /// </summary>
-    static string TaskHash(string root, string dir, ExamDef def, TaskDef c, Fixture? fixture)
+    static string TaskHash(string root, string dir, ExamDef def, TaskDef task, Fixture? fixture)
     {
         var files = new List<string> { Path.Combine(dir, Layout.ProgramTemplateFile) };
-        if (c.Oracle is not null) files.Add(Path.Combine(dir, c.Oracle));
+        if (task.Oracle is not null) files.Add(Path.Combine(dir, task.Oracle));
         foreach (var pair in new[] { def.Hooks?.Variant, def.Hooks?.Attempt })
             foreach (var script in new[] { pair?.Setup, pair?.Teardown })
                 if (script is not null) files.Add(Path.Combine(dir, script));
         var built = fixture is null ? "" : JsonSerializer.Serialize(new { fixture.Id, fixture.Def.Source, fixture.Def.Stack, fixture.Def.Image, fixture.Hash }, JsonOptions);
-        return HashFiles(root, files.Where(File.Exists), c.Prompt + "\0" + built);
+        return HashFiles(root, files.Where(File.Exists), task.Prompt + "\0" + built);
     }
 
     /// <summary>

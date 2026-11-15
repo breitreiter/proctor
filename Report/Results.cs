@@ -10,16 +10,16 @@ record ResultRow(
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null,
     Dictionary<string, List<string>>? Labels = null, string? Undecided = null, string? Batch = null)
 {
-    /// <summary>Graded and counted: an invalid run is graded but does not count. A counted run may still be undecided (Pass null).</summary>
+    /// <summary>Graded and counted: an invalid attempt is graded but does not count. A counted attempt may still be undecided (Pass null).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool Analysed => Checks is not null && Invalid is null;
 
-    /// <summary>Counted and decided: the runs a pass rate is over.</summary>
+    /// <summary>Counted and decided: the attempts a pass rate is over.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool Decided => Analysed && Pass is not null;
 }
 
-/// <param name="CostUsd">What the agent reported its run cost (Claude Code its own count, Codex as Harbor priced it); nb reports none.</param>
+/// <param name="CostUsd">What the agent reported its attempt cost (Claude Code its own count, Codex as Harbor priced it); nb reports none.</param>
 record UsageRow(long? Input, long? Output, long? Total, bool Estimated, double? CostUsd = null);
 
 static class Results
@@ -50,7 +50,7 @@ static class Results
                 DurationMs: manifest?.DurationMs,
                 Checks: checks?.ToDictionary(k => k.Key, k => k.Value.Result),
                 Pass: checks is null ? null : Grade.Pass(checks, exam.Grading.Pass!),
-                // The headline checks lead, so a failed run's first reason is what failed it, not a guardrail declared before it.
+                // The headline checks lead, so a failed attempt's first reason is what failed it, not a guardrail declared before it.
                 Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).OrderBy(k => !exam.Grading.Pass!.Contains(k.Key))
                     .ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
                 Invalid: checks is null ? null : Grade.Invalid(checks, exam.Grading.Validity),

@@ -191,20 +191,20 @@ static class Judge
         if (Window.Validate((spec["window"] as JsonValue)?.GetValue<string>()) is { } w) return $"window: {w}";
         if (spec["with"] is { } with && (with is not JsonValue wv || !wv.TryGetValue<string>(out _))) return "with is a judge name from exams/proctor.json";
         var expect = spec["expect"];
-        var fromCase = IsFromExpect(expect);
+        var fromTask = IsFromExpect(expect);
         if (name == Decide)
         {
             var options = Options(spec);
             if (spec["options"] is not null && options is { Count: 0 }) return "options is a list of labels, or an object of label to its description";
             if (options is { Count: 1 }) return "options needs at least two labels";
-            if (options is not null && !fromCase && (expect is not JsonValue || !options.ContainsKey(expect.ToString())))
+            if (options is not null && !fromTask && (expect is not JsonValue || !options.ContainsKey(expect.ToString())))
                 return $"expect is required: one of {string.Join(", ", options.Keys)}, or @expect";
-            if (options is null && !fromCase && expect is not null && YesNo(expect) is null) return "expect is true or false for a yes/no question (default true), or @expect";
+            if (options is null && !fromTask && expect is not null && YesNo(expect) is null) return "expect is true or false for a yes/no question (default true), or @expect";
             if (spec["threshold"] is { } t && (t is not JsonValue tv || !tv.TryGetValue<double>(out var th) || th <= 0 || th > 1)) return "threshold is a probability above 0 and up to 1";
         }
         else
         {
-            if (!fromCase && expect is not null && YesNo(expect) is null) return "expect is yes or no (default yes), or @expect";
+            if (!fromTask && expect is not null && YesNo(expect) is null) return "expect is yes or no (default yes), or @expect";
             if (spec["votes"] is { } s && (s is not JsonValue sv || !sv.TryGetValue<int>(out var n) || n < 1)) return "votes is a whole number of at least 1";
         }
         return null;
@@ -234,16 +234,16 @@ static class Judge
         var (judge, def) = client.Resolve(KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), check);
 
         // What the task supplies under the check's name: the expectation itself, or {ask, expect} when the question is the task's too.
-        var fromCase = attempt.Expect?[check];
+        var fromTask = attempt.Expect?[check];
         var expect = spec["expect"];
         if (IsFromExpect(expect))
         {
-            expect = fromCase is JsonObject o ? o["expect"] : fromCase;
+            expect = fromTask is JsonObject o ? o["expect"] : fromTask;
             if (expect is null) return Verdict.Err($"{name}: task has no expect.{check}");
         }
         if (IsFromExpect(spec["ask"]))
         {
-            if ((fromCase as JsonObject)?["ask"] is not JsonValue a || !a.TryGetValue<string>(out var ask) || string.IsNullOrWhiteSpace(ask))
+            if ((fromTask as JsonObject)?["ask"] is not JsonValue a || !a.TryGetValue<string>(out var ask) || string.IsNullOrWhiteSpace(ask))
                 return Verdict.Err($"{name}: task has no expect.{check}.ask");
             spec = (JsonObject)spec.DeepClone();
             spec["ask"] = ask;

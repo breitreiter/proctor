@@ -241,7 +241,7 @@ public class HarborTests
     static Manifest NewManifest() => new()
     {
         Id = "r", Batch = "e", Exam = "x", Variant = new("cc-haiku", "sha256:v"), Task = new("fix-null-deref", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
-        Agent = new AgentRun("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
+        Agent = new AgentTrial("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
     };
 
     [Fact]
@@ -275,7 +275,7 @@ public class HarborTests
     }
 
     [Fact]
-    public void Ingest_AVendorRunWithNoTurn_IsAnOutage_NotARun()
+    public void Ingest_AVendorAgentWithNoTurn_FailsTheAttempt_AsAnOutage()
     {
         using var repo = new TestRepo();
         var noTurn = new JsonObject { ["schema_version"] = "ATIF-v1.7", ["steps"] = new JsonArray(new JsonObject { ["step_id"] = 1, ["source"] = "user", ["message"] = "fix it" }) };
@@ -1038,7 +1038,7 @@ public class HarborTests
         using var repo = new TestRepo();
         var trial = WriteNbTrial(Path.Combine(repo.Root, "trial"), "loop-nudged");
         var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
-        var manifest = NewManifest() with { Agent = new AgentRun("nb", null, "mock", [], [], "0.24.0", null) };
+        var manifest = NewManifest() with { Agent = new AgentTrial("nb", null, "mock", [], [], "0.24.0", null) };
 
         Assert.Null(Ingest.Trial(trial, attempt, NbVariant, manifest, "0.9.0"));
         Assert.True(File.Exists(Path.Combine(attempt, "agent", "nb.jsonl")));
@@ -1061,8 +1061,8 @@ public class HarborTests
     {
         using var repo = new TestRepo();
         var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
-        AgentRun nbRun = new("nb", null, "mock", [], [], "0.24.0", null);
-        string? Ingested(string trial) => Ingest.Trial(trial, attempt, NbVariant, NewManifest() with { Agent = nbRun }, "0.9.0");
+        AgentTrial nbTrial = new("nb", null, "mock", [], [], "0.24.0", null);
+        string? Ingested(string trial) => Ingest.Trial(trial, attempt, NbVariant, NewManifest() with { Agent = nbTrial }, "0.9.0");
 
         Assert.Equal("agent_version_mismatch: the image ran nb 0.8.1, the host nb that compiled the program is 0.9.0",
             Ingested(WriteNbTrial(Path.Combine(repo.Root, "t1"), "plain", version: "0.8.1")));

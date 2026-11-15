@@ -153,7 +153,7 @@ public class ChecksTests
     }
 
     [Fact]
-    public void FromExpect_ReadsTheCaseBlock_AndErrorsWhenAbsent()
+    public void FromExpect_ReadsTheTaskBlock_AndErrorsWhenAbsent()
     {
         var expect = JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject();
         Assert.Equal("pass", Exam("{\"answer_contains\": \"@expect\"}", Fixture("plain"), expect).Result);

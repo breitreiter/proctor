@@ -35,7 +35,7 @@ public class FrictionTests
     static JsonObject SurfaceOf(JsonObject file) => file["summary"]!["surface"]!.AsObject();
 
     [Fact]
-    public void ARunThatUsesTheSurface_HasNoPoints()
+    public void AnAttemptThatUsesTheSurface_HasNoPoints()
     {
         var file = Detect(History, [Bash("cat docs/gh-history.md", "usage")], [Tool("""[{"sha":"abc"}]""")], [Edit], [Bash("make test", "ok")]);
 
@@ -71,7 +71,7 @@ public class FrictionTests
     }
 
     [Fact]
-    public void ARunThatNeverTouchesTheSurface_WentRound()
+    public void AnAttemptThatNeverTouchesTheSurface_WentRound()
     {
         var file = Detect(History, [Bash("cd /app && git blame src/parser.c | head -20", "abc")], [Bash("gh pr view 12", "title")], [Edit]);
 
@@ -121,7 +121,7 @@ public class FrictionTests
     }
 
     [Fact]
-    public void TheSameRun_GivesTheSameFile()
+    public void TheSameAttempt_GivesTheSameFile()
     {
         (string, JsonObject, string)[][] steps = [[Tool("[]")], [Bash("git log --oneline | head", "abc fix")], [Bash("python3 -c 'print(1)'", "bash: line 1: python3: command not found")]];
 

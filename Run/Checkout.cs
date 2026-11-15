@@ -1,6 +1,6 @@
 namespace Proctor;
 
-/// <summary>The work directory: a fixture materialised into it before the run, the diff collected after, and both again for a regrade.</summary>
+/// <summary>The work directory: a fixture materialised into it before the attempt, the diff collected after, and both again for a regrade.</summary>
 static class Checkout
 {
     /// <summary>A fresh checkout of the fixture in workDir, committed so the diff has a base. Null on success, else why not.</summary>
@@ -25,7 +25,7 @@ static class Checkout
             ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", $"fixture {fixture.Id} {fixture.Hash}");
     }
 
-    /// <summary>Everything the run changed, new files included, as one unified diff in the attempt. Null on success.</summary>
+    /// <summary>Everything the attempt changed, new files included, as one unified diff in the attempt. Null on success.</summary>
     public static string? CollectDiff(string workDir, string attemptDir)
     {
         if (!Directory.Exists(Path.Combine(workDir, ".git"))) return "work directory is not a git checkout";

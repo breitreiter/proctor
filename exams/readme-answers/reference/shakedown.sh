@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prove the checks without a model: copy the exam into a scratch repository where the provider
-# "gemini" is nb's Mock, script each task's answer into its prompt, run and grade. Every run should
+# "gemini" is nb's Mock, script each task's answer into its prompt, run and grade. Every attempt should
 # pass with the right answers (the default) and none with --wrong. Needs jq and nb; costs nothing.
 set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"

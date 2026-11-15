@@ -61,7 +61,7 @@ public class OracleBareTests
     }
 
     [Fact]
-    public void AMiss_EndsTheRun_AsOracleMiss()
+    public void AMiss_EndsTheAttempt_AsOracleMiss()
     {
         var (repo, attempt) = RunOne("MOCK:response=What colour should the button be? MOCK:oracle=MISS");
         using var _ = repo;

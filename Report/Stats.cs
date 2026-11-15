@@ -37,13 +37,13 @@ record VariantStats(
     RateJson? Pass, Dictionary<string, RateJson> Checks, List<CheckFailure> Failures, Dictionary<string, int> ExitReasons,
     Summary? DurationMs, Summary? TokensTotal, bool TokensEstimated, Dictionary<string, TaskScore> Tasks, Summary? CostUsd = null, double? CostTotalUsd = null, List<CheckFailure>? Errored = null);
 
-/// <summary>One variant on one task: its score (the mean over its decided runs, null when none was decided) and the runs behind it.</summary>
+/// <summary>One variant on one task: its score (the mean over its decided attempts, null when none was decided) and the attempts behind it.</summary>
 record TaskScore(double? Score, int Passed, int Decided);
 
-/// <summary>A check that could not decide too many of the runs it applies to, across variants: the check needs rewriting before the batch is conclusive.</summary>
+/// <summary>A check that could not decide too many of the attempts it applies to, across variants: the check needs rewriting before the batch is conclusive.</summary>
 record UndecidedCheck(string Check, int Attempts, int Of);
 
-/// <summary>A check that could not grade more than a few of the runs it applies to, with how many per variant: the check's defect, said once above the numbers.</summary>
+/// <summary>A check that could not grade more than a few of the attempts it applies to, with how many per variant: the check's defect, said once above the numbers.</summary>
 record ErroredCheck(string Check, int Attempts, int Of, Dictionary<string, int> Variants);
 
 /// <summary>Where a variant fell down: a check that did not pass in some analysed attempts, most often first, with the tasks it happened in.</summary>
@@ -52,7 +52,7 @@ record CheckFailure(string Check, int Attempts, int Of, Dictionary<string, int> 
 /// <summary>What the ids mean, in the exam author's words (or derived from a built-in check), so the report can carry them.</summary>
 record Descriptions(string? Exam, Dictionary<string, string> Variants, Dictionary<string, string> Tasks, Dictionary<string, string> Checks);
 
-/// <summary>What a task is made of: the fixture it runs against and the checks its runs carry (the exam's, the fixture's and its own, in that order), each with the level that declared it and what it tests in that task's words, so the report can show a task's criterion on its row.</summary>
+/// <summary>What a task is made of: the fixture it runs against and the checks its attempts carry (the exam's, the fixture's and its own, in that order), each with the level that declared it and what it tests in that task's words, so the report can show a task's criterion on its row.</summary>
 record TaskJson(string? Fixture, List<TaskCheck> Checks);
 
 record TaskCheck(string Name, string Level, string Description);
@@ -61,7 +61,7 @@ record TaskCheck(string Name, string Level, string Description);
 record RateJson(double Rate, Interval Ci95, int N, int KAttempts, int NAttempts, int? Errors = null, int? NeedsJudge = null);
 
 /// <summary>One variant against another, paired by task; <c>Tasks</c> is the difference on each shared task, in points.</summary>
-/// <summary><c>MdePoints</c> is set only when this pair rests on fewer tasks than the run's widest: the change it alone can confirm.</summary>
+/// <summary><c>MdePoints</c> is set only when this pair rests on fewer tasks than the report's widest: the change it alone can confirm.</summary>
 record Comparison(string Variant, string Vs, int NPairs, int DiffPoints, int[] Ci95, int Won, int Lost, int Tied, string Verdict, Dictionary<string, int> Tasks, int? MdePoints = null);
 
 record Mde(int NPairs, int Points, int TasksFor10Points, string Sentence);
@@ -99,15 +99,15 @@ static class Stats
     /// </summary>
     public static StatsFile Compute(Exam exam, List<ResultRow> rows, Live? live = null, BuiltFrom? built = null)
     {
-        var variants = exam.Variants.Select(a => a.Id!).Where(a => rows.Any(r => r.Variant == a)).ToList();
-        var tasks = exam.Tasks.Select(c => c.Id!).Where(c => rows.Any(r => r.Task == c)).ToList();
+        var variants = exam.Variants.Select(v => v.Id!).Where(v => rows.Any(r => r.Variant == v)).ToList();
+        var tasks = exam.Tasks.Select(t => t.Id!).Where(t => rows.Any(r => r.Task == t)).ToList();
         var checks = exam.CheckNames;
-        var byVariant = variants.ToDictionary(a => a, a => rows.Where(r => r.Variant == a).ToList());
+        var byVariant = variants.ToDictionary(v => v, v => rows.Where(r => r.Variant == v).ToList());
 
         var validity = exam.Grading.Validity ?? [];
-        var variantStats = variants.ToDictionary(a => a, a => VariantStats(byVariant[a], tasks, checks, validity));
+        var variantStats = variants.ToDictionary(v => v, v => VariantStats(byVariant[v], tasks, checks, validity));
 
-        var scores = variants.ToDictionary(a => a, a => TaskScores(byVariant[a].Where(r => r.Decided).ToList(), tasks, r => r.Pass == true));
+        var scores = variants.ToDictionary(v => v, v => TaskScores(byVariant[v].Where(r => r.Decided).ToList(), tasks, r => r.Pass == true));
         var broken = live?.Broken(exam);
         var reference = live is not null && broken is null && variants.Contains(live.Variant.Id) ? live.Variant.Id : null;
         var liveStats = live is null ? null : new LiveStats(live.Variant.Id, live.Since,
@@ -127,7 +127,7 @@ static class Stats
         var matrix = variants.ToDictionary(a => a, a => tasks.ToDictionary(c => c,
             c => byVariant[a].Where(r => r.Task == c).OrderBy(r => r.Attempt).Select(r => r.Invalid is not null ? "invalid" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "pass", false => "fail", null => r.Status }).ToList()));
 
-        // A check undecided in more than a few of the runs it applies to is a defect in the check; the report says so above the numbers.
+        // A check undecided in more than a few of the attempts it applies to is a defect in the check; the report says so above the numbers.
         var undecidedChecks = checks.Where(name => !validity.Contains(name)).Select(name =>
         {
             var counted = rows.Where(r => r.Analysed && r.Checks!.ContainsKey(name)).ToList();
@@ -208,8 +208,8 @@ static class Stats
         var pass = TaskRate(decided, tasks, r => r.Pass == true);
         var checkRates = checks.ToDictionary(name => name, name =>
         {
-            // A validity check's rate is over every graded run: it says how many counted. Other checks are over the runs that count.
-            // A run the check could not decide, or could not grade at all (an error), is out of its denominator on both sides, and counted beside the rate:
+            // A validity check's rate is over every graded attempt: it says how many counted. Other checks are over the attempts that count.
+            // An attempt the check could not decide, or could not grade at all (an error), is out of its denominator on both sides, and counted beside the rate:
             // either is the check's weakness, not the variant's.
             var pool = validity.Contains(name) ? rows.Where(r => r.Checks is not null) : analysed;
             var graded = pool.Where(r => r.Checks!.ContainsKey(name)).ToList();
@@ -222,8 +222,8 @@ static class Stats
             };
         }).Where(k => k.Value is not null).ToDictionary(k => k.Key, k => k.Value!);
 
-        // Failures: over the counted runs, every non-validity check that failed, most often first, out of the runs it decided. A validity fail is an exclusion;
-        // an undecided check is listed apart, and so is one that errored, out of the runs that carry it.
+        // Failures: over the counted attempts, every non-validity check that failed, most often first, out of the attempts it decided. A validity fail is an exclusion;
+        // an undecided check is listed apart, and so is one that errored, out of the attempts that carry it.
         List<CheckFailure> Tally(string verdict, Func<string, bool> of) => checks.Where(name => !validity.Contains(name))
             .Select(name => (name, attempts: analysed.Where(r => r.Checks!.TryGetValue(name, out var v) && v == verdict).ToList()))
             .Where(x => x.attempts.Count > 0)
@@ -343,8 +343,8 @@ static class Stats
     public static Mde Mde(int nPairs)
     {
         var points = nPairs == 0 ? 100 : Math.Min(100, (int)Math.Round(100 * ZPower * AssumedSdOfPairedDifference / Math.Sqrt(nPairs)));
-        var casesFor10 = (int)Math.Round(Sq(ZPower * AssumedSdOfPairedDifference / 0.10));
-        var rounded = casesFor10 >= 100 ? (int)Math.Round(casesFor10 / 10.0) * 10 : casesFor10;
+        var tasksFor10 = (int)Math.Round(Sq(ZPower * AssumedSdOfPairedDifference / 0.10));
+        var rounded = tasksFor10 >= 100 ? (int)Math.Round(tasksFor10 / 10.0) * 10 : tasksFor10;
         var sentence = nPairs == 0
             ? "No paired tasks were analysed, so no difference can be detected."
             : $"With {nPairs} paired task{(nPairs == 1 ? "" : "s")} this report can reliably detect a difference of about {points} points. To detect 10 points you need about {rounded} tasks.";

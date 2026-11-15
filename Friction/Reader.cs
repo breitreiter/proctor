@@ -9,11 +9,11 @@ using Microsoft.Extensions.AI;
 namespace Proctor;
 
 /// <summary>
-/// The reader stage of `proctor friction`: a chat model reads one run and names the friction rules cannot see (a
+/// The reader stage of `proctor friction`: a chat model reads one attempt and names the friction rules cannot see (a
 /// repair, a lost search, a re-read, a dead end, a work-around). It chooses from a fixed list and must quote the call;
 /// nothing it says is written until the call exists, the label is in the list and the quote is in that call. Its
 /// one-line reason is kept as a note and is prose, never counted. What was sent and what came back is kept in the
-/// attempt, and is the cache: the same run, prompt and model are not asked twice.
+/// attempt, and is the cache: the same attempt, prompt and model are not asked twice.
 /// </summary>
 static class FrictionReader
 {
@@ -76,7 +76,7 @@ static class FrictionReader
     }
 
     /// <summary>
-    /// One run as text for a reader who labels calls: the task, the agent's words, and per tool call a line id
+    /// One attempt as text for a reader who labels calls: the task, the agent's words, and per tool call a line id
     /// (s&lt;step&gt;.&lt;n&gt;), the command with heredoc bodies removed, and the head and tail of the result.
     /// </summary>
     public static string Render(JsonObject trajectory)
@@ -117,11 +117,11 @@ static class FrictionReader
     public static string Prompt(JsonObject trajectory, string? surfaceDescription) =>
         Instructions + (string.IsNullOrEmpty(surfaceDescription) ? "" : $"\nThe thing under test in this run: {surfaceDescription}\n") + "\n===== THE RUN =====\n\n" + Render(trajectory) + "\n";
 
-    /// <summary>The attempt's reading file for this judge, prompt and run.</summary>
+    /// <summary>The attempt's reading file for this judge, prompt and attempt.</summary>
     public static string FileOf(string attemptDir, string judge, string hash) => Path.Combine(attemptDir, $"{Layout.ReadingPrefix}.{judge}.{hash}.json");
 
     /// <summary>
-    /// Ask the reader about one run, or reuse the attempt's reading, and add its checked points to <paramref name="file"/>.
+    /// Ask the reader about one attempt, or reuse the attempt's reading, and add its checked points to <paramref name="file"/>.
     /// A reader that did not answer adds nothing and leaves no reading, so the next pass asks again.
     /// </summary>
     internal static Reading Read(string attemptDir, JsonObject trajectory, JsonObject file, List<Friction.Step> steps, string? surfaceDescription, JudgeClient client, string judge)
