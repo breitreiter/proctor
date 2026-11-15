@@ -6,8 +6,6 @@ namespace Proctor;
 static class Layout
 {
     public const string SuitesDir = "suites";
-    /// <summary>The spellings before suite/task (2026-09-23); a reader accepts them for one release, a writer never uses them.</summary>
-    public const string LegacySuitesDir = "evals", LegacySuiteFile = "eval.json", LegacyTasksDir = "cases";
     public const string FixturesDir = "fixtures";
     public const string RunsDir = "runs";
     public const string ReportsDir = "reports";
@@ -56,14 +54,10 @@ static class Layout
     public const string ReportHtmlFile = "report.html";
     public const string SummaryFile = "summary.md";
 
-    /// <summary>suites/, or evals/ when only the old spelling exists.</summary>
-    public static string Suites(string root) => Existing(Path.Combine(root, SuitesDir), Path.Combine(root, LegacySuitesDir));
+    public static string Suites(string root) => Path.Combine(root, SuitesDir);
     public static string Suite(string root, string suiteId) => Path.Combine(Suites(root), suiteId);
-    /// <summary>The suite's definition file in its directory: suite.json, or eval.json when only that exists.</summary>
-    public static string SuiteFileIn(string suiteDir) => Existing(Path.Combine(suiteDir, SuiteFile), Path.Combine(suiteDir, LegacySuiteFile));
-    /// <summary>The suite's tasks directory: tasks/, or cases/ when only that exists.</summary>
-    public static string TasksDirIn(string suiteDir) => Existing(Path.Combine(suiteDir, TasksDir), Path.Combine(suiteDir, LegacyTasksDir));
-    static string Existing(string preferred, string legacy) => !Path.Exists(preferred) && Path.Exists(legacy) ? legacy : preferred;
+    public static string SuiteFileIn(string suiteDir) => Path.Combine(suiteDir, SuiteFile);
+    public static string TasksDirIn(string suiteDir) => Path.Combine(suiteDir, TasksDir);
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
     public static string Experiment(string root, string experimentId) => Path.Combine(root, RunsDir, experimentId);
     public static string Arm(string experimentDir, string arm) => Path.Combine(experimentDir, arm);

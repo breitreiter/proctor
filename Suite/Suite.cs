@@ -183,8 +183,8 @@ record Problem(string File, string Field, string Message)
 /// <summary>One suite directory, loaded. Construct through <see cref="Load"/>.</summary>
 sealed class Suite
 {
-    /// <summary>Placeholders a program template may use; resolved per cell by the runner. {{case}} is {{task}}'s old spelling, accepted for one release.</summary>
-    public static readonly string[] Placeholders = ["prompt", "task", "work", "bundle", "provider", "model", "harness", "arm", "sample", "case"];
+    /// <summary>Placeholders a program template may use; resolved per cell by the runner.</summary>
+    public static readonly string[] Placeholders = ["prompt", "task", "work", "bundle", "provider", "model", "harness", "arm", "sample"];
 
     public required string Id { get; init; }
     public required string Dir { get; init; }

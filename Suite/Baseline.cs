@@ -18,7 +18,7 @@ record Baseline(string Set, string Command, string SuiteHash, Dictionary<string,
     public static Baseline? Load(Suite suite)
     {
         var file = FileOf(suite);
-        return File.Exists(file) ? Runner.ReadJson<Baseline>(file, ("eval_hash", "suite_hash"), ("cases", "tasks")) : null;
+        return File.Exists(file) ? Runner.ReadJson<Baseline>(file) : null;
     }
 
     public void Save(Suite suite) => Runner.WriteJson(FileOf(suite), this);

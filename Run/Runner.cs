@@ -149,7 +149,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     {
         var file = Path.Combine(Layout.Experiment(root, experimentId), Layout.ExperimentFile);
         if (!File.Exists(file)) throw new ProctorException($"no experiment {experimentId} under {Layout.Experiment(root, "")}");
-        return ReadJson<Experiment>(file, ("eval", "suite"), ("eval_hash", "suite_hash"), ("eval_def", "suite_def"), ("cases", "tasks"))!;
+        return ReadJson<Experiment>(file)!;
     }
 
     /// <summary>Every cell's coordinates, in declared order.</summary>
@@ -210,7 +210,7 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
 
             var armDir = Layout.Arm(experimentDir, arm.Id!);
             Directory.CreateDirectory(Path.Combine(armDir, Layout.HooksDir));
-            var armEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_ARM"] = arm.Id!, ["PROCTOR_SUITE_DIR"] = suite.Dir, ["PROCTOR_EVAL_DIR"] = suite.Dir, ["PROCTOR_BUNDLE"] = experiment.BundleOf(arm.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = experiment.Nb.Runner?.Script ?? "" };
+            var armEnv = new Dictionary<string, string> { ["PROCTOR_EXPERIMENT"] = experiment.Id, ["PROCTOR_ARM"] = arm.Id!, ["PROCTOR_SUITE_DIR"] = suite.Dir, ["PROCTOR_BUNDLE"] = experiment.BundleOf(arm.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = experiment.Nb.Runner?.Script ?? "" };
             var setup = RunHook(suite.Def.Hooks?.Arm?.Setup, armEnv, Path.Combine(armDir, Layout.HooksDir, "arm.setup.log"));
             if (setup is not null)
             {
@@ -542,7 +542,6 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
         {
             ["prompt"] = c.Prompt!.Replace("\r\n", "\n").Replace("\n", " \\\n"),
             ["task"] = c.Id!,
-            ["case"] = c.Id!,
             ["work"] = workDir,
             ["bundle"] = bundleDir ?? "",
             ["provider"] = arm.Provider ?? "",
@@ -622,19 +621,8 @@ sealed class Runner(string root, Experiment experiment, Suite suite, ProctorConf
     public static void WriteJson(string file, object value) =>
         File.WriteAllText(file, JsonSerializer.Serialize(value, value.GetType(), Suite.JsonOptions) + "\n");
 
-    /// <summary>A cell's manifest, with the keys a cell written before suite/task used.</summary>
-    public static Manifest ReadManifest(string file) => ReadJson<Manifest>(file, ("case", "task"), ("eval_hash", "suite_hash"))!;
+    public static Manifest ReadManifest(string file) => ReadJson<Manifest>(file)!;
 
-    /// <summary>
-    /// Read a JSON file into a record, renaming top-level keys written under an older spelling first. Files under runs/
-    /// and a pinned baseline outlive a rename, so every reader of one accepts both spellings for a release.
-    /// </summary>
-    public static T? ReadJson<T>(string file, params (string Old, string New)[] legacy) where T : class
-    {
-        var node = JsonNode.Parse(File.ReadAllText(file)) as JsonObject;
-        if (node is null) return null;
-        foreach (var (old, @new) in legacy)
-            if (node.ContainsKey(old) && !node.ContainsKey(@new)) { node[@new] = node[old]!.DeepClone(); node.Remove(old); }
-        return node.Deserialize<T>(Suite.JsonOptions);
-    }
+    public static T? ReadJson<T>(string file) where T : class =>
+        JsonSerializer.Deserialize<T>(File.ReadAllText(file), Suite.JsonOptions);
 }

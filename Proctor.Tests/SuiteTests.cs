@@ -47,21 +47,6 @@ public class SuiteTests
     }
 
     [Fact]
-    public void LegacySpellings_StillLoad()
-    {
-        using var repo = new TestRepo();
-        repo.CopySuite("smoke");
-        Directory.Move(Path.Combine(repo.Root, "suites"), Path.Combine(repo.Root, "evals"));
-        File.Move(Path.Combine(repo.Root, "evals/smoke/suite.json"), Path.Combine(repo.Root, "evals/smoke/eval.json"));
-        Directory.Move(Path.Combine(repo.Root, "evals/smoke/tasks"), Path.Combine(repo.Root, "evals/smoke/cases"));
-
-        var suite = repo.LoadSuite("smoke");
-        Assert.Equal(3, suite.Tasks.Count);
-        Assert.Equal(Path.Combine(repo.Root, "evals", "smoke"), suite.Dir);
-        Assert.Equal(suite.Hash, repo.LoadSuite("smoke").Hash);
-    }
-
-    [Fact]
     public void TaskChecks_JoinTheUnionForThatTaskOnly()
     {
         using var repo = new TestRepo();

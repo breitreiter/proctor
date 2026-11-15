@@ -63,10 +63,6 @@ record CellContext(string SuiteDir, string CellDir, string WorkDir, string Exper
         ["PROCTOR_NB"] = NbPath,
         ["PROCTOR_NB_CONFIG"] = NbConfig ?? "",
         ["PROCTOR_CONTAINER"] = Container,
-        // The spellings before suite/task, for hooks and scripts written against them; gone after one release.
-        ["PROCTOR_EVAL_DIR"] = SuiteDir,
-        ["PROCTOR_CASE"] = Task.Id ?? "",
-        ["PROCTOR_CASE_JSON"] = JsonSerializer.Serialize(Task, Suite.JsonOptions),
     };
 }
 
