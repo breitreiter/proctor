@@ -11,6 +11,8 @@ static class Program
           grade <exam>           run the checks over every current, completed attempt; a model check's verdict is kept in the attempt
           friction <exam>        write friction.json beside each current, completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model
           report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json, report.html and summary.md, stamped with what they were built from
+          live <exam> [variant]  mark a variant live in exams/<exam>/live.json (commit it): the one in use now, which the report
+                                 compares the others with; with no variant, say which is live. Delete the file to have none
           baseline <batch>       pin a variant's analysed attempts in that batch as the exam's baseline, per task
           setup                  set up providers and keys for this machine, job by job (needs a terminal)
 
@@ -84,6 +86,8 @@ static class Program
                 ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, batch, configFile),
                 ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, batch, reader, rejudge, configFile),
                 ("report", [var exam]) => Verbs.Report(root, exam, tolerance, failOn, against, batch, variants, tasks),
+                ("live", [var exam]) => Verbs.Live(root, exam, null),
+                ("live", [var exam, var variant]) => Verbs.Live(root, exam, variant),
                 ("baseline", [var id]) => Verbs.Baseline(root, id, variants, tasks),
                 ("setup", []) => Verbs.Setup(root, check, probe),
                 _ => Fail(Usage),

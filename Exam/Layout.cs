@@ -18,6 +18,7 @@ static class Layout
     public const string TasksDir = "tasks";
     public const string VariantsDir = "variants";
     public const string BaselineFile = "baseline.json";
+    public const string LiveFile = "live.json";
     public const string FixtureFile = "fixture.json";
 
     public const string BatchFile = "batch.json";

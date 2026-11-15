@@ -31,13 +31,18 @@ static class Verbs
             Console.WriteLine($"  {Count(exam.Tasks.Count, "task")}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted of each task{(exam.Judged ? "; judged" : "")}");
             if (labels.Count > 0) Console.WriteLine($"  labels: {Labels.Format(labels)}");
             var pool = Pool.Of(root, exam);
+            var live = Proctor.Live.Load(exam);
+            var broken = live?.Broken(exam);
             var width = Math.Max("variant".Length, exam.Variants.Select(v => v.Id!.Length).DefaultIfEmpty(0).Max());
             Console.WriteLine($"  {"variant".PadRight(width)}  attempts   wanted");
             foreach (var variant in exam.Variants)
             {
                 var made = pool.Count(a => a.Variant == variant.Id && a.Status == AttemptStatus.Completed && Pool.Stale(exam, a) is null);
-                Console.WriteLine($"  {variant.Id!.PadRight(width)}  {made,-10} {exam.Attempts * exam.Tasks.Count}");
+                var mark = broken is null && live?.Variant.Id == variant.Id ? "live" : "";
+                Console.WriteLine($"  {variant.Id!.PadRight(width)}  {made,-10} {exam.Attempts * exam.Tasks.Count,-8} {mark}".TrimEnd());
             }
+            if (live is null) Console.WriteLine("  nothing is live");
+            else if (broken is not null) Console.WriteLine("  " + live.Warning(exam, broken));
             var stale = pool.Select(a => Pool.Stale(exam, a)).OfType<string>().ToList();
             if (stale.Count > 0)
                 Console.WriteLine($"  {Count(stale.Count, "stale attempt")}, not counted: {string.Join("; ", stale.GroupBy(w => w).Select(g => $"{g.Key} ({g.Count()})"))}");
@@ -60,7 +65,29 @@ static class Verbs
             return 1;
         }
         RequireKnown(exam, variantIds, taskIds);
+        if (Proctor.Live.Load(exam) is { } live && live.Broken(exam) is { } broken) Console.WriteLine(live.Warning(exam, broken));
         Runner.Run(root, exam, config, nbPath, runner, Environment.CommandLine, Console.Out, variantIds, taskIds);
+        return 0;
+    }
+
+    /// <summary>Mark a variant live in exams/&lt;exam&gt;/live.json, by its id and today's hash; with no variant, say which is live.</summary>
+    public static int Live(string root, string examId, string? variantId)
+    {
+        var exam = LoadExam(root, examId);
+        var file = Path.GetRelativePath(root, Proctor.Live.FileOf(exam));
+        var live = Proctor.Live.Load(exam);
+        if (variantId is null)
+        {
+            if (live is null) Console.WriteLine($"{exam.Id}: nothing is live; `proctor live {exam.Id} <variant>` marks one");
+            else if (live.Broken(exam) is { } broken) Console.WriteLine(live.Warning(exam, broken));
+            else Console.WriteLine($"{file}: {live.Variant.Id} is live, since {live.Since}");
+            return 0;
+        }
+        RequireKnown(exam, [variantId], null);
+        var variant = exam.Variants.Single(v => v.Id == variantId);
+        new Proctor.Live(new Ref(variant.Id!, variant.Hash), DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")).Save(exam);
+        var was = live is null ? "" : live.Variant.Id != variant.Id ? $" (was {live.Variant.Id})" : live.Variant.Hash != variant.Hash ? " (marked again: its file had changed)" : " (already; marked again)";
+        Console.WriteLine($"{file}: {variant.Id} is live{was}");
         return 0;
     }
 

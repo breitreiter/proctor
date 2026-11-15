@@ -132,5 +132,5 @@ static class Pool
         }
     }
 
-    static string Short(string hash) => hash.StartsWith("sha256:") ? hash[7..15] : hash;
+    public static string Short(string hash) => hash.StartsWith("sha256:") ? hash[7..15] : hash;
 }
