@@ -2,7 +2,7 @@
 type: plan
 title: Exam, variant, attempt — the data model as a worked example
 created: 2026-11-15
-status: draft for the user to pick apart; nothing built. The reasoning is in `/srv/aiwork/auspex/project/model.md`. This file is the target written out as files and commands, so that a wrong assumption is a wrong line
+status: agreed with the user 2026-11-15 (D1 to D15, D8 and D12 as revised); nothing built. The work-list is `exam-variant-attempt-removal.md`. The reasoning is in `/srv/aiwork/auspex/project/model.md`. This file is the target written out as files and commands, so that a wrong assumption is a wrong line
 ---
 
 # Exam, variant, attempt
@@ -12,7 +12,8 @@ the `tern-docs` runs of 2026-11-13 are real. Anything marked
 **(invented)** is made up to carry the example forward.
 
 Every place this file had to choose is numbered **D1** to **D15** and
-listed at the end with what was chosen (D15 was added after the first read). Those are what to argue with.
+listed at the end with what was chosen. The user went through them on
+2026-11-15; D8 and D12 changed, and D7 and D10 are to be watched.
 
 ## The words
 
@@ -147,11 +148,26 @@ tern-docs: every variant has its 2 attempts of each task; nothing to make
 $ proctor grade tern-docs
 graded 36 attempts
 $ proctor report tern-docs
-reports/tern-docs/report.html
+reports/tern-docs/explore/report.html
 ```
 
 `grade`, `friction` and `report` take the exam, not a batch id (D8).
 They read every attempt of the exam, whichever batch made it.
+
+- **Which attempts count.** Those whose task still matches a current
+  task, by hash, and whose variant still has a file. The rest stay on
+  disk and are listed as stale, never compared.
+- **`--batch <id>` narrows any of the three to one batch**, for "what
+  happened in last night's run". `--variant` and `--tasks` narrow too,
+  so a paid judge is not sent every old attempt.
+- **A report says exactly what it was built from** (the batches, the
+  variants' hashes, the tasks' hashes), and is kept: the exploration
+  report under `reports/tern-docs/explore/`, each change report under
+  `reports/tern-docs/<claim>/`. Shipping a second change does not
+  overwrite the evidence for the first.
+- **Retiring a variant is deleting its file.** Its attempts stay.
+- **With several open claims, `report` is told which**:
+  `proctor report tern-docs --claim 20261120-py38-quickstart`.
 
 **The report, with nothing live and no claim**, is the exploration
 report:
@@ -345,18 +361,35 @@ exams/tern-docs/live.json: py38-quickstart is live (was as-shipped)
 
 ## Two things the existing suites show
 
-**A variant can differ by more than its bundle.** `suite-authoring` has
-two arms with the same bundle, the same agent and the same model. They
-differ in what `hooks/arm-setup.sh` builds from the arm's id. By the
-rule above they would be one variant. So a variant needs a `setup`
-script of its own, counted in its hash (D12):
+**A variant is declared data only; a hook never defines one** (D12).
+`suite-authoring` has two arms with the same bundle, agent and model.
+They differ in what `hooks/arm-setup.sh` builds from the arm's id: the
+docs alone, or the docs with the example suites beside them. That script
+does two jobs. It prepares the machine (the model loaded, proctor
+built), which is not under test. And it decides what the agent sees,
+which is the whole difference between the two, and is a bundle.
 
-```json
-{ "id": "docs-and-examples", "note": "the same documentation with the example exams beside it",
-  "runner": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next",
-  "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "1e71808b…" },
-  "setup": "hooks/view-with-examples.sh" }
-```
+A script cannot be a variant's identity: its hash misses what it calls,
+and a fixed comment would make a "new" variant. So:
+
+- **What the agent sees is always the bundle.** A bundle may be a subset
+  of a git revision, so the two differ in content proctor can hash:
+
+  ```json
+  { "id": "docs", "note": "the README and the layout plans, no example exams",
+    "runner": "nb", "harness": "nb", "provider": "local-qcoder", "model": "qwen3-coder-next",
+    "bundle": { "git": "https://github.com/breitreiter/proctor.git", "rev": "1e71808b…",
+                "paths": ["README.md", "docs/configuration.md", "docs/cli.md", "project/plans/on-disk-layout.md"] } }
+  ```
+
+  `docs-and-examples` is the same with `"exams/"` and `"fixtures/"`
+  added to `paths`.
+- **Hooks belong to the exam and prepare the machine.** They are told
+  which variant they are running for. One that branches on it is hiding
+  part of the variant from proctor, and the docs say so.
+- **Not yet:** variants that differ by an agent setting (a permission
+  mode, a tool server). That is declared data too, a `settings` block
+  counted in the identity, added when the first exam needs it.
 
 **The exam that tests authoring an exam has the old words in its
 prompts.** `suite-authoring` becomes `exam-authoring`, and it is the
@@ -389,12 +422,12 @@ written exam, so they move with the tool and need no rewording.
 | D4 | One file per variant, in the exam's directory | a `variants` list in `exam.json`, left out of its hash; or variants outside the exam so one can sit several exams |
 | D5 | A changed variant under an old id is refused | accepted as a new variant with the same name, older attempts kept apart by hash |
 | D6 | `attempt` is the unit; today's retry counter `attempts` becomes `tries` | another name for the unit |
-| D7 | `run` only fills gaps and continues an interrupted batch; `--variant` and `--tasks` narrow it; no `resume` verb | keep `resume` as a synonym, or as the only way to continue a batch |
-| D8 | `grade`, `friction`, `report` take the exam | take a batch id as well, for looking at one batch |
+| D7 | `run` only fills gaps and continues an interrupted batch; `--variant` and `--tasks` narrow it; no `resume` verb. **To watch:** if people or agents hunt for it, `resume` comes back as a synonym | keep `resume` from the start |
+| D8 | `grade`, `friction`, `report` take the exam; `--batch` narrows to one; reports are stamped with what they were built from and kept per claim (revised 2026-11-15) | take a batch id as the argument |
 | D9 | `live.json` beside the exam, committed | a field on the variant file; or outside the repository |
-| D10 | A claim is made with a verb, which stamps the time and counts existing attempts | a hand-written file, trusted |
+| D10 | A claim is made with a verb, which stamps the time and counts existing attempts. **To watch:** whether the verb is found and used, or claims get written by hand | a hand-written file, trusted |
 | D11 | A late claim is allowed and labelled | refused |
-| D12 | A variant may name a `setup` script, part of its identity | require such variants to differ by bundle |
+| D12 | A variant is declared data only: agent, version, model, bundle. A bundle may be a subset of a git revision (`paths`). Hooks are the exam's and never define a variant (reversed 2026-11-15) | a `setup` script on the variant, counted in its identity |
 | D13 | The authoring exam's prompts are reworded and it is rerun as the acceptance test for this change | leave it until after |
 | D14 | Batches live under `attempts/` | keep `runs/` |
 | D15 | Continuing after a crash is announced by `list` and `run`, leads the CLI docs, and is a task in the authoring exam | rely on the docs alone |

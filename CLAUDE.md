@@ -26,27 +26,28 @@ gains no new ones. When planning a bug bash, start from the open issues
 
 ## Vocabulary
 
-Fixed in `project/plans/suite-task-check.md` against Anthropic's
-*Demystifying evals for AI agents*. Use these words in code, files, prose
-and the report, and no others for these things:
+Fixed in `project/plans/exam-variant-attempt.md` (2026-11-15), which is
+the data model written out as files and commands. Use these words in
+code, files, prose and the report, and no others for these things:
 
 | word | one sentence |
 |---|---|
-| **suite** | A collection of related tasks with one business goal, graded by one shared checklist so a pass rate across them means one thing. |
-| **task** | One input and one desired outcome: a prompt against a fixture, with the checks that say whether the outcome was reached. |
-| **sample** | One measurement of a stochastic system: one attempt at one task by one arm. |
-| **check** | One yes-or-no item on the checklist, asked of a finished sample. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
-| **arm** | What is under test: a harness, a provider, a model and a bundle, run over every task. |
-| **fixture** | The repository a task runs against and what "done" looks like in it; reused across suites. |
-| **experiment** | One execution of one suite across every arm, task and sample. |
-| **baseline** | Pinned cells from an earlier experiment, compared with as a virtual arm. |
+| **exam** | The question being answered, the tasks, and the checks that grade them. It does not hold the variants that take it. |
+| **task** | One prompt against a fixture, with its own answer key for the exam's checks. |
+| **check** | One yes-or-no grading question, shared across the exam's tasks and asked of a finished attempt. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
+| **fixture** | The repository a task runs against and what "done" looks like in it; reused across exams. |
+| **variant** | What is under test: an agent, a model and a bundle, as declared data. Its identity is its content. |
+| **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
+| **batch** | The attempts one `proctor run` made: when, on what machine, at what versions. Not something a reader of the report needs. |
+| **live** | A mark on one variant: the one in use now, and the reference a change is compared with. |
+| **claim** | What should change between two variants, which checks and which way, said before the attempts are made. |
 
-A cell is one arm, one task, one sample: the directory a sample's evidence
-lives in. The report says "run" for a sample. The spellings before
-2026-09-23 (`evals/`, `eval.json`, `cases/`, `eval_hash`, `PROCTOR_EVAL_DIR`,
-`PROCTOR_CASE`, `{{case}}`) are accepted by every reader for one release
-(`Layout.SuiteFileIn`, `Runner.ReadJson`, `CellContext.Environment`) and
-written by none.
+**This rename is in progress.** Until `project/plans/exam-variant-attempt-removal.md`
+is worked through, the code, the files and the rest of this page still
+say suite (exam), arm (variant), sample, run or cell (attempt),
+experiment (batch) and baseline (live). Those are the old words for the
+same things, on their way out. Write nothing new in them, and read that
+note before changing anything they name.
 
 ## Structure
 
