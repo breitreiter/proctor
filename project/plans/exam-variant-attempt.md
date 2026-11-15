@@ -384,7 +384,7 @@ written exam, so they move with the tool and need no rewording.
 | | Choice | The other way |
 |---|---|---|
 | D1 | The directory is `exams/`, the file `exam.json` | keep `suites/` and `suite.json` on disk and say "exam" only in what people read |
-| D2 | Old spellings are not accepted; existing files are migrated once by a script | accept them for a release, as the `evals` rename did |
+| D2 | Old spellings are not accepted. The suites, fixtures and tests are migrated once by a script. Existing runs are not migrated: they are dropped and made again (the user, 2026-11-15) | accept old spellings for a release, as the `evals` rename did |
 | D3 | The number of attempts wanted is set on the exam | per variant, as `samples` is now; or only on the command line |
 | D4 | One file per variant, in the exam's directory | a `variants` list in `exam.json`, left out of its hash; or variants outside the exam so one can sit several exams |
 | D5 | A changed variant under an old id is refused | accepted as a new variant with the same name, older attempts kept apart by hash |
