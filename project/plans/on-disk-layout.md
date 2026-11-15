@@ -63,9 +63,10 @@ learnings, and the "one file, one thing" rule from lore.
 
 ```
 exams/
-  proctor.json                  repo-level: archive location, default variants, tool versions
+  proctor.json                  this machine's config, gitignored: nb, agents' routes, judges, Harbor
   code-change/                  one exam: "can the agent make this code change"
-    exam.json                   labels, variants (each with its attempts), nb (runner, mounts), hooks, grading
+    exam.json                   labels, attempts (how many per variant and task), nb (runner, mounts), hooks, grading
+    variants/                   one file per variant: floor.json, codex.json, claude.json
     program.nb                  the nb program template; {{task}} placeholders
     live.json                   which variant is live: {"variant": {"id", "hash"}, "since"}; absent until one is picked
     tasks/
@@ -85,13 +86,7 @@ exams/
 {
   "id": "code-change",
   "labels": { "area": "coding/change" },
-  "variants": [
-    { "id": "floor",  "runner": "nb",      "harness": "nb",          "provider": "local-qcoder", "model": "qwen-coder", "attempts": 3 },
-    { "id": "codex",  "runner": "command", "harness": "codex",       "model": "gpt-5",   "attempts": 1,
-      "command": "codex exec -m gpt-5 --skip-git-repo-check {{prompt}}" },
-    { "id": "claude", "runner": "command", "harness": "claude-code", "model": "sonnet-5", "attempts": 1,
-      "command": "claude -p {{prompt}} --model sonnet --allowedTools 'Bash(*)'" }
-  ],
+  "attempts": 3,
   "nb": { "runner": "../runners/container.sh", "mounts": { "work": "/work", "bundle": "/bundle" } },
   "hooks": {
     "variant": { "setup": "hooks/start-fakes.sh", "teardown": "hooks/stop-fakes.sh" },
@@ -110,6 +105,20 @@ exams/
     "pass": ["exit_ok", "builds", "tests-pass"],
     "judge":  { "provider": "cf-glm", "criteria_from": "rubric.md", "window": "last-assistant+diff" }
   }
+}
+```
+
+A variant is a file of its own, `variants/floor.json`, holding only what
+it declares. Its hash covers everything but `id` and `note`:
+
+```json
+{
+  "id": "floor",
+  "note": "the local floor: nb on qwen3-coder-next",
+  "agent": "nb",
+  "harness": "nb",
+  "provider": "local-qcoder",
+  "model": "qwen3-coder-next"
 }
 ```
 
