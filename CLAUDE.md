@@ -533,10 +533,11 @@ The directories are for reading, not for namespaces: everything is
   holds no variants (one that lists them is refused, saying where they
   go) and sets `attempts`, how many of each task every variant should
   have. A variant's hash covers what it declares but its id and note,
-  its bundle by identity (`Exam.VariantHash`); a task's covers its file,
-  its answer sheet, its fixture's definition files, the scripts of its
-  checks and the exam's check specs, not the pass and validity lists
-  (`Exam.TaskHash`); the exam's covers every definition file but the
+  its bundle by identity (`Exam.VariantHash`); a task's covers what the agent meets:
+  the prompt, an oracle's answer sheet, the program template, the hooks
+  and the fixture (how it is built and its source by content), not the
+  checks, their scripts or the expected values, which are the standard
+  and so a regrade (`Exam.TaskHash`); the exam's covers every definition file but the
   variants'. Each manifest records `exam`, `variant {id, hash}` and
   `task {id, hash}`; `batch.json` keeps `exam_hash`, `exam_def`, each
   variant it made attempts of as `{id, hash, def}`, each such task as
@@ -563,8 +564,8 @@ The directories are for reading, not for namespaces: everything is
   otherwise says why and leaves it; then makes whatever is still missing
   in a new batch, compiling and resolving only what that batch makes.
   `grade`, `friction` and `report` read the current attempts and list the
-  stale ones; a new exam-level check changes every task's hash, so it
-  makes every attempt stale.
+  stale ones; a new or changed check is a regrade of every current attempt,
+  never a rerun.
 - **Reports are stamped and kept.** `report <exam>` writes
   `reports/<exam>/explore/`; one already there is moved into a directory
   named by its build time beside it. `stats.json` `built_from` is the

@@ -216,7 +216,7 @@ public class ExamTests
     }
 
     [Fact]
-    public void ATasksHash_CoversItsFileAndTheExamsChecks_NotTheOtherTasks()
+    public void ATasksHash_CoversWhatTheAgentMeets_NotTheChecksOrTheOtherTasks()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
@@ -228,13 +228,11 @@ public class ExamTests
         Assert.NotEqual(before["plain"], after["plain"]);
         Assert.Equal(before["loops"], after["loops"]);
 
+        // The checks and the expected values are the standard: changing them is a regrade, never a rerun.
         repo.EditJson("smoke/exam.json", e => e["grading"]!["checks"]!["exit_ok"]!["description"] = "the run ended on its own");
-        var regraded = repo.LoadExam("smoke").TaskHashes;
-        Assert.All(regraded, t => Assert.NotEqual(after[t.Key], t.Value));
-
-        // Which checks are headline is grading's, read as it is now, so it is no part of a task.
         repo.EditJson("smoke/exam.json", e => e["grading"]!["validity"] = JsonNode.Parse("[]"));
-        Assert.Equal(regraded, repo.LoadExam("smoke").TaskHashes);
+        repo.EditJson("smoke/tasks/plain.json", t => t["expect"] = JsonNode.Parse("""{"answer": "another"}"""));
+        Assert.Equal(after, repo.LoadExam("smoke").TaskHashes);
     }
 
     [Fact]

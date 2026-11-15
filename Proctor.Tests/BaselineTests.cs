@@ -76,15 +76,11 @@ public class BaselineTests
 
         // The pass list grows after pinning: the pinned attempts were never graded on the new check. Rescoring them
         // would read it as an error and every task as 0; instead each task stands as pinned and the gap is named.
-        // A new check changes every task's hash, so the pinned attempts are stale and the report is over new ones.
         repo.EditJson("smoke/exam.json", e =>
         {
             e["grading"]!["checks"]!["answer-short"] = JsonNode.Parse("""{ "max_tokens": 100000 }""");
             e["grading"]!["pass"]!.AsArray().Add("answer-short");
         });
-        exam = repo.LoadExam("smoke");
-        Assert.NotEqual(id, Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null));
-        Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
         Assert.Equal(0, Verbs.Report(repo.Root, "smoke"));
         var bl = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.ReportExplore(repo.Root, "smoke"), "stats.json")))!["baseline"]!;
         Assert.Equal("as pinned", bl["scores"]!.GetValue<string>());

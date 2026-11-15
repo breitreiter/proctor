@@ -143,10 +143,15 @@ exam, task, attempt, check, variant, fixture, batch, baseline.
   file and id. Hooks are the exam's: one that branches on `PROCTOR_VARIANT`
   to change what the agent sees hides that difference from proctor; put it
   in the bundle (a git bundle's `paths` can pick part of a revision).
-- **A changed task makes its attempts stale.** A task's hash covers its
-  file, its answer sheet, its fixture and the exam's checks, so editing any
-  of them (adding a check included) leaves the attempts already made out of
-  every count; `run` makes them again. Settle the files before a long batch.
+- **A changed task makes its attempts stale.** A task's hash covers what
+  the agent meets: the prompt, the fixture, an oracle's answer sheet, the
+  program template and the hooks. Editing any of them leaves the attempts
+  already made out of every count; `run` makes them again. Settle those
+  before a long batch.
+- **A changed check is a regrade.** The checks and the expected values are
+  the standard. Add or change one and `grade` applies it to every current
+  attempt; nothing is attempted again. Adding a task leaves the other
+  tasks' results alone; adding an exam-level check regrades all of them.
 - **After a crash, `proctor run <id>` again.** There is no resume verb: run
   continues the interrupted batch and says so, and `proctor list <id>`
   names an interrupted batch.

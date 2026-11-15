@@ -87,8 +87,11 @@ attempts; `--batch`, `--variant` and `--tasks` narrow them. Stale attempts
 are listed with the hash that moved and never graded, read or counted.
 Grading is separate from running, and every model verdict is cached beside
 the evidence, so a new check or a different judge is a regrade, not a
-rerun (a new check changes the task's hash, though, so the attempts it
-would grade are stale: run the exam again).
+rerun. The checks and the expected values are the standard an attempt is
+graded by: change one and `grade` applies it to every current attempt. A
+task's hash covers only what the agent met (the prompt, the fixture, the
+answer sheet an oracle reads from, the program template and the hooks),
+and only a change there makes attempts stale.
 
 ## Explore and guard
 

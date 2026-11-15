@@ -754,20 +754,20 @@ sealed class Exam
     }
 
     /// <summary>
-    /// A task's identity: its file (prompt, expect, its own checks), its answer sheet, its fixture's definition, the
-    /// scripts of the checks it carries and the specs of the exam's checks, which reach every task. Not the fixture's
-    /// source tree (the fixture hash, recorded per attempt) and not the pass and validity lists, which grading reads
-    /// as they are now.
+    /// A task's identity is what an agent meets when it attempts it: the prompt, the answer sheet an oracle reads to
+    /// it, the program template, the hooks, and the fixture (how it is built, and its source by content). Not the
+    /// checks, their scripts or the expected values: those are the standard an attempt is graded by, so a change
+    /// there means grading again, not attempting again.
     /// </summary>
     static string TaskHash(string root, string dir, ExamDef def, TaskDef c, Fixture? fixture)
     {
-        var files = new List<string> { TaskFile(dir, c) };
+        var files = new List<string> { Path.Combine(dir, Layout.ProgramTemplateFile) };
         if (c.Oracle is not null) files.Add(Path.Combine(dir, c.Oracle));
-        foreach (var spec in def.Grading!.Checks!.Values.Concat((c.Checks ?? []).Values))
-            if (spec["script"] is JsonValue v && v.TryGetValue<string>(out var script)) files.Add(Path.Combine(dir, script));
-        if (fixture is not null) files.AddRange(fixture.DefinitionFiles());
-        var examChecks = new JsonObject(def.Grading.Checks.Select(k => KeyValuePair.Create(k.Key, (JsonNode?)k.Value.DeepClone()))).ToJsonString();
-        return HashFiles(root, files, examChecks);
+        foreach (var pair in new[] { def.Hooks?.Variant, def.Hooks?.Attempt })
+            foreach (var script in new[] { pair?.Setup, pair?.Teardown })
+                if (script is not null) files.Add(Path.Combine(dir, script));
+        var built = fixture is null ? "" : JsonSerializer.Serialize(new { fixture.Id, fixture.Def.Source, fixture.Def.Stack, fixture.Def.Image, fixture.Hash }, JsonOptions);
+        return HashFiles(root, files.Where(File.Exists), c.Prompt + "\0" + built);
     }
 
     /// <summary>

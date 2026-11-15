@@ -46,8 +46,10 @@ formats or the vocabulary; a patch bump does not.
   variants asked for different counts, the exam takes the smallest:
   `code-change` is 1). The exam's hash no longer covers variants. A
   variant's hash covers what it declares but its id and note, its bundle
-  by content; a task's covers its file, answer sheet, fixture definition
-  and the checks that apply to it. Manifests record `exam`,
+  by content; a task's covers what the agent meets (the prompt, an
+  oracle's answer sheet, the program template, the hooks and the fixture
+  with its source), not the checks or expected values, so a changed check
+  is a regrade and never a rerun. Manifests record `exam`,
   `variant {id, hash}` and `task {id, hash}` in place of `exam_hash`;
   `batch.json` keeps `exam_hash` and `exam_def` and adds `variants`
   (`{id, hash, def}`) and `tasks` (`{id, hash}`). `run` refuses a changed
