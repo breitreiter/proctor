@@ -170,6 +170,41 @@ old and new kept apart so a quote cannot stitch them), and then it is an issue. 
 `rename-module` errors are a different thing: glm wrote `Legacy_Widgets` for
 `Legacy.Widgets`, a wrong quote rightly discarded.
 
+## Ids in the judge's material, so a citation can resolve without a perfect quote
+
+The last suite run left a lot of checks undecided because the judge's
+evidence was close to the material but not in it: a summary, or a
+near-copy. `Judge.Parse` refuses the whole sample when any excerpt is not
+found verbatim with whitespace removed, so a right answer with a sloppy
+quote counts the same as an invented one, even when the excerpt was of
+something that does exist.
+
+The fix seen in prior art (auspex `project/learnings/inspect-petri.md`):
+every item the judge reads carries an id (`[M12]`), and the citation is
+the id. Bloom shows the failure on the other side
+(`learnings/bloom-viewer.md`): its prompt asks for ids its formatter never
+writes.
+
+Sketch, untried:
+
+- **Ids in `Window.Render`.** `tool_calls` and `tool_results` already
+  number their items; make the numbers ids the judge can cite (`call 3`,
+  `result 3`). Number the hunks in `diff` and the paragraphs in `answer`
+  and `user_turns`; `prompt` is cited whole.
+- **Evidence as `{"at": "result 3", "quote": "..."}`.** The id has to
+  resolve, or the sample is refused as now. The quote is checked
+  verbatim against that item alone, which is stricter than the whole
+  window.
+- **An id that resolves with a quote that doesn't** keeps the label. It is
+  marked paraphrased, and the evidence shown is the item's own text, cut
+  to length, never the judge's words. The verdict file records both, so
+  the paraphrase rate per judge is countable.
+- It may also settle the glm diff item above: a hunk id resolves whether
+  or not the quote keeps the `+` markers.
+
+Open: whether "paraphrased" counts towards decided straight away, or only
+after a look at how often the cited item fails to support the label.
+
 ## Two loose ends of the move to OpenRouter
 
 Cloudflare is gone (CHANGELOG, Unreleased): code, both configs and the docs are on

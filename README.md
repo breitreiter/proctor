@@ -1,160 +1,135 @@
 # proctor
 
-Proctor measures what coding agents do with what you built: an SDK, a
-CLI, a docs site, an MCP server, a skill, an assistant. You describe
-tasks and the checks that say whether each was done, proctor runs them
-against the agents and models you name (Claude Code, Codex, Qwen Code,
-or its own harness), grades the transcripts with checks you can read,
-and writes a report that says whether the change you shipped helped,
-with an interval. The first suite to run is `suites/playground` ([getting started](docs/getting-started.md)); the
-site is [breitreiter.github.io/proctor](https://breitreiter.github.io/proctor/).
+**See how AI agents behave with what you built.**
 
-It runs locally. There is no cloud service: the suite definitions, the
-transcripts, the verdicts and the reports are files on your filesystem,
-and the only network traffic is the agents' own model calls and, if you
-use one, the judge's.
+Agents are reading your docs and your website. They're using your API, CLI
+or MCP server. Proctor measures whether what you built helped an agent
+reach a goal or a correct answer, and whether your last change made it
+better or worse.
 
-## What runs the agent
+You describe tasks and what "done" looks like. Proctor runs real agents
+against them in sandboxed environments, several times each, grades every
+run with checks you can read, and writes a report that says what changed,
+with a confidence interval around it.
 
-Proctor runs an agent in one of two ways.
+## Why measure
 
-Through [Harbor](https://github.com/harbor-framework/harbor), an agent runs
-in a container against a checkout of the fixture repository. Harbor
-isolates and runs Claude Code, Codex, Qwen Code, and
-[nb](https://github.com/breitreiter/nb), and in general any harness that
-speaks ACP. Use Harbor when the model needs tools that are unsafe on your
-own machine, such as a shell, or when the question is about a particular
-agent product rather than the model behind it.
+The thing you shipped for agents is often not used at all. An agent says
+it is done when it is not, and its own summary tells you what it planned,
+not what it did. A fix that works for one model and harness may not hold
+for the next version. Models are non-deterministic, so one good run in
+your own setup says little about what your users' agents will do.
 
-Bare, nb runs on this machine with no container. nb is a small runner for
-conversation programs: a scripted exchange with a model, with whatever
-system prompt and tool surface you give it. It is there for the cases
-where there is no CLI agent to test and you are not going to write one:
-a chatbot embedded in your product, a model's raw comprehension of a data
-structure or a tool definition, a prompt or a document on its own. Use
-bare nb for those; use Harbor for anything with a shipped agent in it.
+Proctor measures outcomes, efficiency and unwanted side effects across
+the agents your users actually have, and keeps the comparison honest:
+one good run doesn't mean the problem is gone.
 
-## Checks
+## What it runs
 
-A check is one yes-or-no question asked of a finished run. Proctor has
-three kinds:
+- **Coding agents.** Claude Code, Codex and Qwen Code run through
+  [Harbor](https://github.com/harbor-framework/harbor), one container
+  per run, each pinned to a version. Each run gets a fresh checkout of a
+  fixture repository, and your MCP server, skill, docs or prompt as a
+  bundle the agent can reach. The bundle is the thing under test; the
+  agents are the population.
+- **Assistants and conversations.** For an in-product assistant, a
+  chatbot or a headless job, proctor bundles a lightweight harness: you
+  supply the system prompt, the tools and the model, from any local or
+  hosted provider. A task can carry an *oracle*, what the user knows but
+  did not say, and proctor plays the user when the model stops to ask.
 
-- **Static checks** read the transcript and the work directory without a
-  model: how the run ended, turns and tool calls taken, denials, wall
-  time, whether the answer matched, and script checks that run your own
-  tests against the result.
-- **LLM-as-judge checks** send a model a named window of the transcript and
-  a question. The judge must answer with quoted evidence, every quote is
-  verified against the window, and several samples must agree.
-- **Classifier checks** send the window to a Jev typed classifier and read
-  a label with a probability against a threshold.
+## How it grades
 
-Every verdict is cached beside the evidence, so a new check or a different
-judge is a regrade, not a rerun.
+A check is one yes-or-no question asked of a finished run. Three kinds
+mix as a suite needs:
 
-## Oracles
+- **Static**, no model: how the run ended, turns and tool calls, wall
+  time, whether the diff stayed in scope, your own tests against the
+  result.
+- **Judge**: a model sees one named window of the transcript and one
+  question. It must answer with quotes, every quote is verified against
+  the window, and several samples must agree. A split is undecided, never
+  a default.
+- **Classifier**: a typed classifier reads the window and returns a label
+  with a probability, against a threshold.
 
-For multi-turn tasks, a task can carry an oracle: an answer sheet that
-plays the user when the agent stops to ask a question. The oracle answers
-from the sheet, judges whether the agent's question was answered by it,
-and records every exchange, so a check can require that the agent asked
-and was told a given thing, or cap how many answers it needed. Oracles run
-on nb arms, bare or through Harbor, where nb's ACP bridge carries the
-exchange; the vendor agents leave no record the oracle could use.
+Proctor counts turns, tool calls and how a run ended from the trajectory
+itself, never from the agent's own report.
 
-## Reports
+## The report
 
-`proctor report` writes one self-contained HTML page and a markdown twin.
-Every rate carries a 95% interval and its counts. Arms are compared
-pairwise on the tasks they share, with an interval and a fixed verdict
-word. The minimum detectable effect is stated, so an underpowered result
-cannot read as "no difference". A run can be pinned as a baseline and a
-later report can fail on regression against it. No model writes any part
-of the report; a judge's role ends at a label and a quote.
+One self-contained HTML page and a markdown twin. Every rate carries a
+95% interval and its counts; arms are compared pairwise on the tasks they
+share; the minimum detectable effect is stated, so "no difference" can't
+stand in for "couldn't tell"; failures are listed by check with the
+judge's quoted evidence. No model writes any of it.
 
-Proctor counts turns, tool calls, denials and how a run ended itself, from
-the trajectory Harbor returns (ATIF, Harbor's agent trajectory format) or
-from nb's own log, by its own definitions. It never takes an agent's word
-for its own numbers.
+Pin a run as a baseline, make your change, and the next report says
+whether each arm held, improved or regressed, and whether the interval
+confirms it. `--fail-on regression` turns that into an exit code for CI.
+
+Two example reports from proctor's own suites are in
+[`docs/reports/`](docs/reports/).
 
 ## Install
 
-[`docs/getting-started.md`](docs/getting-started.md) goes from a clone to a
-first report on a free hosted model in three steps. In short: build nb
-(`dotnet build` in its repo) and put its output directory on PATH, then:
+You need the .NET 10 SDK and git. Running coding agents also needs Docker
+or podman, and uv. Proctor is built from source for now, together with
+its bundled harness, which lives in a repository of its own:
 
 ```bash
-dotnet build
-alias proctor='dotnet /path/to/proctor/bin/Debug/net10.0/proctor.dll'
-proctor setup            # providers and keys for this machine, one job at a time
+git clone https://github.com/breitreiter/nb && (cd nb && dotnet build)
+git clone https://github.com/breitreiter/proctor && cd proctor && dotnet build
+export PATH="$PWD/../nb/bin/Debug/net10.0:$PATH"
+alias proctor="dotnet $PWD/bin/Debug/net10.0/proctor.dll"
+proctor setup
 ```
 
-`proctor setup` asks for keys at a hidden prompt and writes them to
-`~/.config/proctor/env` (`%LOCALAPPDATA%\proctor\env` on Windows), one
-`NAME=value` per line, which every verb loads; the config files it writes
-in `suites/` name them as `${NAME}` and are gitignored. `proctor setup
---check` prints what is set up, for you or your coding agent. To route
-through a gateway of your own instead, copy `suites/proctor.example.json`
-and `suites/nb.example.json` beside themselves without `.example`
-([`docs/configuration.md`](docs/configuration.md)).
+`proctor setup` is a short wizard for providers and keys. Run it in a
+terminal yourself, not through a coding agent: keys go to a file in your
+user profile, never to the repository. Windows commands and the full walk
+through are in [`docs/getting-started.md`](docs/getting-started.md).
 
-## Configure
+## Get started
 
-A repository that uses proctor has `suites/` (yours, in git), `runs/` (raw
-output, gitignored) and `reports/` (derived, written by `proctor report`).
-What goes in a suite, a fixture, a task, an arm and the machine's
-`suites/proctor.json`, the judges, runners and agent arms through Harbor,
-is in [`docs/configuration.md`](docs/configuration.md).
+[`docs/getting-started.md`](docs/getting-started.md) goes from a clone to
+a first report in three steps:
 
-## Use
+1. **The playground** ([`suites/playground`](suites/playground)): a
+   scripted suite on a small TypeScript CLI. No model, no key.
+2. **A real model** ([`suites/readme-answers`](suites/readme-answers)):
+   two versions of a README compared on a free hosted model. A
+   documentation change, measured.
+3. **Your own suite**, planned with your coding agent using the skill in
+   [`skills/proctor-suite/`](skills/proctor-suite/).
+
+The loop is always the same:
 
 ```bash
-proctor list [suite]          # validate; print the labels and the cells that would run
-proctor list --label kind=bugfix   # only the suites carrying that label
-proctor run <suite>           # run every cell into runs/<id>/; prints the id
-proctor resume <id>          # rerun cells that did not complete
-proctor grade <id>           # checks over every completed cell -> checks.json; model verdicts cached in verdicts/
-proctor grade <id> --rejudge # call the judges again instead of reusing the cells' verdict files
-proctor grade <id> --judge glm=k2   # compare k2 against glm on the checks glm grades; checks.json is untouched
-proctor grade <id> --arm a [--tasks x,y]   # only those cells (--arm repeatable); the rest keep their checks.json, so a paid judge pass can be staged
-proctor report <id>          # reports/data/<id>/{results.jsonl,stats.json,report.html,summary.md}
-proctor baseline <id> [--arm a] [--tasks x,y]   # pin the arm's analysed cells as suites/<suite>/baseline.json
-proctor report <id> --tolerance 10 --fail-on regression   # guard mode: exit 1 if an arm fell further than that
-proctor report <id> --against <earlier>   # each arm against the same arm in an earlier experiment, in place of the baseline
-proctor --version
+proctor run <suite>     # prints an experiment id
+proctor grade <id>
+proctor report <id>     # reports/data/<id>/report.html
 ```
 
-Two ways of working. In explore mode several arms run in one experiment and
-the report compares them to each other. In guard mode one arm runs against
-a baseline: pinned cells per task, committed with the suite, written by
-`proctor baseline` from an experiment you trust. The verdict card then
-compares every arm to the baseline with the same paired method, and each
-task card shows every arm against that task's pinned score. The verdict is
-held, improved or regressed on the point estimate against the tolerance,
-and `--fail-on regression` reads only that; it is *confirmed* only when the
-whole interval lies beyond the tolerance on the same side (or within it,
-for held), so a small task count cannot pass off a guess as a finding.
-Without a baseline the card compares each arm with the first, the
-reference. `--against <experiment>` stands in for the baseline for one
-report: each arm is compared with the arm of the same id in that earlier
-experiment, and the page says "earlier run" where it said "baseline".
-While the pinned experiment is still under `runs/`, its cells are re-read,
-so a regrade flows through; once it is archived the pinned scores stand,
-and the report says which.
+## Documentation
 
-`report.html` is one file that loads nothing from outside (styles, a few
-lines of script for the section rail, and the logo are inline); open it from
-`file://` or attach it to a message. The page reads the same without the
-script. `summary.md` has the same content as plain markdown: the verdict
-card as a list and a heading per task.
+- [`docs/getting-started.md`](docs/getting-started.md): clone to first report
+- [`docs/cli.md`](docs/cli.md): every command and flag; baselines and guard mode
+- [`docs/configuration.md`](docs/configuration.md): suites, fixtures, tasks, arms, judges, and the machine's config
+- [`docs/podman.md`](docs/podman.md): running coding agents on podman
+- [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): moving a suite to coding-agent arms
 
-Every rate carries a 95% interval and its counts; comparisons between arms are
-paired on shared tasks with their own interval and a fixed verdict word; and
-the minimum detectable effect is stated so an underpowered result cannot read
-as "no difference". The methods are named in the report's last paragraph.
+## What it is not
 
-## Credits
+- **Not a cloud service.** Suites, transcripts, verdicts and reports are
+  files in your repository. The only network traffic is the agents' model
+  calls and the judge's.
+- **Not a leaderboard.** The question is never which agent is best. It is
+  whether what you built works for the agents your users have, and
+  whether your last change helped.
 
-The wizard hat icon (`assets/pointy-hat.svg`) is adapted from
+## License
+
+MIT. The wizard hat icon (`assets/pointy-hat.svg`) is adapted from
 ["Pointy hat"](https://game-icons.net/1x1/lorc/pointy-hat.html) by Lorc,
 licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
