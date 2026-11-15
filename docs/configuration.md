@@ -323,7 +323,14 @@ Every point carries a quote from the call it cites, checked the way a
 judge's quote is checked; a point with no quote that is in the call is not
 written. The rules use no model, so the same trajectory and declaration
 give the same file. A point is a place to look, not a verdict: what it
-should become, when it matters, is a check.
+should become, when it matters, is a check. Two built-ins say most of
+them: `tool_args` with `match: regex` for what a run did, and
+`result_matches` (a regular expression over every tool result) for what
+it was shown, usually negated:
+
+```json
+"no-dead-end": { "not_result_matches": "ask the user to run\\s+`tern setup`", "description": "the docs never send a run to an instruction it cannot follow" }
+```
 
 ## Oracles
 

@@ -62,6 +62,9 @@ public class ChecksTests
     [InlineData("{\"denied_calls\": {\"max\": 0}}", "tool-denied", "fail")]
     [InlineData("{\"tool_errors\": {\"max\": 0}}", "tool-allowed", "pass")]
     [InlineData("{\"tool_errors\": {\"max\": 0}}", "tool-error", "fail")]
+    [InlineData("{\"result_matches\": \"exit code: [1-9]\"}", "tool-error", "pass")]
+    [InlineData("{\"result_matches\": \"exit code: [1-9]\"}", "tool-allowed", "fail")]
+    [InlineData("{\"not_result_matches\": \"exit code: [1-9]\"}", "tool-error", "fail")]
     [InlineData("{\"loop_nudged\": false}", "plain", "pass")]
     [InlineData("{\"loop_nudged\": false}", "loop-nudged", "fail")]
     [InlineData("{\"max_tool_calls\": 3}", "loop-nudged", "pass")]
@@ -101,10 +104,25 @@ public class ChecksTests
     [InlineData("{\"files_touched\": {\"paths\": [\"src/**\", \"README.md\"], \"mode\": \"at_most\"}}", "changes stay within src/**, README.md")]
     [InlineData("{\"tool_sequence\": {\"names\": [\"read\", \"bash\"], \"mode\": \"exact\"}}", "calls read, bash and nothing else")]
     [InlineData("{\"answer_words\": {\"min\": 10, \"max\": 50}}", "the answer is 10 to 50 words")]
+    [InlineData("{\"not_result_matches\": \"ask the user to run\"}", "not: a tool result matches /ask the user to run/")]
     [InlineData("{\"loop_nudged\": false, \"tool_errors\": {\"max\": 2}}", "the loop nudge does not fire and at most 2 tool errors")]
     [InlineData("{\"exit_reason\": \"ok\", \"description\": \"nb finished cleanly\"}", "nb finished cleanly")]
     public void Describe_IsTheDeclaredSentence_OrDerivedFromTheSpec(string spec, string expected) =>
         Assert.Equal(expected, Checks.Describe(JsonNode.Parse(spec)!.AsObject()));
+
+    [Fact]
+    public void ResultMatches_ReadsAnAgentCellsToolResults()
+    {
+        var trajectory = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "atif-claude-code.json")))!.AsObject();
+        var t = Transcript.FromAtif(trajectory, null);
+
+        var shown = Suite("{\"result_matches\": \"has been updated\\\\s+successfully\"}", t);
+        var never = Suite("{\"not_result_matches\": \"ask the user to run\"}", t);
+
+        Assert.Equal("pass", shown.Result);
+        Assert.Contains("has been updated successfully", shown.Reason);
+        Assert.Equal("pass", never.Result);
+    }
 
     [Fact]
     public void Description_IsNotEvaluated()

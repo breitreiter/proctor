@@ -80,7 +80,7 @@ static class Checks
     static readonly string[] Known =
     [
         "exit_reason", "answer_contains", "answer_regex", "answer_equals", "answer_words",
-        "tools_used", "tools_used_any", "tool_args", "tool_sequence", "denied_calls", "tool_errors",
+        "tools_used", "tools_used_any", "tool_args", "tool_sequence", "denied_calls", "tool_errors", "result_matches",
         "loop_nudged", "oracle_hit", "oracle_misses", "oracle_turns", "files_touched", "max_tool_calls", "max_tokens", "max_duration_ms", "script",
         Judge.Decide, Judge.JudgeCheck,
     ];
@@ -156,6 +156,7 @@ static class Checks
             "answer_contains" => $"the answer contains '{v}'",
             "answer_equals" => $"the answer is exactly '{v}'",
             "answer_regex" => $"the answer matches /{v}/",
+            "result_matches" => $"a tool result matches /{v}/",
             "answer_words" => (v!["min"], v["max"]) switch
             {
                 ({ } min, { } max) => $"the answer is {min} to {max} words",
@@ -201,8 +202,8 @@ static class Checks
         {
             "script" when value is not JsonValue => "a script is a path string",
             "script" when !File.Exists(Path.Combine(suiteDir, value!.GetValue<string>())) => $"script not found: {value}",
-            "exit_reason" or "answer_contains" or "answer_regex" or "answer_equals" when value is not JsonValue => "expects a string",
-            "answer_regex" when !IsRegex(value!.GetValue<string>()) => "not a valid regular expression",
+            "exit_reason" or "answer_contains" or "answer_regex" or "answer_equals" or "result_matches" when value is not JsonValue => "expects a string",
+            "answer_regex" or "result_matches" when !IsRegex(value!.GetValue<string>()) => "not a valid regular expression",
             "tools_used" or "tools_used_any" when value is not JsonArray => "expects a list of tool names",
             "loop_nudged" when value is not JsonValue => "expects true or false",
             "max_tool_calls" or "max_tokens" or "max_duration_ms" when value is not JsonValue => "expects a number",
@@ -326,6 +327,18 @@ static class Checks
                 if (t.Answer is null) return Verdict.Err("no assistant answer");
                 var hit = Regex.IsMatch(t.Answer, v.GetValue<string>());
                 return Verdict.Of(hit, $"answer {(hit ? "matches" : "does not match")} /{v}/");
+            case "result_matches":
+            {
+                // What a run was shown, whatever it did next: a docs line that cannot be followed, an error it stepped past.
+                var pattern = new Regex(v.GetValue<string>());
+                foreach (var result in t.ToolResults)
+                    if (pattern.Match(result.Output) is { Success: true } m)
+                    {
+                        var shown = string.Join(' ', m.Value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+                        return new Verdict(Verdict.Pass, $"the result of call {result.Id} matches: \"{(shown.Length > 80 ? shown[..80] + "…" : shown)}\"");
+                    }
+                return new Verdict(Verdict.Fail, $"none of {t.ToolResults.Count} tool result{(t.ToolResults.Count == 1 ? "" : "s")} matches /{v}/");
+            }
             case "answer_words":
             {
                 if (t.Answer is null) return Verdict.Err("no assistant answer");

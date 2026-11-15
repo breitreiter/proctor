@@ -7,6 +7,9 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- A `result_matches` check: a regular expression over every tool result
+  of a run, so `not_result_matches` fails a run that was shown something
+  it should never be shown, whatever it did next.
 - `proctor friction <experiment>` writes `friction.json` beside each
   completed cell's trajectory: the points where the run paid a cost the
   task did not ask for, each with a quote from the call it cites, and a
