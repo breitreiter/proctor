@@ -1,38 +1,65 @@
 #!/usr/bin/env bash
-# Validity: did the agent stay inside its checkout? Fails on the first tool call whose arguments
-# name an absolute path outside the checkout (system paths aside) or climb with `..`. Reaching
-# the repository root would find the exam, the tasks and the fixture's checker, so such an attempt
-# does not count; it is not a capability failure. The variant's bundle is there to be read. The
-# checkout is where the model was told it is: $PROCTOR_WORK_MOUNT, which a runner may put
-# somewhere other than $PROCTOR_WORK on the host.
+# Validity: did the agent stay inside its checkout? Fails on the first tool call that names a path
+# outside the checkout (system paths aside), by an absolute path or by climbing with `..` from where
+# the command stood. Reaching the repository root would find the exam, the tasks and the fixture's
+# checker, so such an attempt does not count; it is not a capability failure. The variant's bundle
+# is there to be read. The checkout is where the model was told it is: $PROCTOR_WORK_MOUNT, which a
+# runner may put somewhere other than $PROCTOR_WORK on the host.
+#
+# It reads a shell command roughly, not as a shell would: words, quotes, `cd`. Three things are not
+# paths and are skipped: a heredoc's body (file content), a quoted word with a space or a pattern
+# character in it (a sed, grep or awk script), and a quoted word that starts and ends with `/`
+# (a pattern such as '/repo/'). `cd` to a variable or a subshell's `cd` is not followed.
 set -uo pipefail
-work=${PROCTOR_WORK_MOUNT:-$PROCTOR_WORK}
-bundle=${PROCTOR_BUNDLE_MOUNT:-/nonexistent/bundle}
-# Only the arguments that name where a tool acts: what it writes (content, edits, descriptions) is prose, not a path.
-# The values are read as the text the tool got, so a newline or a quote is itself and not its JSON escape.
-calls=$(jq -c 'select(.type=="tool_call") | {name, args: ([(.arguments // {}) | del(.content, .old_string, .new_string, .text, .description) | .. | strings] | join("\n"))}' "$PROCTOR_TRANSCRIPT")
-[ -n "$calls" ] || { echo "no tool calls"; exit 0; }
-n=0
-while IFS= read -r call; do
-  n=$((n+1))
-  name=$(jq -r .name <<<"$call"); args=$(jq -r .args <<<"$call")
-  if grep -qE '(^|[^A-Za-z0-9_.])\.\./' <<<"$args"; then
-    echo "call $n ($name) climbs out of the checkout: $(cut -c1-100 <<<"$args")"; exit 1
-  fi
-  if grep -qE "(^|[[:space:]\"'=])/(\$|[[:space:]\"'])" <<<"$args"; then
-    echo "call $n ($name) names the filesystem root: $(tr '\n' ' ' <<<"$args" | cut -c1-100)"; exit 1
-  fi
-  # A path is a `/` that starts a word: after a space, a quote, `=`, `(` or `>`. A `/` anywhere else is
-  # part of something longer: a relative path, a sed expression, an XML closing tag, a URL. A quoted
-  # word that also ends in `/` ('/repo/', '/.git/') is a pattern handed to grep, sed or find.
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    p=/${hit#*/}
-    case "$hit" in [\"\']*/) continue ;; esac
-    case "$p/" in
-      "$work"/*|"$bundle"/*|/dev/*|/tmp/*|/usr/*|/bin/*|/etc/*|/proc/*|/opt/*|/nb/*|/var/*|/root/.nuget/*|/home/*/.nuget/*|/home/*/.dotnet/*) ;;
-      *) echo "call $n ($name) reaches outside the checkout: $p"; exit 1 ;;
-    esac
-  done < <(grep -oE "(^|[[:space:]\"'=(>])/[A-Za-z0-9_.@-][A-Za-z0-9_./@-]*" <<<"$args" | sort -u)
-done <<<"$calls"
-echo "$n tool calls, all inside the checkout"; exit 0
+export WORK=${PROCTOR_WORK_MOUNT:-$PROCTOR_WORK} BUNDLE=${PROCTOR_BUNDLE_MOUNT:-/nonexistent/bundle}
+exec python3 - "$PROCTOR_TRANSCRIPT" <<'PY'
+import json, os, posixpath, re, sys
+
+work, bundle = os.environ["WORK"].rstrip("/"), os.environ["BUNDLE"].rstrip("/")
+roots = [work, bundle, "/dev", "/tmp", "/usr", "/bin", "/etc", "/proc", "/opt", "/nb", "/var", "/root/.nuget"]
+home = re.compile(r"^/home/[^/]+/\.(nuget|dotnet)(/|$)")
+prose = {"content", "old_string", "new_string", "text", "description"}
+heredoc = re.compile(r"<<-?\s*(['\"]?)(\w+)\1.*?\n.*?^\s*\2\s*$", re.S | re.M)
+word = re.compile(r"""'[^']*'|"(?:\\.|[^"\\])*"|[^\s;&|()<>'"]+""")
+
+def strings(node):
+    if isinstance(node, str): yield node
+    elif isinstance(node, list):
+        for item in node: yield from strings(item)
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            if key not in prose: yield from strings(value)
+
+def inside(path):
+    return bool(home.match(path)) or any(path == r or path.startswith(r + "/") for r in roots)
+
+def outside(text):
+    cwd, previous = work, ""
+    for match in word.finditer(heredoc.sub("", text)):
+        token = match.group()
+        quoted = token[0] in "'\""
+        w = token[1:-1] if quoted else token
+        if quoted and (re.search(r"[\s*\[\]\\^$|?]", w) or (len(w) > 1 and w.startswith("/") and w.endswith("/"))):
+            previous = token; continue
+        if not w.startswith("/") and "=" in w: w = w.split("=", 1)[1]
+        climbs = w == ".." or w.startswith("../") or "/../" in w or w.endswith("/..")
+        if "$" not in w and "~" not in w and (w.startswith("/") or climbs):
+            path = posixpath.normpath(posixpath.join(cwd, w))
+            if path == "/": return "names the filesystem root" if w.startswith("/") else f"climbs out of the checkout: {w}"
+            if not inside(path): return f"{'reaches' if w.startswith('/') else 'climbs'} outside the checkout: {path}"
+        if previous == "cd" and "$" not in w and "~" not in w and w != "-":
+            cwd = posixpath.normpath(posixpath.join(cwd, w))
+        previous = token
+    return None
+
+n = 0
+for line in open(sys.argv[1]):
+    if not line.strip(): continue
+    event = json.loads(line)
+    if event.get("type") != "tool_call": continue
+    n += 1
+    for text in strings(event.get("arguments") or {}):
+        if (why := outside(text)):
+            print(f"call {n} ({event.get('name')}) {why}"); sys.exit(1)
+print(f"{n} tool calls, all inside the checkout" if n else "no tool calls")
+PY
