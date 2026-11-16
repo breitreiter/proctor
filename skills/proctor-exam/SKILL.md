@@ -59,6 +59,11 @@ read and let the user correct you.
 6. **What will it cost?** Attempts = variants × tasks × the exam's `attempts` (per task, for every variant).
    Estimate tokens per attempt, price it, and agree the number with the user
    before any paid batch. A free tier or a local model is the place to iterate.
+7. **How current must it stay?** Agents ship new versions every week or
+   two, and each one followed is another paid batch. If the question is the
+   agent, the exam follows the versions people run; if it is the user's own
+   work (docs, tools, a prompt), one pinned agent can serve for months.
+   Agree which, and what would be a reason to move the pin.
 
 Write the plan as a short `exams/<id>/PLAN.md`: the question in one
 sentence, the tasks with their checks, the variants, the attempt count and cost,
@@ -157,6 +162,14 @@ exam, task, attempt, check, variant, fixture, batch, live.
   expected values) and those verdicts are `outdated` until the attempts are
   made again, out of every rate. Prove the scripts for free before an agent
   batch, not after.
+- **A change to the world is a new exam, not an edit.** A new agent
+  version or model is a new variant beside the old one; a new check or
+  task is a regrade. But when the fixture, a service the task's code
+  calls, or the machine changes, the attempts already made are about a
+  world that is gone: copy the exam (and the fixture, if it changed) to a
+  new id, attempt the live variant again there, and leave the old exam
+  closed. `docs/configuration.md`, "When an exam gets a copy", has the
+  rubric.
 - **After a crash, `proctor run <id>` again.** There is no resume verb: run
   continues the interrupted batch and says so, and `proctor list <id>`
   names an interrupted batch.

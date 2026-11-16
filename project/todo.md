@@ -1120,3 +1120,16 @@ untouched check on an untouched attempt should come back without a call
 or a flipped verdict. That is read from the code, not measured: after
 the rewrite, grade a judged exam twice across two batches and confirm
 the second pass makes no judge calls.
+
+## Does a pinned vendor agent change behaviour at the same version?
+
+Unconfirmed. The rubric in `docs/configuration.md` ("When an exam gets a
+copy") rests on an agent at a pinned `agent_version` behaving the same
+from week to week. If Claude Code (or Codex, or Qwen Code) fetches remote
+feature flags or config at startup, it may not. Proctor turns off only
+Harbor's telemetry (`HARBOR_TELEMETRY=off`, `Run/Harbor.cs`) and sets
+nothing for the agents. To investigate: what each agent at its pin fetches
+on start (a conformance attempt with the egress sidecar logging, at $0),
+and whether a setting such as `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`
+in the agent's environment stops it without changing what is under test.
+An issue only once it is seen.

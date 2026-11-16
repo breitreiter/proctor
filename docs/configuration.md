@@ -30,6 +30,61 @@ ask a second question of the same transcripts, you have a new check,
 not a new exam. The prompt is what the user wants, in the user's words;
 the task's checks are how proctor measures whether they got it.
 
+### When an exam gets a copy
+
+An exam's attempts are a pool, and every attempt in it is evidence about
+one world: the same fixtures, the same services, the same machine. What
+is under test changes; the world is held still. That is what lets a
+report compare variants made weeks apart, and lets a new check regrade
+attempts already made. So before any change, ask whether the attempts
+already made are still evidence after it.
+
+- **A change to what is under test is a new variant, in the same exam.**
+  A new agent version, a new tool in the bundle, a new model id: a new
+  variant file beside the old one. The old variant still runs and the
+  world has not moved, so its attempts still count, and the two can be
+  attempted in the same week and compared.
+- **A change to the standard is a regrade, in the same exam.** A new
+  check, a tighter `expect`, a new task for a failure nobody had caught.
+  The transcripts are what they were; the exam asks more of them. If the
+  live variant fails the new check, it was failing all along, and the
+  report now says so.
+- **A change to the world is a new exam.** An API the task's code calls
+  now rate-limits; the fixture's environment gains a tool; builds run on
+  a smaller machine. The attempts already made are about a world that is
+  gone, and no regrade fixes that. "It is only one new tool, and the old
+  transcripts never called it" does not save them: the agent was offered
+  a different list. Copy the exam to a new id (`cp -r exams/tern-docs
+  exams/tern-docs-2`), attempt the live variant again there as the
+  reference, and close the old one: its kept report is the record, and it is not
+  graded or reported again. Proctor sees a change to a fixture (every
+  task on it goes stale) but not a machine or a service outside the
+  repository; either way the copy keeps the old exam whole, its claims
+  and reports included. When the change is in a fixture, copy the
+  fixture too, since fixtures are shared and editing one in place makes
+  every exam on it stale.
+- **A hosted model drifting is noise you accept.** A model id that
+  answers a little differently from last month is absorbed like the
+  model's own randomness. That is tolerable only because everything else
+  is pinned: the agent version, the bundle, the fixture, the image. Pin
+  whatever can be pinned, and an exam has one unpinned thing to absorb
+  rather than several.
+
+**Chasing every change costs more than it is worth for most exams.** Each
+copied exam and each new agent version is a batch of attempts, at hosted
+prices when the model is hosted, and agents ship new versions every week
+or two. Decide per exam how far behind it may fall. An exam whose
+question is the agent ("does Claude Code handle our SDK?") has to follow
+the versions people run. An exam whose question is your own work (two
+versions of your docs, your tool descriptions) can keep one pinned agent
+for months, because the difference between your variants is what it
+reports, and that does not go stale when a newer agent ships. Move a pin
+or copy an exam for a reason (a complaint, a release note that touches
+what the exam measures, a world change that reaches what it grades), not
+on every release. Every report names the versions and batches it was
+built from, so a reader can judge whether that is close enough. Proctor's
+own exams work this way: their agents stay pinned until there is a reason.
+
 ## The machine's config and the judges
 
 `exams/proctor.json` says where nb is and which config it runs with; paths are

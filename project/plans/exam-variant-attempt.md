@@ -2,7 +2,7 @@
 type: plan
 title: Exam, variant, attempt — the data model as a worked example
 created: 2026-11-15
-status: agreed with the user 2026-11-15 (D1 to D15, D8 and D12 as revised); built through steps 1 to 4 of the work-list (the words, variants as files, the pool, live), claims and the change report not. The work-list is `exam-variant-attempt-removal.md`. The reasoning is in `/srv/aiwork/auspex/project/model.md`. This file is the target written out as files and commands, so that a wrong assumption is a wrong line
+status: agreed with the user 2026-11-15 (D1 to D15, D8 and D12 as revised), D16 to D18 2026-11-16; built through steps 1 to 4 of the work-list (the words, variants as files, the pool, live), claims and the change report not. The work-list is `exam-variant-attempt-removal.md`. The reasoning is in `/srv/aiwork/auspex/project/model.md`. This file is the target written out as files and commands, so that a wrong assumption is a wrong line
 ---
 
 # Exam, variant, attempt
@@ -14,9 +14,10 @@ and where this file shows them it is still the target. Values from
 the `tern-docs` runs of 2026-11-13 are real. Anything marked
 **(invented)** is made up to carry the example forward.
 
-Every place this file had to choose is numbered **D1** to **D15** and
-listed at the end with what was chosen. The user went through them on
-2026-11-15; D8 and D12 changed, and D7 and D10 are to be watched.
+Every place this file had to choose is numbered **D1** to **D18** and
+listed at the end with what was chosen. The user went through D1 to D15
+on 2026-11-15; D8 and D12 changed, and D7 and D10 are to be watched.
+D16 to D18 (Part 3) came from a conversation on 2026-11-16.
 
 ## The words
 
@@ -347,6 +348,81 @@ $ proctor live tern-docs py38-quickstart
 exams/tern-docs/live.json: py38-quickstart is live (was as-shipped)
 ```
 
+## Part 3: when something changes that nobody claimed
+
+**(invented from here.)** Three changes in the month after Part 2, none
+of them a prediction:
+
+1. Claude Code ships 2.1.330. The live variant is pinned at 2.1.301.
+2. Tern's sandbox starts answering 429 above ten requests a second,
+   because Tern's real API now does.
+3. The build machine is moved to a smaller instance.
+
+The question for each is whether the attempts already made are still
+evidence after it (D16). The pool assumes one world: the variant
+changes, the world is held still.
+
+**A new agent version is a new variant in the same exam.** The old
+version still installs and the world has not moved, so both are attempted
+side by side and compared, by a claim with no flips (D17):
+
+```
+$ cp exams/tern-docs/variants/py38-quickstart.json exams/tern-docs/variants/py38-cc330.json
+  (agent_version 2.1.330, the note says so)
+$ proctor claim tern-docs py38-cc330 --because "Claude Code 2.1.330 is what our users run"
+exams/tern-docs/claims/20261218-py38-cc330.json
+$ proctor run tern-docs --variant py38-cc330
+batch 20261218-1010-tern-docs-r4tq: 14 attempts to make
+```
+
+```
+tern-docs: py38-cc330 against py38-quickstart (live)
+
+Claimed  nothing should change (Claude Code 2.1.330 is what our users run)
+
+Everything else
+  7 tasks unchanged on the pass checks
+  no movement confirmed
+```
+
+A claim with no flips has no "Claimed" rows; every movement is judged
+under "Everything else", where a claim already puts what it did not
+name.
+
+**A change to the world is a new exam.** The rate limit is in the
+fixture's service, so proctor sees it: every task on `tern-shop` goes
+stale. Refilling the same pool would mix two worlds in one history, and
+the earlier claims would be judged on attempts they never saw. So:
+
+```
+$ cp -r exams/tern-docs exams/tern-docs-ratelimit
+$ cp -r fixtures/tern-shop fixtures/tern-shop-ratelimit
+  (the sandbox's limit added there; the copied tasks name the new fixture)
+$ proctor run tern-docs-ratelimit --variant py38-quickstart
+```
+
+`live.json` came with the copy, so the live variant is the reference in
+the new world, and the next claim is made there. `tern-docs` is closed:
+its kept reports are the record and it is not graded again. The original
+fixture is left as it was, so nothing in the closed exam goes stale.
+
+The smaller machine is the same case, and proctor does not see it: no
+hash moves. The batch records the machine's shape (CPU count, memory;
+D18, not built), so a batch made on another shape is a mixed-conditions
+warning, which is the prompt to ask whether the world changed.
+
+**A hosted model drifting is accepted as noise.** Claude Sonnet under
+one id answering a little differently from last month is absorbed like
+its own randomness. That is tolerable because everything else is pinned.
+
+**Nobody has to chase every change.** Each new pin and each copy is a
+paid batch, and agents ship every week or two. An exam whose question is
+the agent follows the versions people run; one whose question is a
+bundle can hold one pin for months, because the difference between its
+variants is what it reports. Proctor's own exams hold their pins until
+there is a reason. `docs/configuration.md` ("When an exam gets a copy")
+is this part as the user's rubric.
+
 ## What goes away
 
 | Today | Why it goes |
@@ -434,3 +510,6 @@ written exam, so they move with the tool and need no rewording.
 | D13 | The authoring exam's prompts are reworded and it is rerun as the acceptance test for this change | leave it until after |
 | D14 | Batches live under `attempts/` | keep `runs/` |
 | D15 | Continuing after a crash is announced by `list` and `run`, leads the CLI docs, and is a task in the authoring exam | rely on the docs alone |
+| D16 | Whether attempts still count is decided by whether they are still evidence: a change to the variant is a new variant, a change to the standard a regrade, a change to the world (fixture, outside service, machine) a copied exam with the old one closed; a hosted model's drift is accepted. How closely an exam follows new versions is a cost the user chooses (the user, 2026-11-16) | one exam with a dated marker splitting its pool, and a before-and-after comparison of the live variant across it; or "can the outcome veto the change?" as the test, which sends every agent release to a new exam |
+| D17 | A claim's flips are optional; a claim with none says nothing should move, and its report judges every movement under "Everything else" | a separate kind of change for an unpredicted one |
+| D18 | The batch records the machine's shape, and a pool on mixed shapes is the mixed-conditions warning; it never splits the pool. Not built | nothing, leaving a machine change invisible; or a pool split by machine |
