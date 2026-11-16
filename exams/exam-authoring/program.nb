@@ -2,38 +2,10 @@
 provider {{provider}}
 harness {{harness}}
 approval default deny
-approval bash dotnet *
-approval bash cd * && dotnet *
-approval bash bash *
-approval bash chmod *
-approval bash mkdir *
-approval bash jq *
-approval bash git *
-approval bash ls *
-approval bash cat *
-approval bash find *
-approval bash grep *
-approval bash rg *
-approval bash head *
-approval bash tail *
-approval bash wc *
-approval bash sed *
-approval bash awk *
-approval bash cut *
-approval bash sort *
-approval bash uniq *
-approval bash diff *
-approval bash file *
-approval bash strings *
-approval bash stat *
-approval bash tree *
-approval bash echo *
-approval bash pwd *
-approval bash rm *
-approval bash mv *
-approval bash cp *
-approval bash touch *
-approval bash cd * && bash *
+# Every shell command is approved: the attempt runs in a container, and nb matches a pattern against the
+# whole command line, so a list of programs refuses `cd /work; cat x`. What is still refused is a file
+# tool outside the checkout, a fetch and a web search, which is what no_denials is there to count.
+approval bash *
 loop 3
 budget tool_calls 80
 budget wall_ms 1800000
