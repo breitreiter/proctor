@@ -88,7 +88,8 @@ batch stays in the attempt under `trial/` as evidence.
 | `exit_ok`, `validates`, `accepts-correct`, `rejects-wrong` | pass | nb finished; `proctor list` loads the exam cleanly; it passes the correct attempt; it fails every wrong one |
 | `stays-in-work` | validity | the agent stayed in its checkout and the bundle (once shared with code-change, which runs through Harbor now) |
 | `self-validated`, `describes-everything`, `read-examples` | guardrail | it ran `list` itself; the exam and every task carry a description and every variant a note; it opened an example |
-| `stance` (`decide`), `prompt-hides-answer` (`judge`) | guardrail | the closing message claims completion; the task prompt it wrote does not give away the answer |
+| `stance` (`decide`) | guardrail | the closing message claims completion |
+| `prompt-hides-answer` (`judge`), on the three tasks that write an exam | guardrail | the task prompt it wrote does not give away the answer |
 | `continued`, `reported` | guardrail, `continue-the-batch` only | the interrupted batch was finished in place; the report was built from it |
 
 `reference/` holds a good answer for each exam-writing task: three small exams that also serve

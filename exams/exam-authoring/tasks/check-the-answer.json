@@ -1,10 +1,23 @@
 {
   "id": "check-the-answer",
   "description": "An exam for a question with one right number, which must reject near misses and an agent that changes files",
-  "labels": { "teaches": "@expect" },
+  "labels": {
+    "teaches": "@expect"
+  },
   "fixture": "authoring-stock",
   "prompt": "Write an exam with the id `stock-count`. It has one task, on the `stock` fixture already under fixtures/: the agent under test is asked how many SKUs in stock.csv are due for reorder, and to end its answer with a line `ANSWER: <n>`. The right answer is 8; it belongs in the task's expectations, not in the prompt the agent sees. It has one variant: nb with the provider `local-qcoder` and the model `qwen3-coder-next`. Each task is attempted three times.\n\nAn attempt passes only when its ANSWER line gives exactly 8 (`ANSWER: 18` and `ANSWER: 80` are wrong) and it changed no file: the task is read-only.\n\nValidate the exam with proctor's `list` before you finish.",
   "expect": {
     "exam": "stock-count"
+  },
+  "checks": {
+    "prompt-hides-answer": {
+      "judge": {
+        "ask": "The diff adds a proctor exam; its task files carry a `prompt`, the task an agent under test will be given. Does every such prompt state the task without stating what a correct run's result is, leaving the expected answer or the solution's code to the exam's checks and expectations? Answer no if a prompt contains the expected number, or the code or edit that solves the task.",
+        "window": "diff",
+        "votes": 3,
+        "with": "glm"
+      },
+      "description": "the task prompt the written exam gives its agent does not give away the answer"
+    }
   }
 }
