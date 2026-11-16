@@ -1133,3 +1133,22 @@ on start (a conformance attempt with the egress sidecar logging, at $0),
 and whether a setting such as `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`
 in the agent's environment stops it without changing what is under test.
 An issue only once it is seen.
+
+## Grade the proctor-on-proctor exams with the proctor they were shown
+
+Wait until the exam-variant-attempt refactor settles; nothing is pinned
+before then. `exam-authoring`'s variants pin proctor's docs at a revision
+(the bundle, `b3250b6` today), but `checks/validates.sh` and
+`checks/trial.sh` grade with the host's build
+(`$PROCTOR_EXAM_DIR/../../bin/Debug/net10.0/proctor.dll`), whatever the
+checkout last built. So every commit that changes what `list` accepts, or
+how a trial runs, changes the verdicts on attempts already made, with no
+hash moving: by the rubric in `docs/configuration.md` ("When an exam gets
+a copy"), the world changes on every commit. The fix: build proctor at the
+variant's bundle rev (the variant-setup hook already builds proctor) and
+hand that build's path to the checks, so a proctor change reaches the exam
+only as a new variant at a new rev, with a claim. Check `agent-onboarding`
+for the same shape when doing it; its scripts do not name the host build,
+but may reach it another way. Then decide the cadence: a new bundle rev
+when a docs, skill or CLI change is meant to help authors; agent pins at
+most quarterly.
