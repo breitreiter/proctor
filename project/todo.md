@@ -1152,3 +1152,21 @@ for the same shape when doing it; its scripts do not name the host build,
 but may reach it another way. Then decide the cadence: a new bundle rev
 when a docs, skill or CLI change is meant to help authors; agent pins at
 most quarterly.
+
+## A freeze for an exam and setup worth protecting
+
+From the user, 2026-11-16. Changing an exam's job or a variant empties its bank
+(`plans/bank.md`, B2), which is right and unavoidable. Early on that happens
+constantly and costs nothing. Later a careless edit can turn hundreds of
+dollars of transcripts into nothing. Wanted: a ceremony for "this is good
+enough, do not change it", after which `run` and `list` refuse or warn
+loudly when the hash of a frozen exam or variant would change, and say how
+many reps would be lost. Not designed.
+
+## Back-fill a check that needs the workspace
+
+`plans/bank.md`, "Back-fill". A new or changed script check cannot be graded
+over banked reps from an agent variant; it shows as outdated. Agreed as a
+fast follow after the bank layout: rebuild the workspace from the fixture's
+image and the kept diff, run the script, record that the image is a later
+build.
