@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 namespace Proctor;
 
 // report.html and summary.md: two renderings of one list of blocks built from stats.json, results.jsonl and
-// the batch the report stands for (the latest its attempts came from, with the exam's variants as they are now).
+// the conditions the report stands for (the log entry of the latest run its attempts came from, with the exam's variants as they are now).
 // Neither computes a statistic. The structure is project/plans/report-structure.md: define a
 // term before using it, one sentence under every heading saying what the section is for, the answer in the
 // first six sections and the evidence after. Some readers open this daily and some once a quarter; for the
@@ -40,11 +40,12 @@ static class Report
     // ``code`` as `code` (it has one code style, and doubled backticks read as noise raw), keeps the rest as they
     // are and drops the link to its text, since summary.md has no anchors.
 
-    public static string Html(StatsFile stats, List<ResultRow> rows, Batch batch, List<JudgeUse>? judges = null) => RenderHtml(Blocks(stats, rows, batch, judges), stats, batch);
-    public static string Markdown(StatsFile stats, List<ResultRow> rows, Batch batch, List<JudgeUse>? judges = null) => RenderMarkdown(Blocks(stats, rows, batch, judges));
+    public static string Html(StatsFile stats, List<ResultRow> rows, LogEntry latest, List<JudgeUse>? judges = null) => RenderHtml(Blocks(stats, rows, latest, judges), stats, latest);
+    public static string Markdown(StatsFile stats, List<ResultRow> rows, LogEntry latest, List<JudgeUse>? judges = null) => RenderMarkdown(Blocks(stats, rows, latest, judges));
 
-    static List<Block> Blocks(StatsFile stats, List<ResultRow> rows, Batch batch, List<JudgeUse>? judges)
+    static List<Block> Blocks(StatsFile stats, List<ResultRow> rows, LogEntry latest, List<JudgeUse>? judges)
     {
+        var attempts = stats.Attempts;
         var variants = stats.Variants.Keys.ToList();
         var live = Reference(stats);
         var d = stats.Descriptions;
@@ -53,15 +54,15 @@ static class Report
         Td Id(string s) => new($"`{s}`");
 
         // 1. Summary
-        var created = When(batch.Created);
+        var created = When(latest.Created);
         b.Add(new Title(stats.Exam, created.ToString("dddd, d MMMM yyyy"), created.ToString("HH:mm")));
         if (d.Exam is { } about) b.Add(new Para(about));
         b.Add(VerdictCard(stats));
-        var tasksLine = $"{stats.NTasks}, each attempted {Times(Attempts(batch))} per variant";
-        var attemptsPerVariant = $"Attempted **{Times(Attempts(batch))}** per variant";
+        var tasksLine = $"{stats.NTasks}, each attempted {Times(attempts)} per variant";
+        var attemptsPerVariant = $"Attempted **{Times(attempts)}** per variant";
         b.Add(new Pairs(
         [
-            ("Host", batch.Host),
+            ("Host", latest.Host),
             ("Variants", $"{variants.Count}: " + string.Join(", ", variants.Select(a => a == live ? $"`{a}` (live)" : $"`{a}`"))),
             ("Tasks", tasksLine),
             ("Attempts", $"{stats.Variants.Values.Sum(a => a.Planned)} planned, {stats.Variants.Values.Sum(a => a.Analysed)} counted"),
@@ -81,7 +82,7 @@ static class Report
             var where = o.Variants.Count == variants.Count && variants.Count > 1 ? "on every variant" : $"on {Join(o.Variants.Keys.Select(a => $"`{a}`"))}";
             b.Add(new Warning($"The check `{o.Check}` ({CheckText(stats, o.Check)}) has changed or been added since {o.Attempts} of the {o.Of} attempts it applies to were made, {where} ({string.Join(", ", o.Variants.Select(a => $"`{a.Key}` {a.Value}"))}). "
                 + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates" + (stats.PassChecks.Contains(o.Check) ? " and, as a headline check, out of the pass rates" : "") + ". "
-                + $"Make those attempts again: move {(o.Batches.Count == 1 ? "batch" : "batches")} {Join(o.Batches.Select(id => $"``{Layout.AttemptsDir}/{id}``"))} out of ``{Layout.AttemptsDir}/`` and run ``proctor run {stats.Exam}``."));
+                + $"Make those attempts again: ``proctor grade {stats.Exam}`` names them; move their directories out of ``{Layout.BankDir}/{stats.Exam}/`` and run ``proctor run {stats.Exam}``."));
         }
         foreach (var (variant, mixed) in stats.BuiltFrom?.Mixed ?? [])
             b.Add(new Warning($"`{variant}`'s attempts were made under mixed conditions ({string.Join("; ", mixed)}), so part of any difference in its results may be the conditions and not the variant."));
@@ -92,15 +93,15 @@ static class Report
         b.Add(new Heading("Variants", "variants"));
         b.Add(new Para("A variant is what is under test: an agent, a model and, when it has one, a bundle, given every task." + (variants.Count < 2 ? ""
             : live is not null ? $" The live variant, `{live}`, is the one in use now and the reference the others are compared with." : " None is live, so the variants stand side by side and none is compared with another."), "explain"));
-        var bundles = batch.Bundles is { Count: > 0 };
+        var bundles = latest.Bundles is { Count: > 0 };
         b.Add(new Table(["Variant", "What it is", "Harness", "Provider", "Model", "Attempts per task", .. bundles ? ["Bundle"] : Array.Empty<string>()],
-            variants.Select(a => (List<Td>)[Id(a), T(d.Variants.GetValueOrDefault(a, "")), T(Harness(batch, a)), T(VariantField(batch, a, "provider", "—")), T(VariantField(batch, a, "model")), T(Attempts(batch).ToString()),
-                .. bundles ? [T(batch.BundleOf(a) is { } bu ? $"``{bu.Source}``" : "")] : Array.Empty<Td>()]).ToList(),
+            variants.Select(a => (List<Td>)[Id(a), T(d.Variants.GetValueOrDefault(a, "")), T(Harness(latest, a)), T(VariantField(latest, a, "provider", "—")), T(VariantField(latest, a, "model")), T(attempts.ToString()),
+                .. bundles ? [T(latest.BundleOf(a) is { } bu ? $"``{bu.Source}``" : "")] : Array.Empty<Td>()]).ToList(),
             [5]));
 
         // 3. Tasks: what each asks, what it is checked for, and how every variant did on it
         b.Add(new Heading("Tasks", "tasks"));
-        b.Add(new Para($"A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(Attempts(batch) == 1 ? "Each task is attempted once per variant, so one attempt decides its score." : $"Each task is attempted {Times(Attempts(batch))} per variant, so a score is not one lucky or unlucky attempt.")}", "explain"));
+        b.Add(new Para($"A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(attempts == 1 ? "Each task is attempted once per variant, so one attempt decides its score." : $"Each task is attempted {Times(attempts)} per variant, so a score is not one lucky or unlucky attempt.")}", "explain"));
         b.Add(new Para("A check is one yes-or-no test over a finished attempt. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to an attempt:", "explain"));
         b.Add(new Pairs(
         [
@@ -220,7 +221,7 @@ static class Report
         // 10. Reproducibility and method
         b.Add(new Heading("Reproducibility and method", "method"));
         b.Add(new Para("What produced this report, so it can be run again, and how the numbers were computed.", "explain"));
-        b.Add(new Pairs(ReproFacts(stats, batch, judges).ToList()));
+        b.Add(new Pairs(ReproFacts(stats, latest, judges).ToList()));
         b.Add(new Para(stats.Methods, "explain"));
         return b;
     }
@@ -497,21 +498,19 @@ static class Report
     static IEnumerable<string> ExitReasons(StatsFile stats) =>
         stats.Variants.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);
 
-    static string VariantField(Batch batch, string variant, string field, string missing = "?") =>
-        batch.Variants.FirstOrDefault(a => a.Id == variant)?.Def[field]?.GetValue<string>() ?? missing;
+    static string VariantField(LogEntry latest, string variant, string field, string missing = "?") =>
+        latest.Variants.FirstOrDefault(a => a.Id == variant)?.Def[field]?.GetValue<string>() ?? missing;
 
-    /// <summary>nb's harness on an nb variant; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the batch does not record.</summary>
-    static string Harness(Batch batch, string variant) =>
-        VariantField(batch, variant, "harness", "") is { Length: > 0 } h ? h : $"{VariantField(batch, variant, "agent")} {VariantField(batch, variant, "agent_version", "")}".TrimEnd();
-
-    static int Attempts(Batch batch) => batch.ExamDef["attempts"]?.GetValue<int>() ?? 1;
+    /// <summary>nb's harness on an nb variant; a vendor agent at its pin, which is its harness. Its provider is the machine's route, which the log entry does not record.</summary>
+    static string Harness(LogEntry latest, string variant) =>
+        VariantField(latest, variant, "harness", "") is { Length: > 0 } h ? h : $"{VariantField(latest, variant, "agent")} {VariantField(latest, variant, "agent_version", "")}".TrimEnd();
 
     /// <summary>Monospace only for what is typed or opened: the command, paths, endpoints.</summary>
-    static IEnumerable<(string, string)> ReproFacts(StatsFile stats, Batch batch, List<JudgeUse>? judges)
+    static IEnumerable<(string, string)> ReproFacts(StatsFile stats, LogEntry latest, List<JudgeUse>? judges)
     {
         if (stats.BuiltFrom is { } built)
         {
-            yield return ("built from", $"{Count(built.Current, "current attempt")} from {Count(built.Batches.Count, "batch", "batches")}: {string.Join(", ", built.Batches.Select(id => $"``{id}``"))}");
+            yield return ("built from", $"{Count(built.Current, "current attempt")}, made by {Count(built.Log.Count, "run")} logged as {string.Join(", ", built.Log.Select(id => $"``{Layout.LogDir}/{id}``"))}");
             if (built.Narrowed is { } narrowed) yield return ("narrowed to", $"``{narrowed}``");
             if (built.Stale > 0)
                 yield return ("stale", $"{Count(built.Stale, "attempt")} not counted, made under a variant or task that has changed: "
@@ -519,16 +518,16 @@ static class Report
             foreach (var (variant, hash) in built.Variants) yield return ($"variant {variant}", hash);
             foreach (var (task, hash) in built.Tasks) yield return ($"task {task}", hash);
         }
-        else yield return ("batch", batch.Id);
-        yield return ("proctor", batch.Versions.GetValueOrDefault("proctor", "unknown"));
-        yield return ("nb", $"{batch.Versions.GetValueOrDefault("nb", "unknown")} at ``{batch.Nb.Path}``");
-        yield return ("exam hash", batch.ExamHash);
-        foreach (var (variant, bundle) in batch.Bundles ?? []) yield return ($"bundle {variant}", $"``{bundle.Source}`` {bundle.Hash}");
+        else yield return ("log entry", latest.Id);
+        yield return ("proctor", latest.Versions.GetValueOrDefault("proctor", "unknown"));
+        yield return ("nb", $"{latest.Versions.GetValueOrDefault("nb", "unknown")} at ``{latest.Nb.Path}``");
+        yield return ("exam hash", latest.ExamHash);
+        foreach (var (variant, bundle) in latest.Bundles ?? []) yield return ($"bundle {variant}", $"``{bundle.Source}`` {bundle.Hash}");
         foreach (var j in judges ?? [])
             yield return ($"judge {j.Judge}", $"{j.Kind}{(j.Model is null ? "" : " " + j.Model)} at ``{j.Endpoint}``; graded {string.Join(", ", j.Checks)}");
-        yield return ("repository", batch.Repo is null ? "not a git repository" : $"{batch.Repo.Commit}{(batch.Repo.Dirty ? " (dirty)" : "")}");
-        yield return ("command", $"``{batch.CommandLine}``");
-        yield return ("created", batch.Created);
+        yield return ("repository", latest.Repo is null ? "not a git repository" : $"{latest.Repo.Commit}{(latest.Repo.Dirty ? " (dirty)" : "")}");
+        yield return ("command", $"``{latest.CommandLine}``");
+        yield return ("created", latest.Created);
     }
 
     // ---- Numbers and dates as text (formatting only) ----
@@ -633,9 +632,9 @@ static class Report
 
     // ---- HTML ----
 
-    static string RenderHtml(List<Block> blocks, StatsFile stats, Batch batch)
+    static string RenderHtml(List<Block> blocks, StatsFile stats, LogEntry latest)
     {
-        var created = When(batch.Created);
+        var created = When(latest.Created);
         var sb = new StringBuilder();
         sb.Append($"""
             <!doctype html>
@@ -660,7 +659,7 @@ static class Report
         sb.Append($"""
             <footer>
             <img src="{Logo}" alt="" width="16" height="16">
-            <span>Run by proctor {E(batch.Versions.GetValueOrDefault("proctor", "unknown"))} on {created:d MMM yyyy}. Icon adapted from <a href="https://game-icons.net/1x1/lorc/pointy-hat.html">Pointy hat</a> by Lorc, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>.</span>
+            <span>Run by proctor {E(latest.Versions.GetValueOrDefault("proctor", "unknown"))} on {created:d MMM yyyy}. Icon adapted from <a href="https://game-icons.net/1x1/lorc/pointy-hat.html">Pointy hat</a> by Lorc, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>.</span>
             </footer>
             </main>
             </div>

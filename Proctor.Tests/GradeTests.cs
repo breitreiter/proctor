@@ -15,10 +15,10 @@ public class GradeTests
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null)!;
-        var expDir = Layout.Batch(repo.Root, id);
-        File.WriteAllText(Path.Combine(Layout.Attempt(expDir, "a", "uses-bash", 1), "status"), "failed\n");
+        var entryDir = Layout.LogEntry(repo.Root, id);
+        File.WriteAllText(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "uses-bash", 1), "status"), "failed\n");
 
-        var grades = Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
+        var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
 
         Assert.Equal(3, grades.Count);
         var plain = grades.Single(g => g.Task == "plain");
@@ -38,12 +38,12 @@ public class GradeTests
         var failed = grades.Single(g => g.Task == "uses-bash");
         Assert.Null(failed.Checks);
         Assert.Null(failed.Pass);
-        Assert.False(File.Exists(Path.Combine(Layout.Attempt(expDir, "a", "uses-bash", 1), "checks.json")));
+        Assert.False(File.Exists(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "uses-bash", 1), "checks.json")));
 
         // checks.json is the map the plan shows, re-readable.
-        var written = Grade.ReadChecks(Layout.Attempt(expDir, "a", "plain", 1))!;
+        var written = Grade.ReadChecks(TestRepo.Attempt(repo.Root, id, "a", "plain", 1))!;
         Assert.Equal(exam.Grading.Checks!.Keys.Order(), written.Keys.Order());
-        var raw = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.Attempt(expDir, "a", "plain", 1), "checks.json")))!;
+        var raw = JsonNode.Parse(File.ReadAllText(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "plain", 1), "checks.json")))!;
         Assert.Equal("exit_reason=ok", raw["exit_ok"]!["reason"]!.GetValue<string>());
         Assert.Equal("pass", raw["exit_ok"]!["result"]!.GetValue<string>());
     }
@@ -57,18 +57,18 @@ public class GradeTests
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null)!;
-        var expDir = Layout.Batch(repo.Root, id);
-        bool Graded(string variant, string task) => File.Exists(Path.Combine(Layout.Attempt(expDir, variant, task, 1), "checks.json"));
+        var entryDir = Layout.LogEntry(repo.Root, id);
+        bool Graded(string variant, string task) => File.Exists(Path.Combine(TestRepo.Attempt(repo.Root, id, variant, task, 1), "checks.json"));
 
-        var onlyA = Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam, variants: ["a"]).Current, TextWriter.Null);
+        var onlyA = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, variants: ["a"]).Current, TextWriter.Null);
         Assert.All(onlyA, g => Assert.Equal("a", g.Variant));
         Assert.True(Graded("a", "plain"));
         Assert.False(Graded("b", "plain"));
 
         // a later pass over b's plain task leaves a's checks.json untouched
-        var aPlain = Path.Combine(Layout.Attempt(expDir, "a", "plain", 1), "checks.json");
+        var aPlain = Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "plain", 1), "checks.json");
         File.WriteAllText(aPlain, "{}");
-        var bPlain = Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam, variants: ["b"], tasks: ["plain"]).Current, TextWriter.Null);
+        var bPlain = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, variants: ["b"], tasks: ["plain"]).Current, TextWriter.Null);
         Assert.Equal(("b", "plain"), (Assert.Single(bPlain).Variant, bPlain[0].Task));
         Assert.True(Graded("b", "plain"));
         Assert.False(Graded("b", "loops"));

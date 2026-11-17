@@ -2,14 +2,14 @@ using System.Text.Json;
 
 namespace Proctor;
 
-/// <summary>One row of results.jsonl: coordinates on every row, the batch that made the attempt included, no transcript text.
+/// <summary>One row of results.jsonl: coordinates on every row, no transcript text.
 /// <c>Outdated</c> is set, with <c>Undecided</c>, when the attempt is undecided because a headline check's verdict is outdated.</summary>
 record ResultRow(
     string Id, string Variant, string Task, int Attempt,
     string Status, string? StatusReason, string? ExitReason,
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null,
-    Dictionary<string, List<string>>? Labels = null, string? Undecided = null, string? Batch = null, string? Outdated = null)
+    Dictionary<string, List<string>>? Labels = null, string? Undecided = null, string? Outdated = null)
 {
     /// <summary>Graded and counted: an invalid attempt is graded but does not count. A counted attempt may still be undecided (Pass null).</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -26,7 +26,7 @@ record UsageRow(long? Input, long? Output, long? Total, bool Estimated, double? 
 static class Results
 {
     /// <summary>Read the given attempts into rows, in the exam's order of variants and tasks, then by attempt. Grades come from checks.json; attempts without one are not analysed.</summary>
-    public static List<ResultRow> Collect(string root, Exam exam, IEnumerable<PoolAttempt> attempts)
+    public static List<ResultRow> Collect(string root, Exam exam, IEnumerable<BankAttempt> attempts)
     {
         var rows = new List<ResultRow>();
         var ordered = attempts.OrderBy(a => exam.Variants.FindIndex(v => v.Id == a.Variant)).ThenBy(a => exam.Tasks.FindIndex(t => t.Id == a.Task)).ThenBy(a => a.Attempt);
@@ -57,7 +57,6 @@ static class Results
                 Invalid: checks is null ? null : Grade.Invalid(checks, exam.Grading.Validity),
                 Labels: exam.LabelsFor(c) is { Count: > 0 } labels ? labels : null,
                 Undecided: checks is null ? null : Grade.Undecided(checks, exam.Grading.Pass!),
-                Batch: a.Batch.Id,
                 Outdated: checks is null ? null : Grade.Outdated(checks, exam.Grading.Pass!)));
         }
         return rows;

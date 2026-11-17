@@ -114,12 +114,12 @@ public class StatsTests
     }
 
     static ResultRow Row(string variant, string task, int n, bool? pass, string status = "completed", string exit = "ok", string? invalid = null) =>
-        WorkedBatch.Row(variant, task, n, pass, status, exit, reason: "hook failed", invalid: invalid);
+        WorkedExam.Row(variant, task, n, pass, status, exit, reason: "hook failed", invalid: invalid);
 
-    static Exam TwoVariantExam(int attempts) => WorkedBatch.Exam(attempts);
+    static Exam TwoVariantExam(int attempts) => WorkedExam.Exam(attempts);
 
     [Fact]
-    public void Compute_TheWorkedBatchShape()
+    public void Compute_TheWorkedExamShape()
     {
         var exam = TwoVariantExam(attempts: 3);   // tasks: loops, plain, uses-bash
         var rows = new List<ResultRow>();
@@ -128,7 +128,7 @@ public class StatsTests
         foreach (var (c, v) in floor) for (var s = 0; s < 3; s++) rows.Add(Row("floor", c, s + 1, v[s], exit: v[s] ? "ok" : "max_tool_calls"));
         foreach (var (c, v) in b) for (var s = 0; s < 3; s++) rows.Add(Row("b", c, s + 1, v[s]));
 
-        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam));
+        var stats = Stats.Compute(exam, rows, WorkedExam.Live(exam));
 
         Assert.Equal(3, stats.NTasks);
         Assert.True(stats.Paired);
@@ -172,7 +172,7 @@ public class StatsTests
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, null, status: "failed"),
             Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam));
+        var stats = Stats.Compute(exam, rows, WorkedExam.Live(exam));
         var f = stats.Variants["floor"];
         Assert.Equal((3, 3, 2, 2, 2), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
@@ -198,7 +198,7 @@ public class StatsTests
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, true), Row("floor", "uses-bash", 1, true, invalid: "no_denials: 1 denied call"),
             Row("b", "loops", 1, false), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam));
+        var stats = Stats.Compute(exam, rows, WorkedExam.Live(exam));
         var f = stats.Variants["floor"];
         Assert.Equal((3, 3, 3, 3, 2), (f.Planned, f.Started, f.Completed, f.Graded, f.Analysed));
         var ex = Assert.Single(f.Excluded);
@@ -225,22 +225,22 @@ public class StatsTests
         Assert.False(stats.Matrix.ContainsKey("b"));
     }
 
-    /// <summary>The report's stamp: its batches, today's hashes, current and stale counts, and a variant whose attempts came from batches on different versions.</summary>
+    /// <summary>The report's stamp: the log entries of its runs, today's hashes, current and stale counts, and a variant whose attempts came from runs on different versions.</summary>
     [Fact]
     public void Stamp_SaysWhatTheReportWasBuiltFrom_AndWhichVariantsWereMadeUnderMixedConditions()
     {
         var exam = TwoVariantExam(attempts: 1);
-        var first = WorkedBatch.Batch(exam) with { Id = "20260916-0910-smoke-q2rd" };
+        var first = WorkedExam.Latest(exam) with { Id = "20260916-0910-smoke-q2rd" };
         var second = first with { Id = "20260917-1432-smoke-k7px", Versions = new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.1" } };
-        PoolAttempt A(Batch b, string variant, string task) => new(b, variant, task, 1, "completed", exam.Variants.Single(v => v.Id == variant).Hash, exam.TaskHashes[task]);
-        var selection = new PoolSelection(
+        BankAttempt A(LogEntry b, string variant, string task) => new(b, variant, task, 1, "completed", exam.Variants.Single(v => v.Id == variant).Hash, exam.TaskHashes[task]);
+        var selection = new BankSelection(
             [A(first, "floor", "loops"), A(second, "floor", "plain"), A(first, "b", "loops"), A(first, "b", "plain")],
-            [new StaleAttempt(first.Id, "b/uses-bash/1", "task uses-bash changed (1a2b3c4d then, 5e6f7a8b now)")]);
+            [new StaleAttempt("b/uses-bash/1", "task uses-bash changed (1a2b3c4d then, 5e6f7a8b now)")]);
 
         var built = Stats.Stamp(exam, selection, "--tasks loops,plain", new DateTime(2026, 9, 17, 15, 2, 0, DateTimeKind.Utc));
 
         Assert.Equal("2026-09-17T15:02:00Z", built.At);
-        Assert.Equal([first.Id, second.Id], built.Batches);
+        Assert.Equal([first.Id, second.Id], built.Log);
         Assert.Equal(["floor", "b"], built.Variants.Keys);
         Assert.Equal(exam.TaskHashes["plain"], built.Tasks["plain"]);
         Assert.False(built.Tasks.ContainsKey("uses-bash"));
@@ -260,7 +260,7 @@ public class StatsTests
             Row("floor", "loops", 1, true), Row("floor", "plain", 1, false), Row("floor", "uses-bash", 1, false),
             Row("b", "loops", 1, true), Row("b", "plain", 1, true), Row("b", "uses-bash", 1, true),
         };
-        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam, "b"));
+        var stats = Stats.Compute(exam, rows, WorkedExam.Live(exam, "b"));
         Assert.Equal(new LiveStats("b", "2026-09-10T09:12:00Z"), stats.Live);
         var cmp = Assert.Single(stats.Comparisons);
         Assert.Equal(("floor", "b", -67), (cmp.Variant, cmp.Vs, cmp.DiffPoints));

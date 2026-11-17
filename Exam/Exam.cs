@@ -16,7 +16,7 @@ record NbConfig(string Path = "nb", string? Config = null);
 /// <summary>
 /// exam.json's nb block: the runner script that runs nb for an attempt instead of the binary (see the runner contract in
 /// docs/configuration.md), relative to the exam directory like a hook, and where it shows nb the checkout and the bundle. It sits beside
-/// the hooks because it only works with the hooks that make its container; --runner overrides it for one batch.
+/// the hooks because it only works with the hooks that make its container; --runner overrides it for one run.
 /// </summary>
 record ExamNb(string? Runner = null, NbMounts? Mounts = null);
 
@@ -205,7 +205,7 @@ sealed class Exam
     /// <summary>The fixtures the tasks name, by id.</summary>
     public required Dictionary<string, Fixture> Fixtures { get; init; }
     public required string ProgramTemplate { get; init; }
-    /// <summary>sha256 over every definition file but the variants', so a changed exam is a different exam in batch.json.</summary>
+    /// <summary>sha256 over every definition file but the variants', so a changed exam is a different exam in a log entry and under exams-seen/.</summary>
     public required string Hash { get; init; }
     /// <summary>The variants, one per file under variants/, in file-name order; each carries its hash.</summary>
     public required List<Variant> Variants { get; init; }
@@ -536,7 +536,7 @@ sealed class Exam
         ValidateOracle(def, Add, tasks, variants, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), field, message)),
             (f, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(f.Dir, Layout.FixtureFile)), field, message)));
 
-        if (def.Hooks?.Run is not null) Add("hooks.run", "batch-level hooks are not yet implemented; use variant or attempt");
+        if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use variant or attempt");
         if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use variant or attempt");
         foreach (var (level, pair) in new[] { ("variant", def.Hooks?.Variant), ("attempt", def.Hooks?.Attempt) })
         {
@@ -617,7 +617,6 @@ sealed class Exam
         if (string.IsNullOrWhiteSpace(variant.Id)) add("id", "required");
         else if (variant.Id != fileId) add("id", $"'{variant.Id}' does not match the file name '{fileId}'; the id is the file name");
         else if (!Regex.IsMatch(variant.Id, "^[a-z0-9][a-z0-9-]*$")) add("id", "variant ids are path segments: lowercase letters, digits and hyphens");
-        else if (variant.Id == Layout.HarborDir) add("id", $"'{Layout.HarborDir}' is the batch's directory for the tasks compiled for Harbor; name the variant something else");
         if (variant.Attempts is not null) add("attempts", "the exam's, not a variant's: set attempts in exam.json, how many attempts of each task every variant should have");
         if (variant.Description is not null) add("description", "a variant's free text is note");
         if (variant.Note is not null && string.IsNullOrWhiteSpace(variant.Note)) add("note", "a note is a sentence, not an empty string");
@@ -780,7 +779,7 @@ sealed class Exam
         return "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(declared + "\0" + bundle)));
     }
 
-    /// <summary>A bundle's identity, as batch.json and the manifests record it: a directory's tree hash, or a git revision with its paths. Empty without one.</summary>
+    /// <summary>A bundle's identity, as a log entry and the manifests record it: a directory's tree hash, or a git revision with its paths. Empty without one.</summary>
     public static string BundleIdentity(string root, BundleSource? bundle) => bundle switch
     {
         null => "",

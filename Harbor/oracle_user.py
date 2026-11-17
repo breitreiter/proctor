@@ -1,4 +1,4 @@
-"""The oracle as Harbor's simulated user, for proctor. Compiled into each batch's harbor/agents/ and imported as
+"""The oracle as Harbor's simulated user, for proctor. Compiled into each run's harbor/agents/ (under its log entry) and imported as
 oracle_user:OracleUser, with nb as the bridged target (nb_agent:NbAgent, nb --acp).
 
 It runs in the Harbor process on the host, so the answer sheet never enters the container. It makes no model call of

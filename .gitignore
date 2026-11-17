@@ -1,5 +1,12 @@
 # Raw attempt tier: transcripts, stderr, config snapshots (may carry API keys).
 # Where it could live beyond this machine: project/learnings/where-runs-live.md (no archive verb is built)
+bank/
+log/
+exams-seen/
+**/bank/
+**/log/
+**/exams-seen/
+# the layout before the bank (project/plans/bank.md)
 attempts/
 **/attempts/
 

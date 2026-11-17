@@ -32,7 +32,7 @@ public class OracleBareTests
         });
         var exam = repo.LoadExam("smoke");
         var id = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
-        return (repo, Layout.Attempt(Layout.Batch(repo.Root, id), "a", "plain", 1));
+        return (repo, TestRepo.Attempt(repo.Root, id, "a", "plain", 1));
     }
 
     static Verdict Check(string attemptDir, string spec)

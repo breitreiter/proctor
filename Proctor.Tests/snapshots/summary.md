@@ -219,7 +219,7 @@ What produced this report, so it can be run again, and how the numbers were comp
 
 | | |
 |---|---|
-| built from | 18 current attempts from 2 batches: `20260916-0910-smoke-q2rd`, `20260917-1432-smoke-k7px` |
+| built from | 18 current attempts, made by 2 runs logged as `log/20260916-0910-smoke-q2rd`, `log/20260917-1432-smoke-k7px` |
 | stale | 2 attempts not counted, made under a variant or task that has changed: task plain changed (1a2b3c4d then, 5e6f7a8b now) (2) |
 | variant floor | sha256:4b1e00d2 |
 | variant b | sha256:77a90c13 |

@@ -7,7 +7,9 @@ static class Layout
 {
     public const string ExamsDir = "exams";
     public const string FixturesDir = "fixtures";
-    public const string AttemptsDir = "attempts";
+    public const string BankDir = "bank";
+    public const string LogDir = "log";
+    public const string ExamsSeenDir = "exams-seen";
     public const string ReportsDir = "reports";
     public const string WorkDir = ".proctor/work";
     public const string BundlesDir = ".proctor/bundles";
@@ -20,7 +22,7 @@ static class Layout
     public const string LiveFile = "live.json";
     public const string FixtureFile = "fixture.json";
 
-    public const string BatchFile = "batch.json";
+    public const string LogEntryFile = "entry.json";
     public const string StatusCountsFile = "status.json";
     public const string HooksDir = "hooks";
 
@@ -37,7 +39,7 @@ static class Layout
     /// <summary>What a reader was sent and answered about an attempt: friction-reading.&lt;judge&gt;.&lt;hash&gt;.json, the cache and the record.</summary>
     public const string ReadingPrefix = "friction-reading";
 
-    /// <summary>An agent variant's attempts: the compiled Harbor tasks per batch, Harbor's own job per attempt, and what ingest lifts out of the trial.</summary>
+    /// <summary>An agent variant's attempts: the compiled Harbor tasks per log entry, Harbor's own job per attempt, and what ingest lifts out of the trial.</summary>
     public const string HarborDir = "harbor";
     public const string HarborJobFile = "job.json";
     public const string HarborLogFile = "harbor.log";
@@ -61,15 +63,20 @@ static class Layout
     public static string TasksDirIn(string examDir) => Path.Combine(examDir, TasksDir);
     public static string VariantsDirIn(string examDir) => Path.Combine(examDir, VariantsDir);
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
-    public static string Batch(string root, string batchId) => Path.Combine(root, AttemptsDir, batchId);
-    public static string Variant(string batchDir, string variant) => Path.Combine(batchDir, variant);
-    // Attempts nest under the batch that made them; the pool is a query across batches. Shape inherited from experiments; tolerated, not endorsed. See project/plans/exam-variant-attempt.md.
-    public static string Attempt(string batchDir, string variant, string task, int n) =>
-        Path.Combine(batchDir, variant, task, n.ToString());
-    public static string Work(string root, string batchId, string variant, string task, int n) =>
-        Path.Combine(root, WorkDir, batchId, variant, task, n.ToString());
-    /// <summary>The Harbor task a variant runs a task as, compiled once per batch.</summary>
-    public static string HarborTask(string batchDir, string variant, string task) => Path.Combine(batchDir, HarborDir, "tasks", variant, task);
+    /// <summary>The bank: every attempt of an exam, by variant, task and number. Numbers run on, so the path names one attempt for good.</summary>
+    public static string Bank(string root, string examId) => Path.Combine(root, BankDir, examId);
+    public static string Attempt(string root, string examId, string variant, string task, int n) =>
+        Path.Combine(Bank(root, examId), variant, task, n.ToString());
+    public static string Work(string root, string examId, string variant, string task, int n) =>
+        Path.Combine(root, WorkDir, examId, variant, task, n.ToString());
+    /// <summary>What one `proctor run` did: entry.json, its status counts, its variant hooks' output, and the Harbor tasks it compiled.</summary>
+    public static string LogEntry(string root, string entryId) => Path.Combine(root, LogDir, entryId);
+    public static string LogEntryFileIn(string root, string entryId) => Path.Combine(LogEntry(root, entryId), LogEntryFile);
+    /// <summary>The exam's own definition as it stood at a hash, kept once per hash.</summary>
+    public static string ExamSeen(string root, string examHash) =>
+        Path.Combine(root, ExamsSeenDir, $"sha256-{(examHash.StartsWith("sha256:") ? examHash[7..] : examHash)[..12]}.json");
+    /// <summary>The Harbor task a variant runs a task as, compiled once per log entry.</summary>
+    public static string HarborTask(string entryDir, string variant, string task) => Path.Combine(entryDir, HarborDir, "tasks", variant, task);
     public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
     /// <summary>The files a bundle's paths name, copied out of its revision's clone; named by the bundle's identity so two subsets of one revision sit apart.</summary>
     public static string GitBundleSubset(string root, string rev, string identityHash) => Path.Combine(root, BundlesDir, $"{rev}-{identityHash[..12]}");
@@ -77,7 +84,7 @@ static class Layout
     public static string ReportExplore(string root, string examId) => Path.Combine(root, ReportsDir, examId, "explore");
 
     /// <summary>Date prefix so ls sorts, the exam id so a human can tell them apart, four random characters so it is an id.</summary>
-    public static string NewBatchId(string examId, DateTime utcNow) =>
+    public static string NewLogEntryId(string examId, DateTime utcNow) =>
         $"{utcNow:yyyyMMdd-HHmm}-{examId}-{RandomSuffix(4)}";
 
     public static string NewAttemptId() => RandomSuffix(16);

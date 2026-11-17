@@ -32,7 +32,7 @@ record Live(Ref Variant, string Since)
     public string? Broken(Exam exam) => exam.Variants.FirstOrDefault(v => v.Id == Variant.Id) switch
     {
         null => "it has no file under variants/",
-        { } v when v.Hash != Variant.Hash => $"its file has changed since it was marked ({Pool.Short(Variant.Hash)} then, {Pool.Short(v.Hash)} now)",
+        { } v when v.Hash != Variant.Hash => $"its file has changed since it was marked ({Bank.Short(Variant.Hash)} then, {Bank.Short(v.Hash)} now)",
         _ => null,
     };
 

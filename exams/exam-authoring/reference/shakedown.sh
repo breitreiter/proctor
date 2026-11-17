@@ -17,7 +17,7 @@ for task_file in "$here"/tasks/*.json; do
   c=$(basename "$task_file" .json)
   f=$(jq -r .fixture "$task_file")
   id=$(jq -r .expect.exam "$task_file")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_BATCH=shakedown PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work"
   export PROCTOR_TASK_JSON="$(cat "$task_file")" PROCTOR_EXPECT="$(jq -c .expect "$task_file")"
   mkdir -p "$PROCTOR_ATTEMPT_DIR" "$PROCTOR_WORK"

@@ -304,6 +304,29 @@ template for each:
 Still open for every remote engine, Modal included: the report does not
 record where a cell ran.
 
+## Clean up Modal volumes when the spend limit kills a run
+
+Modal's workspace spend limit stops "all workspace workloads" once it is hit,
+but "Volume storage charges will still accrue." A run killed that way skips
+Harbor's trial teardown, and `HarborRun.TearDown` (`Run/Harbor.cs`) does
+nothing for Modal: it trusts the sandbox's idle limit, which covers compute
+only. Any Volume a run created would keep billing after the cap.
+
+As of Harbor 0.24.0 nothing creates one. `environments/modal.py` mounts only
+volumes the user named (`Volume.from_name`, no `create_if_missing`), and
+proctor passes none. So today this is a guard, not a leak:
+
+- If proctor or a Harbor bump starts creating Volumes (the `runs/` on a
+  Volume idea under "Proctor as a hosted service", or a per-trial cache), name
+  or tag them by run so they can be found afterward. Then make `resume` and
+  the kill path delete the ones a dead run left behind.
+- Confirm how a spend-limit stop shows up to proctor: a sandbox error, a hung
+  `exec`, or something else. The attempt's failure should say "Modal spend
+  limit," not something generic.
+- Check whether the Apps and built images that `App.lookup(create_if_missing)`
+  and `Image.from_dockerfile` leave behind are billed. If they are, they
+  belong in the same cleanup.
+
 ## Proctor as a hosted service, if anyone asks
 
 Not planned, and of no use to us. This is the answer to "what would it take to

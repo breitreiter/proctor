@@ -56,7 +56,7 @@ public class ConformanceTests
         var config = Exam.LoadConfig(repo.Root, []);
         var exam = repo.LoadExam("conformance");
         var id = Runner.Run(repo.Root, exam, config, null, null, "conformance", TextWriter.Null)!;
-        Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
+        Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
 
         var misses = Misses(repo.Root, id, exam);
         Assert.True(misses.Count == 0, string.Join("\n", misses));
@@ -75,19 +75,19 @@ public class ConformanceTests
         var exam = repo.LoadExam("code-change");
         var variant = exam.Variants.First(a => a.IsVendor);
         var (uv, engine) = MachineHarbor();
-        var expDir = Path.Combine(repo.Root, "attempts", "oracle");
-        HarborCompile.Tasks(expDir, exam, "oracle", _ => new AgentRoute(null, null));
+        var entryDir = Path.Combine(repo.Root, "log", "oracle");
+        HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(null, null));
 
         var misses = new List<string>();
         foreach (var c in exam.Tasks)
         {
-            var taskDir = Layout.HarborTask(expDir, variant.Id!, c.Id!);
+            var taskDir = Layout.HarborTask(entryDir, variant.Id!, c.Id!);
             var solution = Path.Combine(taskDir, "solution");
             Directory.CreateDirectory(solution);
             foreach (var file in Directory.GetFiles(Path.Combine(exam.Dir, "reference"), $"{c.Id}.*")) File.Copy(file, Path.Combine(solution, Path.GetFileName(file)));
             File.WriteAllText(Path.Combine(solution, "solve.sh"), $"#!/usr/bin/env bash\nset -euo pipefail\nbash \"$(dirname \"$0\")/{c.Id}.sh\" {HarborCompile.Workdir}\n");
 
-            var harborDir = Path.Combine(expDir, "oracle-jobs", c.Id!);
+            var harborDir = Path.Combine(entryDir, "oracle-jobs", c.Id!);
             Directory.CreateDirectory(harborDir);
             var job = HarborCompile.Job(variant, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null), engine: engine);
             job["agents"] = new JsonArray(new JsonObject { ["name"] = "oracle" });
@@ -104,14 +104,14 @@ public class ConformanceTests
     }
 
     /// <summary>Every way an attempt differs from the stub's script, as "variant/task: what"; empty when conformance is green.</summary>
-    internal static List<string> Misses(string root, string batchId, Exam exam)
+    internal static List<string> Misses(string root, string entryId, Exam exam)
     {
-        var expDir = Layout.Batch(root, batchId);
+        var entryDir = Layout.LogEntry(root, entryId);
         var misses = new List<string>();
         foreach (var variant in exam.Variants)
         {
             void Miss(string task, string what) => misses.Add($"{variant.Id}/{task}: {what}");
-            string Attempt(string task) => Layout.Attempt(expDir, variant.Id!, task, 1);
+            string Attempt(string task) => TestRepo.Attempt(root, entryId, variant.Id!, task, 1);
             string Reason(string task) => Runner.ReadManifest(Path.Combine(Attempt(task), Layout.ManifestFile)).StatusReason ?? "";
             CountedCore? Core(string task) => File.Exists(Path.Combine(Attempt(task), Layout.CoreFile)) ? Runner.ReadJson<CountedCore>(Path.Combine(Attempt(task), Layout.CoreFile)) : null;
 

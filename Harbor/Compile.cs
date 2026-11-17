@@ -6,10 +6,10 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-// An exam's agent variants as Harbor tasks: one task directory per variant and task, under the batch, and one job file
+// An exam's agent variants as Harbor tasks: one task directory per variant and task, under the log entry of the run that compiled them, and one job file
 // per attempt. Only the fixture's repo/ enters the image the agent runs in; its checks, the exam and the expectations go
 // to tests/, which Harbor copies into the separate verifier container only.
-// Harbor tasks are compiled once per batch, per variant and task. Shape inherited from experiments; tolerated, not endorsed. See project/plans/exam-variant-attempt.md.
+// Harbor tasks are compiled once per run, per variant and task, and kept with its log entry: an attempt's verdicts are checked against the copy its run compiled.
 
 /// <summary>
 /// What compile needs from the machine: where the agent's model calls go, resolved, and the key with the variable it
@@ -38,7 +38,7 @@ static class HarborCompile
     /// <summary>What Harbor's verifier collect step writes and the verifier applies: the attempt's change against the fixture commit.</summary>
     const string DiffInContainer = "/logs/artifacts/diff.patch";
     /// <summary>
-    /// The agents proctor brings itself, as Harbor imports them from the batch's harbor/agents/ on PYTHONPATH: nb,
+    /// The agents proctor brings itself, as Harbor imports them from the log entry's harbor/agents/ on PYTHONPATH: nb,
     /// and Qwen Code, whose Harbor agent reinstalls from the network on every trial (proctor's checks the image's pin
     /// instead). Claude Code and Codex are Harbor's own, which skip the install when the image has the pin.
     /// </summary>
@@ -48,7 +48,7 @@ static class HarborCompile
         [Variant.QwenCode] = ("qwen_code_agent:QwenCodeAgent", "qwen_code_agent.py"),
     };
 
-    /// <summary>The oracle's simulated user (Harbor/oracle_user.py), compiled beside the agents for a batch with an oracle task and an agent variant.</summary>
+    /// <summary>The oracle's simulated user (Harbor/oracle_user.py), compiled beside the agents for a run with an oracle task and an agent variant.</summary>
     const string OracleUserImport = "oracle_user:OracleUser", OracleUserFile = "oracle_user.py";
 
     /// <summary>
@@ -58,27 +58,27 @@ static class HarborCompile
     public const string OracleTemplateFile = "oracle_user.j2";
     const string OracleTemplate = "{{ instruction }}\n<<<PROCTOR-BRIDGE>>>\n{{ bridge_instructions }}\n";
 
-    /// <summary>Whether Harbor imports this variant's agent from the batch rather than naming one of its own.</summary>
+    /// <summary>Whether Harbor imports this variant's agent from the log entry rather than naming one of its own.</summary>
     public static bool IsOwnAgent(Variant variant) => OwnAgents.ContainsKey(variant.Agent!);
 
     /// <summary>
-    /// The tasks the batch's agent attempts run as, one per agent variant and task it makes attempts of (every agent variant's
+    /// The tasks a run's agent attempts run as, one per agent variant and task it makes attempts of (every agent variant's
     /// every task when <paramref name="pairs"/> is not given), and proctor's own Harbor agents beside them for the variants
-    /// that use one. Returns the tree's hash, which the batch records and `run` checks before it continues the batch. The nb
+    /// that use one. Returns the tree's hash, which the log entry records and `run` checks before it continues the run. The nb
     /// image is the tag of proctor's nb layer; on a remote engine, which cannot see a local image, nb's publish directory
-    /// comes too and is copied into each nb task. The bundles are the batch's resolved ones, which reach a task only through
+    /// comes too and is copied into each nb task. The bundles are the run's resolved ones, which reach a task only through
     /// its fixture's services.
     /// </summary>
-    public static string Tasks(string batchDir, Exam exam, string batchId, Func<Variant, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
+    public static string Tasks(string entryDir, Exam exam, Func<Variant, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
         IReadOnlyDictionary<string, ResolvedBundle>? bundles = null, IReadOnlyCollection<(Variant Variant, TaskDef Task)>? pairs = null)
     {
         pairs ??= (from variant in exam.Variants.Where(a => a.IsAgent) from c in exam.Tasks select (variant, c)).ToList();
         foreach (var (variant, c) in pairs)
-            Task(Layout.HarborTask(batchDir, variant.Id!, c.Id!), exam, variant, c, batchId, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
+            Task(Layout.HarborTask(entryDir, variant.Id!, c.Id!), exam, variant, c, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
         var files = pairs.Select(p => p.Variant).Where(IsOwnAgent).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
         var oracle = pairs.Any(p => p.Task.Oracle is not null);
         if (oracle) files.Add(OracleUserFile);
-        var agents = AgentsDir(batchDir);
+        var agents = AgentsDir(entryDir);
         foreach (var file in files)
         {
             Directory.CreateDirectory(agents);
@@ -87,17 +87,17 @@ static class HarborCompile
             source.CopyTo(dest);
         }
         if (oracle) File.WriteAllText(Path.Combine(agents, OracleTemplateFile), OracleTemplate);
-        return TreeHash(batchDir);
+        return TreeHash(entryDir);
     }
 
     /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
-    public static string AgentsDir(string batchDir) => Path.Combine(batchDir, Layout.HarborDir, "agents");
+    public static string AgentsDir(string entryDir) => Path.Combine(entryDir, Layout.HarborDir, "agents");
 
-    /// <summary>The compiled tasks, plus the agents directory when there is one (a batch of Harbor's own agents only hashes as before).</summary>
-    public static string TreeHash(string batchDir)
+    /// <summary>The compiled tasks, plus the agents directory when there is one (a run of Harbor's own agents only hashes as before).</summary>
+    public static string TreeHash(string entryDir)
     {
-        var tasks = Tree.Hash(Path.Combine(batchDir, Layout.HarborDir, "tasks"), new HashSet<string> { ".git" });
-        var agents = AgentsDir(batchDir);
+        var tasks = Tree.Hash(Path.Combine(entryDir, Layout.HarborDir, "tasks"), new HashSet<string> { ".git" });
+        var agents = AgentsDir(entryDir);
         return Directory.Exists(agents) ? $"{tasks}+{Tree.Hash(agents, new HashSet<string> { "__pycache__" })}" : tasks;
     }
 
@@ -109,7 +109,7 @@ static class HarborCompile
     /// fixture has services, the variant's bundle is copied beside them as environment/bundle/ (empty without one), so a
     /// service can serve it, a docs site say, while the agent's own container never holds it.
     /// </summary>
-    public static void Task(string dir, Exam exam, Variant variant, TaskDef task, string batchId, AgentRoute route, string? nbImage = null, string? nbPublish = null,
+    public static void Task(string dir, Exam exam, Variant variant, TaskDef task, AgentRoute route, string? nbImage = null, string? nbPublish = null,
         string? bundleDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
@@ -131,7 +131,7 @@ static class HarborCompile
         var tests = Path.Combine(dir, "tests");
         CopyTree(exam.Dir, Path.Combine(tests, "exam"), []);
         CopyTree(fixture.Dir, Path.Combine(tests, "fixture"), [Path.GetFullPath(fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo"))]);
-        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant.Id!, task, batchId));
+        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant.Id!, task));
         var test = Path.Combine(tests, "test.sh");
         File.WriteAllText(test, TestScript(exam, task));
         File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
@@ -353,14 +353,14 @@ static class HarborCompile
     /// meaning there (the attempt's directory and number, nb, a runner) is empty. There is no transcript in the verifier: a check that
     /// reads one cannot run there yet.
     /// </summary>
-    static string VerifierEnv(Exam exam, string variant, TaskDef task, string batchId)
+    static string VerifierEnv(Exam exam, string variant, TaskDef task)
     {
         var values = new Dictionary<string, string>
         {
             ["PROCTOR_EXAM_DIR"] = "/tests/exam",
             ["PROCTOR_FIXTURE"] = "/tests/fixture",
             ["PROCTOR_BUNDLE"] = "",
-            ["PROCTOR_BATCH"] = batchId,
+            ["PROCTOR_EXAM"] = exam.Id,
             ["PROCTOR_VARIANT"] = variant,
             ["PROCTOR_TASK"] = task.Id!,
             ["PROCTOR_ATTEMPT"] = "",
@@ -423,7 +423,7 @@ static class HarborCompile
 
     /// <summary>
     /// For each script check the task carries now, why the verdict an attempt made from this compiled task holds for it may not
-    /// be the check's as it stands, keyed by check; a check missing from the result is current. The verifier ran what the batch
+    /// be the check's as it stands, keyed by check; a check missing from the result is current. The verifier ran what the run
     /// compiled into <paramref name="taskDir"/>/tests/, so that copy is compared with what compile would write today: the
     /// check's line in test.sh (which script, from which level), every file the scripts could read (the exam directory and
     /// the fixture beside its source, less the definition files proctor reads itself and hands over through the environment),
@@ -431,13 +431,13 @@ static class HarborCompile
     /// service), except another check's script. With no compiled copy, every script check is reported, since nothing shows
     /// its verdict is current.
     /// </summary>
-    public static Dictionary<string, string> Outdated(string? taskDir, Exam exam, TaskDef task, string variant, string batchId)
+    public static Dictionary<string, string> Outdated(string? taskDir, Exam exam, TaskDef task, string variant)
     {
         var names = exam.ChecksFor(task).Where(k => k.Value.Spec.ContainsKey("script")).Select(k => k.Key).ToList();
         var tests = taskDir is null ? null : Path.Combine(taskDir, "tests");
         if (names.Count == 0) return [];
         if (tests is null || !File.Exists(Path.Combine(tests, "test.sh")) || !File.Exists(Path.Combine(tests, "env.sh")))
-            return names.ToDictionary(n => n, _ => "the batch kept no compiled copy of its script checks, so nothing shows this verdict is the check's as it is now; make the attempt again");
+            return names.ToDictionary(n => n, _ => "its run kept no compiled copy of its script checks, so nothing shows this verdict is the check's as it is now; make the attempt again");
 
         var root = Path.GetDirectoryName(Path.GetDirectoryName(exam.Dir))!;
         var fixture = exam.FixtureOf(task)!;
@@ -445,7 +445,7 @@ static class HarborCompile
             .Concat(ChangedFiles(Path.Combine(tests, "fixture"), fixture.Dir, root, FixtureDefinition(fixture))).ToList();
         string? Line(IEnumerable<string> lines, string prefix) => lines.FirstOrDefault(l => l.StartsWith(prefix, StringComparison.Ordinal));
         var expectThen = Line(File.ReadLines(Path.Combine(tests, "env.sh")), "export PROCTOR_EXPECT=");
-        var expectNow = Line(VerifierEnv(exam, variant, task, batchId).Split('\n'), "export PROCTOR_EXPECT=");
+        var expectNow = Line(VerifierEnv(exam, variant, task).Split('\n'), "export PROCTOR_EXPECT=");
         var then = File.ReadAllLines(Path.Combine(tests, "test.sh"));
         var now = TestScript(exam, task).Split('\n');
 

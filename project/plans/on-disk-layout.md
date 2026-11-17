@@ -1,17 +1,17 @@
 ---
 type: plan
-title: The on-disk layout of a batch
+title: The on-disk layout
 created: 2026-09-17
 status: draft
 ---
 
-# The on-disk layout of a batch
+# The on-disk layout
 
 The first of the design plans the research pass made obvious. Everything else
 in proctor reads or writes this layout: the runner fills it, the grader adds to
 it, and the reporter derives from it (`archive` and `fetch`, which were to
 move part of it, were never built).
-So it goes first, and it is written as a worked example of the batch in
+So it goes first, and it is written as a worked example of the exam in
 `brief.md` rather than as a schema, because a wrong assumption is easier to
 see as a wrong line in a tree than as a wrong sentence in a table.
 
@@ -19,18 +19,22 @@ The sources for every choice are `learnings/prior-art.md` §1 and §2,
 `learnings/test-framework-patterns.md`, and `learnings/where-runs-live.md`.
 Where this plan departs from them it says so.
 
-## The three roots
+## The roots
 
-A repository that uses proctor has three directories, one per tier from
-`learnings/where-runs-live.md`:
+A repository that uses proctor has these directories, by tier from
+`learnings/where-runs-live.md`. The raw tier was one directory per
+`proctor run` until 2026-11-16; `plans/bank.md` says why it is the bank
+now, with the log and the exams seen beside it:
 
 | root | tier | in git | who writes it |
 |---|---|---|---|
 | `exams/` | definition | yes | the human |
-| `attempts/` | raw | no, gitignored | the runner, grader and judge |
+| `bank/` | raw | no, gitignored | the runner, grader and judge |
+| `log/` | raw | no, gitignored | the runner |
+| `exams-seen/` | raw | no, gitignored | the runner |
 | `reports/` | derived | yes | the reporter, never by hand |
 
-`exams/` is the sidecar the brief asks for. `attempts/` is what `archive` would
+`exams/` is the sidecar the brief asks for. `bank/` is what `archive` would
 have uploaded.
 `reports/` is what the site bundle reads and what CI posts.
 
@@ -51,7 +55,7 @@ second column is the word the evals literature uses for the same thing.
 | **variant** | agent harness + configuration | What is under test: a harness, a provider, a model and a bundle, given every task. |
 | **fixture** | environment | The repository a task runs against and what "done" looks like in it; reused across exams. |
 | **attempt** | trial | One measurement of a stochastic system: one variant at one task, once. On disk, the directory its evidence lives in. |
-| **batch** | eval run | The attempts one `proctor run` made: what the exam lacked at the time. An exam's attempts are every batch's. |
+| **bank** | (none) | Every attempt of an exam, whenever it was made. One made last week counts as one made today, while the variant and task it was made under are unchanged. |
 | **live** | control | A mark on one variant (`live.json` beside the exam): the one in use now, and the reference the report compares the others with. |
 
 > Superseded in part by [the fixtures plan](../archive/fixtures-arms-baselines.md)
@@ -82,7 +86,7 @@ exams/
       diff-in-scope.sh
 ```
 
-`exam.json` for the batch in the brief:
+`exam.json` for the exam in the brief:
 
 ```json
 {
@@ -185,7 +189,7 @@ check can carry a rubric per task. `files_touched` has a mode, `at_least`, `exac
 the diff the teardown hook collected; without a mode the check would have no
 semantics, which was the state of this example before the promptfoo pass.
 
-The task id is the stable identity; it is a path segment in `attempts/` and a
+The task id is the stable identity; it is a path segment in `bank/` and a
 column in every table. Renaming a task is a new task. The fixture is pinned
 to a revision so the task means the same thing next month.
 
@@ -266,27 +270,21 @@ the judge's standard: label out, never a confidence; threshold in versioned
 code; validated against one to two hundred human-labelled attempts with kappa
 reported; and a `needs-judge` fallback below the bar, not a replacement.
 
-## The raw tier: `attempts/`
+## The raw tier: `bank/`, `log/`, `exams-seen/`
 
-One directory per batch, attempts addressed by their coordinates, one file
-per concern inside an attempt so `ls`, `cat`, `jq` and `grep -l` are the query
-language. An exam's attempts are every attempt of every batch of it (the
-pool); the nesting under the batch that made an attempt is where it lives,
-not what it belongs to.
+An attempt is addressed by its coordinates, with one file per concern
+inside it so `ls`, `cat`, `jq` and `grep -l` are the query language. The
+bank holds every attempt of an exam. What one `proctor run` did is a log
+entry, kept for continuing after a crash and for the record; nothing a
+person reads is grouped by it.
 
 ```
-attempts/
-  20260917-1432-code-change-k7px/           batch id: date, exam, 4 random chars
-    batch.json                              what is the same for every attempt of the batch, and the attempts it set out to make (below)
-    status.json                             {planned, counts by attempt status, updated}; rewritten as attempts finish
-    harbor/                                 agent variants only: tasks/<variant>/<task>/ compiled once per batch, agents/
+bank/
+  code-change/                              exam
     floor/                                  variant
-      hooks/
-        variant.setup.log
-        variant.teardown.log
       add-retry-flag/                       task
         1/                                  attempt
-          manifest.json                     random id, coordinates with hashes, timing, versions
+          manifest.json                     random id, coordinates with hashes, the log entry that made it, timing, versions
           status                            one word: pending | running | completed | failed (skipped is reserved; nothing sets it)
           program.nb                        the program exactly as run, placeholders resolved
           program.jsonl                     what went down stdin: the program compiled on the host by `nb --compile`, includes inlined
@@ -303,13 +301,20 @@ attempts/
           verdicts/
             sensible.glm.a1b2c3d4.json      a model check's verdict: check, judge, hash of the request
         2/
+        3/                                  made by a later run; numbered after every attempt of floor/add-retry-flag
       fix-null-deref/
       rename-module/
-  20260918-0910-code-change-p2xv/           a later batch: only what the exam still lacked
-    batch.json
-    floor/
-      add-retry-flag/
-        3/                                  numbered after every attempt of floor/add-retry-flag on disk
+log/
+  20260917-1432-code-change-k7px/           one `proctor run`: date, exam, 4 random chars
+    entry.json                              the command, host and versions, how nb, bundles and Harbor were resolved, and the attempts it set out to make (below)
+    status.json                             {planned, counts by attempt status, updated}; rewritten as attempts finish
+    hooks/
+      floor.setup.log                       the variant hooks' output, per variant
+      floor.teardown.log
+    harbor/                                 agent variants only: tasks/<variant>/<task>/ compiled once per run, agents/
+  20260918-0910-code-change-p2xv/           a later run: only what the exam still lacked
+exams-seen/
+  sha256-9c1e4a7702bd.json                  exam.json as it stood at that hash, kept once: {exam, hash, def}
 ```
 
 > Never built, kept from the first draft: run-level hooks
@@ -319,26 +324,28 @@ attempts/
 > instead, and their attempts hold `trajectory.json`, `core.json` and
 > `harbor/` (`CLAUDE.md`).
 
-**Batch id.** The trackers all warned against timestamp-only names and
+**Log entry id.** The trackers all warned against timestamp-only names and
 against parameter-derived ids. This takes both halves: a date prefix so `ls`
-sorts chronologically, the exam id so a human can tell batches apart, and
-four random characters so two batches started in the same minute do not
+sorts chronologically, the exam id so a human can tell entries apart, and
+four random characters so two runs started in the same minute do not
 collide. The random part is what makes it an id; the rest is a courtesy.
 
-**Attempt path is coordinates.** `<variant>/<task>/<n>/` is the compound id from
-the test-framework learnings, and it is deliberately not random. A new
-attempt is numbered after every attempt of its variant and task in any
-batch, so `variant/task/n` names one attempt across the exam's pool. The
-random id lives inside the manifest.
+**Attempt path is coordinates.** `<exam>/<variant>/<task>/<n>/` is the compound
+id from the test-framework learnings, and it is deliberately not random. A
+new attempt is numbered after every attempt of its variant and task in the
+bank, so the path names one attempt for good. The random id lives inside
+the manifest. Two `proctor run` of one exam at the same moment would pick
+the same numbers; nothing guards against that yet.
 
 **Current and stale.** An attempt is current while the variant hash and task
-hash it was made under (its manifest's; for one never started, its batch's)
-are the exam's today, and stale otherwise. `run` makes, per variant and
-task, the exam's `attempts` less the current, completed ones; `grade`,
-`friction` and `report` read the current ones and list the stale ones with
-the hash that moved.
+hash it was made under (its manifest's; for one never started, its log
+entry's) are the exam's today, and stale otherwise. A stale attempt stays
+where it is and is left out. `run` makes, per variant and task, the exam's
+`attempts` less the current, completed ones; `grade`, `friction` and
+`report` read the current ones and list the stale ones with the hash that
+moved.
 
-**`status` is a one-word file** so `grep -l completed attempts/*/*/*/*/status`
+**`status` is a one-word file** so `grep -l completed bank/*/*/*/*/status`
 answers "what finished" without parsing anything. The five values are the
 Sacred-style enum. `failed` means infrastructure (the runner could not
 produce a transcript, or a hook failed); an attempt that produced a transcript
@@ -386,7 +393,7 @@ The attempt manifest, as `run` writes it now:
 {
   "id": "b7e2f9c04d1a4e6b",
   "exam": "code-change",
-  "batch": "20260917-1432-code-change-k7px",
+  "log": "20260917-1432-code-change-k7px",
   "variant": { "id": "floor", "hash": "sha256:4b1e…" },
   "task": { "id": "add-retry-flag", "hash": "sha256:0c3f…" },
   "attempt": 1,
@@ -406,16 +413,15 @@ The attempt manifest, as `run` writes it now:
 and `oracle` on an agent variant's attempt, `status_reason` on a failed
 one, and `nb_exit_code` once nb ran.
 
-The batch manifest, `batch.json`, holds what is the same for every attempt
-of the batch, so attempts do not repeat it, and the attempts it set out to
-make, which is how the pool knows an attempt that never started:
+The log entry, `log/<id>/entry.json`, holds what was the same for every
+attempt its run made, and the attempts it set out to make, which is how the
+bank knows an attempt that never started:
 
 ```json
 {
   "id": "20260918-0910-code-change-p2xv",
   "exam": "code-change",
   "exam_hash": "sha256:9c1e…",
-  "exam_def": { "id": "code-change", "attempts": 3, "grading": { "…": "…" } },
   "variants": [ { "id": "floor", "hash": "sha256:4b1e…", "def": { "id": "floor", "runner": "nb", "…": "…" } } ],
   "tasks": [ { "id": "add-retry-flag", "hash": "sha256:0c3f…" } ],
   "attempts": [ { "variant": "floor", "task": "add-retry-flag", "attempt": 3 } ],
@@ -430,13 +436,13 @@ make, which is how the pool knows an attempt that never started:
 }
 ```
 
-`variants` and `tasks` are only those the batch made attempts of. `harbor`
+`variants` and `tasks` are only those the run made attempts of. `harbor`
 is there when it made an agent variant's attempts; `run` continues an
-interrupted batch only while its runner, `harbor.version`,
-`harbor.tasks_hash`, `harbor.engine` and `harbor.nb_image` still hold. A
-`batch.json` without `attempts` was written by an earlier proctor and is
-refused, not read. The archive location the first draft put here was never
-built.
+interrupted run only while its runner, `harbor.version`,
+`harbor.tasks_hash`, `harbor.engine` and `harbor.nb_image` still hold, and
+the script checks it compiled are the checks as they are now. The exam's
+own definition is not in the entry: it is under `exams-seen/`, once per
+`exam_hash`. The archive location the first draft put here was never built.
 
 ## The derived tier: `reports/`
 
@@ -448,7 +454,7 @@ the markdown renderer both read these files and neither computes anything.
 reports/
   code-change/
     explore/                                the exploration report of an exam: the latest
-      results.jsonl                         one row per current attempt read: coordinates, batch, status, exit_reason, trailer fields, check results, id
+      results.jsonl                         one row per current attempt read: coordinates, status, exit_reason, trailer fields, check results, id
       stats.json                            per-variant rates with intervals, pairwise differences, MDE sentence, methods footnote; built_from, the stamp
       report.html
       summary.md                            the markdown rendering, for CI and humans
@@ -456,18 +462,18 @@ reports/
 ```
 
 `stats.json` `built_from` says what the report was built from: when, the
-batches its attempts came from, each variant's and task's hash, how many
-current attempts it read and how many stale ones it left out (each with
-why), the narrowing asked for (`--batch`, `--variant`, `--tasks`), and per
-variant the conditions (versions, runner, engine) that differed between
-the batches its attempts came from.
+log entries of the runs its attempts came from (`log`), each variant's and
+task's hash, how many current attempts it read and how many stale ones it
+left out (each with why), the narrowing asked for (`--variant`,
+`--tasks`), and per variant the conditions (versions, runner, engine) that
+differed between the runs its attempts came from.
 
-> Never built: `reports/data/index.json` (every batch with its headline and
+> Never built: `reports/data/index.json` (every exam with its headline and
 > archive url) and the site bundle that would read it. The change report
 > under `reports/<exam>/<claim>/` waits on claims
 > (`exam-variant-attempt.md`, stage 3).
 
-`results.jsonl` carries the coordinates, the batch and the attempt id on
+`results.jsonl` carries the coordinates and the attempt id on
 every row, which is the oracle bench's `--variant` lesson generalised: a
 row can be joined to anything without opening another file. It carries no
 transcript text. The judge's evidence quotes are in the raw-tier verdict
@@ -477,15 +483,14 @@ files.
 
 | verb | reads | writes |
 |---|---|---|
-| `proctor run <exam>` | `exams/<exam>/`, every batch of the exam | an interrupted batch's missing attempts, in place; then what is still missing as a new batch, `attempts/<id>/` |
+| `proctor run <exam>` | `exams/<exam>/`, the exam's bank and log | an interrupted run's missing attempts; then what is still missing, into `bank/<exam>/`, with a new entry `log/<id>/` |
 | `proctor grade <exam>` | the exam's current attempts, `exams/<exam>/checks/` | `checks.json` (and `verdicts/`) in each current, completed attempt |
 | `proctor friction <exam>` | the exam's current attempts, the exam's `surface` | `friction.json` in each current, completed attempt that has a `trajectory.json` |
 | `proctor report <exam>` | the exam's current attempts, its `live.json` | `reports/<exam>/explore/`, an earlier report moved aside |
 | `proctor live <exam> [variant]` | `exams/<exam>/`, its `live.json` | `exams/<exam>/live.json` when given a variant; else prints which is live |
-| `proctor list` | `exams/`, every batch | nothing; prints each variant's current attempts against those wanted, the stale ones, an interrupted batch |
+| `proctor list` | `exams/`, the bank and log | nothing; prints each variant's current attempts against those wanted, the stale ones, an interrupted run |
 
-`--batch`, `--variant` and `--tasks` narrow `grade`, `friction` and
-`report`; `--variant` and `--tasks` narrow `run`. `report` is a pure
+`--variant` and `--tasks` narrow `run`, `grade`, `friction` and `report`. `report` is a pure
 function of the attempts it reads and can be re-run after any regrade.
 
 > Never built, from the first draft: `proctor judge` (model checks are
@@ -495,7 +500,7 @@ function of the attempts it reads and can be re-run after any regrade.
 ## Decisions taken here
 
 - **Coordinates in the path, random id in the manifest.** Not one or the
-  other. Continuing a batch needs the path key; joins need the id.
+  other. Continuing a run needs the path key; joins need the id.
 - **No content-addressed input store in the first version.** The research
   recommended it so N attempts do not carry N copies of shared inputs. A
   resolved `program.nb` is a few kilobytes and a task's fixture is a git
@@ -518,17 +523,17 @@ function of the attempts it reads and can be re-run after any regrade.
 
 - **Normalising real-CLI transcripts.** The `command` runner captures raw
   CLI output as `transcript.txt`. The checks can grade from the diff and the
-  build, so this is enough for the worked batch. Whether proctor should
+  build, so this is enough for the worked exam. Whether proctor should
   also emit a normalised `transcript.jsonl` for those variants, so the judge's
   window extraction works uniformly, is deferred until a judged criterion
   needs to read a Codex or Claude Code transcript.
 - **Where fixture checkouts live during an attempt.** Under the attempt directory
   is simplest and makes `archive` upload them, which is wrong. Under a
-  gitignored `.proctor/work/` beside `attempts/`, deleted on teardown, is the
+  gitignored `.proctor/work/` beside `bank/`, deleted on teardown, is the
   likely answer, with the teardown hook deciding what to keep (the diff).
-- **Whether a report should copy `batch.json`.** Settled by the pool: a
-  report reads several batches, so it copies none, and `stats.json`
-  `built_from` names them.
+- **Whether a report should copy a run's record.** Settled by the bank: a
+  report reads attempts from several runs, so it copies none, and
+  `stats.json` `built_from` names their log entries.
 
 ## Not in this plan
 

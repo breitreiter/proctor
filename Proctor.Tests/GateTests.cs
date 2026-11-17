@@ -48,14 +48,14 @@ public class GateTests
         Assert.Empty(problems);
         var exam = repo.LoadExam(examId);
         var id = Runner.Run(repo.Root, exam, config, null, null, "gate", TextWriter.Null)!;
-        Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
+        Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
         return (exam, id);
     }
 
     /// <summary>Every way a Harbor attempt differs from its bare twin, as "task/attempt: what"; empty when the gate is green.</summary>
-    internal static List<string> Differences(string root, string batchId, Exam exam)
+    internal static List<string> Differences(string root, string entryId, Exam exam)
     {
-        var expDir = Layout.Batch(root, batchId);
+        var entryDir = Layout.LogEntry(root, entryId);
         var differences = new List<string>();
         var harbor = exam.Variants.Single(a => a.IsAgent);
         var bare = exam.Variants.Single(a => !a.IsAgent);
@@ -63,8 +63,8 @@ public class GateTests
             foreach (var n in Enumerable.Range(1, exam.Attempts))
             {
                 var at = $"{c.Id}/{n}";
-                var b = Layout.Attempt(expDir, bare.Id!, c.Id!, n);
-                var h = Layout.Attempt(expDir, harbor.Id!, c.Id!, n);
+                var b = TestRepo.Attempt(root, entryId, bare.Id!, c.Id!, n);
+                var h = TestRepo.Attempt(root, entryId, harbor.Id!, c.Id!, n);
                 var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
                 if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)
                 {
@@ -73,7 +73,7 @@ public class GateTests
                 }
 
                 // The checkout is at a host path bare and at /app in the image; a tool's output naming it is the one other expected difference.
-                var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(Layout.Work(root, batchId, bare.Id!, c.Id!, n), HarborCompile.Workdir));
+                var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(TestRepo.Work(root, entryId, bare.Id!, c.Id!, n), HarborCompile.Workdir));
                 var harborJsonl = Untimed(File.ReadAllText(Path.Combine(h, Layout.AgentLogsDir, Layout.NbLogFile)));
                 if (bareJsonl != harborJsonl) differences.Add($"{at}: nb's transcript differs\n--- bare\n{bareJsonl}\n--- harbor\n{harborJsonl}");
 
@@ -119,17 +119,17 @@ public class OracleGateTests
     /// <summary>The answers each gate-oracle task's sheet scripts before its ending (oracle.turns is 2).</summary>
     static readonly Dictionary<string, int> Answers = new() { ["asks-twice"] = 2, ["misses"] = 0, ["over-budget"] = 2 };
 
-    internal static List<string> Differences(string root, string batchId, Exam exam)
+    internal static List<string> Differences(string root, string entryId, Exam exam)
     {
-        var expDir = Layout.Batch(root, batchId);
+        var entryDir = Layout.LogEntry(root, entryId);
         var differences = new List<string>();
         var harbor = exam.Variants.Single(a => a.IsAgent);
         var bare = exam.Variants.Single(a => !a.IsAgent);
         foreach (var c in exam.Tasks)
         {
             var at = c.Id!;
-            var b = Layout.Attempt(expDir, bare.Id!, c.Id!, 1);
-            var h = Layout.Attempt(expDir, harbor.Id!, c.Id!, 1);
+            var b = TestRepo.Attempt(root, entryId, bare.Id!, c.Id!, 1);
+            var h = TestRepo.Attempt(root, entryId, harbor.Id!, c.Id!, 1);
             var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
             var manifest = Runner.ReadManifest(Path.Combine(h, Layout.ManifestFile));
             if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)

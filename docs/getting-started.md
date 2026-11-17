@@ -70,7 +70,7 @@ For this step you need one job, the built-in harness, on one provider:
 Then:
 
 ```bash
-proctor run readme-answers      # if it stops part way (a throttle, a closed laptop), run it again: it continues the batch
+proctor run readme-answers      # if it stops part way (a throttle, a closed laptop), run it again: it continues where it stopped
 proctor grade readme-answers
 proctor report readme-answers
 ```

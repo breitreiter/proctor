@@ -6,11 +6,13 @@ using System.Text.Json.Nodes;
 namespace Proctor;
 
 /// <summary>
-/// attempts/&lt;id&gt;/batch.json: what is the same for every attempt. The exam's own definition and its hash, each
-/// variant it made attempts of as its file was with its hash, each such task's hash, and the attempts it set out to make.
+/// log/&lt;id&gt;/entry.json: what one `proctor run` did, and the conditions it ran under. The exam's hash (its definition
+/// is kept once per hash under exams-seen/), each variant it made attempts of as its file was with its hash, each such
+/// task's hash, and the attempts it set out to make, which is what `run` reads to continue after a crash. The attempts
+/// themselves are in the bank; nothing a person reads is grouped by log entry.
 /// </summary>
-record Batch(
-    string Id, string Exam, string ExamHash, JsonObject ExamDef, List<BatchVariant> Variants, List<Ref> Tasks, List<AttemptRef> Attempts,
+record LogEntry(
+    string Id, string Exam, string ExamHash, List<SeenVariant> Variants, List<Ref> Tasks, List<AttemptRef> Attempts,
     string Created, string CommandLine, string Host,
     Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
     Dictionary<string, ResolvedBundle>? Bundles = null, ResolvedHarbor? Harbor = null)
@@ -22,13 +24,16 @@ record Batch(
 /// <summary>A variant or a task as an attempt names it: its id and the hash that is its identity.</summary>
 record Ref(string Id, string Hash);
 
-/// <summary>One attempt a batch set out to make, by its coordinates.</summary>
+/// <summary>One attempt a run set out to make, by its coordinates.</summary>
 record AttemptRef(string Variant, string Task, int Attempt);
 
-/// <summary>A variant as batch.json keeps it: its id, its hash and its file as it was.</summary>
-record BatchVariant(string Id, string Hash, JsonObject Def);
+/// <summary>A variant as a log entry keeps it: its id, its hash and its file as it was.</summary>
+record SeenVariant(string Id, string Hash, JsonObject Def);
 
-/// <summary>A variant's bundle as resolved for this batch: where it was read from, the directory handed to the attempt, and its identity.</summary>
+/// <summary>exams-seen/sha256-&lt;hash&gt;.json: the exam's own definition as it stood at that hash.</summary>
+record ExamSeen(string Exam, string Hash, JsonObject Def);
+
+/// <summary>A variant's bundle as resolved for one run: where it was read from, the directory handed to the attempt, and its identity.</summary>
 record ResolvedBundle(string Source, string Path, string Hash);
 
 record GitInfo(string Commit, bool Dirty);
@@ -44,7 +49,8 @@ record Manifest
 {
     public required string Id { get; init; }
     public required string Exam { get; init; }
-    public required string Batch { get; init; }
+    /// <summary>The log entry of the run that made it.</summary>
+    public required string Log { get; init; }
     public required Ref Variant { get; init; }
     public required Ref Task { get; init; }
     public required int Attempt { get; init; }
@@ -86,16 +92,16 @@ static class AttemptStatus
     public static readonly string[] All = [Pending, Running, Completed, Failed, Skipped];
 }
 
-/// <summary>A batch's attempts, made: variant by variant, hooks at variant and attempt level, nb as a subprocess or an agent through Harbor.</summary>
-sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, TextWriter log)
+/// <summary>One run's attempts, made into the bank: variant by variant, hooks at variant and attempt level, nb as a subprocess or an agent through Harbor.</summary>
+sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config, TextWriter log)
 {
-    readonly string batchDir = Layout.Batch(root, batch.Id);
+    readonly string entryDir = Layout.LogEntry(root, entry.Id);
     readonly string examsDir = Layout.Exams(root);
 
     /// <summary>
-    /// `proctor run`: first each interrupted batch is continued in place, when the conditions it recorded still hold; then
-    /// whatever the exam still lacks, within --variant and --tasks, is made in a new batch. Returns the last batch made or
-    /// continued, or null when there was nothing to make.
+    /// `proctor run`: first each interrupted run is continued, when the conditions its log entry recorded still hold; then
+    /// whatever the exam still lacks, within --variant and --tasks, is made by a new run. Returns the id of the last log
+    /// entry written or continued, or null when there was nothing to make.
     /// </summary>
     public static string? Run(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log,
         IReadOnlyCollection<string>? variants = null, IReadOnlyCollection<string>? tasks = null)
@@ -103,31 +109,31 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         RefuseChangedVariants(root, exam);
         string? last = null;
         var considered = new HashSet<string>();
-        var continued = new HashSet<(string Batch, string Label)>();
-        while (Pool.Interrupted(exam, Pool.Of(root, exam), variants, tasks).FirstOrDefault(i => !considered.Contains(i.Batch.Id)) is { } interrupted)
+        var continued = new HashSet<(string Entry, string Label)>();
+        while (Bank.Interrupted(exam, Bank.Of(root, exam), variants, tasks).FirstOrDefault(i => !considered.Contains(i.Entry.Id)) is { } interrupted)
         {
-            var batch = interrupted.Batch;
-            considered.Add(batch.Id);
-            log.WriteLine($"batch {batch.Id} was interrupted: {interrupted.Account}");
-            if (WhyNotContinue(root, batch, exam, config, runnerOverride) is { } why)
+            var entry = interrupted.Entry;
+            considered.Add(entry.Id);
+            log.WriteLine($"run {entry.Id} was interrupted: {interrupted.Account}");
+            if (WhyNotContinue(root, entry, exam, config, runnerOverride, interrupted.Missing) is { } why)
             {
                 log.WriteLine($"  not continuing it: {why}");
                 continue;
             }
             log.WriteLine($"  continuing it: {AttemptCount(interrupted.Missing.Count)} to make");
-            if (batch.Harbor is not null) HarborRun.Preflight(config.HarborOrDefault);
-            if (nbOverride is not null) batch = batch with { Nb = batch.Nb with { Path = Path.GetFullPath(nbOverride) } };
-            new Runner(root, batch, exam, config, log).Make(interrupted.Missing
+            if (entry.Harbor is not null) HarborRun.Preflight(config.HarborOrDefault);
+            if (nbOverride is not null) entry = entry with { Nb = entry.Nb with { Path = Path.GetFullPath(nbOverride) } };
+            new Runner(root, entry, exam, config, log).Make(interrupted.Missing
                 .Select(a => (exam.Variants.First(v => v.Id == a.Variant), exam.Tasks.First(t => t.Id == a.Task), a.Attempt)).ToList());
-            continued.UnionWith(interrupted.Missing.Select(a => (batch.Id, a.Label)));
-            last = batch.Id;
+            continued.UnionWith(interrupted.Missing.Select(a => (entry.Id, a.Label)));
+            last = entry.Id;
         }
-        var pool = Pool.Of(root, exam);
-        // What was continued just now and failed again is not made a second time in a new batch: whatever stopped it is
+        var bank = Bank.Of(root, exam);
+        // What was continued just now and failed again is not made a second time by a new run: whatever stopped it is
         // still there, and the next `proctor run` continues it.
-        var failedAgain = pool.Where(a => a.Unfinished && continued.Contains((a.Batch.Id, a.Label)))
+        var failedAgain = bank.Where(a => a.Unfinished && continued.Contains((a.Entry.Id, a.Label)))
             .GroupBy(a => (a.Variant, a.Task)).ToDictionary(g => g.Key, g => g.Count());
-        var missing = Pool.Missing(exam, pool, variants, tasks).GroupBy(m => (m.Variant.Id!, m.Task.Id!))
+        var missing = Bank.Missing(exam, bank, variants, tasks).GroupBy(m => (m.Variant.Id!, m.Task.Id!))
             .SelectMany(g => g.SkipLast(failedAgain.GetValueOrDefault(g.Key))).ToList();
         if (failedAgain.Count > 0) log.WriteLine($"{AttemptCount(failedAgain.Values.Sum())} failed again and {(failedAgain.Values.Sum() == 1 ? "is" : "are")} left for the next `proctor run {exam.Id}`");
         if (missing.Count > 0) return Start(root, exam, config, nbOverride, runnerOverride, commandLine, log, missing);
@@ -136,7 +142,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         return last;
     }
 
-    /// <summary>A new batch that makes the given attempts: only their variants' bundles resolved, only their agent tasks compiled.</summary>
+    /// <summary>A new run that makes the given attempts: only their variants' bundles resolved, only their agent tasks compiled.</summary>
     static string Start(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log,
         List<(Variant Variant, TaskDef Task, int Attempt)> attempts)
     {
@@ -144,11 +150,10 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         var tasks = exam.Tasks.Where(t => attempts.Any(a => a.Task == t)).ToList();
         var nb = ResolveNb(root, exam, config, nbOverride, runnerOverride);
         foreach (var variant in variants.Where(a => a.IsAgent)) Route(root, config, nb, variant);   // a missing endpoint fails before anything is made
-        var id = Layout.NewBatchId(exam.Id, DateTime.UtcNow);
-        var batch = new Batch(
+        var id = Layout.NewLogEntryId(exam.Id, DateTime.UtcNow);
+        var entry = new LogEntry(
             Id: id, Exam: exam.Id, ExamHash: exam.Hash,
-            ExamDef: JsonNode.Parse(File.ReadAllText(Layout.ExamFileIn(exam.Dir)))!.AsObject(),
-            Variants: variants.Select(v => new BatchVariant(v.Id!, v.Hash, JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, v.Id!)))!.AsObject())).ToList(),
+            Variants: variants.Select(v => new SeenVariant(v.Id!, v.Hash, JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, v.Id!)))!.AsObject())).ToList(),
             Tasks: tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(),
             Attempts: attempts.Select(a => new AttemptRef(a.Variant.Id!, a.Task.Id!, a.Attempt)).ToList(),
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
@@ -160,84 +165,91 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             HarborRun.Preflight(config.HarborOrDefault);
             if (config.HarborOrDefault.Remote) RequireReachable(variants, tasks, exam, config, variant => Route(root, config, nb, variant));
         }
-        var dir = Layout.Batch(root, id);
+        var dir = Layout.LogEntry(root, id);
         Directory.CreateDirectory(dir);
         if (agents)
         {
             var version = exam.Def.Harbor!.Version!;
             var engine = config.HarborOrDefault.Engine;
-            var nbImage = variants.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, batch.Versions["nb"]) : null;
+            var nbImage = variants.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, entry.Versions["nb"]) : null;
             var pairs = attempts.Where(a => a.Variant.IsAgent).Select(a => (a.Variant, a.Task)).Distinct().ToList();
-            batch = batch with
+            entry = entry with
             {
-                Versions = new(batch.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, id, variant => Route(root, config, nb, variant), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, batch.Bundles, pairs), nbImage, engine),
+                Versions = new(entry.Versions) { ["harbor"] = version },
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, variant => Route(root, config, nb, variant), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, entry.Bundles, pairs), nbImage, engine),
             };
         }
-        WriteJson(Path.Combine(dir, Layout.BatchFile), batch);
-        log.WriteLine($"batch {id}: {AttemptCount(attempts.Count)} to make");
-        new Runner(root, batch, exam, config, log).Make(attempts);
+        KeepExam(root, exam);
+        WriteJson(Path.Combine(dir, Layout.LogEntryFile), entry);
+        log.WriteLine($"run {id}: {AttemptCount(attempts.Count)} to make");
+        new Runner(root, entry, exam, config, log).Make(attempts);
         return id;
     }
 
+    /// <summary>The exam's own definition as it stands, kept under exams-seen/ once per hash, so an attempt's checks can be read after the exam has moved on.</summary>
+    static void KeepExam(string root, Exam exam)
+    {
+        var file = Layout.ExamSeen(root, exam.Hash);
+        if (File.Exists(file)) return;
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        WriteJson(file, new ExamSeen(exam.Id, exam.Hash, JsonNode.Parse(File.ReadAllText(Layout.ExamFileIn(exam.Dir)))!.AsObject()));
+    }
+
     /// <summary>
-    /// Why an interrupted batch cannot be continued in place, or null when it can: the conditions it recorded must still
-    /// hold. Its runner script, its Harbor version, the Harbor tasks it compiled, its engine and its nb image.
+    /// Why an interrupted run cannot be continued, or null when it can: the conditions its log entry recorded must still
+    /// hold. Its runner script, its Harbor version, the Harbor tasks it compiled, its engine and its nb image; and the
+    /// script checks it compiled for the attempts still to make must be the checks as they are now, or the attempts would
+    /// be made with outdated verdicts.
     /// </summary>
-    static string? WhyNotContinue(string root, Batch batch, Exam exam, ProctorConfig config, string? runnerOverride)
+    static string? WhyNotContinue(string root, LogEntry entry, Exam exam, ProctorConfig config, string? runnerOverride, List<BankAttempt> missing)
     {
         var runner = ResolveRunner(root, exam, runnerOverride);
-        if ((runner?.Script, runner?.Hash) != (batch.Nb.Runner?.Script, batch.Nb.Runner?.Hash))
-            return $"the runner is {Describe(runner)} now, {Describe(batch.Nb.Runner)} then";
-        if (batch.Harbor is not { } harbor) return null;
+        if ((runner?.Script, runner?.Hash) != (entry.Nb.Runner?.Script, entry.Nb.Runner?.Hash))
+            return $"the runner is {Describe(runner)} now, {Describe(entry.Nb.Runner)} then";
+        if (entry.Harbor is not { } harbor) return null;
         if (exam.Def.Harbor?.Version is { } version && version != harbor.Version)
             return $"Harbor is {version} now, {harbor.Version} then";
-        if (HarborCompile.TreeHash(Layout.Batch(root, batch.Id)) != harbor.TasksHash)
-            return $"the Harbor tasks it compiled have changed on disk ({Layout.HarborDir}/tasks)";
+        var dir = Layout.LogEntry(root, entry.Id);
+        if (HarborCompile.TreeHash(dir) != harbor.TasksHash)
+            return $"the Harbor tasks it compiled have changed on disk ({Path.GetRelativePath(root, Path.Combine(dir, Layout.HarborDir, "tasks"))})";
         if (config.HarborOrDefault.Engine is var engine && engine != harbor.Engine)
             return $"the engine ({config.Source} harbor.engine) is {engine} now, {harbor.Engine} then; run with the --config it was made with to continue it";
-        // A batch from before the layer left the local store recorded podman's tag with its localhost/ prefix; the hash is what identifies the publish.
-        if (harbor.NbImage is { } image && NbImage(root, config, batch.Versions["nb"]) is var now && now.Replace("localhost/", "") != image.Replace("localhost/", ""))
+        // An entry from before the layer left the local store recorded podman's tag with its localhost/ prefix; the hash is what identifies the publish.
+        if (harbor.NbImage is { } image && NbImage(root, config, entry.Versions["nb"]) is var now && now.Replace("localhost/", "") != image.Replace("localhost/", ""))
             return $"nb's publish ({config.Source} harbor.nb) is {now} now, {image} then";
+        var outdated = missing.Where(a => exam.Variants.First(v => v.Id == a.Variant).IsAgent).Select(a => (a.Variant, Task: exam.Tasks.First(t => t.Id == a.Task))).Distinct()
+            .SelectMany(a => HarborCompile.Outdated(Layout.HarborTask(dir, a.Variant, a.Task.Id!), exam, a.Task, a.Variant).Keys).Distinct().Order(StringComparer.Ordinal).ToList();
+        if (outdated.Count > 0)
+            return $"the script checks it compiled are not the checks as they are now ({string.Join(", ", outdated)})";
         return null;
 
         static string Describe(ResolvedRunner? r) => r is null ? "none" : $"{r.Script} {r.Hash}";
     }
 
     static string AttemptCount(int n) => $"{n} attempt{(n == 1 ? "" : "s")}";
-    public static Batch LoadBatch(string root, string batchId)
+    public static LogEntry LoadEntry(string root, string entryId)
     {
-        var file = Path.Combine(Layout.Batch(root, batchId), Layout.BatchFile);
-        if (!File.Exists(file)) throw new ProctorException($"no batch {batchId} under {Layout.Batch(root, "")}");
-        Batch? batch;
-        try { batch = ReadJson<Batch>(file); }
-        catch (JsonException) { batch = null; }
-        // An earlier proctor wrote the variants into exam_def, the tasks as bare ids, or no list of the batch's attempts; such a batch is not read, but made again.
-        if (batch?.Variants is null || batch.Tasks is null || batch.Attempts is null)
-            throw new ProctorException($"{Path.GetRelativePath(root, file)} was written by an earlier proctor, before a batch listed its attempts; it is not read. Move it out of {Layout.AttemptsDir}/ and run the exam again");
-        return batch;
+        var file = Layout.LogEntryFileIn(root, entryId);
+        if (!File.Exists(file)) throw new ProctorException($"no log entry {entryId} under {Path.Combine(root, Layout.LogDir)}");
+        return ReadJson<LogEntry>(file)!;
     }
 
     /// <summary>
-    /// A changed variant under an old id is refused: when attempts on disk were made by a variant with this id and another
+    /// A changed variant under an old id is refused: when attempts in the bank were made by a variant with this id and another
     /// hash, the variant has changed and needs a new id, or its attempts and the new ones would be compared as one. Every
     /// variant that changed is said at once, before anything is made.
     /// </summary>
     static void RefuseChangedVariants(string root, Exam exam)
     {
-        var changed = new Dictionary<string, (int Attempts, BatchVariant Then, ResolvedBundle? Bundle)>();
-        foreach (var batch in Pool.Batches(root, exam.Id))
-        {
-            var dir = Layout.Batch(root, batch.Id);
-            foreach (var then in batch.Variants)
+        var changed = new Dictionary<string, (int Attempts, SeenVariant Then, ResolvedBundle? Bundle)>();
+        foreach (var entry in Bank.Entries(root, exam.Id))
+            foreach (var then in entry.Variants)
             {
                 if (exam.Variants.FirstOrDefault(v => v.Id == then.Id) is not { } now || now.Hash == then.Hash) continue;
-                var variantDir = Layout.Variant(dir, then.Id);
-                var made = Directory.Exists(variantDir) ? Directory.GetFiles(variantDir, Layout.ManifestFile, SearchOption.AllDirectories).Length : 0;
+                var made = entry.Attempts.Count(a => a.Variant == then.Id && File.Exists(Path.Combine(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt), Layout.ManifestFile)));
                 if (made == 0) continue;
-                changed[then.Id] = (changed.GetValueOrDefault(then.Id).Attempts + made, then, batch.BundleOf(then.Id));   // the latest batch's record says what it was
+                changed[then.Id] = (changed.GetValueOrDefault(then.Id).Attempts + made, then, entry.BundleOf(then.Id));   // the latest entry's record says what it was
             }
-        }
         if (changed.Count == 0) return;
         throw new ProctorException(string.Join("\n", changed.Select(c =>
         {
@@ -247,8 +259,8 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         })));
     }
 
-    /// <summary>What changed in a variant, field by field from the file batch.json kept, its bundle by identity; the hashes when nothing declared differs.</summary>
-    static string Differences(string root, Exam exam, Variant now, BatchVariant then, ResolvedBundle? thenBundle)
+    /// <summary>What changed in a variant, field by field from the file the log entry kept, its bundle by identity; the hashes when nothing declared differs.</summary>
+    static string Differences(string root, Exam exam, Variant now, SeenVariant then, ResolvedBundle? thenBundle)
     {
         var current = JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, now.Id!)))!.AsObject();
         var differences = new List<string>();
@@ -263,14 +275,14 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         static string Short(string? hash) => hash is null or "" ? "none" : hash.StartsWith("sha256:") ? hash[7..15] : hash;
     }
 
-    /// <summary>Everything a hook or check needs to know about an attempt, for the runner and the grader alike.</summary>
-    public static AttemptContext Context(string root, Batch batch, Exam exam, Variant variant, TaskDef task, int n) =>
-        new(exam.Dir, Layout.Attempt(Layout.Batch(root, batch.Id), variant.Id!, task.Id!, n), Layout.Work(root, batch.Id, variant.Id!, task.Id!, n), batch.Id, variant.Id!, task, n)
-        { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = batch.BundleOf(variant.Id!)?.Path, NbRunner = batch.Nb.Runner?.Script ?? "", NbPath = batch.Nb.Path, NbConfig = batch.Nb.Config, Mounts = batch.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
-          VerifierTask = variant.IsAgent ? Layout.HarborTask(Layout.Batch(root, batch.Id), variant.Id!, task.Id!) : null };
+    /// <summary>Everything a hook or check needs to know about an attempt, for the runner and the grader alike. The log entry says how its run resolved nb, the bundles and the Harbor tasks.</summary>
+    public static AttemptContext Context(string root, LogEntry entry, Exam exam, Variant variant, TaskDef task, int n) =>
+        new(exam.Dir, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n), Layout.Work(root, exam.Id, variant.Id!, task.Id!, n), exam.Id, variant.Id!, task, n)
+        { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = entry.BundleOf(variant.Id!)?.Path, NbRunner = entry.Nb.Runner?.Script ?? "", NbPath = entry.Nb.Path, NbConfig = entry.Nb.Config, Mounts = entry.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
+          VerifierTask = variant.IsAgent ? Layout.HarborTask(Layout.LogEntry(root, entry.Id), variant.Id!, task.Id!) : null };
 
     /// <summary>
-    /// Each variant's bundle, once per batch, for the variants it makes attempts of: a path is hashed in place; a git revision
+    /// Each variant's bundle, once per run, for the variants it makes attempts of: a path is hashed in place; a git revision
     /// is cloned under .proctor/bundles/ and identified by its revision, and with paths only those files and directories
     /// are copied out of the clone into a directory of their own, the bundle's identity then naming them too.
     /// </summary>
@@ -339,7 +351,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         return File.Exists(file) ? File.ReadAllText(file).Trim() : AttemptStatus.Pending;
     }
 
-    /// <summary>Make the given attempts of this batch, variant by variant, the variant hooks around each variant's; then say how they came out.</summary>
+    /// <summary>Make the given attempts of this run, variant by variant, the variant hooks around each variant's; then say how they came out.</summary>
     void Make(List<(Variant Variant, TaskDef Task, int Attempt)> attempts)
     {
         WriteStatusCounts();
@@ -347,10 +359,10 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         {
             var variant = group.Key;
             var pending = group.Select(a => (a.Task, a.Attempt)).ToList();
-            var variantDir = Layout.Variant(batchDir, variant.Id!);
-            Directory.CreateDirectory(Path.Combine(variantDir, Layout.HooksDir));
-            var variantEnv = new Dictionary<string, string> { ["PROCTOR_BATCH"] = batch.Id, ["PROCTOR_VARIANT"] = variant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = batch.BundleOf(variant.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = batch.Nb.Runner?.Script ?? "" };
-            var setup = RunHook(exam.Def.Hooks?.Variant?.Setup, variantEnv, Path.Combine(variantDir, Layout.HooksDir, "variant.setup.log"));
+            var hooksDir = Path.Combine(entryDir, Layout.HooksDir);
+            Directory.CreateDirectory(hooksDir);
+            var variantEnv = new Dictionary<string, string> { ["PROCTOR_EXAM"] = exam.Id, ["PROCTOR_VARIANT"] = variant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = entry.BundleOf(variant.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = entry.Nb.Runner?.Script ?? "" };
+            var setup = RunHook(exam.Def.Hooks?.Variant?.Setup, variantEnv, Path.Combine(hooksDir, $"{variant.Id}.setup.log"));
             if (setup is not null)
             {
                 foreach (var (task, n) in pending) MarkFailed(variant, task, n, $"variant setup hook failed: {setup}");
@@ -361,18 +373,18 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
                 if (variant.IsAgent) RunAgentAttempt(variant, task, n);
                 else RunAttempt(variant, task, n);
 
-            var teardown = RunHook(exam.Def.Hooks?.Variant?.Teardown, variantEnv, Path.Combine(variantDir, Layout.HooksDir, "variant.teardown.log"));
+            var teardown = RunHook(exam.Def.Hooks?.Variant?.Teardown, variantEnv, Path.Combine(hooksDir, $"{variant.Id}.teardown.log"));
             if (teardown is not null) log.WriteLine($"  {variant.Id}: variant teardown hook failed: {teardown}");
         }
         WriteStatusCounts();
-        var statuses = attempts.Select(a => ReadStatus(Layout.Attempt(batchDir, a.Variant.Id!, a.Task.Id!, a.Attempt))).ToList();
+        var statuses = attempts.Select(a => ReadStatus(Layout.Attempt(root, exam.Id, a.Variant.Id!, a.Task.Id!, a.Attempt))).ToList();
         var failed = statuses.Count(s => s == AttemptStatus.Failed);
         log.WriteLine($"{statuses.Count} made: {statuses.Count(s => s == AttemptStatus.Completed)} completed{(failed > 0 ? $", {failed} failed" : "")}");
     }
 
     void RunAttempt(Variant variant, TaskDef task, int n)
     {
-        var attempt = Context(root, batch, exam, variant, task, n);
+        var attempt = Context(root, entry, exam, variant, task, n);
         var (attemptDir, workDir) = (attempt.AttemptDir, attempt.WorkDir);
         Directory.CreateDirectory(Path.Combine(attemptDir, Layout.HooksDir));
         Directory.CreateDirectory(workDir);
@@ -383,11 +395,11 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Log = entry.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
                 Fixture = attempt.Fixture is null ? null : new FixtureRef(attempt.Fixture.Id, attempt.Fixture.Hash),
-                Bundle = batch.BundleOf(variant.Id!), Nb = batch.Nb,
-                Host = batch.Host, Versions = batch.Versions, ProgramHash = Sha256(program),
+                Bundle = entry.BundleOf(variant.Id!), Nb = entry.Nb,
+                Host = entry.Host, Versions = entry.Versions, ProgramHash = Sha256(program),
             };
         manifest.Tries++;
         manifest.Started = Now();
@@ -434,10 +446,10 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// </summary>
     void RunAgentAttempt(Variant variant, TaskDef task, int n)
     {
-        var attemptDir = Layout.Attempt(batchDir, variant.Id!, task.Id!, n);
+        var attemptDir = Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n);
         Directory.CreateDirectory(attemptDir);
-        var taskDir = Layout.HarborTask(batchDir, variant.Id!, task.Id!);
-        var route = Route(root, config, batch.Nb, variant);
+        var taskDir = Layout.HarborTask(entryDir, variant.Id!, task.Id!);
+        var route = Route(root, config, entry.Nb, variant);
         var fixture = exam.FixtureOf(task)!;
         // nb's program is compiled on the host as on the bare path, with the checkout where the image has it.
         var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, task, n, HarborCompile.Workdir);
@@ -446,15 +458,15 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n, Model = variant.Model,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Log = entry.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n, Model = variant.Model,
                 Harness = variant.Harness, Provider = variant.Provider,
-                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = batch.BundleOf(variant.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
-                Host = batch.Host, Versions = batch.Versions,
+                Fixture = new FixtureRef(fixture.Id, fixture.Hash), Bundle = entry.BundleOf(variant.Id!), Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif"),
+                Host = entry.Host, Versions = entry.Versions,
                 ProgramHash = Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md"))),
             };
-        var nb = program is null ? null : new NbAttempt(Path.Combine(attemptDir, Layout.CompiledProgramFile), batch.Nb.Config);
+        var nb = program is null ? null : new NbAttempt(Path.Combine(attemptDir, Layout.CompiledProgramFile), entry.Nb.Config);
         var oracle = OracleAttemptOf(variant, task);
-        manifest.Agent = new AgentTrial(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, nb), HarborCompile.AgentEnv(variant, route), batch.Harbor!.Version, null);
+        manifest.Agent = new AgentTrial(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, nb), HarborCompile.AgentEnv(variant, route), entry.Harbor!.Version, null);
         manifest.Oracle = null;
         manifest.Tries++;
         manifest.Started = Now();
@@ -473,8 +485,8 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             else if (oracle is not null) File.WriteAllText(nb!.Program, HarborCompile.WithoutRun(compiled!));
         }
         if (failure is null)
-            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, batch.Harbor.Version, batch.Harbor.Engine, attemptDir, variant, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(batchDir), nb, oracle);
-        if (trialDir is not null) failure = Ingest.Trial(trialDir, attemptDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : batch.Versions["nb"], bridged: oracle is not null);
+            (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, entry.Harbor.Version, entry.Harbor.Engine, attemptDir, variant, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(entryDir), nb, oracle);
+        if (trialDir is not null) failure = Ingest.Trial(trialDir, attemptDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : entry.Versions["nb"], bridged: oracle is not null);
         stopwatch.Stop();
 
         manifest.Ended = Now();
@@ -491,8 +503,8 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// the exam names a judge, which is what nb's in-process oracle does on the bare path.
     /// </summary>
     OracleAttempt? OracleAttemptOf(Variant variant, TaskDef task) => exam.OracleOf(task) is { } sheet
-        ? new OracleAttempt(sheet, batch.Nb.Path, batch.Nb.Config, exam.Def.Oracle?.Judge ?? variant.Provider, exam.OracleTurns,
-            Path.Combine(HarborCompile.AgentsDir(batchDir), HarborCompile.OracleTemplateFile))
+        ? new OracleAttempt(sheet, entry.Nb.Path, entry.Nb.Config, exam.Def.Oracle?.Judge ?? variant.Provider, exam.OracleTurns,
+            Path.Combine(HarborCompile.AgentsDir(entryDir), HarborCompile.OracleTemplateFile))
         : null;
 
     /// <summary>
@@ -573,7 +585,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// </summary>
     (string? Compiled, string? Error) Compile(string attemptDir, string program)
     {
-        var nb = batch.Nb;
+        var nb = entry.Nb;
         var args = new List<string> { "--compile" };
         if (nb.Config is not null) args.AddRange(["--config", nb.Config]);
         var result = Subprocess.Run(nb.Path, args, exam.Dir, new Dictionary<string, string> { ["NO_COLOR"] = "1" }, stdin: program);
@@ -590,7 +602,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     /// </summary>
     string? RunNb(string attemptDir, string workDir, string program, IDictionary<string, string> attemptEnv, Manifest manifest)
     {
-        var nb = batch.Nb;
+        var nb = entry.Nb;
         var args = new List<string> { "--output", "jsonl" };
         if (nb.Config is not null) args.AddRange(["--config", nb.Config]);
         args.Add("-");
@@ -627,16 +639,16 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
 
     void MarkFailed(Variant variant, TaskDef task, int n, string reason)
     {
-        var attemptDir = Layout.Attempt(batchDir, variant.Id!, task.Id!, n);
+        var attemptDir = Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n);
         Directory.CreateDirectory(attemptDir);
         var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
-                Id = Layout.NewAttemptId(), Exam = exam.Id, Batch = batch.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n,
+                Id = Layout.NewAttemptId(), Exam = exam.Id, Log = entry.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n,
                 Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
-                Host = batch.Host, Versions = batch.Versions, ProgramHash = "",
+                Host = entry.Host, Versions = entry.Versions, ProgramHash = "",
             };
         manifest.Tries++;
         manifest.StatusReason = reason;
@@ -657,8 +669,8 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
     void WriteStatusCounts()
     {
         var counts = AttemptStatus.All.ToDictionary(s => s, _ => 0);
-        foreach (var a in batch.Attempts) counts[ReadStatus(Layout.Attempt(batchDir, a.Variant, a.Task, a.Attempt))]++;
-        WriteJson(Path.Combine(batchDir, Layout.StatusCountsFile), new { planned = batch.Attempts.Count, counts, updated = Now() });
+        foreach (var a in entry.Attempts) counts[ReadStatus(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt))]++;
+        WriteJson(Path.Combine(entryDir, Layout.StatusCountsFile), new { planned = entry.Attempts.Count, counts, updated = Now() });
     }
 
     static string? ExitReasonOf(string attemptDir)
@@ -715,7 +727,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
         return new ResolvedNb(path, configPath, runner, runner is null ? null : exam.Def.Nb?.Mounts);
     }
 
-    /// <summary>The runner in effect: --runner (from the current directory) over the exam's nb.runner (from the exam directory); `--runner none` is a bare run. Recorded relative to exams/ when it lives there, else absolute, so continuing the batch can compare it.</summary>
+    /// <summary>The runner in effect: --runner (from the current directory) over the exam's nb.runner (from the exam directory); `--runner none` is a bare run. Recorded relative to exams/ when it lives there, else absolute, so continuing the run can compare it.</summary>
     static ResolvedRunner? ResolveRunner(string root, Exam exam, string? runnerOverride)
     {
         var examsDir = Layout.Exams(root);
@@ -737,7 +749,7 @@ sealed class Runner(string root, Batch batch, Exam exam, ProctorConfig config, T
             .SelectMany(d => names.Select(n => Path.Combine(d, n))).FirstOrDefault(File.Exists);
     }
 
-    /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every batch records.</summary>
+    /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every log entry records.</summary>
     public static string ProctorVersion =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0";
 

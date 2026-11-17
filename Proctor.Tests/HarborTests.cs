@@ -132,10 +132,10 @@ public class HarborTests
         var (repo, _) = AgentRepo();
         using var _r = repo;
         var exam = repo.LoadExam("harbor-unit");
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        var hash = HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute(BaseUrl, "sk-secret"));
-        Assert.Equal(hash, HarborCompile.TreeHash(expDir));
-        var task = Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref");
+        var entryDir = Path.Combine(repo.Root, "log", "exp");
+        var hash = HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(BaseUrl, "sk-secret"));
+        Assert.Equal(hash, HarborCompile.TreeHash(entryDir));
+        var task = Layout.HarborTask(entryDir, "cc-haiku", "fix-null-deref");
 
         Assert.Equal(exam.Tasks[0].Prompt!.TrimEnd() + "\n", File.ReadAllText(Path.Combine(task, "instruction.md")));
 
@@ -175,7 +175,7 @@ public class HarborTests
         Assert.Contains("\"files_touched\":{\"paths\":[\"Ledger/**\"]", env);
 
         // Nothing compiled holds the key.
-        Assert.DoesNotContain(Directory.GetFiles(Path.Combine(expDir, "harbor"), "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains("sk-secret"));
+        Assert.DoesNotContain(Directory.GetFiles(Path.Combine(entryDir, "harbor"), "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains("sk-secret"));
     }
 
     [Fact]
@@ -240,7 +240,7 @@ public class HarborTests
 
     static Manifest NewManifest() => new()
     {
-        Id = "r", Batch = "e", Exam = "x", Variant = new("cc-haiku", "sha256:v"), Task = new("fix-null-deref", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
+        Id = "r", Log = "e", Exam = "x", Variant = new("cc-haiku", "sha256:v"), Task = new("fix-null-deref", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
         Agent = new AgentTrial("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
     };
 
@@ -360,14 +360,14 @@ public class HarborTests
         using var _r = repo;
         var exam = repo.LoadExam("harbor-unit");
         var id = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
-        var expDir = Layout.Batch(repo.Root, id);
+        var entryDir = Layout.LogEntry(repo.Root, id);
 
-        var batch = ReadJson(Path.Combine(expDir, "batch.json"));
-        Assert.Equal("0.24.0", batch["versions"]!["harbor"]!.GetValue<string>());
-        Assert.Equal("0.24.0", batch["harbor"]!["version"]!.GetValue<string>());
-        Assert.Equal(HarborCompile.TreeHash(expDir), batch["harbor"]!["tasks_hash"]!.GetValue<string>());
+        var entry = ReadJson(Path.Combine(entryDir, "entry.json"));
+        Assert.Equal("0.24.0", entry["versions"]!["harbor"]!.GetValue<string>());
+        Assert.Equal("0.24.0", entry["harbor"]!["version"]!.GetValue<string>());
+        Assert.Equal(HarborCompile.TreeHash(entryDir), entry["harbor"]!["tasks_hash"]!.GetValue<string>());
 
-        var attempt = Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1);
+        var attempt = TestRepo.Attempt(repo.Root, id, "cc-haiku", "fix-null-deref", 1);
         Assert.Equal("completed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
         var manifest = ReadJson(Path.Combine(attempt, "manifest.json"));
         Assert.Equal("atif", manifest["transcript"]!["format"]!.GetValue<string>());
@@ -385,17 +385,17 @@ public class HarborTests
         Assert.Equal("tool run --exclude-newer 7 days harbor@0.24.0 run --config job.json",File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
         Assert.Equal($"telemetry=off key=sk-test-{keyVar}", File.ReadAllText(Path.Combine(scratch.Root, "uv.env")).Trim());
         var job = ReadJson(Path.Combine(attempt, "harbor", "job.json"));
-        Assert.Equal(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), job["tasks"]![0]!["path"]!.GetValue<string>());
+        Assert.Equal(Layout.HarborTask(entryDir, "cc-haiku", "fix-null-deref"), job["tasks"]![0]!["path"]!.GetValue<string>());
         // The key reached Harbor's process and no file.
-        Assert.DoesNotContain(Directory.GetFiles(expDir, "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains($"sk-test-{keyVar}"));
+        Assert.DoesNotContain(Directory.GetFiles(entryDir, "*", SearchOption.AllDirectories), f => File.ReadAllText(f).Contains($"sk-test-{keyVar}"));
 
         // grade reads the script verdicts the verifier left, and runs the built-ins over the trajectory and the diff.
-        var grade = Assert.Single(Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null));
+        var grade = Assert.Single(Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null));
         Assert.False(grade.Pass);
         Assert.Equal(new Verdict(Verdict.Pass, "dotnet build: 0 errors"), grade.Checks!["builds"]);
         Assert.Equal(new Verdict(Verdict.Fail, "1 of 6 tests failed: Parse_LineWithoutMemo_HasNullMemo"), grade.Checks["tests-pass"]);
         Assert.Equal(new Verdict(Verdict.Fail, "touched 1 outside expected: x"), grade.Checks["diff-in-scope"]);
-        var row = Assert.Single(Results.Collect(repo.Root, exam, Pool.Select(repo.Root, exam).Current));
+        var row = Assert.Single(Results.Collect(repo.Root, exam, Bank.Select(repo.Root, exam).Current));
         Assert.Equal("ok", row.ExitReason);
         Assert.Equal(1, row.ToolCalls);
         Assert.Equal(15, row.Usage!.Total);
@@ -405,7 +405,7 @@ public class HarborTests
     }
 
     [Fact]
-    public void Grade_AScriptChangedBetweenBatches_LeavesTheOldBatchsVerdictsOutdated_WhetherContinuedOrNew()
+    public void Grade_AScriptChangedBetweenRuns_LeavesTheOlderAttemptsVerdictsOutdated_AndANewRunMakesItAgain()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, GoodTrial));
@@ -413,25 +413,29 @@ public class HarborTests
         var first = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
         AppendTo(repo, "fixtures/ledger/checks/tests-pass.sh", "# stricter now\n");
 
-        // A second attempt is made in a new batch, which compiles the script as it is now.
+        // A second attempt is made by a new run, which compiles the script as it is now.
         repo.EditJson("harbor-unit/exam.json", e => e["attempts"] = 2);
         var exam = repo.LoadExam("harbor-unit");
         var second = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
         Assert.NotEqual(first, second);
-        var grades = Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
-        Assert.Equal([(first, Verdict.Outdated), (second, Verdict.Fail)], grades.OrderBy(g => g.Attempt).Select(g => (g.Batch, g.Checks!["tests-pass"].Result)));
+        var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
+        Assert.Equal([(1, Verdict.Outdated), (2, Verdict.Fail)], grades.OrderBy(g => g.Attempt).Select(g => (g.Attempt, g.Checks!["tests-pass"].Result)));
         Assert.All(grades, g => Assert.Equal(Verdict.Pass, g.Checks!["builds"].Result));
         Assert.Equal("1 attempt holds outdated verdicts for tests-pass: on an agent variant a script check runs when the attempt is made, and this check has changed or been added since, so those verdicts are left out of every rate. "
-            + $"Make the attempts again: move batch {first} out of attempts/ and run `proctor run harbor-unit`, which makes what is missing in a new batch with the checks as they are now.", Grade.OutdatedSummary(exam.Id, grades));
-
-        // An attempt of the first batch made again by continuing it runs the scripts that batch compiled, so it is outdated too.
-        Directory.Delete(Layout.Attempt(Layout.Batch(repo.Root, first), "cc-haiku", "fix-null-deref", 1), recursive: true);
-        Assert.Equal(first, Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
-        grades = Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
-        Assert.Equal([(first, Verdict.Outdated), (second, Verdict.Fail)], grades.OrderBy(g => g.Attempt).Select(g => (g.Batch, g.Checks!["tests-pass"].Result)));
-        var rows = Results.Collect(repo.Root, exam, Pool.Select(repo.Root, exam).Current);
+            + "Make the attempts again: move its directory out of bank/harbor-unit/ (cc-haiku/fix-null-deref/1) and run `proctor run harbor-unit`, which makes what is missing with the checks as they are now.", Grade.OutdatedSummary(exam.Id, grades));
+        var rows = Results.Collect(repo.Root, exam, Bank.Select(repo.Root, exam).Current);
         Assert.Equal(["tests-pass: changed since the attempt was made: fixtures/ledger/checks/tests-pass.sh, so the verdict on file may not be this check's as it is now; make the attempt again", null],
             rows.Select(r => r.Outdated));
+
+        // Moved out, it is not made again by continuing the first run, which would run the scripts that run compiled: a new run makes it.
+        Directory.Delete(TestRepo.Attempt(repo.Root, first, "cc-haiku", "fix-null-deref", 1), recursive: true);
+        var log = new StringWriter();
+        var third = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", log)!;
+        Assert.DoesNotContain(third, new[] { first, second });
+        Assert.Contains("not continuing it: the script checks it compiled are not the checks as they are now (tests-pass)", log.ToString());
+        Assert.Equal([new AttemptRef("cc-haiku", "fix-null-deref", 3)], Runner.LoadEntry(repo.Root, third).Attempts);
+        grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
+        Assert.Equal([Verdict.Fail, Verdict.Fail], grades.Where(g => g.Checks is not null).Select(g => g.Checks!["tests-pass"].Result));
     }
 
     /// <summary>
@@ -446,7 +450,7 @@ public class HarborTests
         if (editExam is not null) repo.EditJson("harbor-unit/exam.json", editExam);
         var exam = repo.LoadExam("harbor-unit");
         var task = Path.Combine(repo.Root, "task");
-        if (compiled) HarborCompile.Task(task, exam, exam.Variants[0], exam.Tasks[0], "e", new AgentRoute(BaseUrl, "k"));
+        if (compiled) HarborCompile.Task(task, exam, exam.Variants[0], exam.Tasks[0], new AgentRoute(BaseUrl, "k"));
         var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
         File.WriteAllText(Path.Combine(trial, "verifier", "tests-pass.out"), "6 of 6 tests pass\n");
@@ -531,7 +535,7 @@ public class HarborTests
     public void Grade_WithNoCompiledCopy_EveryScriptCheckIsOutdated()
     {
         var checks = GradeAgentAttempt(_ => { }, compiled: false);
-        Assert.Equal(new Verdict(Verdict.Outdated, "the batch kept no compiled copy of its script checks, so nothing shows this verdict is the check's as it is now; make the attempt again"), checks["builds"]);
+        Assert.Equal(new Verdict(Verdict.Outdated, "its run kept no compiled copy of its script checks, so nothing shows this verdict is the check's as it is now; make the attempt again"), checks["builds"]);
         Assert.Equal(Verdict.Outdated, checks["tests-pass"].Result);
         Assert.Equal(Verdict.Pass, checks["diff-in-scope"].Result);
     }
@@ -599,13 +603,13 @@ public class HarborTests
     }
 
     [Fact]
-    public void Run_HarborWithoutATrial_FailsTheAttempt_AndTheNextRunContinuesTheBatch()
+    public void Run_HarborWithoutATrial_FailsTheAttempt_AndTheNextRunContinuesIt()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "echo 'docker: Cannot connect to the Docker daemon' >&2; rm -rf \"$jobs\"; exit 1"));
         using var _r = repo;
         var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
-        var attempt = Layout.Attempt(Layout.Batch(repo.Root, id), "cc-haiku", "fix-null-deref", 1);
+        var attempt = TestRepo.Attempt(repo.Root, id, "cc-haiku", "fix-null-deref", 1);
         Assert.Equal("failed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
         Assert.Equal("Harbor exited 1 without a trial: docker: Cannot connect to the Docker daemon", ReadJson(Path.Combine(attempt, "manifest.json"))["status_reason"]!.GetValue<string>());
 
@@ -616,16 +620,16 @@ public class HarborTests
     }
 
     [Fact]
-    public void Run_DoesNotContinueABatchWhoseCompiledTasksChanged()
+    public void Run_DoesNotContinueARunWhoseCompiledTasksChanged()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
         using var _r = repo;
         var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
-        File.AppendAllText(Path.Combine(Layout.HarborTask(Layout.Batch(repo.Root, id), "cc-haiku", "fix-null-deref"), "instruction.md"), "and also\n");
+        File.AppendAllText(Path.Combine(Layout.HarborTask(Layout.LogEntry(repo.Root, id), "cc-haiku", "fix-null-deref"), "instruction.md"), "and also\n");
         var log = new StringWriter();
         var again = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", log);
-        Assert.Contains($"batch {id} was interrupted: 0 of 1 attempt finished, 1 failed\n  not continuing it: the Harbor tasks it compiled have changed on disk (harbor/tasks)\n", log.ToString());
+        Assert.Contains($"run {id} was interrupted: 0 of 1 attempt finished, 1 failed\n  not continuing it: the Harbor tasks it compiled have changed on disk (log/{id}/harbor/tasks)\n", log.ToString());
         Assert.NotEqual(id, again);
     }
 
@@ -643,13 +647,13 @@ public class HarborTests
         repo.EditJson("harbor-unit/exam.json", e => e["hooks"] = JsonNode.Parse("""{"variant": {"setup": "hooks/serve.sh"}}"""));
 
         var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
-        var expDir = Layout.Batch(repo.Root, id);
-        var hash = ReadJson(Path.Combine(expDir, "batch.json"))["bundles"]!["cc-haiku"]!["hash"]!.GetValue<string>();
+        var entryDir = Layout.LogEntry(repo.Root, id);
+        var hash = ReadJson(Path.Combine(entryDir, "entry.json"))["bundles"]!["cc-haiku"]!["hash"]!.GetValue<string>();
         Assert.StartsWith("sha256:", hash);
-        var manifest = ReadJson(Path.Combine(Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1), "manifest.json"));
+        var manifest = ReadJson(Path.Combine(TestRepo.Attempt(repo.Root, id, "cc-haiku", "fix-null-deref", 1), "manifest.json"));
         Assert.Equal(hash, manifest["bundle"]!["hash"]!.GetValue<string>());
         Assert.Equal(bundleDir, File.ReadAllText(Path.Combine(scratch.Root, "hook.bundle")).Trim());
-        Assert.DoesNotContain(Directory.GetFiles(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), "*", SearchOption.AllDirectories),
+        Assert.DoesNotContain(Directory.GetFiles(Layout.HarborTask(entryDir, "cc-haiku", "fix-null-deref"), "*", SearchOption.AllDirectories),
             f => File.ReadAllText(f).Contains("corpus page"));
 
         File.AppendAllText(Path.Combine(bundleDir, "page.html"), "rebuilt\n");
@@ -658,7 +662,7 @@ public class HarborTests
     }
 
     [Fact]
-    public void Run_OnPodman_RecordsTheEngine_HandsItToHarbor_AndDoesNotContinueTheBatchOnAnother()
+    public void Run_OnPodman_RecordsTheEngine_HandsItToHarbor_AndDoesNotContinueTheRunOnAnother()
     {
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
@@ -667,16 +671,16 @@ public class HarborTests
         void Engine(string engine) { var c = ReadJson(config); c["harbor"]!["engine"] = engine; File.WriteAllText(config, c.ToJsonString()); }
         Engine("podman");
         var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
-        var expDir = Layout.Batch(repo.Root, id);
-        Assert.Equal("podman", ReadJson(Path.Combine(expDir, "batch.json"))["harbor"]!["engine"]!.GetValue<string>());
-        var job = Path.Combine(Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1), Layout.HarborDir, Layout.HarborJobFile);
+        var entryDir = Layout.LogEntry(repo.Root, id);
+        Assert.Equal("podman", ReadJson(Path.Combine(entryDir, "entry.json"))["harbor"]!["engine"]!.GetValue<string>());
+        var job = Path.Combine(TestRepo.Attempt(repo.Root, id, "cc-haiku", "fix-null-deref", 1), Layout.HarborDir, Layout.HarborJobFile);
         Assert.Equal("podman", ReadJson(job)["environment"]!["type"]!.GetValue<string>());
 
         Engine("docker");
         var log = new StringWriter();
         var again = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", log);
         Assert.Contains("  not continuing it: the engine (exams/proctor.json harbor.engine) is docker now, podman then; run with the --config it was made with to continue it\n", log.ToString());
-        Assert.Equal("docker", ReadJson(Path.Combine(Layout.Batch(repo.Root, again!), "batch.json"))["harbor"]!["engine"]!.GetValue<string>());
+        Assert.Equal("docker", ReadJson(Path.Combine(Layout.LogEntry(repo.Root, again!), "entry.json"))["harbor"]!["engine"]!.GetValue<string>());
     }
 
     [Fact]
@@ -687,7 +691,7 @@ public class HarborTests
         repo.WriteProctorConfig();
         var e = Assert.Throws<ProctorException>(() => Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null));
         Assert.Contains("no agents.claude-code", e.Message);
-        Assert.False(Directory.Exists(Path.Combine(repo.Root, "attempts")));
+        Assert.False(Directory.Exists(Path.Combine(repo.Root, "log")));
     }
 
     // Modal: the same Harbor tasks on Modal's sandboxes, from a second machine file.
@@ -748,9 +752,9 @@ public class HarborTests
         var publish = Directory.CreateDirectory(Path.Combine(repo.Root, "publish")).FullName;
         File.WriteAllText(Path.Combine(publish, "nb"), "#!/bin/sh\necho nb\n");
         File.SetUnixFileMode(Path.Combine(publish, "nb"), (UnixFileMode)0b111_101_101);
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        HarborCompile.Tasks(expDir, repo.LoadExam("gate"), "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef", publish);
-        var environment = Path.Combine(Layout.HarborTask(expDir, "nb-harbor", "writes"), "environment");
+        var entryDir = Path.Combine(repo.Root, "log", "exp");
+        HarborCompile.Tasks(entryDir, repo.LoadExam("gate"), _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef", publish);
+        var environment = Path.Combine(Layout.HarborTask(entryDir, "nb-harbor", "writes"), "environment");
 
         Assert.Contains("COPY proctor-nb /opt/nb\nENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1\nRUN /opt/nb/nb --version\n", File.ReadAllText(Path.Combine(environment, "Dockerfile")));
         Assert.DoesNotContain("--from=", File.ReadAllText(Path.Combine(environment, "Dockerfile")));
@@ -790,22 +794,22 @@ public class HarborTests
     }
 
     [Fact]
-    public void Run_OnModal_HandsHarborTheSandboxsLifetime_AndContinuesTheBatchOnlyWithTheSameConfig()
+    public void Run_OnModal_HandsHarborTheSandboxsLifetime_AndContinuesTheRunOnlyWithTheSameConfig()
     {
         using var scratch = new TestRepo();
         var (repo, file) = ModalRepo(PublicUrl, FakeUv(scratch, GoodTrial));
         using var _r = repo;
         var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null)!;
-        var expDir = Layout.Batch(repo.Root, id);
-        Assert.Equal("modal", ReadJson(Path.Combine(expDir, "batch.json"))["harbor"]!["engine"]!.GetValue<string>());
-        var attempt = Layout.Attempt(expDir, "cc-haiku", "fix-null-deref", 1);
+        var entryDir = Layout.LogEntry(repo.Root, id);
+        Assert.Equal("modal", ReadJson(Path.Combine(entryDir, "entry.json"))["harbor"]!["engine"]!.GetValue<string>());
+        var attempt = TestRepo.Attempt(repo.Root, id, "cc-haiku", "fix-null-deref", 1);
         Assert.Equal("completed", File.ReadAllText(Path.Combine(attempt, "status")).Trim());
         var job = ReadJson(Path.Combine(attempt, "harbor", "job.json"));
         Assert.Equal("modal", job["environment"]!["type"]!.GetValue<string>());
         // The exam's 900 s wall limit and the build, verifier and start overhead.
         Assert.Equal(900 + 3300, job["environment"]!["kwargs"]!["sandbox_timeout_secs"]!.GetValue<int>());
         Assert.Equal("tool run --exclude-newer 7 days harbor[modal]@0.24.0 run --config job.json", File.ReadAllText(Path.Combine(scratch.Root, "uv.argv")).Trim());
-        Assert.Contains("allowed_hosts = [\"api.anthropic.com\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "cc-haiku", "fix-null-deref"), "task.toml")));
+        Assert.Contains("allowed_hosts = [\"api.anthropic.com\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(entryDir, "cc-haiku", "fix-null-deref"), "task.toml")));
 
         // Interrupted: continued with the Modal config, and not without it.
         File.WriteAllText(Path.Combine(attempt, "status"), "failed\n");
@@ -830,7 +834,7 @@ public class HarborTests
             "variant 'cc-haiku': its model is at library, a name without a domain, which only this network resolves, which a sandbox on modal cannot reach; run it on a local engine, or point exams/proctor.modal.json agents.claude-code at a public endpoint",
             "fixture 'ledger' runs services beside the agent (image.services), and modal cannot confine the network of a task with services; its tasks run on docker or podman only",
         ], e.Message.Split('\n'));
-        Assert.False(Directory.Exists(Path.Combine(repo.Root, "attempts")));
+        Assert.False(Directory.Exists(Path.Combine(repo.Root, "log")));
     }
 
     // Codex and Qwen Code: Harbor's agents on an OpenAI-dialect route, Qwen Code's install replaced by proctor's pin check.
@@ -908,14 +912,14 @@ public class HarborTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("conformance");
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        HarborCompile.Tasks(expDir, repo.LoadExam("conformance"), "exp", _ => new AgentRoute("http://localhost:8765/v1", "stub"));
-        var environment = Path.Combine(Layout.HarborTask(expDir, "codex", "ok"), "environment");
+        var entryDir = Path.Combine(repo.Root, "log", "exp");
+        HarborCompile.Tasks(entryDir, repo.LoadExam("conformance"), _ => new AgentRoute("http://localhost:8765/v1", "stub"));
+        var environment = Path.Combine(Layout.HarborTask(entryDir, "codex", "ok"), "environment");
 
         Assert.Equal(File.ReadAllText(Path.Combine(TestRepo.SourceRoot, "fixtures", "stub", "services", "docker-compose.yaml")), File.ReadAllText(Path.Combine(environment, "docker-compose.yaml")));
         Assert.True(File.Exists(Path.Combine(environment, "stub.py")));
         Assert.True(File.Exists(Path.Combine(environment, "Dockerfile")));
-        Assert.Contains("allowed_hosts = [\"localhost\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "codex", "ok"), "task.toml")));
+        Assert.Contains("allowed_hosts = [\"localhost\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(entryDir, "codex", "ok"), "task.toml")));
     }
 
     /// <summary>An agent variant's bundle reaches a fixture's services as environment/bundle/, and never the agent's image; a variant without one gets the directory empty, so a compose mount of ./bundle resolves.</summary>
@@ -929,14 +933,14 @@ public class HarborTests
         var exam = repo.LoadExam("conformance");
         var withBundle = exam.Variants.First(a => a.IsAgent).Id!;
         var bundles = new Dictionary<string, ResolvedBundle> { [withBundle] = new("bundles/docs", Path.Combine(repo.Root, "bundles", "docs"), "sha256:x") };
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute("http://localhost:8765/v1", "stub"), bundles: bundles);
+        var entryDir = Path.Combine(repo.Root, "log", "exp");
+        HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute("http://localhost:8765/v1", "stub"), bundles: bundles);
 
-        var environment = Path.Combine(Layout.HarborTask(expDir, withBundle, "ok"), "environment");
+        var environment = Path.Combine(Layout.HarborTask(entryDir, withBundle, "ok"), "environment");
         Assert.Equal("<h1>docs page</h1>\n", File.ReadAllText(Path.Combine(environment, "bundle", "guide", "index.html")));
         Assert.DoesNotContain("bundle", File.ReadAllText(Path.Combine(environment, "Dockerfile")));
         var without = exam.Variants.First(a => a.IsAgent && a.Id != withBundle).Id!;
-        Assert.Empty(Directory.GetFileSystemEntries(Path.Combine(Layout.HarborTask(expDir, without, "ok"), "environment", "bundle")));
+        Assert.Empty(Directory.GetFileSystemEntries(Path.Combine(Layout.HarborTask(entryDir, without, "ok"), "environment", "bundle")));
     }
 
     [Theory]
@@ -973,21 +977,21 @@ public class HarborTests
         repo.AddVariant("harbor-unit", """{"id": "codex-mini", "agent": "codex", "agent_version": "0.163.0", "model": "gpt-5-mini"}""");
         repo.AddVariant("harbor-unit", """{"id": "qwen", "agent": "qwen-code", "agent_version": "0.25.2", "model": "qwen3-coder-next"}""");
         var exam = repo.LoadExam("harbor-unit");
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute(OpenAiUrl, "sk-secret"));
+        var entryDir = Path.Combine(repo.Root, "log", "exp");
+        HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(OpenAiUrl, "sk-secret"));
 
-        var codex = File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "codex-mini", "fix-null-deref"), "environment", "Dockerfile"));
+        var codex = File.ReadAllText(Path.Combine(Layout.HarborTask(entryDir, "codex-mini", "fix-null-deref"), "environment", "Dockerfile"));
         Assert.Contains("npm install -g @openai/codex@0.163.0", codex);
         Assert.Contains("ln -sf \"$(command -v codex)\" /usr/local/bin/codex", codex);
-        var qwen = File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "qwen", "fix-null-deref"), "environment", "Dockerfile"));
+        var qwen = File.ReadAllText(Path.Combine(Layout.HarborTask(entryDir, "qwen", "fix-null-deref"), "environment", "Dockerfile"));
         // nvm under RUN's /bin/sh finds its own directory only when told, and Harbor's agents look for Node in ~/.nvm.
         Assert.Contains("export NVM_DIR=\"$HOME/.nvm\" && ", qwen);
         Assert.Contains("nvm install 22", qwen);
         Assert.Contains("npm install -g @qwen-code/qwen-code@0.25.2", qwen);
-        Assert.Contains("allowed_hosts = [\"library\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(expDir, "qwen", "fix-null-deref"), "task.toml")));
+        Assert.Contains("allowed_hosts = [\"library\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(entryDir, "qwen", "fix-null-deref"), "task.toml")));
 
-        Assert.Equal(["qwen_code_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(expDir)).Select(Path.GetFileName));
-        Assert.Contains("class QwenCodeAgent(QwenCode)", File.ReadAllText(Path.Combine(HarborCompile.AgentsDir(expDir), "qwen_code_agent.py")));
+        Assert.Equal(["qwen_code_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(entryDir)).Select(Path.GetFileName));
+        Assert.Contains("class QwenCodeAgent(QwenCode)", File.ReadAllText(Path.Combine(HarborCompile.AgentsDir(entryDir), "qwen_code_agent.py")));
     }
 
     [Fact]
@@ -995,9 +999,9 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        var hash = HarborCompile.Tasks(expDir, repo.LoadExam("harbor-unit"), "exp", _ => new AgentRoute(BaseUrl, "sk-secret"));
-        Assert.False(Directory.Exists(HarborCompile.AgentsDir(expDir)));
+        var entryDir = Path.Combine(repo.Root, "log", "exp");
+        var hash = HarborCompile.Tasks(entryDir, repo.LoadExam("harbor-unit"), _ => new AgentRoute(BaseUrl, "sk-secret"));
+        Assert.False(Directory.Exists(HarborCompile.AgentsDir(entryDir)));
         Assert.DoesNotContain("+", hash);
     }
 
@@ -1059,7 +1063,6 @@ public class HarborTests
     [InlineData("runner", "\"nb\"", "runner", "bare path")]
     [InlineData("agent_version", "\"0.9.0\"", "agent_version", "the binary's")]
     [InlineData("provider", "null", "provider", "required for agent nb")]
-    [InlineData("id", "\"harbor\"", "id", "compiled for Harbor")]
     public void NbAgentVariant_IsValidated(string field, string value, string problemField, string message)
     {
         using var repo = new TestRepo();
@@ -1090,10 +1093,10 @@ public class HarborTests
         using var repo = new TestRepo();
         repo.CopyExam("gate");
         var exam = repo.LoadExam("gate");
-        var expDir = Path.Combine(repo.Root, "attempts", "exp");
-        var hash = HarborCompile.Tasks(expDir, exam, "exp", _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
-        var task = Layout.HarborTask(expDir, "nb-harbor", "writes");
-        Assert.False(Directory.Exists(Layout.HarborTask(expDir, "nb-bare", "writes")));
+        var entryDir = Path.Combine(repo.Root, "log", "exp");
+        var hash = HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        var task = Layout.HarborTask(entryDir, "nb-harbor", "writes");
+        Assert.False(Directory.Exists(Layout.HarborTask(entryDir, "nb-bare", "writes")));
 
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
         Assert.Contains("timeout_sec = 120.0\nnetwork_mode = \"no-network\"\n\n[environment]", toml);
@@ -1103,11 +1106,11 @@ public class HarborTests
         Assert.Contains("check 'new-file' '/tests/exam/checks/new-file.sh'\n", File.ReadAllText(Path.Combine(task, "tests", "test.sh")));
 
         // The agent is compiled beside the tasks, and a changed agent is a changed tree.
-        var agent = Path.Combine(HarborCompile.AgentsDir(expDir), "nb_agent.py");
+        var agent = Path.Combine(HarborCompile.AgentsDir(entryDir), "nb_agent.py");
         Assert.Contains("class NbAgent(BaseAgent, ACPAgentMixin)", File.ReadAllText(agent));
         Assert.Contains("+", hash);
         File.AppendAllText(agent, "# edited\n");
-        Assert.NotEqual(hash, HarborCompile.TreeHash(expDir));
+        Assert.NotEqual(hash, HarborCompile.TreeHash(entryDir));
     }
 
     [Fact]

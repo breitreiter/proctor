@@ -27,6 +27,16 @@ bench/**		# the judge bench: its own proctor root at an earlier version, unrelat
 docs/reports/**		# published reports, rendered by an earlier version
 Proctor.Tests/fixtures/**		# captured transcripts and trajectories, as the agents wrote them
 
+# Batch, gated since the bank (project/plans/bank.md).
+project/plans/bank.md		# the plan names the word it removes
+project/migrate/**		# the script that moves the earlier layout names its files
+project/brief.md		# the founding brief, in the words of its time; the user's to reword
+project/plans/report-structure.md		# the report's plan predates the bank; the report is not redrawn yet
+exams/exam-authoring/**		# shows agents proctor's docs pinned at an earlier revision, and reads that proctor's layout; waits on todo "Grade the proctor-on-proctor exams with the proctor they were shown"
+fixtures/authoring-interrupted/**		# the same exam's fixture
+CLAUDE.md	(there is no batch|continue-the-batch)	# saying the word is gone, and that exam's task id
+Proctor.Tests/FrictionTests.cs	\["batch"\]	# asserts friction.json no longer carries the key
+
 # The one place an old word is the point.
 **	\bno resume verb\b	# D15: after a crash a person or an agent looks for "resume", so the CLI help, docs/cli.md, the skill and exam-authoring say there is none
 

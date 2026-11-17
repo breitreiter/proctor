@@ -58,7 +58,7 @@ public class LiveTests
         repo.EditJson("smoke/exam.json", e => e["attempts"] = 1);
         var exam = repo.LoadExam("smoke");
         Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
-        Grade.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
+        Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
         var statsFile = Path.Combine(Layout.ReportExplore(repo.Root, "smoke"), "stats.json");
 
         Assert.Equal(0, Verbs.Report(repo.Root, "smoke"));

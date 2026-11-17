@@ -1,11 +1,36 @@
 # Changelog
 
 Proctor's version is `<Version>` in `Proctor.csproj`; `proctor --version`
-prints it and every `batch.json` records it under `versions.proctor`.
+prints it and every log entry (`log/<id>/entry.json`) records it under `versions.proctor`.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
+
+- **Breaking: the bank. There is no batch** (`project/plans/bank.md`, step
+  1). Attempts live at `bank/<exam>/<variant>/<task>/<n>/`, whenever they
+  were made. What one `proctor run` did is a log entry,
+  `log/<id>/entry.json` (with its `status.json`, the variant hooks' output
+  under `hooks/` and the compiled Harbor tasks under `harbor/`), and the
+  exam's definition as it stood is kept once per hash under `exams-seen/`.
+  Nothing under `attempts/` is read; `project/migrate/attempts-to-bank.py`
+  moves it.
+
+  | before | now |
+  |---|---|
+  | `attempts/<batch>/<variant>/<task>/<n>/` | `bank/<exam>/<variant>/<task>/<n>/` |
+  | `attempts/<batch>/batch.json` | `log/<id>/entry.json`; its `exam_def` in `exams-seen/sha256-<hash>.json` |
+  | `attempts/<batch>/<variant>/hooks/variant.setup.log` | `log/<id>/hooks/<variant>.setup.log` |
+  | manifest `batch` | manifest `log` |
+  | `--batch <id>` on `grade`, `friction`, `report` | gone |
+  | `PROCTOR_BATCH` | gone; `PROCTOR_EXAM` is the exam's id |
+  | `PROCTOR_CONTAINER` `proctor-<batch>-…` | `proctor-<exam>-<variant>-<task>-<attempt>` |
+  | `results.jsonl` `batch`, `friction.json` `attempt.batch` | gone |
+  | `stats.json` `built_from.batches`, `outdated_checks[].batches` | `built_from.log`; gone |
+
+  `run` no longer continues an interrupted run for attempts whose compiled
+  script checks are not the checks as they are now, so outdated attempts
+  are made again by moving their directories out of the bank.
 
 - **Breaking: the vocabulary is exam, variant, attempt and batch**
   (`project/plans/exam-variant-attempt.md`, step 1 of

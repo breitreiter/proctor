@@ -1,4 +1,4 @@
-"""Qwen Code as a Harbor agent, for proctor. Compiled into each batch's harbor/agents/ and imported as
+"""Qwen Code as a Harbor agent, for proctor. Compiled into each run's harbor/agents/ (under its log entry) and imported as
 qwen_code_agent:QwenCodeAgent.
 
 Harbor's own Qwen Code agent installs nvm, Node and the CLI from the network on every trial, whatever the image holds.

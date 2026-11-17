@@ -2,7 +2,7 @@
 type: plan
 title: The bank — transcripts kept per job and setup, with no batch
 created: 2026-11-16
-status: direction agreed with the user 2026-11-16 (B1 to B9); nothing built. Changes `exam-variant-attempt.md` where that plan says batch. Written as files and commands so a wrong assumption is a wrong line; the lines marked OPEN are mine and not agreed
+status: direction agreed with the user 2026-11-16 (B1 to B9); step 1 built 2026-11-17 (see "Step 1 as built"), steps 2 to 5 not. Changes `exam-variant-attempt.md` where that plan says batch. Written as files and commands so a wrong assumption is a wrong line; the lines marked OPEN are mine and not agreed
 ---
 
 # The bank
@@ -130,6 +130,19 @@ exams/readme-answers/exam.json
 - The agent is launched once per stage. For nb that is one program run
   per stage; for another agent, one start per stage in the same
   container. Neither is built.
+- Harbor already does the agent side (read in the source of 0.24.0 on
+  2026-11-17, `harbor/trial/multi_step.py`; not run). A task declares
+  `[[steps]]`, each with `steps/<name>/instruction.md`; they run in order
+  in one environment; the agent starts a fresh conversation per step
+  unless `agent.resume_trajectory` is set; agent logs, verifier output
+  and artifacts are kept under `steps/<name>/`; a step that throws ends
+  the trial. So an agent setup's stages compile to Harbor steps and
+  proctor launches nothing itself. Before step 4, run one multi-step
+  task with a scripted agent to see that the per-step output is what
+  ingest expects.
+- Harbor also offers three things this plan does not use: a verifier
+  after every step (see B8 below), a step's own files and `setup.sh`,
+  and `min_reward` to stop early.
 - A rep where a stage did not run (a provider error at stage 9 of 14)
   is lost. Agreed: that is understandable, and the cost of a long job.
 - Existing exams with several tasks are not carried over. Agreed: fine
@@ -149,6 +162,10 @@ exams/readme-answers/exam.json
 - **A check on the transcript is per stage for free.** What the agent
   said, which tools it called and what came back are kept per stage,
   so trajectory and tool-use checks need nothing special.
+- **Harbor could run a check after each stage** on an agent setup, which
+  would let a check for stage 6 see the workspace before stage 7 touches
+  it. Not used: nb has no equivalent, and the two kinds of setup must
+  grade the same way. B8 stands until nb can do it too.
 
 ## Guidance for the author (B9)
 
@@ -185,6 +202,45 @@ now; the screen says exam, setup, try (auspex
 `project/inventory.md`). OPEN: whether to rename in proctor too. The
 last rename was costly and the reader of proctor's files is a coding
 agent, so I lean to leaving them, except batch, which goes.
+
+## Step 1 as built
+
+Tasks still exist until step 4, so the path has a task level and there is
+one transcript per attempt, not one per stage:
+
+```
+bank/exam-authoring/docs-and-examples-haiku/guard-the-tests/6/
+log/20261116-1208-exam-authoring-k20g/entry.json    also status.json, hooks/<variant>.setup.log, harbor/
+exams-seen/sha256-8e0cf0aedb1e.json
+```
+
+Where it differs from "On disk" above:
+
+- A log entry is a directory, not one file: an agent variant's Harbor
+  tasks are compiled once per run and an attempt's script verdicts are
+  checked against that copy, so it has to be kept somewhere, and the run
+  is what made it.
+- The entry's id keeps the exam's name, so `ls log/` reads.
+- `--batch` is gone from `grade`, `friction` and `report`.
+  `PROCTOR_BATCH` is gone; `PROCTOR_EXAM` is the exam's id and the
+  container name is built from it.
+- A rep that no longer matches stays in place and is skipped (the lean
+  above, taken).
+- `run` still refuses a changed variant under an id that made attempts,
+  as before. B2 says changing a setup empties its bank; the refusal is
+  stricter than that. OPEN: keep the refusal, or let the old attempts go
+  stale as a changed task's do.
+- An attempt directory moved out of the bank is made again by a new run,
+  not by continuing the run that first made it, when that run's compiled
+  script checks are no longer current.
+- Two `proctor run` of one exam at once would pick the same numbers.
+  Nothing guards against it.
+- `exams/exam-authoring` (its interrupt hook, two checks and one task)
+  reads the layout of the proctor it shows agents, which is the earlier
+  one. Left as it is; it waits on the todo about grading those exams
+  with the proctor they were shown.
+
+Existing attempts were moved with `project/migrate/attempts-to-bank.py`.
 
 ## Order of work
 

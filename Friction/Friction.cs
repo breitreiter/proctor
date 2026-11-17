@@ -125,9 +125,9 @@ static class Friction
 
     public record AttemptFriction(string Variant, string Task, int Attempt, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
 
-    /// <summary>friction.json beside each given attempt's trajectory, each a current one from the pool. An attempt not completed, or with no trajectory, is skipped and said so.</summary>
+    /// <summary>friction.json beside each given attempt's trajectory, each a current one from the bank. An attempt not completed, or with no trajectory, is skipped and said so.</summary>
     /// <param name="reader">A chat judge of the machine's config that reads each attempt for what rules cannot see; its points are added with a model source. Null for rules only.</param>
-    public static List<AttemptFriction> Attempts(string root, Exam exam, List<PoolAttempt> attempts, TextWriter log, JudgeClient? judges = null, string? reader = null)
+    public static List<AttemptFriction> Attempts(string root, Exam exam, List<BankAttempt> attempts, TextWriter log, JudgeClient? judges = null, string? reader = null)
     {
         var surface = new Surface(exam.Def.Surface);
         var done = new List<AttemptFriction>();
@@ -142,7 +142,7 @@ static class Friction
                 done.Add(new AttemptFriction(variant, task, n, null, skipped));
                 continue;
             }
-            var attempt = new JsonObject { ["exam"] = exam.Id, ["batch"] = a.Batch.Id, ["variant"] = variant, ["task"] = task, ["attempt"] = n.ToString() };
+            var attempt = new JsonObject { ["exam"] = exam.Id, ["variant"] = variant, ["task"] = task, ["attempt"] = n.ToString() };
             var parsed = JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject();
             var (file, steps) = Detect(parsed, surface, attempt);
             var reading = reader is null ? null : FrictionReader.Read(attemptDir, parsed, file, steps, exam.Def.Surface?.Description, judges!, reader);

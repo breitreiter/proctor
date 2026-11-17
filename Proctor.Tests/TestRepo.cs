@@ -157,4 +157,12 @@ sealed class TestRepo : IDisposable
         foreach (var dir in Directory.GetDirectories(from))
             CopyDirectory(dir, Path.Combine(to, Path.GetFileName(dir)));
     }
+
+    /// <summary>An attempt's directory in the bank, from the log entry of the run that made it, which names the exam.</summary>
+    public static string Attempt(string root, string entryId, string variant, string task, int n) =>
+        Layout.Attempt(root, Runner.LoadEntry(root, entryId).Exam, variant, task, n);
+
+    /// <summary>An attempt's checkout, likewise.</summary>
+    public static string Work(string root, string entryId, string variant, string task, int n) =>
+        Layout.Work(root, Runner.LoadEntry(root, entryId).Exam, variant, task, n);
 }

@@ -5,9 +5,9 @@ static class Program
     const string Usage = """
         usage: proctor <verb> [args] [--root <dir>]
 
-          list [exam]            validate; per variant, its current attempts against those wanted; an interrupted batch
+          list [exam]            validate; per variant, its current attempts against those wanted; an interrupted run
           run <exam>             make the attempts the exam lacks. After a crash this is the command: it continues an
-                                 interrupted batch first and says so (there is no resume verb)
+                                 interrupted run first and says so (there is no resume verb)
           grade <exam>           run the checks over every current, completed attempt; a model check's verdict is kept in the attempt
           friction <exam>        write friction.json beside each current, completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model
           report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json, report.html and summary.md, stamped with what they were built from
@@ -23,7 +23,6 @@ static class Program
         --label <k[=glob]>    list: only exams carrying the label, or the label with a matching value (repeatable)
         --nb <path>           the nb binary (default: exams/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per attempt (default: the exam's nb.runner); none runs nb bare
-        --batch <id>          grade, friction, report: only that batch's attempts
         --variant <id>        run, grade, friction, report: only this variant's attempts, the others left as they are (repeatable)
         --tasks <a,b>         run, grade, friction, report: only these tasks' attempts
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
@@ -37,7 +36,7 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, configFile = null, reader = null, batch = null;
+        string? nbPath = null, runner = null, configFile = null, reader = null;
         List<string>? tasks = null, labels = null, judges = null, variants = null;
         var rejudge = false;
         var check = false;
@@ -51,7 +50,6 @@ static class Program
                 case "--nb" when i + 1 < args.Length: nbPath = args[++i]; break;
                 case "--config" when i + 1 < args.Length: configFile = args[++i]; break;
                 case "--runner" when i + 1 < args.Length: runner = args[++i]; break;
-                case "--batch" when i + 1 < args.Length: batch = args[++i]; break;
                 case "--variant" when i + 1 < args.Length: (variants ??= []).Add(args[++i]); break;
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
@@ -75,9 +73,9 @@ static class Program
             {
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels, configFile),
                 ("run", [var exam]) => Verbs.Run(root, exam, nbPath, runner, configFile, variants, tasks),
-                ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, batch, configFile),
-                ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, batch, reader, rejudge, configFile),
-                ("report", [var exam]) => Verbs.Report(root, exam, batch, variants, tasks),
+                ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, configFile),
+                ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, reader, rejudge, configFile),
+                ("report", [var exam]) => Verbs.Report(root, exam, variants, tasks),
                 ("live", [var exam]) => Verbs.Live(root, exam, null),
                 ("live", [var exam, var variant]) => Verbs.Live(root, exam, variant),
                 ("setup", []) => Verbs.Setup(root, check, probe),

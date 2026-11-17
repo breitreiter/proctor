@@ -3,8 +3,8 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>The work batch's shape from project/archive/first-slice.md as fixed data: two variants, three tasks, three attempts.</summary>
-static class WorkedBatch
+/// <summary>The worked exam's shape from project/archive/first-slice.md as fixed data: two variants, three tasks, three attempts.</summary>
+static class WorkedExam
 {
     /// <summary>The worked exam: the floor and b, or with <paramref name="third"/> also c, a copy of b; with <paramref name="twoVariants"/> false, the floor alone.</summary>
     public static Exam Exam(int attempts = 3, bool twoVariants = true, bool third = false)
@@ -26,28 +26,29 @@ static class WorkedBatch
         if (!twoVariants) repo.RemoveVariant("smoke", "b");
         repo.EditJson("smoke/tasks/uses-bash.json", t => t["checks"] = JsonNode.Parse("{\"used-bash\": {\"tools_used\": [\"bash\"]}}"));
         var exam = repo.LoadExam("smoke");
-        // Variants load in file-name order, b before floor; the worked batch lists the floor first, as the live variant, so the page reads in that order.
+        // Variants load in file-name order, b before floor; the worked exam lists the floor first, as the live variant, so the page reads in that order.
         var floor = exam.Variants.Single(v => v.Id == "floor");
         exam.Variants.Remove(floor);
         exam.Variants.Insert(0, floor);
         return exam;
     }
 
-    public static Batch Batch(Exam exam) => new(
-        "20260917-1432-smoke-k7px", exam.Id, "sha256:9c1e0000", System.Text.Json.JsonSerializer.SerializeToNode(exam.Def, Proctor.Exam.JsonOptions)!.AsObject(),
-        exam.Variants.Select(v => new BatchVariant(v.Id!, v.Hash, System.Text.Json.JsonSerializer.SerializeToNode(v, Proctor.Exam.JsonOptions)!.AsObject())).ToList(),
+    /// <summary>The log entry of the latest run, which the report takes its conditions from.</summary>
+    public static LogEntry Latest(Exam exam) => new(
+        "20260917-1432-smoke-k7px", exam.Id, "sha256:9c1e0000",
+        exam.Variants.Select(v => new SeenVariant(v.Id!, v.Hash, System.Text.Json.JsonSerializer.SerializeToNode(v, Proctor.Exam.JsonOptions)!.AsObject())).ToList(),
         exam.Tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(), (from v in exam.Variants from c in exam.Tasks from n in Enumerable.Range(1, exam.Attempts) select new AttemptRef(v.Id!, c.Id!, n)).ToList(), "2026-09-17T14:32:00Z", "proctor run smoke", "bench",
         new() { ["proctor"] = "0.1.0", ["nb"] = "1.0.0" }, new GitInfo("3f2c1e9a", Dirty: false), new ResolvedNb("/usr/local/bin/nb", null));
 
-    /// <summary>The worked report's stamp: two batches, the second filling what the first left, two attempts stale since plain changed, and the floor's attempts made on two nb versions. Fixed hashes, so the rendering does not move with the smoke exam's files.</summary>
+    /// <summary>The worked report's stamp: two runs, the second filling what the first left, two attempts stale since plain changed, and the floor's attempts made on two nb versions. Fixed hashes, so the rendering does not move with the smoke exam's files.</summary>
     public static BuiltFrom Built() => new("2026-09-17T15:02:00Z", ["20260916-0910-smoke-q2rd", "20260917-1432-smoke-k7px"],
         new() { ["floor"] = "sha256:4b1e00d2", ["b"] = "sha256:77a90c13" },
         new() { ["loops"] = "sha256:0c3f9e01", ["plain"] = "sha256:5e6f7a8b", ["uses-bash"] = "sha256:d40b2c77" },
         Current: 18, Stale: 2,
-        StaleAttempts: [new("20260916-0910-smoke-q2rd", "floor/plain/1", "task plain changed (1a2b3c4d then, 5e6f7a8b now)"), new("20260916-0910-smoke-q2rd", "b/plain/1", "task plain changed (1a2b3c4d then, 5e6f7a8b now)")],
+        StaleAttempts: [new("floor/plain/1", "task plain changed (1a2b3c4d then, 5e6f7a8b now)"), new("b/plain/1", "task plain changed (1a2b3c4d then, 5e6f7a8b now)")],
         Mixed: new() { ["floor"] = ["nb 1.0.0, 1.0.1"] });
 
-    /// <summary>The floor is live, marked a week before the batch at its hash as the exam has it.</summary>
+    /// <summary>The floor is live, marked a week before the latest run at its hash as the exam has it.</summary>
     public static Live Live(Exam exam, string variant = "floor") =>
         new(new Ref(variant, exam.Variants.Single(v => v.Id == variant).Hash), "2026-09-10T09:12:00Z");
 

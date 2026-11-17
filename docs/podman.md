@@ -7,7 +7,7 @@ against the stub) and the oracle pass over `code-change` both run green.
 Earlier findings came from podman 6.1.3. Docker needs none of this.
 
 `run` checks the compose frontend, the compose banner and the
-search registry before a batch starts, and says which step is
+search registry before a run starts, and says which step is
 missing. The other steps cannot be checked from outside a trial.
 
 ## 1. Packages, once, as root
@@ -192,8 +192,8 @@ directory hidden:
 #!/bin/bash
 # harbor.uv: uv with $HOME, the runtime directory's other sockets, /srv and
 # the rest of /tmp hidden, and the environment cleared but for what proctor
-# hands Harbor. Bind in your repository's attempts/ (or wherever batches
-# live) if it is under a hidden path.
+# hands Harbor. Bind in your repository's bank/ and log/ if they are under a
+# hidden path.
 set -euo pipefail
 H=$HOME R=$XDG_RUNTIME_DIR UV=$(command -v uv)
 mkdir -p "$H/.cache/uv" "$H/.local/share/uv"
@@ -227,7 +227,7 @@ exec bwrap \
 - Inside bubblewrap's user namespace the podman CLI cannot join podman's
   own; `CONTAINER_HOST` makes it a client of the API socket instead, which
   is how Harbor's compose calls reach podman anyway.
-- Harbor's working directory (the attempt, under `attempts/`) must be visible
+- Harbor's working directory (the attempt, under `bank/`, and the compiled tasks, under `log/`) must be visible
   and writable inside; add a `--bind` for it if it lies under `$HOME`,
   `/tmp` or another hidden path.
 - An `agent: nb` variant also passes its provider endpoint's `${VAR}`s by value;

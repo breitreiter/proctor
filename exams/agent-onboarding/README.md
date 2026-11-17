@@ -75,14 +75,14 @@ clones each written variant file once per plant in `trial/<task>/plants.json`,
 keeping its bundle and every other field, and sets the exam's `attempts` to 1. It drops hooks,
 the nb runner and model checks; a model check named in `pass` or `validity` is
 a problem, since nothing here can answer one. It then runs, grades and reports
-that inner batch with the image's proctor. The runner is
+those inner attempts with the image's proctor. The runner is
 `trial/planted.sh`, which stands in for the bot. From the program proctor
 compiled for the attempt, it reads which system prompt and knowledge file the
 bot was given (marker sentences from each file), and from the task's prompt,
 which question is asked. Then it answers as the plant would, through
 nb's Mock, and records what the exam should make of that reply. A task
 asking something the trial does not recognise is answered and not counted.
-The inner batch, the records and `trial.json` stay beside the reward
+The inner attempts (`bank/`, `log/`), the records and `trial.json` stay beside the reward
 (`verifier/trial/`) as evidence.
 
 The trial reports a problem, which fails both trial checks, when:
@@ -151,7 +151,7 @@ proctor report agent-onboarding
 an example exam or two and the fixture, then writes about a dozen files and
 runs `proctor list` and a Mock shakedown a few times. Expect 40 to 80 tool
 calls, about 30 to 60 model requests, and 1 to 3 million input tokens (mostly
-cache reads) per attempt. Agree the number before a batch with a hosted variant.
+cache reads) per attempt. Agree the number before a run with a hosted variant.
 
 ## Answer key (private)
 

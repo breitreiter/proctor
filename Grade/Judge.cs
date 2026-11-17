@@ -464,7 +464,7 @@ static class Judge
     }
 
     /// <summary>The judges whose verdicts the given attempts' checks.json files hold, for the report's reproducibility section. A comparison pass's files are not counted.</summary>
-    public static List<JudgeUse> Uses(string root, IEnumerable<PoolAttempt> attempts)
+    public static List<JudgeUse> Uses(string root, IEnumerable<BankAttempt> attempts)
     {
         var uses = new Dictionary<(string, string, string?, string), List<string>>();
         foreach (var a in attempts)

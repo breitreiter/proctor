@@ -6,8 +6,10 @@ machine's config. To install proctor and run a first exam, start from the
 
 ## Layout and vocabulary
 
-A repository that uses proctor has `exams/` (yours, in git), `attempts/` (raw
-output, gitignored) and `reports/` (derived, written by `proctor report`).
+A repository that uses proctor has `exams/` (yours, in git), `bank/` (every
+attempt made, gitignored), `log/` and `exams-seen/` (what each `proctor
+run` did and the exam as it stood, gitignored) and `reports/` (derived,
+written by `proctor report`).
 
 The words, which the report and every file use the same way:
 
@@ -19,7 +21,7 @@ The words, which the report and every file use the same way:
 | **fixture** | The repository a task runs against and what "done" looks like in it; reused across exams. |
 | **variant** | What is under test: an agent or nb's harness and provider, a model and a bundle, as declared data, one file per variant. Its identity is its content. |
 | **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
-| **batch** | The attempts one `proctor run` made, when, on what machine and at what versions: what the exam lacked at the time. An exam's attempts are every batch's; one is current while its variant's and its task's hashes are today's, and stale after. |
+| **bank** | Every attempt of an exam, whenever it was made: `bank/<exam>/<variant>/<task>/<n>/`. One is current while its variant's and its task's hashes are today's, and stale after; a stale one stays where it is and is left out. What each `proctor run` did (when, on what machine, at what versions) is an entry under `log/`, a record and not a grouping. |
 | **live** | A mark on one variant (`live.json` beside the exam): the one in use now, and the reference the report compares the others with. |
 
 An exam is one business goal probed by many tasks. Every task in it is
@@ -32,7 +34,7 @@ the task's checks are how proctor measures whether they got it.
 
 ### When an exam gets a copy
 
-An exam's attempts are a pool, and every attempt in it is evidence about
+An exam's attempts are its bank, and every attempt in it is evidence about
 one world: the same fixtures, the same services, the same machine. What
 is under test changes; the world is held still. That is what lets a
 report compare variants made weeks apart, and lets a new check regrade
@@ -71,7 +73,7 @@ already made are still evidence after it.
   rather than several.
 
 **Chasing every change costs more than it is worth for most exams.** Each
-copied exam and each new agent version is a batch of attempts, at hosted
+copied exam and each new agent version is a full set of attempts, at hosted
 prices when the model is hosted, and agents ship new versions every week
 or two. Decide per exam how far behind it may fall. An exam whose
 question is the agent ("does Claude Code handle our SDK?") has to follow
@@ -81,7 +83,7 @@ for months, because the difference between your variants is what it
 reports, and that does not go stale when a newer agent ships. Move a pin
 or copy an exam for a reason (a complaint, a release note that touches
 what the exam measures, a world change that reaches what it grades), not
-on every release. Every report names the versions and batches it was
+on every release. Every report names the versions and the runs it was
 built from, so a reader can judge whether that is close enough. Proctor's
 own exams work this way: their agents stay pinned until there is a reason.
 
@@ -102,8 +104,8 @@ machine file in place of `exams/proctor.json`, with the same fields and
 its relative paths still resolved against `exams/`. An exam is the
 question and this file is the machine, so the same exam runs somewhere
 else by naming a different file: `proctor run code-change --config
-exams/proctor.modal.json`. `run` continues an interrupted batch only with
-the `--config` it was made with. Files named `exams/proctor.*.json` and `exams/nb.*.json`
+exams/proctor.modal.json`. `run` continues an interrupted run only with
+the `--config` it was started with. Files named `exams/proctor.*.json` and `exams/nb.*.json`
 are gitignored, apart from the `*.example.json` ones.
 
 The same file names the judges that the model checks call at grade time,
@@ -182,8 +184,8 @@ so hooks and the runner can agree on one container: the attempt setup hook
 creates it, the runner execs into it, the attempt teardown hook removes it.
 Hooks see which is in effect in `PROCTOR_RUNNER`, empty on a bare run, and
 skip the container. The manifest records the script and its hash, and
-`run` does not continue a batch whose runner changed: it makes what is
-missing in a new batch. The worked example is
+`run` does not continue an interrupted run whose runner changed: it makes
+what is missing as a new run. The worked example is
 `exams/runners/container.sh` with the `exam-authoring` exam's hooks and the
 `Containerfile` beside the runner, which puts nb's own image
 (`podman build -t nb .` in the nb repository) on the .NET SDK. The
@@ -226,7 +228,7 @@ Bare nb gets only `NO_COLOR`. A mount is an absolute path inside the
 container, and `runner` or `mounts` left in `proctor.json` is a problem, not
 ignored. Script checks run on the host after the attempt, so a check that
 needs a toolchain only the image has starts a container of that image
-itself. `PROCTOR_CONTAINER` is `proctor-<batch>-<variant>-<task>-<attempt>`.
+itself. `PROCTOR_CONTAINER` is `proctor-<exam>-<variant>-<task>-<attempt>`.
 
 ## Exams, fixtures and tasks
 
@@ -326,11 +328,11 @@ directories of that revision to hand over and nothing else:
 
 A git bundle is cloned under `.proctor/bundles/`, and its paths copied out of
 the clone into a directory of their own; a path the revision does not have
-stops the batch. Proctor hands the bundle's directory to the program
+stops the run. Proctor hands the bundle's directory to the program
 template as `{{bundle}}` and to hooks and checks as `PROCTOR_BUNDLE`, and
 records its identity in every manifest: a directory's content hash, or the
 revision with its paths. What is inside it is the exam's business. Two
-variants with two bundles compare them in one batch. A changed bundle is a
+variants with two bundles compare them in one report. A changed bundle is a
 changed variant.
 
 On an agent variant the bundle stays on the host. Proctor hashes it, records
@@ -369,13 +371,13 @@ scripts see as `PROCTOR_EXPECT`.
 
 Hooks and script checks get the attempt in the environment:
 `PROCTOR_EXAM_DIR`, `PROCTOR_FIXTURE` (the fixture's directory, so a script
-can read its `fixture.json`), `PROCTOR_BUNDLE`, `PROCTOR_BATCH`,
+can read its `fixture.json`), `PROCTOR_BUNDLE`, `PROCTOR_EXAM` (its id),
 `PROCTOR_VARIANT`, `PROCTOR_TASK`, `PROCTOR_ATTEMPT`, `PROCTOR_ATTEMPT_DIR`,
 `PROCTOR_WORK`, `PROCTOR_TASK_JSON`, `PROCTOR_EXPECT`, `PROCTOR_TRANSCRIPT`,
 `PROCTOR_DIFF`, `PROCTOR_RUNNER`, `PROCTOR_NB`, `PROCTOR_NB_CONFIG`,
 `PROCTOR_CONTAINER`, `PROCTOR_WORK_MOUNT` and `PROCTOR_BUNDLE_MOUNT`. A
-variant hook, which runs once per variant rather than per attempt, gets
-`PROCTOR_BATCH`, `PROCTOR_VARIANT`, `PROCTOR_EXAM_DIR`, `PROCTOR_BUNDLE`
+variant hook, which runs once per variant in each `proctor run` rather than per attempt, gets
+`PROCTOR_EXAM`, `PROCTOR_VARIANT`, `PROCTOR_EXAM_DIR`, `PROCTOR_BUNDLE`
 and `PROCTOR_RUNNER`.
 
 Checks live at three levels and an attempt carries the union: the exam's
@@ -549,7 +551,7 @@ the pass rate on both sides, listed for review when there are a few, and
 flagged as a defect in the check when there are many. An attempt whose
 headline script check is *outdated* (an agent variant's, changed since the
 attempt was made; see "Agent variants") is undecided the same way, shown as
-outdated, and named in a warning at the top with the batches to make again.
+outdated, and named in a warning at the top that says how to make those attempts again.
 
 ## Labels
 
@@ -665,15 +667,15 @@ base URL; the checks run afterwards with no network at all.
 
 On an agent variant a script check runs in Harbor's verifier, a separate
 container, when the attempt is made, from a copy of the exam directory and
-the fixture compiled into the batch; `grade` reads the verdict it wrote and
+the fixture compiled when its run started (kept under `log/<id>/harbor/`); `grade` reads the verdict it wrote and
 never runs the script again. So its verdict is fixed when the attempt is
 made. Change the script, any file beside it in the exam or the fixture, or
 the task's expected values, or add a script check, and `grade` marks those
 attempts' verdicts for it `outdated`: out of the check's rate and, for a
 headline check, out of the pass rate, never counted as a fail. They stay
-outdated until the attempts are made again (move the batch out of
-`attempts/` and `proctor run` the exam). Built-in and judged checks on the
-same attempts are graded afresh as on any variant. A batch
+outdated until the attempts are made again (move their directories out of
+`bank/<exam>/`, which `grade` names, and `proctor run` the exam). Built-in and judged checks on the
+same attempts are graded afresh as on any variant. An interrupted run
 keeps the engine it started on, and `run` continues it on no other. What
 a fixture's image needs and how an exam moves to agent variants is
 [`porting-to-agent-neutral.md`](porting-to-agent-neutral.md);

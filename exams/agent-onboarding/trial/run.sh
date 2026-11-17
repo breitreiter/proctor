@@ -7,7 +7,7 @@
 # It needs no network: proctor and nb from PATH, the bot on nb's Mock provider.
 #   env: TRIAL_TASK, TRIAL_OUT (a writable directory), WRITTEN_ROOT, WRITTEN_ID (checks/written.sh)
 #   writes: $TRIAL_OUT/trial.json {problems: [...], attempts: [{plant, variant, task, key, version, expect, status, pass, failed}]},
-#   the logs, the records planted.sh made, and the graded batch.
+#   the logs, the records planted.sh made, and the graded attempts (bank/, log/).
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 plants="$here/$TRIAL_TASK/plants.json"
@@ -58,11 +58,11 @@ jq -n --arg nb "$(command -v nb)" '{nb: {path: $nb, config: "trial-nb.json"}}' >
 export TRIAL_PLANTS="$plants" TRIAL_VARIANTS="$out/variants.json" TRIAL_RECORDS="$out/records"
 cd "$root"
 proctor run "$id" --root "$root" --runner "$here/planted.sh" >"$out/run.log" 2>&1 || fail "proctor run refused it: $(grep -v '^ ' "$out/run.log" | tail -1)"
-batch=$(sed -n 's/^batch \([^ :]*\): .*/\1/p' "$out/run.log" | head -1)
-[ -n "$batch" ] || fail "proctor run printed no batch: $(tail -1 "$out/run.log")"
+made=$(sed -n 's/^run \([^ :]*\): .*/\1/p' "$out/run.log" | head -1)
+[ -n "$made" ] || fail "proctor run made nothing: $(tail -1 "$out/run.log")"
 proctor grade "$id" --root "$root" >"$out/grade.log" 2>&1 || fail "proctor grade failed: $(tail -1 "$out/grade.log")"
 proctor report "$id" --root "$root" >"$out/report.log" 2>&1 || fail "proctor report failed: $(tail -1 "$out/report.log")"
-cp -r "attempts/$batch" "$out/batch"
+cp -r bank log "$out/"
 cp "reports/$id/explore/results.jsonl" "$out/results.jsonl"
 
 jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.json" \
@@ -94,4 +94,4 @@ jq -n --slurpfile plants "$plants" --slurpfile variants "$out/written-variants.j
            status: ($row.status // "missing"), pass: $row.pass, invalid: $row.invalid,
            failed: [($row.checks // {}) | to_entries[] | select(.value != "pass") | "\(.key) \(.value)"]} ] }' >"$out/trial.json" \
   || fail "the trial could not read its own results: $(tail -1 "$out/results.jsonl" 2>/dev/null | cut -c1-120)"
-echo "trial $batch: $(jq -r '"\(.attempts | length) runs, \(.problems | length) problem(s)"' "$out/trial.json")"
+echo "trial $made: $(jq -r '"\(.attempts | length) runs, \(.problems | length) problem(s)"' "$out/trial.json")"

@@ -3,8 +3,8 @@ using System.Text.Json.Nodes;
 namespace Proctor;
 
 /// <summary>
-/// A batch's Harbor: the pinned release and the hash of the tasks compiled for it, which `run` must find
-/// unchanged to continue the batch; with an nb variant, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
+/// A run's Harbor, as its log entry keeps it: the pinned release and the hash of the tasks compiled for it, which `run` must find
+/// unchanged to continue the run; with an nb variant, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
 /// engine every attempt runs on (proctor.json harbor.engine), which holds that layer.
 /// </summary>
 record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, string Engine = "docker");
@@ -140,7 +140,7 @@ static class HarborRun
 
         var env = new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" };
         if (route is { KeyEnv: { } name, ApiKey: { } key }) env[name] = key;
-        // nb's and Qwen Code's agents, and the oracle's simulated user, are proctor's own, imported from the batch's harbor/agents/.
+        // nb's and Qwen Code's agents, and the oracle's simulated user, are proctor's own, imported from the log entry's harbor/agents/.
         if (HarborCompile.IsOwnAgent(variant) || oracle is not null) env["PYTHONPATH"] = agentsDir;
         var result = Subprocess.Run(uv, UvArgs(version, engine), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);

@@ -32,12 +32,12 @@ the live variant, and the next report gives `for-scripts` against it.
 **Cost.** 36 requests, each a few thousand tokens. On Gemini's free tier
 that is free; free-tier requests may be used by Google to improve its
 models. A free tier allows only a few requests a minute, and nb waits and
-retries when it is throttled, so a batch can take a few minutes.
+retries when it is throttled, so a run can take a few minutes.
 
 **A different provider.** The variants name the provider `gemini`, the name
 `proctor setup` suggests. If you named it something else, or want another
 model, change `provider` and `model` in both files under `variants/` before
-the first batch; after it, a changed variant needs a new id.
+the first run; after it, a changed variant needs a new id.
 `proctor setup --check` lists the models your key can reach.
 
 **How it is built.** `program.nb` gives the variant's README to the model as

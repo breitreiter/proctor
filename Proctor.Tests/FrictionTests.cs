@@ -176,27 +176,27 @@ public class FrictionTests
         var config = Exam.LoadConfig(repo.Root, problems);
         var exam = repo.LoadExam("smoke");
         var id = Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null)!;
-        var expDir = Layout.Batch(repo.Root, id);
-        File.WriteAllText(Path.Combine(Layout.Attempt(expDir, "a", "loops", 1), "status"), "failed\n");
+        var entryDir = Layout.LogEntry(repo.Root, id);
+        File.WriteAllText(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "loops", 1), "status"), "failed\n");
 
-        var attempts = Friction.Attempts(repo.Root, exam, Pool.Select(repo.Root, exam).Current, TextWriter.Null);
+        var attempts = Friction.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
 
         Assert.All(attempts, c => Assert.Equal("a", c.Variant));
         Assert.Equal("not completed", attempts.Single(c => c.Task == "loops").Skipped);
-        Assert.False(File.Exists(Path.Combine(Layout.Attempt(expDir, "a", "loops", 1), Layout.FrictionFile)));
+        Assert.False(File.Exists(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "loops", 1), Layout.FrictionFile)));
         var read = attempts.Single(c => c.Task == "uses-bash");
         Assert.NotNull(read.Points);
-        var file = JsonNode.Parse(File.ReadAllText(Path.Combine(Layout.Attempt(expDir, "a", "uses-bash", 1), Layout.FrictionFile)))!;
+        var file = JsonNode.Parse(File.ReadAllText(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "uses-bash", 1), Layout.FrictionFile)))!;
         Assert.Equal(Friction.Schema, file["schema"]!.GetValue<string>());
         Assert.Equal("uses-bash", file["attempt"]!["task"]!.GetValue<string>());
         Assert.Equal("1", file["attempt"]!["attempt"]!.GetValue<string>());
-        Assert.Equal(id, file["attempt"]!["batch"]!.GetValue<string>());
+        Assert.Null(file["attempt"]!["batch"]);
         Assert.True(file["summary"]!["calls"]!.GetValue<int>() > 0);
 
         // Once the variant is renamed its attempts are stale: listed with why, never read.
         repo.RenameVariant("smoke", "a", "renamed");
         var renamed = repo.LoadExam("smoke");
-        var selection = Pool.Select(repo.Root, renamed);
+        var selection = Bank.Select(repo.Root, renamed);
         Assert.Empty(selection.Current);
         Assert.All(selection.Stale, s => Assert.Equal("variant a has no file now", s.Why));
         Assert.Equal(3, selection.Stale.Count);

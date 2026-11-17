@@ -5,7 +5,7 @@ static class Verbs
 {
     /// <summary>
     /// Validate and print, per exam: its tasks, checks and the attempts it wants; each variant's current, completed attempts
-    /// against that; the stale attempts; and any interrupted batch, with the command that continues it. A label filter keeps
+    /// against that; the stale attempts; and any interrupted run, with the command that continues it. A label filter keeps
     /// the exams whose labels, or whose tasks' labels, match every filter.
     /// </summary>
     public static int List(string root, string? examId, List<string>? labelFilters = null, string? configFile = null)
@@ -30,30 +30,30 @@ static class Verbs
             var byLevel = levels.Count < 2 ? "" : " (" + string.Join(", ", levels.Select(g => $"{g.Count()} of {g.Key switch { "exam" => "the exam's", "fixture" => fixtures == 1 ? "the fixture's" : "the fixtures'", _ => "the tasks' own" }}")) + ")";
             Console.WriteLine($"  {Count(exam.Tasks.Count, "task")}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted of each task{(exam.Judged ? "; judged" : "")}");
             if (labels.Count > 0) Console.WriteLine($"  labels: {Labels.Format(labels)}");
-            var pool = Pool.Of(root, exam);
+            var bank = Bank.Of(root, exam);
             var live = Proctor.Live.Load(exam);
             var broken = live?.Broken(exam);
             var width = Math.Max("variant".Length, exam.Variants.Select(v => v.Id!.Length).DefaultIfEmpty(0).Max());
             Console.WriteLine($"  {"variant".PadRight(width)}  attempts   wanted");
             foreach (var variant in exam.Variants)
             {
-                var made = pool.Count(a => a.Variant == variant.Id && a.Status == AttemptStatus.Completed && Pool.Stale(exam, a) is null);
+                var made = bank.Count(a => a.Variant == variant.Id && a.Status == AttemptStatus.Completed && Bank.Stale(exam, a) is null);
                 var mark = broken is null && live?.Variant.Id == variant.Id ? "live" : "";
                 Console.WriteLine($"  {variant.Id!.PadRight(width)}  {made,-10} {exam.Attempts * exam.Tasks.Count,-8} {mark}".TrimEnd());
             }
             if (live is null) Console.WriteLine("  nothing is live");
             else if (broken is not null) Console.WriteLine("  " + live.Warning(exam, broken));
-            var stale = pool.Select(a => Pool.Stale(exam, a)).OfType<string>().ToList();
+            var stale = bank.Select(a => Bank.Stale(exam, a)).OfType<string>().ToList();
             if (stale.Count > 0)
                 Console.WriteLine($"  {Count(stale.Count, "stale attempt")}, not counted: {string.Join("; ", stale.GroupBy(w => w).Select(g => $"{g.Key} ({g.Count()})"))}");
-            foreach (var interrupted in Pool.Interrupted(exam, pool))
-                Console.WriteLine($"  batch {interrupted.Batch.Id} was interrupted: {Count(interrupted.Missing.Count, "attempt")} missing. `proctor run {exam.Id}` continues it.");
+            foreach (var interrupted in Bank.Interrupted(exam, bank))
+                Console.WriteLine($"  run {interrupted.Entry.Id} was interrupted: {Count(interrupted.Missing.Count, "attempt")} missing. `proctor run {exam.Id}` continues it.");
         }
         foreach (var p in problems) Console.Error.WriteLine(p);
         return exit;
     }
 
-    /// <summary>Make what the exam lacks, continuing an interrupted batch first; within --variant and --tasks when given.</summary>
+    /// <summary>Make what the exam lacks, continuing an interrupted run first; within --variant and --tasks when given.</summary>
     public static int Run(string root, string examId, string? nbPath, string? runner, string? configFile = null, List<string>? variantIds = null, List<string>? taskIds = null)
     {
         var problems = new List<Problem>();
@@ -91,24 +91,24 @@ static class Verbs
         return 0;
     }
 
-    public static int Grade(string root, string examId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? variantIds = null, List<string>? taskIds = null, string? batchId = null, string? configFile = null)
+    public static int Grade(string root, string examId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? variantIds = null, List<string>? taskIds = null, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
         RequireKnown(exam, variantIds, taskIds);
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(root, problems, configFile);
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
-        var selection = Pool.Select(root, exam, batchId, variantIds, taskIds);
+        var selection = Bank.Select(root, exam, variantIds, taskIds);
         var judges = exam.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge, Console.WriteLine) : null;
         var grades = Proctor.Grade.Attempts(root, exam, selection.Current, Console.Out, judges);
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
         var undecided = grades.Where(g => g.Checks is not null && g.Invalid is null && g.Pass is null).ToList();
         var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.Grading.Pass!) is not null);
-        var untouched = batchId is null && variantIds is null && taskIds is null ? 0 : Pool.Select(root, exam).Current.Count - grades.Count;
-        Console.WriteLine($"graded {graded} of {grades.Count} attempts; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --batch/--variant/--tasks left as they were" : "")}");
+        var untouched = variantIds is null && taskIds is null ? 0 : Bank.Select(root, exam).Current.Count - grades.Count;
+        Console.WriteLine($"graded {graded} of {grades.Count} attempts; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --variant/--tasks left as they were" : "")}");
         if (Proctor.Grade.OutdatedSummary(exam.Id, grades) is { } summary) Console.WriteLine(summary);
-        foreach (var line in Pool.Describe(selection.Stale, "not graded")) Console.WriteLine(line);
+        foreach (var line in Bank.Describe(selection.Stale, "not graded")) Console.WriteLine(line);
         foreach (var (judge, reasons) in judges?.Errors ?? [])
         {
             var top = reasons.GroupBy(r => r).OrderByDescending(g => g.Count()).First();
@@ -119,7 +119,7 @@ static class Verbs
 
     /// <summary>The friction rules over every current, completed attempt that has a trajectory, into friction.json beside it. No model and no key.</summary>
     /// <param name="reader">A chat judge of the machine's config to read each attempt as well; a hosted model, so it costs what the model costs.</param>
-    public static int Friction(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null, string? batchId = null, string? reader = null, bool again = false, string? configFile = null)
+    public static int Friction(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null, string? reader = null, bool again = false, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
         RequireKnown(exam, variantIds, taskIds);
@@ -134,13 +134,13 @@ static class Verbs
             judges = new JudgeClient { Defs = config.Judges, Rejudge = again, Note = Console.WriteLine };
         }
         else if (again) throw new ProctorException("--rejudge goes with --reader");
-        var selection = Pool.Select(root, exam, batchId, variantIds, taskIds);
+        var selection = Bank.Select(root, exam, variantIds, taskIds);
         if (exam.Def.Surface is null) Console.WriteLine($"  note: exam '{exam.Id}' declares no surface; only help, environment and tool-error points can be found");
         var attempts = Proctor.Friction.Attempts(root, exam, selection.Current, Console.Out, judges, reader);
         var read = attempts.Where(c => c.Points is not null).ToList();
         var skipped = attempts.Where(c => c.Skipped is not null).GroupBy(c => c.Skipped!).Select(g => $"{g.Count()} {g.Key}").ToList();
         Console.WriteLine($"friction: {read.Count} of {attempts.Count} attempts read, {read.Sum(c => c.Points)} points{(skipped.Count > 0 ? $"; skipped {string.Join(", ", skipped)}" : "")}");
-        foreach (var line in Pool.Describe(selection.Stale, "not read")) Console.WriteLine(line);
+        foreach (var line in Bank.Describe(selection.Stale, "not read")) Console.WriteLine(line);
         if (reader is not null)
         {
             var readings = read.Select(c => c.Reading!).ToList();
@@ -177,23 +177,23 @@ static class Verbs
         : SetupWizard.RunAsync(root).GetAwaiter().GetResult();
 
     /// <summary>
-    /// The exploration report over the exam's current attempts, within --batch, --variant and --tasks: results.jsonl, stats.json
+    /// The exploration report over the exam's current attempts, within --variant and --tasks: results.jsonl, stats.json
     /// (stamped with what it was built from), report.html and summary.md under reports/&lt;exam&gt;/explore/. An earlier report
     /// there is moved aside, not overwritten. With a variant live, every other variant is compared with it.
     /// </summary>
-    public static int Report(string root, string examId, string? batchId = null, List<string>? variantIds = null, List<string>? taskIds = null)
+    public static int Report(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null)
     {
         var exam = LoadExam(root, examId);
         RequireKnown(exam, variantIds, taskIds);
-        var selection = Pool.Select(root, exam, batchId, variantIds, taskIds);
+        var selection = Bank.Select(root, exam, variantIds, taskIds);
         if (selection.Current.Count == 0)
-            throw new ProctorException($"exam '{exam.Id}' has no current attempts{(batchId is null && variantIds is null && taskIds is null ? "" : " within --batch, --variant and --tasks")} to report; `proctor run {exam.Id}` makes them");
+            throw new ProctorException($"exam '{exam.Id}' has no current attempts{(variantIds is null && taskIds is null ? "" : " within --variant and --tasks")} to report; `proctor run {exam.Id}` makes them");
         foreach (var variant in exam.Variants.Where(v => (variantIds is null || variantIds.Contains(v.Id!)) && selection.Current.All(a => a.Variant != v.Id)))
-            Console.WriteLine($"note: variant {variant.Id} has no current attempts{(batchId is null ? "" : $" in batch {batchId}")}; it is not in the report");
+            Console.WriteLine($"note: variant {variant.Id} has no current attempts; it is not in the report");
 
         var rows = Results.Collect(root, exam, selection.Current);
         var live = Proctor.Live.Load(exam);
-        var narrowed = string.Join(" ", new[] { batchId is null ? null : $"--batch {batchId}" }.Concat((variantIds ?? []).Select(v => $"--variant {v}"))
+        var narrowed = string.Join(" ", (variantIds ?? []).Select(v => $"--variant {v}")
             .Append(taskIds is null ? null : $"--tasks {string.Join(",", taskIds)}").OfType<string>());
         var built = Stats.Stamp(exam, selection, narrowed.Length > 0 ? narrowed : null, DateTime.UtcNow);
         var stats = Stats.Compute(exam, rows, live, built);
@@ -209,8 +209,8 @@ static class Verbs
         File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Proctor.Report.Markdown(stats, rows, view, judges));
 
         Console.WriteLine($"{Path.GetRelativePath(root, Path.Combine(outDir, Layout.ReportHtmlFile))}");
-        Console.WriteLine($"  from {Count(built.Current, "current attempt")} in {built.Batches.Count} batch{(built.Batches.Count == 1 ? "" : "es")}: {string.Join(", ", built.Batches)}; also {Layout.ResultsFile} ({rows.Count} rows), {Layout.StatsFile}, {Layout.SummaryFile}");
-        foreach (var line in Pool.Describe(selection.Stale, "not counted")) Console.WriteLine(line);
+        Console.WriteLine($"  from {Count(built.Current, "current attempt")}, made by {Count(built.Log.Count, "run")} ({Layout.LogDir}/: {string.Join(", ", built.Log)}); also {Layout.ResultsFile} ({rows.Count} rows), {Layout.StatsFile}, {Layout.SummaryFile}");
+        foreach (var line in Bank.Describe(selection.Stale, "not counted")) Console.WriteLine(line);
         foreach (var (variant, mixed) in built.Mixed ?? []) Console.WriteLine($"warning: variant {variant}'s attempts were made under mixed conditions: {string.Join("; ", mixed)}");
         var ungraded = rows.Where(r => r.Status == AttemptStatus.Completed && r.Checks is null).ToList();
         if (ungraded.Count > 0)
@@ -224,20 +224,19 @@ static class Verbs
     }
 
     /// <summary>
-    /// The batch the page stands for: the latest one the report's attempts came from, with the exam's definition, variants
-    /// and tasks as they are now, and each variant's bundle as the latest batch that made its attempts resolved it.
+    /// The conditions the page stands for: the log entry of the latest run the report's attempts came from, with the exam's
+    /// variants and tasks as they are now, and each variant's bundle as the latest run that made its attempts resolved it.
     /// </summary>
-    static Batch View(string root, Exam exam, List<PoolAttempt> attempts, IEnumerable<string> variants)
+    static LogEntry View(string root, Exam exam, List<BankAttempt> attempts, IEnumerable<string> variants)
     {
-        var latest = attempts.Select(a => a.Batch).MaxBy(b => b.Id, StringComparer.Ordinal)!;
+        var latest = attempts.Select(a => a.Entry).MaxBy(b => b.Id, StringComparer.Ordinal)!;
         var bundles = new Dictionary<string, ResolvedBundle>();
         foreach (var variant in variants)
-            if (attempts.Where(a => a.Variant == variant).Select(a => a.Batch).MaxBy(b => b.Id, StringComparer.Ordinal)!.BundleOf(variant) is { } bundle) bundles[variant] = bundle;
+            if (attempts.Where(a => a.Variant == variant).Select(a => a.Entry).MaxBy(b => b.Id, StringComparer.Ordinal)!.BundleOf(variant) is { } bundle) bundles[variant] = bundle;
         return latest with
         {
             ExamHash = exam.Hash,
-            ExamDef = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Layout.ExamFileIn(exam.Dir)))!.AsObject(),
-            Variants = exam.Variants.Where(v => variants.Contains(v.Id!)).Select(v => new BatchVariant(v.Id!, v.Hash, System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, v.Id!)))!.AsObject())).ToList(),
+            Variants = exam.Variants.Where(v => variants.Contains(v.Id!)).Select(v => new SeenVariant(v.Id!, v.Hash, System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, v.Id!)))!.AsObject())).ToList(),
             Tasks = exam.Tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(),
             Bundles = bundles,
         };

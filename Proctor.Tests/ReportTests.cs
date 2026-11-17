@@ -5,7 +5,7 @@ using Proctor;
 namespace Proctor.Tests;
 
 /// <summary>
-/// Step 7: both renderings are snapshotted for the worked batch. A changed rendering fails
+/// Step 7: both renderings are snapshotted for the worked exam. A changed rendering fails
 /// until it is reviewed and approved with PROCTOR_APPROVE=1, the record-review-approve loop from
 /// the test-framework learnings. The .received file beside the snapshot shows the diff.
 /// </summary>
@@ -13,11 +13,11 @@ public class ReportTests
 {
     static string SnapshotDir => Path.Combine(TestRepo.SourceRoot, "Proctor.Tests", "snapshots");
 
-    static (StatsFile Stats, List<ResultRow> Rows, Batch Exp) Worked()
+    static (StatsFile Stats, List<ResultRow> Rows, LogEntry Latest) Worked()
     {
-        var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows();
-        return (Stats.Compute(exam, rows, WorkedBatch.Live(exam), WorkedBatch.Built()), rows, WorkedBatch.Batch(exam));
+        var exam = WorkedExam.Exam();
+        var rows = WorkedExam.Rows();
+        return (Stats.Compute(exam, rows, WorkedExam.Live(exam), WorkedExam.Built()), rows, WorkedExam.Latest(exam));
     }
 
     static void AssertSnapshot(string name, string actual)
@@ -58,9 +58,9 @@ public class ReportTests
     [Fact]
     public void Markdown_DifferentAttemptCounts_LosingNothing_WarnsNothing()
     {
-        var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows().Where(r => r.Variant == "b" || r.Attempt == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
-        var md = Report.Markdown(Stats.Compute(exam, rows), rows, WorkedBatch.Batch(exam));
+        var exam = WorkedExam.Exam();
+        var rows = WorkedExam.Rows().Where(r => r.Variant == "b" || r.Attempt == 1).Select(r => r with { Pass = true, Checks = r.Checks is null ? null : r.Checks.ToDictionary(k => k.Key, _ => "pass"), Reasons = null, Invalid = null, Status = "completed", StatusReason = null }).ToList();
+        var md = Report.Markdown(Stats.Compute(exam, rows), rows, WorkedExam.Latest(exam));
         Assert.DoesNotContain("lost attempts unequally", md);
     }
 
@@ -68,8 +68,8 @@ public class ReportTests
     [Fact]
     public void AnErroredCheck_IsOutOfItsRate_AndListedApartFromFailures()
     {
-        var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows().Select(r => r is { Variant: "b", Task: "uses-bash", Attempt: 1 }
+        var exam = WorkedExam.Exam();
+        var rows = WorkedExam.Rows().Select(r => r is { Variant: "b", Task: "uses-bash", Attempt: 1 }
             ? r with { Checks = new(r.Checks!) { ["used-bash"] = Verdict.Error }, Reasons = new() { ["used-bash"] = "judge: line one\nline two" } }
             : r).ToList();
         var stats = Stats.Compute(exam, rows);
@@ -77,7 +77,7 @@ public class ReportTests
         Assert.Equal((2, 1), (b.Checks["used-bash"].NAttempts, b.Checks["used-bash"].Errors));
         Assert.DoesNotContain(b.Failures, f => f.Check == "used-bash");
         Assert.Equal(("used-bash", 1, 3), Assert.Single(b.Errored!) is var e ? (e.Check, e.Attempts, e.Of) : default);
-        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
+        var md = Report.Markdown(stats, rows, WorkedExam.Latest(exam));
         Assert.Contains("could not grade 1 of 3 attempts", md);
         // A reason over two lines stays in its table row.
         Assert.Contains("judge: line one<br>line two", md);
@@ -87,16 +87,16 @@ public class ReportTests
     [Fact]
     public void AVariantPairedOnFewerTasks_SaysItsOwnReach_OnItsRow()
     {
-        var exam = WorkedBatch.Exam(third: true);
-        var rows = WorkedBatch.Rows();
+        var exam = WorkedExam.Exam(third: true);
+        var rows = WorkedExam.Rows();
         rows.AddRange(rows.Where(r => r.Variant == "b" && r.Task != "plain").Select(r => r with { Variant = "c", Id = "c" + r.Id[1..] }).ToList());
-        var stats = Stats.Compute(exam, rows, WorkedBatch.Live(exam));
+        var stats = Stats.Compute(exam, rows, WorkedExam.Live(exam));
         Assert.Equal(3, stats.Mde.NPairs);
         var c = stats.Comparisons.Single(x => x.Variant == "c");
         Assert.Equal((2, "floor"), (c.NPairs, c.Vs));
         Assert.NotNull(c.MdePoints);
         Assert.Null(stats.Comparisons.Single(x => x.Variant == "b").MdePoints);
-        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
+        var md = Report.Markdown(stats, rows, WorkedExam.Latest(exam));
         var cRow = md.Split('\n').Single(l => l.StartsWith("**c**:"));
         Assert.Contains($"Paired on 2 of 3 tasks, so it can only confirm a change of about {c.MdePoints} points.", cRow);
     }
@@ -105,14 +105,14 @@ public class ReportTests
     [Fact]
     public void NothingLive_TheVariantsSideBySide_NoneComparedWithAnother()
     {
-        var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows();
-        var stats = Stats.Compute(exam, rows, null, WorkedBatch.Built());
+        var exam = WorkedExam.Exam();
+        var rows = WorkedExam.Rows();
+        var stats = Stats.Compute(exam, rows, null, WorkedExam.Built());
         Assert.Null(stats.Live);
         Assert.Empty(stats.Comparisons);
         Assert.Equal(3, stats.Mde.NPairs);
         Assert.Contains("No variant is live, so none is compared with another.", stats.Methods);
-        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
+        var md = Report.Markdown(stats, rows, WorkedExam.Latest(exam));
         Assert.Contains("**Two variants, side by side**\n\n| Variant | Passed | 95% interval |\n", md);
         Assert.Contains("None is live yet.", md);
         Assert.Contains("Picking the best of several flatters it: part of any lead is luck.", md);
@@ -121,40 +121,40 @@ public class ReportTests
         Assert.Contains("| Variants | 2: `floor`, `b` |", md);
         foreach (var gone in new[] { "Against the live variant", "Difference from", "Change against", "(live)", "reference", "unconfirmed" })
             Assert.DoesNotContain(gone, md);
-        Assert.DoesNotContain("<tspan class=\"cs\">live</tspan>", Report.Html(stats, rows, WorkedBatch.Batch(exam)));
+        Assert.DoesNotContain("<tspan class=\"cs\">live</tspan>", Report.Html(stats, rows, WorkedExam.Latest(exam)));
     }
 
     /// <summary>A live mark that does not hold, or names a variant with no attempt here, is said on the page, and nothing is compared with it.</summary>
     [Fact]
     public void ALiveMarkThatIsNotTheReference_IsAWarning_AndNothingIsCompared()
     {
-        var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows();
+        var exam = WorkedExam.Exam();
+        var rows = WorkedExam.Rows();
         var moved = Stats.Compute(exam, rows, new Live(new Ref("floor", "sha256:0000000011111111"), "2026-09-10T09:12:00Z"));
         Assert.Empty(moved.Comparisons);
         Assert.StartsWith("its file has changed since it was marked (00000000 then, ", moved.Live!.NotReference);
-        var md = Report.Markdown(moved, rows, WorkedBatch.Batch(exam));
+        var md = Report.Markdown(moved, rows, WorkedExam.Latest(exam));
         Assert.Contains("> **Warning.** `floor` is marked live, but its file has changed since it was marked", md);
         Assert.DoesNotContain("None is live yet.", md);
 
         var floorOnly = rows.Where(r => r.Variant == "floor").ToList();
-        var absent = Stats.Compute(exam, floorOnly, WorkedBatch.Live(exam, "b"));
+        var absent = Stats.Compute(exam, floorOnly, WorkedExam.Live(exam, "b"));
         Assert.Equal("it has no current attempt in this report", absent.Live!.NotReference);
-        Assert.Contains("`b` is marked live, but it has no current attempt in this report, so no variant is compared with it.", Report.Markdown(absent, floorOnly, WorkedBatch.Batch(exam)));
+        Assert.Contains("`b` is marked live, but it has no current attempt in this report, so no variant is compared with it.", Report.Markdown(absent, floorOnly, WorkedExam.Latest(exam)));
     }
 
     /// <summary>A check that could not grade many runs is one warning with its count per variant, and leaves the per-variant failure lists.</summary>
     [Fact]
     public void ACheckThatErroredOften_IsOneWarning_NotALineUnderEachVariant()
     {
-        var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows().Select(r => r.Task == "uses-bash" && r.Checks is not null
+        var exam = WorkedExam.Exam();
+        var rows = WorkedExam.Rows().Select(r => r.Task == "uses-bash" && r.Checks is not null
             ? r with { Checks = new Dictionary<string, string>(r.Checks) { ["used-bash"] = Verdict.Error } } : r).ToList();
         var stats = Stats.Compute(exam, rows);
         var x = Assert.Single(stats.ErroredChecks!);
         Assert.Equal("used-bash", x.Check);
         Assert.Equal(x.Attempts, x.Variants.Values.Sum());
-        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
+        var md = Report.Markdown(stats, rows, WorkedExam.Latest(exam));
         Assert.Contains($"> **Warning.** The check `used-bash` (uses bash) could not grade {x.Attempts} of the {x.Of} attempts it applies to, on every variant", md);
         Assert.DoesNotContain("could not grade some of", md);
         Assert.Contains("`used-bash` could not grade many attempts, and is left out of the lists above", md);
@@ -162,16 +162,16 @@ public class ReportTests
 
     /// <summary>
     /// An outdated verdict (a script check on agent attempts, changed since they were made) is out of every rate, never a
-    /// failure, and said once at the top with the variants and the batches to make again; each attempt shows it by name.
+    /// failure, and said once at the top with the variants and how to make the attempts again; each attempt shows it by name.
     /// </summary>
     [Fact]
     public void AnOutdatedVerdict_IsOutOfEveryRate_AndAWarningSaysWhatToMakeAgain()
     {
-        var exam = WorkedBatch.Exam();
+        var exam = WorkedExam.Exam();
         const string why = "changed since the attempt was made: fixtures/ledger/checks/builds.sh, so the verdict on file may not be this check's as it is now; make the attempt again";
-        var before = Stats.Compute(exam, WorkedBatch.Rows()).Variants["b"];
-        var rows = WorkedBatch.Rows().Select(r => r is { Variant: "b", Task: "plain" }
-            ? r with { Checks = new(r.Checks!) { ["builds"] = Verdict.Outdated }, Pass = null, Reasons = new() { ["builds"] = why }, Undecided = $"builds: {why}", Outdated = $"builds: {why}", Batch = "20261115-0900-smoke-ab12" }
+        var before = Stats.Compute(exam, WorkedExam.Rows()).Variants["b"];
+        var rows = WorkedExam.Rows().Select(r => r is { Variant: "b", Task: "plain" }
+            ? r with { Checks = new(r.Checks!) { ["builds"] = Verdict.Outdated }, Pass = null, Reasons = new() { ["builds"] = why }, Undecided = $"builds: {why}", Outdated = $"builds: {why}" }
             : r).ToList();
         var outdated = rows.Count(r => r.Outdated is not null);
         Assert.True(outdated > 0);
@@ -188,14 +188,13 @@ public class ReportTests
         Assert.All(stats.Matrix["b"]["plain"], m => Assert.Equal("outdated", m));
         var o = Assert.Single(stats.OutdatedChecks!);
         Assert.Equal(("builds", outdated), (o.Check, o.Attempts));
-        Assert.Equal(["20261115-0900-smoke-ab12"], o.Batches);
         Assert.Equal(new Dictionary<string, int> { ["b"] = outdated }, o.Variants);
-        Assert.Null(Stats.Compute(exam, WorkedBatch.Rows()).OutdatedChecks);
+        Assert.Null(Stats.Compute(exam, WorkedExam.Rows()).OutdatedChecks);
 
-        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
+        var md = Report.Markdown(stats, rows, WorkedExam.Latest(exam));
         Assert.Contains($"> **Warning.** The check `builds` (the repository builds after the change) has changed or been added since {outdated} of the {o.Of} attempts it applies to were made, on `b` (`b` {outdated}). "
             + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates and, as a headline check, out of the pass rates. "
-            + "Make those attempts again: move batch `attempts/20261115-0900-smoke-ab12` out of `attempts/` and run `proctor run smoke`.", md);
+            + "Make those attempts again: `proctor grade smoke` names them; move their directories out of `bank/smoke/` and run `proctor run smoke`.", md);
         Assert.Contains($"· {outdated} outdated", md);
         Assert.Contains($"{outdated} attempts are undecided because a headline check's verdict is outdated; see the warning at the top.", md);
         Assert.DoesNotContain("undecided, and can be reviewed", md);
@@ -207,12 +206,12 @@ public class ReportTests
     [Fact]
     public void Markdown_ShowsCost_WhenAVariantReportsIt()
     {
-        var exam = WorkedBatch.Exam();
-        var rows = WorkedBatch.Rows().Select(r => r.Variant == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
+        var exam = WorkedExam.Exam();
+        var rows = WorkedExam.Rows().Select(r => r.Variant == "b" && r.Usage is not null ? r with { Usage = r.Usage with { CostUsd = 0.05 } } : r).ToList();
         var stats = Stats.Compute(exam, rows);
         Assert.Equal((0.05, 0.45), (stats.Variants["b"].CostUsd!.Median, stats.Variants["b"].CostTotalUsd!.Value));
         Assert.Null(stats.Variants["floor"].CostUsd);
-        var md = Report.Markdown(stats, rows, WorkedBatch.Batch(exam));
+        var md = Report.Markdown(stats, rows, WorkedExam.Latest(exam));
         Assert.Contains("| Cost: median | total |", md);
         Assert.Contains("| $0.05 | $0.45 |", md);
     }
@@ -266,8 +265,8 @@ public class ReportTests
         foreach (var (task, criterion) in new[] { ("loops", "the loop ends within four turns"), ("plain", "the answer gives `#fbedef`"), ("uses-bash", "the answer gives 120") })
             repo.EditJson($"smoke/tasks/{task}.json", t => t["checks"] = JsonNode.Parse($"{{\"builds\": {{\"script\": \"checks/answer-nonempty.sh\", \"description\": \"{criterion}\"}}}}"));
         var exam = repo.LoadExam("smoke");
-        var rows = WorkedBatch.Rows();
-        var exp = WorkedBatch.Batch(exam);
+        var rows = WorkedExam.Rows();
+        var exp = WorkedExam.Latest(exam);
         var stats = Stats.Compute(exam, rows);
 
         var builds = stats.TaskDetails!["plain"].Checks.Single(k => k.Name == "builds");
@@ -289,7 +288,7 @@ public class ReportTests
     {
         var (stats, rows, exp) = Worked();
         rows[0] = rows[0] with { StatusReason = "<b>bold</b> & \"quoted\"", Status = "failed", Pass = null, Checks = null };
-        var html = Report.Html(Stats.Compute(WorkedBatch.Exam(), rows), rows, exp);
+        var html = Report.Html(Stats.Compute(WorkedExam.Exam(), rows), rows, exp);
         Assert.DoesNotContain("<b>bold</b>", html);
         Assert.Contains("&lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot;", html);
     }

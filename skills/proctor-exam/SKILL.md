@@ -13,7 +13,7 @@ differs from other eval tools.
 
 Work in two parts, with the user's approval between them: **plan**
 (what to measure and how you would know), then **build** (the files, a
-free shakedown, then the paid batch they agree to).
+free shakedown, then the paid run they agree to).
 
 ## Before anything
 
@@ -58,9 +58,9 @@ read and let the user correct you.
    `tools none` and needs no sandbox. Start there when you can.
 6. **What will it cost?** Attempts = variants × tasks × the exam's `attempts` (per task, for every variant).
    Estimate tokens per attempt, price it, and agree the number with the user
-   before any paid batch. A free tier or a local model is the place to iterate.
+   before any paid run. A free tier or a local model is the place to iterate.
 7. **How current must it stay?** Agents ship new versions every week or
-   two, and each one followed is another paid batch. If the question is the
+   two, and each one followed is another paid run. If the question is the
    agent, the exam follows the versions people run; if it is the user's own
    work (docs, tools, a prompt), one pinned agent can serve for months.
    Agree which, and what would be a reason to move the pin.
@@ -97,14 +97,14 @@ fixtures/<id>/repo/         what is copied into the work directory, and nothing 
 ```
 
 Use proctor's vocabulary in every file and in what you tell the user:
-exam, task, attempt, check, variant, fixture, batch, live.
+exam, task, attempt, check, variant, fixture, bank, live.
 
 ### Proctor's gotchas
 
 - **The fixture is what the agent sees; keep the answers out of it.**
   Only the source tree is copied into the work directory. A fixture whose
   `source.path` points at the user's repository root copies everything
-  but `.git`, including `exams/` (the expected answers), `attempts/` and any
+  but `.git`, including `exams/` (the expected answers), `bank/` and any
   local secrets. Point it at a pinned `{"git": ..., "rev": ...}`, a
   snapshot under `fixtures/<id>/repo/`, or exclude those directories with
   `source.exclude`. A task that needs no repository uses a fixture with an
@@ -152,7 +152,7 @@ exam, task, attempt, check, variant, fixture, batch, live.
   the agent meets: the prompt, the fixture, an oracle's answer sheet, the
   program template and the hooks. Editing any of them leaves the attempts
   already made out of every count; `run` makes them again. Settle those
-  before a long batch.
+  before a long run.
 - **A changed check is a regrade.** The checks and the expected values are
   the standard. Add or change one and `grade` applies it to every current
   attempt; nothing is attempted again. Adding a task leaves the other
@@ -161,7 +161,7 @@ exam, task, attempt, check, variant, fixture, batch, live.
   attempt is made, so change the script (or a file it reads, or its
   expected values) and those verdicts are `outdated` until the attempts are
   made again, out of every rate. Prove the scripts for free before an agent
-  batch, not after.
+  run, not after.
 - **A change to the world is a new exam, not an edit.** A new agent
   version or model is a new variant beside the old one; a new check or
   task is a regrade. But when the fixture, a service the task's code
@@ -171,8 +171,8 @@ exam, task, attempt, check, variant, fixture, batch, live.
   closed. `docs/configuration.md`, "When an exam gets a copy", has the
   rubric.
 - **After a crash, `proctor run <id>` again.** There is no resume verb: run
-  continues the interrupted batch and says so, and `proctor list <id>`
-  names an interrupted batch.
+  continues the interrupted run and says so, and `proctor list <id>`
+  names an interrupted run.
 
 ### Prove it before anyone pays
 
@@ -186,9 +186,9 @@ exam, task, attempt, check, variant, fixture, batch, live.
    (`exams/readme-answers/reference/shakedown.sh`, with `--wrong`).
 3. One attempt of one task on a free or local model, read the transcript
    and the report, and fix what looks wrong.
-4. Then the agreed batch: `proctor run <id>`, then `proctor grade <id>` and
+4. Then the agreed run: `proctor run <id>`, then `proctor grade <id>` and
    `proctor report <id>` (the exam's id: they read every current attempt of it,
-   whichever batch made it). Walk the user through the report: the verdict,
+   whenever it was made). Walk the user through the report: the verdict,
    the intervals, the failures and their quoted reasons. Until a variant is
    live the report shows the variants side by side; when the user picks the
    one in use, `proctor live <id> <variant>` marks it (commit

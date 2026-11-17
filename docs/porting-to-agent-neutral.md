@@ -18,7 +18,7 @@ the bare path needs neither. The engine is Docker (with the Compose and
 buildx plugins) or rootless podman, whose setup is
 [`podman.md`](podman.md). In `exams/proctor.json`:
 
-- `harbor.engine`: `docker` (the default) or `podman`. A batch keeps
+- `harbor.engine`: `docker` (the default) or `podman`. An interrupted run keeps
   the engine it started on; `run` continues it only on that engine.
 
 - `agents.<agent>`: `base_url` and `api_key` for each vendor agent the exam
@@ -49,7 +49,7 @@ committed; nothing else of the fixture enters the image the agent runs in.
 
 ## 4. The exam: Harbor, limits, and no runner
 
-- Add `"harbor": {"version": "0.24.0"}` (pinned; `run` does not continue a batch made under another version)
+- Add `"harbor": {"version": "0.24.0"}` (pinned; `run` does not continue an interrupted run started under another version)
   and `"limits": {"wall_ms": …}` (Harbor's agent timeout; an attempt that hits it
   is completed with `time_budget`, not failed).
 - Remove the `nb` block (`runner`, `mounts`). The image is the container now,
@@ -106,7 +106,7 @@ refuses the edit under the same id, so the ported variant takes a new id
   that nobody will answer questions; a vendor variant in `-p` mode is not told.
 - A variant that was `harness: claude-code | codex | qwen-code` (nb in a
   costume) becomes `agent: claude-code | codex | qwen-code` with the vendor's
-  model. This is the change most likely to move numbers: its first batch is a
+  model. This is the change most likely to move numbers: its first attempts are a
   new measurement of that variant. It is not optional: nb refuses the costume names
   since 2026-10-28, so an unported variant fails at compile with the same redirect.
 - **An oracle task keeps its sheet on an nb variant, and loses its vendor variants.**
@@ -132,4 +132,4 @@ names a variant with no file and every verb says so; mark the ported one live wi
 once you trust it, rather than compare across the move. The deterministic
 gate (`exams/gate`) shows nb bare and nb through Harbor read the same, so an
 nb variant moved to `agent: nb` is the closest to the one it replaced; its
-first batch after the port says whether that held on a real model.
+first run after the port says whether that held on a real model.
