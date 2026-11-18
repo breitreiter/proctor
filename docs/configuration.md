@@ -643,6 +643,12 @@ Harbor, and a container engine, set by `harbor.engine` in
 `exams/proctor.json`:
 
 - **Docker** (the default), with the Compose and buildx CLI plugins.
+  Ubuntu's `docker.io` package brings neither: install `docker-compose-v2`
+  and `docker-buildx` beside it. Without buildx every Harbor attempt fails
+  building its egress sidecar with `unknown flag: --file`, the bare
+  attempts untouched. Rootless Docker works (the gate passes on it): set
+  `DOCKER_HOST=unix:///run/user/<uid>/docker.sock` in proctor's env file,
+  since Harbor runs under uv and a client there may not read CLI contexts.
 - **Podman**, rootless, with its API socket running, docker-compose v2
   behind `podman compose`, and three lines of user config. The setup,
   and why each step is there, is [`podman.md`](podman.md);
