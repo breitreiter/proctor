@@ -6,6 +6,27 @@ namespace Proctor.Tests;
 public class GradeTests
 {
     [Fact]
+    public void ByCheck_CountsDecidedVerdictsPerCheck_TheNewOnes_AndWhyTheRestAreNot()
+    {
+        static Verdict V(string result) => new(result, "");
+        var grades = new List<Grade.AttemptGrade>
+        {
+            new("a", "t", 1, AttemptStatus.Completed, new() { ["completes"] = V(Verdict.Pass), ["acceptance"] = V(Verdict.Outdated), ["tone"] = V(Verdict.NeedsJudge) }, null, null),
+            new("a", "t", 2, AttemptStatus.Completed, new() { ["completes"] = V(Verdict.Fail), ["acceptance"] = V(Verdict.Pass), ["tone"] = V(Verdict.NeedsJudge) }, null, null),
+            new("a", "t", 3, AttemptStatus.Failed, null, null, null),
+        };
+        // Before this grade only a/t/1 had been graded, and only for `completes`.
+        var before = new Dictionary<string, Dictionary<string, Verdict>?> { ["a/t/1"] = new() { ["completes"] = V(Verdict.Pass) }, ["a/t/2"] = null };
+
+        Assert.Equal(
+        [
+            "  completes   graded 2 of 2   1 new",
+            "  acceptance  graded 1 of 2   1 new   1 cannot be regraded from what was kept",
+            "  tone        graded 0 of 2   2 need a judge",
+        ], Grade.ByCheck(grades, before));
+    }
+
+    [Fact]
     public void Grade_WritesChecksJsonPerCompletedAttempt_AndComputesPass()
     {
         using var repo = new TestRepo();

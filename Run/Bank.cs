@@ -76,7 +76,7 @@ static class Bank
     }
 
     /// <summary>For each variant and task: the exam's attempts less its current, completed attempts in the bank.</summary>
-    static Dictionary<(string Variant, string Task), int> Gaps(Exam exam, List<BankAttempt> bank) =>
+    public static Dictionary<(string Variant, string Task), int> Gaps(Exam exam, List<BankAttempt> bank) =>
         (from variant in exam.Variants from task in exam.Tasks select (variant.Id!, task.Id!)).ToDictionary(k => k, k =>
             Math.Max(0, exam.Attempts - bank.Count(a => a.Variant == k.Item1 && a.Task == k.Item2 && a.Status == AttemptStatus.Completed && Stale(exam, a) is null)));
 

@@ -128,6 +128,33 @@ static class Grade
             + $"Make the attempts again: move {(holding.Count == 1 ? "its directory" : "their directories")} out of {Layout.BankDir}/{examId}/ ({string.Join(" ", holding.Select(g => $"{g.Variant}/{g.Task}/{g.Attempt}"))}) and run `proctor run {examId}`, which makes what is missing with the checks as they are now.";
     }
 
+    /// <summary>
+    /// For each check, how many of the graded attempts it has a pass or fail for, of those it applies to, as lines; then
+    /// how many of those it had none for before this grade, and how many it could not decide and why.
+    /// </summary>
+    public static IEnumerable<string> ByCheck(List<AttemptGrade> grades, Dictionary<string, Dictionary<string, Verdict>?> before)
+    {
+        static bool Decided(Verdict? v) => v?.Result is Verdict.Pass or Verdict.Fail;
+        var graded = grades.Where(g => g.Checks is not null).ToList();
+        var names = graded.SelectMany(g => g.Checks!.Keys).Distinct().ToList();
+        if (names.Count == 0) yield break;
+        var width = names.Max(n => n.Length);
+        foreach (var name in names)
+        {
+            var on = graded.Where(g => g.Checks!.ContainsKey(name)).ToList();
+            var decided = on.Where(g => Decided(g.Checks![name])).ToList();
+            var fresh = decided.Count(g => !Decided(before.GetValueOrDefault($"{g.Variant}/{g.Task}/{g.Attempt}")?.GetValueOrDefault(name)));
+            var not = on.Except(decided).GroupBy(g => g.Checks![name].Result).Select(r => $"{r.Count()} {r.Key switch
+            {
+                Verdict.Outdated => "cannot be regraded from what was kept",
+                Verdict.NeedsJudge => r.Count() == 1 ? "needs a judge" : "need a judge",
+                Verdict.Error => "errored",
+                var other => other,
+            }}");
+            yield return $"  {name.PadRight(width)}  graded {decided.Count} of {on.Count}{(fresh > 0 ? $"   {fresh} new" : "")}{string.Concat(not.Select(n => $"   {n}"))}";
+        }
+    }
+
     static string? First(Dictionary<string, Verdict> checks, List<string> passChecks, string result) =>
         passChecks.Where(name => checks.TryGetValue(name, out var v) && v.Result == result).Select(name => $"{name}: {checks[name].Reason}").FirstOrDefault();
 

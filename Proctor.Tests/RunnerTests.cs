@@ -132,7 +132,7 @@ public class RunnerTests
         // Nothing is missing, so the same command makes nothing.
         var (again, log) = RunAgain(repo);
         Assert.Null(again);
-        Assert.Equal("smoke: every variant has its 2 attempts of each task; nothing to make\n", log);
+        Assert.Equal("smoke: 3 tasks, 2 attempts wanted of each\n  a  6 of 6 attempts\n  b  6 of 6 attempts\nnothing to make\n", log);
         Assert.Single(Directory.GetDirectories(Path.Combine(repo.Root, "log")));
     }
 
@@ -155,7 +155,7 @@ public class RunnerTests
         var (again, log) = RunAgain(repo);
 
         Assert.Equal(id, again);
-        Assert.StartsWith($"run {id} was interrupted: 1 of 3 attempts finished, 1 was running, 1 failed\n  continuing it: 2 attempts to make\n", log);
+        Assert.StartsWith($"smoke: 3 tasks, 1 attempt wanted of each\n  a  1 of 3 attempts   making 2\nrun {id} was interrupted: 1 of 3 attempts finished, 1 was running, 1 failed\n  continuing it: 2 attempts to make\n", log);
         Assert.EndsWith("2 made: 2 completed\n", log);
         Assert.Single(Directory.GetDirectories(Path.Combine(repo.Root, "log")));
         Assert.Equal("completed", Runner.ReadStatus(failedAttempt));
@@ -176,7 +176,7 @@ public class RunnerTests
         var (again, log) = RunAgain(repo);
 
         Assert.NotEqual(id, again);
-        Assert.Equal($"run {again}: 1 attempt to make\n", log.Split('\n')[0] + "\n");
+        Assert.StartsWith($"smoke: 3 tasks, 1 attempt wanted of each\n  a  2 of 3 attempts   making 1\nrun {again}: 1 attempt to make\n", log);
         var entry = Runner.LoadEntry(repo.Root, again!);
         // Numbered after the stale one, so a/plain/n names one attempt across the exam.
         Assert.Equal([new AttemptRef("a", "plain", 2)], entry.Attempts);
@@ -206,7 +206,7 @@ public class RunnerTests
         // --variant narrows: a has all it wants, so asking for a alone makes nothing.
         var log = new StringWriter();
         Assert.Null(Runner.Run(repo.Root, repo.LoadExam("smoke"), Exam.LoadConfig(repo.Root, []), null, null, "test", log, variants: ["a"]));
-        Assert.Equal("smoke: every variant asked for has its 1 attempt of each task; nothing to make\n", log.ToString());
+        Assert.Equal("smoke: 3 tasks, 1 attempt wanted of each\n  a  3 of 3 attempts\n  c  3 of 3 attempts\nnothing to make\n", log.ToString());
     }
 
     /// <summary>D5: a variant is its content, so a changed one under the id that made attempts would pass for the old one.</summary>

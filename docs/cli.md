@@ -70,13 +70,20 @@ the hash of its task are what they are today; one made before either changed
 is **stale**. `run` makes, per variant and task, the exam's `attempts` less
 its current, completed ones, numbering each new attempt after the ones
 already in the bank, so `variant/task/n` names one attempt and is its
-directory. Run it again with
-nothing missing and it says so and makes nothing:
+directory. `run` first says where each variant stands, its current,
+completed attempts of those the exam wants, and what it is about to make:
 
 ```
 $ proctor run tern-docs
-tern-docs: every variant has its 2 attempts of each task; nothing to make
+tern-docs: 6 tasks, 2 attempts wanted of each
+  as-shipped   12 of 12 attempts
+  no-docs      12 of 12 attempts
+  restructure  8 of 12 attempts   making 4
+run 20261118-0912-tern-docs-k20g: 4 attempts to make
 ```
+
+Run it again with nothing missing and it ends `nothing to make`. A variant
+short of its attempts that `--variant` left out reads `not asked for`.
 
 So adding a variant makes only its attempts, raising `attempts` makes only
 the extra ones, and changing a task makes that task's attempts again; the
@@ -102,6 +109,20 @@ the exam, which makes them with the checks as they are now. A
 task's hash covers only what the agent met (the prompt, the fixture, the
 answer sheet an oracle reads from, the program template and the hooks),
 and only a change there makes attempts stale.
+
+After the attempts, `grade` says per check how many of them it has a pass
+or fail for, of those the check applies to:
+
+```
+  completes    graded 24 of 24
+  cites-docs   graded 24 of 24   8 new
+  acceptance   graded 16 of 24   8 cannot be regraded from what was kept
+  tone         graded 0 of 24   24 need a judge
+```
+
+`new` counts the attempts the check had no pass or fail for before this
+grade: a check just added reads all new. `cannot be regraded from what was
+kept` is the outdated script check on an agent variant, above.
 
 ## The live variant
 

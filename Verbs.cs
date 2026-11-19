@@ -100,6 +100,7 @@ static class Verbs
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
         var selection = Bank.Select(root, exam, variantIds, taskIds);
         var judges = exam.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge, Console.WriteLine) : null;
+        var before = selection.Current.ToDictionary(a => a.Label, a => Proctor.Grade.ReadChecks(a.Dir(root)));
         var grades = Proctor.Grade.Attempts(root, exam, selection.Current, Console.Out, judges);
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
@@ -107,6 +108,7 @@ static class Verbs
         var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.Grading.Pass!) is not null);
         var untouched = variantIds is null && taskIds is null ? 0 : Bank.Select(root, exam).Current.Count - grades.Count;
         Console.WriteLine($"graded {graded} of {grades.Count} attempts; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --variant/--tasks left as they were" : "")}");
+        foreach (var line in Proctor.Grade.ByCheck(grades, before)) Console.WriteLine(line);
         if (Proctor.Grade.OutdatedSummary(exam.Id, grades) is { } summary) Console.WriteLine(summary);
         foreach (var line in Bank.Describe(selection.Stale, "not graded")) Console.WriteLine(line);
         foreach (var (judge, reasons) in judges?.Errors ?? [])

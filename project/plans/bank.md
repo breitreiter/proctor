@@ -2,7 +2,7 @@
 type: plan
 title: The bank — transcripts kept per job and setup, with no batch
 created: 2026-11-16
-status: direction agreed with the user 2026-11-16 (B1 to B9); step 1 built 2026-11-17 (see "Step 1 as built"), steps 2 to 5 not. Changes `exam-variant-attempt.md` where that plan says batch. Written as files and commands so a wrong assumption is a wrong line; the lines marked OPEN are mine and not agreed
+status: direction agreed with the user 2026-11-16 (B1 to B9); steps 1 and 2 built 2026-11-17 and 18 (see "Step 1 as built", "Step 2 as built"), steps 3 to 5 not. Changes `exam-variant-attempt.md` where that plan says batch. Written as files and commands so a wrong assumption is a wrong line; the lines marked OPEN are mine and not agreed
 ---
 
 # The bank
@@ -228,8 +228,7 @@ Where it differs from "On disk" above:
   above, taken).
 - `run` still refuses a changed variant under an id that made attempts,
   as before. B2 says changing a setup empties its bank; the refusal is
-  stricter than that. OPEN: keep the refusal, or let the old attempts go
-  stale as a changed task's do.
+  stricter than that. Kept: the user said the refusal is fine, 2026-11-18.
 - An attempt directory moved out of the bank is made again by a new run,
   not by continuing the run that first made it, when that run's compiled
   script checks are no longer current.
@@ -241,6 +240,32 @@ Where it differs from "On disk" above:
   with the proctor they were shown.
 
 Existing attempts were moved with `project/migrate/attempts-to-bank.py`.
+
+## Step 2 as built
+
+Tasks still exist, so a variant's count is over every task, and proctor
+says attempts where this plan says reps:
+
+```
+$ proctor run smoke
+smoke: 3 tasks, 2 attempts wanted of each
+  a  6 of 6 attempts
+  b  2 of 6 attempts   making 4
+run 20261118-0912-smoke-k20g: 4 attempts to make
+```
+
+```
+$ proctor grade smoke
+  ...one line per attempt, then the summary, then:
+  completes   graded 8 of 8
+  new-check   graded 8 of 8   8 new
+  acceptance  graded 4 of 8   4 cannot be regraded from what was kept
+```
+
+Where it differs from "What a person sees" above: `grade` evaluates
+every check on every attempt each time, so there is no "graded 0 of 7,
+grading 7" to print beforehand. The line comes after grading and says
+how many verdicts are new.
 
 ## Order of work
 

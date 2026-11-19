@@ -107,6 +107,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         IReadOnlyCollection<string>? variants = null, IReadOnlyCollection<string>? tasks = null)
     {
         RefuseChangedVariants(root, exam);
+        Standing(exam, Bank.Of(root, exam), log, variants, tasks);
         string? last = null;
         var considered = new HashSet<string>();
         var continued = new HashSet<(string Entry, string Label)>();
@@ -138,8 +139,24 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         if (failedAgain.Count > 0) log.WriteLine($"{AttemptCount(failedAgain.Values.Sum())} failed again and {(failedAgain.Values.Sum() == 1 ? "is" : "are")} left for the next `proctor run {exam.Id}`");
         if (missing.Count > 0) return Start(root, exam, config, nbOverride, runnerOverride, commandLine, log, missing);
         if (last is null)
-            log.WriteLine($"{exam.Id}: {(variants is null && tasks is null ? "every variant" : "every variant asked for")} has its {AttemptCount(exam.Attempts)} of each task{(tasks is null ? "" : " asked for")}; nothing to make");
+            log.WriteLine("nothing to make");
         return last;
+    }
+
+    /// <summary>Where each variant stands before anything is made: its current, completed attempts of what the exam wants, and how many this run is to make.</summary>
+    static void Standing(Exam exam, List<BankAttempt> bank, TextWriter log, IReadOnlyCollection<string>? variants, IReadOnlyCollection<string>? tasks)
+    {
+        var gaps = Bank.Gaps(exam, bank);
+        var wanted = exam.Attempts * exam.Tasks.Count;
+        var width = exam.Variants.Max(v => v.Id!.Length);
+        log.WriteLine($"{exam.Id}: {exam.Tasks.Count} task{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted of each");
+        foreach (var variant in exam.Variants)
+        {
+            var have = wanted - gaps.Where(g => g.Key.Variant == variant.Id).Sum(g => g.Value);
+            var making = variants is not null && !variants.Contains(variant.Id!) ? 0
+                : gaps.Where(g => g.Key.Variant == variant.Id && (tasks is null || tasks.Contains(g.Key.Task))).Sum(g => g.Value);
+            log.WriteLine($"  {variant.Id!.PadRight(width)}  {have} of {AttemptCount(wanted)}{(making > 0 ? $"   making {making}" : have < wanted ? "   not asked for" : "")}");
+        }
     }
 
     /// <summary>A new run that makes the given attempts: only their variants' bundles resolved, only their agent tasks compiled.</summary>
