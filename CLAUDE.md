@@ -53,9 +53,9 @@ is no resume verb), and one variant may be marked live
 (`exams/<exam>/live.json`, `proctor live`), which the report compares the
 others with. **Not built:** claims and the change report (stage 3), so
 `claim` in the table above names nothing in the code yet. **The bank**
-(`project/plans/bank.md`, steps 1 and 2 built 2026-11-17 and 18): there is
-no batch. Attempts live in the bank by coordinates and a run leaves a log
-entry; `run` opens with each variant's attempts of those wanted and `grade`
+(`project/plans/bank.md`, steps 1 and 2 built 2026-11-17 and 18):
+there is no batch. Attempts live in the bank by coordinates and a run
+leaves a log entry; `run` opens with each variant's attempts of those wanted and `grade`
 ends with each check's graded-of. Steps 3 to 5 of that plan are not built:
 back-fill, an exam as one job in stages (tasks are still tasks), the
 freeze. **Still in the old shape:** the page is built as the variants side
