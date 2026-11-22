@@ -212,6 +212,10 @@ the attempt. It is not a severity and it qualifies no result: a pass
 is a pass. An author who wants an attempt that went round not to count
 writes a check for it and lists it under `grading.validity`.
 
+OPEN (asked from auspex, 2026-11-22): the verdict should carry its
+sentence too, as each label carries `describes` (C5.1), since a viewer
+words nothing itself.
+
 ### C5.3 One attempt (one stage, once stages exist)
 
 `summary` gains `flagged_steps`, which is today's `steps_in_a_point`
@@ -245,7 +249,24 @@ Per variant:
 - **What recurs**: points grouped by label and `detail`, in how many
   attempts ("`file`: command not found, 12 of 15"). This is what
   `Pages.Across` does in auspex today; it moves here. A reader's points
-  have no `detail` and group by label alone.
+  have no `detail` and group by label alone. Each group lists **which**
+  attempts it was in, not just how many: auspex draws it as a grid of
+  issues by try, to show whether runs hit the same issues or each one
+  wanders differently.
+- **Per attempt** (asked from auspex, 2026-11-22): each attempt's
+  flagged steps, and the share of its stages right (its passing checks,
+  until stages exist). auspex shows a variant's spread across tries
+  ("3 to 6 flagged steps per try, median 4") next to live's, so a
+  person sees whether a difference between variants is bigger than
+  the variation from try to try.
+
+**The three levels** (the user, 2026-11-22), and what each reads:
+
+| Level | The question | What it reads |
+|---|---|---|
+| Variant (auspex: setup) | did the treatment make things better or worse? | stages right and flagged steps per try, as a spread against live, plus the verdict below |
+| Across attempts (auspex: tries) | the same issues every run, or every run different? | what recurs, by attempt |
+| One stage | why did this friction happen? | the transcript, with each point's `because` |
 
 Against the live variant, for every other variant, in the report's own
 three words:
@@ -264,6 +285,22 @@ three words:
   never part of it. Label by label the direction can be wrong: without
   docs `workaround` fell from 12 attempts to 2, because the agent never
   got as far as scripting.
+
+**OPEN: the unit under stages** (raised from auspex, 2026-11-22). The
+sign test above treats tasks as independent, which holds when each task
+has its own attempts in a fresh workspace. Under the bank's stages
+(B8), a try runs every stage in one container whose workspace is never
+reset, so stages share causes. A `jot` missing from the PATH fires in
+every stage, a variant that fixes it moves all six, and the test reads
+6 of 6, confirmed, from one cause. And an exam of one long stage would
+have a single unit, so it could never confirm. Recommended from the
+auspex side: **confirm over tries**, which are independent runs. Tries
+from two variants don't pair up, so the test is unpaired: Mann–Whitney,
+said as "a try of the variant had fewer flagged steps than a try of
+live in 23 of 25 pairings". Stage-by-stage direction stays as "what
+moved", explaining the verdict, never part of it, as labels do now.
+Until stages exist, tasks are independent and the sign test as written
+holds.
 
 **One attempt** is placed, not judged: "5 flagged steps; the other
 attempts of this task had 1 to 2". One attempt confirms no direction.
