@@ -145,6 +145,28 @@ stage only when the check names it. OPEN: should a check be able to name
 its stage (`"stage": "tags"`) for display, given that the author already
 arranges for a stage's output to survive later stages?
 
+## C5. Friction on the same footing
+
+auspex's stage page shows friction points beside the checks: on a
+green stage they are the way in. The user's rule (2026-11-22):
+**proctor scaffolds friction, auspex only renders it.** Detection,
+grouping and interpretation all live here, so auspex doesn't become a
+second proctor.
+
+- **Addresses.** Under stages a friction point's `steps` span names its
+  stage, as evidence does in C3, so a point and a check verdict point
+  at steps the same way.
+- **What recurs across attempts.** Today auspex groups points by label
+  and by what a rule fired on, counted in attempts per variant
+  (`Pages.Across`). That's analysis, so it moves here, as a file
+  `proctor friction` (or `report`) writes per exam and variant: label,
+  detail, the attempts and points it covers. OPEN: a section of
+  `stats.json`, or its own file.
+- **Surface words.** auspex today turns `summary.surface`'s flags into
+  "never reached", "went round", "used, every call failed", "abandoned"
+  (`SurfaceWords`). `friction.json` should carry that verdict as a
+  field, worded here, so the rule lives in one place.
+
 ## Not in this plan
 
 - auspex's layout (its `project/` notes and the design canvas).
