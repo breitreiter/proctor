@@ -181,6 +181,17 @@ be written down where that agent reads it (the exam-writing skill and
   Changing one stage empties the whole exam's bank; changing one exam
   leaves the others alone.
 - The author must say where each checked stage leaves its result.
+- **A stage's id is its label on screen, so keep it terse** (added
+  2026-11-22, from auspex's stage page; the user: "no one is going to
+  remember what stage 12 is"). auspex shows stage labels in a strip on
+  every try page, so nobody has to remember stage numbers. The id names
+  what the stage asks, in two or three words, kebab-case, about 20
+  characters at most: `clear-wait`, `piped-yes`, `store-location`. It
+  doesn't name the stage's place or kind (`stage-12`, `q3`, `test-b`).
+  OPEN: an optional `about` per stage for the one-sentence version ("How
+  long clear waits with no terminal"), shown in the stage's header and
+  on hover; and whether loading an exam warns (never errors) on an id
+  over 20 characters or one that is only a number.
 
 Not written yet. It is part of step 4.
 
