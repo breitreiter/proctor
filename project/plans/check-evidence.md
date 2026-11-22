@@ -198,6 +198,13 @@ which rule fired on which call.
   and `reader.labels` become objects: the name and `describes` (the "a step
   where" sentence of `docs/configuration.md`). A viewer words nothing
   itself.
+- **The reader's `lost` becomes `wasted-read`** (the user, 2026-11-22).
+  "Lost" is already the word for a try or stage that died partway
+  (`bank.md`), and both appear on auspex's exam page a few inches apart.
+  The definition doesn't change: a search or read that led to nothing
+  of later use. It's a label change, so it bumps the reader's version
+  in `Friction/Reader.cs` (`Labels`, the prompt), and files written
+  with `lost` are re-read or have the label mapped when read.
 - **Addresses.** Under stages a friction point's `steps` span names its
   stage, as evidence does in C3, so a point and a check verdict point
   at steps the same way.
@@ -333,7 +340,7 @@ attempts support.
 
 **Limits.**
 
-- One exam. Where friction is inside the work (`repair`, `lost`), only
+- One exam. Where friction is inside the work (`repair`, `wasted-read`), only
   the reader sees it: on `nb-changes` the rules alone found 8% of what
   two readers called friction. Measure there, with reader points,
   before the count is trusted on a coding exam.
