@@ -249,10 +249,20 @@ Per variant:
 - **What recurs**: points grouped by label and `detail`, in how many
   attempts ("`file`: command not found, 12 of 15"). This is what
   `Pages.Across` does in auspex today; it moves here. A reader's points
-  have no `detail` and group by label alone. Each group lists **which**
-  attempts it was in, not just how many: auspex draws it as a grid of
-  issues by try, to show whether runs hit the same issues or each one
-  wanders differently.
+  have no `detail` and group by label alone. Each group carries, per
+  variant (asked from auspex, 2026-11-22, replacing an earlier ask for
+  the list of attempts):
+  - **in**: the attempts with it, k of n: is it constant or rare?
+  - **when it happens**: min, median and max flagged steps, taken over
+    the attempts that had it, not over all of them, so a rare kind's
+    size isn't blurred to 0;
+  - **per attempt overall**: its flagged steps over all attempts,
+    divided by n. That folds frequency and size into one number,
+    "costs 3.4 steps an attempt", and the groups sort by it: what to
+    investigate first.
+
+  Attempts are exchangeable runs of one setup, so no attempt-by-attempt
+  profile of friction is kept or shown (the user, 2026-11-22).
 - **Per attempt** (asked from auspex, 2026-11-22): each attempt's
   flagged steps, and the share of its stages right (its passing checks,
   until stages exist). auspex shows a variant's spread across tries
@@ -265,7 +275,7 @@ Per variant:
 | Level | The question | What it reads |
 |---|---|---|
 | Variant (auspex: setup) | did the treatment make things better or worse? | stages right and flagged steps per try, as a spread against live, plus the verdict below |
-| Across attempts (auspex: tries) | the same issues every run, or every run different? | what recurs, by attempt |
+| Across attempts (auspex: tries) | is this constant or rare, and which costs most? | what recurs, per kind: in k of n, min / median / max when it happens, per attempt overall |
 | One stage | why did this friction happen? | the transcript, with each point's `because` |
 
 Against the live variant, for every other variant, in the report's own
