@@ -198,13 +198,33 @@ which rule fired on which call.
   and `reader.labels` become objects: the name and `describes` (the "a step
   where" sentence of `docs/configuration.md`). A viewer words nothing
   itself.
-- **The reader's `lost` becomes `wasted-read`** (the user, 2026-11-22).
-  "Lost" is already the word for a try or stage that died partway
-  (`bank.md`), and both appear on auspex's exam page a few inches apart.
-  The definition doesn't change: a search or read that led to nothing
-  of later use. It's a label change, so it bumps the reader's version
-  in `Friction/Reader.cs` (`Labels`, the prompt), and files written
-  with `lost` are re-read or have the label mapped when read.
+- **Every label reads on its own** (reviewed with the user,
+  2026-11-22). A label is often met bare, as a code in a table, so each
+  must say what happened without its definition, and none may share a
+  word with anything else on the page. Renamed:
+
+  | Was | Now | Why |
+  |---|---|---|
+  | `off-surface` (rule) | `read-internals` | "surface" is jargon; kept as one label over both rules (`internals`, `locating`) |
+  | `substitute` (rule) | `used-substitute` | noun or verb, substitute for what |
+  | `abandoned` (rule) | `fell-back` | read as "gave up on the task" |
+  | `surface-search` (rule) | `searched-docs` | "searched the surface" is jargon |
+  | `help` (rule) | `ran-help` | read as "asked the user for help" |
+  | `workaround` (rule) | `inline-script` | the reader has a `workaround` with another meaning |
+  | `environment` (rule) | `machine-refused` | a category, not an event |
+  | `tool-error` (rule) | `harness-refused` | on an exam whose surface is a CLI, "tool" means the surface |
+  | `repair` (reader) | `fixed-own-work` | repair of what |
+  | `lost` (reader) | `wasted-read` | "lost" is a try or stage that died partway (`bank.md`) |
+  | `dead-end` (reader) | `bad-instruction` | too close to `wasted-read`, and it hid that the instruction was wrong |
+
+  Kept: `reread`, and the reader's `workaround`. Definitions don't
+  change. The rule renames bump `RulesVersion`, and existing files are
+  rewritten by rerunning the rules (free); the reader renames bump the
+  reader's version, and its files are re-read or mapped when read.
+  `read-internals` needs a `describes` that covers both of its rules:
+  "a step where the run read the surface's own source or notes, or went
+  looking for where it is installed". The surface summary's
+  `abandoned` flag follows as `fell_back`.
 - **Addresses.** Under stages a friction point's `steps` span names its
   stage, as evidence does in C3, so a point and a check verdict point
   at steps the same way.
@@ -232,8 +252,8 @@ once, whatever the label.
 - **A count, not a share**, since a share falls when an attempt does
   more ordinary work.
 - **Every label counts the same** (the user, 2026-11-22). On
-  `tern-docs`, leaving out the cheap labels (`help`, `surface-search`,
-  `reread`, `tool-error`, `workaround`) gives the same verdicts, and
+  `tern-docs`, leaving out the cheap labels (`ran-help`, `searched-docs`,
+  `reread`, `harness-refused`, `inline-script`) gives the same verdicts, and
   hides about 20 steps an attempt of Qwen probing by inline script
   when it had no docs, which is detour.
 - `by_label` stays, as the points per label.
@@ -300,7 +320,7 @@ three words:
 - **What moved** is listed under the verdict: the labels and details
   whose attempt counts changed most. It explains the verdict and is
   never part of it. Label by label the direction can be wrong: without
-  docs `workaround` fell from 12 attempts to 2, because the agent never
+  docs `inline-script` fell from 12 attempts to 2, because the agent never
   got as far as scripting.
 
 **OPEN: the unit under stages** (raised from auspex, 2026-11-22). The
@@ -340,7 +360,7 @@ attempts support.
 
 **Limits.**
 
-- One exam. Where friction is inside the work (`repair`, `wasted-read`), only
+- One exam. Where friction is inside the work (`fixed-own-work`, `wasted-read`), only
   the reader sees it: on `nb-changes` the rules alone found 8% of what
   two readers called friction. Measure there, with reader points,
   before the count is trusted on a coding exam.
@@ -372,8 +392,8 @@ attempts support.
   here and dropped by the user, 2026-11-22). Success remains success,
   so no label makes a pass a lesser one. Assigning labels to tiers is
   fiddly and every assignment is "not quite right in this one place":
-  `environment` fired in 15 of 15 `agent-onboarding` attempts and
-  `off-surface` in 15 of 15, so the word saturated whichever way they
+  `machine-refused` fired in 15 of 15 `agent-onboarding` attempts and
+  `read-internals` in 15 of 15, so the word saturated whichever way they
   were placed. And it is harder to explain than a bare count.
 - **Share of steps in a point.** See C5.3.
 
