@@ -2,7 +2,7 @@
 type: plan
 title: Checks that explain themselves — why a check exists, what it does, and what it points at
 created: 2026-11-22
-status: proposed 2026-11-22 from auspex's stage page design, not agreed. Lines marked OPEN are mine. Depends on bank step 4 (stages) only for stage ids; C1 and C2 can be built now
+status: proposed 2026-11-22 from auspex's stage page design, not agreed. Lines marked OPEN are mine. Depends on bank step 4 (stages) only for stage ids; C1 and C2 can be built now. C5 extended the same day with friction's legibility and roll-up (C5.1 to C5.4), also proposed
 ---
 
 # Checks that explain themselves
@@ -153,19 +153,175 @@ green stage they are the way in. The user's rule (2026-11-22):
 grouping and interpretation all live here, so auspex doesn't become a
 second proctor.
 
+The user's ask (2026-11-22) is that friction be legible at three
+levels, and that it roll up to a direction a person can act on: "this
+got better", or "with your new fixture things got worse". It has
+to be explainable to that person, so there is one measure and no
+second: **a count of flagged steps**, each step counted once. There is
+no severity, no weight, no score and no tokens (see "Not taken").
+
+### C5.1 A point says why it was marked
+
+Today a rule's point carries a label, rule ids, a normalised `detail`
+and a quote: `workaround` / `inline-script-or-scratch` / `"python3 -c"`.
+Only a reader's point has a sentence (`notes`). `rules` and `detail`
+are lists on the point and `evidence` stops at six, so nothing says
+which rule fired on which call.
+
+- **`rule` and `because` on each evidence item.** `because` is one
+  sentence the rule writes when it fires, from what it already holds.
+  It is a template per rule, so the same trajectory still gives the same
+  file. A reader's `why` goes in the same field, and `notes` stays for
+  whoever reads it today.
+
+  ```json
+  { "step": "9", "call": "s9.1", "quote": "localhost:8081", "where": "command",
+    "rule": "substitute-after-failed-surface",
+    "because": "used localhost:8081, a declared substitute, one step after the call to localhost:8080 at s8.1 failed (HTTP 404)" }
+  ```
+
+- **The sentences.** Words in angle brackets are filled from the call.
+
+  | Rule | `because` |
+  |---|---|
+  | `internals` | read `<path>`, which is the surface's own source or notes, not its published side |
+  | `locating` | went looking for where `<command>` is installed |
+  | `substitute-command`, `-tool`, `-url` | used `<what>`, a declared substitute for the surface |
+  | `substitute-after-failed-surface` | used `<what>`, a declared substitute, `<n>` steps after the call to `<surface>` at `<call>` failed (`<match>`) |
+  | `docs-search` | searched the surface's docs (`<path>`) |
+  | `surface-help`, `help` | asked `<command>` for its help |
+  | `inline-script-or-scratch` | ran a script inline or wrote to a scratch file (`<match>`) |
+  | `machine-refuses` | the machine refused: `<line>` |
+  | `tool-refuses` | the agent's own tool refused: `<line>` |
+
+- **Each label carries its sentence in the file.** `detector.labels`
+  and `reader.labels` become objects: the name and `describes` (the "a step
+  where" sentence of `docs/configuration.md`). A viewer words nothing
+  itself.
 - **Addresses.** Under stages a friction point's `steps` span names its
   stage, as evidence does in C3, so a point and a check verdict point
   at steps the same way.
-- **What recurs across attempts.** Today auspex groups points by label
-  and by what a rule fired on, counted in attempts per variant
-  (`Pages.Across`). That's analysis, so it moves here, as a file
-  `proctor friction` (or `report`) writes per exam and variant: label,
-  detail, the attempts and points it covers. OPEN: a section of
-  `stats.json`, or its own file.
-- **Surface words.** auspex today turns `summary.surface`'s flags into
-  "never reached", "went round", "used, every call failed", "abandoned"
-  (`SurfaceWords`). `friction.json` should carry that verdict as a
-  field, worded here, so the rule lives in one place.
+
+### C5.2 The surface verdict is a field
+
+auspex today turns `summary.surface`'s flags into words
+(`SurfaceWords`). The rule moves here as `summary.surface.verdict`, one
+of `never-reached`, `went-round`, `used-all-failed`, `used`, with
+`abandoned` and `used_substitute` beside it as they are. It describes
+the attempt. It is not a severity and it qualifies no result: a pass
+is a pass. An author who wants an attempt that went round not to count
+writes a check for it and lists it under `grading.validity`.
+
+### C5.3 One attempt (one stage, once stages exist)
+
+`summary` gains `flagged_steps`, which is today's `steps_in_a_point`
+under a name that says what it is: the steps inside any point, each
+once, whatever the label.
+
+- **A count, not a share**, since a share falls when an attempt does
+  more ordinary work.
+- **Every label counts the same** (the user, 2026-11-22). On
+  `tern-docs`, leaving out the cheap labels (`help`, `surface-search`,
+  `reread`, `tool-error`, `workaround`) gives the same verdicts, and
+  hides about 20 steps an attempt of Qwen probing by inline script
+  when it had no docs, which is detour.
+- `by_label` stays, as the points per label.
+
+### C5.4 Across attempts: better, worse, or no detectable difference
+
+One file per exam, `bank/<exam>/friction.json`, written by `proctor
+friction` after the attempts' files, from them alone. It is derived
+from the attempts, so it sits beside them. **`proctor report` does not
+render it** (the user, 2026-11-22): the static report is provisional
+and reporting is expected to move into auspex, which reads this file
+and shows it. So "no report reads friction" stands, and the Friction
+section `exam-variant-attempt.md` plans for the page is auspex's.
+
+Per variant:
+
+- **Flagged steps per attempt**, as each task's mean over its attempts,
+  so the unit is the task, as in `Stats.cs`.
+- **By label**: the attempts with it, k of n, and its steps.
+- **What recurs**: points grouped by label and `detail`, in how many
+  attempts ("`file`: command not found, 12 of 15"). This is what
+  `Pages.Across` does in auspex today; it moves here. A reader's points
+  have no `detail` and group by label alone.
+
+Against the live variant, for every other variant, in the report's own
+three words:
+
+- **Direction** is the sign of the difference in flagged steps per
+  attempt, task by task: so many tasks worse, the same, better.
+- **Confirmed** when the tasks agree: the exact sign test over the
+  tasks that differ, two-sided at 95% (2026-11-22, my recommendation,
+  not objected to). Six tasks pass only when all six move one way. It
+  is one sentence to a person ("worse on all six tasks") and needs no
+  assumption about how step counts are spread. Five tasks or fewer can
+  never confirm, and the file says so: "worse on 5 of 5, too few tasks
+  to confirm".
+- **What moved** is listed under the verdict: the labels and details
+  whose attempt counts changed most. It explains the verdict and is
+  never part of it. Label by label the direction can be wrong: without
+  docs `workaround` fell from 12 attempts to 2, because the agent never
+  got as far as scripting.
+
+**One attempt** is placed, not judged: "5 flagged steps; the other
+attempts of this task had 1 to 2". One attempt confirms no direction.
+
+**Measured** on the 54 `tern-docs` attempts copied to auspex
+(`project/trials/out/friction-tern`, rules 0.9, no reader), six tasks,
+task means, each against the docs as shipped:
+
+| Model | Variant | Flagged steps | Other steps | Tasks worse / same / better |
+|---|---|---|---|---|
+| Sonnet | no docs | 1.8 → 4.8 | 2.2 → 2.1 | 6 / 0 / 0 |
+| Sonnet | docs restructured | 1.8 → 1.8 | 2.2 → 2.1 | 2 / 2 / 2 |
+| Qwen | no docs | 2.7 → 65.3 | 16.0 → 17.2 | 6 / 0 / 0 |
+| Qwen | docs restructured | 2.7 → 2.3 | 16.0 → 12.7 | 2 / 0 / 4 |
+
+Without docs the other steps stay the same size and every added step
+is inside a point: on this exam the count is the detour and nothing
+else. The restructure reads "no detectable difference", which twelve
+attempts support.
+
+**Limits.**
+
+- One exam. Where friction is inside the work (`repair`, `lost`), only
+  the reader sees it: on `nb-changes` the rules alone found 8% of what
+  two readers called friction. Measure there, with reader points,
+  before the count is trusted on a coding exam.
+- Two variants compare only under one `RulesVersion` and one surface
+  hash, and a reader's labels count only when every attempt on both
+  sides was read by the same reader and prompt. Otherwise the file says
+  which comparison it left out and why.
+- **A changed fixture.** "With your new fixture things got worse"
+  compares attempts made under two task hashes. The older ones are
+  stale, and `friction` reads only current attempts. Variant against
+  variant needs nothing new. Before and after a fixture change waits on
+  the change report (stage 3 of `exam-variant-attempt.md`); `friction`
+  gets no flag of its own to name the stale side, which would be a
+  second, partial way to compare across hashes built just ahead of the
+  real one (2026-11-22, my recommendation, not objected to).
+
+### Not taken
+
+- **Tokens or dollars as the cost.** Dollars are on about 1% of steps
+  in the trajectories kept in auspex; tokens are on nearly all, but
+  charging them to a call is a choice (the step's own output, the result
+  it added to context, or every later step that re-read it), and a
+  choice is a lever to explain. A point keeps `cost_usd` where the agent
+  reports it.
+- **Weights per label, or one score.** A weight is a guess at which
+  friction sinks some other attempt. Enough attempts answer that with
+  failures.
+- **Severity, as a tier per label** (`outcome`, `cost`, `note`; drafted
+  here and dropped by the user, 2026-11-22). Success remains success,
+  so no label makes a pass a lesser one. Assigning labels to tiers is
+  fiddly and every assignment is "not quite right in this one place":
+  `environment` fired in 15 of 15 `agent-onboarding` attempts and
+  `off-surface` in 15 of 15, so the word saturated whichever way they
+  were placed. And it is harder to explain than a bare count.
+- **Share of steps in a point.** See C5.3.
 
 ## Not in this plan
 
@@ -183,3 +339,15 @@ second proctor.
    they are today.
 3. Stage ids in evidence, with bank step 4.
 4. Script evidence, once the contract is settled.
+
+Friction (C5) is apart from the checks and can go in any time:
+
+1. C5.1 and C5.2: `rule` and `because` on evidence, labels as objects
+   with their sentence, the surface verdict. What the rules flag does not
+   change, but labels turning from strings into objects breaks a reader
+   of `detector.labels`, so the schema is `friction/2`. auspex is the
+   only reader and moves to the bank anyway.
+2. C5.3: `flagged_steps`.
+3. The same measurement as C5.4's on `agent-onboarding` and
+   `nb-changes`, reader points included, before step 4.
+4. C5.4: the exam's file and the comparison with the live variant.
