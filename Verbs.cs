@@ -28,7 +28,11 @@ static class Verbs
             var levels = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Select(k => (k.Key, k.Value.Level))).Distinct().GroupBy(k => k.Level).ToList();
             var fixtures = exam.Tasks.Select(c => c.Fixture).OfType<string>().Distinct().Count();
             var byLevel = levels.Count < 2 ? "" : " (" + string.Join(", ", levels.Select(g => $"{g.Count()} of {g.Key switch { "exam" => "the exam's", "fixture" => fixtures == 1 ? "the fixture's" : "the fixtures'", _ => "the tasks' own" }}")) + ")";
-            Console.WriteLine($"  {Count(exam.Tasks.Count, "task")}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted of each task{(exam.Judged ? "; judged" : "")}");
+            var size = exam.Staged ? $"one job of {Count(exam.Tasks.Count, "stage")}" : Count(exam.Tasks.Count, "task");
+            Console.WriteLine($"  {size}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted{(exam.Staged ? "" : " of each task")}{(exam.Judged ? "; judged" : "")}");
+            if (exam.Staged) Console.WriteLine($"  stages: {string.Join(", ", exam.Tasks.Select(c => c.Id))}");
+            // A stage's id is its label on screen; these will not read as one (plans/bank.md, B9). Said, never refused.
+            if (exam.UnreadableStageIds() is { Count: > 0 } unreadable) Console.WriteLine($"  stage ids that will not read as a label (over 20 characters, or a number): {string.Join(", ", unreadable)}");
             if (labels.Count > 0) Console.WriteLine($"  labels: {Labels.Format(labels)}");
             // A check with no reason, neither its author's nor a guardrail's default (check-evidence.md, C1). Listed, not refused, until the exams have theirs.
             var unexplained = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Where(k => Checks.WhyOf(k.Value.Spec) is null).Select(k => k.Key)).Distinct().ToList();
@@ -40,9 +44,9 @@ static class Verbs
             Console.WriteLine($"  {"variant".PadRight(width)}  attempts   wanted");
             foreach (var variant in exam.Variants)
             {
-                var made = bank.Count(a => a.Variant == variant.Id && a.Status == AttemptStatus.Completed && Bank.Stale(exam, a) is null);
+                var made = bank.Count(a => a.Variant == variant.Id && a.Counts && Bank.Stale(exam, a) is null) / (exam.Staged ? exam.Tasks.Count : 1);
                 var mark = broken is null && live?.Variant.Id == variant.Id ? "live" : "";
-                Console.WriteLine($"  {variant.Id!.PadRight(width)}  {made,-10} {exam.Attempts * exam.Tasks.Count,-8} {mark}".TrimEnd());
+                Console.WriteLine($"  {variant.Id!.PadRight(width)}  {made,-10} {exam.Attempts * (exam.Staged ? 1 : exam.Tasks.Count),-8} {mark}".TrimEnd());
             }
             if (live is null) Console.WriteLine("  nothing is live");
             else if (broken is not null) Console.WriteLine("  " + live.Warning(exam, broken));
@@ -68,6 +72,12 @@ static class Verbs
             return 1;
         }
         RequireKnown(exam, variantIds, taskIds);
+        if (exam.Staged)
+        {
+            if (taskIds is not null) throw new ProctorException($"exam '{exam.Id}' is one job of stages: a stage is never run alone, so --tasks does not apply");
+            if (exam.Variants.Where(v => variantIds is null || variantIds.Contains(v.Id!)).FirstOrDefault(v => v.IsAgent) is { } agent)
+                throw new ProctorException($"exam '{exam.Id}' is one job of stages, which only a bare nb variant can run yet; variant '{agent.Id}' is an agent variant (project/plans/bank.md, step 4)");
+        }
         if (Proctor.Live.Load(exam) is { } live && live.Broken(exam) is { } broken) Console.WriteLine(live.Warning(exam, broken));
         Runner.Run(root, exam, config, nbPath, runner, Environment.CommandLine, Console.Out, variantIds, taskIds);
         return 0;
@@ -97,6 +107,7 @@ static class Verbs
     public static int Grade(string root, string examId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? variantIds = null, List<string>? taskIds = null, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
+        NotYetStaged(exam, "grade");
         RequireKnown(exam, variantIds, taskIds);
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(root, problems, configFile);
@@ -127,6 +138,7 @@ static class Verbs
     public static int Friction(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null, string? reader = null, bool again = false, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
+        NotYetStaged(exam, "friction");
         RequireKnown(exam, variantIds, taskIds);
         JudgeClient? judges = null;
         if (reader is not null)
@@ -166,6 +178,12 @@ static class Verbs
             if (exam.Tasks.All(x => x.Id != task)) throw new ProctorException($"no task '{task}' in exam '{exam.Id}'");
     }
 
+    /// <summary>Grading, friction and the report still read one attempt per task; a try of stages is theirs in a later slice.</summary>
+    static void NotYetStaged(Exam exam, string verb)
+    {
+        if (exam.Staged) throw new ProctorException($"exam '{exam.Id}' is one job of stages, which `proctor {verb}` cannot read yet (project/plans/bank.md, step 4)");
+    }
+
     static Exam LoadExam(string root, string examId)
     {
         var problems = new List<Problem>();
@@ -189,6 +207,7 @@ static class Verbs
     public static int Report(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null)
     {
         var exam = LoadExam(root, examId);
+        NotYetStaged(exam, "report");
         RequireKnown(exam, variantIds, taskIds);
         var selection = Bank.Select(root, exam, variantIds, taskIds);
         if (selection.Current.Count == 0)

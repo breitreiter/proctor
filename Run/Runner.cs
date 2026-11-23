@@ -15,8 +15,9 @@ record LogEntry(
     string Id, string Exam, string ExamHash, List<SeenVariant> Variants, List<Ref> Tasks, List<AttemptRef> Attempts,
     string Created, string CommandLine, string Host,
     Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
-    Dictionary<string, ResolvedBundle>? Bundles = null, ResolvedHarbor? Harbor = null)
+    Dictionary<string, ResolvedBundle>? Bundles = null, ResolvedHarbor? Harbor = null, List<string>? Stages = null)
 {
+    // Stages: a staged exam's stage ids in the order they ran, which is how its attempts' directories are named. Null for a task exam.
     public ResolvedBundle? BundleOf(string variant) => Bundles?.GetValueOrDefault(variant);
     public bool HasTask(string task) => Tasks.Any(t => t.Id == task);
 }
@@ -54,6 +55,8 @@ record Manifest
     public required Ref Variant { get; init; }
     public required Ref Task { get; init; }
     public required int Attempt { get; init; }
+    /// <summary>The stage's place in its try, from 1, on a staged exam; then Task names the stage and Attempt the try.</summary>
+    public int? Stage { get; init; }
     /// <summary>How an nb variant ran; absent on an agent variant, whose attempt is described by <see cref="Agent"/>.</summary>
     public string? Runner { get; init; }
     public string? Harness { get; init; }
@@ -90,6 +93,18 @@ static class AttemptStatus
     // Nothing sets skipped yet; it stays so status.json's counts keep the key.
     public const string Pending = "pending", Running = "running", Completed = "completed", Failed = "failed", Skipped = "skipped";
     public static readonly string[] All = [Pending, Running, Completed, Failed, Skipped];
+}
+
+/// <summary>
+/// How a stage ended, by its exit reason (plans/bank.md, "How a stage ends"). It ended when the agent finished its turn.
+/// It did not run when the provider or the caller failed it, which says nothing about the agent and loses the try.
+/// Anything else stopped it: a limit or a policy the exam set, which is a result about the agent.
+/// </summary>
+static class StageEnd
+{
+    static readonly string[] Ended = ["ok", "oracle_miss"], NotRun = ["provider_error", "rate_limited", "cancelled"];
+    public static bool DidEnd(string exitReason) => Ended.Contains(exitReason);
+    public static bool DidNotRun(string exitReason) => NotRun.Contains(exitReason);
 }
 
 /// <summary>One run's attempts, made into the bank: variant by variant, hooks at variant and attempt level, nb as a subprocess or an agent through Harbor.</summary>
@@ -147,14 +162,17 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     static void Standing(Exam exam, List<BankAttempt> bank, TextWriter log, IReadOnlyCollection<string>? variants, IReadOnlyCollection<string>? tasks)
     {
         var gaps = Bank.Gaps(exam, bank);
-        var wanted = exam.Attempts * exam.Tasks.Count;
+        // A staged exam is counted in tries: every stage of a variant has the same gap, since a try is all of them or none.
+        var per = exam.Staged ? exam.Tasks.Count : 1;
+        var wanted = exam.Attempts * exam.Tasks.Count / per;
         var width = exam.Variants.Max(v => v.Id!.Length);
-        log.WriteLine($"{exam.Id}: {exam.Tasks.Count} task{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted of each");
+        log.WriteLine(exam.Staged ? $"{exam.Id}: one job of {exam.Tasks.Count} stage{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted"
+            : $"{exam.Id}: {exam.Tasks.Count} task{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted of each");
         foreach (var variant in exam.Variants)
         {
-            var have = wanted - gaps.Where(g => g.Key.Variant == variant.Id).Sum(g => g.Value);
+            var have = wanted - gaps.Where(g => g.Key.Variant == variant.Id).Sum(g => g.Value) / per;
             var making = variants is not null && !variants.Contains(variant.Id!) ? 0
-                : gaps.Where(g => g.Key.Variant == variant.Id && (tasks is null || tasks.Contains(g.Key.Task))).Sum(g => g.Value);
+                : gaps.Where(g => g.Key.Variant == variant.Id && (tasks is null || tasks.Contains(g.Key.Task))).Sum(g => g.Value) / per;
             log.WriteLine($"  {variant.Id!.PadRight(width)}  {have} of {AttemptCount(wanted)}{(making > 0 ? $"   making {making}" : have < wanted ? "   not asked for" : "")}");
         }
     }
@@ -175,7 +193,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             Attempts: attempts.Select(a => new AttemptRef(a.Variant.Id!, a.Task.Id!, a.Attempt)).ToList(),
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
-            Bundles: ResolveBundles(root, variants));
+            Bundles: ResolveBundles(root, variants), Stages: exam.StageIds);
         var agents = variants.Any(v => v.IsAgent);
         if (agents)
         {
@@ -198,7 +216,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         }
         KeepExam(root, exam);
         WriteJson(Path.Combine(dir, Layout.LogEntryFile), entry);
-        log.WriteLine($"run {id}: {AttemptCount(attempts.Count)} to make");
+        log.WriteLine($"run {id}: {AttemptCount(exam.Staged ? attempts.Select(a => (a.Variant, a.Attempt)).Distinct().Count() : attempts.Count)} to make");
         new Runner(root, entry, exam, config, log).Make(attempts);
         return id;
     }
@@ -263,7 +281,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             foreach (var then in entry.Variants)
             {
                 if (exam.Variants.FirstOrDefault(v => v.Id == then.Id) is not { } now || now.Hash == then.Hash) continue;
-                var made = entry.Attempts.Count(a => a.Variant == then.Id && File.Exists(Path.Combine(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt), Layout.ManifestFile)));
+                var made = entry.Attempts.Count(a => a.Variant == then.Id && File.Exists(Path.Combine(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages), Layout.ManifestFile)));
                 if (made == 0) continue;
                 changed[then.Id] = (changed.GetValueOrDefault(then.Id).Attempts + made, then, entry.BundleOf(then.Id));   // the latest entry's record says what it was
             }
@@ -294,7 +312,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
 
     /// <summary>Everything a hook or check needs to know about an attempt, for the runner and the grader alike. The log entry says how its run resolved nb, the bundles and the Harbor tasks.</summary>
     public static AttemptContext Context(string root, LogEntry entry, Exam exam, Variant variant, TaskDef task, int n) =>
-        new(exam.Dir, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n), Layout.Work(root, exam.Id, variant.Id!, task.Id!, n), exam.Id, variant.Id!, task, n)
+        new(exam.Dir, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), Layout.Work(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), exam.Id, variant.Id!, task, n)
         { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = entry.BundleOf(variant.Id!)?.Path, NbRunner = entry.Nb.Runner?.Script ?? "", NbPath = entry.Nb.Path, NbConfig = entry.Nb.Config, Mounts = entry.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
           VerifierTask = variant.IsAgent ? Layout.HarborTask(Layout.LogEntry(root, entry.Id), variant.Id!, task.Id!) : null };
 
@@ -386,17 +404,131 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
                 continue;
             }
 
-            foreach (var (task, n) in pending)
-                if (variant.IsAgent) RunAgentAttempt(variant, task, n);
-                else RunAttempt(variant, task, n);
+            if (exam.Staged)
+                foreach (var n in pending.Select(p => p.Attempt).Distinct()) RunTry(variant, n);
+            else
+                foreach (var (task, n) in pending)
+                    if (variant.IsAgent) RunAgentAttempt(variant, task, n);
+                    else RunAttempt(variant, task, n);
 
             var teardown = RunHook(exam.Def.Hooks?.Variant?.Teardown, variantEnv, Path.Combine(hooksDir, $"{variant.Id}.teardown.log"));
             if (teardown is not null) log.WriteLine($"  {variant.Id}: variant teardown hook failed: {teardown}");
         }
         WriteStatusCounts();
-        var statuses = attempts.Select(a => ReadStatus(Layout.Attempt(root, exam.Id, a.Variant.Id!, a.Task.Id!, a.Attempt))).ToList();
+        if (exam.Staged)
+        {
+            var tries = attempts.GroupBy(a => (a.Variant.Id, a.Attempt)).Select(g => g.Any(a => ReadStatus(AttemptDir(a.Variant, a.Task, a.Attempt)) != AttemptStatus.Completed && ReadStatus(AttemptDir(a.Variant, a.Task, a.Attempt)) != AttemptStatus.Skipped)).ToList();
+            var lost = tries.Count(t => t);
+            log.WriteLine($"{AttemptCount(tries.Count)} made: {tries.Count - lost} whole{(lost > 0 ? $", {lost} lost" : "")}");
+            return;
+        }
+        var statuses = attempts.Select(a => ReadStatus(AttemptDir(a.Variant, a.Task, a.Attempt))).ToList();
         var failed = statuses.Count(s => s == AttemptStatus.Failed);
         log.WriteLine($"{statuses.Count} made: {statuses.Count(s => s == AttemptStatus.Completed)} completed{(failed > 0 ? $", {failed} failed" : "")}");
+    }
+
+    string AttemptDir(Variant variant, TaskDef task, int n) => Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages);
+
+    /// <summary>
+    /// One try of a staged exam: the workspace checked out and set up once, then nb started afresh for each stage in
+    /// order, in that one workspace, which is never reset. Each stage keeps its own program, transcript and manifest
+    /// under the try; the attempt hooks run once around all of them and the diff is the whole try's.
+    /// A stage that did not run loses the try, and nothing more of it is launched. On a chained exam a stage that was
+    /// stopped breaks the try: the stages after it are skipped, and the try still counts (plans/bank.md, "How a stage ends").
+    /// </summary>
+    void RunTry(Variant variant, int n)
+    {
+        var stages = exam.Tasks;
+        var tryDir = Layout.Try(root, exam.Id, variant.Id!, n);
+        var first = Context(root, entry, exam, variant, stages[0], n);
+        var workDir = first.WorkDir;
+        Directory.CreateDirectory(Path.Combine(tryDir, Layout.HooksDir));
+        Directory.CreateDirectory(workDir);
+        var stopwatch = Stopwatch.StartNew();
+
+        // The try's own setup: the checkout, then the attempt hook, which sees the first stage's environment.
+        var env = first.Environment();
+        var lost = first.Fixture is not null && Checkout.Materialise(first.Fixture, workDir) is { } checkoutError ? $"fixture checkout failed: {checkoutError}" : null;
+        var setupRan = lost is null;
+        if (setupRan && RunHook(exam.Def.Hooks?.Attempt?.Setup, env, Path.Combine(tryDir, Layout.HooksDir, "attempt.setup.log")) is { } setupError)
+            lost = $"attempt setup hook failed: {setupError}";
+        string? lostAt = null, brokeAt = null, broke = null;
+        if (lost is not null) { Mark(variant, stages[0], n, AttemptStatus.Failed, lost); lostAt = stages[0].Id; }
+
+        foreach (var stage in stages.Skip(lostAt is null ? 0 : 1))
+        {
+            if (lostAt is not null) { Mark(variant, stage, n, AttemptStatus.Skipped, $"not launched: the try was lost at stage {lostAt}"); continue; }
+            if (brokeAt is not null) { Mark(variant, stage, n, AttemptStatus.Skipped, $"not reached: stage {brokeAt} was stopped ({broke}), and this exam's stages are chained"); continue; }
+            var (failure, exit) = RunStage(variant, stage, n);
+            if (failure is not null) { lost = failure; lostAt = stage.Id; }
+            else if (exam.Chained && !StageEnd.DidEnd(exit!)) { brokeAt = stage.Id; broke = exit; }
+        }
+
+        // Teardown and the diff run whenever setup ran, as for a task's attempt. Failing here loses the try: its workspace checks would have nothing to read.
+        if (setupRan)
+        {
+            var after = RunHook(exam.Def.Hooks?.Attempt?.Teardown, env, Path.Combine(tryDir, Layout.HooksDir, "attempt.teardown.log")) is { } teardownError ? $"attempt teardown hook failed: {teardownError}"
+                : first.Fixture is not null && Checkout.CollectDiff(workDir, tryDir) is { } diffError ? $"diff collection failed: {diffError}"
+                : null;
+            if (after is not null && lostAt is null)
+            {
+                var last = stages.Last(s => ReadStatus(AttemptDir(variant, s, n)) == AttemptStatus.Completed);
+                Mark(variant, last, n, AttemptStatus.Failed, after);
+                lost = after; lostAt = last.Id;
+            }
+        }
+        WriteStatusCounts();
+        log.WriteLine($"  {variant.Id}/{n}  {(lostAt is not null ? $"lost at {lostAt}: {lost}" : brokeAt is not null ? $"broke at {brokeAt} ({broke})" : "whole")}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+    }
+
+    /// <summary>One stage of a try: nb on the stage's program, in the try's workspace. Why the try is lost, or else the stage's exit reason.</summary>
+    (string? Failure, string? ExitReason) RunStage(Variant variant, TaskDef stage, int n)
+    {
+        var attempt = Context(root, entry, exam, variant, stage, n);
+        var attemptDir = attempt.AttemptDir;
+        Directory.CreateDirectory(attemptDir);
+        var program = OraclePrefix(exam, stage) + ResolveProgram(exam.ProgramTemplate, variant, stage, n, attempt.WorkMount, attempt.BundleMount);
+        var manifest = NewManifest(variant, stage, n, attempt.Fixture, Sha256(program));
+        manifest.Tries++;
+        manifest.Started = Now();
+        SetStatus(attemptDir, manifest, AttemptStatus.Running);
+        File.WriteAllText(Path.Combine(attemptDir, Layout.ProgramFile), program);
+
+        var stopwatch = Stopwatch.StartNew();
+        var (compiled, compileError) = Compile(attemptDir, program);
+        var failure = compileError is not null ? $"program compile failed: {compileError}" : RunNb(attemptDir, attempt.WorkDir, compiled!, attempt.Environment(), manifest);
+        var exit = failure is null ? ExitReasonOf(attemptDir) : null;
+        if (exit is not null && StageEnd.DidNotRun(exit)) failure = $"did not run: {exit}";
+        stopwatch.Stop();
+
+        manifest.Ended = Now();
+        manifest.DurationMs = stopwatch.ElapsedMilliseconds;
+        manifest.StatusReason = failure;
+        SetStatus(attemptDir, manifest, failure is null ? AttemptStatus.Completed : AttemptStatus.Failed);
+        log.WriteLine($"  {variant.Id}/{n}/{stage.Id}  {manifest.Status}  {failure ?? exit}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+        return (failure, exit);
+    }
+
+    Manifest NewManifest(Variant variant, TaskDef task, int n, Fixture? fixture, string programHash) => new()
+    {
+        Id = Layout.NewAttemptId(), Exam = exam.Id, Log = entry.Id, Variant = RefOf(variant), Task = RefOf(task), Attempt = n,
+        Stage = entry.Stages is { } stages ? stages.IndexOf(task.Id!) + 1 : null,
+        Runner = variant.Runner, Harness = variant.Harness, Provider = variant.Provider, Model = variant.Model,
+        Fixture = fixture is null ? null : new FixtureRef(fixture.Id, fixture.Hash),
+        Bundle = entry.BundleOf(variant.Id!), Nb = entry.Nb,
+        Host = entry.Host, Versions = entry.Versions, ProgramHash = programHash,
+    };
+
+    /// <summary>A stage that was not launched, or one whose try failed around it: its manifest and status, with why.</summary>
+    void Mark(Variant variant, TaskDef stage, int n, string status, string reason)
+    {
+        var attemptDir = AttemptDir(variant, stage, n);
+        Directory.CreateDirectory(attemptDir);
+        var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
+        var manifest = File.Exists(manifestFile) ? ReadManifest(manifestFile) : NewManifest(variant, stage, n, exam.FixtureOf(stage), "");
+        manifest.StatusReason = reason;
+        SetStatus(attemptDir, manifest, status);
+        log.WriteLine($"  {variant.Id}/{n}/{stage.Id}  {status}  {reason}");
     }
 
     void RunAttempt(Variant variant, TaskDef task, int n)
@@ -656,7 +788,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
 
     void MarkFailed(Variant variant, TaskDef task, int n, string reason)
     {
-        var attemptDir = Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n);
+        var attemptDir = AttemptDir(variant, task, n);
         Directory.CreateDirectory(attemptDir);
         var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
         var manifest = File.Exists(manifestFile)
@@ -686,7 +818,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     void WriteStatusCounts()
     {
         var counts = AttemptStatus.All.ToDictionary(s => s, _ => 0);
-        foreach (var a in entry.Attempts) counts[ReadStatus(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt))]++;
+        foreach (var a in entry.Attempts) counts[ReadStatus(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages))]++;
         WriteJson(Path.Combine(entryDir, Layout.StatusCountsFile), new { planned = entry.Attempts.Count, counts, updated = Now() });
     }
 

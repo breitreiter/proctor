@@ -244,6 +244,46 @@ hooks/*.sh       variant and attempt setup/teardown
 live.json        which variant is live, written by `proctor live` (absent until one is picked); docs/cli.md
 ```
 
+**Stages, in place of tasks (being built: a bare nb variant runs one;
+an agent variant, `grade`, `friction` and `report` do not yet).** An exam can instead be one job of stages: `fixture` and
+`stages` in `exam.json`, and no `tasks/`.
+
+```json
+{
+  "id": "readme-answers",
+  "fixture": "jot",
+  "stages": [
+    { "id": "clear-wait", "about": "How long clear waits with no terminal",
+      "prompt": "With no terminal attached, how many seconds does `jot clear` wait?",
+      "expect": { "answer_regex": "(?im)^ANSWER:\\D*30\\b" } }
+  ]
+}
+```
+
+- The stages run in the order listed, in one workspace that is set up
+  once and never reset; the agent is started afresh for each.
+- A stage has an `id`, a `prompt`, and optionally `about`, `expect`,
+  `checks` and `oracle`, which mean what they mean on a task. It has no
+  `fixture` or `labels`: those are the exam's.
+- The `id` is the stage's label on screen. Keep it to two or three
+  words, about 20 characters, naming what the stage asks (`clear-wait`,
+  not `stage-12`); `about` is the one-sentence version. `proctor list`
+  names the ids that will not read as a label.
+- One attempt is a try: every stage once. It is kept at
+  `bank/<exam>/<variant>/<n>/`, each stage under `stages/<i>-<id>/`
+  with its own manifest, status, program and transcript; the attempt
+  hooks run once around the try, and `diff.patch` is the try's.
+- A stage that did not run (a provider error, a rate limit, a
+  cancelled or crashed nb) loses the try: nothing more of it is
+  launched, none of it counts, and `proctor run` makes another.
+- A stage that was stopped by a limit or a denial is a result. The next
+  stage runs, unless the exam says `"chained": true`: then a later
+  stage needs what an earlier one made, so the try ends there, the
+  stages after it are `skipped`, and the try still counts.
+- The whole job has one hash: changing, adding, moving or renaming a
+  stage makes every banked attempt of the exam stale. Changing a check,
+  an expected value or an `about` does not.
+
 `attempts` in `exam.json` is how many attempts of each task every variant
 should have (1 if absent). A variant is one file, `variants/<id>.json`,
 and holds only what is under test:

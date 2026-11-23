@@ -5,10 +5,22 @@ namespace Proctor;
 /// <summary>An attempt in an exam's bank: its coordinates, its status, the variant and task hashes it was made under, and the log entry of the run that made it, which says how nb, the bundles and Harbor were resolved for it.</summary>
 record BankAttempt(LogEntry Entry, string Variant, string Task, int Attempt, string Status, string VariantHash, string TaskHash)
 {
-    public string Label => $"{Variant}/{Task}/{Attempt}";
-    public string Dir(string root) => Layout.Attempt(root, Entry.Exam, Variant, Task, Attempt);
+    public string Label => Staged ? $"{Variant}/{Attempt}/{Task}" : $"{Variant}/{Task}/{Attempt}";
+    public string Dir(string root) => Layout.Attempt(root, Entry.Exam, Variant, Task, Attempt, Entry.Stages);
     /// <summary>Never finished: pending, running when the run stopped, or failed for a reason of the machine's. A completed attempt is a result, whatever its exit reason.</summary>
     public bool Unfinished => Status is AttemptStatus.Pending or AttemptStatus.Running or AttemptStatus.Failed;
+    /// <summary>One stage of a try, not a task's attempt.</summary>
+    public bool Staged => Entry.Stages is not null;
+    /// <summary>
+    /// A stage of a lost try: some stage of it did not run (plans/bank.md, "How a stage ends"), so none of it counts, the
+    /// stages that did finish included. It stays on disk; nothing reads it as a result and nothing takes it up again.
+    /// </summary>
+    public bool Lost { get; init; }
+    /// <summary>
+    /// Whether it fills what the exam wants. A task's attempt does when it completed. A stage does when its try is whole:
+    /// every stage completed, or was skipped because a chained try broke before it, which is a result too.
+    /// </summary>
+    public bool Counts => Staged ? !Lost : Status == AttemptStatus.Completed;
 }
 
 /// <summary>An attempt left out because a hash it was made under has moved: which, and how.</summary>
@@ -48,10 +60,17 @@ static class Bank
     }
 
     /// <summary>Every attempt each run of the exam set out to make. One never started has no manifest, and was to be made under the hashes its log entry recorded.</summary>
-    public static List<BankAttempt> Of(string root, Exam exam) =>
+    public static List<BankAttempt> Of(string root, Exam exam)
+    {
+        var all = Read(root, exam);
+        var lost = all.Where(a => a.Staged && a.Unfinished).Select(a => (a.Variant, a.Attempt)).ToHashSet();
+        return all.Select(a => a.Staged && lost.Contains((a.Variant, a.Attempt)) ? a with { Lost = true } : a).ToList();
+    }
+
+    static List<BankAttempt> Read(string root, Exam exam) =>
         Entries(root, exam.Id).SelectMany(entry => entry.Attempts.Select(a =>
         {
-            var dir = Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt);
+            var dir = Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages);
             var manifestFile = Path.Combine(dir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
             return new BankAttempt(entry, a.Variant, a.Task, a.Attempt, Runner.ReadStatus(dir),
@@ -71,14 +90,15 @@ static class Bank
     public static BankSelection Select(string root, Exam exam, IReadOnlyCollection<string>? variants = null, IReadOnlyCollection<string>? tasks = null)
     {
         var within = Of(root, exam).Where(a => (variants is null || variants.Contains(a.Variant)) && (tasks is null || tasks.Contains(a.Task))).ToList();
-        return new BankSelection(within.Where(a => Stale(exam, a) is null).ToList(),
+        // A lost try's stages are neither current nor stale: they are not results, and nothing moved.
+        return new BankSelection(within.Where(a => Stale(exam, a) is null && !a.Lost).ToList(),
             within.Select(a => (a, Why: Stale(exam, a))).Where(x => x.Why is not null).Select(x => new StaleAttempt(x.a.Label, x.Why!)).ToList());
     }
 
     /// <summary>For each variant and task: the exam's attempts less its current, completed attempts in the bank.</summary>
     public static Dictionary<(string Variant, string Task), int> Gaps(Exam exam, List<BankAttempt> bank) =>
         (from variant in exam.Variants from task in exam.Tasks select (variant.Id!, task.Id!)).ToDictionary(k => k, k =>
-            Math.Max(0, exam.Attempts - bank.Count(a => a.Variant == k.Item1 && a.Task == k.Item2 && a.Status == AttemptStatus.Completed && Stale(exam, a) is null)));
+            Math.Max(0, exam.Attempts - bank.Count(a => a.Variant == k.Item1 && a.Task == k.Item2 && a.Counts && Stale(exam, a) is null)));
 
     /// <summary>
     /// What a new run has to make: every gap, within --variant and --tasks. Each new attempt is numbered after every attempt
@@ -109,7 +129,8 @@ static class Bank
         var interrupted = new List<InterruptedRun>();
         foreach (var run in bank.GroupBy(a => a.Entry.Id).OrderBy(g => g.Key, StringComparer.Ordinal))
         {
-            var missing = run.Where(a => a.Unfinished && Stale(exam, a) is null && (variants is null || variants.Contains(a.Variant)) && (tasks is null || tasks.Contains(a.Task)))
+            // A try is never taken up again part way: its workspace is half way through. A lost try is made again, whole, by a new run.
+            var missing = run.Where(a => !a.Staged && a.Unfinished && Stale(exam, a) is null && (variants is null || variants.Contains(a.Variant)) && (tasks is null || tasks.Contains(a.Task)))
                 .GroupBy(a => (a.Variant, a.Task)).SelectMany(g => g.OrderBy(a => a.Attempt).Take(gaps[g.Key])).ToList();
             if (missing.Count == 0) continue;
             interrupted.Add(new InterruptedRun(run.First().Entry, run.Count(a => a.Status == AttemptStatus.Completed),

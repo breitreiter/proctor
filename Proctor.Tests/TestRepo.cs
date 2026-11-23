@@ -125,6 +125,24 @@ sealed class TestRepo : IDisposable
         EditJson($"{examId}/exam.json", e => e["attempts"] = 1);
     }
 
+    /// <summary>Turn a copied task exam into one job of stages: each task, in file order, becomes a stage of exam.json on the one fixture they share.</summary>
+    public void Stage(string examId)
+    {
+        var tasksDir = Path.Combine(Root, "exams", examId, "tasks");
+        var stages = new JsonArray();
+        string? fixture = null;
+        foreach (var file in Directory.GetFiles(tasksDir, "*.json").Order(StringComparer.Ordinal))
+        {
+            var task = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+            fixture = task["fixture"]?.GetValue<string>();
+            task.Remove("fixture");
+            if (task["description"] is { } description) { task["about"] = description.DeepClone(); task.Remove("description"); }
+            stages.Add(task);
+        }
+        Directory.Delete(tasksDir, recursive: true);
+        EditJson($"{examId}/exam.json", e => { e["fixture"] = fixture; e["stages"] = stages; });
+    }
+
     public Exam LoadExam(string examId)
     {
         var problems = new List<Problem>();
@@ -160,9 +178,9 @@ sealed class TestRepo : IDisposable
 
     /// <summary>An attempt's directory in the bank, from the log entry of the run that made it, which names the exam.</summary>
     public static string Attempt(string root, string entryId, string variant, string task, int n) =>
-        Layout.Attempt(root, Runner.LoadEntry(root, entryId).Exam, variant, task, n);
+        Layout.Attempt(root, Runner.LoadEntry(root, entryId).Exam, variant, task, n, Runner.LoadEntry(root, entryId).Stages);
 
     /// <summary>An attempt's checkout, likewise.</summary>
     public static string Work(string root, string entryId, string variant, string task, int n) =>
-        Layout.Work(root, Runner.LoadEntry(root, entryId).Exam, variant, task, n);
+        Layout.Work(root, Runner.LoadEntry(root, entryId).Exam, variant, task, n, Runner.LoadEntry(root, entryId).Stages);
 }

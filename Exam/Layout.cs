@@ -18,6 +18,7 @@ static class Layout
     public const string ExamFile = "exam.json";
     public const string ProgramTemplateFile = "program.nb";
     public const string TasksDir = "tasks";
+    public const string StagesDir = "stages";
     public const string VariantsDir = "variants";
     public const string LiveFile = "live.json";
     public const string FixtureFile = "fixture.json";
@@ -64,10 +65,20 @@ static class Layout
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
     /// <summary>The bank: every attempt of an exam, by variant, task and number. Numbers run on, so the path names one attempt for good.</summary>
     public static string Bank(string root, string examId) => Path.Combine(root, BankDir, examId);
-    public static string Attempt(string root, string examId, string variant, string task, int n) =>
-        Path.Combine(Bank(root, examId), variant, task, n.ToString());
-    public static string Work(string root, string examId, string variant, string task, int n) =>
-        Path.Combine(root, WorkDir, examId, variant, task, n.ToString());
+    /// <summary>
+    /// An attempt's directory. Of a task exam, by variant, task and number. Of a staged exam (its stage ids given, in
+    /// order), the attempt is one stage of a try: the try is the variant's nth, and the stage sits under it by its place
+    /// and id, so the directory lists in the order the stages ran.
+    /// </summary>
+    public static string Attempt(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null) =>
+        stages is null ? Path.Combine(Bank(root, examId), variant, task, n.ToString())
+        : Path.Combine(Try(root, examId, variant, n), StagesDir, $"{stages.ToList().IndexOf(task) + 1}-{task}");
+    /// <summary>One try of a staged exam: every stage once, in one workspace. Holds the stages, the try's hooks' output and its diff.</summary>
+    public static string Try(string root, string examId, string variant, int n) => Path.Combine(Bank(root, examId), variant, n.ToString());
+    /// <summary>The checkout an attempt runs in. A staged exam's stages share their try's.</summary>
+    public static string Work(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null) =>
+        stages is null ? Path.Combine(root, WorkDir, examId, variant, task, n.ToString())
+        : Path.Combine(root, WorkDir, examId, variant, n.ToString());
     /// <summary>What one `proctor run` did: entry.json, its status counts, its variant hooks' output, and the Harbor tasks it compiled.</summary>
     public static string LogEntry(string root, string entryId) => Path.Combine(root, LogDir, entryId);
     public static string LogEntryFileIn(string root, string entryId) => Path.Combine(LogEntry(root, entryId), LogEntryFile);

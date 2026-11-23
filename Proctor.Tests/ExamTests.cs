@@ -397,4 +397,108 @@ public class ExamTests
         });
         Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith(Path.GetFileName(file)) && p.Field == field);
     }
+
+    [Fact]
+    public void AStagedExam_LoadsItsStagesInOrder_OnTheOneFixture()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        repo.Stage("smoke");
+
+        var exam = repo.LoadExam("smoke");
+        Assert.True(exam.Staged);
+        Assert.Equal(["loops", "plain", "uses-bash"], exam.Tasks.Select(s => s.Id));
+        Assert.All(exam.Tasks, s => Assert.Equal("note", s.Fixture));
+        Assert.Equal("The model answers in one turn with no tools", Exam.Describe(exam.Tasks[1]));
+        // A stage's expected values and the exam's checks reach it as a task's do.
+        Assert.Equal("hello", exam.ExpectFor(exam.Tasks[1])!["answer_contains"]!.GetValue<string>());
+        Assert.Contains("says-expected", exam.ChecksFor(exam.Tasks[1]).Keys);
+
+        // The order is exam.json's, not the ids'.
+        repo.EditJson("smoke/exam.json", e => { var stages = e["stages"]!.AsArray(); var last = stages[2]!; stages.RemoveAt(2); stages.Insert(0, last); });
+        Assert.Equal(["uses-bash", "loops", "plain"], repo.LoadExam("smoke").Tasks.Select(s => s.Id));
+    }
+
+    [Fact]
+    public void AStagedExam_IsOneJob_SoAnyStageChangesEveryStagesHash_AndTheStandardDoesNot()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        repo.Stage("smoke");
+        var before = repo.LoadExam("smoke").TaskHashes;
+        Assert.Single(before.Values.Distinct());
+
+        // What grades or labels a stage is not what the agent meets.
+        repo.EditJson("smoke/exam.json", e => e["stages"]![1]!["about"] = "Another sentence");
+        repo.EditJson("smoke/exam.json", e => e["stages"]![1]!["expect"] = JsonNode.Parse("""{"answer_contains": "world"}"""));
+        repo.EditJson("smoke/exam.json", e => e["stages"]![0]!["checks"] = JsonNode.Parse("""{"own": {"exit_reason": "ok"}}"""));
+        Assert.Equal(before, repo.LoadExam("smoke").TaskHashes);
+
+        repo.EditJson("smoke/exam.json", e => e["stages"]![1]!["prompt"] = "MOCK:response=goodbye");
+        var changed = repo.LoadExam("smoke").TaskHashes;
+        Assert.Single(changed.Values.Distinct());
+        Assert.NotEqual(before["loops"], changed["loops"]);
+
+        // The order is part of the job: a stage meets what the stages before it left.
+        repo.EditJson("smoke/exam.json", e => { var stages = e["stages"]!.AsArray(); var last = stages[2]!; stages.RemoveAt(2); stages.Insert(0, last); });
+        Assert.NotEqual(changed["loops"], repo.LoadExam("smoke").TaskHashes["loops"]);
+    }
+
+    [Fact]
+    public void ATaskExamsHashes_AreWhatTheyWere()
+    {
+        // Stages share the hashing code; a banked attempt of a task exam must not go stale because of it.
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        var exam = repo.LoadExam("smoke");
+        Assert.False(exam.Staged);
+        Assert.Equal(3, exam.TaskHashes.Values.Distinct().Count());
+    }
+
+    [Theory]
+    [InlineData("""{"id": "plain", "prompt": "x"}""", "stages[3].id")]
+    [InlineData("""{"id": "Not_A_Segment", "prompt": "x"}""", "stages[3].id")]
+    [InlineData("""{"id": "fourth"}""", "stages[3].prompt")]
+    [InlineData("""{"id": "fourth", "prompt": "x", "fixture": "note"}""", "stages[3].fixture")]
+    [InlineData("""{"id": "fourth", "prompt": "x", "labels": {"area": "docs"}}""", "stages[3].labels")]
+    [InlineData("""{"id": "fourth", "prompt": "x", "description": "a sentence"}""", "stages[3].description")]
+    [InlineData("""{"id": "fourth", "prompt": "x", "about": " "}""", "stages[3].about")]
+    [InlineData("""{"id": "fourth", "prompt": "x", "checks": {"own": {"no_such_field": 1}}}""", "stages[3].checks.own.no_such_field")]
+    [InlineData("""{"id": "fourth", "prompt": "x", "checks": {"exit_ok": {"exit_reason": "ok"}}}""", "stages[3].checks.exit_ok")]
+    [InlineData("null", "stages[3]")]
+    public void AStage_ProblemsNameExamJsonAndTheStage(string stage, string expectedField)
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        repo.Stage("smoke");
+        repo.EditJson("smoke/exam.json", e => e["stages"]!.AsArray().Add(JsonNode.Parse(stage)));
+        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("smoke/exam.json") && p.Field == expectedField);
+    }
+
+    [Fact]
+    public void AnExam_IsTasksOrStages_NotBoth_AndAFixtureOfItsOwnGoesWithStages()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        repo.EditJson("smoke/exam.json", e => e["fixture"] = "note");
+        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("smoke/exam.json") && p.Field == "fixture");
+
+        repo.EditJson("smoke/exam.json", e => e["stages"] = JsonNode.Parse("""[{"id": "only", "prompt": "x"}]"""));
+        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("smoke/exam.json") && p.Field == "stages");
+
+        repo.EditJson("smoke/exam.json", e => e["stages"] = new JsonArray());
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "stages" && p.Message.Contains("at least one"));
+    }
+
+    [Fact]
+    public void StageIds_ThatWillNotReadAsALabel_AreNamed_NeverRefused()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("smoke");
+        repo.Stage("smoke");
+        Assert.Empty(repo.LoadExam("smoke").UnreadableStageIds());
+        foreach (var id in new[] { "stage-12", "q3", "7", "how-long-clear-waits-with-no-terminal" })
+            repo.EditJson("smoke/exam.json", e => e["stages"]!.AsArray().Add(new JsonObject { ["id"] = id, ["prompt"] = "x" }));
+        Assert.Equal(["stage-12", "q3", "7", "how-long-clear-waits-with-no-terminal"], repo.LoadExam("smoke").UnreadableStageIds());
+    }
 }

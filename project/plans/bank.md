@@ -2,7 +2,7 @@
 type: plan
 title: The bank — transcripts kept per job and setup, with no batch
 created: 2026-11-16
-status: direction agreed with the user 2026-11-16 (B1 to B9); steps 1 and 2 built 2026-11-17 and 18 (see "Step 1 as built", "Step 2 as built"), steps 3 to 5 not. Changes `exam-variant-attempt.md` where that plan says batch. Written as files and commands so a wrong assumption is a wrong line; the lines marked OPEN are mine and not agreed
+status: direction agreed with the user 2026-11-16 (B1 to B9); steps 1 and 2 built 2026-11-17 and 18 (see "Step 1 as built", "Step 2 as built"); step 4 under way since 2026-11-23 ("Step 4, in slices"), steps 3 and 5 not. Changes `exam-variant-attempt.md` where that plan says batch. Written as files and commands so a wrong assumption is a wrong line; the lines marked OPEN are mine and not agreed
 ---
 
 # The bank
@@ -153,6 +153,98 @@ exams/readme-answers/exam.json
   compared with live try against try, on headline checks held per try
   and flagged steps per try, with Mann–Whitney; `Stats.cs`'s pairing by
   task goes with tasks. See `check-evidence.md`, C5.4.
+
+## How a stage ends (2026-11-23)
+
+Three ways, taken from nb's own split between a run that stopped and a
+run that failed (`docs/conversation-program-cli.md`, exit codes):
+
+| A stage | nb's exit reasons | What it is | The try |
+|---|---|---|---|
+| **ended** | `ok`, `oracle_miss` | the agent finished its turn | goes on |
+| **stopped** | `max_tool_calls`, `tool_error_limit`, `token_budget`, `time_budget`, `oracle_budget`, `approval_denied` | a result about the agent: it was cut off by a limit or a policy the exam set | graded; what happens next is the exam's `chained` |
+| **did not run** | `provider_error`, `rate_limited`, `cancelled`, a startup error, no trailer, the container or proctor itself failing | nothing about the agent | lost |
+
+- **A lost try** stops there. It is kept on disk with the stage named,
+  marked failed, not graded and not counted; `run` makes another whole
+  try. There is no resuming, because the workspace is half way through.
+- **A stage that ran and failed its checks is a result**, never a lost
+  try.
+- A vendor agent's ending maps onto the same three through ingest.
+  Harbor ends a trial when a step throws; whether its agent timeout
+  counts as stopped or did-not-run is for the Harbor check to show.
+
+### Chained or independent (the user, 2026-11-23)
+
+An exam says which its stages are. `"chained": true` in `exam.json`, absent meaning independent.
+
+- **Independent** (default): the stages share a workspace but none needs
+  another's output. A stopped stage is that stage's result and the next
+  stage runs. The caveat stands: a stage that wrecks the workspace
+  wrecks the rest, and nothing detects that.
+- **Chained**: a later stage consumes what an earlier one made. After a
+  stage that failed, the stages downstream have missing or broken input,
+  so their results say nothing about the agent.
+  - At run time the only thing known is how the stage ended (B8: no
+    check runs between stages). So a stopped stage ends the try there
+    and the later stages are not launched.
+  - At grading, the stages after the first stage that failed a headline
+    check are **not reached**: shown as such, never as failures of
+    their own.
+
+**A broken chained try counts** (the user, 2026-11-23). Proctor does not
+call it invalid. The break is a known fault that cascades, so spending
+more tokens and time on the try is pointless and the junk downstream is
+not generated. The try is compared like any other, on the headline
+checks it held before the break; stages not reached hold nothing. A
+setup that breaks early scores low and the page says where it broke.
+Excluding the try would flatter that setup, since it would be compared
+only on the tries where it did not break.
+
+OPEN: a chained stage that ends `ok` with the wrong work is only caught
+at grading, after the later stages ran. The bare runner could grade a
+stage's built-in transcript checks as soon as it ends and stop on a
+failed headline check, at no cost. That bends B8 (no check between
+stages) for transcript checks only, and Harbor would need its per-step
+verifier to do the same. Not built.
+
+## Step 4, in slices (2026-11-23)
+
+Bare runner first; Harbor after, with its scripted multi-step check
+moved to just before it (the user: this connection is too slow to pull
+images now). The risk taken: the per-stage layout is built on what
+Harbor's source says it writes per step, not on a run.
+
+1. **Definition and the job hash.** BUILT 2026-11-23: `stages` and
+   `fixture` in `exam.json`, `about` per stage, one hash for the job,
+   `list` naming stage ids that will not read as a label. `run` refuses
+   a staged exam until slice 2. An exam is tasks or stages, and stays so
+   until slice 7 deletes tasks.
+2. **Bare runner and the bank layout.** BUILT 2026-11-23, tested on a
+   staged copy of `smoke` against the Mock: one workspace, nb launched
+   once per stage, `bank/<exam>/<variant>/<n>/stages/<i>-<id>/` with a
+   manifest, status, program and transcript per stage, the attempt hooks
+   once around the try and one `diff.patch` in the try's directory, the
+   three endings above, `chained`. A stage not launched is `skipped`
+   with why. A lost try is left out of every reading and never taken up
+   again; `run` makes a new one. `run --tasks` and agent variants are
+   refused on a staged exam, and `grade`, `friction` and `report` refuse
+   one until their slices.
+3. **Grading per stage**: transcript checks on their stage, workspace
+   checks on the last, guardrails per stage, evidence carrying the
+   stage. auspex's bank reader and routes move with this slice.
+4. **Friction per stage.**
+5. **Statistics and the report by try**, with C5.4's roll-up. `run`
+   says when the tries wanted are under the 4 a side a comparison needs.
+6. **Harbor**: the scripted multi-step check, then compile and ingest.
+7. **The exams.** Seven stage as they are (`readme-answers`,
+   `tern-docs`, `gate`, `gate-oracle`, `smoke`, `playground`,
+   `conformance`): one fixture each. Four cannot, because each task has
+   its own fixture (`agent-onboarding`, `code-change`, `exam-authoring`,
+   `nb-changes`): each becomes several exams (B7), and loses its one
+   comparison across fixtures until a roll-up of exams exists. Then
+   tasks, `--tasks` and the per-task code are deleted.
+8. **Docs and the skill** (B9).
 
 ## Checks and stages (B8)
 

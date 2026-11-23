@@ -7,6 +7,19 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Stages, defined** (`bank.md`, step 4, slice 1). An exam can be one
+  job of stages: `fixture` and `stages` in `exam.json` in place of
+  `tasks/`, each stage with an `id`, a `prompt` and optionally `about`,
+  `expect`, `checks` and `oracle`. The job has one hash. `proctor list`
+  shows the stages and names ids that will not read as a label.
+- **Stages, run bare** (`bank.md`, step 4, slice 2). A bare nb variant
+  runs a staged exam: one try is every stage in order in one workspace,
+  nb started once per stage, kept at
+  `bank/<exam>/<variant>/<n>/stages/<i>-<id>/`. A stage that did not run
+  loses the try; `"chained": true` ends a try at a stopped stage and
+  still counts it. A log entry of a staged exam carries `stages`, and a
+  stage's manifest its `stage`. Agent variants, `grade`, `friction` and
+  `report` refuse a staged exam for now.
 - **Breaking: `friction/2`, labels that read bare** (`check-evidence.md`,
   C5.1 and C5.3). The rules' labels are renamed (rules 0.10):
   `off-surface` to `read-internals`, `substitute` to `used-substitute`,

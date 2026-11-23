@@ -120,7 +120,7 @@ record OracleDef(string? Judge = null, int? Turns = null)
 /// exam.json. Attempts is how many attempts of each task every variant should have. Tags is what labels replaced and
 /// Variants what variants/ replaced; both are here so a leftover is a problem rather than silently ignored.
 /// </summary>
-record ExamDef(string? Id, JsonNode? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null);
+record ExamDef(string? Id, JsonNode? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null, string? Fixture = null, List<TaskDef>? Stages = null, bool? Chained = null);
 
 /// <summary>
 /// What the exam is testing, inside a fixture that holds much else: the tools, commands, docs and hosts that are the
@@ -139,7 +139,12 @@ record SubstitutesDef(List<string>? Commands = null, List<string>? Tools = null,
 /// can state. Oracle is an answer sheet (nb's format), relative to the exam directory and inside it, so it never reaches
 /// a fixture's repo or the agent's container: a scripted user that answers when the agent stops to ask.
 /// </summary>
-record TaskDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, Dictionary<string, JsonObject>? Checks = null, string? Oracle = null);
+record TaskDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, Dictionary<string, JsonObject>? Checks = null, string? Oracle = null, string? About = null)
+{
+    /// <summary>The file that declares it, and the field prefix inside that file: a task is its own file, a stage is `stages[i].` in exam.json.</summary>
+    [JsonIgnore] public string? File { get; init; }
+    [JsonIgnore] public string At { get; init; } = "";
+}
 
 /// <summary>
 /// Consumer metadata: a key with one or more string values, on an exam, a fixture or a task. Proctor never
@@ -211,6 +216,20 @@ sealed class Exam
     public required List<Variant> Variants { get; init; }
     /// <summary>Each task's hash by id: what the agent meets (its prompt, its answer sheet, the program template, the hooks and its fixture), not its checks or expected values.</summary>
     public required Dictionary<string, string> TaskHashes { get; init; }
+    /// <summary>
+    /// Whether the exam is one job of stages (plans/bank.md, B5): one workspace, set up once, the agent launched once
+    /// per stage in order. Its stages are then <see cref="Tasks"/>, each on the exam's fixture, and every one carries the
+    /// job's hash, since a change to any stage changes what every later stage meets.
+    /// </summary>
+    public bool Staged => Def.Stages is not null;
+    /// <summary>
+    /// Whether a later stage consumes what an earlier one made. A stage that was stopped then ends the try: the fault
+    /// cascades, so the stages after it are not launched, and the try counts with what it held before the break.
+    /// Otherwise the stages are independent and the next one runs.
+    /// </summary>
+    public bool Chained => Def.Chained == true;
+    /// <summary>The stage ids in the order they run, or null for a task exam: what the bank's paths are built from.</summary>
+    public List<string>? StageIds => Staged ? Tasks.Select(c => c.Id!).ToList() : null;
 
     /// <summary>Whether any variant runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
     public bool HasAgentVariants => Variants.Any(v => v.IsAgent);
@@ -340,7 +359,7 @@ sealed class Exam
         if (def is null) return null;
         var before = problems.Count;
 
-        var tasks = LoadTasks(dir, rel, problems);
+        var tasks = def.Stages is null ? LoadTasks(dir, rel, problems) : LoadStages(def, dir, rel(examFile), problems);
         var variants = LoadVariants(root, dir, rel, problems);
         var fixtures = new Dictionary<string, Fixture>();
         foreach (var name in tasks.Select(c => c.Fixture).Where(f => f is not null).Distinct())
@@ -359,7 +378,7 @@ sealed class Exam
             foreach (var c in tasks)
                 foreach (var (check, spec) in c.Checks ?? [])
                     foreach (var (name, model) in Checks.ModelChecks(spec))
-                        if (Judge.ValidateUse(name, model, judges) is { } problem) problems.Add(new Problem(rel(TaskFile(dir, c)), $"checks.{check}.{name}.with", problem));
+                        if (Judge.ValidateUse(name, model, judges) is { } problem) problems.Add(new Problem(rel(c.File!), $"{c.At}checks.{check}.{name}.with", problem));
         }
 
         var templateFile = Path.Combine(dir, Layout.ProgramTemplateFile);
@@ -392,7 +411,9 @@ sealed class Exam
             ProgramTemplate = template,
             Hash = HashDefinition(root, dir, def, tasks, fixtures.Values),
             Variants = variants.Select(v => v with { Hash = VariantHash(root, v) }).ToList(),
-            TaskHashes = tasks.ToDictionary(c => c.Id!, c => TaskHash(root, dir, def, c, c.Fixture is null ? null : fixtures[c.Fixture])),
+            TaskHashes = def.Stages is null
+                ? tasks.ToDictionary(c => c.Id!, c => JobHash(root, dir, def, [c], c.Fixture is null ? null : fixtures[c.Fixture]))
+                : tasks.ToDictionary(c => c.Id!, _ => JobHash(root, dir, def, tasks, def.Fixture is null ? null : fixtures[def.Fixture])),
         };
     }
 
@@ -434,8 +455,6 @@ sealed class Exam
 
     static string Verb(string directive) => directive.Split(' ', 2)[0];
 
-    static string TaskFile(string dir, TaskDef task) => Path.Combine(Layout.TasksDirIn(dir), task.Id + ".json");
-
     /// <summary>A variant's file, as problems and messages name it.</summary>
     public static string VariantFile(string dir, string id) => Path.Combine(Layout.VariantsDirIn(dir), id + ".json");
 
@@ -471,39 +490,81 @@ sealed class Exam
         var tasks = new List<TaskDef>();
         if (!Directory.Exists(tasksDir))
         {
-            problems.Add(new Problem(rel(tasksDir), "", "missing tasks directory"));
+            problems.Add(new Problem(rel(tasksDir), "", "missing tasks directory; an exam has tasks/*.json, or stages in exam.json"));
             return tasks;
         }
         foreach (var file in Directory.GetFiles(tasksDir, "*.json").Order(StringComparer.Ordinal))
         {
             var c = ReadJson<TaskDef>(file, problems);
             if (c is null) continue;
+            c = c with { File = file };
             var expectedId = Path.GetFileNameWithoutExtension(file);
             if (string.IsNullOrWhiteSpace(c.Id))
                 problems.Add(new Problem(rel(file), "id", "required"));
             else if (c.Id != expectedId)
                 problems.Add(new Problem(rel(file), "id", $"'{c.Id}' does not match the file name '{expectedId}'; the id is the file name"));
-            if (string.IsNullOrWhiteSpace(c.Prompt))
-                problems.Add(new Problem(rel(file), "prompt", "required"));
             if (c.Description is not null && string.IsNullOrWhiteSpace(c.Description))
                 problems.Add(new Problem(rel(file), "description", "a description is a sentence, not an empty string"));
+            if (c.About is not null)
+                problems.Add(new Problem(rel(file), "about", "a stage's field; a task's sentence is description"));
             if (c.Fixture is not null && !Regex.IsMatch(c.Fixture, "^[a-z0-9][a-z0-9-]*$"))
                 problems.Add(new Problem(rel(file), "fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens"));
             Labels.Validate(c.Labels, (field, message) => problems.Add(new Problem(rel(file), field, message)));
-            if (c.Oracle is not null && OracleSheetProblem(dir, c.Oracle) is { } sheetProblem)
-                problems.Add(new Problem(rel(file), "oracle", sheetProblem));
-            foreach (var (name, spec) in c.Checks ?? [])
-            {
-                var f = $"checks.{name}";
-                if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9_-]*$")) problems.Add(new Problem(rel(file), f, "check names are lowercase letters, digits, hyphens and underscores"));
-                foreach (var (field, problem) in Checks.ValidateCheck(spec, dir)) problems.Add(new Problem(rel(file), field.Length == 0 ? f : $"{f}.{field}", problem));
-            }
+            ValidateTask(c, dir, (field, message) => problems.Add(new Problem(rel(file), field, message)));
             tasks.Add(c);
         }
         if (tasks.Count == 0)
             problems.Add(new Problem(rel(tasksDir), "", "no tasks; an exam needs at least one *.json task"));
         return tasks;
     }
+
+    /// <summary>
+    /// The stages of a staged exam, in the order exam.json lists them, which is the order they run in. Each comes back as
+    /// a task on the exam's fixture, its about as its description, so everything that reads a task's checks, expected
+    /// values and answer sheet reads a stage's the same way. A stage has no fixture or labels of its own: the workspace
+    /// is the job's, and a stage is never run or counted alone.
+    /// </summary>
+    private static List<TaskDef> LoadStages(ExamDef def, string dir, string file, List<Problem> problems)
+    {
+        void Add(string field, string message) => problems.Add(new Problem(file, field, message));
+        var stages = new List<TaskDef>();
+        if (Directory.Exists(Layout.TasksDirIn(dir)) && Directory.GetFiles(Layout.TasksDirIn(dir), "*.json").Length > 0)
+            Add("stages", "this exam also has tasks/*.json; an exam is tasks or one job of stages, not both");
+        if (def.Fixture is not null && !Regex.IsMatch(def.Fixture, "^[a-z0-9][a-z0-9-]*$"))
+            Add("fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens");
+        if (def.Stages!.Count == 0) Add("stages", "at least one stage is required");
+        foreach (var (stage, i) in def.Stages.Select((s, i) => (s, i)))
+        {
+            var at = $"stages[{i}].";
+            if (stage is null) { Add($"stages[{i}]", "a stage is an object, not null"); continue; }
+            if (string.IsNullOrWhiteSpace(stage.Id)) Add(at + "id", "required");
+            else if (!Regex.IsMatch(stage.Id, "^[a-z0-9][a-z0-9-]*$")) Add(at + "id", "stage ids are path segments: lowercase letters, digits and hyphens");
+            else if (stages.Any(s => s.Id == stage.Id)) Add(at + "id", $"'{stage.Id}' is already a stage of this exam");
+            if (stage.Fixture is not null) Add(at + "fixture", "the job's, not a stage's: every stage runs in one workspace, set up once; set fixture in exam.json");
+            if (stage.Labels is not null) Add(at + "labels", "the exam's, not a stage's: a stage is never run or counted alone");
+            if (stage.Description is not null) Add(at + "description", "a stage's sentence is about");
+            if (stage.About is not null && string.IsNullOrWhiteSpace(stage.About)) Add(at + "about", "a sentence saying what the stage asks, not an empty string");
+            ValidateTask(stage, dir, (field, message) => Add(at + field, message));
+            stages.Add(stage with { Fixture = def.Fixture, Description = stage.About, File = Path.Combine(dir, Layout.ExamFile), At = at });
+        }
+        return stages;
+    }
+
+    /// <summary>What a task and a stage share: a prompt, an answer sheet that resolves, and checks that are well formed.</summary>
+    static void ValidateTask(TaskDef c, string dir, Action<string, string> add)
+    {
+        if (string.IsNullOrWhiteSpace(c.Prompt)) add("prompt", "required");
+        if (c.Oracle is not null && OracleSheetProblem(dir, c.Oracle) is { } sheetProblem) add("oracle", sheetProblem);
+        foreach (var (name, spec) in c.Checks ?? [])
+        {
+            var f = $"checks.{name}";
+            if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9_-]*$")) add(f, "check names are lowercase letters, digits, hyphens and underscores");
+            foreach (var (field, problem) in Checks.ValidateCheck(spec, dir)) add(field.Length == 0 ? f : $"{f}.{field}", problem);
+        }
+    }
+
+    /// <summary>Stage ids that will not read as a label on screen (plans/bank.md, B9): over 20 characters, or only a number or a place ("stage-12", "q3").</summary>
+    public List<string> UnreadableStageIds() => !Staged ? [] : Tasks.Select(c => c.Id!).Where(id => id.Length > 20 || Regex.IsMatch(id, @"^([a-z]+-?)?\d+$")).ToList();
 
     /// <summary>A sheet inside the exam directory with at least one headed entry, which is what nb's answer sheet selects.</summary>
     static string? OracleSheetProblem(string dir, string oracle)
@@ -531,9 +592,11 @@ sealed class Exam
 
         if (def.Variants is not null) Add("variants", "variants are not in exam.json: each is its own file, variants/<id>.json beside it, holding what its entry held (note for description; attempts is the exam's)");
         if (def.Attempts is < 1) Add("attempts", "must be at least 1");
+        if (def.Stages is null && def.Chained is not null) Add("chained", "goes with stages: whether a later stage needs what an earlier one made");
+        if (def.Stages is null && def.Fixture is not null) Add("fixture", "goes with stages: one job in one workspace; a task names its own fixture");
 
         ValidateHarbor(def, Add, dir, tasks, variants, fixtures, root, problems);
-        ValidateOracle(def, Add, tasks, variants, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), field, message)),
+        ValidateOracle(def, Add, tasks, variants, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, c.File!), c.At + field, message)),
             (f, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(f.Dir, Layout.FixtureFile)), field, message)));
 
         if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use variant or attempt");
@@ -575,8 +638,8 @@ sealed class Exam
             var fixture = c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture);
             foreach (var name in (c.Checks ?? []).Keys)
             {
-                if (def.Grading.Checks.ContainsKey(name)) problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), $"checks.{name}", "also declared by the exam; a check is declared at one level: the exam's, a fixture's or a task's"));
-                else if (fixture?.Checks.ContainsKey(name) == true) problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), $"checks.{name}", $"also declared by fixture '{fixture.Id}'; a check is declared at one level: the exam's, a fixture's or a task's"));
+                if (def.Grading.Checks.ContainsKey(name)) problems.Add(new Problem(Path.GetRelativePath(root, c.File!), $"{c.At}checks.{name}", "also declared by the exam; a check is declared at one level: the exam's, a fixture's or a task's"));
+                else if (fixture?.Checks.ContainsKey(name) == true) problems.Add(new Problem(Path.GetRelativePath(root, c.File!), $"{c.At}checks.{name}", $"also declared by fixture '{fixture.Id}'; a check is declared at one level: the exam's, a fixture's or a task's"));
             }
         }
 
@@ -715,7 +778,7 @@ sealed class Exam
         if (def.Hooks?.Attempt is not null) add("hooks.attempt", "not yet with an agent variant: an attempt hook runs on the host, the agent in its container; move the setup into the fixture's image");
         foreach (var c in tasks)
         {
-            if (c.Fixture is null) problems.Add(new Problem(Path.GetRelativePath(root, TaskFile(dir, c)), "fixture", "required with an agent variant: the agent runs in the fixture's image"));
+            if (c.Fixture is null) problems.Add(new Problem(Path.GetRelativePath(root, c.File!), "fixture", "required with an agent variant: the agent runs in the fixture's image"));
             else if (fixtures.GetValueOrDefault(c.Fixture) is { Def.Image: null } fixture)
                 problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(fixture.Dir, Layout.FixtureFile)), "image", "required by an agent variant of this exam: {from, run, env}, the image the agent and the checks run in"));
         }
@@ -752,20 +815,24 @@ sealed class Exam
     }
 
     /// <summary>
-    /// A task's identity is what an agent meets when it attempts it: the prompt, the answer sheet an oracle reads to
-    /// it, the program template, the hooks, and the fixture (how it is built, and its source by content). Not the
-    /// checks, their scripts or the expected values: those are the standard an attempt is graded by, so a change
-    /// there means grading again, not attempting again.
+    /// A job's identity is what an agent meets when it attempts it: each prompt in order, the answer sheets an oracle
+    /// reads from, the program template, the hooks, and the fixture (how it is built, and its source by content). A task
+    /// is a job of one prompt; a staged exam is one job of all its stages, by id and prompt, so changing, adding, moving
+    /// or renaming one stage is a different job (plans/bank.md, B2). Not the checks, their scripts, the expected values
+    /// or a stage's about: those are the standard an attempt is graded by and how it is labelled, so a change there
+    /// means grading again, not attempting again.
     /// </summary>
-    static string TaskHash(string root, string dir, ExamDef def, TaskDef task, Fixture? fixture)
+    static string JobHash(string root, string dir, ExamDef def, List<TaskDef> prompts, Fixture? fixture)
     {
         var files = new List<string> { Path.Combine(dir, Layout.ProgramTemplateFile) };
-        if (task.Oracle is not null) files.Add(Path.Combine(dir, task.Oracle));
+        files.AddRange(prompts.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));
         foreach (var pair in new[] { def.Hooks?.Variant, def.Hooks?.Attempt })
             foreach (var script in new[] { pair?.Setup, pair?.Teardown })
                 if (script is not null) files.Add(Path.Combine(dir, script));
         var built = fixture is null ? "" : JsonSerializer.Serialize(new { fixture.Id, fixture.Def.Source, fixture.Def.Stack, fixture.Def.Image, fixture.Hash }, JsonOptions);
-        return HashFiles(root, files.Where(File.Exists), task.Prompt + "\0" + built);
+        // A task's text is its prompt alone, as it always was, so no banked attempt of a task exam goes stale.
+        var met = def.Stages is null ? prompts[0].Prompt : string.Join("\0", prompts.Select(c => c.Id + "\0" + c.Prompt + "\0" + c.Oracle));
+        return HashFiles(root, files.Where(File.Exists), met + "\0" + built);
     }
 
     /// <summary>
@@ -791,7 +858,7 @@ sealed class Exam
     private static string HashDefinition(string root, string dir, ExamDef def, List<TaskDef> tasks, IEnumerable<Fixture> fixtures)
     {
         var files = new List<string> { Layout.ExamFileIn(dir), Path.Combine(dir, Layout.ProgramTemplateFile) };
-        files.AddRange(Directory.GetFiles(Layout.TasksDirIn(dir), "*.json"));
+        if (def.Stages is null) files.AddRange(Directory.GetFiles(Layout.TasksDirIn(dir), "*.json"));
         files.AddRange(tasks.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));
         foreach (var spec in def.Grading!.Checks!.Values.Concat(tasks.SelectMany(c => (c.Checks ?? []).Values)))
             if (spec["script"] is JsonValue v && v.TryGetValue<string>(out var script)) files.Add(Path.Combine(dir, script));
