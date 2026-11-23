@@ -482,29 +482,39 @@ with one label:
 
 | label | a step where | needs a surface |
 |---|---|---|
-| `off-surface` | the agent read the surface's internals, or hunted for where it is installed | yes |
-| `substitute` | a declared substitute was used | yes |
-| `abandoned` | a substitute was used within two steps of a surface call that failed | yes |
-| `surface-search` | the agent searched the surface's docs | yes |
-| `help` | `--help`, `-h` or `man` | no |
-| `workaround` | a script run inline, or a file written to `/tmp` | yes |
-| `environment` | the machine refused: command not found, permission, timeout, network | no |
-| `tool-error` | the agent's own tool refused: output too large, a rejected call, an edit that did not apply | no |
+| `read-internals` | the agent read the surface's own source or notes, or went looking for where it is installed | yes |
+| `used-substitute` | the agent used a declared substitute for the surface | yes |
+| `fell-back` | the agent used a substitute within two steps of a call to the surface that failed | yes |
+| `searched-docs` | the agent searched the surface's docs | yes |
+| `ran-help` | `--help`, `-h` or `man` | no |
+| `inline-script` | a script run inline, or a file written to scratch | yes |
+| `machine-refused` | the machine refused: command not found, permission, timeout, network | no |
+| `harness-refused` | the agent's own tool refused: output too large, a rejected call, an edit that did not apply | no |
 
-Every point carries a quote from the call it cites, checked the way a
-judge's quote is checked; a point with no quote that is in the call is not
-written. The rules use no model, so the same trajectory and declaration
+Each label reads on its own, met bare as a code in a table; the file
+carries each label's sentence (`detector.labels`, `[{name, describes}]`),
+so a viewer words nothing itself. Every point carries a quote from the
+call it cites, checked the way a judge's quote is checked; a point with no
+quote that is in the call is not written. Each evidence item says which
+`rule` fired and `because`: one sentence the rule writes from what it
+already holds ("used localhost:8081, a declared substitute, one step after
+the call to localhost:8080 at s8.1 failed (HTTP 404)"). The summary's
+`flagged_steps` counts the steps inside any point, each once, whatever the
+label: friction's one measure. The rules use no model, so the same trajectory and declaration
 give the same file.
 
 Rules see what a call was and what came back, not what it was for.
 `proctor friction <exam> --reader <judge>` adds a reader: a chat judge from
 `proctor.json` reads each attempt once and names five more kinds of point,
-`repair` (fixing its own work after something it ran failed), `lost` (a
-search or read that led to nothing used later), `reread`, `dead-end`
-(following an instruction that could not work as given) and `workaround`.
-The reader must quote the call, and a point is written only when the
-call exists, the label is one of the five and the quote is in that
-call; its one-line reason is kept as a note. Its points carry
+`fixed-own-work` (fixing its own work after something it ran failed),
+`wasted-read` (a search or read that led to nothing used later), `reread`,
+`bad-instruction` (following an instruction that could not work as given)
+and `workaround`. The reader is asked in its prompt's original words
+(`repair`, `lost`, `dead-end`), which keep every kept reading valid, and
+its answers are written under these names. The reader must quote the
+call, and a point is written only when the call exists, the label is one
+of the five and the quote is in that call; its one-line reason is the
+evidence's `because`, and is kept as a note too. Its points carry
 `"source": {"kind": "model", ...}`, so they can always be told from the
 rules'. It is one model call per attempt, of the attempt's length (a few
 thousand to a few tens of thousands of tokens); what was sent and

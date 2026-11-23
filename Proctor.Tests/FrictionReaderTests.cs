@@ -81,7 +81,7 @@ public class FrictionReaderTests : IDisposable
         Assert.Contains(reading.Dropped, d => d.StartsWith("s2.1: label 'confused'"));
         Assert.Contains(reading.Dropped, d => d.StartsWith("s1.1: the quote is not in the call"));
         var points = file["points"]!.AsArray();
-        Assert.Equal(["repair", "lost"], points.Select(p => p!["label"]!.GetValue<string>()));
+        Assert.Equal(["fixed-own-work", "wasted-read"], points.Select(p => p!["label"]!.GetValue<string>()));
         var repair = points[0]!;
         Assert.Equal("model", repair["source"]!["kind"]!.GetValue<string>());
         Assert.Equal("claude-haiku", repair["source"]!["model"]!.GetValue<string>());
@@ -91,8 +91,12 @@ public class FrictionReaderTests : IDisposable
         Assert.Equal(0.01, repair["cost_usd"]!.GetValue<double>());
         Assert.Equal("grep -rn \"tokeniser\" vendor/", points[1]!["evidence"]![0]!["quote"]!.GetValue<string>());
         Assert.Equal(2, file["summary"]!["points"]!.GetValue<int>());
-        Assert.Equal(2, file["summary"]!["steps_in_a_point"]!.GetValue<int>());
+        Assert.Equal(2, file["summary"]!["flagged_steps"]!.GetValue<int>());
         Assert.Equal("claude-haiku", file["reader"]!["model"]!.GetValue<string>());
+        // The model is asked in the measured prompt's names; the file has the names that read bare, with their sentences.
+        Assert.Equal("fixes the typo the test caught", repair["evidence"]![0]!["because"]!.GetValue<string>());
+        Assert.Equal(["fixed-own-work", "wasted-read", "reread", "bad-instruction", "workaround"],
+            file["reader"]!["labels"]!.AsArray().Select(l => l!["name"]!.GetValue<string>()));
     }
 
     [Fact]

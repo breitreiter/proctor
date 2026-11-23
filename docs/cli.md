@@ -53,7 +53,7 @@ proctor grade <exam> --judge glm=k2   # compare k2 against glm on the checks glm
 proctor grade <exam> --variant a [--tasks x,y]   # only those attempts (--variant repeatable); the rest keep their checks.json, so a paid judge pass can be staged
 proctor friction <exam>       # friction.json beside each current, completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model, no key
 proctor friction <exam> --variant a [--tasks x,y]   # only those attempts
-proctor friction <exam> --reader haiku   # a chat judge from proctor.json reads each attempt too: repair, lost, reread, dead-end, workaround; one model call per attempt, kept in the attempt and reused (--rejudge asks again)
+proctor friction <exam> --reader haiku   # a chat judge from proctor.json reads each attempt too: fixed-own-work, wasted-read, reread, bad-instruction, workaround; one model call per attempt, kept in the attempt and reused (--rejudge asks again)
 proctor report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json,summary.md}, stamped with what they were built from
 proctor report <exam> [--variant a] [--tasks x,y]   # a report over only those attempts; the two combine
 proctor live <exam> <variant> # mark the variant live in exams/<exam>/live.json (commit it): the one in use now, which the report compares the others with

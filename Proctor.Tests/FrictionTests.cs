@@ -53,11 +53,20 @@ public class FrictionTests
     {
         var file = Detect(History, [Tool("[]")], [Bash("git log --oneline -- src/parser.c | head", "abc fix")], [Edit]);
 
-        Assert.Equal(["abandoned", "substitute"], LabelsOf(file));
-        var abandoned = file["points"]!.AsArray().Single(p => p!["label"]!.GetValue<string>() == "abandoned")!;
+        Assert.Equal(["fell-back", "used-substitute"], LabelsOf(file));
+        var abandoned = file["points"]!.AsArray().Single(p => p!["label"]!.GetValue<string>() == "fell-back")!;
         Assert.Equal(["1", "2"], abandoned["steps"]!.AsArray().Select(s => s!.GetValue<string>()));
         Assert.Equal("[]", abandoned["evidence"]![0]!["quote"]!.GetValue<string>());
         Assert.Equal("result", abandoned["evidence"]![0]!["where"]!.GetValue<string>());
+        // Each evidence item says which rule fired and why, in a sentence the rule writes (C5.1).
+        Assert.Equal("substitute-after-failed-surface", abandoned["evidence"]![0]!["rule"]!.GetValue<string>());
+        Assert.StartsWith("the call to ", abandoned["evidence"]![0]!["because"]!.GetValue<string>());
+        Assert.Contains("a declared substitute", abandoned["evidence"]![0]!["because"]!.GetValue<string>());
+        // Every label carries its sentence in the file, so a viewer words nothing.
+        var labels = file["detector"]!["labels"]!.AsArray();
+        Assert.Equal(Friction.Labels, labels.Select(l => l!["name"]!.GetValue<string>()));
+        Assert.StartsWith("a step where", labels.Single(l => l!["name"]!.GetValue<string>() == "fell-back")!["describes"]!.GetValue<string>());
+        Assert.Equal("friction/2", file["schema"]!.GetValue<string>());
         Assert.False(SurfaceOf(file)["worked"]!.GetValue<bool>());
         Assert.Equal(1, SurfaceOf(file)["surface_calls_failed"]!.GetValue<int>());
     }
@@ -67,7 +76,7 @@ public class FrictionTests
     {
         var file = Detect(History, [Tool("""[{"sha":"abc"}]""")], [Bash("git log -1 abc", "abc fix")], [Edit]);
 
-        Assert.Equal(["substitute"], LabelsOf(file));
+        Assert.Equal(["used-substitute"], LabelsOf(file));
     }
 
     [Fact]
@@ -75,7 +84,7 @@ public class FrictionTests
     {
         var file = Detect(History, [Bash("cd /app && git blame src/parser.c | head -20", "abc")], [Bash("gh pr view 12", "title")], [Edit]);
 
-        Assert.Equal(["substitute"], LabelsOf(file));
+        Assert.Equal(["used-substitute"], LabelsOf(file));
         Assert.Equal("substitute", SurfaceOf(file)["first_reach"]!["reached"]!.GetValue<string>());
         Assert.False(SurfaceOf(file)["used"]!.GetValue<bool>());
     }
@@ -85,7 +94,7 @@ public class FrictionTests
     {
         var file = Detect(History, [Tool("[]")], [Edit], [Bash("make test", "ok")], [Edit], [Bash("git log -1", "abc")]);
 
-        Assert.Equal(["substitute"], LabelsOf(file));
+        Assert.Equal(["used-substitute"], LabelsOf(file));
     }
 
     [Fact]
@@ -93,7 +102,7 @@ public class FrictionTests
     {
         var file = Detect(Surface.None, [Bash("ls", "src")], [Bash("make", "make: gcc: command not found")], [Bash("apt-get install -y gcc", "E: Permission denied")]);
 
-        Assert.Equal(["environment"], LabelsOf(file));
+        Assert.Equal(["machine-refused"], LabelsOf(file));
         Assert.Null(file["summary"]!["surface"]);
         Assert.Null(file["detector"]!["surface"]);
         Assert.Equal("make: gcc: command not found", file["points"]![0]!["evidence"]![0]!["quote"]!.GetValue<string>());
@@ -116,7 +125,7 @@ public class FrictionTests
             [Bash("curl -s localhost:8080/quickstart", "<!doctype html><title>Not found</title>")],
             [Bash("# guess the endpoint\ncurl -si -X POST localhost:8081/v1/quotes -d '{}'", "HTTP/1.1 200 OK")]);
 
-        Assert.Equal(["abandoned", "substitute"], LabelsOf(file));
+        Assert.Equal(["fell-back", "used-substitute"], LabelsOf(file));
         Assert.Equal(1, SurfaceOf(file)["parts"]!["substitute"]!["actions"]!.GetValue<int>());
     }
 

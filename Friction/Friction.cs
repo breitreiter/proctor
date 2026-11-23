@@ -76,10 +76,31 @@ sealed class Surface
 /// </summary>
 static class Friction
 {
-    public const string Schema = "friction/1";
-    /// <summary>The rules' own version, apart from proctor's: a file says which rules made it.</summary>
-    public const string RulesVersion = "0.9";
-    public static readonly string[] Labels = ["off-surface", "substitute", "abandoned", "surface-search", "help", "workaround", "environment", "tool-error"];
+    /// <summary>friction/2 (2026-11-23, check-evidence.md C5.1): labels as objects with their sentence, `rule` and `because` on each evidence item, `flagged_steps`.</summary>
+    public const string Schema = "friction/2";
+    /// <summary>The rules' own version, apart from proctor's: a file says which rules made it. 0.10 renamed every label so each reads bare.</summary>
+    public const string RulesVersion = "0.10";
+
+    /// <summary>
+    /// Each label and the sentence that defines it ("a step where ..."), written into every file so a viewer words nothing
+    /// itself. Every label reads on its own, met bare as a code in a table (reviewed with the user, 2026-11-22).
+    /// </summary>
+    public static readonly (string Name, string Describes)[] LabelDefs =
+    [
+        ("read-internals", "a step where the agent read the surface's own source or notes, or went looking for where it is installed"),
+        ("used-substitute", "a step where the agent used a declared substitute for the surface"),
+        ("fell-back", "a step where the agent used a substitute within two steps of a call to the surface that failed"),
+        ("searched-docs", "a step where the agent searched the surface's docs"),
+        ("ran-help", "a step where the agent ran --help, -h or man"),
+        ("inline-script", "a step where the agent ran a script inline or wrote a file to scratch"),
+        ("machine-refused", "a step where the machine refused: command not found, permission, timeout, network"),
+        ("harness-refused", "a step where the agent's own tool refused: output too large, a rejected call, an edit that did not apply"),
+    ];
+    public static readonly string[] Labels = [.. LabelDefs.Select(l => l.Name)];
+
+    /// <summary>Labels as written into a file: [{name, describes}].</summary>
+    internal static JsonArray LabelObjects(IEnumerable<(string Name, string Describes)> defs) =>
+        new([.. defs.Select(l => (JsonNode?)new JsonObject { ["name"] = l.Name, ["describes"] = l.Describes })]);
 
     /// <summary>Steps within which a substitute after a failed surface call is "abandoned".</summary>
     const int Window = 2;
@@ -171,7 +192,7 @@ static class Friction
             ["detector"] = new JsonObject
             {
                 ["name"] = "proctor friction", ["version"] = RulesVersion,
-                ["labels"] = new JsonArray(Labels.Select(l => (JsonNode?)JsonValue.Create(l)).ToArray()), ["surface"] = surface.Hash,
+                ["labels"] = LabelObjects(LabelDefs), ["surface"] = surface.Hash,
             },
             ["summary"] = Summary(steps, points, surface),
             ["points"] = new JsonArray(points.Select(p => (JsonNode?)p).ToArray()),
@@ -341,7 +362,9 @@ static class Friction
     static List<JsonObject> Points(List<Step> steps, Surface d)
     {
         var flags = new Dictionary<(string Label, int Step), List<Flag>>();
-        void Mark(string label, int i, Call call, string rule, string detail, IEnumerable<string> candidates)
+        // `because` is one sentence the rule writes from what it already holds, a template per rule, so the same trajectory
+        // still gives the same file (check-evidence.md, C5.1).
+        void Mark(string label, int i, Call call, string rule, string detail, IEnumerable<string> candidates, string because)
         {
             var quote = candidates.FirstOrDefault(q => q.Length > 0 && Verified(q, call));
             if (quote is null) return;          // a point with no quote that is in the call is not written
@@ -349,6 +372,7 @@ static class Friction
             {
                 ["step"] = steps[i].Id, ["call"] = call.Id, ["quote"] = quote,
                 ["where"] = call.SquashedCommand.Contains(Shell.Squash(quote), StringComparison.Ordinal) ? "command" : "result",
+                ["rule"] = rule, ["because"] = because,
             };
             if (!flags.TryGetValue((label, i), out var list)) flags[(label, i)] = list = [];
             list.Add(new Flag(evidence, call.Id, quote, rule, detail));
@@ -360,24 +384,37 @@ static class Friction
             {
                 foreach (var a in call.Actions)
                 {
-                    if (a.Rule is "internals" or "locating") Mark("off-surface", i, call, a.Rule, a.Rule == "internals" && a.Quotes.Length == 3 ? a.Quotes[^1] : a.Head, a.Quotes);
+                    if (a.Rule == "internals")
+                    {
+                        var path = a.Quotes.Length == 3 ? a.Quotes[^1] : a.Head;
+                        Mark("read-internals", i, call, a.Rule, path, a.Quotes, $"read {path}, which is the surface's own source or notes, not its published side");
+                    }
+                    if (a.Rule == "locating") Mark("read-internals", i, call, a.Rule, a.Head, a.Quotes, $"went looking for where {a.Head} is installed");
                     if (a.Part == "sub")
                     {
-                        Mark("substitute", i, call, a.Rule!, a.Head, a.Quotes);
+                        Mark("used-substitute", i, call, a.Rule!, a.Head, a.Quotes, $"used {a.Head}, a declared substitute for the surface");
                         if (failed is { } f && i - f.Step <= Window)
                         {
-                            Mark("abandoned", i, call, "substitute-after-failed-surface", $"{f.Head} then {a.Head}", a.Quotes);
-                            Mark("abandoned", f.Step, f.Call, "substitute-after-failed-surface", $"{f.Head} then {a.Head}", [f.Call.SurfaceFailed!.Value.Match]);
+                            var match = f.Call.SurfaceFailed!.Value.Match;
+                            var gap = i - f.Step;
+                            Mark("fell-back", i, call, "substitute-after-failed-surface", $"{f.Head} then {a.Head}", a.Quotes,
+                                $"used {a.Head}, a declared substitute, {(gap == 0 ? "in the same step as" : gap == 1 ? "one step after" : $"{gap} steps after")} the call to {f.Head} at {f.Call.Id} failed ({match})");
+                            Mark("fell-back", f.Step, f.Call, "substitute-after-failed-surface", $"{f.Head} then {a.Head}", [match],
+                                $"the call to {f.Head} failed ({match}), and the agent used {a.Head}, a declared substitute, at {call.Id}");
                         }
                     }
-                    if (a.Rule == "docs-search") Mark("surface-search", i, call, a.Rule, a.Head, a.Quotes);
-                    if (a.Rule is "surface-help" or "help") Mark("help", i, call, a.Rule, a.Head, a.Quotes);
+                    if (a.Rule == "docs-search") Mark("searched-docs", i, call, a.Rule, a.Head, a.Quotes, $"searched the surface's docs ({a.Head})");
+                    if (a.Rule is "surface-help" or "help") Mark("ran-help", i, call, a.Rule, a.Head, a.Quotes, $"asked {a.Head} for its help");
                 }
                 if (call.SurfaceFailed is not null)
                     foreach (var a in call.Actions.Where(a => a.Part == "on")) failed = (i, a.Head, call);
-                if (call.Refused is { } refused) Mark("environment", i, call, "machine-refuses", Cut(Normalise(refused.Line), 80), [refused.Line, refused.Match]);
-                if (call.ToolRefused is { } tool) Mark("tool-error", i, call, "tool-refuses", Cut(Normalise(tool.Match), 80), [tool.Line, tool.Match]);
-                if (d.Declared && call.InlineScript is { } script) Mark("workaround", i, call, "inline-script-or-scratch", Cut(string.Join(' ', Shell.SplitWhitespace(script)), 40), [script]);
+                if (call.Refused is { } refused) Mark("machine-refused", i, call, "machine-refuses", Cut(Normalise(refused.Line), 80), [refused.Line, refused.Match], $"the machine refused: {Cut(refused.Line.Trim(), 120)}");
+                if (call.ToolRefused is { } tool) Mark("harness-refused", i, call, "tool-refuses", Cut(Normalise(tool.Match), 80), [tool.Line, tool.Match], $"the agent's own tool refused: {Cut(tool.Line.Trim(), 120)}");
+                if (d.Declared && call.InlineScript is { } script)
+                {
+                    var shown = Cut(string.Join(' ', Shell.SplitWhitespace(script)), 40);
+                    Mark("inline-script", i, call, "inline-script-or-scratch", shown, [script], $"ran a script inline or wrote to a scratch file ({shown})");
+                }
             }
 
         var order = steps.Select((s, n) => (s.Id, n)).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.Last().n);
@@ -464,7 +501,8 @@ static class Friction
             if (points.Count(p => p["label"]!.GetValue<string>() == label) is > 0 and var count) byLabel[label] = count;
         var summary = new JsonObject
         {
-            ["steps"] = steps.Count, ["calls"] = steps.Sum(s => s.Calls.Count), ["steps_in_a_point"] = flagged.Count, ["points"] = points.Count, ["by_label"] = byLabel,
+            // flagged_steps: the steps inside any point, each once, whatever the label: friction's one measure (C5.3).
+            ["steps"] = steps.Count, ["calls"] = steps.Sum(s => s.Calls.Count), ["flagged_steps"] = flagged.Count, ["points"] = points.Count, ["by_label"] = byLabel,
         };
         if (!d.Declared) return summary;
         var surfaceCalls = steps.SelectMany(s => s.Calls).Where(c => c.Actions.Any(a => a.Part == "on")).ToList();

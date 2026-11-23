@@ -17,7 +17,24 @@ namespace Proctor;
 /// </summary>
 static class FrictionReader
 {
+    /// <summary>The names the prompt asks the model for. The prompt keeps its measured wording, so its hash, and every reading kept in an attempt, stays valid.</summary>
     public static readonly string[] Labels = ["repair", "lost", "reread", "dead-end", "workaround"];
+
+    /// <summary>
+    /// What each asked-for name is written as in a file, and its sentence. Renamed 2026-11-22 so each reads bare
+    /// (check-evidence.md, C5.1): "lost" is a try or stage that died, "repair" says nothing of what, and "dead-end" hid
+    /// that the instruction was wrong. Mapped here, not in the prompt, so no attempt is read again.
+    /// </summary>
+    public static readonly (string Asked, string Name, string Describes)[] LabelDefs =
+    [
+        ("repair", "fixed-own-work", "a step where the agent fixed its own earlier work after something it ran failed"),
+        ("lost", "wasted-read", "a step where a search or a read led to nothing of later use"),
+        ("reread", "reread", "a step where the agent read again something an earlier call already showed"),
+        ("dead-end", "bad-instruction", "a step where the agent followed an instruction, document or path that could not work as given"),
+        ("workaround", "workaround", "a step where the agent built a way round something instead of using it"),
+    ];
+
+    static string AsWritten(string asked) => LabelDefs.First(l => l.Asked == asked).Name;
 
     // The wording the first measurements were made with (auspex, project/friction-contract.md). A change is a new prompt hash.
     public const string Instructions = """
@@ -202,6 +219,8 @@ static class FrictionReader
                 ["step"] = steps[found.i].Id, ["call"] = callId, ["quote"] = quote,
                 ["where"] = found.call.SquashedCommand.Contains(Shell.Squash(quote), StringComparison.Ordinal) ? "command" : "result",
             };
+            // The reader's one-line reason is its `because`, as a rule's sentence is (C5.1); notes keeps it for the old readers.
+            if (why.Length > 0) evidence["because"] = why.Length > 160 ? why[..160] : why;
             if (!flags.TryGetValue((label, found.i), out var list)) flags[(label, found.i)] = list = [];
             list.Add((evidence, callId, why.Length > 160 ? why[..160] : why));
         }
@@ -222,7 +241,7 @@ static class FrictionReader
                     var costs = stretch.SelectMany(k => steps[k].Calls).Where(c => calls.Contains(c.Id)).Select(c => c.Cost).ToList();
                     read.Add((stretch[0], labelIndex, new JsonObject
                     {
-                        ["label"] = label,
+                        ["label"] = AsWritten(label),
                         ["steps"] = new JsonArray(steps[stretch[0]].Id, steps[stretch[^1]].Id),
                         ["calls"] = new JsonArray(calls.Select(c => (JsonNode?)JsonValue.Create(c)).ToArray()),
                         ["evidence"] = new JsonArray(all.Take(6).Select(f => (JsonNode?)f.Evidence).ToArray()),
@@ -255,9 +274,9 @@ static class FrictionReader
         }
         var summary = file["summary"]!.AsObject();
         summary["points"] = merged.Count;
-        summary["steps_in_a_point"] = flagged.Count;
+        summary["flagged_steps"] = flagged.Count;
         summary["by_label"] = byLabel;
-        file["reader"] = new JsonObject { ["model"] = model, ["prompt"] = PromptHash, ["labels"] = new JsonArray(Labels.Select(l => (JsonNode?)JsonValue.Create(l)).ToArray()) };
+        file["reader"] = new JsonObject { ["model"] = model, ["prompt"] = PromptHash, ["labels"] = Friction.LabelObjects(LabelDefs.Select(l => (l.Name, l.Describes))) };
         return (answers.Count, kept, dropped, null);
     }
 }

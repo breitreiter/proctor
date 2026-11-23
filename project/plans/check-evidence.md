@@ -18,6 +18,13 @@ authors' to write. `proctor list` names them meanwhile. The guardrail
 defaults are recognised by what the check does, not by being copied
 unchanged: a budget's reason doesn't depend on its numbers.
 
+C5.1 and C5.3 built 2026-11-23: schema `friction/2`, rules 0.10, the
+renames, labels as objects with `describes`, `rule` and `because` on each
+evidence item, `flagged_steps`. The reader's prompt keeps its measured
+words (its hash, and every kept reading, stay valid) and its answers are
+mapped to the new names as they're written; its `why` is the evidence's
+`because`. C5.2 waits (decided); C5.4 waits on stages.
+
 C3 built 2026-11-23 for the built-in kinds: `evidence` on each verdict,
 as steps (ATIF step ids, read with each call, result and the answer) or
 files. Evidence is where the field found what it looks for, whatever the

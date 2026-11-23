@@ -7,6 +7,19 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: `friction/2`, labels that read bare** (`check-evidence.md`,
+  C5.1 and C5.3). The rules' labels are renamed (rules 0.10):
+  `off-surface` to `read-internals`, `substitute` to `used-substitute`,
+  `abandoned` to `fell-back`, `surface-search` to `searched-docs`,
+  `help` to `ran-help`, `workaround` to `inline-script`, `environment` to
+  `machine-refused`, `tool-error` to `harness-refused`. The reader's are
+  written as `fixed-own-work` (was `repair`), `wasted-read` (`lost`),
+  `bad-instruction` (`dead-end`), with `reread` and `workaround` kept; its
+  prompt is unchanged, so every kept reading stays valid. Labels are
+  objects with their sentence (`detector.labels`, `reader.labels`), each
+  evidence item has `rule` and `because`, and the summary's
+  `steps_in_a_point` is `flagged_steps`. Rerun `proctor friction` to
+  rewrite existing files: the rules are free, a kept reading is reused.
 - **Evidence on verdicts** (`check-evidence.md`, C3). A built-in check's
   verdict in `checks.json` carries `evidence`: the trajectory steps or
   diff paths where it found what it looks for, whatever the result, so a
