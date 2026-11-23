@@ -320,6 +320,9 @@ static class Friction
         return null;
     }
 
+    /// <summary>The trajectory's steps as friction numbers them, in order: what a point's first and last step are positions in.</summary>
+    internal static List<string> StepIds(JsonObject trajectory, Surface surface) => Read(trajectory, surface).Select(s => s.Id).ToList();
+
     static List<Step> Read(JsonObject trajectory, Surface d)
     {
         var steps = new List<Step>();

@@ -176,12 +176,6 @@ static class Verbs
             if (exam.Tasks.All(x => x.Id != task)) throw new ProctorException($"no task '{task}' in exam '{exam.Id}'");
     }
 
-    /// <summary>Grading, friction and the report still read one attempt per task; a try of stages is theirs in a later slice.</summary>
-    static void NotYetStaged(Exam exam, string verb)
-    {
-        if (exam.Staged) throw new ProctorException($"exam '{exam.Id}' is one job of stages, which `proctor {verb}` cannot read yet (project/plans/bank.md, step 4)");
-    }
-
     static Exam LoadExam(string root, string examId)
     {
         var problems = new List<Problem>();
@@ -205,7 +199,6 @@ static class Verbs
     public static int Report(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null)
     {
         var exam = LoadExam(root, examId);
-        NotYetStaged(exam, "report");
         RequireKnown(exam, variantIds, taskIds);
         var selection = Bank.Select(root, exam, variantIds, taskIds);
         if (selection.Current.Count == 0)
@@ -218,6 +211,7 @@ static class Verbs
         var narrowed = string.Join(" ", (variantIds ?? []).Select(v => $"--variant {v}")
             .Append(taskIds is null ? null : $"--tasks {string.Join(",", taskIds)}").OfType<string>());
         var built = Stats.Stamp(exam, selection, narrowed.Length > 0 ? narrowed : null, DateTime.UtcNow);
+        if (exam.Staged) return ReportTries(root, exam, selection, rows, live, built);
         var stats = Stats.Compute(exam, rows, live, built);
         var view = View(root, exam, selection.Current, stats.Variants.Keys);
         var judges = Judge.Uses(root, selection.Current);
@@ -264,6 +258,27 @@ static class Verbs
     }
 
     /// <summary>An earlier report in the directory is moved into one of its own beside the new one, named by when it was built, so a report is never overwritten.</summary>
+    /// <summary>
+    /// A staged exam's report: results.jsonl a row per stage, stats.json the tries and each variant against live
+    /// (tries/1), friction.json what recurs across a variant's tries, and summary.md. An earlier report is moved aside.
+    /// </summary>
+    static int ReportTries(string root, Exam exam, BankSelection selection, List<ResultRow> rows, Live? live, BuiltFrom built)
+    {
+        var (stats, friction) = Tries.Compute(root, exam, selection.Current, Bank.Of(root, exam), rows, live, built);
+        var outDir = Layout.ReportExplore(root, exam.Id);
+        KeepEarlier(outDir);
+        Directory.CreateDirectory(outDir);
+        Results.Write(Path.Combine(outDir, Layout.ResultsFile), rows);
+        Runner.WriteJson(Path.Combine(outDir, Layout.StatsFile), stats);
+        Runner.WriteJson(Path.Combine(outDir, Layout.FrictionFile), friction);
+        File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Tries.Markdown(stats, friction));
+        Console.WriteLine($"{Path.GetRelativePath(root, Path.Combine(outDir, Layout.SummaryFile))}");
+        foreach (var v in stats.Variants)
+            Console.WriteLine($"  {v.Id}{(v.Live ? " (live)" : "")}: {v.Tries} {(v.Tries == 1 ? "try" : "tries")}{(v.Lost > 0 ? $", {v.Lost} lost" : "")}, passed in {v.Passed}{(v.AgainstLive is { } a ? $". {a.Sentence}" : "")}");
+        foreach (var line in Bank.Describe(selection.Stale, "left out")) Console.WriteLine(line);
+        return 0;
+    }
+
     static void KeepEarlier(string outDir)
     {
         var stats = Path.Combine(outDir, Layout.StatsFile);

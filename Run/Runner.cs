@@ -168,6 +168,9 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var width = exam.Variants.Max(v => v.Id!.Length);
         log.WriteLine(exam.Staged ? $"{exam.Id}: one job of {exam.Tasks.Count} stage{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted"
             : $"{exam.Id}: {exam.Tasks.Count} task{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted of each");
+        // Two variants are compared try against try, and under 4 tries a side nothing can be confirmed (3 against 5 can).
+        if (exam.Staged && exam.Variants.Count > 1 && Tries.MinP(exam.Attempts, exam.Attempts) >= 0.05)
+            log.WriteLine($"  note: {AttemptCount(exam.Attempts)} a variant can show a difference between variants and never confirm one; 4 a variant can");
         foreach (var variant in exam.Variants)
         {
             var have = wanted - gaps.Where(g => g.Key.Variant == variant.Id).Sum(g => g.Value) / per;

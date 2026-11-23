@@ -247,8 +247,21 @@ Harbor's source says it writes per step, not on a run.
    that stage's own steps; its `attempt` block carries `stage`, the
    stage's place, as the manifest does. A stage not reached is skipped
    and said so. A reader's kept reading is per stage.
-5. **Statistics and the report by try**, with C5.4's roll-up. `run`
-   says when the tries wanted are under the 4 a side a comparison needs.
+5. **Statistics and the report by try.** BUILT 2026-11-23, as its own
+   path (`Report/Tries.cs`); the task report (`Stats.cs`, `Report.cs`)
+   is untouched and goes with tasks in slice 7. On a staged exam
+   `proctor report` writes `stats.json` (schema `tries/1`: per variant
+   its tries, each with headline checks held of all the job has, flagged
+   steps, each stage's result, and the variant against live),
+   `friction.json` (C5.4's roll-up: per kind, in k of n tries, min,
+   median and max when it happens, per try overall), `results.jsonl` a
+   row per stage, and `summary.md`. Against live is Mann–Whitney with an
+   exact two-sided p, on both measures, with proctor's sentence and what
+   moved most. A lost try is in no number; a try with a stage that
+   failed a validity check is listed and not counted (my reading: the
+   author said such an attempt says nothing). `run` notes when the tries
+   wanted cannot confirm a difference. Not built: each step's tool kind
+   for the exam page's strip.
 6. **Harbor**: the scripted multi-step check, then compile and ingest.
 7. **The exams.** Seven stage as they are (`readme-answers`,
    `tern-docs`, `gate`, `gate-oracle`, `smoke`, `playground`,

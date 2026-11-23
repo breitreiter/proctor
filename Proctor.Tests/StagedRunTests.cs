@@ -207,6 +207,5 @@ public class StagedRunTests
         using var repo = new TestRepo();
         Stage(repo, 1, false, ("say", "MOCK:response=one"));
         Assert.Contains("never run alone", Assert.Throws<ProctorException>(() => Verbs.Run(repo.Root, "smoke", null, null, taskIds: ["say"])).Message);
-        Assert.Contains("cannot read yet", Assert.Throws<ProctorException>(() => Verbs.Report(repo.Root, "smoke")).Message);
     }
 }

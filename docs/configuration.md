@@ -245,8 +245,8 @@ live.json        which variant is live, written by `proctor live` (absent until 
 ```
 
 **Stages, in place of tasks (being built: a bare nb variant runs one;
-and `grade` and `friction` read it stage by stage; an agent variant and
-`report` do not yet).** An exam can instead be one job of stages: `fixture` and
+and `grade`, `friction` and `report` read it; an agent variant does not
+yet).** An exam can instead be one job of stages: `fixture` and
 `stages` in `exam.json`, and no `tasks/`.
 
 ```json
@@ -289,6 +289,14 @@ and `grade` and `friction` read it stage by stage; an agent variant and
   will not touch it; say where in its prompt. A stage passes on the
   headline checks it carries, and a stage that was not reached is not
   graded.
+- `proctor report` compares variants try against try, never stage
+  against stage: stages share a workspace, so they share causes. Each
+  try gives two numbers, the headline checks it held (of all the job
+  has; a stage not reached holds nothing) and its flagged steps, and a
+  variant is compared with the live one by the Mann–Whitney test.
+  **Plan for at least 4 tries of each variant** (`attempts`), or 3
+  against 5: fewer can show a difference and never confirm one. One
+  try is fine as a shakedown, for setup problems and plain failures.
 - The whole job has one hash: changing, adding, moving or renaming a
   stage makes every banked attempt of the exam stale. Changing a check,
   an expected value or an `about` does not.

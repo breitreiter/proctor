@@ -50,14 +50,14 @@ static class Results
                 DeniedCalls: trailer is null ? null : trailer.Denied,
                 DurationMs: manifest?.DurationMs,
                 Checks: checks?.ToDictionary(k => k.Key, k => k.Value.Result),
-                Pass: checks is null ? null : Grade.Pass(checks, exam.Grading.Pass!),
+                Pass: checks is null ? null : Grade.Pass(checks, exam.PassFor(c)),
                 // The headline checks lead, so a failed attempt's first reason is what failed it, not a guardrail declared before it.
-                Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).OrderBy(k => !exam.Grading.Pass!.Contains(k.Key))
+                Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).OrderBy(k => !exam.PassFor(c).Contains(k.Key))
                     .ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
-                Invalid: checks is null ? null : Grade.Invalid(checks, exam.Grading.Validity),
+                Invalid: checks is null ? null : Grade.Invalid(checks, exam.ValidityFor(c)),
                 Labels: exam.LabelsFor(c) is { Count: > 0 } labels ? labels : null,
-                Undecided: checks is null ? null : Grade.Undecided(checks, exam.Grading.Pass!),
-                Outdated: checks is null ? null : Grade.Outdated(checks, exam.Grading.Pass!)));
+                Undecided: checks is null ? null : Grade.Undecided(checks, exam.PassFor(c)),
+                Outdated: checks is null ? null : Grade.Outdated(checks, exam.PassFor(c))));
         }
         return rows;
     }

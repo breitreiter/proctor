@@ -18,12 +18,20 @@ formats or the vocabulary; a patch bump does not.
   `bank/<exam>/<variant>/<n>/stages/<i>-<id>/`. A stage that did not run
   loses the try; `"chained": true` ends a try at a stopped stage and
   still counts it. A log entry of a staged exam carries `stages`, and a
-  stage's manifest its `stage`. Agent variants and `report` refuse a
-  staged exam for now.
+  stage's manifest its `stage`. Agent variants refuse a staged exam for
+  now.
 - **Stages, graded** (slice 3). `proctor grade` writes a `checks.json`
   per stage. Transcript checks are each stage's; a workspace check is
   graded once against the try's diff, the exam's and the fixture's on
   the last stage and a stage's own on that stage.
+- **Stages, reported by try** (slice 5). On a staged exam
+  `proctor report` writes `stats.json` as `tries/1` (each variant's
+  tries; headline checks held and flagged steps per try; each variant
+  against live by Mann–Whitney, with a sentence and what moved most), a
+  roll-up of what recurs in friction as `friction.json` beside it
+  (`check-evidence.md`, C5.4), `results.jsonl` a row per stage and
+  `summary.md`. `proctor run` notes when the attempts wanted are too few
+  to confirm a difference between variants.
 - **Stages, read for friction** (slice 4). `proctor friction` writes a
   `friction.json` per stage, from that stage's own steps; its `attempt`
   block carries `stage`. A stage not reached is skipped.
