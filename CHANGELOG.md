@@ -7,6 +7,12 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Evidence on verdicts** (`check-evidence.md`, C3). A built-in check's
+  verdict in `checks.json` carries `evidence`: the trajectory steps or
+  diff paths where it found what it looks for, whatever the result, so a
+  negated check that fails points at what it found. A check that found
+  nothing, or is about the run as a whole, has none. Script and model
+  checks have none yet.
 - **Grading reads the trajectory.** An attempt with `trajectory.json` is
   graded from it, bare nb attempts included, as Harbor attempts already
   were; `transcript.jsonl` is read only when there is no trajectory or it

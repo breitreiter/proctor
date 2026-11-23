@@ -17,6 +17,8 @@ record Verdict(string Result, string Reason)
     public string? Why { get; init; }
     /// <summary>A script check's script, relative to proctor's root, so a person can open what decided.</summary>
     public string? Script { get; init; }
+    /// <summary>Where in the attempt the check found what it looks for (check-evidence.md, C3): steps of the trajectory, or files of the diff. Absent when it found nothing to point at.</summary>
+    public List<Evidence>? Evidence { get; init; }
 
     // A verdict is its result and reason; what it carries to explain the check doesn't make it another verdict.
     public virtual bool Equals(Verdict? other) => other is not null && Result == other.Result && Reason == other.Reason;
@@ -26,6 +28,9 @@ record Verdict(string Result, string Reason)
     public static Verdict Of(bool ok, string reason) => new(ok ? Pass : Fail, reason);
     public static Verdict Err(string reason) => new(Error, reason);
 }
+
+/// <summary>One thing a verdict points at: an ATIF step by its id, or a path in the attempt's diff.</summary>
+record Evidence(string? Step = null, string? File = null);
 
 /// <summary>Everything the runner and the grader need to know about one attempt, without the transcript.</summary>
 record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string ExamId, string Variant, TaskDef Task, int Attempt)
@@ -284,8 +289,9 @@ static class Checks
         var verdicts = check.Spec.Where(f => !IsNote(f.Key)).Select(field => EvaluateField(field.Key, field.Value, check.Dir, name, attempt, t)).ToList();
         if (verdicts.Count == 1) return verdicts[0];
         var worst = verdicts.MaxBy(v => v.Result switch { Verdict.Error => 3, Verdict.NeedsJudge => 2, Verdict.Fail => 1, _ => 0 })!;
-        // The parts that decided the verdict lead, so a skimmed reason opens with why it failed.
-        return worst with { Reason = string.Join("; ", verdicts.OrderBy(v => v.Result != worst.Result).Select(v => v.Reason)) };
+        // The parts that decided the verdict lead, so a skimmed reason opens with why it failed. Evidence is every part's.
+        var evidence = verdicts.SelectMany(v => v.Evidence ?? []).Distinct().ToList();
+        return worst with { Reason = string.Join("; ", verdicts.OrderBy(v => v.Result != worst.Result).Select(v => v.Reason)), Evidence = evidence.Count > 0 ? evidence : null };
     }
 
     /// <summary>An exam's check: its script path is relative to the exam directory.</summary>
@@ -304,8 +310,9 @@ static class Checks
         var verdict = name == "script"
             ? attempt.ScriptsInVerifier ? VerifierScript(check, attempt) : RunScript(value!.GetValue<string>(), scriptDir, attempt)
             : BuiltIn(name, value!, attempt, t);
+        if (verdict.Result is not Verdict.Error && name != "script" && Found(name, value!, t) is { Count: > 0 } found) verdict = verdict with { Evidence = found };
         if (!negated || verdict.Result is Verdict.Error or Verdict.NeedsJudge) return verdict;
-        return new Verdict(verdict.Result == Verdict.Pass ? Verdict.Fail : Verdict.Pass, "not: " + verdict.Reason);
+        return verdict with { Result = verdict.Result == Verdict.Pass ? Verdict.Fail : Verdict.Pass, Reason = "not: " + verdict.Reason };
     }
 
     private static Verdict BuiltIn(string name, JsonNode v, AttemptContext attempt, Transcript t)
@@ -448,6 +455,56 @@ static class Checks
             }
             default:
                 return Verdict.Err($"unknown check {name}");
+        }
+    }
+
+    /// <summary>
+    /// Where a built-in field found what it looks for, whatever the verdict (check-evidence.md, C3): the same steps serve a
+    /// pass and a negated fail, and a field that found nothing points at nothing (absent evidence was dropped). Steps are
+    /// ATIF step ids, so they exist only on a transcript read from a trajectory. A check on the run as a whole (exit
+    /// reason, budgets, the nudge, the oracle) has none; nor has a call count over its limit, since which call went over
+    /// is arbitrary.
+    /// </summary>
+    static List<Evidence> Found(string name, JsonNode v, Transcript t)
+    {
+        List<Evidence> Steps(IEnumerable<string?> steps) => [.. steps.OfType<string>().Distinct().Select(s => new Evidence(Step: s))];
+        List<string> Names(JsonNode? n) => n is JsonArray a ? [.. a.Select(x => x!.GetValue<string>())] : [];
+        switch (name)
+        {
+            case "tools_used" or "tools_used_any":
+            {
+                var wanted = Names(v);
+                return Steps(t.ToolCalls.Where(c => wanted.Contains(c.Name)).Select(c => c.Step));
+            }
+            case "tool_args":
+                return Steps(t.ToolCalls.Where(c => c.Name == v["name"]?.GetValue<string>()).Select(c => c.Step));
+            case "tool_sequence":
+            {
+                var names = Names(v["names"]);
+                return Steps(t.ToolCalls.Where(c => names.Contains(c.Name)).Select(c => c.Step));
+            }
+            case "answer_contains" or "answer_equals" or "answer_regex" or "answer_words":
+                return Steps([t.AnswerStep]);
+            case "result_matches":
+            {
+                Regex pattern;
+                try { pattern = new Regex(v.GetValue<string>()); } catch (ArgumentException) { return []; }
+                return Steps(t.ToolResults.Where(r => pattern.IsMatch(r.Output)).Select(r => r.Step));
+            }
+            case "denied_calls":
+                return Steps(t.ToolCalls.Where(c => c.Denied).Select(c => c.Step));
+            case "tool_errors":
+                return Steps(t.ToolResults.Where(r => r.IsError).Select(r => r.Step));
+            case "files_touched":
+            {
+                if (t.Diff is null) return [];
+                var patterns = Names(v["paths"]);
+                var touched = t.TouchedPaths();
+                var files = v["mode"]?.GetValue<string>() == "at_most" ? touched.Where(f => !patterns.Any(p => Glob.IsMatch(p, f))) : touched.Where(f => patterns.Any(p => Glob.IsMatch(p, f)));
+                return [.. files.Distinct().Select(f => new Evidence(File: f))];
+            }
+            default:
+                return [];
         }
     }
 

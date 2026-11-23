@@ -15,6 +15,8 @@ record Trailer(
 
 record ToolCall(string Id, string Name, JsonObject? Arguments, string? Approved, string? ApprovalReason)
 {
+    /// <summary>The ATIF step the call is in, when read from a trajectory; what a verdict's evidence points at (check-evidence.md, C3).</summary>
+    public string? Step { get; init; }
     public bool Denied => Approved == "deny";
     /// <summary>The rung name without nb's explanatory suffix, e.g. "default-deny" from "default-deny (default=deny; …)".</summary>
     public string? Rung => ApprovalReason?.Split(' ', 2)[0];
@@ -22,6 +24,8 @@ record ToolCall(string Id, string Name, JsonObject? Arguments, string? Approved,
 
 record ToolResult(string Id, string Output, JsonObject? Result, bool? Failed = null)
 {
+    /// <summary>The ATIF step whose observation holds the result, when read from a trajectory.</summary>
+    public string? Step { get; init; }
     /// <summary>What the agent said of the result, when it says (an ATIF result's is_error); else a refusal, a tool that reported an error, or a command whose exit code was not 0.</summary>
     public bool IsError => Failed ?? (
         Output.StartsWith("Error:", StringComparison.Ordinal)
@@ -49,6 +53,8 @@ sealed class Transcript
 {
     public Trailer? Trailer { get; private set; }
     public string? Answer { get; private set; }
+    /// <summary>The ATIF step the answer is in, when read from a trajectory.</summary>
+    public string? AnswerStep { get; private set; }
     public JsonNode? AnswerJson { get; private set; }
     public List<ToolCall> ToolCalls { get; } = [];
     public List<ToolResult> ToolResults { get; } = [];
@@ -102,6 +108,7 @@ sealed class Transcript
         {
             var text = AtifText(step["message"]);
             var extra = step["extra"] as JsonObject;
+            var stepId = step["step_id"]?.ToString();
             switch (Str(step, "source"))
             {
                 case "user":
@@ -111,19 +118,20 @@ sealed class Transcript
                     if (text.Trim().Length > 0)
                     {
                         t.Answer = text;
+                        t.AnswerStep = stepId;
                         t.AnswerJson = extra?["assistant_json"]?.DeepClone() ?? LastJsonFence(text);
                     }
                     foreach (var call in (step["tool_calls"]?.AsArray() ?? []).OfType<JsonObject>())
                     {
                         var approval = call["extra"] as JsonObject ?? [];
                         var (name, args) = Ingest.Called(call);
-                        t.ToolCalls.Add(new ToolCall(Str(call, "tool_call_id") ?? "", name, args?.DeepClone() as JsonObject, Str(approval, "approved"), Str(approval, "approval_reason")));
+                        t.ToolCalls.Add(new ToolCall(Str(call, "tool_call_id") ?? "", name, args?.DeepClone() as JsonObject, Str(approval, "approved"), Str(approval, "approval_reason")) { Step = stepId });
                     }
                     foreach (var result in (step["observation"]?["results"]?.AsArray() ?? []).OfType<JsonObject>())
                     {
                         var isError = result["extra"]?["tool_result_metadata"]?["raw_tool_result"]?["is_error"] is JsonValue e && e.TryGetValue<bool>(out var b) ? b : (bool?)null;
                         // nb marks no result an error; its output says so, as on the bare path.
-                        t.ToolResults.Add(new ToolResult(Str(result, "source_call_id") ?? "", AtifText(result["content"]), result["extra"]?["result"]?.DeepClone() as JsonObject, isError ?? (nb ? null : false)));
+                        t.ToolResults.Add(new ToolResult(Str(result, "source_call_id") ?? "", AtifText(result["content"]), result["extra"]?["result"]?.DeepClone() as JsonObject, isError ?? (nb ? null : false)) { Step = stepId });
                     }
                     break;
             }

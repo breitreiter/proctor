@@ -151,6 +151,47 @@ public class ChecksTests
         Assert.Contains(Checks.ValidateCheck(JsonNode.Parse("{\"why\": \"only a reason\"}")!.AsObject(), "/nonexistent"), p => p.Field == "");
     }
 
+    static Transcript Trajectory(string name, string? diff = null) =>
+        Transcript.FromAtif(JsonNode.Parse(File.ReadAllText(Path.Combine(TestRepo.SourceRoot, "Proctor.Tests", "fixtures", "nb-run", name + ".trajectory.json")))!.AsObject(), null, diff);
+
+    static List<string?> Steps(Verdict v) => [.. (v.Evidence ?? []).Select(e => e.Step)];
+
+    [Fact]
+    public void Evidence_PointsAtTheStepsWhereTheFieldFoundWhatItLooksFor()
+    {
+        var t = Trajectory("loop-nudged");
+        Assert.Equal(["2", "3", "4", "6"], Steps(Exam("{\"tools_used\": [\"bash\"]}", t)));
+        Assert.Equal(["2", "3", "4", "6"], Steps(Exam("{\"tool_args\": {\"name\": \"bash\", \"args\": {}}}", t)));
+        Assert.Equal(["7"], Steps(Exam("{\"answer_contains\": \"maximum\"}", t)));
+        // A negated field that fails points at what it found; a field that found nothing points at nothing.
+        var never = Exam("{\"not_tools_used\": [\"bash\"]}", t);
+        Assert.Equal("fail", never.Result);
+        Assert.Equal(["2", "3", "4", "6"], Steps(never));
+        Assert.Null(Exam("{\"tools_used\": [\"read_file\"]}", t).Evidence);
+        // A check on the run as a whole has none.
+        Assert.Null(Exam("{\"exit_reason\": \"ok\"}", t).Evidence);
+        Assert.Null(Exam("{\"loop_nudged\": true}", t).Evidence);
+    }
+
+    [Fact]
+    public void Evidence_ForFiles_IsTheTouchedPathsTheModeIsAbout()
+    {
+        var t = Trajectory("plain", Diff);
+        var least = Exam("{\"files_touched\": {\"paths\": [\"src/**\"], \"mode\": \"at_least\"}}", t);
+        Assert.Equal(["src/fetch.cs"], (least.Evidence ?? []).Select(e => e.File));
+        var most = Exam("{\"files_touched\": {\"paths\": [\"src/**\"], \"mode\": \"at_most\"}}", t);
+        Assert.Equal("fail", most.Result);
+        Assert.Equal(["README.md"], (most.Evidence ?? []).Select(e => e.File));
+    }
+
+    [Fact]
+    public void Evidence_IsEveryPartsInAConjunction_AndNoneFromAJsonlTranscript()
+    {
+        var both = Exam("{\"tools_used\": [\"bash\"], \"answer_contains\": \"maximum\"}", Trajectory("loop-nudged"));
+        Assert.Equal(["2", "3", "4", "6", "7"], Steps(both));
+        Assert.Null(Exam("{\"tools_used\": [\"bash\"]}", Fixture("loop-nudged")).Evidence);
+    }
+
     [Fact]
     public void Description_IsNotEvaluated()
     {

@@ -18,6 +18,14 @@ authors' to write. `proctor list` names them meanwhile. The guardrail
 defaults are recognised by what the check does, not by being copied
 unchanged: a budget's reason doesn't depend on its numbers.
 
+C3 built 2026-11-23 for the built-in kinds: `evidence` on each verdict,
+as steps (ATIF step ids, read with each call, result and the answer) or
+files. Evidence is where the field found what it looks for, whatever the
+result; `tool_args` points at every call to its tool, matching or not.
+Not yet: judge and decide (the steps of the quotes they cite), the oracle
+checks, script evidence (later, as called), and stage ids (with bank step
+4).
+
 Before C3 (2026-11-23): grading reads `trajectory.json` for every
 attempt that has one, bare nb attempts included, so evidence can point at
 ATIF step ids directly. Proven first: `TrajectoryParityTests` reads every

@@ -427,7 +427,14 @@ protecting, not only what tripped:
 proctor's own reason when they have none: an exit reason of `ok`, no
 denied calls, no loop nudge, and a budget of calls, tokens or time.
 `grade` writes each check's description, why and (for a script) its path
-into every verdict in `checks.json`, as they were when it graded.
+into every verdict in `checks.json`, as they were when it graded. A
+built-in check also writes `evidence`: where in the attempt it found what
+it looks for, as trajectory steps (`{"step": "7"}`) or diff paths
+(`{"file": "src/x.cs"}`). `tools_used` points at the calls, `answer_*` at
+the answer, `result_matches` at the matching results, `denied_calls` and
+`tool_errors` at the offending steps, `files_touched` at the files its
+mode is about. A check on the run as a whole (exit reason, budgets, the
+nudge, the oracle) has none, and so does one that found nothing.
 
 ## The surface under test
 

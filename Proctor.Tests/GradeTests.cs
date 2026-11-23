@@ -75,6 +75,12 @@ public class GradeTests
         Assert.Null(raw["says-expected"]!["why"]);
         Assert.Equal("exams/smoke/checks/answer-nonempty.sh", raw["answer-nonempty"]!["script"]!.GetValue<string>());
         Assert.Null(raw["exit_ok"]!["script"]);
+
+        // Graded from the trajectory nb wrote beside its JSONL, so evidence points at its steps (C3).
+        Assert.True(File.Exists(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "plain", 1), Layout.TrajectoryFile)));
+        Assert.NotNull(raw["says-expected"]!["evidence"]![0]!["step"]);
+        Assert.Equal("note.txt", raw["touches-note"]!["evidence"]![0]!["file"]!.GetValue<string>());
+        Assert.Null(raw["exit_ok"]!["evidence"]);
     }
 
     [Fact]
