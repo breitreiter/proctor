@@ -148,6 +148,11 @@ exams/readme-answers/exam.json
 - Existing exams with several tasks are not carried over. Agreed: fine
   to lose them. Each is rewritten as one exam with stages, or as
   several exams, when it is next wanted.
+- **A stage is never a unit of comparison** (the user, 2026-11-22).
+  Stages are chunks for legibility and share a workspace. A variant is
+  compared with live try against try, on headline checks held per try
+  and flagged steps per try, with Mann–Whitney; `Stats.cs`'s pairing by
+  task goes with tasks. See `check-evidence.md`, C5.4.
 
 ## Checks and stages (B8)
 
