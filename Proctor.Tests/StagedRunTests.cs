@@ -183,12 +183,30 @@ public class StagedRunTests
     }
 
     [Fact]
+    public void Friction_ReadsEachStageOnItsOwn_AndSaysWhichWereNotReached()
+    {
+        using var repo = new TestRepo();
+        Stage(repo, 1, true, ("help", "MOCK:tool=bash git --help"), ("loops", "MOCK:loop=bash echo x"), ("after", "MOCK:response=fine"));
+        Run(repo);
+        var exam = repo.LoadExam("smoke");
+        var read = Friction.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
+
+        Assert.Equal([("help", null), ("loops", null), ("after", "not reached")], read.Select(r => (r.Task, r.Skipped)));
+        var file = JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "1-help", "friction.json")))!;
+        Assert.Equal(("friction/2", "help", "1", 1), (file["schema"]!.GetValue<string>(), file["attempt"]!["task"]!.GetValue<string>(), file["attempt"]!["attempt"]!.GetValue<string>(), file["attempt"]!["stage"]!.GetValue<int>()));
+        // The stage's points are found in its own steps: asking for help is flagged here and not on the stage after.
+        Assert.Contains(file["points"]!.AsArray(), p => p!["label"]!.GetValue<string>() == "ran-help");
+        Assert.Equal(2, JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-loops", "friction.json")))!["attempt"]!["stage"]!.GetValue<int>());
+        Assert.DoesNotContain(JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-loops", "friction.json")))!["points"]!.AsArray(), p => p!["label"]!.GetValue<string>() == "ran-help");
+        Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "stages", "3-after", "friction.json")));
+    }
+
+    [Fact]
     public void Run_RefusesWhatAJobOfStagesCannotDoYet()
     {
         using var repo = new TestRepo();
         Stage(repo, 1, false, ("say", "MOCK:response=one"));
         Assert.Contains("never run alone", Assert.Throws<ProctorException>(() => Verbs.Run(repo.Root, "smoke", null, null, taskIds: ["say"])).Message);
-        Assert.Contains("cannot read yet", Assert.Throws<ProctorException>(() => Verbs.Friction(repo.Root, "smoke")).Message);
         Assert.Contains("cannot read yet", Assert.Throws<ProctorException>(() => Verbs.Report(repo.Root, "smoke")).Message);
     }
 }

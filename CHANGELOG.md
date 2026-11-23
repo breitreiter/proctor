@@ -18,12 +18,15 @@ formats or the vocabulary; a patch bump does not.
   `bank/<exam>/<variant>/<n>/stages/<i>-<id>/`. A stage that did not run
   loses the try; `"chained": true` ends a try at a stopped stage and
   still counts it. A log entry of a staged exam carries `stages`, and a
-  stage's manifest its `stage`. Agent variants, `friction` and `report`
-  refuse a staged exam for now.
+  stage's manifest its `stage`. Agent variants and `report` refuse a
+  staged exam for now.
 - **Stages, graded** (slice 3). `proctor grade` writes a `checks.json`
   per stage. Transcript checks are each stage's; a workspace check is
   graded once against the try's diff, the exam's and the fixture's on
   the last stage and a stage's own on that stage.
+- **Stages, read for friction** (slice 4). `proctor friction` writes a
+  `friction.json` per stage, from that stage's own steps; its `attempt`
+  block carries `stage`. A stage not reached is skipped.
 - **Breaking: `friction/2`, labels that read bare** (`check-evidence.md`,
   C5.1 and C5.3). The rules' labels are renamed (rules 0.10):
   `off-surface` to `read-internals`, `substitute` to `used-substitute`,

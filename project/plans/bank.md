@@ -241,8 +241,12 @@ Harbor's source says it writes per step, not on a run.
    it carries. A stage not reached is not graded. auspex reads the
    layout: `/<exam>/<setup>/<try>/<stage>`, a strip of the try's
    stages, proctor's reason on a stage that did not complete.
-   `friction` and `report` still refuse a staged exam.
-4. **Friction per stage.**
+   `report` still refuses a staged exam.
+4. **Friction per stage.** BUILT 2026-11-23. `proctor friction` writes
+   a `friction.json` beside each stage's trajectory, its points found in
+   that stage's own steps; its `attempt` block carries `stage`, the
+   stage's place, as the manifest does. A stage not reached is skipped
+   and said so. A reader's kept reading is per stage.
 5. **Statistics and the report by try**, with C5.4's roll-up. `run`
    says when the tries wanted are under the 4 a side a comparison needs.
 6. **Harbor**: the scripted multi-step check, then compile and ingest.

@@ -146,7 +146,7 @@ static class Friction
 
     public record AttemptFriction(string Variant, string Task, int Attempt, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
 
-    /// <summary>friction.json beside each given attempt's trajectory, each a current one from the bank. An attempt not completed, or with no trajectory, is skipped and said so.</summary>
+    /// <summary>friction.json beside each given attempt's trajectory, each a current one from the bank: a task's attempt, or one stage of a try, whose steps are that stage's own. An attempt not completed, a stage not reached, or one with no trajectory is skipped and said so.</summary>
     /// <param name="reader">A chat judge of the machine's config that reads each attempt for what rules cannot see; its points are added with a model source. Null for rules only.</param>
     public static List<AttemptFriction> Attempts(string root, Exam exam, List<BankAttempt> attempts, TextWriter log, JudgeClient? judges = null, string? reader = null)
     {
@@ -157,20 +157,24 @@ static class Friction
             var (variant, task, n) = (a.Variant, a.Task, a.Attempt);
             var attemptDir = a.Dir(root);
             var trajectory = Path.Combine(attemptDir, Layout.TrajectoryFile);
-            var skipped = Runner.ReadStatus(attemptDir) != AttemptStatus.Completed ? "not completed" : !File.Exists(trajectory) ? "no trajectory" : null;
+            // A stage a chained try never reached has nothing to read, which is not the same as an attempt that did not finish.
+            var status = Runner.ReadStatus(attemptDir);
+            var skipped = a.Staged && status == AttemptStatus.Skipped ? "not reached" : status != AttemptStatus.Completed ? "not completed" : !File.Exists(trajectory) ? "no trajectory" : null;
             if (skipped is not null)
             {
                 done.Add(new AttemptFriction(variant, task, n, null, skipped));
                 continue;
             }
             var attempt = new JsonObject { ["exam"] = exam.Id, ["variant"] = variant, ["task"] = task, ["attempt"] = n.ToString() };
+            // A stage of a try, as its manifest says it: task is the stage's id, attempt the try, stage its place in the try.
+            if (a.Entry.Stages is { } stages) attempt["stage"] = stages.IndexOf(task) + 1;
             var parsed = JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject();
             var (file, steps) = Detect(parsed, surface, attempt);
             var reading = reader is null ? null : FrictionReader.Read(attemptDir, parsed, file, steps, exam.Def.Surface?.Description, judges!, reader);
             File.WriteAllText(Path.Combine(attemptDir, Layout.FrictionFile), file.ToJsonString(Written) + "\n");
             var points = file["points"]!.AsArray();
             done.Add(new AttemptFriction(variant, task, n, points.Count, null, reading));
-            log.WriteLine($"  {variant}/{task}/{n}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}{(reading is null ? "" : $"  [reader: {reading.Says}]")}");
+            log.WriteLine($"  {a.Label}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}{(reading is null ? "" : $"  [reader: {reading.Says}]")}");
         }
         return done;
     }

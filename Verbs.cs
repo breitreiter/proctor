@@ -137,7 +137,6 @@ static class Verbs
     public static int Friction(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null, string? reader = null, bool again = false, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
-        NotYetStaged(exam, "friction");
         RequireKnown(exam, variantIds, taskIds);
         JudgeClient? judges = null;
         if (reader is not null)
@@ -155,7 +154,7 @@ static class Verbs
         var attempts = Proctor.Friction.Attempts(root, exam, selection.Current, Console.Out, judges, reader);
         var read = attempts.Where(c => c.Points is not null).ToList();
         var skipped = attempts.Where(c => c.Skipped is not null).GroupBy(c => c.Skipped!).Select(g => $"{g.Count()} {g.Key}").ToList();
-        Console.WriteLine($"friction: {read.Count} of {attempts.Count} attempts read, {read.Sum(c => c.Points)} points{(skipped.Count > 0 ? $"; skipped {string.Join(", ", skipped)}" : "")}");
+        Console.WriteLine($"friction: {read.Count} of {attempts.Count} {(exam.Staged ? "stages" : "attempts")} read, {read.Sum(c => c.Points)} points{(skipped.Count > 0 ? $"; skipped {string.Join(", ", skipped)}" : "")}");
         foreach (var line in Bank.Describe(selection.Stale, "not read")) Console.WriteLine(line);
         if (reader is not null)
         {

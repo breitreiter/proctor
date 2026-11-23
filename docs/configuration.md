@@ -245,8 +245,8 @@ live.json        which variant is live, written by `proctor live` (absent until 
 ```
 
 **Stages, in place of tasks (being built: a bare nb variant runs one;
-and `grade` grades it; an agent variant, `friction` and `report` do not
-yet).** An exam can instead be one job of stages: `fixture` and
+and `grade` and `friction` read it stage by stage; an agent variant and
+`report` do not yet).** An exam can instead be one job of stages: `fixture` and
 `stages` in `exam.json`, and no `tasks/`.
 
 ```json
