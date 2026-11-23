@@ -109,7 +109,7 @@ exams/exam-authoring/reference/shakedown.sh    # optional: the trial against the
 proctor run exam-authoring
 proctor grade exam-authoring
 proctor report exam-authoring
-cp reports/exam-authoring/explore/{report.html,summary.md} exams/exam-authoring/report/
+cp reports/exam-authoring/explore/summary.md exams/exam-authoring/report/
 ```
 
 `--runner none` is only a shakedown here. It skips the views, so the agent sees

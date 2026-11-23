@@ -30,6 +30,10 @@ numbers). Settle that schema before implementing the report skeleton in
 
 ## The first slice renders one self-contained HTML file
 
+Built, then removed on 2026-11-22: auspex is the viewer, and `report.html`
+would have had to be refactored for stages. The site below links frozen
+copies of it in `docs/reports/`.
+
 Before the site, `proctor report` emits `reports/data/<id>/report.html`, a
 single file with inline CSS and script, plus `summary.md`. Both render from
 `stats.json` and `results.jsonl`. Keep the template plain: a .NET string

@@ -54,7 +54,7 @@ proctor grade <exam> --variant a [--tasks x,y]   # only those attempts (--varian
 proctor friction <exam>       # friction.json beside each current, completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model, no key
 proctor friction <exam> --variant a [--tasks x,y]   # only those attempts
 proctor friction <exam> --reader haiku   # a chat judge from proctor.json reads each attempt too: repair, lost, reread, dead-end, workaround; one model call per attempt, kept in the attempt and reused (--rejudge asks again)
-proctor report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json,report.html,summary.md}, stamped with what they were built from
+proctor report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json,summary.md}, stamped with what they were built from
 proctor report <exam> [--variant a] [--tasks x,y]   # a report over only those attempts; the two combine
 proctor live <exam> <variant> # mark the variant live in exams/<exam>/live.json (commit it): the one in use now, which the report compares the others with
 proctor live <exam>           # which variant is live, and whether its mark still holds
@@ -167,7 +167,7 @@ warning: exams/tern-docs/live.json marks as-shipped live, but its file has chang
 ```
 
 A live variant with no current attempt in the report (one `--variant`
-leaves out, say) is the reference for nothing; the page says so.
+leaves out, say) is the reference for nothing; the report says so.
 
 ## The report
 
@@ -178,16 +178,14 @@ never overwritten. Each report says what it was built from: `stats.json`
 keeps it as `built_from` (when; the log entries of the runs that made its
 attempts; each variant's and task's
 hash; how many current attempts it read and how many stale ones it left
-out, each with why; the narrowing asked for), and the page's
+out, each with why; the narrowing asked for), and the report's
 reproducibility section shows it. When one variant's attempts came from
 runs made under different conditions (proctor's, nb's or Harbor's
-version, the runner, the engine), the page says so above the numbers.
+version, the runner, the engine), the report says so above the numbers.
 
-`report.html` is one file that loads nothing from outside: styles, a few
-lines of script for the section rail, and the logo are inline. Open it
-from disk or attach it to a message; the page reads the same without the
-script. `summary.md` has the same content as plain markdown, the verdict
-card as a list and a heading per task.
+`summary.md` is the report as plain markdown, for a person or an agent:
+the verdict as a table, then a heading per task. There is no HTML page;
+auspex is the viewer for attempts.
 
 Every rate carries a 95% interval and its counts. A comparison with the
 live variant is paired on shared tasks, with its own interval and a fixed

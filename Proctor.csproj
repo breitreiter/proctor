@@ -19,7 +19,6 @@
 
   <!-- The report's logo, inlined as a data URI; proctor's own Harbor agents (nb, Qwen Code), compiled into each run with a variant that uses one; setup's provider catalogue. -->
   <ItemGroup>
-    <EmbeddedResource Include="assets\pointy-hat.svg" LogicalName="pointy-hat.svg" />
     <EmbeddedResource Include="Harbor\nb_agent.py" LogicalName="nb_agent.py" />
     <EmbeddedResource Include="Harbor\oracle_user.py" LogicalName="oracle_user.py" />
     <EmbeddedResource Include="Harbor\qwen_code_agent.py" LogicalName="qwen_code_agent.py" />

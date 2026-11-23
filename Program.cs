@@ -10,7 +10,7 @@ static class Program
                                  interrupted run first and says so (there is no resume verb)
           grade <exam>           run the checks over every current, completed attempt; a model check's verdict is kept in the attempt
           friction <exam>        write friction.json beside each current, completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model
-          report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json, report.html and summary.md, stamped with what they were built from
+          report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json and summary.md, stamped with what they were built from
           live <exam> [variant]  mark a variant live in exams/<exam>/live.json (commit it): the one in use now, which the report
                                  compares the others with; with no variant, say which is live. Delete the file to have none
           setup                  set up providers and keys for this machine, job by job (needs a terminal)

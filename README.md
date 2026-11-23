@@ -111,7 +111,7 @@ The loop is always the same:
 ```bash
 proctor run <exam>      # makes the attempts the exam lacks; after a crash, the same command continues
 proctor grade <exam>
-proctor report <exam>   # reports/<exam>/explore/report.html
+proctor report <exam>   # reports/<exam>/explore/summary.md
 ```
 
 ## Documentation

@@ -54,7 +54,6 @@ static class Layout
 
     public const string ResultsFile = "results.jsonl";
     public const string StatsFile = "stats.json";
-    public const string ReportHtmlFile = "report.html";
     public const string SummaryFile = "summary.md";
 
     public static string Exams(string root) => Path.Combine(root, ExamsDir);

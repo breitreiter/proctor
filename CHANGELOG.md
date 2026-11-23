@@ -7,6 +7,11 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: no `report.html`.** `proctor report` writes `results.jsonl`,
+  `stats.json` and `summary.md`; the HTML page, its chart, styles, script
+  and embedded logo are gone. auspex is the viewer, and the page would
+  otherwise have had to be refactored for stages. `summary.md` keeps the
+  same blocks and wording, less one sentence about hovering and clicking.
 - `run` and `grade` say where the bank stands (`project/plans/bank.md`,
   step 2). `run` opens with each variant's current, completed attempts of
   those the exam wants and how many it is making; with nothing missing it

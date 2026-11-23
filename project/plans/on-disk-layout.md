@@ -456,8 +456,7 @@ reports/
     explore/                                the exploration report of an exam: the latest
       results.jsonl                         one row per current attempt read: coordinates, status, exit_reason, trailer fields, check results, id
       stats.json                            per-variant rates with intervals, pairwise differences, MDE sentence, methods footnote; built_from, the stamp
-      report.html
-      summary.md                            the markdown rendering, for CI and humans
+      summary.md                            the report as markdown, for CI, agents and people (report.html removed 2026-11-22)
       20261115-183450/                      an earlier report, moved aside by the next, named by when it was built
 ```
 

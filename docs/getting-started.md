@@ -36,7 +36,7 @@ otherwise (`nb.path`).
 proctor setup                   # skip every job for now: this writes the config the playground runs on
 proctor run playground          # makes its attempts; run it again and it has nothing to do
 proctor grade playground
-proctor report playground       # then open reports/playground/explore/report.html
+proctor report playground       # then open reports/playground/explore/summary.md
 ```
 
 The playground's one variant is nb's Mock provider, which answers from a

@@ -180,7 +180,7 @@ static class Verbs
 
     /// <summary>
     /// The exploration report over the exam's current attempts, within --variant and --tasks: results.jsonl, stats.json
-    /// (stamped with what it was built from), report.html and summary.md under reports/&lt;exam&gt;/explore/. An earlier report
+    /// (stamped with what it was built from) and summary.md under reports/&lt;exam&gt;/explore/. An earlier report
     /// there is moved aside, not overwritten. With a variant live, every other variant is compared with it.
     /// </summary>
     public static int Report(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null)
@@ -207,11 +207,10 @@ static class Verbs
         Directory.CreateDirectory(outDir);
         Results.Write(Path.Combine(outDir, Layout.ResultsFile), rows);
         Runner.WriteJson(Path.Combine(outDir, Layout.StatsFile), stats);
-        File.WriteAllText(Path.Combine(outDir, Layout.ReportHtmlFile), Proctor.Report.Html(stats, rows, view, judges));
         File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Proctor.Report.Markdown(stats, rows, view, judges));
 
-        Console.WriteLine($"{Path.GetRelativePath(root, Path.Combine(outDir, Layout.ReportHtmlFile))}");
-        Console.WriteLine($"  from {Count(built.Current, "current attempt")}, made by {Count(built.Log.Count, "run")} ({Layout.LogDir}/: {string.Join(", ", built.Log)}); also {Layout.ResultsFile} ({rows.Count} rows), {Layout.StatsFile}, {Layout.SummaryFile}");
+        Console.WriteLine($"{Path.GetRelativePath(root, Path.Combine(outDir, Layout.SummaryFile))}");
+        Console.WriteLine($"  from {Count(built.Current, "current attempt")}, made by {Count(built.Log.Count, "run")} ({Layout.LogDir}/: {string.Join(", ", built.Log)}); also {Layout.ResultsFile} ({rows.Count} rows) and {Layout.StatsFile}");
         foreach (var line in Bank.Describe(selection.Stale, "not counted")) Console.WriteLine(line);
         foreach (var (variant, mixed) in built.Mixed ?? []) Console.WriteLine($"warning: variant {variant}'s attempts were made under mixed conditions: {string.Join("; ", mixed)}");
         var ungraded = rows.Where(r => r.Status == AttemptStatus.Completed && r.Checks is null).ToList();

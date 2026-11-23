@@ -10,7 +10,7 @@ and no tool to call, so it needs no sandbox: only a provider and a key.
 proctor setup                     # add Gemini for the built-in harness; name it gemini
 proctor run readme-answers        # run it again after an interruption: it continues
 proctor grade readme-answers
-proctor report readme-answers     # then open reports/readme-answers/explore/report.html
+proctor report readme-answers     # then open reports/readme-answers/explore/summary.md
 ```
 
 | | |

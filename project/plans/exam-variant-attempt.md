@@ -152,7 +152,7 @@ tern-docs: every variant has its 2 attempts of each task; nothing to make
 $ proctor grade tern-docs
 graded 36 attempts
 $ proctor report tern-docs
-reports/tern-docs/explore/report.html
+reports/tern-docs/explore/summary.md
 ```
 
 `grade`, `friction` and `report` take the exam, not a batch id (D8).

@@ -41,13 +41,6 @@ public class ReportTests
     }
 
     [Fact]
-    public void Html_MatchesApprovedSnapshot()
-    {
-        var (stats, rows, exp) = Worked();
-        AssertSnapshot("report.html", Report.Html(stats, rows, exp));
-    }
-
-    [Fact]
     public void Markdown_MatchesApprovedSnapshot()
     {
         var (stats, rows, exp) = Worked();
@@ -121,7 +114,6 @@ public class ReportTests
         Assert.Contains("| Variants | 2: `floor`, `b` |", md);
         foreach (var gone in new[] { "Against the live variant", "Difference from", "Change against", "(live)", "reference", "unconfirmed" })
             Assert.DoesNotContain(gone, md);
-        Assert.DoesNotContain("<tspan class=\"cs\">live</tspan>", Report.Html(stats, rows, WorkedExam.Latest(exam)));
     }
 
     /// <summary>A live mark that does not hold, or names a variant with no attempt here, is said on the page, and nothing is compared with it.</summary>
@@ -216,38 +208,18 @@ public class ReportTests
         Assert.Contains("| $0.05 | $0.45 |", md);
     }
 
-    /// <summary>The page loads nothing: styles, script and logo are inline. Links out (the icon's credit) are only followed by a reader.</summary>
     [Fact]
-    public void Html_LoadsNothingFromOutside_AndIsOneFile()
+    public void Markdown_CarriesTheNumbers()
     {
         var (stats, rows, exp) = Worked();
-        var html = Report.Html(stats, rows, exp);
-        Assert.DoesNotMatch(new Regex(@"<(script|img|link|iframe|source)\b[^>]*\b(src|href)=""(?!data:|#)", RegexOptions.IgnoreCase), html);
-        Assert.DoesNotContain("@import", html);
-        Assert.DoesNotMatch(new Regex(@"url\((?!#)", RegexOptions.IgnoreCase), html);
-        Assert.Contains("Lorc", html);   // CC BY 3.0: the credit ships with the icon
-    }
-
-    [Fact]
-    public void BothRenderings_CarryTheSameNumbers()
-    {
-        var (stats, rows, exp) = Worked();
-        var html = Report.Html(stats, rows, exp);
         var md = Report.Markdown(stats, rows, exp);
         foreach (var variant in stats.Variants.Values)
         {
-            var interval = $"{Math.Round(100 * variant.Pass!.Ci95.Lo):F0}% to {Math.Round(100 * variant.Pass.Ci95.Hi):F0}%";
-            var runs = $"{variant.Pass.KAttempts} / {variant.Pass.NAttempts}";
-            Assert.Contains(interval, html);
-            Assert.Contains(interval, md);
-            Assert.Contains(runs, html);
-            Assert.Contains(runs, md);
+            Assert.Contains($"{Math.Round(100 * variant.Pass!.Ci95.Lo):F0}% to {Math.Round(100 * variant.Pass.Ci95.Hi):F0}%", md);
+            Assert.Contains($"{variant.Pass.KAttempts} / {variant.Pass.NAttempts}", md);
         }
-        Assert.Contains(stats.Mde.Sentence, html);
         Assert.Contains(stats.Mde.Sentence, md);
-        Assert.Contains("Variants lost attempts unequally", html);
         Assert.Contains("Variants lost attempts unequally", md);
-        foreach (var row in rows) Assert.Contains(row.Id, html);
     }
 
     /// <summary>A headline every task declares in its own words: each task card carries the task's sentence, the check pass rates point there, and a failure names the task's criterion.</summary>
@@ -281,15 +253,5 @@ public class ReportTests
         Assert.Contains("**`builds`** (headline) failed in", md);
         Assert.Contains("on uses-bash (the answer gives 120)", md);
         Assert.DoesNotContain("the answer gives `#fbedef`", md.Split("## Check pass rates")[1]);
-    }
-
-    [Fact]
-    public void HtmlEscapesWhatItPrints()
-    {
-        var (stats, rows, exp) = Worked();
-        rows[0] = rows[0] with { StatusReason = "<b>bold</b> & \"quoted\"", Status = "failed", Pass = null, Checks = null };
-        var html = Report.Html(Stats.Compute(WorkedExam.Exam(), rows), rows, exp);
-        Assert.DoesNotContain("<b>bold</b>", html);
-        Assert.Contains("&lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot;", html);
     }
 }

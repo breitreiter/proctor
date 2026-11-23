@@ -563,9 +563,9 @@ public class JudgeTests
 
         var rows = Results.Collect(repo.Root, exam, Bank.Select(repo.Root, exam).Current);
         var stats = Stats.Compute(exam, rows);
-        var html = Report.Html(stats, rows, entry, uses);
-        Assert.Contains("<dt>judge jev</dt><dd>systemone jev-1.13.0 at <code class=\"code\">http://judge.test/systemone</code>; graded stance</dd>", html);
-        Assert.Contains("| judge glm | chat glm at `http://judge.test/v1`; graded sensible |", Report.Markdown(stats, rows, entry, uses));
+        var md = Report.Markdown(stats, rows, entry, uses);
+        Assert.Contains("| judge jev | systemone jev-1.13.0 at `http://judge.test/systemone`; graded stance |", md);
+        Assert.Contains("| judge glm | chat glm at `http://judge.test/v1`; graded sensible |", md);
     }
 }
 

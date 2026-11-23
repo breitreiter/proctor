@@ -57,7 +57,7 @@ A check that cannot decide an attempt leaves that attempt out of its rate on bot
 | builds | the repository builds after the change | headline |
 | no_denials | no denied tool calls | validity |
 
-Each task's results show one mark per attempt: ● passed, ○ failed, ? undecided, × not counted. Hover a mark for the reason; click it for the attempt. A task scores its mean over its counted, decided attempts.
+Each task's results show one mark per attempt: ● passed, ○ failed, ? undecided, × not counted. Each attempt's reason is under Every attempt. A task scores its mean over its counted, decided attempts.
 
 ### loops
 

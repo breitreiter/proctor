@@ -58,7 +58,7 @@ there is no batch. Attempts live in the bank by coordinates and a run
 leaves a log entry; `run` opens with each variant's attempts of those wanted and `grade`
 ends with each check's graded-of. Steps 3 to 5 of that plan are not built:
 back-fill, an exam as one job in stages (tasks are still tasks), the
-freeze. **Still in the old shape:** the page is built as the variants side
+freeze. **Still in the old shape:** the report (`summary.md`) is built as the variants side
 by side (`Report/Report.cs`).
 Write nothing new in the earlier words; the grep gate below lists them and
 says where they may stay.
@@ -108,7 +108,7 @@ in the order the verbs run them. Every file is one concern:
 | `Setup/SandboxPlan.cs` | `exams/sandbox-plan.md`: what setup observed (OS, uv, docker, podman and its socket, compose, registries) and what proctor needs, written as a brief for the user's agent, never a list of commands |
 | `Report/Results.cs` | `results.jsonl` rows, one per current attempt read |
 | `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json`; the report's stamp (`built_from`: the runs' log entries, hashes, current and stale counts, mixed conditions) |
-| `Report/Report.cs` | `report.html` and `summary.md`, pure functions of stats and results; `Td` is a table cell |
+| `Report/Report.cs` | `summary.md`, a pure function of stats and results; `Td` is a table cell. There is no HTML page: auspex is the viewer (2026-11-22) |
 | `exams/smoke/` | proctor's own exam: every task scripts nb's Mock provider |
 | `exams/code-change/` | the first real exam: three tasks on three fixtures, acceptance tests, reference solutions; five agent variants through Harbor (nb, Qwen Code, Claude Code on Haiku and on Sonnet, Codex) |
 | `exams/gate/` | the deterministic gate: one Mock variant bare and the same variant as a Harbor agent; `GateTests` (with `PROCTOR_GATE`) asserts they agree |
@@ -124,7 +124,7 @@ in the order the verbs run them. Every file is one concern:
 | `exams/runners/` | the container runner (`container.sh`) and its image (`Containerfile`) that exams' `nb.runner` names |
 | `exams/readme-answers/` | the first exam on a hosted model, after `playground`: six questions about jot answered from a README alone (`system @{{bundle}}/README.md`, `tools none`), two variants that differ only in their README bundle, Gemini Flash-Lite on the free tier, every check a regex (`correct` per task in `expect`); `reference/shakedown.sh` proves the checks on Mock (`--wrong` for none) |
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/`. `jotcli` is a tiny TypeScript CLI whose `clear` reads its confirmation from `/dev/tty` with no `--yes` and exits 0 when it gives up, planted on purpose (its README says why); one of two non-.NET fixtures, with `tern-shop` (Python, beside two compose services: Tern's sandbox API and a docs site serving the variant's bundle). `empty` holds nothing, for tasks whose whole context is in the prompt |
-| `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (a favicon in `report.html`, the site), the credit goes with it |
+| `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one nb run (`capture.sh` regenerates them); `snapshots/` are the approved renderings; `exams/` is test data `TestRepo.CopyExam` finds after `exams/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never an exam to run; `python/` is `oracle_user.py`'s unittests, on stub `harbor` modules and captured `acpx` output, which `OracleHarborTests` runs with `python3` |
 | `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own exam with your agent); `cli.md`, every verb and flag, the live variant, the report files (moved out of the README); `configuration.md`, the reference for exam, fixture, task, variant and `proctor.json` (moved out of the README; `exam-authoring`'s variants name it in their bundle's paths); `porting-to-agent-neutral.md`, how an exam moves to agent variants (a draft, from porting `code-change`); `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor; `modal.md`, agent variants on Modal's sandboxes from a second machine file (`--config`), what it costs and what cannot run there |
 | `skills/proctor-exam/` | the onboarding skill a user copies into their agent's skills directory: plan an exam with the user (inventory, tasks, checks, variants, cost; a `PLAN.md` approved), then build it and prove its checks for free; only what a frontier model would not guess and proctor's gotchas, pointing at `docs/configuration.md` and the example exams for the rest |
@@ -363,15 +363,13 @@ The directories are for reading, not for namespaces: everything is
   Checks table says "per task; see Tasks", and Failures puts the task's
   sentence beside the task. "Shared" in the report means declared by the
   exam, never "carried by every task".
-- **The report is one list of blocks rendered twice** (`Report.Blocks`, then
-  `RenderHtml` and `RenderMarkdown`), so the two renderings cannot drift in
-  wording; a table cell (`Td`) may carry HTML for a link or hover. Inline forms in block
-  text: `` `id` `` (body font, no wrap), ``` ``code`` ``` (monospace: only
+- **The report is one list of blocks rendered as markdown** (`Report.Blocks`,
+  then `RenderMarkdown`). The HTML page went on 2026-11-22: auspex is the
+  viewer, and a second renderer would have been refactored for stages for
+  nothing. Inline forms in block text: `` `id` `` (body font, no wrap), ``` ``code`` ``` (monospace: only
   commands and paths; `Report.Paths` finds paths in free-text reasons),
-  `**bold**`, `*italic*`, `[text](#anchor)` (a link on the page, its text in
-  `summary.md`). A `Para` with class `explain` is definitional text, muted;
-  findings are never muted. Colour is semantic only: green passed/better,
-  red failed/worse, amber not counted or a warning, purple a link.
+  `**bold**`, `*italic*`, `[text](#anchor)` (its text only in
+  `summary.md`).
 - **The verdict card is direction plus confidence, both from `stats.json`.**
   With a variant live, each other variant is better, worse or the same
   than it by the sign of the point estimate, confirmed when the Newcombe
@@ -599,8 +597,7 @@ The directories are for reading, not for namespaces: everything is
   is refused: Harbor leaves it no ATIF.
 - **Snapshot tests** fail on any rendering change and leave a `.received` file
   (gitignored) beside the approved one. Review it, then approve with
-  `PROCTOR_APPROVE=1`. Render to check: `google-chrome --headless=new
-  --screenshot=out.png --window-size=1100,2400 file://.../report.html`.
+  `PROCTOR_APPROVE=1`.
 - **Setup writes no model and no judge.** A model is the exam's choice, so
   nb.json entries carry none and a judge or classifier job records only its
   provider; the agent writes the `judges` entry from the models

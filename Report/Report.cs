@@ -1,14 +1,12 @@
 using System.Globalization;
-using System.Net;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-// report.html and summary.md: two renderings of one list of blocks built from stats.json, results.jsonl and
-// the conditions the report stands for (the log entry of the latest run its attempts came from, with the exam's variants as they are now).
-// Neither computes a statistic. The structure is project/plans/report-structure.md: define a
+// summary.md: a list of blocks built from stats.json, results.jsonl and the conditions the report stands for
+// (the log entry of the latest run its attempts came from, with the exam's variants as they are now), rendered as
+// markdown. It computes no statistic. There is no HTML page: auspex is the viewer (removed 2026-11-22). The structure is project/plans/report-structure.md: define a
 // term before using it, one sentence under every heading saying what the section is for, the answer in the
 // first six sections and the evidence after. Some readers open this daily and some once a quarter; for the
 // latter every time is the first time, which is why the explainers are here, muted, so the findings stand out.
@@ -22,25 +20,23 @@ static class Report
 
     abstract record Block;
     record Title(string Exam, string Date, string Time) : Block;                  // the page's h1 and when it ran
-    record Heading(string Text, string Id, bool Flagged = false) : Block;          // a section; Flagged marks it in the rail
-    record Para(string Text, string? Class = null) : Block;                        // "explain": skippable once known; "caution": a warning inside the card
+    record Heading(string Text) : Block;
+    record Para(string Text) : Block;
     record Warning(string Text) : Block;
-    record Bullets(List<string> Items, string? Class = null) : Block;
-    record Pairs(List<(string Key, string Value)> Items, string? Class = null) : Block;  // "roles": the keys are check roles
-    record Table(List<string> Header, List<List<Td>> Rows, HashSet<int> Numeric, string? Class = null) : Block;
+    record Bullets(List<string> Items) : Block;
+    record Pairs(List<(string Key, string Value)> Items) : Block;
+    record Table(List<string> Header, List<List<Td>> Rows) : Block;
     record Label(string Text) : Block;                                             // a small heading inside a task card
-    record Card(string Title, string? DiffTitle, List<CardVariant> Variants, List<Block> Lines, List<Block> Foot) : Block;  // the verdict: a chart, then what moved
+    record Card(string Title, string? DiffTitle, List<CardVariant> Variants, List<Block> Lines, List<Block> Foot) : Block;  // the verdict: each variant's rate as a table, then what moved
     record CardVariant(string Variant, bool Live, RateJson? Pass, CardDiff? Diff);                                         // one chart row; Live marks the reference
-    record CardDiff(int Points, int Lo, int Hi, string Word, string? Tone, bool Confirmed);
+    record CardDiff(int Points, int Lo, int Hi, string Word, bool Confirmed);
     record TaskCard(string Name, string Prompt, List<string> Facts, List<Block> Body) : Block;
-    /// <summary>A table cell: the text both renderings show, and the HTML to use instead when the page can carry a link or a hover.</summary>
-    record Td(string Text, string? Html = null, string? Anchor = null);
+    record Td(string Text);
 
-    // Inline forms both renderings share: `id`, ``code``, **bold**, *italic* and [text](#anchor). Markdown writes
-    // ``code`` as `code` (it has one code style, and doubled backticks read as noise raw), keeps the rest as they
-    // are and drops the link to its text, since summary.md has no anchors.
+    // Inline forms in the text: `id`, ``code``, **bold**, *italic* and [text](#anchor). Markdown writes ``code`` as
+    // `code` (it has one code style, and doubled backticks read as noise raw), keeps the rest as they are and drops
+    // the link to its text, since summary.md has no anchors.
 
-    public static string Html(StatsFile stats, List<ResultRow> rows, LogEntry latest, List<JudgeUse>? judges = null) => RenderHtml(Blocks(stats, rows, latest, judges), stats, latest);
     public static string Markdown(StatsFile stats, List<ResultRow> rows, LogEntry latest, List<JudgeUse>? judges = null) => RenderMarkdown(Blocks(stats, rows, latest, judges));
 
     static List<Block> Blocks(StatsFile stats, List<ResultRow> rows, LogEntry latest, List<JudgeUse>? judges)
@@ -90,57 +86,54 @@ static class Report
             b.Add(new Warning($"`{mark.Variant}` is marked live, but {why}, so no variant is compared with it."));
 
         // 2. Variants
-        b.Add(new Heading("Variants", "variants"));
+        b.Add(new Heading("Variants"));
         b.Add(new Para("A variant is what is under test: an agent, a model and, when it has one, a bundle, given every task." + (variants.Count < 2 ? ""
-            : live is not null ? $" The live variant, `{live}`, is the one in use now and the reference the others are compared with." : " None is live, so the variants stand side by side and none is compared with another."), "explain"));
+            : live is not null ? $" The live variant, `{live}`, is the one in use now and the reference the others are compared with." : " None is live, so the variants stand side by side and none is compared with another.")));
         var bundles = latest.Bundles is { Count: > 0 };
         b.Add(new Table(["Variant", "What it is", "Harness", "Provider", "Model", "Attempts per task", .. bundles ? ["Bundle"] : Array.Empty<string>()],
             variants.Select(a => (List<Td>)[Id(a), T(d.Variants.GetValueOrDefault(a, "")), T(Harness(latest, a)), T(VariantField(latest, a, "provider", "—")), T(VariantField(latest, a, "model")), T(attempts.ToString()),
-                .. bundles ? [T(latest.BundleOf(a) is { } bu ? $"``{bu.Source}``" : "")] : Array.Empty<Td>()]).ToList(),
-            [5]));
+                .. bundles ? [T(latest.BundleOf(a) is { } bu ? $"``{bu.Source}``" : "")] : Array.Empty<Td>()]).ToList()));
 
         // 3. Tasks: what each asks, what it is checked for, and how every variant did on it
-        b.Add(new Heading("Tasks", "tasks"));
-        b.Add(new Para($"A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(attempts == 1 ? "Each task is attempted once per variant, so one attempt decides its score." : $"Each task is attempted {Times(attempts)} per variant, so a score is not one lucky or unlucky attempt.")}", "explain"));
-        b.Add(new Para("A check is one yes-or-no test over a finished attempt. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to an attempt:", "explain"));
+        b.Add(new Heading("Tasks"));
+        b.Add(new Para($"A task is one input and one desired outcome, given to every variant: a prompt against a fixture repository, with the checks that say whether the outcome was reached. {(attempts == 1 ? "Each task is attempted once per variant, so one attempt decides its score." : $"Each task is attempted {Times(attempts)} per variant, so a score is not one lucky or unlucky attempt.")}"));
+        b.Add(new Para("A check is one yes-or-no test over a finished attempt. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to an attempt:"));
         b.Add(new Pairs(
         [
             ("headline", "Together, the headline checks decide whether an attempt passed."),
             ("validity", "Decides whether an attempt counts at all: an attempt that fails one is left out of every rate, not counted as a failure."),
             ("guardrail", "Reported, not part of the pass."),
-        ], "roles"));
-        b.Add(new Para("A check that cannot decide an attempt leaves that attempt out of its rate on both sides.", "explain"));
+        ]));
+        b.Add(new Para("A check that cannot decide an attempt leaves that attempt out of its rate on both sides."));
         var examChecks = (stats.TaskDetails ?? []).Values.SelectMany(td => td.Checks).Where(k => k.Level == "exam").DistinctBy(k => k.Name).ToList();
         if (examChecks.Count > 0)
         {
             b.Add(new Label("Checks the exam declares, carried by every task"));
             b.Add(new Table(["Check", "What it tests", "Role"],
-                examChecks.Select(k => (List<Td>)[new(k.Name), new(CheckText(stats, k.Name)), RoleTd(stats, k.Name)]).ToList(), [], "checks"));
+                examChecks.Select(k => (List<Td>)[new(k.Name), new(CheckText(stats, k.Name)), RoleTd(stats, k.Name)]).ToList()));
         }
-        b.Add(new Para($"Each task's results show one mark per attempt: {Pass} passed, {Fail} failed, {Undecided} undecided, {NotCounted} not counted. Hover a mark for the reason; click it for the attempt. A task scores its mean over its counted, decided attempts"
-            + ".", "explain"));
+        b.Add(new Para($"Each task's results show one mark per attempt: {Pass} passed, {Fail} failed, {Undecided} undecided, {NotCounted} not counted. Each attempt's reason is under Every attempt. A task scores its mean over its counted, decided attempts"
+            + "."));
         foreach (var task in stats.Tasks) b.Add(TaskBlock(stats, rows, task, attemptsPerVariant));
 
         // 4. Results: only the numbers across all tasks
-        b.Add(new Heading("Results", "results"));
-        b.Add(new Para($"Pass rate is the share of counted attempts in which every headline check held, averaged task by task so that one task with many attempts does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with {stats.NTasks} task{(stats.NTasks == 1 ? "" : "s")} it is {(stats.NTasks < 10 ? "wide" : "what it is")}.", "explain"));
+        b.Add(new Heading("Results"));
+        b.Add(new Para($"Pass rate is the share of counted attempts in which every headline check held, averaged task by task so that one task with many attempts does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with {stats.NTasks} task{(stats.NTasks == 1 ? "" : "s")} it is {(stats.NTasks < 10 ? "wide" : "what it is")}."));
         b.Add(new Table(["Variant", "Pass rate", "95% interval", "Passed / decided attempts"],
-            variants.Select(a => (List<Td>)[Id(a), T(RatePct(stats.Variants[a].Pass)), T(IntervalText(stats.Variants[a].Pass)), T(stats.Variants[a].Pass is { } p ? $"{p.KAttempts} / {p.NAttempts}" : "—")]).ToList(),
-            [1, 2, 3]));
+            variants.Select(a => (List<Td>)[Id(a), T(RatePct(stats.Variants[a].Pass)), T(IntervalText(stats.Variants[a].Pass)), T(stats.Variants[a].Pass is { } p ? $"{p.KAttempts} / {p.NAttempts}" : "—")]).ToList()));
         if (stats.Comparisons.Count > 0)
         {
-            b.Add(new Para($"**Against the live variant, `{live}`.** Each variant's pass rate minus `{live}`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with {stats.Mde.NPairs} task{(stats.Mde.NPairs == 1 ? "" : "s")}, it could be noise.", "explain"));
+            b.Add(new Para($"**Against the live variant, `{live}`.** Each variant's pass rate minus `{live}`'s, task by task. The verdict is the direction of the difference, confirmed only when the whole 95% interval is above or below zero; unconfirmed, with {stats.Mde.NPairs} task{(stats.Mde.NPairs == 1 ? "" : "s")}, it could be noise."));
             b.Add(new Table(["Variant", $"Difference from `{live}`", "95% interval", "Tasks better / worse / same", "Verdict"],
                 stats.Comparisons.Select(c => (List<Td>)[Id(c.Variant), T(SignedPoints(c.DiffPoints)), T($"{Signed(c.Ci95[0])} to {Signed(c.Ci95[1])}"), T($"{c.Won} / {c.Lost} / {c.Tied}"),
-                    ComparisonVerdict(c)]).ToList(),
-                [1, 2, 3]));
+                    ComparisonVerdict(c)]).ToList()));
         }
         if (stats.Comparisons.Count > 0) b.Add(new Para(stats.Mde.Sentence));
-        b.Add(new Para("How each task scored, and why attempts failed, is shown with the task under [Tasks](#tasks).", "explain"));
+        b.Add(new Para("How each task scored, and why attempts failed, is shown with the task under [Tasks](#tasks)."));
 
         // 5. Failures
-        b.Add(new Heading("Failures", "failures"));
-        b.Add(new Para("For each variant, the checks that failed in at least one counted attempt, most frequent first, with the tasks they failed on. A check that could not decide an attempt, or could not grade it at all, is listed apart: that is the check's weakness, not the variant's.", "explain"));
+        b.Add(new Heading("Failures"));
+        b.Add(new Para("For each variant, the checks that failed in at least one counted attempt, most frequent first, with the tasks they failed on. A check that could not decide an attempt, or could not grade it at all, is listed apart: that is the check's weakness, not the variant's."));
         foreach (var a in variants)
         {
             var s = stats.Variants[a];
@@ -171,11 +164,10 @@ static class Report
 
         // 6. Attempt summary
         var unequal = UnequalLoss(stats);
-        b.Add(new Heading("Attempt summary", "attempt-summary", Flagged: unequal is not null));
-        b.Add(new Para("This is how far each attempt got before terminating. *Started* attempts began; *completed* attempts ended with a transcript; *graded* attempts have their checks; *counted* attempts are graded and passed every validity check; *decided* attempts are counted attempts whose headline checks all reached a verdict. Pass rates are over decided attempts only.", "explain"));
+        b.Add(new Heading("Attempt summary"));
+        b.Add(new Para("This is how far each attempt got before terminating. *Started* attempts began; *completed* attempts ended with a transcript; *graded* attempts have their checks; *counted* attempts are graded and passed every validity check; *decided* attempts are counted attempts whose headline checks all reached a verdict. Pass rates are over decided attempts only."));
         b.Add(new Table(["Variant", "Planned", "Started", "Completed", "Graded", "Counted", "Decided"],
-            variants.Select(a => { var s = stats.Variants[a]; return (List<Td>)[Id(a), T($"{s.Planned}"), T($"{s.Started}"), T($"{s.Completed}"), T($"{s.Graded}"), T($"{s.Analysed}"), T($"{s.Decided}")]; }).ToList(),
-            [1, 2, 3, 4, 5, 6]));
+            variants.Select(a => { var s = stats.Variants[a]; return (List<Td>)[Id(a), T($"{s.Planned}"), T($"{s.Started}"), T($"{s.Completed}"), T($"{s.Graded}"), T($"{s.Analysed}"), T($"{s.Decided}")]; }).ToList()));
         if (unequal is not null) b.Add(new Warning(unequal));
         var excluded = variants.SelectMany(a => stats.Variants[a].Excluded).ToList();
         if (excluded.Count == 0) b.Add(new Para("No attempt was left out."));
@@ -184,45 +176,41 @@ static class Report
             b.Add(new Para("Attempts left out, and why:"));
             b.Add(new Bullets(excluded.Select(ex => $"{AttemptLink(rows, ex.Attempt)}: {ExclusionText(ex)}").ToList()));
         }
-        b.Add(new Para("How each completed attempt ended, per variant. `ok` is a normal finish; anything else is the harness stopping the attempt (a limit, an error from the provider), which the checks then grade like any other.", "explain"));
+        b.Add(new Para("How each completed attempt ended, per variant. `ok` is a normal finish; anything else is the harness stopping the attempt (a limit, an error from the provider), which the checks then grade like any other."));
         var reasons = ExitReasons(stats).ToList();
         b.Add(new Table(["Variant", .. reasons.Select(r => $"`{r}`")],
-            variants.Select(a => (List<Td>)[Id(a), .. reasons.Select(r => T(ExitTd(stats.Variants[a], rows, a, r)))]).ToList(),
-            Enumerable.Range(1, reasons.Count).ToHashSet()));
+            variants.Select(a => (List<Td>)[Id(a), .. reasons.Select(r => T(ExitTd(stats.Variants[a], rows, a, r)))]).ToList()));
 
         // 7. Check pass rates
-        b.Add(new Heading("Check pass rates", "check-rates"));
-        b.Add(new Para("How often each check held, per variant, over the attempts it applies to. Headline and guardrail checks are over counted attempts; a validity check is over every graded attempt, because it says how many were counted. An attempt the check could not decide is out of its rate and counted beside it.", "explain"));
+        b.Add(new Heading("Check pass rates"));
+        b.Add(new Para("How often each check held, per variant, over the attempts it applies to. Headline and guardrail checks are over counted attempts; a validity check is over every graded attempt, because it says how many were counted. An attempt the check could not decide is out of its rate and counted beside it."));
         b.Add(new Table(["Check", "What it tests", "Role", .. variants.Select(a => $"`{a}`")],
-            CheckNames(stats).Select(c => (List<Td>)[Id(c), T(CheckText(stats, c)), T(Role(stats, c)), .. variants.Select(a => T(CheckRateText(stats.Variants[a].Checks.GetValueOrDefault(c))))]).ToList(),
-            Enumerable.Range(3, variants.Count).ToHashSet()));
+            CheckNames(stats).Select(c => (List<Td>)[Id(c), T(CheckText(stats, c)), T(Role(stats, c)), .. variants.Select(a => T(CheckRateText(stats.Variants[a].Checks.GetValueOrDefault(c))))]).ToList()));
 
         // 8. Cost and effort
         var unit = DurationUnit(stats);
-        b.Add(new Heading("Cost and effort", "cost"));
+        b.Add(new Heading("Cost and effort"));
         var costed = variants.Any(a => stats.Variants[a].CostUsd is not null);
         b.Add(new Para($"Per completed attempt. Duration is wall time in {(unit == "min" ? "minutes" : "seconds")}, hooks included; tokens are the attempt's own count{(variants.Any(a => stats.Variants[a].TokensEstimated) ? ", and some counts are the harness's estimate rather than the provider's" : "")}. "
-            + (costed ? "Cost is what the agent reported for its attempts (Claude Code its own count, Codex as Harbor priced its tokens); a variant whose harness reports none shows none." : "Cost is not shown: no variant's harness reports one."), "explain"));
+            + (costed ? "Cost is what the agent reported for its attempts (Claude Code its own count, Codex as Harbor priced its tokens); a variant whose harness reports none shows none." : "Cost is not shown: no variant's harness reports one.")));
         b.Add(new Table(["Variant", $"Duration ({unit}): median", "p90", "mean", "range", "Tokens: median", "p90", "mean", "range", .. costed ? ["Cost: median", "total"] : Array.Empty<string>()],
             variants.Select(a => { var s = stats.Variants[a]; return (List<Td>)[Id(a), .. SummaryText(s.DurationMs, v => Duration(v, unit)).Select(T), .. SummaryText(s.TokensTotal, Tokens).Select(T),
-                .. costed ? [T(s.CostUsd is { } c ? Dollars(c.Median) : ""), T(s.CostTotalUsd is { } total ? Dollars(total) : "")] : Array.Empty<Td>()]; }).ToList(),
-            Enumerable.Range(1, costed ? 10 : 8).ToHashSet()));
+                .. costed ? [T(s.CostUsd is { } c ? Dollars(c.Median) : ""), T(s.CostTotalUsd is { } total ? Dollars(total) : "")] : Array.Empty<Td>()]; }).ToList()));
 
         // 9. Every attempt
-        b.Add(new Heading("Every attempt", "every-attempt"));
-        b.Add(new Para("Every attempt, failures first. *Reason* is the first check that did not hold and what it saw, or why the attempt never completed.", "explain"));
+        b.Add(new Heading("Every attempt"));
+        b.Add(new Para("Every attempt, failures first. *Reason* is the first check that did not hold and what it saw, or why the attempt never completed."));
         b.Add(new Table(["Variant", "Task", "Attempt", "Result", "Ended", $"Duration ({unit})", "Tokens", "Reason"],
             Ordered(rows).Select(r => (List<Td>)[
-                new Td($"`{r.Variant}`", Anchor: $"attempt-{r.Id}"), Id(r.Task), T($"{r.Attempt}"),
-                new Td($"{Glyph(r)} {Outcome(r)}", $"<span class=\"{GlyphClass(r)}\" title=\"{E(r.Id)}\">{Glyph(r)} {E(Outcome(r))}</span>"),
-                T(r.ExitReason is null ? "" : $"`{r.ExitReason}`"), T(r.DurationMs is { } dm ? Duration(dm, unit) : ""), T(r.Usage?.Total is { } t ? Tokens(t) : ""), T(Paths(Reason(r)))]).ToList(),
-            [2, 5, 6]));
+                new Td($"`{r.Variant}`"), Id(r.Task), T($"{r.Attempt}"),
+                new Td($"{Glyph(r)} {Outcome(r)}"),
+                T(r.ExitReason is null ? "" : $"`{r.ExitReason}`"), T(r.DurationMs is { } dm ? Duration(dm, unit) : ""), T(r.Usage?.Total is { } t ? Tokens(t) : ""), T(Paths(Reason(r)))]).ToList()));
 
         // 10. Reproducibility and method
-        b.Add(new Heading("Reproducibility and method", "method"));
-        b.Add(new Para("What produced this report, so it can be run again, and how the numbers were computed.", "explain"));
+        b.Add(new Heading("Reproducibility and method"));
+        b.Add(new Para("What produced this report, so it can be run again, and how the numbers were computed."));
         b.Add(new Pairs(ReproFacts(stats, latest, judges).ToList()));
-        b.Add(new Para(stats.Methods, "explain"));
+        b.Add(new Para(stats.Methods));
         return b;
     }
 
@@ -267,7 +255,7 @@ static class Report
                 }
                 var verdict = Direction(c.DiffPoints);
                 var confirmed = verdict != "held" && c.Verdict != "no-detectable-difference";
-                rows.Add(new CardVariant(a, false, stats.Variants[a].Pass, new CardDiff(c.DiffPoints, c.Ci95[0], c.Ci95[1], TaskWord(verdict), VariantTone(verdict), confirmed)));
+                rows.Add(new CardVariant(a, false, stats.Variants[a].Pass, new CardDiff(c.DiffPoints, c.Ci95[0], c.Ci95[1], TaskWord(verdict), confirmed)));
                 confirmedAll &= confirmed;
                 Moved(a, Drivers(c.Tasks.Select(t => (t.Key, t.Value, Direction(t.Value))), verdict),
                     ShortReach(c.NPairs, c.MdePoints, stats.Mde.NPairs), c.Tasks.Values.All(v => v == 0));
@@ -297,7 +285,7 @@ static class Report
             foot.Add(new Para($"**Why unconfirmed:** {why}"));
         }
         foreach (var a in Careful(stats))
-            foot.Add(new Para(a, "caution"));
+            foot.Add(new Para(a));
         return new Card(title, diffTitle, rows, lines, foot);
     }
 
@@ -343,9 +331,7 @@ static class Report
     }
 
     static string Direction(int diffPoints) => diffPoints < 0 ? "regressed" : diffPoints > 0 ? "improved" : "held";
-    static string? VariantTone(string verdict) => verdict switch { "regressed" => "bad", "improved" => "good", _ => null };
     static string TaskWord(string verdict) => verdict switch { "regressed" => "worse", "improved" => "better", _ => "same" };
-    static string ToneClass(string? tone) => tone is null ? "vsame" : $"v{tone}";
     static string Confirmation(bool confirmed) => confirmed ? "(confirmed)" : "(unconfirmed)";
 
     // ---- A task card ----
@@ -375,8 +361,7 @@ static class Report
             body.Add(new Label(fromExam > 0 ? "Checks beyond the exam's" : "Checks"));
             body.Add(new Table(["Check", "What it tests", "Role", "Declared by"],
                 particular.Select(k => (List<Td>)[new(k.Name), new(k.Description), RoleTd(stats, k.Name),
-                    new(Declared(k.Level), $"<span class=\"src\">{Declared(k.Level)}</span>")]).ToList(),
-                [], "checks"));
+                    new(Declared(k.Level))]).ToList()));
         }
 
         body.Add(new Label("Results"));
@@ -387,16 +372,15 @@ static class Report
                 var score = stats.Variants[a].Tasks.GetValueOrDefault(task);
                 return (List<Td>)[
                     new(a),
-                    new(string.Join(" ", attempts.Select(Glyph)), "<span class=\"marks\">" + string.Join("", attempts.Select(r => $"<a href=\"#attempt-{E(r.Id)}\" class=\"{GlyphClass(r)}\" title=\"{E(GlyphTitle(r))}\">{Glyph(r)}</a>")) + "</span>"),
+                    new(string.Join(" ", attempts.Select(Glyph))),
                     new(score?.Score is { } s ? $"**{Pct(s)}**" : "—"),
                     new(score is { Decided: > 0 } ? $"{score.Passed} of {score.Decided}" : "—"),
                 ];
-            }).ToList(),
-            [2, 3], "results"));
+            }).ToList()));
 
         var missed = variants.SelectMany(a => rows.Where(r => r.Variant == a && r.Task == task && !(r.Analysed && r.Pass == true)).OrderBy(r => r.Attempt)).ToList();
         if (missed.Count > 0)
-            body.Add(new Bullets(missed.Select(r => $"[{r.Variant} attempt {r.Attempt}](#attempt-{r.Id}) {Outcome(r)}: {Paths(FirstReason(r))}").ToList(), "why"));
+            body.Add(new Bullets(missed.Select(r => $"[{r.Variant} attempt {r.Attempt}](#attempt-{r.Id}) {Outcome(r)}: {Paths(FirstReason(r))}").ToList()));
         return new TaskCard(task, TaskText(stats, task), facts, body);
     }
 
@@ -407,10 +391,10 @@ static class Report
         if (verdict == "held") return new("same");
         var word = TaskWord(verdict);
         var confirmed = Confirmation(c.Verdict != "no-detectable-difference");
-        return new($"**{word}** {confirmed}", $"<b class=\"{ToneClass(VariantTone(verdict))}\">{word}</b> {confirmed}");
+        return new($"**{word}** {confirmed}");
     }
 
-    static Td RoleTd(StatsFile stats, string check) => new(Role(stats, check), $"<span class=\"role role-{Role(stats, check)}\">{Role(stats, check)}</span>");
+    static Td RoleTd(StatsFile stats, string check) => new(Role(stats, check));
 
     static string Declared(string level) => level switch { "task" => "this task", "fixture" => "its fixture", _ => "exam" };
 
@@ -455,8 +439,6 @@ static class Report
         r.Invalid is not null ? "not counted" : r.Outdated is not null ? "outdated" : r.Undecided is not null ? "undecided" : r.Pass switch { true => "passed", false => "failed", null => r.Status == AttemptStatus.Completed ? "not graded" : r.Status == AttemptStatus.Failed ? "never completed" : r.Status };
 
     static string Glyph(ResultRow r) => !r.Analysed ? NotCounted : r.Undecided is not null ? Undecided : r.Pass == true ? Pass : Fail;
-    static string GlyphClass(ResultRow r) => !r.Analysed ? "skip" : r.Undecided is not null ? "undecided" : r.Pass == true ? "pass" : "fail";
-    static string GlyphTitle(ResultRow r) => $"attempt {r.Attempt}: {Outcome(r)}{(Reason(r).Length > 0 ? " — " + Reason(r) : "")} ({r.Id})";
 
     static IEnumerable<ResultRow> Ordered(List<ResultRow> rows) =>
         rows.OrderBy(r => !r.Analysed ? 1 : r.Undecided is not null ? 2 : r.Pass == true ? 3 : 0).ThenBy(r => r.Variant).ThenBy(r => r.Task).ThenBy(r => r.Attempt);
@@ -565,361 +547,6 @@ static class Report
 
     static DateTimeOffset When(string iso) =>
         DateTimeOffset.Parse(iso, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
-
-    // ---- HTML ----
-
-    // ---- The chart ----
-
-    /// <summary>
-    /// The verdict card's chart as inline SVG: a row per variant, its pass rate as a dot on its 95% interval over 0–100%
-    /// (the live variant labelled), and beside it the change in points with its interval over
-    /// −100 to +100, filled when confirmed. It draws what stats.json holds and computes nothing; the hover is a title.
-    /// </summary>
-    static string ChartSvg(Card c)
-    {
-        const int Row = 34, Rate = 250, Gap = 70, Diff = 200, Value = 96;
-        var diff = c.DiffTitle is not null;
-        var anyLive = c.Variants.Any(a => a.Live);
-        var label = Math.Clamp(c.Variants.Max(a => a.Variant.Length) * 8 + (anyLive ? 40 : 0) + 16, 90, 240);
-        const int top = 56;
-        var bottom = top + Row * c.Variants.Count;
-        var width = diff ? label + Rate + Gap + Diff + Value : label + Rate + 60;
-        var height = bottom + 30;
-        double X1(double r) => label + r * Rate;
-        double X2(double p) => label + Rate + Gap + (Math.Clamp(p, -100, 100) + 100) / 200 * Diff;
-        static string F(double v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
-        static string Tone(string? tone) => tone switch { "bad" => "#a52d15", "good" => "#17603a", _ => "#1b1b1b" };
-
-        var sb = new StringBuilder();
-        var aria = diff ? $"Pass rate per variant with its 95% interval, and each variant's {c.DiffTitle!.ToLowerInvariant()} in points" : "Pass rate with its 95% interval";
-        sb.Append($"<svg class=\"chart\" viewBox=\"0 0 {width} {height}\" width=\"{width}\" height=\"{height}\" role=\"img\" aria-label=\"{E(aria)}\">\n");
-        sb.Append($"<text x=\"{label}\" y=\"16\" class=\"ch\">Pass rate</text><text x=\"{label}\" y=\"33\" class=\"cs\">dot: share of attempts passed · bar: 95% interval</text>\n");
-        if (diff)
-            sb.Append($"<text x=\"{F(X2(-100))}\" y=\"16\" class=\"ch\">{E(c.DiffTitle!)}</text><text x=\"{F(X2(-100))}\" y=\"33\" class=\"cs\">points · hollow: not confirmed</text>\n");
-        foreach (var r in new[] { 0, .25, .5, .75, 1 })
-            sb.Append($"<line x1=\"{F(X1(r))}\" x2=\"{F(X1(r))}\" y1=\"{top - 8}\" y2=\"{bottom}\" class=\"grid\"/><text x=\"{F(X1(r))}\" y=\"{bottom + 17}\" class=\"ax\" text-anchor=\"middle\">{F(r * 100)}%</text>\n");
-        if (diff)
-            foreach (var p in new[] { -100, -50, 0, 50, 100 })
-                sb.Append($"<line x1=\"{F(X2(p))}\" x2=\"{F(X2(p))}\" y1=\"{top - 8}\" y2=\"{bottom}\" class=\"{(p == 0 ? "zero" : "grid")}\"/><text x=\"{F(X2(p))}\" y=\"{bottom + 17}\" class=\"ax\" text-anchor=\"middle\">{Signed(p)}</text>\n");
-
-        foreach (var (a, i) in c.Variants.Select((a, i) => (a, i)))
-        {
-            var y = top + Row * i + Row / 2;
-            sb.Append($"<text x=\"0\" y=\"{y + 5}\" class=\"variant\">{E(a.Variant)}{(a.Live ? " <tspan class=\"cs\">live</tspan>" : "")}</text>\n");
-            if (a.Pass is { } p)
-            {
-                sb.Append($"<g><title>{E(a.Variant)}: {Pct(p.Rate)} of attempts passed ({p.KAttempts} of {p.NAttempts}); 95% interval {E(IntervalText(p))} over {p.N} task{(p.N == 1 ? "" : "s")}</title>");
-                sb.Append($"<rect x=\"{F(X1(p.Ci95.Lo) - 6)}\" y=\"{y - 13}\" width=\"{F(X1(p.Ci95.Hi) - X1(p.Ci95.Lo) + 12)}\" height=\"26\" fill=\"transparent\"/>");
-                sb.Append($"<line x1=\"{F(X1(p.Ci95.Lo))}\" x2=\"{F(X1(p.Ci95.Hi))}\" y1=\"{y}\" y2=\"{y}\" class=\"bar\"/>");
-                sb.Append($"<circle cx=\"{F(X1(p.Rate))}\" cy=\"{y}\" r=\"5\" class=\"dot\"/></g>");
-                sb.Append($"<text x=\"{F(X1(1) + 10)}\" y=\"{y + 5}\" class=\"val\">{Pct(p.Rate)}</text>\n");
-            }
-            else sb.Append($"<text x=\"{F(X1(0))}\" y=\"{y + 5}\" class=\"cs\">no decided attempt</text>\n");
-            if (a.Diff is { } d)
-            {
-                var colour = Tone(d.Tone);
-                sb.Append($"<g><title>{E(a.Variant)}: {E(SignedPoints(d.Points))}; 95% interval {Signed(d.Lo)} to {Signed(d.Hi)}; {d.Word}, {(d.Confirmed ? "confirmed" : "not confirmed")}</title>");
-                sb.Append($"<rect x=\"{F(X2(d.Lo) - 6)}\" y=\"{y - 13}\" width=\"{F(X2(d.Hi) - X2(d.Lo) + 12)}\" height=\"26\" fill=\"transparent\"/>");
-                sb.Append($"<line x1=\"{F(X2(d.Lo))}\" x2=\"{F(X2(d.Hi))}\" y1=\"{y}\" y2=\"{y}\" class=\"bar\" style=\"stroke:{colour}\"/>");
-                sb.Append($"<circle cx=\"{F(X2(d.Points))}\" cy=\"{y}\" r=\"5\" class=\"ddot\" style=\"stroke:{colour};fill:{(d.Confirmed ? colour : "#fff")}\"/></g>");
-                sb.Append($"<text x=\"{F(X2(100) + 10)}\" y=\"{y + 5}\" class=\"val\" style=\"fill:{colour}\">{(d.Points == 0 ? "±0" : Signed(d.Points))} {d.Word}</text>\n");
-            }
-        }
-        sb.Append("</svg>\n");
-        return sb.ToString();
-    }
-
-
-    // ---- HTML ----
-
-    static string RenderHtml(List<Block> blocks, StatsFile stats, LogEntry latest)
-    {
-        var created = When(latest.Created);
-        var sb = new StringBuilder();
-        sb.Append($"""
-            <!doctype html>
-            <html lang="en">
-            <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>{E(stats.Exam)} — {created:d MMM yyyy} — proctor</title>
-            <link rel="icon" href="{Logo}">
-            <style>
-            {Css}
-            </style>
-            </head>
-            <body>
-            <div class="page">
-
-            """);
-        sb.Append(Rail(blocks, stats.Exam, created));
-        sb.Append("<main class=\"rpt\" id=\"top\">\n<section id=\"summary\">\n");
-        foreach (var block in blocks) Html(sb, block);
-        sb.Append("</section>\n");
-        sb.Append($"""
-            <footer>
-            <img src="{Logo}" alt="" width="16" height="16">
-            <span>Run by proctor {E(latest.Versions.GetValueOrDefault("proctor", "unknown"))} on {created:d MMM yyyy}. Icon adapted from <a href="https://game-icons.net/1x1/lorc/pointy-hat.html">Pointy hat</a> by Lorc, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>.</span>
-            </footer>
-            </main>
-            </div>
-            <script>
-            {Scrollspy}
-            </script>
-            </body>
-            </html>
-
-            """);
-        return sb.ToString();
-    }
-
-    static void Html(StringBuilder sb, Block block)
-    {
-        switch (block)
-        {
-            case Title t:
-                sb.Append($"""
-                    <header>
-                    <div class="kicker">Exam</div>
-                    <h1>{E(t.Exam)}</h1>
-                    <div class="when">{E(t.Date)}</div>
-                    <div class="time">Started {E(t.Time)} UTC</div>
-                    </header>
-
-                    """);
-                break;
-            case Heading h:
-                sb.Append($"</section>\n\n<section id=\"{E(h.Id)}\">\n<h2>{E(h.Text)}</h2>\n");
-                break;
-            case Para p:
-                sb.Append($"<p{Class(p.Class)}>{Inline(p.Text)}</p>\n");
-                break;
-            case Warning w:
-                sb.Append($"<p class=\"warning\">{Inline(w.Text)}</p>\n");
-                break;
-            case Bullets l:
-                sb.Append($"<ul{Class(l.Class)}>\n").Append(string.Concat(l.Items.Select(i => $"<li>{Inline(i)}</li>\n"))).Append("</ul>\n");
-                break;
-            case Pairs kv:
-                sb.Append(kv.Class == "roles" ? "<dl class=\"explain\">\n" : "<dl>\n");
-                foreach (var (k, v) in kv.Items)
-                    sb.Append(kv.Class == "roles" ? $"<dt><span class=\"role role-{E(k)}\">{E(k)}</span></dt>" : $"<dt>{E(k)}</dt>").Append($"<dd>{Inline(v)}</dd>\n");
-                sb.Append("</dl>\n");
-                break;
-            case Label l:
-                sb.Append($"<h4>{E(l.Text)}</h4>\n");
-                break;
-            case Table t:
-                // A wide table (many variants) scrolls within the column rather than running off the page.
-                sb.Append($"<div class=\"table-wrap\"><table{Class(t.Class)}>\n<thead><tr>");
-                foreach (var (h, i) in t.Header.Select((h, i) => (h, i))) sb.Append($"<th{(t.Numeric.Contains(i) ? " class=\"num\"" : "")}>{Inline(h)}</th>");
-                sb.Append("</tr></thead>\n<tbody>\n");
-                foreach (var row in t.Rows)
-                {
-                    var anchor = row.Select(c => c.Anchor).FirstOrDefault(a => a is not null);
-                    sb.Append(anchor is null ? "<tr>" : $"<tr id=\"{E(anchor)}\">");
-                    foreach (var (c, i) in row.Select((c, i) => (c, i)))
-                        sb.Append($"<td{(t.Numeric.Contains(i) ? " class=\"num\"" : "")}>{c.Html ?? Inline(c.Text)}</td>");
-                    sb.Append("</tr>\n");
-                }
-                sb.Append("</tbody>\n</table></div>\n");
-                break;
-            case Card c:
-                sb.Append($"<div class=\"verdict\" role=\"region\" aria-label=\"Verdict\">\n<div class=\"kicker\">{E(c.Title)}</div>\n");
-                sb.Append(ChartSvg(c));
-                if (c.Lines.Count > 0)
-                {
-                    sb.Append("<div class=\"verdict-lines\">\n");
-                    foreach (var l in c.Lines) Html(sb, l);
-                    sb.Append("</div>\n");
-                }
-                if (c.Foot.Count > 0)
-                {
-                    sb.Append("<div class=\"verdict-foot\">\n");
-                    foreach (var f in c.Foot) Html(sb, f);
-                    sb.Append("</div>\n");
-                }
-                sb.Append("</div>\n");
-                break;
-            case TaskCard tc:
-                sb.Append($"<section id=\"task-{E(tc.Name)}\" class=\"task\">\n<h3>{E(tc.Name)}</h3>\n<p class=\"prompt\">{Inline(tc.Prompt)}</p>\n");
-                sb.Append("<div class=\"facts\">").Append(string.Concat(tc.Facts.Select(f => $"<span>{Inline(f)}</span>"))).Append("</div>\n");
-                foreach (var inner in tc.Body) Html(sb, inner);
-                sb.Append("</section>\n");
-                break;
-        }
-    }
-
-    /// <summary>The sticky table of contents: logo, exam and date, every section with the tasks under Tasks, and back to top.</summary>
-    static string Rail(List<Block> blocks, string exam, DateTimeOffset created)
-    {
-        var sb = new StringBuilder();
-        sb.Append($"""
-            <nav class="toc-rail" aria-label="Report sections">
-            <div class="brand"><img src="{Logo}" alt="" width="22" height="22"><span>proctor</span></div>
-            <div class="rail-exam"><div class="name">{E(exam)}</div><div class="date">{created:d MMM yyyy}</div></div>
-            <div class="rail-toc">
-            <div class="kicker">On this page</div>
-            <div class="toc">
-            <a href="#summary"><span>Summary</span></a>
-
-            """);
-        foreach (var block in blocks)
-        {
-            if (block is Heading h)
-                sb.Append($"<a href=\"#{E(h.Id)}\"><span>{E(h.Text)}</span>{(h.Flagged ? "<span class=\"flag\" title=\"Needs care\" aria-label=\"Needs care\"></span>" : "")}</a>\n");
-            else if (block is TaskCard tc)
-                sb.Append($"<a href=\"#task-{E(tc.Name)}\" class=\"is-sub\"><span>{E(tc.Name)}</span></a>\n");
-        }
-        sb.Append("""
-            </div>
-            </div>
-            <a class="to-top" href="#top"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10V2M2.5 5.5L6 2l3.5 3.5"></path></svg>Back to top</a>
-            </nav>
-
-            """);
-        return sb.ToString();
-    }
-
-    static string Class(string? c) => c is null ? "" : $" class=\"{c}\"";
-
-    /// <summary>Escape, then the inline forms both renderings share.</summary>
-    static string Inline(string text)
-    {
-        var s = E(text);
-        s = Regex.Replace(s, "``(.+?)``", "<code class=\"code\">$1</code>");
-        s = Regex.Replace(s, "`([^`]+)`", "<span class=\"id\">$1</span>");
-        s = Regex.Replace(s, @"\[([^\]]+)\]\((#[^)\s]+)\)", "<a href=\"$2\">$1</a>");
-        s = Regex.Replace(s, @"\*\*(.+?)\*\*", "<b>$1</b>");
-        s = Regex.Replace(s, @"(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])", "<i>$1</i>");
-        return s;
-    }
-
-    static string E(string s) => WebUtility.HtmlEncode(s);
-
-    /// <summary>The wizard hat, embedded from assets/pointy-hat.svg (CC BY 3.0; the credit is in the footer).</summary>
-    static readonly string Logo = LoadLogo();
-
-    static string LoadLogo()
-    {
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("pointy-hat.svg")!;
-        using var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
-        return "data:image/svg+xml;base64," + Convert.ToBase64String(buffer.ToArray());
-    }
-
-    // Colour is semantic only: green passed or better, red failed or worse, amber not counted or a warning,
-    // purple a link. Monospace is for what is typed or opened; every id is in the body font.
-    const string Css = """
-        html { scroll-behavior: smooth; background: #fff; }
-        body { margin: 0; color: #1b1b1b; font: 15px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; background: #fff; }
-        a { color: #5a3e9e; } a:hover { color: #3f2a78; }
-        b { font-weight: 600; }
-        .page { width: 100%; min-height: 100vh; box-sizing: border-box; display: flex; justify-content: center; gap: 48px; padding: 0 24px; }
-        .rpt { flex-grow: 1; min-width: 0; max-width: 64rem; padding: 2rem 0 4rem; }
-        .kicker { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #595959; }
-        .rpt header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-        .rpt header .when { font-size: 20px; font-weight: 500; margin-top: 4px; }
-        .rpt header .time { font-size: 14px; color: #595959; margin-top: -6px; }
-        .rpt h1 { font-size: 2.5rem; line-height: 1.1; font-weight: 650; letter-spacing: -.01em; margin: 0; }
-        .rpt h2 { font-size: 1.625rem; line-height: 1.2; font-weight: 650; letter-spacing: -.005em; margin: 3rem 0 .75rem; padding-top: 1rem; border-top: 1px solid #d8d8d8; }
-        .rpt h3 { font-size: 1.0625rem; line-height: 1.3; font-weight: 600; margin: 0; }
-        .rpt h4 { font-size: .8rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #595959; margin: 1.1rem 0 0; }
-        .rpt section, .rpt tr { scroll-margin-top: 24px; }
-        .rpt p { margin: .5rem 0; max-width: 52rem; }
-        .rpt .explain { color: #6b6b6b; font-size: 14px; }
-        .rpt table { border-collapse: collapse; margin: .75rem 0; font-variant-numeric: tabular-nums; }
-        .rpt .table-wrap { max-width: 100%; overflow-x: auto; }
-        .rpt th, .rpt td { padding: .3rem .7rem; border-bottom: 1px solid #d8d8d8; text-align: left; vertical-align: top; }
-        .rpt th { font-weight: 600; font-size: .85rem; color: #595959; }
-        .rpt td { max-width: 32rem; }
-        .rpt .num { text-align: right; white-space: nowrap; }
-        .rpt .marks { white-space: nowrap; }
-        .rpt .marks a { text-decoration: none; letter-spacing: .2em; font-size: 1.25em; }
-        .rpt tr:target { background: #eef4f0; }
-        .rpt ul { margin: .3rem 0 .6rem 1.2rem; padding: 0; max-width: 52rem; }
-        .rpt li { margin: .15rem 0; }
-        .rpt dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; max-width: 52rem; margin: .75rem 0; }
-        .rpt dt { color: #595959; } .rpt dd { margin: 0; overflow-wrap: anywhere; }
-        .id { white-space: nowrap; }
-        .code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .88em; background: #f4f4f2; padding: 1px 4px; border-radius: 3px; overflow-wrap: anywhere; }
-        .pass { color: #1f6f43; } .fail { color: #c2361b; } .skip { color: #9a5b00; } .undecided { color: #595959; }
-        .vbad { color: #a52d15; } .vgood { color: #17603a; } .vsame { color: #595959; }
-        .role { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-        .role-headline { color: #1b1b1b; } .role-validity { color: #9a5b00; } .role-guardrail { color: #595959; }
-        .src { color: #595959; white-space: nowrap; }
-        .warning { background: #fff4d6; color: #5c3d00; padding: .5rem .75rem; margin: 1rem 0; border-radius: 4px; }
-        .verdict { margin: 1.25rem 0 1rem; max-width: 52rem; box-sizing: border-box; border: 1px solid #d8d8d8; border-radius: 10px; padding: 24px 28px 20px; display: flex; flex-direction: column; gap: 20px; background: #fbfbf9; }
-        .chart { display: block; max-width: 100%; height: auto; overflow: visible; }
-        .chart text { font-family: inherit; }
-        .chart .ch { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
-        .chart .cs { font-size: 12px; font-weight: 400; fill: #595959; }
-        .chart .ax { font-size: 11.5px; fill: #595959; font-variant-numeric: tabular-nums; }
-        .chart .variant { font-size: 13.5px; font-weight: 600; fill: #1b1b1b; }
-        .chart .val { font-size: 13px; font-weight: 600; fill: #1b1b1b; font-variant-numeric: tabular-nums; }
-        .chart .grid { stroke: #e4e4e0; } .chart .zero { stroke: #9a9a9a; }
-        .chart .bar { stroke: #595959; stroke-width: 2; stroke-linecap: round; }
-        .chart .dot { fill: #1b1b1b; stroke: #fff; stroke-width: 2; }
-        .chart .ddot { stroke-width: 2; }
-        .verdict-lines { display: flex; flex-direction: column; gap: 6px; }
-        .rpt .verdict-lines p { margin: 0; max-width: 44rem; }
-        .verdict-foot { border-top: 1px solid #e4e4e0; padding-top: 16px; }
-        .rpt .verdict-foot p { margin: 0 0 .5rem; }
-        .rpt .verdict .caution { color: #5c3d00; }
-        .rpt .task { margin-top: 1.75rem; padding: 1rem 1.25rem 1.1rem; border: 1px solid #d8d8d8; border-radius: 8px; max-width: 52rem; box-sizing: border-box; }
-        .rpt .task .prompt { margin: .25rem 0 .5rem; }
-        .rpt .task .facts { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 13.5px; color: #595959; }
-        .rpt .task .facts b { color: #1b1b1b; }
-        .rpt .task table { width: 100%; margin: .35rem 0 0; }
-        .rpt .task th { white-space: nowrap; }
-        .rpt .task tr:last-child td { border-bottom: 0; }
-        .rpt ul.why { margin: .6rem 0 0 1.1rem; }
-        .rpt dl.explain .role { font-size: 12.5px; }
-        .rpt footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #d8d8d8; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #6b6b6b; }
-        .rpt footer img, .brand img { display: block; }
-        .toc-rail { position: sticky; top: 0; align-self: flex-start; flex-shrink: 0; width: 220px; max-height: 100vh; overflow-y: auto; box-sizing: border-box; padding: 32px 0 24px; display: flex; flex-direction: column; gap: 16px; }
-        .brand { display: flex; align-items: center; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid #e4e4e0; }
-        .brand span { font-weight: 600; color: #3b2f6e; letter-spacing: .01em; }
-        .rail-exam { display: flex; flex-direction: column; gap: 2px; }
-        .rail-exam .name { font-size: 15px; font-weight: 650; }
-        .rail-exam .date { font-size: 12.5px; color: #595959; }
-        .rail-toc { display: flex; flex-direction: column; gap: 6px; }
-        .rail-toc .kicker { font-size: 11px; }
-        .toc { display: flex; flex-direction: column; border-left: 1px solid #d8d8d8; }
-        .toc a { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 12px; margin-left: -1px; border-left: 2px solid transparent; color: #595959; text-decoration: none; font-size: 13.5px; line-height: 1.35; }
-        .toc a:hover { color: #1b1b1b; border-left-color: #bdbdbd; }
-        .toc a.is-active { color: #1b1b1b; font-weight: 600; border-left-color: #5a3e9e; }
-        .toc a.is-sub { padding-left: 26px; font-size: 13px; }
-        .toc a:focus-visible { outline: 2px solid #5a3e9e; outline-offset: 2px; border-radius: 2px; }
-        .toc .flag { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: #d9a400; }
-        .to-top { font-size: 12.5px; color: #595959; text-decoration: none; display: flex; align-items: center; gap: 6px; min-height: 28px; }
-        @media (max-width: 900px) { .toc-rail { display: none; } }
-        """;
-
-    /// <summary>Highlights the rail entry for the section being read. The page works without it.</summary>
-    const string Scrollspy = """
-        (function () {
-          var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
-          var ids = links.map(function (a) { return a.getAttribute('href').slice(1); });
-          function update() {
-            var active = ids[0];
-            ids.forEach(function (id) {
-              var el = document.getElementById(id);
-              if (el && el.getBoundingClientRect().top <= 120) active = id;
-            });
-            var se = document.scrollingElement;
-            if (se.scrollHeight > innerHeight && se.scrollTop + innerHeight >= se.scrollHeight - 4) active = ids[ids.length - 1];
-            links.forEach(function (a, i) {
-              var on = ids[i] === active;
-              a.classList.toggle('is-active', on);
-              if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
-            });
-          }
-          addEventListener('scroll', update, { passive: true });
-          addEventListener('resize', update);
-          update();
-        })();
-        """;
 
     // ---- Markdown ----
 
