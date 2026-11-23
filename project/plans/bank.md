@@ -167,6 +167,9 @@ exams/readme-answers/exam.json
 - **A check on the transcript is per stage for free.** What the agent
   said, which tools it called and what came back are kept per stage,
   so trajectory and tool-use checks need nothing special.
+- **Every check belongs to a stage** (2026-11-22): a check on the
+  workspace belongs to the last stage, and the guardrails are per
+  stage. No check is on the job as a whole (`check-evidence.md`, C4).
 - **Harbor could run a check after each stage** on an agent setup, which
   would let a check for stage 6 see the workspace before stage 7 touches
   it. Not used: nb has no equivalent, and the two kinds of setup must

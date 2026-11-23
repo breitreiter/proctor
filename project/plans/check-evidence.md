@@ -2,7 +2,7 @@
 type: plan
 title: Checks that explain themselves — why a check exists, what it does, and what it points at
 created: 2026-11-22
-status: agreed with the user 2026-11-22 (calls made on a decision page, recorded under "Calls" below), with changes: `why` is required, `absent` evidence is dropped, the surface verdict waits, and the friction roll-up moves to `proctor report`. Still OPEN: what a workspace check is for, and the reader's spend cap. Depends on bank step 4 (stages) only for stage ids and C5.4
+status: agreed with the user 2026-11-22 (calls made on a decision page, recorded under "Calls" below), with changes: `why` is required, `absent` evidence is dropped, the surface verdict waits, and the friction roll-up moves to `proctor report`. Still OPEN: the reader's spend cap. Depends on bank step 4 (stages) only for stage ids and C5.4
 ---
 
 # Checks that explain themselves
@@ -18,7 +18,7 @@ status: agreed with the user 2026-11-22 (calls made on a decision page, recorded
 | `absent` evidence | dropped for now (C3) |
 | `max_tool_calls` evidence | none |
 | script evidence | later |
-| a workspace check naming a stage | no; on the try, for now (C4), with an open question |
+| where checks belong | **every check belongs to a stage**; workspace checks to the last stage; guardrails per stage (C4) |
 | C5.1 | accepted as written |
 | `flagged_steps` (C5.3) | confirmed |
 | surface verdict (C5.2) | waits until a page shows it |
@@ -170,17 +170,30 @@ What each built-in kind would write:
 
 ## C4. Evidence and B8
 
-Under B8, a check on the workspace runs once, at the end of the attempt,
-and sees what the last stage left. So a `{file}` item belongs to the
-attempt, not to a stage. A check on the transcript is per stage for
-free. auspex shows workspace checks at the attempt level. A check does not
-name a stage, for now (decided 2026-11-22).
+**Every check belongs to a stage** (the user, 2026-11-22). There are no
+checks on the attempt as a whole: "floaty checks unrelated to a stage"
+would need explaining, and their own place on every page.
 
-OPEN (the user, 2026-11-22): what a workspace check is for, as against
-a check on the final (or only) stage. Both run after the last stage;
-one grades the end state of the whole job, the other what the last
-stage asked. Whether an author needs the distinction, and how a check
-says which it is, is worth settling with bank step 4.
+- **A check on the transcript** belongs to its stage, for free.
+- **A check on the workspace belongs to the last stage.** Under B8 it
+  runs once, after the last stage, and reads what that stage left, so
+  "the last stage's checks" is literally true. "Check the final state
+  before exiting" is the last stage's checks; in a one-stage exam it is
+  the only stage. A `{file}` evidence item belongs to the last stage.
+  Validation refuses a workspace check declared on an earlier stage.
+- **A stage's product checked at the end** (stage 6 writes `./output_6`)
+  is a check on the last stage that names what it checks
+  (`output_6-written`). B9's guidance stands: the author puts the
+  product where later stages won't touch it.
+- **The guardrails are per stage.** Each stage is its own agent launch,
+  so `exit_ok`, `no_denials` and `not_nudged` already mean something
+  per stage. `under_budget` becomes a per-stage limit (tokens, calls,
+  time), the one guardrail whose meaning changes.
+- What is about the attempt as a whole is its status (lost, when a
+  stage didn't run), not a check.
+
+This replaces "workspace checks on the attempt" and the open question
+on what a workspace check is for.
 
 ## C5. Friction on the same footing
 
