@@ -2,10 +2,31 @@
 type: plan
 title: Checks that explain themselves — why a check exists, what it does, and what it points at
 created: 2026-11-22
-status: proposed 2026-11-22 from auspex's stage page design, not agreed. Lines marked OPEN are mine. Depends on bank step 4 (stages) only for stage ids; C1 and C2 can be built now. C5 extended the same day with friction's legibility and roll-up (C5.1 to C5.4), also proposed
+status: agreed with the user 2026-11-22 (calls made on a decision page, recorded under "Calls" below), with changes: `why` is required, `absent` evidence is dropped, the surface verdict waits, and the friction roll-up moves to `proctor report`. Still OPEN: the outcome measure under stages, what a workspace check is for, and the reader's spend cap. Depends on bank step 4 (stages) only for stage ids and C5.4
 ---
 
 # Checks that explain themselves
+
+## Calls (the user, 2026-11-22)
+
+| Call | Decided |
+|---|---|
+| `why` | **required** on every check (C1); `proctor list` names each check without one |
+| guardrail `why` | proctor supplies a default when a guardrail is copied unchanged |
+| verdict snapshot | `describes` and `why` written into each verdict (C2) |
+| script path | its own `script` field on a script check's verdict |
+| `absent` evidence | dropped for now (C3) |
+| `max_tool_calls` evidence | none |
+| script evidence | later |
+| a workspace check naming a stage | no; on the try, for now (C4), with an open question |
+| C5.1 | accepted as written |
+| `flagged_steps` (C5.3) | confirmed |
+| surface verdict (C5.2) | waits until a page shows it |
+| friction roll-up (C5.4) | written by `proctor report`, beside `stats.json` |
+| unit for confirming friction | tries, Mann–Whitney; minimum tries documented for the agent |
+| outcomes under stages | OPEN, see C5.4 |
+| measuring before C5.4 | rules and the reader; the reader is hosted (no local model on this laptop), spend cap OPEN |
+| order | by what each auspex page needs ("Order") |
 
 ## Why
 
@@ -46,9 +67,16 @@ logic, so all four have to be in files proctor writes.
 
 ## C1. `why` on every check
 
-An optional key beside `description`. Like `description`, it is not a
+A required key beside `description`. Like `description`, it is not a
 check field. It holds one sentence on why the author thinks this is
 worth checking.
+
+The two sentences are different and both are needed (the user,
+2026-11-22): what the check does, mechanically, and what it is for.
+For example, ".env is in .gitignore" (`description`, or derived by
+`Checks.Describe` for a built-in kind) and "ensure secrets in .env stay
+out of git" (`why`). The user flagged the split for further discussion
+(together or separately); required stands until then.
 
 ```json
 "no_denials": {
@@ -58,18 +86,17 @@ worth checking.
 ```
 
 - Validated the way `description` is: a sentence, never an empty string.
-- Not required. A check without one shows "no stated reason". The
-  report and auspex both say so rather than leaving a blank, so the gap
-  stays visible.
-- OPEN: should `proctor check` (or lint) list checks that have no `why`?
-  A list, not an error.
+- **Required.** `proctor list`, which validates exams, refuses an exam
+  with a check that has no `why` and names each such check. Existing
+  exams get a `why` on each check when this is built.
 - The exam-writing skill and `docs/configuration.md` gain a line asking
   for a `why` on each check (B9's audience: the author is usually a
   coding agent).
 - The guardrail checks that recur in every exam (`exit_ok`,
   `no_denials`, `not_nudged`, `under_budget`) want one sentence each,
-  written once. OPEN: as a default `why` proctor supplies when the
-  check is copied in unchanged, or written into each exam.
+  written once, as a default `why` proctor supplies when the check is
+  copied in unchanged (decided). An exam that changes a guardrail's
+  fields writes its own.
 
 ## C2. The verdict carries the check as it was graded
 
@@ -82,7 +109,7 @@ produced it:
   "reason": "note.txt was not changed",
   "describes": "changes touch all of note.txt",
   "why": "the task is to record the decision in note.txt",
-  "evidence": [ { "absent": { "files": ["note.txt"], "in": "diff" } } ]
+  "evidence": []
 }
 ```
 
@@ -91,8 +118,9 @@ produced it:
   definition that produced the verdict, so an exam edited later doesn't
   re-explain an old verdict with new words. An `outdated` verdict
   already exists for that case.
-- A script check's `describes` is its `description`. OPEN: also the
-  script's path, so a person can open it.
+- A script check's `describes` is its `description`, and the verdict
+  carries the script's path as its own field, `script`, so a person can
+  open what decided (decided).
 - A `decide` or `judge` check's `describes` is `Judge.Describe`: the
   question asked, the window read, and the options.
 - auspex generates nothing. It shows these fields.
@@ -105,33 +133,38 @@ produced it:
 |---|---|
 | `{stage, step}` | an ATIF step by its original id (the stage id once stages exist) |
 | `{file, lines?}` | a path in the attempt's diff, with an optional line range |
-| `{absent: {tools \| files \| text \| pattern, in}}` | what was searched for and where (`transcript`, `answer`, `results`, `diff`) and found nowhere |
-| none | the check is about the attempt or stage as a whole |
+| none | nothing to point at: the check is about the attempt or stage as a whole, or what it looked for isn't there |
+
+`absent` (what was searched for and found nowhere) is **dropped for
+now** (decided 2026-11-22). No auspex page reads it, and the verdict's
+reason already says what was missing ("note.txt was not changed"). It
+comes back when something reads it.
 
 The same check points at different things depending on its result.
 `tools_used: ["save_data"]` points at the call when it passes and at
-`absent` when it fails. Evidence belongs to the verdict, not to the
+nothing when it fails. Evidence belongs to the verdict, not to the
 check.
 
 What each built-in kind would write:
 
 | Kind | On pass | On fail |
 |---|---|---|
-| `tools_used`, `tools_used_any` | the steps of the calls | `absent: tools` (the missing ones) |
-| `tool_args` | the matching call | the calls to that tool, or `absent: tools` |
-| `tool_sequence` | the calls in order | the calls found, plus `absent` for the first missing |
-| `answer_*` | the answer step | the answer step, plus `absent: text/pattern` for contains and regex |
-| `result_matches` | the step whose result matched | `absent: pattern, in: results` |
+| `tools_used`, `tools_used_any` | the steps of the calls | none |
+| `tool_args` | the matching call | the calls to that tool, or none |
+| `tool_sequence` | the calls in order | the calls found |
+| `answer_*` | the answer step | the answer step |
+| `result_matches` | the step whose result matched | none |
 | `denied_calls`, `tool_errors` | none | the offending steps |
-| `files_touched` | the files | `at_least`: `absent: files`; `at_most`/exact: the extra files |
+| `files_touched` | the files | `at_least`: none; `at_most`/exact: the extra files |
 | `oracle_*` | the oracle turns | the oracle turns |
 | `exit_reason`, `loop_nudged`, `max_tokens`, `max_duration_ms` | none | none |
-| `max_tool_calls` | none | the call that went over. OPEN: worth it? |
+| `max_tool_calls` | none | none (decided: which call went over is arbitrary) |
 | `decide`, `judge` | steps of the quotes the judge cited, found by the judge's own quote rule | same |
 | `script` | whatever the script reports | same |
 
-- Script checks: OPEN. The script contract could take optional evidence
-  lines in the script's output. Until then a script verdict has none.
+- Script checks: later (decided). The script contract could take
+  optional evidence lines in the script's output. Until then a script
+  verdict has none.
 - Step ids are ATIF's original ids, the ones auspex's addresses use
   (`exam/setup/try/stage#step`).
 
@@ -140,10 +173,14 @@ What each built-in kind would write:
 Under B8, a check on the workspace runs once, at the end of the attempt,
 and sees what the last stage left. So a `{file}` item belongs to the
 attempt, not to a stage. A check on the transcript is per stage for
-free. auspex will show workspace checks at the attempt level, or on a
-stage only when the check names it. OPEN: should a check be able to name
-its stage (`"stage": "tags"`) for display, given that the author already
-arranges for a stage's output to survive later stages?
+free. auspex shows workspace checks at the attempt level. A check does not
+name a stage, for now (decided 2026-11-22).
+
+OPEN (the user, 2026-11-22): what a workspace check is for, as against
+a check on the final (or only) stage. Both run after the last stage;
+one grades the end state of the whole job, the other what the last
+stage asked. Whether an author needs the distinction, and how a check
+says which it is, is worth settling with bank step 4.
 
 ## C5. Friction on the same footing
 
@@ -239,9 +276,10 @@ the attempt. It is not a severity and it qualifies no result: a pass
 is a pass. An author who wants an attempt that went round not to count
 writes a check for it and lists it under `grading.validity`.
 
-OPEN (asked from auspex, 2026-11-22): the verdict should carry its
-sentence too, as each label carries `describes` (C5.1), since a viewer
-words nothing itself.
+**Waits until a page shows it** (decided 2026-11-22). Neither agreed
+auspex page shows a surface verdict, so it isn't built yet; auspex
+drops `SurfaceWords` when it moves to the bank. When it is built, it
+carries its sentence, as each label carries `describes` (C5.1).
 
 ### C5.3 One attempt (one stage, once stages exist)
 
@@ -260,13 +298,14 @@ once, whatever the label.
 
 ### C5.4 Across attempts: better, worse, or no detectable difference
 
-One file per exam, `bank/<exam>/friction.json`, written by `proctor
-friction` after the attempts' files, from them alone. It is derived
-from the attempts, so it sits beside them. **`proctor report` does not
-render it** (the user, 2026-11-22): the static report is provisional
-and reporting is expected to move into auspex, which reads this file
-and shows it. So "no report reads friction" stands, and the Friction
-section `exam-variant-attempt.md` plans for the page is auspex's.
+One file per exam, **written by `proctor report`** beside `stats.json`
+(`reports/<exam>/explore/friction.json`; decided 2026-11-22). The
+roll-up needs each attempt's checks as well as its friction, and
+`report` already has the stamp (`built_from`), the stale-attempt
+handling and the comparison with live, so none of that is built twice
+and the bank keeps only attempts. `proctor friction` stays per attempt.
+`summary.md` doesn't render it; auspex reads the file and shows it,
+and `report.html` is gone (2026-11-22).
 
 Per variant:
 
@@ -323,7 +362,7 @@ three words:
   docs `inline-script` fell from 12 attempts to 2, because the agent never
   got as far as scripting.
 
-**OPEN: the unit under stages** (raised from auspex, 2026-11-22). The
+**The unit under stages: tries, Mann–Whitney** (decided 2026-11-22). The
 sign test above treats tasks as independent, which holds when each task
 has its own attempts in a fresh workspace. Under the bank's stages
 (B8), a try runs every stage in one container whose workspace is never
@@ -338,6 +377,23 @@ live in 23 of 25 pairings". Stage-by-stage direction stays as "what
 moved", explaining the verdict, never part of it, as labels do now.
 Until stages exist, tasks are independent and the sign test as written
 holds.
+
+- **Minimum tries.** Mann–Whitney at 95%, two-sided, can confirm with
+  4 tries a side, or 3 against 5. 3 against 3, or 2 against anything up
+  to 5, can never confirm. The exam-writing skill and the docs say so,
+  so the agent steers the user toward a setup that can answer the
+  question (the user, 2026-11-22). A single try is still fine as a
+  shakedown, for setup problems and obvious failures.
+
+**OPEN: the outcome measure under stages.** The user answered "leave
+outcomes as `Stats.cs` does them", because stages are arbitrary chunks
+for legibility, loosely related, and comparing across them is
+incoherent. But `Stats.cs` pairs pass rates by task, and tasks become
+stages, so leaving it unchanged pairs by stage, which is the incoherent
+comparison. To settle with the user: confirm outcomes over tries too
+(and on what per try: all stages right, or checks passed), or keep
+outcomes unconfirmed under stages. The same note bears on auspex's
+"stages right per try": a count that changes when stages are re-chunked.
 
 **One attempt** is placed, not judged: "5 flagged steps; the other
 attempts of this task had 1 to 2". One attempt confirms no direction.
@@ -408,20 +464,28 @@ attempts support.
 
 ## Order
 
-1. C1 and C2: small, no layout change, testable now on existing exams.
+By what each auspex page needs (decided 2026-11-22).
+
+For the stage page, buildable now on today's attempts:
+
+1. C1 and C2: small, no layout change, testable on existing exams.
 2. C3 for the transcript kinds and `files_touched`, with step ids as
    they are today.
-3. Stage ids in evidence, with bank step 4.
-4. Script evidence, once the contract is settled.
+3. C5.1 and C5.3.
 
-Friction (C5) is apart from the checks and can go in any time:
+For the exam page, with bank step 4: stage ids in evidence, C5.4 and
+the unit. Later: script evidence, the surface verdict.
 
-1. C5.1 and C5.2: `rule` and `because` on evidence, labels as objects
-   with their sentence, the surface verdict. What the rules flag does not
+The friction steps in detail:
+
+1. C5.1: `rule` and `because` on evidence, labels as objects
+   with their sentence. What the rules flag does not
    change, but labels turning from strings into objects breaks a reader
    of `detector.labels`, so the schema is `friction/2`. auspex is the
    only reader and moves to the bank anyway.
 2. C5.3: `flagged_steps`.
 3. The same measurement as C5.4's on `agent-onboarding` and
-   `nb-changes`, reader points included, before step 4.
+   `nb-changes`, reader points included, before step 4 (decided). The
+   reader is hosted Haiku, since this laptop runs no local model; it
+   runs once the user sets a spend cap (OPEN).
 4. C5.4: the exam's file and the comparison with the live variant.
