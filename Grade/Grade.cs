@@ -85,9 +85,20 @@ static class Grade
     {
         var outdated = attempt.ScriptsInVerifier ? HarborCompile.Outdated(attempt.VerifierTask, exam, attempt.Task, attempt.Variant) : [];
         var verdicts = exam.ChecksFor(attempt.Task).Where(k => !(attempt.Vendor && Checks.NbOnly(k.Value.Spec))).ToDictionary(k => k.Key,
-            k => outdated.TryGetValue(k.Key, out var why) ? new Verdict(Verdict.Outdated, why) : Checks.Evaluate(k.Value, attempt, transcript, k.Key));
+            k => Explained(outdated.TryGetValue(k.Key, out var why) ? new Verdict(Verdict.Outdated, why) : Checks.Evaluate(k.Value, attempt, transcript, k.Key), k.Value, exam));
         Runner.WriteJson(Path.Combine(attempt.AttemptDir, Layout.ChecksFile), verdicts);
         return verdicts;
+    }
+
+    /// <summary>
+    /// A verdict with the check as it was when it graded (check-evidence.md, C2): what it does, why it exists, and a script
+    /// check's script relative to proctor's root. A viewer shows these as written and derives none of them.
+    /// </summary>
+    static Verdict Explained(Verdict verdict, CheckDef check, Exam exam)
+    {
+        var root = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(exam.Dir)))!;
+        var script = check.Spec["script"] is JsonValue v && v.TryGetValue<string>(out var path) ? Path.GetRelativePath(root, Path.GetFullPath(Path.Combine(check.Dir, path))) : null;
+        return verdict with { Describes = Checks.Describe(check.Spec), Why = Checks.WhyOf(check.Spec), Script = script };
     }
 
     public static Dictionary<string, Verdict>? ReadChecks(string attemptDir)

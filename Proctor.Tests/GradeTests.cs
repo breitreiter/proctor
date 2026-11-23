@@ -67,6 +67,14 @@ public class GradeTests
         var raw = JsonNode.Parse(File.ReadAllText(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "plain", 1), "checks.json")))!;
         Assert.Equal("exit_reason=ok", raw["exit_ok"]!["reason"]!.GetValue<string>());
         Assert.Equal("pass", raw["exit_ok"]!["result"]!.GetValue<string>());
+
+        // Each verdict carries the check as it graded (check-evidence.md, C2): what it does, why, and a script's path.
+        Assert.Equal("the attempt ends with 'ok'", raw["exit_ok"]!["describes"]!.GetValue<string>());
+        Assert.StartsWith("An attempt that ended on a limit or an error", raw["exit_ok"]!["why"]!.GetValue<string>());
+        Assert.StartsWith("An attempt over its budget", raw["under_budget"]!["why"]!.GetValue<string>());
+        Assert.Null(raw["says-expected"]!["why"]);
+        Assert.Equal("exams/smoke/checks/answer-nonempty.sh", raw["answer-nonempty"]!["script"]!.GetValue<string>());
+        Assert.Null(raw["exit_ok"]!["script"]);
     }
 
     [Fact]

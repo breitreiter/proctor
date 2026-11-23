@@ -413,6 +413,22 @@ script check must have one, because from outside a script says nothing:
 { "acceptance": { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" } }
 ```
 
+A check also takes `why`: one sentence on why it is worth checking, as
+against `description`, which says what it does. ".env is in .gitignore"
+is a description; "secrets in .env stay out of git" is a why. A viewer
+shows it beside a failure, so the reader learns what the author was
+protecting, not only what tripped:
+
+```json
+{ "no-secrets": { "script": "checks/no-secrets.sh", "description": "no key or secret value is in a written file", "why": "a suite that leaks a key would publish it with the attempt" } }
+```
+
+`proctor list` names the checks that have none. Four guardrails get
+proctor's own reason when they have none: an exit reason of `ok`, no
+denied calls, no loop nudge, and a budget of calls, tokens or time.
+`grade` writes each check's description, why and (for a script) its path
+into every verdict in `checks.json`, as they were when it graded.
+
 ## The surface under test
 
 An exam usually tests one thing inside a fixture that holds many: a CLI, an

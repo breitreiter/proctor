@@ -30,6 +30,9 @@ static class Verbs
             var byLevel = levels.Count < 2 ? "" : " (" + string.Join(", ", levels.Select(g => $"{g.Count()} of {g.Key switch { "exam" => "the exam's", "fixture" => fixtures == 1 ? "the fixture's" : "the fixtures'", _ => "the tasks' own" }}")) + ")";
             Console.WriteLine($"  {Count(exam.Tasks.Count, "task")}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted of each task{(exam.Judged ? "; judged" : "")}");
             if (labels.Count > 0) Console.WriteLine($"  labels: {Labels.Format(labels)}");
+            // A check with no reason, neither its author's nor a guardrail's default (check-evidence.md, C1). Listed, not refused, until the exams have theirs.
+            var unexplained = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Where(k => Checks.WhyOf(k.Value.Spec) is null).Select(k => k.Key)).Distinct().ToList();
+            if (unexplained.Count > 0) Console.WriteLine($"  {Count(unexplained.Count, "check")} with no why: {string.Join(", ", unexplained)}");
             var bank = Bank.Of(root, exam);
             var live = Proctor.Live.Load(exam);
             var broken = live?.Broken(exam);

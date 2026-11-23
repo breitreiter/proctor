@@ -7,6 +7,17 @@ status: agreed with the user 2026-11-22 (calls made on a decision page, recorded
 
 # Checks that explain themselves
 
+## Built (2026-11-23)
+
+C1 and C2: the `why` key (validated as a sentence), the guardrail
+defaults, `proctor list` naming checks with no why, and `describes`,
+`why` and `script` in every verdict. **Not yet built: `why` as required.**
+It refuses every exam until each check has one, about 106 checks across
+26 exam and fixture files plus the tests' own; the sentences are the
+authors' to write. `proctor list` names them meanwhile. The guardrail
+defaults are recognised by what the check does, not by being copied
+unchanged: a budget's reason doesn't depend on its numbers.
+
 ## Calls (the user, 2026-11-22)
 
 | Call | Decided |

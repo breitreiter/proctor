@@ -7,6 +7,14 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **A check's `why`, and verdicts that explain themselves**
+  (`project/plans/check-evidence.md`, C1 and C2). A check takes `why`
+  beside `description`: one sentence on why it is worth checking.
+  `proctor list` names checks without one; four guardrails (exit reason
+  `ok`, no denied calls, no loop nudge, a budget) get proctor's own.
+  `grade` writes `describes`, `why` and, for a script check, `script`
+  (its path from proctor's root) into each verdict in `checks.json`.
+  Verdict equality is still result and reason.
 - **Breaking: no `report.html`.** `proctor report` writes `results.jsonl`,
   `stats.json` and `summary.md`; the HTML page, its chart, styles, script
   and embedded logo are gone. auspex is the viewer, and the page would

@@ -140,7 +140,11 @@ exam, task, attempt, check, variant, fixture, bank, live.
   `judges` naming a model; setup writes none, since the model is the
   exam's choice.
 - **Every check and task gets a one-sentence `description`, every variant a
-  `note`.** The report puts it beside every number. A note says what is
+  `note`, and every check a `why`.** The report puts the description beside
+  every number. The `why` says what the check protects ("secrets in .env
+  stay out of git"), where the description says what it does (".env is in
+  .gitignore"); a person reads it beside a failure. `proctor list` names
+  checks without one; the four common guardrails have proctor's. A note says what is
   different about the variant, never what it is expected to do.
 - **A variant is declared data, and its identity is its content.** Editing a
   variant's file or its bundle makes a new variant; once the old one has

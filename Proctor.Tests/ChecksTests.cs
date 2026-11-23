@@ -124,6 +124,33 @@ public class ChecksTests
         Assert.Equal("pass", never.Result);
     }
 
+    [Theory]
+    [InlineData("{\"exit_reason\": \"ok\"}", "An attempt that ended on a limit")]
+    [InlineData("{\"denied_calls\": {\"max\": 0}}", "A denied call means")]
+    [InlineData("{\"loop_nudged\": false}", "A nudge means")]
+    [InlineData("{\"max_tool_calls\": 60, \"max_duration_ms\": 1200000}", "An attempt over its budget")]
+    [InlineData("{\"max_tokens\": 5}", "An attempt over its budget")]
+    [InlineData("{\"exit_reason\": \"oracle_budget\"}", null)]
+    [InlineData("{\"loop_nudged\": true}", null)]
+    [InlineData("{\"exit_reason\": \"ok\", \"max_tokens\": 5}", null)]
+    [InlineData("{\"answer_contains\": \"x\"}", null)]
+    public void DefaultWhy_CoversTheGuardrails_ByWhatTheyCheck(string spec, string? starts)
+    {
+        var why = Checks.DefaultWhy(JsonNode.Parse(spec)!.AsObject());
+        if (starts is null) Assert.Null(why); else Assert.StartsWith(starts, why);
+    }
+
+    [Fact]
+    public void Why_TheAuthorsSentenceWins_AndIsNeitherEvaluatedNorEmpty()
+    {
+        var spec = JsonNode.Parse("{\"exit_reason\": \"ok\", \"why\": \"a crash is the harness's fault, not the agent's\"}")!.AsObject();
+        Assert.Equal("a crash is the harness's fault, not the agent's", Checks.WhyOf(spec));
+        var v = Exam(spec.ToJsonString(), Fixture("plain"));
+        Assert.Equal(("pass", "exit_reason=ok"), (v.Result, v.Reason));
+        Assert.Contains(Checks.ValidateCheck(JsonNode.Parse("{\"exit_reason\": \"ok\", \"why\": \" \"}")!.AsObject(), "/nonexistent"), p => p.Field == "why");
+        Assert.Contains(Checks.ValidateCheck(JsonNode.Parse("{\"why\": \"only a reason\"}")!.AsObject(), "/nonexistent"), p => p.Field == "");
+    }
+
     [Fact]
     public void Description_IsNotEvaluated()
     {

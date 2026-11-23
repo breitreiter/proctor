@@ -11,6 +11,17 @@ namespace Proctor;
 /// </summary>
 record Verdict(string Result, string Reason)
 {
+    /// <summary>What the check does, as it was when it graded this attempt (<see cref="Checks.Describe"/>), so a viewer copies none of proctor's logic and an exam edited later doesn't re-explain an old verdict.</summary>
+    public string? Describes { get; init; }
+    /// <summary>Why the check exists, as it was when it graded: its author's sentence, or proctor's default for a guardrail (<see cref="Checks.WhyOf"/>).</summary>
+    public string? Why { get; init; }
+    /// <summary>A script check's script, relative to proctor's root, so a person can open what decided.</summary>
+    public string? Script { get; init; }
+
+    // A verdict is its result and reason; what it carries to explain the check doesn't make it another verdict.
+    public virtual bool Equals(Verdict? other) => other is not null && Result == other.Result && Reason == other.Reason;
+    public override int GetHashCode() => HashCode.Combine(Result, Reason);
+
     public const string Pass = "pass", Fail = "fail", NeedsJudge = "needs-judge", Error = "error", Outdated = "outdated";
     public static Verdict Of(bool ok, string reason) => new(ok ? Pass : Fail, reason);
     public static Verdict Err(string reason) => new(Error, reason);
@@ -76,8 +87,13 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
 static class Checks
 {
     public const string FromExpect = "@expect";
-    /// <summary>The one key in a check spec that is not a check: what the check tests, for the report's reader.</summary>
+    /// <summary>A key in a check spec that is not a check: what the check tests, for the report's reader.</summary>
     public const string Description = "description";
+    /// <summary>The other key that is not a check: one sentence on why the author thinks this is worth checking (check-evidence.md, C1).</summary>
+    public const string Why = "why";
+
+    /// <summary>A key that says something about the check rather than being one: <see cref="Description"/> or <see cref="Why"/>.</summary>
+    public static bool IsNote(string key) => key is Description or Why;
 
     static readonly string[] Known =
     [
@@ -110,11 +126,14 @@ static class Checks
     /// </summary>
     public static IEnumerable<(string Field, string Problem)> ValidateCheck(JsonObject? spec, string examDir)
     {
-        var fields = spec?.Where(f => f.Key != Description).ToList() ?? [];
+        var fields = spec?.Where(f => !IsNote(f.Key)).ToList() ?? [];
         if (fields.Count == 0) { yield return ("", "a check is an object with at least one check field"); yield break; }
         var description = spec![Description];
         if (description is not null && (description is not JsonValue dv || !dv.TryGetValue<string>(out var text) || string.IsNullOrWhiteSpace(text)))
             yield return (Description, "a description is a sentence, not an empty string");
+        var why = spec[Why];
+        if (why is not null && (why is not JsonValue wv || !wv.TryGetValue<string>(out var whyText) || string.IsNullOrWhiteSpace(whyText)))
+            yield return (Why, "a why is a sentence, not an empty string");
         if (description is null && spec.ContainsKey("script"))
             yield return (Description, "required for a script check: say in a sentence what the script tests, for the report's reader");
         foreach (var (key, value) in fields)
@@ -125,7 +144,34 @@ static class Checks
     public static string Describe(JsonObject spec)
     {
         if (spec[Description] is JsonValue d && d.TryGetValue<string>(out var text)) return text;
-        return string.Join(" and ", spec.Where(f => f.Key != Description).Select(f => DescribeField(f.Key, f.Value)));
+        return string.Join(" and ", spec.Where(f => !IsNote(f.Key)).Select(f => DescribeField(f.Key, f.Value)));
+    }
+
+    /// <summary>Why a check exists: its author's sentence, else proctor's default for a guardrail, else null (no stated reason).</summary>
+    public static string? WhyOf(JsonObject spec) =>
+        spec[Why] is JsonValue w && w.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text) ? text : DefaultWhy(spec);
+
+    /// <summary>
+    /// The reason for a guardrail nearly every exam carries, written once here (check-evidence.md, C1). Recognised by what
+    /// the check does, not its name: an exit reason of ok, no denied calls, no loop nudge, or a budget of calls, tokens or
+    /// time alone. A budget's reason doesn't depend on its numbers, so an exam that sets its own still gets it. A check
+    /// that adds anything else is the author's, and needs the author's reason.
+    /// </summary>
+    public static string? DefaultWhy(JsonObject spec)
+    {
+        var fields = spec.Where(f => !IsNote(f.Key)).ToList();
+        if (fields.Count == 0) return null;
+        static bool Is(JsonNode? v, string s) => v is JsonValue jv && jv.TryGetValue<string>(out var t) && t == s;
+        static bool IsFalse(JsonNode? v) => v is JsonValue jv && jv.TryGetValue<bool>(out var b) && !b;
+        if (fields is [("exit_reason", var exit)] && Is(exit, "ok"))
+            return "An attempt that ended on a limit or an error, not by finishing, says nothing yet about the task.";
+        if (fields is [("denied_calls", _)])
+            return "A denied call means the agent tried something the setup forbids, which a user would see as a stuck session.";
+        if (fields is [("loop_nudged", var nudged)] && IsFalse(nudged))
+            return "A nudge means the agent stopped making progress and the harness had to push it on.";
+        if (fields.All(f => f.Key is "max_tool_calls" or "max_tokens" or "max_duration_ms"))
+            return "An attempt over its budget costs a user more time or money than this task should.";
+        return null;
     }
 
     private static string DescribeField(string key, JsonNode? v)
@@ -230,12 +276,12 @@ static class Checks
 
     /// <summary>A check that reads only nb's own behaviour (the loop nudge): a vendor agent's attempt does not carry it, so its rate is over nb's attempts.
     /// Combined with anything else it stays, and the nudge part is an error on a vendor attempt.</summary>
-    public static bool NbOnly(JsonObject spec) => spec.Where(f => f.Key != Description).Select(f => f.Key).SequenceEqual(["loop_nudged"]);
+    public static bool NbOnly(JsonObject spec) => spec.Where(f => !IsNote(f.Key)).Select(f => f.Key).SequenceEqual(["loop_nudged"]);
 
     /// <summary>Evaluate a declared check over one attempt. A spec with several fields is their conjunction. The name is what a model check's verdict file and @expect are keyed by.</summary>
     public static Verdict Evaluate(CheckDef check, AttemptContext attempt, Transcript t, string name = "check")
     {
-        var verdicts = check.Spec.Where(f => f.Key != Description).Select(field => EvaluateField(field.Key, field.Value, check.Dir, name, attempt, t)).ToList();
+        var verdicts = check.Spec.Where(f => !IsNote(f.Key)).Select(field => EvaluateField(field.Key, field.Value, check.Dir, name, attempt, t)).ToList();
         if (verdicts.Count == 1) return verdicts[0];
         var worst = verdicts.MaxBy(v => v.Result switch { Verdict.Error => 3, Verdict.NeedsJudge => 2, Verdict.Fail => 1, _ => 0 })!;
         // The parts that decided the verdict lead, so a skimmed reason opens with why it failed.
