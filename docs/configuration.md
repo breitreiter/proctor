@@ -245,7 +245,8 @@ live.json        which variant is live, written by `proctor live` (absent until 
 ```
 
 **Stages, in place of tasks (being built: a bare nb variant runs one;
-an agent variant, `grade`, `friction` and `report` do not yet).** An exam can instead be one job of stages: `fixture` and
+and `grade` grades it; an agent variant, `friction` and `report` do not
+yet).** An exam can instead be one job of stages: `fixture` and
 `stages` in `exam.json`, and no `tasks/`.
 
 ```json
@@ -280,6 +281,14 @@ an agent variant, `grade`, `friction` and `report` do not yet).** An exam can in
   stage runs, unless the exam says `"chained": true`: then a later
   stage needs what an earlier one made, so the try ends there, the
   stages after it are `skipped`, and the try still counts.
+- Each stage is graded on its own transcript and has its own
+  `checks.json`. A check that reads the workspace (`files_touched`, a
+  script) is graded once, on what the last stage left: the exam's and
+  the fixture's belong to the last stage, a stage's own to that stage.
+  So a stage whose result is checked must leave it where a later stage
+  will not touch it; say where in its prompt. A stage passes on the
+  headline checks it carries, and a stage that was not reached is not
+  graded.
 - The whole job has one hash: changing, adding, moving or renaming a
   stage makes every banked attempt of the exam stale. Changing a check,
   an expected value or an `about` does not.

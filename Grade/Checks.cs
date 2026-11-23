@@ -55,6 +55,8 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     public string? VerifierTask { get; init; }
     /// <summary>A vendor agent's attempt, not nb's: nb's own behaviour (the loop nudge) has nothing to read there.</summary>
     public bool Vendor { get; init; }
+    /// <summary>Where diff.patch is: the attempt's directory, or for a stage its try's, since the workspace and its diff are the whole try's.</summary>
+    public string DiffDir { get; init; } = AttemptDir;
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
     public string WorkMount => Mounts?.Work ?? WorkDir;
@@ -80,7 +82,7 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
         ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(Task, Exam.JsonOptions),
         ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(AttemptDir, Layout.TranscriptFile),
-        ["PROCTOR_DIFF"] = Path.Combine(AttemptDir, Layout.DiffFile),
+        ["PROCTOR_DIFF"] = Path.Combine(DiffDir, Layout.DiffFile),
         ["PROCTOR_RUNNER"] = NbRunner,
         ["PROCTOR_NB"] = NbPath,
         ["PROCTOR_NB_CONFIG"] = NbConfig ?? "",
@@ -118,6 +120,9 @@ static class Checks
     public static bool IsOracleCheck(string key) => Split(key).Name is "oracle_hit" or "oracle_misses" or "oracle_turns";
 
     /// <summary>A check that calls a model: decide or judge, negated or not.</summary>
+    /// <summary>Whether the check reads the workspace the agent left (the diff, or a script run in the checkout) rather than what it said and did.</summary>
+    public static bool OnWorkspace(JsonObject spec) => spec.Any(f => Split(f.Key).Name is "files_touched" or "script");
+
     public static bool AsksAModel(JsonObject spec) => spec.Any(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck);
 
     /// <summary>The model checks of a spec, for validating their judges against proctor.json.</summary>

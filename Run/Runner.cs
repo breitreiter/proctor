@@ -314,6 +314,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     public static AttemptContext Context(string root, LogEntry entry, Exam exam, Variant variant, TaskDef task, int n) =>
         new(exam.Dir, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), Layout.Work(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), exam.Id, variant.Id!, task, n)
         { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = entry.BundleOf(variant.Id!)?.Path, NbRunner = entry.Nb.Runner?.Script ?? "", NbPath = entry.Nb.Path, NbConfig = entry.Nb.Config, Mounts = entry.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
+          DiffDir = entry.Stages is null ? Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n) : Layout.Try(root, exam.Id, variant.Id!, n),
           VerifierTask = variant.IsAgent ? Layout.HarborTask(Layout.LogEntry(root, entry.Id), variant.Id!, task.Id!) : null };
 
     /// <summary>
@@ -417,9 +418,10 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         WriteStatusCounts();
         if (exam.Staged)
         {
-            var tries = attempts.GroupBy(a => (a.Variant.Id, a.Attempt)).Select(g => g.Any(a => ReadStatus(AttemptDir(a.Variant, a.Task, a.Attempt)) != AttemptStatus.Completed && ReadStatus(AttemptDir(a.Variant, a.Task, a.Attempt)) != AttemptStatus.Skipped)).ToList();
-            var lost = tries.Count(t => t);
-            log.WriteLine($"{AttemptCount(tries.Count)} made: {tries.Count - lost} whole{(lost > 0 ? $", {lost} lost" : "")}");
+            // A try is whole when every stage completed, broke when a chained one stopped part way (it still counts), and lost when a stage did not run.
+            var tries = attempts.GroupBy(a => (a.Variant.Id, a.Attempt)).Select(g => g.Select(a => ReadStatus(AttemptDir(a.Variant, a.Task, a.Attempt))).ToList())
+                .Select(s => s.Any(x => x is not (AttemptStatus.Completed or AttemptStatus.Skipped)) ? "lost" : s.Contains(AttemptStatus.Skipped) ? "broke" : "whole").ToList();
+            log.WriteLine($"{AttemptCount(tries.Count)} made: " + string.Join(", ", new[] { "whole", "broke", "lost" }.Where(k => k == "whole" || tries.Contains(k)).Select(k => $"{tries.Count(t => t == k)} {k}")));
             return;
         }
         var statuses = attempts.Select(a => ReadStatus(AttemptDir(a.Variant, a.Task, a.Attempt))).ToList();

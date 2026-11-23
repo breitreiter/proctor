@@ -230,9 +230,18 @@ Harbor's source says it writes per step, not on a run.
    again; `run` makes a new one. `run --tasks` and agent variants are
    refused on a staged exam, and `grade`, `friction` and `report` refuse
    one until their slices.
-3. **Grading per stage**: transcript checks on their stage, workspace
-   checks on the last, guardrails per stage, evidence carrying the
-   stage. auspex's bank reader and routes move with this slice.
+3. **Grading per stage.** BUILT 2026-11-23. Each stage has its own
+   `checks.json`, graded on its own transcript with its own expected
+   values, so the guardrails and evidence are per stage by where the
+   file is. A check that reads the workspace (`files_touched`, a
+   script) is graded once, against the try's diff and checkout: the
+   exam's and the fixture's on the last stage, and a stage's own on the
+   stage that declared it (my reading of B8; the alternative is to move
+   those to the last stage too). A stage passes on the headline checks
+   it carries. A stage not reached is not graded. auspex reads the
+   layout: `/<exam>/<setup>/<try>/<stage>`, a strip of the try's
+   stages, proctor's reason on a stage that did not complete.
+   `friction` and `report` still refuse a staged exam.
 4. **Friction per stage.**
 5. **Statistics and the report by try**, with C5.4's roll-up. `run`
    says when the tries wanted are under the 4 a side a comparison needs.

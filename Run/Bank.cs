@@ -115,6 +115,8 @@ static class Bank
                 var next = bank.Where(a => a.Variant == variant.Id && a.Task == task.Id).Select(a => a.Attempt).DefaultIfEmpty(0).Max() + 1;
                 for (var i = 0; i < gaps[(variant.Id!, task.Id!)]; i++) missing.Add((variant, task, next + i));
             }
+        // A staged exam is made, and so graded and listed, try by try: each variant's tries in order, each try's stages in theirs.
+        if (exam.Staged) missing = missing.GroupBy(m => m.Item1).SelectMany(g => g.OrderBy(m => m.Item3)).ToList();
         return missing;
     }
 

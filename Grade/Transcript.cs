@@ -73,9 +73,9 @@ sealed class Transcript
     /// a step id comes with every call, which a verdict's evidence points at (check-evidence.md, C3). Where they differed,
     /// the JSONL was empty and the trajectory held nb's result. A trajectory that doesn't parse falls back to the JSONL.
     /// </summary>
-    public static Transcript Read(string attemptDir)
+    public static Transcript Read(string attemptDir, string? diffDir = null)
     {
-        var diffFile = Path.Combine(attemptDir, Layout.DiffFile);
+        var diffFile = Path.Combine(diffDir ?? attemptDir, Layout.DiffFile);
         var diff = File.Exists(diffFile) ? File.ReadAllText(diffFile) : null;
         var trajectory = Path.Combine(attemptDir, Layout.TrajectoryFile);
         var jsonl = Path.Combine(attemptDir, Layout.TranscriptFile);

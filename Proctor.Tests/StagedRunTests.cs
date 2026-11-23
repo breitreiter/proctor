@@ -123,10 +123,63 @@ public class StagedRunTests
         Assert.Contains(chained ? "a/1  broke at loops (" : "a/1  whole", log);
         if (chained) Assert.StartsWith("not reached: stage loops was stopped", Manifest(repo, 1, "2-after")["status_reason"]!.GetValue<string>());
 
-        // Either way the try counts: it is whole, and nothing is made again.
-        Assert.Contains("1 attempt made: 1 whole", log);
+        // Either way the try counts, and nothing is made again.
+        Assert.Contains(chained ? "1 attempt made: 0 whole, 1 broke" : "1 attempt made: 1 whole", log);
         Assert.All(Bank.Of(repo.Root, repo.LoadExam("smoke")), a => Assert.True(a.Counts));
         Assert.Contains("nothing to make", Run(repo).Log);
+    }
+
+    static JsonObject Checks(TestRepo repo, int n, string stage) => JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, n), "stages", stage, "checks.json")))!.AsObject();
+
+    [Fact]
+    public void Grade_GivesEveryStageItsTranscriptChecks_AndTheLastStageTheWorkspaceChecks()
+    {
+        using var repo = new TestRepo();
+        Stage(repo, 1, false, ("write", "MOCK:tool=bash echo one > made.txt"), ("say", "MOCK:response=hello world"), ("last", "MOCK:response=done"));
+        repo.EditJson("smoke/exam.json", e =>
+        {
+            e["stages"]![1]!["expect"] = JsonNode.Parse("""{"answer_contains": "hello"}""");
+            // A stage's own workspace check stays with the stage, and reads what the whole try left.
+            e["stages"]![0]!["checks"] = JsonNode.Parse("""{"made-it": {"files_touched": {"paths": ["made.txt"], "mode": "at_least"}}}""");
+            e["grading"]!["pass"] = JsonNode.Parse("""["exit_ok", "touches-note"]""");
+        });
+        Run(repo);
+        var exam = repo.LoadExam("smoke");
+        var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
+
+        // The exam's workspace checks (the diff, a script) are the last stage's alone; the transcript checks are every stage's.
+        string[] onTranscript = ["exit_ok", "no_denials", "not_nudged", "says-expected", "under_budget"];
+        Assert.Equal(onTranscript.Append("made-it").Order(), Checks(repo, 1, "1-write").Select(k => k.Key).Order());
+        Assert.Equal(onTranscript.Order(), Checks(repo, 1, "2-say").Select(k => k.Key).Order());
+        Assert.Equal(onTranscript.Concat(["answer-nonempty", "touches-note"]).Order(), Checks(repo, 1, "3-last").Select(k => k.Key).Order());
+
+        // Each stage is graded on its own transcript, with its own expected value.
+        Assert.Equal("pass", Checks(repo, 1, "2-say")["says-expected"]!["result"]!.GetValue<string>());
+        // The diff is the try's: the first stage's own check finds the file it wrote, and the last stage's the hook's edit.
+        Assert.Equal("pass", Checks(repo, 1, "1-write")["made-it"]!["result"]!.GetValue<string>());
+        Assert.Equal("made.txt", Checks(repo, 1, "1-write")["made-it"]!["evidence"]![0]!["file"]!.GetValue<string>());
+        Assert.Equal("pass", Checks(repo, 1, "3-last")["touches-note"]!["result"]!.GetValue<string>());
+        // Evidence in a stage's verdicts points at that stage's own steps.
+        Assert.NotNull(Checks(repo, 1, "1-write")["no_denials"]);
+
+        // A stage passes on the headline checks it carries: only the last has touches-note.
+        Assert.Equal([("write", true), ("say", true), ("last", true)], grades.Select(g => (g.Task, g.Pass == true)));
+        Assert.Equal(["exit_ok"], exam.PassFor(exam.TaskOf("say")));
+        Assert.Equal(["exit_ok", "touches-note"], exam.PassFor(exam.TaskOf("last")));
+    }
+
+    [Fact]
+    public void Grade_LeavesAStageNotReachedUngraded()
+    {
+        using var repo = new TestRepo();
+        Stage(repo, 1, true, ("loops", "MOCK:loop=bash echo x"), ("after", "MOCK:response=fine"));
+        Run(repo);
+        var exam = repo.LoadExam("smoke");
+        var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
+        Assert.Equal([("loops", "completed", true), ("after", "skipped", false)], grades.Select(g => (g.Task, g.Status, g.Checks is not null)));
+        Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "stages", "2-after", "checks.json")));
+        // The stopped stage is a result: its exit check failed, on its own stage.
+        Assert.Equal("fail", Checks(repo, 1, "1-loops")["exit_ok"]!["result"]!.GetValue<string>());
     }
 
     [Fact]
@@ -135,7 +188,7 @@ public class StagedRunTests
         using var repo = new TestRepo();
         Stage(repo, 1, false, ("say", "MOCK:response=one"));
         Assert.Contains("never run alone", Assert.Throws<ProctorException>(() => Verbs.Run(repo.Root, "smoke", null, null, taskIds: ["say"])).Message);
-        Assert.Contains("cannot read yet", Assert.Throws<ProctorException>(() => Verbs.Grade(repo.Root, "smoke")).Message);
+        Assert.Contains("cannot read yet", Assert.Throws<ProctorException>(() => Verbs.Friction(repo.Root, "smoke")).Message);
         Assert.Contains("cannot read yet", Assert.Throws<ProctorException>(() => Verbs.Report(repo.Root, "smoke")).Message);
     }
 }

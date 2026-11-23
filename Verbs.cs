@@ -107,7 +107,6 @@ static class Verbs
     public static int Grade(string root, string examId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? variantIds = null, List<string>? taskIds = null, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
-        NotYetStaged(exam, "grade");
         RequireKnown(exam, variantIds, taskIds);
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(root, problems, configFile);
@@ -119,9 +118,9 @@ static class Verbs
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
         var undecided = grades.Where(g => g.Checks is not null && g.Invalid is null && g.Pass is null).ToList();
-        var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.Grading.Pass!) is not null);
+        var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.PassFor(exam.TaskOf(g.Task))) is not null);
         var untouched = variantIds is null && taskIds is null ? 0 : Bank.Select(root, exam).Current.Count - grades.Count;
-        Console.WriteLine($"graded {graded} of {grades.Count} attempts; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --variant/--tasks left as they were" : "")}");
+        Console.WriteLine($"graded {graded} of {grades.Count} {(exam.Staged ? "stages" : "attempts")}{(exam.Staged && grades.Count(g => g.Status == AttemptStatus.Skipped) is > 0 and var skipped ? $" ({skipped} not reached)" : "")}; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --variant/--tasks left as they were" : "")}");
         foreach (var line in Proctor.Grade.ByCheck(grades, before)) Console.WriteLine(line);
         if (Proctor.Grade.OutdatedSummary(exam.Id, grades) is { } summary) Console.WriteLine(summary);
         foreach (var line in Bank.Describe(selection.Stale, "not graded")) Console.WriteLine(line);

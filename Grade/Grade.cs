@@ -27,13 +27,13 @@ static class Grade
             }
             var attempt = Runner.Context(root, a.Entry, exam, variant, c, n) with { Judges = judges };
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree. An agent attempt's scripts ran in the verifier.
-            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir) is { } error)
+            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attempt.DiffDir) is { } error)
                 log.WriteLine($"  {a.Label}  could not restore the checkout: {error}");
-            var checks = Attempt(attempt, exam, Transcript.Read(attemptDir));
-            var pass = Pass(checks, exam.Grading.Pass!);
-            var invalid = Invalid(checks, exam.Grading.Validity);
+            var checks = Attempt(attempt, exam, Transcript.Read(attemptDir, attempt.DiffDir));
+            var pass = Pass(checks, exam.PassFor(c));
+            var invalid = Invalid(checks, exam.ValidityFor(c));
             grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid));
-            log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.Grading.Pass!) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}"))}");
+            log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.PassFor(c)) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}"))}");
         }
         return grades;
     }
@@ -59,7 +59,7 @@ static class Grade
                 continue;
             }
             var attempt = Runner.Context(root, a.Entry, exam, variant, c, n) with { Judges = judges };
-            var transcript = Transcript.Read(attemptDir);
+            var transcript = Transcript.Read(attemptDir, attempt.DiffDir);
             foreach (var (name, check) in exam.ChecksFor(c))
             {
                 if (!Checks.ModelChecks(check.Spec).Any(m => judges.Remaps(m.Name, m.Spec, name))) continue;
@@ -70,7 +70,7 @@ static class Grade
                 if (applied?.Result == other.Result) agreed++;
                 log.WriteLine($"  {a.Label}  {name}: {from}={applied?.Result ?? "none"} ({applied?.Reason})  {to}={other.Result} ({other.Reason})");
             }
-            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, existing, Pass(existing, exam.Grading.Pass!), Invalid(existing, exam.Grading.Validity)));
+            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, existing, Pass(existing, exam.PassFor(c)), Invalid(existing, exam.ValidityFor(c))));
         }
         log.WriteLine($"  {agreed} of {compared} verdicts agree; checks.json unchanged");
         return grades;

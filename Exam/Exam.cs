@@ -266,8 +266,19 @@ sealed class Exam
         var checks = Grading.Checks!.ToDictionary(k => k.Key, k => new CheckDef(k.Value, Dir, "exam"));
         foreach (var (name, spec) in FixtureOf(c)?.Checks ?? []) checks[name] = new CheckDef(spec, FixtureOf(c)!.Dir, "fixture");
         foreach (var (name, spec) in c.Checks ?? []) checks[name] = new CheckDef(spec, Dir, "task");
+        // Every check belongs to a stage (plans/bank.md, B8). One that reads the transcript is each stage's, of its own
+        // transcript. One that reads the workspace runs once, on what the last stage left: the exam's and the fixture's are
+        // the last stage's, and a stage's own stays with the stage that declared it.
+        if (Staged && c.Id != Tasks[^1].Id)
+            foreach (var name in checks.Where(k => k.Value.Level != "task" && Checks.OnWorkspace(k.Value.Spec)).Select(k => k.Key).ToList()) checks.Remove(name);
         return checks;
     }
+
+    /// <summary>The headline checks a task or a stage carries: all of them for a task, and for a stage those it has, since a workspace check is the last stage's alone.</summary>
+    public List<string> PassFor(TaskDef c) => Staged ? Grading.Pass!.Where(ChecksFor(c).ContainsKey).ToList() : Grading.Pass!;
+    /// <summary>The validity checks a task or a stage carries, likewise.</summary>
+    public List<string>? ValidityFor(TaskDef c) => Staged ? Grading.Validity?.Where(ChecksFor(c).ContainsKey).ToList() : Grading.Validity;
+    public TaskDef TaskOf(string id) => Tasks.First(t => t.Id == id);
 
     /// <summary>Every check name any attempt can carry, exam checks first, then each task's fixture's and its own, in declared order.</summary>
     public List<string> CheckNames => AllChecks().Select(c => c.Name).Distinct().ToList();
