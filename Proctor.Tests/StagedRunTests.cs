@@ -139,8 +139,8 @@ public class StagedRunTests
         repo.EditJson("smoke/exam.json", e =>
         {
             e["stages"]![1]!["expect"] = JsonNode.Parse("""{"answer_contains": "hello"}""");
-            // A stage's own workspace check stays with the stage, and reads what the whole try left.
-            e["stages"]![0]!["checks"] = JsonNode.Parse("""{"made-it": {"files_touched": {"paths": ["made.txt"], "mode": "at_least"}}}""");
+            // The last stage may declare a workspace check of its own; it reads what the whole try left.
+            e["stages"]![2]!["checks"] = JsonNode.Parse("""{"made-it": {"files_touched": {"paths": ["made.txt"], "mode": "at_least"}}}""");
             e["grading"]!["pass"] = JsonNode.Parse("""["exit_ok", "touches-note"]""");
         });
         Run(repo);
@@ -149,15 +149,15 @@ public class StagedRunTests
 
         // The exam's workspace checks (the diff, a script) are the last stage's alone; the transcript checks are every stage's.
         string[] onTranscript = ["exit_ok", "no_denials", "not_nudged", "says-expected", "under_budget"];
-        Assert.Equal(onTranscript.Append("made-it").Order(), Checks(repo, 1, "1-write").Select(k => k.Key).Order());
+        Assert.Equal(onTranscript.Order(), Checks(repo, 1, "1-write").Select(k => k.Key).Order());
         Assert.Equal(onTranscript.Order(), Checks(repo, 1, "2-say").Select(k => k.Key).Order());
-        Assert.Equal(onTranscript.Concat(["answer-nonempty", "touches-note"]).Order(), Checks(repo, 1, "3-last").Select(k => k.Key).Order());
+        Assert.Equal(onTranscript.Concat(["answer-nonempty", "made-it", "touches-note"]).Order(), Checks(repo, 1, "3-last").Select(k => k.Key).Order());
 
         // Each stage is graded on its own transcript, with its own expected value.
         Assert.Equal("pass", Checks(repo, 1, "2-say")["says-expected"]!["result"]!.GetValue<string>());
-        // The diff is the try's: the first stage's own check finds the file it wrote, and the last stage's the hook's edit.
-        Assert.Equal("pass", Checks(repo, 1, "1-write")["made-it"]!["result"]!.GetValue<string>());
-        Assert.Equal("made.txt", Checks(repo, 1, "1-write")["made-it"]!["evidence"]![0]!["file"]!.GetValue<string>());
+        // The diff is the try's: the last stage's checks find the file the first stage wrote, and the hook's edit.
+        Assert.Equal("pass", Checks(repo, 1, "3-last")["made-it"]!["result"]!.GetValue<string>());
+        Assert.Equal("made.txt", Checks(repo, 1, "3-last")["made-it"]!["evidence"]![0]!["file"]!.GetValue<string>());
         Assert.Equal("pass", Checks(repo, 1, "3-last")["touches-note"]!["result"]!.GetValue<string>());
         // Evidence in a stage's verdicts points at that stage's own steps.
         Assert.NotNull(Checks(repo, 1, "1-write")["no_denials"]);

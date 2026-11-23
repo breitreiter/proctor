@@ -18,12 +18,16 @@ formats or the vocabulary; a patch bump does not.
   `bank/<exam>/<variant>/<n>/stages/<i>-<id>/`. A stage that did not run
   loses the try; `"chained": true` ends a try at a stopped stage and
   still counts it. A log entry of a staged exam carries `stages`, and a
-  stage's manifest its `stage`. Agent variants refuse a staged exam for
-  now.
+  stage's manifest its `stage`.
 - **Stages, graded** (slice 3). `proctor grade` writes a `checks.json`
   per stage. Transcript checks are each stage's; a workspace check is
   graded once against the try's diff, the exam's and the fixture's on
   the last stage and a stage's own on that stage.
+- **Stages, through Harbor** (slice 6). An agent variant runs a staged
+  exam as one Harbor task whose steps are the stages; one trial is one
+  try, each step ingested as its stage. **Breaking for a staged exam
+  written since slice 3:** a check that reads the workspace on a stage
+  before the last is refused; declare it on the exam or the last stage.
 - **Stages, reported by try** (slice 5). On a staged exam
   `proctor report` writes `stats.json` as `tries/1` (each variant's
   tries; headline checks held and flagged steps per try; each variant

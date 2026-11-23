@@ -318,7 +318,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         new(exam.Dir, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), Layout.Work(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), exam.Id, variant.Id!, task, n)
         { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = entry.BundleOf(variant.Id!)?.Path, NbRunner = entry.Nb.Runner?.Script ?? "", NbPath = entry.Nb.Path, NbConfig = entry.Nb.Config, Mounts = entry.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
           DiffDir = entry.Stages is null ? Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n) : Layout.Try(root, exam.Id, variant.Id!, n),
-          VerifierTask = variant.IsAgent ? Layout.HarborTask(Layout.LogEntry(root, entry.Id), variant.Id!, task.Id!) : null };
+          VerifierTask = variant.IsAgent && entry.Stages is not null ? Layout.HarborJobTask(Layout.LogEntry(root, entry.Id), variant.Id!, exam.Id) : variant.IsAgent ? Layout.HarborTask(Layout.LogEntry(root, entry.Id), variant.Id!, task.Id!) : null };
 
     /// <summary>
     /// Each variant's bundle, once per run, for the variants it makes attempts of: a path is hashed in place; a git revision
@@ -409,7 +409,9 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             }
 
             if (exam.Staged)
-                foreach (var n in pending.Select(p => p.Attempt).Distinct()) RunTry(variant, n);
+                foreach (var n in pending.Select(p => p.Attempt).Distinct())
+                    if (variant.IsAgent) RunAgentTry(variant, n);
+                    else RunTry(variant, n);
             else
                 foreach (var (task, n) in pending)
                     if (variant.IsAgent) RunAgentAttempt(variant, task, n);
@@ -481,6 +483,90 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
                 Mark(variant, last, n, AttemptStatus.Failed, after);
                 lost = after; lostAt = last.Id;
             }
+        }
+        WriteStatusCounts();
+        log.WriteLine($"  {variant.Id}/{n}  {(lostAt is not null ? $"lost at {lostAt}: {lost}" : brokeAt is not null ? $"broke at {brokeAt} ({broke})" : "whole")}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+    }
+
+    /// <summary>
+    /// One try of a staged exam by an agent variant: one Harbor trial of the exam's compiled task, whose steps are the
+    /// stages, then each step ingested as its stage's attempt. Harbor runs every step it can: it goes on after a step
+    /// that timed out, and ends the trial only at a step that failed outright. So the endings are read afterwards, and
+    /// they come out as on the bare path: a stage that did not run loses the try, and on a chained exam the stages after
+    /// a stopped one are not reached. Those stages did run in the container; what they did is left in the trial and
+    /// read by nothing, so the two runners grade a try the same way.
+    /// </summary>
+    void RunAgentTry(Variant variant, int n)
+    {
+        var stages = exam.Tasks;
+        var tryDir = Layout.Try(root, exam.Id, variant.Id!, n);
+        Directory.CreateDirectory(tryDir);
+        var taskDir = Layout.HarborJobTask(entryDir, variant.Id!, exam.Id);
+        var route = Route(root, config, entry.Nb, variant);
+        var fixture = exam.FixtureOf(stages[0])!;
+        var stopwatch = Stopwatch.StartNew();
+
+        // nb's programs are compiled on the host as on the bare path, one per stage, with the checkout where the image has it.
+        var manifests = new Dictionary<string, Manifest>();
+        string? lost = null, lostAt = null, brokeAt = null, broke = null;
+        var programs = Path.Combine(tryDir, Layout.StageProgramsDir);
+        if (!variant.IsVendor) { if (Directory.Exists(programs)) Directory.Delete(programs, recursive: true); Directory.CreateDirectory(programs); }
+        foreach (var (stage, i) in stages.Select((s, i) => (s, i)))
+        {
+            var attemptDir = AttemptDir(variant, stage, n);
+            Directory.CreateDirectory(attemptDir);
+            var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, stage, n, HarborCompile.Workdir);
+            var manifest = NewManifest(variant, stage, n, fixture, Sha256(program ?? stage.Prompt!)) with { Runner = null, Nb = null, Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif") };
+            manifest.Agent = new AgentTrial(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, variant.IsVendor ? null : new NbAttempt(programs, entry.Nb.Config)), HarborCompile.AgentEnv(variant, route), entry.Harbor!.Version, null);
+            manifest.Tries++;
+            manifest.Started = Now();
+            SetStatus(attemptDir, manifest, AttemptStatus.Running);
+            manifests[stage.Id!] = manifest;
+            if (program is null || lost is not null) continue;
+            File.WriteAllText(Path.Combine(attemptDir, Layout.ProgramFile), program);
+            var (compiled, compileError) = Compile(attemptDir, program);
+            if (compileError is not null) { lost = $"program compile failed: {compileError}"; lostAt = stage.Id; }
+            else File.WriteAllText(Path.Combine(programs, $"{i + 1}.jsonl"), compiled!);
+        }
+
+        string? trialDir = null;
+        var steps = new Dictionary<string, string>();
+        if (lost is null)
+        {
+            // Harbor's agent timeout is each step's, so the trial may take the wall limit once per stage.
+            (trialDir, lost) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, entry.Harbor!.Version, entry.Harbor.Engine, tryDir, variant, taskDir, route,
+                exam.Def.Limits!.WallMs!.Value * stages.Count, HarborCompile.AgentsDir(entryDir), variant.IsVendor ? null : new NbAttempt(programs, entry.Nb.Config));
+            if (trialDir is not null) (steps, lost) = Ingest.Steps(trialDir);
+            if (lost is not null) lostAt = stages.FirstOrDefault(s => !steps.ContainsKey(s.Id!))?.Id ?? stages[^1].Id;
+        }
+
+        var lostSeen = false;
+        foreach (var stage in stages)
+        {
+            var attemptDir = AttemptDir(variant, stage, n);
+            var manifest = manifests[stage.Id!];
+            void End(string status, string? reason)
+            {
+                manifest.Ended = Now();
+                manifest.StatusReason = reason;
+                SetStatus(attemptDir, manifest, status);
+                var core = Path.Combine(attemptDir, Layout.CoreFile);
+                log.WriteLine($"  {variant.Id}/{n}/{stage.Id}  {status}  {reason ?? (File.Exists(core) ? ReadJson<CountedCore>(core)?.ExitReason : null)}");
+            }
+            // Stages Harbor finished before the one that lost the try are still read, as the bare path leaves them: none of a lost try counts, but it is there to look at.
+            if (lostAt is not null && lostAt != stage.Id && (lostSeen || trialDir is null)) { End(AttemptStatus.Skipped, $"not {(trialDir is null ? "launched" : "read")}: the try was lost at stage {lostAt}"); continue; }
+            if (lostAt == stage.Id) { lostSeen = true; End(AttemptStatus.Failed, lost); continue; }
+            if (brokeAt is not null) { End(AttemptStatus.Skipped, $"not reached: stage {brokeAt} was stopped ({broke}), and this exam's stages are chained"); continue; }
+            if (!steps.TryGetValue(stage.Id!, out var stepDir)) { lost = "Harbor did not run this step"; lostAt = stage.Id; lostSeen = true; End(AttemptStatus.Failed, lost); continue; }
+            var failure = Ingest.Trial(stepDir, attemptDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : entry.Versions["nb"]);
+            var exit = failure is null ? ReadJson<CountedCore>(Path.Combine(attemptDir, Layout.CoreFile))?.ExitReason : null;
+            if (exit is not null && StageEnd.DidNotRun(exit)) failure = $"did not run: {exit}";
+            if (failure is not null) { lost = failure; lostAt = stage.Id; lostSeen = true; End(AttemptStatus.Failed, failure); continue; }
+            manifest.DurationMs = ReadJson<CountedCore>(Path.Combine(attemptDir, Layout.CoreFile))?.DurationMs;
+            // The diff Harbor collected after this step is the try's so far; the last one read is the try's.
+            if (File.Exists(Path.Combine(attemptDir, Layout.DiffFile))) File.Move(Path.Combine(attemptDir, Layout.DiffFile), Path.Combine(tryDir, Layout.DiffFile), overwrite: true);
+            End(AttemptStatus.Completed, null);
+            if (exam.Chained && !StageEnd.DidEnd(exit!)) { brokeAt = stage.Id; broke = exit; }
         }
         WriteStatusCounts();
         log.WriteLine($"  {variant.Id}/{n}  {(lostAt is not null ? $"lost at {lostAt}: {lost}" : brokeAt is not null ? $"broke at {brokeAt} ({broke})" : "whole")}  {stopwatch.Elapsed.TotalSeconds:F1}s");

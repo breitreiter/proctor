@@ -86,6 +86,32 @@ static class Ingest
     };
 
     /// <summary>
+    /// A multi-step trial's steps, each made to read as a trial of its own: Harbor keeps a step's agent logs, verifier
+    /// output and artifacts under steps/&lt;name&gt;/ in a trial's own shape, and its result inside the trial's
+    /// result.json, which is written out beside them here. Returns each step's directory by name, for the steps Harbor
+    /// ran; and why the trial as a whole failed, when it did (the environment never built, say).
+    /// </summary>
+    public static (Dictionary<string, string> Steps, string? Failure) Steps(string trialDir)
+    {
+        var result = JsonNode.Parse(File.ReadAllText(Path.Combine(trialDir, "result.json")))!.AsObject();
+        var steps = new Dictionary<string, string>();
+        foreach (var step in (result["step_results"] as JsonArray ?? []).OfType<JsonObject>())
+        {
+            var name = step["step_name"]!.GetValue<string>();
+            var dir = Path.Combine(trialDir, "steps", name);
+            Directory.CreateDirectory(dir);
+            Runner.WriteJson(Path.Combine(dir, "result.json"), new JsonObject
+            {
+                ["agent_info"] = result["agent_info"]?.DeepClone(), ["agent_result"] = step["agent_result"]?.DeepClone(),
+                ["exception_info"] = step["exception_info"]?.DeepClone(), ["agent_execution"] = step["agent_execution"]?.DeepClone(),
+            });
+            steps[name] = dir;
+        }
+        var exception = result["exception_info"];
+        return (steps, exception is null ? null : $"harbor: {exception["exception_type"]?.GetValue<string>()}: {FirstLine(exception["exception_message"]?.GetValue<string>())}");
+    }
+
+    /// <summary>
     /// Lift the trial into the attempt and fill the manifest. Null when the attempt completed; otherwise why it failed
     /// (infrastructure only). The version is the variant's pin for a vendor agent, the host nb's for nb. A bridged trial is an
     /// oracle attempt's: nb served over ACP, driven by the simulated user (<see cref="Oracle"/>).

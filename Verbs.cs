@@ -75,8 +75,6 @@ static class Verbs
         if (exam.Staged)
         {
             if (taskIds is not null) throw new ProctorException($"exam '{exam.Id}' is one job of stages: a stage is never run alone, so --tasks does not apply");
-            if (exam.Variants.Where(v => variantIds is null || variantIds.Contains(v.Id!)).FirstOrDefault(v => v.IsAgent) is { } agent)
-                throw new ProctorException($"exam '{exam.Id}' is one job of stages, which only a bare nb variant can run yet; variant '{agent.Id}' is an agent variant (project/plans/bank.md, step 4)");
         }
         if (Proctor.Live.Load(exam) is { } live && live.Broken(exam) is { } broken) Console.WriteLine(live.Warning(exam, broken));
         Runner.Run(root, exam, config, nbPath, runner, Environment.CommandLine, Console.Out, variantIds, taskIds);

@@ -245,8 +245,8 @@ live.json        which variant is live, written by `proctor live` (absent until 
 ```
 
 **Stages, in place of tasks (being built: a bare nb variant runs one;
-and `grade`, `friction` and `report` read it; an agent variant does not
-yet).** An exam can instead be one job of stages: `fixture` and
+an agent variant runs one through Harbor as one task of steps, and
+`grade`, `friction` and `report` read it; no real exam is staged yet).** An exam can instead be one job of stages: `fixture` and
 `stages` in `exam.json`, and no `tasks/`.
 
 ```json
@@ -283,10 +283,11 @@ yet).** An exam can instead be one job of stages: `fixture` and
   stages after it are `skipped`, and the try still counts.
 - Each stage is graded on its own transcript and has its own
   `checks.json`. A check that reads the workspace (`files_touched`, a
-  script) is graded once, on what the last stage left: the exam's and
-  the fixture's belong to the last stage, a stage's own to that stage.
-  So a stage whose result is checked must leave it where a later stage
-  will not touch it; say where in its prompt. A stage passes on the
+  script) is graded once, on what the last stage left, and belongs to
+  the last stage: declare it in `grading.checks`, on the fixture, or on
+  the last stage. One on an earlier stage is refused. So a stage whose
+  result is checked must leave it where a later stage will not touch
+  it; say where in its prompt. A stage passes on the
   headline checks it carries, and a stage that was not reached is not
   graded.
 - `proctor report` compares variants try against try, never stage
@@ -297,6 +298,10 @@ yet).** An exam can instead be one job of stages: `fixture` and
   **Plan for at least 4 tries of each variant** (`attempts`), or 3
   against 5: fewer can show a difference and never confirm one. One
   try is fine as a shakedown, for setup problems and plain failures.
+- With an agent variant, `limits.wall_ms` is each stage's, not the
+  try's. On a chained exam Harbor still runs the stages after a stopped
+  one; proctor does not read them. A stage cannot name an answer sheet
+  (`oracle`) when the exam has an agent variant.
 - The whole job has one hash: changing, adding, moving or renaming a
   stage makes every banked attempt of the exam stale. Changing a check,
   an expected value or an `about` does not.

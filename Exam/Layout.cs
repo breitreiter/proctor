@@ -87,6 +87,10 @@ static class Layout
         Path.Combine(root, ExamsSeenDir, $"sha256-{(examHash.StartsWith("sha256:") ? examHash[7..] : examHash)[..12]}.json");
     /// <summary>The Harbor task a variant runs a task as, compiled once per log entry.</summary>
     public static string HarborTask(string entryDir, string variant, string task) => Path.Combine(entryDir, HarborDir, "tasks", variant, task);
+    /// <summary>The one Harbor task a variant runs a staged exam as: every stage a step of it. Named for the exam, which no stage of it can be.</summary>
+    public static string HarborJobTask(string entryDir, string variant, string examId) => Path.Combine(entryDir, HarborDir, "tasks", variant, examId);
+    /// <summary>An nb agent variant's programs for one try, one per stage by its place, which nb's Harbor agent uploads and runs in order.</summary>
+    public const string StageProgramsDir = "programs";
     public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
     /// <summary>The files a bundle's paths name, copied out of its revision's clone; named by the bundle's identity so two subsets of one revision sit apart.</summary>
     public static string GitBundleSubset(string root, string rev, string identityHash) => Path.Combine(root, BundlesDir, $"{rev}-{identityHash[..12]}");

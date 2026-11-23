@@ -136,6 +136,7 @@ sealed class TestRepo : IDisposable
             var task = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
             fixture = task["fixture"]?.GetValue<string>();
             task.Remove("fixture");
+            task.Remove("labels");   // labels are the exam's; a stage has none
             if (task["description"] is { } description) { task["about"] = description.DeepClone(); task.Remove("description"); }
             stages.Add(task);
         }

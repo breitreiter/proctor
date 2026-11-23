@@ -267,10 +267,10 @@ sealed class Exam
         foreach (var (name, spec) in FixtureOf(c)?.Checks ?? []) checks[name] = new CheckDef(spec, FixtureOf(c)!.Dir, "fixture");
         foreach (var (name, spec) in c.Checks ?? []) checks[name] = new CheckDef(spec, Dir, "task");
         // Every check belongs to a stage (plans/bank.md, B8). One that reads the transcript is each stage's, of its own
-        // transcript. One that reads the workspace runs once, on what the last stage left: the exam's and the fixture's are
-        // the last stage's, and a stage's own stays with the stage that declared it.
+        // transcript. One that reads the workspace runs once, on what the last stage left, so it is the last stage's;
+        // loading refuses one declared on an earlier stage.
         if (Staged && c.Id != Tasks[^1].Id)
-            foreach (var name in checks.Where(k => k.Value.Level != "task" && Checks.OnWorkspace(k.Value.Spec)).Select(k => k.Key).ToList()) checks.Remove(name);
+            foreach (var name in checks.Where(k => Checks.OnWorkspace(k.Value.Spec)).Select(k => k.Key).ToList()) checks.Remove(name);
         return checks;
     }
 
@@ -556,6 +556,11 @@ sealed class Exam
             if (stage.Description is not null) Add(at + "description", "a stage's sentence is about");
             if (stage.About is not null && string.IsNullOrWhiteSpace(stage.About)) Add(at + "about", "a sentence saying what the stage asks, not an empty string");
             ValidateTask(stage, dir, (field, message) => Add(at + field, message));
+            // The workspace is looked at once, after the last stage, on both runners: Harbor's verifier and the bare path's checkout.
+            if (i < def.Stages.Count - 1)
+                foreach (var (name, spec) in stage.Checks ?? [])
+                    if (spec is not null && Checks.OnWorkspace(spec))
+                        Add($"{at}checks.{name}", "reads the workspace, which is graded once, on what the last stage left: declare it in grading.checks or on the last stage, and have this stage leave its result where a later stage will not touch it");
             stages.Add(stage with { Fixture = def.Fixture, Description = stage.About, File = Path.Combine(dir, Layout.ExamFile), At = at });
         }
         return stages;
@@ -821,6 +826,8 @@ sealed class Exam
             foreach (var c in tasks) foreach (var name in Oracular(c.Checks)) addToTask(c, $"checks.{name}", never);
             return;
         }
+        if (def.Stages is not null && variants.FirstOrDefault(a => a.IsAgent) is { } staged)
+            add("variants", $"not yet: variant '{staged.Id}' runs through Harbor, and stage {oracleTasks[0]} names an answer sheet; Harbor's simulated user does not run a task of several steps. Run the variant bare, where nb's own oracle answers");
         foreach (var variant in variants.Where(a => a.IsVendor))
                 add("variants", $"not yet: variant '{variant.Id}' is {variant.Agent}, and task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb variants only. Through Harbor's simulated user, {variant.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
     }

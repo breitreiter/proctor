@@ -234,10 +234,9 @@ Harbor's source says it writes per step, not on a run.
    `checks.json`, graded on its own transcript with its own expected
    values, so the guardrails and evidence are per stage by where the
    file is. A check that reads the workspace (`files_touched`, a
-   script) is graded once, against the try's diff and checkout: the
-   exam's and the fixture's on the last stage, and a stage's own on the
-   stage that declared it (my reading of B8; the alternative is to move
-   those to the last stage too). A stage passes on the headline checks
+   script) is graded once, against the try's diff and checkout, on the
+   last stage (a stage's own stayed with its stage at first; slice 6
+   made it the last stage's only). A stage passes on the headline checks
    it carries. A stage not reached is not graded. auspex reads the
    layout: `/<exam>/<setup>/<try>/<stage>`, a strip of the try's
    stages, proctor's reason on a stage that did not complete.
@@ -262,7 +261,41 @@ Harbor's source says it writes per step, not on a run.
    author said such an attempt says nothing). `run` notes when the tries
    wanted cannot confirm a difference. Not built: each step's tool kind
    for the exam page's strip.
-6. **Harbor**: the scripted multi-step check, then compile and ingest.
+6. **Harbor.** BUILT 2026-11-23. Checked first on real runs of Harbor
+   0.24.0 with its scripted agent (it was in uv's cache, so no
+   download): each step's agent logs, verifier output and artifacts are
+   under `steps/<name>/`, the workspace carries over, the verifier runs
+   after every step, the diff collected after each step is cumulative,
+   the agent timeout is each step's, and a step that timed out is
+   recorded on that step while the trial goes on, provided the step has
+   a verifier result. A step that throws with no verifier result ends
+   the trial.
+   - A staged exam compiles to one Harbor task per agent variant, each
+     stage a `[[steps]]` entry with its `instruction.md`. Every step has
+     a verifier: the last stage's runs the script checks, the others
+     only say they ran.
+   - One trial is one try. Each step is ingested as its stage, through
+     the same ingest as a task's trial.
+   - nb's Harbor agent takes a directory of programs, one per stage, and
+     runs the nth on the nth step.
+   - Harbor cannot stop a try part way on a stopped stage (`min_reward`
+     reads the verifier, which does not see how the agent ended). So on
+     a chained exam the later stages run in the container and proctor
+     does not read them: they are `skipped`, not reached, as on the bare
+     path. The two runners grade a try alike; Harbor spends more.
+   - **Changed by this slice: a workspace check is the exam's, the
+     fixture's or the last stage's.** One declared on an earlier stage is
+     refused when the exam loads. Harbor's verifier and the bare path's
+     checkout both look at the workspace once, at the end, and a check
+     shown on stage 2 but graded on what stage 6 left reads wrongly on
+     either. This is the decision as first recorded (2026-11-22).
+   - Refused: an answer sheet on a staged exam with an agent variant.
+     Harbor's simulated user does not run a task of several steps.
+   - Run for real on 2026-11-23: nb as a Harbor agent, three stages in
+     one Docker container against the Mock, then `grade`, `friction`,
+     `report` and auspex over it. Not run for real: a vendor agent
+     (Claude Code, Codex, Qwen Code), which needs their images and a
+     model; and Modal.
 7. **The exams.** Seven stage as they are (`readme-answers`,
    `tern-docs`, `gate`, `gate-oracle`, `smoke`, `playground`,
    `conformance`): one fixture each. Four cannot, because each task has
