@@ -18,6 +18,13 @@ authors' to write. `proctor list` names them meanwhile. The guardrail
 defaults are recognised by what the check does, not by being copied
 unchanged: a budget's reason doesn't depend on its numbers.
 
+Before C3 (2026-11-23): grading reads `trajectory.json` for every
+attempt that has one, bare nb attempts included, so evidence can point at
+ATIF step ids directly. Proven first: `TrajectoryParityTests` reads every
+captured nb pair both ways, and on 1,165 real attempts in auspex's
+`datasets/` (opt-in, `PROCTOR_PARITY_DIR`) 1,164 read the same; the one
+that differed had an empty JSONL and a trajectory holding nb's result.
+
 ## Calls (the user, 2026-11-22)
 
 | Call | Decided |

@@ -7,6 +7,15 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Grading reads the trajectory.** An attempt with `trajectory.json` is
+  graded from it, bare nb attempts included, as Harbor attempts already
+  were; `transcript.jsonl` is read only when there is no trajectory or it
+  doesn't parse. nb keeps under `extra` what its JSONL carries: the two
+  read the same on every captured pair and on 1,164 of 1,165 real
+  attempts. The other had an empty JSONL, and its trajectory held nb's
+  result (`rate_limited`). A bare attempt's trailer is nb's own, read
+  from the trajectory's `extra.result`. Every call now comes with its
+  ATIF step id, which verdict evidence will point at (C3).
 - **A check's `why`, and verdicts that explain themselves**
   (`project/plans/check-evidence.md`, C1 and C2). A check takes `why`
   beside `description`: one sentence on why it is worth checking.

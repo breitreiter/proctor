@@ -60,19 +60,31 @@ sealed class Transcript
     public static bool Exists(string attemptDir) =>
         File.Exists(Path.Combine(attemptDir, Layout.TranscriptFile)) || File.Exists(Path.Combine(attemptDir, Layout.TrajectoryFile));
 
-    /// <summary>Read an attempt: transcript.jsonl, else an agent attempt's trajectory.json and core.json; plus diff.patch when there is one.</summary>
+    /// <summary>
+    /// Read an attempt: its trajectory.json (with core.json when the attempt has one), else nb's transcript.jsonl; plus
+    /// diff.patch when there is one. A bare nb attempt has both, and the trajectory is read: nb keeps under extra what its
+    /// JSONL carries, so the windows are the same (TrajectoryParityTests, on every captured pair and 1,165 real ones), and
+    /// a step id comes with every call, which a verdict's evidence points at (check-evidence.md, C3). Where they differed,
+    /// the JSONL was empty and the trajectory held nb's result. A trajectory that doesn't parse falls back to the JSONL.
+    /// </summary>
     public static Transcript Read(string attemptDir)
     {
         var diffFile = Path.Combine(attemptDir, Layout.DiffFile);
         var diff = File.Exists(diffFile) ? File.ReadAllText(diffFile) : null;
         var trajectory = Path.Combine(attemptDir, Layout.TrajectoryFile);
-        if (!File.Exists(Path.Combine(attemptDir, Layout.TranscriptFile)) && File.Exists(trajectory))
+        var jsonl = Path.Combine(attemptDir, Layout.TranscriptFile);
+        if (File.Exists(trajectory))
         {
-            var core = Path.Combine(attemptDir, Layout.CoreFile);
-            return FromAtif(JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject(),
-                File.Exists(core) ? Runner.ReadJson<CountedCore>(core) : null, diff);
+            JsonObject? parsed = null;
+            try { parsed = JsonNode.Parse(File.ReadAllText(trajectory)) as JsonObject; }
+            catch (JsonException) when (File.Exists(jsonl)) { }
+            if (parsed is not null)
+            {
+                var core = Path.Combine(attemptDir, Layout.CoreFile);
+                return FromAtif(parsed, File.Exists(core) ? Runner.ReadJson<CountedCore>(core) : null, diff);
+            }
         }
-        return Parse(File.ReadAllText(Path.Combine(attemptDir, Layout.TranscriptFile)), diff);
+        return Parse(File.ReadAllText(jsonl), diff);
     }
 
     /// <summary>
@@ -116,6 +128,9 @@ sealed class Transcript
                     break;
             }
         }
+        // A bare nb attempt has no counted core: its trailer is nb's own, kept under extra.result exactly as its JSONL has it.
+        if (core is null && nb && trajectory["extra"]?["result"] is JsonObject nbResult)
+            t.Trailer = NbTrailer(nbResult);
         if (core is not null)
         {
             var own = trajectory["extra"]?["result"] as JsonObject;
@@ -169,18 +184,24 @@ sealed class Transcript
                     t.ToolResults.Add(new ToolResult(Str(ev, "id") ?? "", Str(ev, "output") ?? "", ev["result"]?.DeepClone() as JsonObject));
                     break;
                 case "result":
-                    var usage = ev["usage"] as JsonObject;
-                    t.Trailer = new Trailer(
-                        Str(ev, "exit_reason") ?? "ok",
-                        Num(usage, "input"), Num(usage, "output"), Num(usage, "total"),
-                        usage?["estimated"] is JsonValue e && e.TryGetValue<bool>(out var est) && est,
-                        (int?)Num(ev, "turns"), (int?)Num(ev, "tool_calls"), Num(ev, "duration_ms"),
-                        Str(ev, "provider"), Str(ev, "harness"),
-                        (int?)Num(ev, "denied") ?? 0, (int?)Num(ev, "oracle_turns") ?? 0);
+                    t.Trailer = NbTrailer(ev);
                     break;
             }
         }
         return t;
+    }
+
+    /// <summary>nb's result event as the trailer: from its JSONL, or kept under an nb trajectory's extra.result.</summary>
+    static Trailer NbTrailer(JsonObject ev)
+    {
+        var usage = ev["usage"] as JsonObject;
+        return new Trailer(
+            Str(ev, "exit_reason") ?? "ok",
+            Num(usage, "input"), Num(usage, "output"), Num(usage, "total"),
+            usage?["estimated"] is JsonValue e && e.TryGetValue<bool>(out var est) && est,
+            (int?)Num(ev, "turns"), (int?)Num(ev, "tool_calls"), Num(ev, "duration_ms"),
+            Str(ev, "provider"), Str(ev, "harness"),
+            (int?)Num(ev, "denied") ?? 0, (int?)Num(ev, "oracle_turns") ?? 0);
     }
 
     /// <summary>Paths a unified diff touches, from its `diff --git a/x b/x` headers (or `+++ b/x` when a diff lacks them).</summary>

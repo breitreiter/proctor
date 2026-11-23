@@ -627,7 +627,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             ? new Dictionary<string, string> { ["NO_COLOR"] = "1" }
             : new Dictionary<string, string>(attemptEnv) { ["NO_COLOR"] = "1" };
         // nb's own ATIF beside its JSONL, by environment so a runner script passes it on untouched. Grading reads the
-        // JSONL on this path; the Harbor gate compares the trajectory.
+        // trajectory (Transcript.Read), as on the Harbor path; the JSONL stays the record nb streamed.
         env["NB_TRAJECTORY"] = Path.GetFullPath(Path.Combine(attemptDir, Layout.TrajectoryFile));
         var result = Subprocess.Run(nb.Runner?.Path ?? nb.Path, nb.Runner is null ? args : [], workDir, env,
             stdoutFile: Path.Combine(attemptDir, Layout.TranscriptFile),
