@@ -2,7 +2,7 @@
 type: plan
 title: Checks that explain themselves — why a check exists, what it does, and what it points at
 created: 2026-11-22
-status: agreed with the user 2026-11-22 (calls made on a decision page, recorded under "Calls" below), with changes: `why` is required, `absent` evidence is dropped, the surface verdict waits, and the friction roll-up moves to `proctor report`. Still OPEN: the outcome measure under stages, what a workspace check is for, and the reader's spend cap. Depends on bank step 4 (stages) only for stage ids and C5.4
+status: agreed with the user 2026-11-22 (calls made on a decision page, recorded under "Calls" below), with changes: `why` is required, `absent` evidence is dropped, the surface verdict waits, and the friction roll-up moves to `proctor report`. Still OPEN: what a workspace check is for, and the reader's spend cap. Depends on bank step 4 (stages) only for stage ids and C5.4
 ---
 
 # Checks that explain themselves
@@ -24,7 +24,7 @@ status: agreed with the user 2026-11-22 (calls made on a decision page, recorded
 | surface verdict (C5.2) | waits until a page shows it |
 | friction roll-up (C5.4) | written by `proctor report`, beside `stats.json` |
 | unit for confirming friction | tries, Mann–Whitney; minimum tries documented for the agent |
-| outcomes under stages | OPEN, see C5.4 |
+| outcomes under stages | headline checks held per try, confirmed over tries the same way; "passed in k of n tries" beside it (C5.4) |
 | measuring before C5.4 | rules and the reader; the reader is hosted (no local model on this laptop), spend cap OPEN |
 | order | by what each auspex page needs ("Order") |
 
@@ -330,8 +330,8 @@ Per variant:
   Attempts are exchangeable runs of one setup, so no attempt-by-attempt
   profile of friction is kept or shown (the user, 2026-11-22).
 - **Per attempt** (asked from auspex, 2026-11-22): each attempt's
-  flagged steps, and the share of its stages right (its passing checks,
-  until stages exist). auspex shows a variant's spread across tries
+  flagged steps, its headline checks held (k of n), and whether it
+  passed (every headline check held). auspex shows a variant's spread across tries
   ("3 to 6 flagged steps per try, median 4") next to live's, so a
   person sees whether a difference between variants is bigger than
   the variation from try to try.
@@ -340,7 +340,7 @@ Per variant:
 
 | Level | The question | What it reads |
 |---|---|---|
-| Variant (auspex: setup) | did the treatment make things better or worse? | stages right and flagged steps per try, as a spread against live, plus the verdict below |
+| Variant (auspex: setup) | did the treatment make things better or worse? | headline checks held and flagged steps per try, as a spread against live, plus the verdict below |
 | Across attempts (auspex: tries) | is this constant or rare, and which costs most? | what recurs, per kind: in k of n, min / median / max when it happens, per attempt overall |
 | One stage | why did this friction happen? | the transcript, with each point's `because` |
 
@@ -385,15 +385,19 @@ holds.
   question (the user, 2026-11-22). A single try is still fine as a
   shakedown, for setup problems and obvious failures.
 
-**OPEN: the outcome measure under stages.** The user answered "leave
-outcomes as `Stats.cs` does them", because stages are arbitrary chunks
-for legibility, loosely related, and comparing across them is
-incoherent. But `Stats.cs` pairs pass rates by task, and tasks become
-stages, so leaving it unchanged pairs by stage, which is the incoherent
-comparison. To settle with the user: confirm outcomes over tries too
-(and on what per try: all stages right, or checks passed), or keep
-outcomes unconfirmed under stages. The same note bears on auspex's
-"stages right per try": a count that changes when stages are re-chunked.
+**Outcomes under stages: the same as friction** (agreed with the user,
+2026-11-22). Stages are arbitrary chunks for legibility (the user:
+"just a convenience measure for reporting"), and a try's stages share a
+workspace, so a stage is never a unit of comparison. Each try gets one
+outcome number that re-chunking doesn't change, **the headline checks
+it held, k of n**, and the variant's tries are compared with live's by
+the same Mann–Whitney test, with the same minimum tries. "Passed in k
+of n tries" (every headline check held) is shown beside it as the plain
+result; alone it's too coarse at five tries. Every check weighs the
+same, so an author who writes many checks for one stage tilts the
+number; accepted as the cost of resolution. Stages explain the verdict
+("moved most") and never make it. This replaces `Stats.cs`'s pairing
+by task once stages exist; it belongs to bank step 4.
 
 **One attempt** is placed, not judged: "5 flagged steps; the other
 attempts of this task had 1 to 2". One attempt confirms no direction.
