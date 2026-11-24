@@ -7,6 +7,18 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Axes, declared** (`axes-build.md`, slice 1; the model is
+  `axes.md`). An exam of stages can declare `axes` in `exam.json` in
+  place of `variants/`: each axis a named thing with values, one value
+  optionally live, a configuration one value from each. A value sets
+  parameters the base declares (`params` in `fixture.json`, or in
+  `exam.json` for the program template), lays files over the checkout,
+  says who does the work, or names a whole fixture for an axis of
+  worlds; a stage may carry `when`. Refused at load, by field: an
+  undeclared parameter, two axes setting one thing or writing one path,
+  an overlay leaving the checkout, a condition naming something
+  undeclared, a configuration with no stage. `proctor list` shows the
+  axes and the configurations. Nothing runs a configuration yet.
 - **The first real exams of stages, and how to port a suite.**
   `readme-answers` and `tern-docs` are staged: their `tasks/` are
   `stages` in `exam.json`, and both `reference/shakedown.sh` scripts

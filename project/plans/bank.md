@@ -361,6 +361,10 @@ and the only port documented is from a suite
 - Tasks, `--tasks`, `Stats.cs` and `Report.cs` are deleted last, once
   no exam here uses them.
 
+**2026-11-24: the rest of step 4 moves to `axes-build.md`.** The exams
+still on tasks are ported once, to stages and axes together (its slice
+7), and tasks are deleted there. The oracle compile is its slice 4.
+
 **After slice 6, the same day:** the two changes under "Tasks go;
 stages gain two things" are BUILT on both runners and run for real
 through Harbor. Every check is a stage's, a workspace check sees the

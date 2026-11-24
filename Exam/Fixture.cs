@@ -17,9 +17,9 @@ record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclu
 /// extra services (and whatever it mounts), copied into the task's environment/: Harbor runs them beside the agent, in
 /// its network namespace.
 /// </summary>
-record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env, string? Services = null);
+record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env, string? Services = null, List<string>? Params = null);
 
-record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, FixtureImage? Image = null);
+record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, FixtureImage? Image = null, Dictionary<string, ParamDef>? Params = null);
 
 /// <summary>One fixture directory, loaded. Construct through <see cref="Load"/>.</summary>
 sealed record Fixture
@@ -86,6 +86,17 @@ sealed record Fixture
                     Add("image.services", $"Dockerfile, repo and {HarborCompile.ServiceBundleDir} are the task's own names in environment/");
             }
         }
+        // The parameters a value may set (plans/axes-ports.md): the only names an exam's axes can reach in this base.
+        foreach (var (name, param) in def.Params ?? [])
+        {
+            if (!Regex.IsMatch(name, "^[A-Za-z_][A-Za-z0-9_]*$")) Add($"params.{name}", "a parameter is named like an environment variable");
+            if (param is null) { Add($"params.{name}", "a parameter is an object: {default, tree, secret, about}"); continue; }
+            if (param.Tree == true && param.Default is not null and not JsonObject) Add($"params.{name}.default", "a tree's default is {path} or {git, rev}, or absent for none");
+            if (param.Tree != true && param.Default is not null and not JsonValue) Add($"params.{name}.default", "text: a string, a number or true/false");
+            if (param.Secret == true && param.Default is not null) Add($"params.{name}.default", "a secret has no default in a file; it is passed by name");
+        }
+        foreach (var name in def.Image?.Params ?? [])
+            if (def.Params?.ContainsKey(name) != true) Add("image.params", $"'{name}' is not a declared parameter; declare it under params");
         foreach (var (name, spec) in def.Checks ?? [])
         {
             var f = $"checks.{name}";

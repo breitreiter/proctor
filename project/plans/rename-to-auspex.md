@@ -2,7 +2,7 @@
 type: plan
 title: Proctor becomes auspex — the viewer moves in, then the rename
 created: 2026-11-23
-status: proposed, for the user. Nothing done. auspex.bot is registered (2026-11-23). Counts are grep counts from 2026-11-23, to size the work, not a checklist
+status: agreed with the user 2026-11-23 (see "Decided"). Nothing done. Deferred 2026-11-24 (the user): after `axes-build.md` is done, whenever that is; the 2026-11-29 target no longer holds. auspex.bot is registered (2026-11-23). Counts are grep counts from 2026-11-23, to size the work, not a checklist
 ---
 
 # Proctor becomes auspex
@@ -60,27 +60,28 @@ Not weeks.
 - **A clean tree and no open branch.** A rename conflicts with every
   line of every open branch. Today the work is on `exam-variant-attempt`
   with uncommitted changes in six files. Do the rename between slices of
-  `bank.md` step 4, after the branch has merged to master (or is the
-  only branch, with nothing uncommitted).
-- **The viewer's history becomes public.** Proctor is a public
-  repository and the viewer's remote is private. Merging with history
-  publishes all 28 of the viewer's commits. `datasets/` was never
-  committed (it is gitignored), but read the history for anything else
-  that should not be published, such as quoted transcripts in
-  `project/learnings/` or `project/trials/`, or paths and names. If
-  something must stay private, either squash the move-in into one
-  commit of today's tree (losing the history), or rewrite those paths
-  out with `git filter-repo` before merging.
+  `bank.md` step 4, after the branch has merged to master. If it cannot
+  merge in time, do the rename on it, provided it is the only branch and
+  nothing is uncommitted.
+- **The viewer arrives as one squashed commit** (decided): today's tree,
+  without its history. That removes the history question, but the tree
+  itself still becomes public, because proctor is a public repository
+  and the viewer's remote is private. Before committing, read through
+  `project/learnings/`, `project/trials/` and anything else quoting a
+  transcript, a path or a name, and leave behind whatever should not be
+  published.
 
 ## Stage 1: the viewer moves in
 
-1. In the viewer, `git mv` everything under `View/`, matching proctor's
+1. Copy the viewer's tracked files (`git ls-files`, so `bin/`, `obj/`
+   and `datasets/` stay behind) into `View/`, matching proctor's
    PascalCase top-level directories (`Run/`, `Grade/`, `Report/`). Its
    `project/` becomes `project/view/` in proctor; its `CLAUDE.md` stays
    as `View/CLAUDE.md`, which Claude Code reads when working in that
    directory.
-2. Merge into proctor with `--allow-unrelated-histories` (proctor's
-   default branch is `master`, the viewer's is `main`).
+2. Commit it as one commit that names the viewer's last revision
+   (`61c9081` on 2026-11-23, or whatever is newest on the day), so the
+   private remote can still be found from it.
 3. **`Proctor.csproj` compiles every `.cs` under the root by default.**
    Add `View\**` to its `Compile Remove` and `None Remove`, or proctor's
    exe will try to compile the viewer's `Program.cs` and fail. The
@@ -113,13 +114,14 @@ The gate runs at the end of each one.
 |---|---|---|---|
 | 1 | Repository and directory | — | GitHub `proctor` → `auspex`. GitHub redirects the old URLs, so variants that pin proctor's repository at a revision as their bundle (`exams/exam-authoring/`) keep resolving; update them anyway. Locally, `/srv/aiwork/proctor` → `/srv/aiwork/auspex` |
 | 2 | Code | 34 + 25 files in `namespace Proctor`/`Proctor.Tests` | `Proctor` → `Auspex`, `Proctor.Tests` → `Auspex.Tests`, `AssemblyName` `proctor` → `auspex`, the csproj and `.slnx` file names, `InternalsVisibleTo`. The viewer becomes namespace `Auspex.View` (tests `Auspex.View.Tests`), assembly `auspex-view` |
-| 3 | Environment variables | about 40 `PROCTOR_*` | → `AUSPEX_*`. The viewer's `AUSPEX_TEST_ROOT` and `AUSPEX_TEST_PUBLISH` would collide with the renamed `PROCTOR_TEST_*`, so they become `AUSPEX_VIEW_TEST_*`. Change it in one step, with no fallback: at startup, if any `PROCTOR_*` is set, refuse and give its new name. A silent fallback leaves two names in use forever |
-| 4 | Files on disk | `proctor.json` (171 mentions), `.proctor/` | → `auspex.json`, `.auspex/`, and the `.gitignore` patterns (`exams/proctor.*.json`). An existing machine that has `proctor.json` and no `auspex.json` gets a one-line refusal that says to rename the file. **The bank is a different case:** it is data already written. If an attempt's files name proctor (`versions.proctor` turns up in grep), the reader must keep accepting the old field for those attempts. Check every file kind under `bank/` before deciding |
+| 3 | Environment variables | about 40 `PROCTOR_*` | → `AUSPEX_*`. The viewer's `AUSPEX_TEST_ROOT` and `AUSPEX_TEST_PUBLISH` would collide with the renamed `PROCTOR_TEST_*`, so they become `AUSPEX_VIEW_TEST_*`. Change it in one step, with no fallback (decided): at startup, if any `PROCTOR_*` is set, refuse, give its new name and point to `docs/migrating-from-proctor.md`. A silent fallback leaves two names in use forever |
+| 4 | Files on disk | `proctor.json` (171 mentions), `.proctor/` | → `auspex.json`, `.auspex/`, and the `.gitignore` patterns (`exams/proctor.*.json`). An existing machine that has `proctor.json` and no `auspex.json` gets a one-line refusal that says to rename the file and points to the guide. **The bank is a different case:** it is data already written. If an attempt's files name proctor (`versions.proctor` turns up in grep), the reader must keep accepting the old field for those attempts. Check every file kind under `bank/` before deciding |
 | 5 | The skill | `skills/proctor-exam/` | → `skills/auspex-exam/`. Users copied it into their agents, so the CHANGELOG says so |
 | 6 | The docs site | `breitreiter.github.io/proctor/` in `Setup/providers.json`, `Setup/Catalogue.cs`, `docs/providers.html` and setup's plans | The site is not live (404 on 2026-11-23), so no anchor has been released yet. Change the base to `auspex.bot` now, before one is. Released anchors are permanent (`Setup/providers.json`) |
 | 7 | Prose | `CLAUDE.md`, README, `docs/`, live plans, `todo.md`, `View/` docs | `project/archive/`, the CHANGELOG's past entries, and learnings that record what was true then all keep "proctor" and are allow-listed |
 | 8 | The gate | `project/gate/` | Gate "proctor" as `old-words.sh` gates the old model's words. The allow-list covers the archive, past CHANGELOG entries, `learnings/name-collisions.md`, and captured fixtures holding absolute paths such as `/home/joseph/repos/proctor/.proctor/work/`, which are records |
-| 9 | Version | `0.3.6` | → `0.4.0`, with a CHANGELOG entry listing each breaking rename: the binary, the environment variables, `auspex.json`, `.auspex/` and the skill |
+| 9 | The migration guide | new `docs/migrating-from-proctor.md` | For anyone with exams written for proctor. A table from old name to new for each thing that changed: the binary, every `PROCTOR_*` variable, `proctor.json`, `.proctor/`, the skill, and names inside exam, variant and hook files. A `sed` one-liner that does the variables and the file names. What does not change: the bank, which auspex reads as it is. The refusals in layers 3 and 4 link to it |
+| 10 | Version | `0.3.6` | → `0.4.0`, with a CHANGELOG entry listing each breaking rename and linking the guide |
 
 **Collision check for the new name** (the same check as
 `learnings/name-collisions.md`, add it there): `Auspex` is free on
@@ -154,12 +156,26 @@ code. It happens when `bank.md` delivers what the viewer's design waits
 on, as decided on 2026-11-21. This plan only makes it cheaper: by then
 the two programs share a repository, a solution and a name.
 
-## For the user
+## Decided (the user, 2026-11-23)
 
-1. Is it all right for the viewer's history to become public, or should
-   the move-in be squashed or filtered?
-2. Should the viewer's binary be `auspex-view` until the fold, or should
-   `auspex view` be a thin verb from the start of the rename, so the
-   command people type never changes?
-3. Should `PROCTOR_*` and `proctor.json` be refused immediately as
-   proposed, or keep working with a warning for one release?
+1. **The viewer moves in squashed.** There is no reason to keep its
+   history. Its tree is still read before it becomes public.
+2. **The viewer is `auspex-view` until the fold.** The user was
+   ambivalent and wanted it done fast. A separate binary needs no code,
+   whereas an `auspex view` verb would have the console exe host a web
+   project. The command changes once, at the fold.
+3. **No fallback for the old names; a migration guide instead.** The
+   user was happy with either. The guide is cheaper than keeping both
+   names working, and it leaves one name in use. Refusals point to it.
+
+## Schedule (to 2026-11-29)
+
+It can be messy in between. What matters is a working auspex at the end.
+
+| Day | Work |
+|---|---|
+| 1 (11-24) | Before either stage: `exam-variant-attempt` merged or the only branch, a clean tree. Stage 1: the viewer's tree read, then moved in, `datasets/` moved out, both suites green |
+| 2 (11-25) | Settle: viewer work happens here. Collision check written. GitHub: viewer remote renamed and archived, proctor renamed |
+| 3–4 (11-26, 11-27) | Stage 2, layers 2 to 6 (code, variables, files on disk, skill, site URL), each with the suites green |
+| 5 (11-28) | Layers 7 to 10: prose, the gate, the guide, the version |
+| 6 (11-29) | Stage 2b in nb (unit suite and `evals/run.sh --skip-llm`). Spare time for whatever broke |

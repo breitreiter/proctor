@@ -28,7 +28,7 @@ static class Verbs
             var levels = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Select(k => (k.Key, k.Value.Level))).Distinct().GroupBy(k => k.Level).ToList();
             var fixtures = exam.Tasks.Select(c => c.Fixture).OfType<string>().Distinct().Count();
             var byLevel = levels.Count < 2 ? "" : " (" + string.Join(", ", levels.Select(g => $"{g.Count()} of {g.Key switch { "exam" => "the exam's", "fixture" => fixtures == 1 ? "the fixture's" : "the fixtures'", _ => "the tasks' own" }}")) + ")";
-            var size = exam.Staged ? $"one job of {Count(exam.Tasks.Count, "stage")}" : Count(exam.Tasks.Count, "task");
+            var size = exam.Axes?.Conditions.Count > 0 ? Count(exam.Tasks.Count, "stage") : exam.Staged ? $"one job of {Count(exam.Tasks.Count, "stage")}" : Count(exam.Tasks.Count, "task");
             Console.WriteLine($"  {size}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted{(exam.Staged ? "" : " of each task")}{(exam.Judged ? "; judged" : "")}");
             if (exam.Staged) Console.WriteLine($"  stages: {string.Join(", ", exam.Tasks.Select(c => c.Id))}");
             // A stage's id is its label on screen; these will not read as one (plans/bank.md, B9). Said, never refused.
@@ -37,6 +37,7 @@ static class Verbs
             // A check with no reason, neither its author's nor a guardrail's default (check-evidence.md, C1). Listed, not refused, until the exams have theirs.
             var unexplained = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Where(k => Checks.WhyOf(k.Value.Spec) is null).Select(k => k.Key)).Distinct().ToList();
             if (unexplained.Count > 0) Console.WriteLine($"  {Count(unexplained.Count, "check")} with no why: {string.Join(", ", unexplained)}");
+            if (exam.Axes is not null) { ListAxes(exam); continue; }
             var bank = Bank.Of(root, exam);
             var live = Proctor.Live.Load(exam);
             var broken = live?.Broken(exam);
@@ -71,6 +72,7 @@ static class Verbs
             foreach (var p in problems) Console.Error.WriteLine(p);
             return 1;
         }
+        NotYetWithAxes(exam, "run");
         RequireKnown(exam, variantIds, taskIds);
         if (exam.Staged)
         {
@@ -177,8 +179,64 @@ static class Verbs
     static Exam LoadExam(string root, string examId)
     {
         var problems = new List<Problem>();
-        return Exam.Load(root, examId, problems)
+        var exam = Exam.Load(root, examId, problems)
             ?? throw new ProctorException($"exam '{examId}' does not load:\n" + string.Join("\n", problems));
+        NotYetWithAxes(exam, "this command");
+        return exam;
+    }
+
+    /// <summary>Axes are declared, validated and listed; nothing else reads a configuration yet (plans/axes-build.md, slice 1).</summary>
+    static void NotYetWithAxes(Exam exam, string verb)
+    {
+        if (exam.Axes is not null) throw new ProctorException($"exam '{exam.Id}' declares axes, and {verb} does not read a configuration yet; `proctor list {exam.Id}` shows its configurations");
+    }
+
+    /// <summary>An exam's axes and the configurations they span: each axis with its values and its live one, then a row per configuration.</summary>
+    static void ListAxes(Exam exam)
+    {
+        var axes = exam.Axes!;
+        var name = axes.Def.Keys.Max(k => k.Length);
+        var values = axes.Def.ToDictionary(a => a.Key, a => string.Join(", ", a.Value.Values!.Keys.Select(v => v == a.Value.Live ? v + " (live)" : v)));
+        var wide = values.Values.Max(v => v.Length);
+        Console.WriteLine("  axes:");
+        foreach (var (axis, def) in axes.Def)
+            Console.WriteLine($"    {axis.PadRight(name)}  {values[axis].PadRight(wide)}  {def.About}".TrimEnd());
+        var excluded = axes.Configurations.Count(c => c.Excluded);
+        var swept = axes.Def.Where(a => a.Value.Live is null && a.Value.Values!.Count > 1).Select(a => a.Key).ToList();
+        Console.WriteLine($"  {Count(axes.Configurations.Count, "configuration")}{(excluded > 0 ? $", {excluded} excluded" : "")}; {Count(exam.Attempts, "attempt")} wanted of each"
+            + (swept.Count > 0 ? $"; no live value on {string.Join(", ", swept)}" : ""));
+        bool Live(Configuration c) => axes.Def.Any(a => a.Value.Live is not null) && axes.Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
+        // Two axes that vary read best as a grid, rows by the first and columns by the second; anything else is a row per configuration.
+        var varied = axes.Def.Where(a => a.Value.Values!.Count > 1).Select(a => a.Key).ToList();
+        if (varied.Count == 2)
+        {
+            var (rows, columns) = (axes.Def[varied[0]].Values!.Keys.ToList(), axes.Def[varied[1]].Values!.Keys.ToList());
+            var fixedValues = axes.Def.Where(a => !varied.Contains(a.Key)).Select(a => $"{a.Key}={a.Value.Values!.Keys.First()}").ToList();
+            Console.WriteLine($"  attempts made of {exam.Attempts} wanted, {varied[0]} down and {varied[1]} across{(fixedValues.Count > 0 ? "; " + string.Join(", ", fixedValues) : "")}; * is live");
+            var first = Math.Max(varied[0].Length, rows.Max(r => r.Length));
+            var cell = Math.Max(8, columns.Max(c => c.Length));
+            Console.WriteLine($"  {"".PadRight(first)}  {string.Join("  ", columns.Select(c => c.PadRight(cell)))}".TrimEnd());
+            foreach (var row in rows)
+            {
+                var cells = columns.Select(column =>
+                {
+                    var c = axes.Configurations.First(x => x[varied[0]] == row && x[varied[1]] == column);
+                    return (c.Excluded ? "excluded" : $"0/{exam.Attempts}{(Live(c) ? " *" : "")}").PadRight(cell);
+                });
+                Console.WriteLine($"  {row.PadRight(first)}  {string.Join("  ", cells)}".TrimEnd());
+            }
+            foreach (var c in axes.Configurations.Where(c => c.Name is not null)) Console.WriteLine($"  {c.Name}: {c.Label}");
+            return;
+        }
+        var width = Math.Max("configuration".Length, axes.Configurations.Max(c => c.Label.Length));
+        Console.WriteLine($"  {"configuration".PadRight(width)}  stages  attempts  wanted");
+        foreach (var c in axes.Configurations)
+        {
+            var notes = string.Join(", ", new[] { c.Name, Live(c) ? "live" : null }.OfType<string>());
+            Console.WriteLine(c.Excluded
+                ? $"  {c.Label.PadRight(width)}  excluded"
+                : $"  {c.Label.PadRight(width)}  {exam.Tasks.Count(s => axes.Applies(s, c)),-6}  {0,-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
+        }
     }
 
     static string Count(int n, string one) => $"{n} {one}{(n == 1 ? "" : "s")}";
