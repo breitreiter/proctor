@@ -65,8 +65,6 @@ static class Tries
 
     public static (TriesFile Stats, FrictionRollup Friction) Compute(string root, Exam exam, List<BankAttempt> current, List<BankAttempt> bank, List<ResultRow> rows, Live? live, BuiltFrom? built)
     {
-        var stages = exam.Tasks;
-        var headline = stages.Sum(s => exam.PassFor(s).Count);
         var surface = new Surface(exam.Def.Surface);
         var kinds = new Dictionary<string, List<(int Try, string Stage, string Label, string? Detail, int Steps)>>();
         var variants = new List<TryVariant>();
@@ -74,6 +72,9 @@ static class Tries
 
         foreach (var variant in ids)
         {
+            // On an exam with axes a try is the stages that apply in its configuration, and holds of those stages' headline checks.
+            var stages = exam.StagesOf(variant);
+            var headline = stages.Sum(s => exam.PassFor(s).Count);
             var found = kinds[variant] = [];
             var tryRows = new List<TryRow>();
             foreach (var group in current.Where(a => a.Variant == variant).GroupBy(a => a.Attempt).OrderBy(g => g.Key))
@@ -133,7 +134,7 @@ static class Tries
             + "which needs at least 4 tries a side, or 3 against 5. A stage is never compared on its own: stages share a workspace, so they share causes. "
             + "A try in which a stage did not run is lost and is in no number; a try with a stage that failed a validity check is listed and not counted.";
         return (new TriesFile(Schema, exam.Id, exam.Chained,
-                stages.Select((s, i) => new StageInfo(s.Id!, i + 1, Exam.Describe(s), exam.PassFor(s))).ToList(), headline, liveStats, variants, lostTries, methods, built),
+                exam.Tasks.Select((s, i) => new StageInfo(s.Id!, i + 1, Exam.Describe(s), exam.PassFor(s))).ToList(), exam.Tasks.Sum(s => exam.PassFor(s).Count), liveStats, variants, lostTries, methods, built),
             new FrictionRollup(FrictionSchema, exam.Id, rollup, built));
     }
 
@@ -211,7 +212,7 @@ static class Tries
 
     static string Count(int n) => $"{n} {(n == 1 ? "try" : "tries")}";
 
-    static Measure Compare(List<double> mine, List<double> theirs, bool higherIsBetter)
+    public static Measure Compare(List<double> mine, List<double> theirs, bool higherIsBetter)
     {
         int higher = mine.Sum(a => theirs.Count(b => a > b)), lower = mine.Sum(a => theirs.Count(b => a < b));
         var p = MannWhitneyP(mine, theirs);
@@ -262,7 +263,7 @@ static class Tries
     }
 
     // The standard normal's distribution function (Abramowitz and Stegun 26.2.17).
-    static double Phi(double z)
+    public static double Phi(double z)
     {
         var t = 1 / (1 + 0.2316419 * z);
         var tail = Math.Exp(-z * z / 2) / Math.Sqrt(2 * Math.PI) * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));

@@ -37,7 +37,7 @@ static class Verbs
             // A check with no reason, neither its author's nor a guardrail's default (check-evidence.md, C1). Listed, not refused, until the exams have theirs.
             var unexplained = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Where(k => Checks.WhyOf(k.Value.Spec) is null).Select(k => k.Key)).Distinct().ToList();
             if (unexplained.Count > 0) Console.WriteLine($"  {Count(unexplained.Count, "check")} with no why: {string.Join(", ", unexplained)}");
-            if (exam.Axes is not null) { ListAxes(exam); continue; }
+            if (exam.Axes is not null) { ListAxes(root, exam); continue; }
             var bank = Bank.Of(root, exam);
             var live = Proctor.Live.Load(exam);
             var broken = live?.Broken(exam);
@@ -72,8 +72,9 @@ static class Verbs
             foreach (var p in problems) Console.Error.WriteLine(p);
             return 1;
         }
-        NotYetWithAxes(exam, "run");
-        RequireKnown(exam, variantIds, taskIds);
+        variantIds = Narrowed(exam, variantIds, taskIds);
+        foreach (var c in exam.Axes?.Wanted.Where(c => variantIds is null || variantIds.Contains(c.Key)) ?? [])
+            if (exam.Axes!.NotYet(c) is { } why) throw new ProctorException($"{c.Label} {why}");
         if (exam.Staged)
         {
             if (taskIds is not null) throw new ProctorException($"exam '{exam.Id}' is one job of stages: a stage is never run alone, so --tasks does not apply");
@@ -87,6 +88,7 @@ static class Verbs
     public static int Live(string root, string examId, string? variantId)
     {
         var exam = LoadExam(root, examId);
+        if (exam.Axes is not null) throw new ProctorException($"exam '{exam.Id}' has axes: a live value is declared on its axis in exam.json (`\"live\": \"<value>\"`), not marked");
         var file = Path.GetRelativePath(root, Proctor.Live.FileOf(exam));
         var live = Proctor.Live.Load(exam);
         if (variantId is null)
@@ -107,7 +109,7 @@ static class Verbs
     public static int Grade(string root, string examId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? variantIds = null, List<string>? taskIds = null, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
-        RequireKnown(exam, variantIds, taskIds);
+        variantIds = Narrowed(exam, variantIds, taskIds);
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(root, problems, configFile);
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
@@ -137,7 +139,7 @@ static class Verbs
     public static int Friction(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null, string? reader = null, bool again = false, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
-        RequireKnown(exam, variantIds, taskIds);
+        variantIds = Narrowed(exam, variantIds, taskIds);
         JudgeClient? judges = null;
         if (reader is not null)
         {
@@ -181,7 +183,6 @@ static class Verbs
         var problems = new List<Problem>();
         var exam = Exam.Load(root, examId, problems)
             ?? throw new ProctorException($"exam '{examId}' does not load:\n" + string.Join("\n", problems));
-        NotYetWithAxes(exam, "this command");
         return exam;
     }
 
@@ -191,10 +192,47 @@ static class Verbs
         if (exam.Axes is not null) throw new ProctorException($"exam '{exam.Id}' declares axes, and {verb} does not read a configuration yet; `proctor list {exam.Id}` shows its configurations");
     }
 
+    /// <summary>--value axis=value (repeatable) and --configuration name, set by the command line: which configurations of an exam with axes a verb reads.</summary>
+    public static List<string>? ValueFilters;
+    public static string? ConfigurationName;
+
+    /// <summary>
+    /// What --variant, or on an exam with axes --value and --configuration, narrow a verb to, as the ids the bank knows:
+    /// a variant's id, or a configuration's key. Null when nothing narrows. Each flag is refused where it does not apply.
+    /// </summary>
+    static List<string>? Narrowed(Exam exam, List<string>? variantIds, List<string>? taskIds)
+    {
+        if (exam.Axes is not { } axes)
+        {
+            if (ValueFilters is not null || ConfigurationName is not null) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: --value and --configuration do not apply; use --variant");
+            RequireKnown(exam, variantIds, taskIds);
+            return variantIds;
+        }
+        if (variantIds is not null) throw new ProctorException($"exam '{exam.Id}' has axes, not variants: narrow with --value axis=value or --configuration name");
+        if (taskIds is not null) throw new ProctorException($"exam '{exam.Id}' is one job of stages: a stage is never run alone, so --tasks does not apply");
+        if (ValueFilters is null && ConfigurationName is null) return null;
+        var wanted = new Dictionary<string, string>();
+        foreach (var filter in ValueFilters ?? [])
+        {
+            var (axis, value) = filter.Split('=', 2) is [var a, var v] ? (a, v) : throw new ProctorException($"--value {filter}: expects axis=value");
+            if (!axes.Def.TryGetValue(axis, out var def)) throw new ProctorException($"--value {filter}: '{axis}' is not an axis of exam '{exam.Id}' ({string.Join(", ", axes.Def.Keys)})");
+            if (!def.Values!.ContainsKey(value)) throw new ProctorException($"--value {filter}: '{value}' is not a value of axis '{axis}' ({string.Join(", ", def.Values.Keys)})");
+            wanted[axis] = value;
+        }
+        var named = ConfigurationName is null ? null : axes.Configurations.FirstOrDefault(c => c.Name == ConfigurationName)
+            ?? throw new ProctorException($"--configuration {ConfigurationName}: exam '{exam.Id}' names no such configuration ({string.Join(", ", axes.Configurations.Select(c => c.Name).OfType<string>().DefaultIfEmpty("none"))})");
+        var keys = axes.Wanted.Where(c => c.Has(wanted) && (named is null || c.Key == named.Key)).Select(c => c.Key).ToList();
+        if (keys.Count == 0) throw new ProctorException("no configuration holds those values and is not excluded");
+        return keys;
+    }
+
     /// <summary>An exam's axes and the configurations they span: each axis with its values and its live one, then a row per configuration.</summary>
-    static void ListAxes(Exam exam)
+    static void ListAxes(string root, Exam exam)
     {
         var axes = exam.Axes!;
+        var bank = Bank.Of(root, exam);
+        // Tries made: a configuration's current stages that count, over the stages a try of it has.
+        int Made(Configuration c) => bank.Count(a => a.Variant == c.Key && a.Counts && Bank.Stale(exam, a) is null) / Math.Max(1, exam.StagesOf(c.Key).Count);
         var name = axes.Def.Keys.Max(k => k.Length);
         var values = axes.Def.ToDictionary(a => a.Key, a => string.Join(", ", a.Value.Values!.Keys.Select(v => v == a.Value.Live ? v + " (live)" : v)));
         var wide = values.Values.Max(v => v.Length);
@@ -221,11 +259,12 @@ static class Verbs
                 var cells = columns.Select(column =>
                 {
                     var c = axes.Configurations.First(x => x[varied[0]] == row && x[varied[1]] == column);
-                    return (c.Excluded ? "excluded" : $"0/{exam.Attempts}{(Live(c) ? " *" : "")}").PadRight(cell);
+                    return (c.Excluded ? "excluded" : $"{Made(c)}/{exam.Attempts}{(Live(c) ? " *" : "")}").PadRight(cell);
                 });
                 Console.WriteLine($"  {row.PadRight(first)}  {string.Join("  ", cells)}".TrimEnd());
             }
             foreach (var c in axes.Configurations.Where(c => c.Name is not null)) Console.WriteLine($"  {c.Name}: {c.Label}");
+            Stale();
             return;
         }
         var width = Math.Max("configuration".Length, axes.Configurations.Max(c => c.Label.Length));
@@ -235,7 +274,14 @@ static class Verbs
             var notes = string.Join(", ", new[] { c.Name, Live(c) ? "live" : null }.OfType<string>());
             Console.WriteLine(c.Excluded
                 ? $"  {c.Label.PadRight(width)}  excluded"
-                : $"  {c.Label.PadRight(width)}  {exam.Tasks.Count(s => axes.Applies(s, c)),-6}  {0,-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
+                : $"  {c.Label.PadRight(width)}  {exam.Tasks.Count(s => axes.Applies(s, c)),-6}  {Made(c),-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
+        }
+        Stale();
+
+        void Stale()
+        {
+            var stale = bank.Select(a => Bank.Stale(exam, a)).OfType<string>().ToList();
+            if (stale.Count > 0) Console.WriteLine($"  {Count(stale.Count, "stale stage")}, not counted: {string.Join("; ", stale.GroupBy(w => w).Select(g => $"{g.Key} ({g.Count()})"))}");
         }
     }
 
@@ -255,11 +301,12 @@ static class Verbs
     public static int Report(string root, string examId, List<string>? variantIds = null, List<string>? taskIds = null)
     {
         var exam = LoadExam(root, examId);
-        RequireKnown(exam, variantIds, taskIds);
+        variantIds = Narrowed(exam, variantIds, taskIds);
         var selection = Bank.Select(root, exam, variantIds, taskIds);
         if (selection.Current.Count == 0)
             throw new ProctorException($"exam '{exam.Id}' has no current attempts{(variantIds is null && taskIds is null ? "" : " within --variant and --tasks")} to report; `proctor run {exam.Id}` makes them");
-        foreach (var variant in exam.Variants.Where(v => (variantIds is null || variantIds.Contains(v.Id!)) && selection.Current.All(a => a.Variant != v.Id)))
+        // On an exam with axes a configuration without tries is a row of the report itself: not run.
+        foreach (var variant in exam.Variants.Where(v => exam.Axes is null && (variantIds is null || variantIds.Contains(v.Id!)) && selection.Current.All(a => a.Variant != v.Id)))
             Console.WriteLine($"note: variant {variant.Id} has no current attempts; it is not in the report");
 
         var rows = Results.Collect(root, exam, selection.Current);
@@ -267,6 +314,7 @@ static class Verbs
         var narrowed = string.Join(" ", (variantIds ?? []).Select(v => $"--variant {v}")
             .Append(taskIds is null ? null : $"--tasks {string.Join(",", taskIds)}").OfType<string>());
         var built = Stats.Stamp(exam, selection, narrowed.Length > 0 ? narrowed : null, DateTime.UtcNow);
+        if (exam.Axes is not null) return ReportConfigurations(root, exam, selection, rows, built);
         if (exam.Staged) return ReportTries(root, exam, selection, rows, live, built);
         var stats = Stats.Compute(exam, rows, live, built);
         var view = View(root, exam, selection.Current, stats.Variants.Keys);
@@ -318,6 +366,25 @@ static class Verbs
     /// A staged exam's report: results.jsonl a row per stage, stats.json the tries and each variant against live
     /// (tries/1), friction.json what recurs across a variant's tries, and summary.md. An earlier report is moved aside.
     /// </summary>
+    /// <summary>An exam with axes: stats.json the configurations and each value against its axis's live one (configurations/1), with friction.json, results.jsonl and summary.md as a staged exam has them.</summary>
+    static int ReportConfigurations(string root, Exam exam, BankSelection selection, List<ResultRow> rows, BuiltFrom built)
+    {
+        var (stats, friction) = Configurations.Compute(root, exam, selection.Current, Bank.Of(root, exam), rows, built);
+        var outDir = Layout.ReportExplore(root, exam.Id);
+        KeepEarlier(outDir);
+        Directory.CreateDirectory(outDir);
+        Results.Write(Path.Combine(outDir, Layout.ResultsFile), rows);
+        Runner.WriteJson(Path.Combine(outDir, Layout.StatsFile), stats);
+        Runner.WriteJson(Path.Combine(outDir, Layout.FrictionFile), friction);
+        File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Configurations.Markdown(stats, friction));
+        Console.WriteLine($"{Path.GetRelativePath(root, Path.Combine(outDir, Layout.SummaryFile))}");
+        var notRun = stats.Configurations.Where(c => c.State == "not_run").ToList();
+        Console.WriteLine($"  {stats.Configurations.Count(c => c.State is "made" or "partial")} of {stats.Configurations.Count(c => c.State != "excluded")} configurations have tries{(notRun.Count > 0 ? $"; not run: {string.Join(", ", notRun.Select(c => c.Label))}" : "")}");
+        foreach (var c in stats.Comparisons) Console.WriteLine($"  {c.Sentence}");
+        foreach (var line in Bank.Describe(selection.Stale, "left out")) Console.WriteLine(line);
+        return 0;
+    }
+
     static int ReportTries(string root, Exam exam, BankSelection selection, List<ResultRow> rows, Live? live, BuiltFrom built)
     {
         var (stats, friction) = Tries.Compute(root, exam, selection.Current, Bank.Of(root, exam), rows, live, built);

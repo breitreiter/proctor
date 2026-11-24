@@ -20,13 +20,15 @@ record LogEntry(
     // Stages: a staged exam's stage ids in the order they ran, which is how its attempts' directories are named. Null for a task exam.
     public ResolvedBundle? BundleOf(string variant) => Bundles?.GetValueOrDefault(variant);
     public bool HasTask(string task) => Tasks.Any(t => t.Id == task);
+    /// <summary>The id a try's directory is named by, on an exam with axes; null where the path is the variant and number.</summary>
+    public string? IdOf(string variant, int attempt) => Attempts.FirstOrDefault(a => a.Variant == variant && a.Attempt == attempt)?.Id;
 }
 
 /// <summary>A variant or a task as an attempt names it: its id and the hash that is its identity.</summary>
 record Ref(string Id, string Hash);
 
 /// <summary>One attempt a run set out to make, by its coordinates.</summary>
-record AttemptRef(string Variant, string Task, int Attempt);
+record AttemptRef(string Variant, string Task, int Attempt, string? Id = null);
 
 /// <summary>A variant as a log entry keeps it: its id, its hash and its file as it was.</summary>
 record SeenVariant(string Id, string Hash, JsonObject Def);
@@ -57,6 +59,10 @@ record Manifest
     public required int Attempt { get; init; }
     /// <summary>The stage's place in its try, from 1, on a staged exam; then Task names the stage and Attempt the try.</summary>
     public int? Stage { get; init; }
+    /// <summary>On an exam with axes: the try's id, which is its directory; the value on each axis, by name and hash; and a hash of the workspace as the stage left it, kept whether or not the workspace is.</summary>
+    public string? Try { get; init; }
+    public Dictionary<string, Ref>? Configuration { get; init; }
+    public string? WorkspaceHash { get; set; }
     /// <summary>How an nb variant ran; absent on an agent variant, whose attempt is described by <see cref="Agent"/>.</summary>
     public string? Runner { get; init; }
     public string? Harness { get; init; }
@@ -163,8 +169,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     {
         var gaps = Bank.Gaps(exam, bank);
         // A staged exam is counted in tries: every stage of a variant has the same gap, since a try is all of them or none.
-        var per = exam.Staged ? exam.Tasks.Count : 1;
-        var wanted = exam.Attempts * exam.Tasks.Count / per;
+        int Per(Variant v) => exam.Staged ? Math.Max(1, exam.StagesOf(v.Id!).Count) : 1;
         var width = exam.Variants.Max(v => v.Id!.Length);
         log.WriteLine(exam.Staged ? $"{exam.Id}: one job of {exam.Tasks.Count} stage{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted"
             : $"{exam.Id}: {exam.Tasks.Count} task{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted of each");
@@ -173,6 +178,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             log.WriteLine($"  note: {AttemptCount(exam.Attempts)} a variant can show a difference between variants and never confirm one; 4 a variant can");
         foreach (var variant in exam.Variants)
         {
+            var (per, wanted) = (Per(variant), exam.Staged ? exam.Attempts : exam.Attempts * exam.Tasks.Count);
             var have = wanted - gaps.Where(g => g.Key.Variant == variant.Id).Sum(g => g.Value) / per;
             var making = variants is not null && !variants.Contains(variant.Id!) ? 0
                 : gaps.Where(g => g.Key.Variant == variant.Id && (tasks is null || tasks.Contains(g.Key.Task))).Sum(g => g.Value) / per;
@@ -189,11 +195,20 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var nb = ResolveNb(root, exam, config, nbOverride, runnerOverride);
         foreach (var variant in variants.Where(a => a.IsAgent)) Route(root, config, nb, variant);   // a missing endpoint fails before anything is made
         var id = Layout.NewLogEntryId(exam.Id, DateTime.UtcNow);
+        // On an exam with axes a try is named when it is made, by time and chance, and never by its place among the others.
+        var tryIds = new Dictionary<(string, int), string>();
+        if (exam.Axes is not null)
+            foreach (var key in attempts.Select(a => (a.Variant.Id!, a.Attempt)).Distinct())
+            {
+                string tryId;
+                do tryId = Layout.NewTryId(DateTime.UtcNow); while (tryIds.ContainsValue(tryId) || Directory.Exists(Layout.Try(root, exam.Id, key.Item1, key.Attempt, tryId)));
+                tryIds[key] = tryId;
+            }
         var entry = new LogEntry(
             Id: id, Exam: exam.Id, ExamHash: exam.Hash,
-            Variants: variants.Select(v => new SeenVariant(v.Id!, v.Hash, JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, v.Id!)))!.AsObject())).ToList(),
+            Variants: variants.Select(v => new SeenVariant(v.Id!, v.Hash, SeenDef(exam, v))).ToList(),
             Tasks: tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(),
-            Attempts: attempts.Select(a => new AttemptRef(a.Variant.Id!, a.Task.Id!, a.Attempt)).ToList(),
+            Attempts: attempts.Select(a => new AttemptRef(a.Variant.Id!, a.Task.Id!, a.Attempt, tryIds.GetValueOrDefault((a.Variant.Id!, a.Attempt)))).ToList(),
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
             Bundles: ResolveBundles(root, variants), Stages: exam.StageIds);
@@ -223,6 +238,11 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         new Runner(root, entry, exam, config, log).Make(attempts);
         return id;
     }
+
+    /// <summary>What a log entry keeps of a variant: its file as it was. Of a configuration: each axis's value, by name and hash.</summary>
+    static JsonObject SeenDef(Exam exam, Variant v) => exam.Axes is { } axes
+        ? JsonSerializer.SerializeToNode(axes.Seen(axes.Of(v.Id!)!), Exam.JsonOptions)!.AsObject()
+        : JsonNode.Parse(File.ReadAllText(Exam.VariantFile(exam.Dir, v.Id!)))!.AsObject();
 
     /// <summary>The exam's own definition as it stands, kept under exams-seen/ once per hash, so an attempt's checks can be read after the exam has moved on.</summary>
     static void KeepExam(string root, Exam exam)
@@ -284,11 +304,18 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             foreach (var then in entry.Variants)
             {
                 if (exam.Variants.FirstOrDefault(v => v.Id == then.Id) is not { } now || now.Hash == then.Hash) continue;
-                var made = entry.Attempts.Count(a => a.Variant == then.Id && File.Exists(Path.Combine(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages), Layout.ManifestFile)));
+                var made = entry.Attempts.Count(a => a.Variant == then.Id && File.Exists(Path.Combine(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages, a.Id), Layout.ManifestFile)));
                 if (made == 0) continue;
                 changed[then.Id] = (changed.GetValueOrDefault(then.Id).Attempts + made, then, entry.BundleOf(then.Id));   // the latest entry's record says what it was
             }
         if (changed.Count == 0) return;
+        // A value's name stands for its content: one whose content changed under the name it made attempts by is refused, as a variant is.
+        if (exam.Axes is { } axes)
+            throw new ProctorException(string.Join("\n", changed.SelectMany(c => axes.Seen(axes.Of(c.Key)!)
+                .Where(now => c.Value.Then.Def[now.Key]?["hash"]?.GetValue<string>() is { } then && then != now.Value.Hash)
+                .Select(now => (Axis: now.Key, Value: now.Value.Id, c.Value.Attempts)))
+                .GroupBy(x => (x.Axis, x.Value)).Select(g => $"exams/{exam.Id}/exam.json: axes.{g.Key.Axis}.values.{g.Key.Value}: this is not the {g.Key.Axis}={g.Key.Value} that made attempts ({string.Join(", ", changed.Keys.Where(k => axes.Of(k)![g.Key.Axis] == g.Key.Value))}).\n"
+                    + "  A changed value is a new value: give it a new name, and keep the old one as it was.")));
         throw new ProctorException(string.Join("\n", changed.Select(c =>
         {
             var now = exam.Variants.First(v => v.Id == c.Key);
@@ -315,8 +342,11 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
 
     /// <summary>Everything a hook or check needs to know about an attempt, for the runner and the grader alike. The log entry says how its run resolved nb, the bundles and the Harbor tasks.</summary>
     public static AttemptContext Context(string root, LogEntry entry, Exam exam, Variant variant, TaskDef task, int n) =>
-        new(exam.Dir, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), Layout.Work(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), exam.Id, variant.Id!, task, n)
-        { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = entry.BundleOf(variant.Id!)?.Path, NbRunner = entry.Nb.Runner?.Script ?? "", NbPath = entry.Nb.Path, NbConfig = entry.Nb.Config, Mounts = entry.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
+        new(exam.Dir, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages, entry.IdOf(variant.Id!, n)), Layout.Work(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages, entry.IdOf(variant.Id!, n)), exam.Id, variant.Id!, task, n)
+        { Axis = exam.Axes?.Of(variant.Id!) is { } c ? c.Values.ToDictionary(v => v.Axis, v => v.Value) : new(),
+          Params = exam.Axes?.Of(variant.Id!) is { } pc ? exam.Axes.Params(pc, exam.Def, exam.FixtureOf(task), exam.Dir) : new(),
+          Overlays = exam.Axes?.Of(variant.Id!) is { } oc ? exam.Axes.Overlays(oc, exam.Dir) : [],
+          Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = entry.BundleOf(variant.Id!)?.Path, NbRunner = entry.Nb.Runner?.Script ?? "", NbPath = entry.Nb.Path, NbConfig = entry.Nb.Config, Mounts = entry.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
           VerifierTask = variant.IsAgent && entry.Stages is not null ? Layout.HarborJobTask(Layout.LogEntry(root, entry.Id), variant.Id!, exam.Id) : variant.IsAgent ? Layout.HarborTask(Layout.LogEntry(root, entry.Id), variant.Id!, task.Id!) : null };
 
     /// <summary>
@@ -433,7 +463,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         log.WriteLine($"{statuses.Count} made: {statuses.Count(s => s == AttemptStatus.Completed)} completed{(failed > 0 ? $", {failed} failed" : "")}");
     }
 
-    string AttemptDir(Variant variant, TaskDef task, int n) => Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages);
+    string AttemptDir(Variant variant, TaskDef task, int n) => Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages, entry.IdOf(variant.Id!, n));
 
     /// <summary>
     /// One try of a staged exam: the workspace checked out and set up once, then nb started afresh for each stage in
@@ -446,8 +476,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// </summary>
     void RunTry(Variant variant, int n)
     {
-        var stages = exam.Tasks;
-        var tryDir = Layout.Try(root, exam.Id, variant.Id!, n);
+        var stages = exam.StagesOf(variant.Id!);
+        var tryDir = Layout.Try(root, exam.Id, variant.Id!, n, entry.IdOf(variant.Id!, n));
         var first = Context(root, entry, exam, variant, stages[0], n);
         var workDir = first.WorkDir;
         Directory.CreateDirectory(Path.Combine(tryDir, Layout.HooksDir));
@@ -456,7 +486,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
 
         // The try's own setup: the checkout, then the attempt hook, which sees the first stage's environment.
         var env = first.Environment();
-        var lost = first.Fixture is not null && Checkout.Materialise(first.Fixture, workDir) is { } checkoutError ? $"fixture checkout failed: {checkoutError}" : null;
+        var lost = first.Fixture is not null && Checkout.Materialise(first.Fixture, workDir, first.Overlays) is { } checkoutError ? $"fixture checkout failed: {checkoutError}" : null;
         var setupRan = lost is null;
         if (setupRan && RunHook(exam.Def.Hooks?.Attempt?.Setup, env, Path.Combine(tryDir, Layout.HooksDir, "attempt.setup.log")) is { } setupError)
             lost = $"attempt setup hook failed: {setupError}";
@@ -577,7 +607,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var attempt = Context(root, entry, exam, variant, stage, n);
         var attemptDir = attempt.AttemptDir;
         Directory.CreateDirectory(attemptDir);
-        var program = OraclePrefix(exam, stage) + ResolveProgram(exam.ProgramTemplate, variant, stage, n, attempt.WorkMount, attempt.BundleMount);
+        var program = OraclePrefix(exam, stage) + ResolveProgram(exam.ProgramTemplate, variant, stage, n, attempt.WorkMount, attempt.BundleMount, attempt);
         var manifest = NewManifest(variant, stage, n, attempt.Fixture, Sha256(program));
         manifest.Tries++;
         manifest.Started = Now();
@@ -591,6 +621,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         if (exit is not null && StageEnd.DidNotRun(exit)) failure = $"did not run: {exit}";
         // The workspace as this stage left it, before the next stage restores or builds on it.
         if (failure is null && collectDiff && Checkout.CollectDiff(attempt.WorkDir, attemptDir) is { } diffError) failure = $"diff collection failed: {diffError}";
+        if (failure is null && collectDiff && exam.Axes is not null) manifest.WorkspaceHash = Tree.Hash(attempt.WorkDir, new HashSet<string> { ".git" });
         stopwatch.Stop();
 
         manifest.Ended = Now();
@@ -609,6 +640,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         Fixture = fixture is null ? null : new FixtureRef(fixture.Id, fixture.Hash),
         Bundle = entry.BundleOf(variant.Id!), Nb = entry.Nb,
         Host = entry.Host, Versions = entry.Versions, ProgramHash = programHash,
+        Try = entry.IdOf(variant.Id!, n), Configuration = exam.Axes is { } axes ? axes.Seen(axes.Of(variant.Id!)!) : null,
     };
 
     /// <summary>A stage that was not launched, or one whose try failed around it: its manifest and status, with why.</summary>
@@ -910,7 +942,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     void WriteStatusCounts()
     {
         var counts = AttemptStatus.All.ToDictionary(s => s, _ => 0);
-        foreach (var a in entry.Attempts) counts[ReadStatus(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages))]++;
+        foreach (var a in entry.Attempts) counts[ReadStatus(Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages, a.Id))]++;
         WriteJson(Path.Combine(entryDir, Layout.StatusCountsFile), new { planned = entry.Attempts.Count, counts, updated = Now() });
     }
 
@@ -934,7 +966,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>Fill the template. {{work}} and {{bundle}} are the paths the model will see, which a runner may mount elsewhere. A prompt's newlines become nb continuation lines so the program stays one directive.</summary>
-    public static string ResolveProgram(string template, Variant variant, TaskDef c, int n, string workDir, string? bundleDir = null)
+    public static string ResolveProgram(string template, Variant variant, TaskDef c, int n, string workDir, string? bundleDir = null, AttemptContext? attempt = null)
     {
         var values = new Dictionary<string, string>
         {
@@ -948,7 +980,12 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             ["variant"] = variant.Id!,
             ["attempt"] = n.ToString(),
         };
-        return System.Text.RegularExpressions.Regex.Replace(template, @"\{\{\s*([^}]*?)\s*\}\}", m => values[m.Groups[1].Value]);
+        return System.Text.RegularExpressions.Regex.Replace(template, @"\{\{\s*([^}]*?)\s*\}\}", m => m.Groups[1].Value switch
+        {
+            var name when name.StartsWith("axis.") => attempt?.Axis.GetValueOrDefault(name[5..]) ?? "",
+            var name when name.StartsWith("param.") => attempt?.Params.GetValueOrDefault(name[6..]) ?? "",
+            var name => values[name],
+        });
     }
 
     static ResolvedNb ResolveNb(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride)

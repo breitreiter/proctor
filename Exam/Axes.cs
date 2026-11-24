@@ -91,6 +91,45 @@ sealed class Axes
     public string? WorldAxis { get; init; }
 
     public IEnumerable<Configuration> Wanted => Configurations.Where(c => !c.Excluded);
+    public Configuration? Of(string key) => Configurations.FirstOrDefault(c => c.Key == key);
+
+    /// <summary>The files a configuration's values lay over the checkout, in the order the axes are declared.</summary>
+    public List<(string Dir, string? To)> Overlays(Configuration c, string examDir) =>
+        c.Values.Select(v => Value(v.Axis, v.Value).Files).OfType<FilesSource>().Where(f => f.Path is not null)
+            .Select(f => (Path.GetFullPath(Path.Combine(examDir, f.Path!)), f.To)).ToList();
+
+    /// <summary>
+    /// Every parameter the base declares, as a configuration has it: the declared default, or what one of its values
+    /// sets. Text as it is; a tree as the directory's path on the host; a secret as the value of the variable it names.
+    /// </summary>
+    public Dictionary<string, string> Params(Configuration c, ExamDef def, Fixture? fixture, string examDir)
+    {
+        var result = new Dictionary<string, string>();
+        void Give(string name, ParamDef declared, JsonNode? given, string dir) => result[name] =
+            given is null ? ""
+            : declared.Tree == true ? given.Deserialize<FilesSource>(Exam.JsonOptions)?.Path is { } p ? Path.GetFullPath(Path.Combine(dir, p)) : ""
+            : declared.Secret == true ? Environment.GetEnvironmentVariable(given.ToString()) ?? ""
+            : given.ToString();
+        foreach (var (name, declared) in fixture?.Def.Params ?? []) Give(name, declared, declared.Default, fixture!.Dir);
+        foreach (var (name, declared) in def.Params ?? []) Give(name, declared, declared.Default, examDir);
+        foreach (var (axis, value) in c.Values)
+            foreach (var (name, given) in Value(axis, value).Set ?? [])
+                Give(name, def.Params?.GetValueOrDefault(name) ?? fixture!.Def.Params![name], given, examDir);
+        return result;
+    }
+
+    /// <summary>A configuration as a log entry and a manifest keep it: each axis's value by name and by the hash that is its identity.</summary>
+    public Dictionary<string, Ref> Seen(Configuration c) => c.Values.ToDictionary(v => v.Axis, v => new Ref(v.Value, ValueHashes[v]));
+
+    /// <summary>Why a configuration cannot be run yet, or null: what later slices of plans/axes-build.md build.</summary>
+    public string? NotYet(Configuration c)
+    {
+        if (Assistant(c).IsAgent) return "runs through Harbor, which does not read a configuration yet (plans/axes-build.md, slice 4)";
+        foreach (var (axis, value) in c.Values)
+            if (Value(axis, value) is var v && (v.Files?.Git is not null || (v.Set ?? []).Values.Any(g => g is JsonObject o && o["git"] is not null)))
+                return $"{axis}={value} takes its files from a git revision, which is not fetched yet; give it a directory";
+        return null;
+    }
     public ValueDef Value(string axis, string value) => Def[axis].Values![value]!;
     public bool Applies(TaskDef stage, Configuration c) => !Conditions.TryGetValue(stage.Id!, out var when) || when.Holds(c);
     /// <summary>The fixture a configuration runs in: its world value's, or the exam's.</summary>
@@ -253,6 +292,12 @@ sealed class Axes
         foreach (var group in named.GroupBy(k => k.Key).Where(g => g.Count() > 1))
             Add($"configurations.{group.Last().Value}", $"the same values as '{group.First().Value}'; a configuration has one name");
 
+        // A stage belongs to one world for now: its checks and expected values come from that world's fixture.
+        if (world is not null)
+            foreach (var stage in stages.Where(s => s.Id is not null && !(conditions.GetValueOrDefault(s.Id!)?.Terms.Any(t => t.Axis == world && !t.Not) ?? false)))
+                Add(stage.At + "when", $"required: axis '{world}' names the fixture, so each stage says which one it belongs to (`{world} = <value>`); a stage that runs in several is not built yet");
+        if (world is null && def.Fixture is null && axes.Values.Any(a => a.Values!.Values.Any(v => v!.Files is not null)))
+            Add("fixture", "required: a value's files are laid over a checkout, and this exam has none");
         var loaded = new Axes { Def = axes!, Configurations = configurations, ValueHashes = hashes, Conditions = conditions, WorldAxis = world };
         if (!loaded.Wanted.Any()) Add("exclude", "excludes every configuration; nothing is left to run");
         foreach (var c in loaded.Wanted)

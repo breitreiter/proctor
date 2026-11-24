@@ -171,6 +171,51 @@ The exam: `readme-answers` with `docs: as-shipped | for-scripts` (live
 shakedown the second axis is two Mock providers, so a 2 × 2 costs
 nothing.
 
+**BUILT 2026-11-24**, bare only.
+
+- A try of a configuration runs the stages whose condition holds in
+  it. `run`, `grade` and `friction` read an exam with axes; `--value`
+  and `--configuration` narrow them. `report` and `live` still refuse
+  (slice 3; live is declared on the axis).
+- The bank: `bank/<exam>/<try id>/stages/<i>-<id>/`, the id made of
+  the time and four random characters. Each stage's manifest names the
+  try, the value on each axis by name and hash, and a hash of the
+  workspace as the stage left it. The checkout is
+  `.proctor/work/<exam>/<try id>`.
+- Values' files are laid over the checkout and committed before the
+  first stage, at run and again when grading rebuilds a stage's
+  workspace. Parameters reach the program as `{{param.NAME}}` and hooks
+  and checks as `PROCTOR_PARAM_<NAME>`; an axis's value as
+  `{{axis.name}}` and `PROCTOR_AXIS_<NAME>`.
+- A value whose content changed under the name it made attempts by is
+  refused, naming the axis and value. A removed value's attempts are
+  stale.
+- `list` counts tries made per configuration.
+
+Shortcuts taken, to be undone when they matter:
+
+- **The bank is still read through the log**, and a try still has a
+  number there and in its manifest (`attempt`), beside its id. Reading
+  the bank from its own files, with the number counted when read, waits
+  for hosting, which is what needs it.
+- **Inside the code a configuration is carried as a variant whose id is
+  the configuration's key** (`docs=shipped,assistant=mock`), so the
+  manifest's `variant` holds that key and log lines print it. Slice 7
+  renames it.
+- **A stage belongs to one world.** On an exam with a world axis every
+  stage must name its world in `when`; a stage that runs in several is
+  refused.
+- **Not run yet:** a configuration through Harbor (slice 4), and a
+  value whose files come from a git revision. Both are refused by `run`
+  with the reason.
+- A secret parameter is read from the environment variable its value
+  names; nothing checks yet that it stays out of the bank's files.
+
+Tried for real on a scratch port of `readme-answers` as docs by two
+Mock assistants: two configurations run with `--value docs=for-scripts`,
+graded 24 of 24, the grid in `list` filled for that row only, and an
+edit to the value's README refused on the next `run`.
+
 **Look at:** the bank after a shakedown run. **It teaches:** whether
 "every change is a value" survives contact with a program template,
 and whether the layout by attempt id is workable for a person at a
@@ -192,6 +237,39 @@ The first legibility test, deliberately before Harbor.
   bank. Its design doc (`exam-page.md`) is rewritten first, as a short
   proposal for the user: the grid leads, a comparison is along one
   axis. "Setup" becomes configuration.
+
+**Proctor's half BUILT 2026-11-24.** `proctor report` on an exam with
+axes writes `stats.json` as `configurations/1` (`Report/Configurations.cs`):
+
+- every configuration as a row with its state (`made`, `partial`,
+  `not_run`, `excluded`), its tries, lost and stale counts, and its
+  tries as a staged exam's variant has them;
+- for each axis with a live value, each other value against it: one
+  cell per configuration of the other axes, each compared by
+  Mann–Whitney or marked not run (and which side), and the cells read
+  as one;
+- a sentence per comparison that states its scope and its gaps.
+
+**The pooled comparison is the van Elteren test**: Mann–Whitney inside
+each cell, the cells' statistics added with weight 1/(n+m+1), the p
+exact while the arrangements stay under 400,000. A try is only ranked
+against tries of its own cell, so worlds that differ from each other do
+not read as a difference between values. This is my choice, for the
+user to confirm; it is the standard stratified form of the test already
+in use. It reports whether the tries made could confirm anything: one
+try a side in three cells cannot (p is at least 0.25), which is
+`code-change`'s shape today.
+
+Tried on the scratch port of `readme-answers` (two docs by two Mock
+assistants, three tries each, a scripted check that fails where the
+README does not say the answer): with one live cell empty the report
+said so and compared the other alone (p = 0.1, cannot confirm); filled,
+the two cells read as one confirmed it (p = 0.005). A copy is in
+`/srv/aiwork/proctor-private/views/axes-sample/`.
+
+**The viewer's half is proposed, not built:** auspex's
+`project/exam-page-axes.md`. Reading the bank by try id and the new
+address of a stage wait for the user's answer to it.
 
 **Look at:** the exam page on the free 2 × 2, and on a sample bank with
 three axes and holes in it. **It teaches:** signs 4, 5 and 7, which are

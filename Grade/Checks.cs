@@ -55,6 +55,10 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     public string? VerifierTask { get; init; }
     /// <summary>A vendor agent's attempt, not nb's: nb's own behaviour (the loop nudge) has nothing to read there.</summary>
     public bool Vendor { get; init; }
+    /// <summary>On an exam with axes: the value on each axis, every parameter of the base as this configuration has it, and the files its values lay over the checkout.</summary>
+    public IReadOnlyDictionary<string, string> Axis { get; init; } = new Dictionary<string, string>();
+    public IReadOnlyDictionary<string, string> Params { get; init; } = new Dictionary<string, string>();
+    public IReadOnlyList<(string Dir, string? To)> Overlays { get; init; } = [];
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
     public string WorkMount => Mounts?.Work ?? WorkDir;
@@ -64,7 +68,16 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     /// <summary>A container name for this attempt, derived from its coordinates. Proctor never uses it; hooks and runners that own a container agree on it through this.</summary>
     public string Container => $"proctor-{ExamId}-{Variant}-{Task.Id}-{Attempt}";
 
-    public IDictionary<string, string> Environment() => new Dictionary<string, string>
+    public IDictionary<string, string> Environment()
+    {
+        var env = Coordinates();
+        // Declared axes and parameters only: what a hook or a check reads here is in the configuration's identity.
+        foreach (var (axis, value) in Axis) env["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
+        foreach (var (name, value) in Params) env["PROCTOR_PARAM_" + name] = value;
+        return env;
+    }
+
+    Dictionary<string, string> Coordinates() => new()
     {
         ["PROCTOR_EXAM_DIR"] = ExamDir,
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",

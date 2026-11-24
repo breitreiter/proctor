@@ -6,7 +6,7 @@ namespace Proctor;
 record BankAttempt(LogEntry Entry, string Variant, string Task, int Attempt, string Status, string VariantHash, string TaskHash)
 {
     public string Label => Staged ? $"{Variant}/{Attempt}/{Task}" : $"{Variant}/{Task}/{Attempt}";
-    public string Dir(string root) => Layout.Attempt(root, Entry.Exam, Variant, Task, Attempt, Entry.Stages);
+    public string Dir(string root) => Layout.Attempt(root, Entry.Exam, Variant, Task, Attempt, Entry.Stages, Entry.IdOf(Variant, Attempt));
     /// <summary>Never finished: pending, running when the run stopped, or failed for a reason of the machine's. A completed attempt is a result, whatever its exit reason.</summary>
     public bool Unfinished => Status is AttemptStatus.Pending or AttemptStatus.Running or AttemptStatus.Failed;
     /// <summary>One stage of a try, not a task's attempt.</summary>
@@ -70,7 +70,7 @@ static class Bank
     static List<BankAttempt> Read(string root, Exam exam) =>
         Entries(root, exam.Id).SelectMany(entry => entry.Attempts.Select(a =>
         {
-            var dir = Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages);
+            var dir = Layout.Attempt(root, exam.Id, a.Variant, a.Task, a.Attempt, entry.Stages, a.Id);
             var manifestFile = Path.Combine(dir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
             return new BankAttempt(entry, a.Variant, a.Task, a.Attempt, Runner.ReadStatus(dir),
@@ -80,8 +80,8 @@ static class Bank
 
     /// <summary>Null when the attempt is current; otherwise which hash moved since it was made.</summary>
     public static string? Stale(Exam exam, BankAttempt a) =>
-        exam.Variants.FirstOrDefault(v => v.Id == a.Variant) is not { } variant ? $"variant {a.Variant} has no file now"
-        : variant.Hash != a.VariantHash ? $"variant {a.Variant} changed ({Short(a.VariantHash)} then, {Short(variant.Hash)} now)"
+        exam.Variants.FirstOrDefault(v => v.Id == a.Variant) is not { } variant ? exam.Axes is null ? $"variant {a.Variant} has no file now" : $"configuration {a.Variant} is not declared now"
+        : variant.Hash != a.VariantHash ? $"{(exam.Axes is null ? "variant" : "configuration")} {a.Variant} changed ({Short(a.VariantHash)} then, {Short(variant.Hash)} now)"
         : !exam.TaskHashes.TryGetValue(a.Task, out var task) ? $"task {a.Task} is no longer in the exam"
         : task != a.TaskHash ? $"task {a.Task} changed ({Short(a.TaskHash)} then, {Short(task)} now)"
         : null;
@@ -97,7 +97,7 @@ static class Bank
 
     /// <summary>For each variant and task: the exam's attempts less its current, completed attempts in the bank.</summary>
     public static Dictionary<(string Variant, string Task), int> Gaps(Exam exam, List<BankAttempt> bank) =>
-        (from variant in exam.Variants from task in exam.Tasks select (variant.Id!, task.Id!)).ToDictionary(k => k, k =>
+        (from variant in exam.Variants from task in exam.StagesOf(variant.Id!) select (variant.Id!, task.Id!)).ToDictionary(k => k, k =>
             Math.Max(0, exam.Attempts - bank.Count(a => a.Variant == k.Item1 && a.Task == k.Item2 && a.Counts && Stale(exam, a) is null)));
 
     /// <summary>
@@ -110,7 +110,7 @@ static class Bank
         var gaps = Gaps(exam, bank);
         var missing = new List<(Variant, TaskDef, int)>();
         foreach (var variant in exam.Variants.Where(v => variants is null || variants.Contains(v.Id!)))
-            foreach (var task in exam.Tasks.Where(t => tasks is null || tasks.Contains(t.Id!)))
+            foreach (var task in exam.StagesOf(variant.Id!).Where(t => tasks is null || tasks.Contains(t.Id!)))
             {
                 var next = bank.Where(a => a.Variant == variant.Id && a.Task == task.Id).Select(a => a.Attempt).DefaultIfEmpty(0).Max() + 1;
                 for (var i = 0; i < gaps[(variant.Id!, task.Id!)]; i++) missing.Add((variant, task, next + i));

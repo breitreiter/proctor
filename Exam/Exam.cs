@@ -234,6 +234,8 @@ sealed class Exam
     public bool Chained => Def.Chained == true;
     /// <summary>The stage ids in the order they run, or null for a task exam: what the bank's paths are built from.</summary>
     public List<string>? StageIds => Staged ? Tasks.Select(c => c.Id!).ToList() : null;
+    /// <summary>The stages (or tasks) a variant runs: all of them, or on an exam with axes those whose condition holds in the configuration.</summary>
+    public List<TaskDef> StagesOf(string variantId) => Axes?.Of(variantId) is { } c ? Tasks.Where(s => Axes.Applies(s, c)).ToList() : Tasks;
 
     /// <summary>Whether any variant runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
     public bool HasAgentVariants => Variants.Any(v => v.IsAgent);

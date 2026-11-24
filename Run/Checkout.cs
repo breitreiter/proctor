@@ -4,7 +4,28 @@ namespace Proctor;
 static class Checkout
 {
     /// <summary>A fresh checkout of the fixture in workDir, committed so the diff has a base. Null on success, else why not.</summary>
-    public static string? Materialise(Fixture fixture, string workDir)
+    public static string? Materialise(Fixture fixture, string workDir, IReadOnlyList<(string Dir, string? To)>? overlays = null) =>
+        Base(fixture, workDir) ?? Overlay(workDir, overlays);
+
+    /// <summary>
+    /// The files a configuration's values carry, laid over the checkout and committed, so they are part of what every
+    /// stage starts from: a diff shows only what the agent changed, and a fresh stage is restored to the base with them.
+    /// </summary>
+    static string? Overlay(string workDir, IReadOnlyList<(string Dir, string? To)>? overlays)
+    {
+        if (overlays is null or { Count: 0 }) return null;
+        foreach (var (dir, to) in overlays)
+            foreach (var (relative, full) in Tree.Files(dir, new HashSet<string> { ".git" }))
+            {
+                var dest = Path.Combine(workDir, to ?? "", relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                File.Copy(full, dest, overwrite: true);
+            }
+        return Git(workDir, "add", "-A")
+            ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", "values");
+    }
+
+    static string? Base(Fixture fixture, string workDir)
     {
         if (Directory.Exists(workDir)) Directory.Delete(workDir, recursive: true);
         Directory.CreateDirectory(workDir);
@@ -57,10 +78,10 @@ static class Checkout
     }
 
     /// <summary>For a regrade after the checkout is gone: the fixture again, with the attempt's diff applied. Null on success.</summary>
-    public static string? Restore(Fixture fixture, string workDir, string attemptDir)
+    public static string? Restore(Fixture fixture, string workDir, string attemptDir, IReadOnlyList<(string Dir, string? To)>? overlays = null)
     {
         if (Directory.Exists(workDir) && Directory.EnumerateFileSystemEntries(workDir).Any()) return null;
-        if (Materialise(fixture, workDir) is { } error) return error;
+        if (Materialise(fixture, workDir, overlays) is { } error) return error;
         var diff = Path.Combine(attemptDir, Layout.DiffFile);
         if (!File.Exists(diff) || new FileInfo(diff).Length == 0) return null;
         return Git(workDir, "apply", "--allow-empty", diff) is { } applyError ? $"git apply {Layout.DiffFile}: {applyError}" : null;

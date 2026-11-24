@@ -70,18 +70,21 @@ static class Layout
     /// order), the attempt is one stage of a try: the try is the variant's nth, and the stage sits under it by its place
     /// and id, so the directory lists in the order the stages ran.
     /// </summary>
-    public static string Attempt(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null) =>
+    public static string Attempt(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null, string? id = null) =>
         stages is null ? Path.Combine(Bank(root, examId), variant, task, n.ToString())
-        : Path.Combine(Try(root, examId, variant, n), StagesDir, $"{stages.ToList().IndexOf(task) + 1}-{task}");
+        : Path.Combine(Try(root, examId, variant, n, id), StagesDir, $"{stages.ToList().IndexOf(task) + 1}-{task}");
     /// <summary>One try of a staged exam: every stage once, in one workspace. Holds the stages, the try's hooks' output and its diff.</summary>
-    public static string Try(string root, string examId, string variant, int n) => Path.Combine(Bank(root, examId), variant, n.ToString());
+    /// <summary>With an id (an exam with axes, plans/axes-build.md), the try sits under that id alone: bank/&lt;exam&gt;/&lt;id&gt;/, its manifests saying which configuration it ran as.</summary>
+    public static string Try(string root, string examId, string variant, int n, string? id = null) =>
+        id is not null ? Path.Combine(Bank(root, examId), id) : Path.Combine(Bank(root, examId), variant, n.ToString());
     /// <summary>The checkout an attempt runs in. A staged exam's stages share their try's.</summary>
-    public static string Work(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null) =>
+    public static string Work(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null, string? id = null) =>
         stages is null ? Path.Combine(root, WorkDir, examId, variant, task, n.ToString())
+        : id is not null ? Path.Combine(root, WorkDir, examId, id)
         : Path.Combine(root, WorkDir, examId, variant, n.ToString());
     /// <summary>A stage's workspace rebuilt for grading: the fixture with the stage's diff on it, since the try's own checkout only holds what the last stage left.</summary>
-    public static string WorkAsStageLeftIt(string root, string examId, string variant, int n, string stageDir) =>
-        Path.Combine(root, WorkDir, examId, variant, $"{n}.stages", stageDir);
+    public static string WorkAsStageLeftIt(string root, string examId, string variant, int n, string stageDir, string? id = null) =>
+        id is not null ? Path.Combine(root, WorkDir, examId, $"{id}.stages", stageDir) : Path.Combine(root, WorkDir, examId, variant, $"{n}.stages", stageDir);
     /// <summary>What one `proctor run` did: entry.json, its status counts, its variant hooks' output, and the Harbor tasks it compiled.</summary>
     public static string LogEntry(string root, string entryId) => Path.Combine(root, LogDir, entryId);
     public static string LogEntryFileIn(string root, string entryId) => Path.Combine(LogEntry(root, entryId), LogEntryFile);
@@ -105,6 +108,9 @@ static class Layout
         $"{utcNow:yyyyMMdd-HHmm}-{examId}-{RandomSuffix(4)}";
 
     public static string NewAttemptId() => RandomSuffix(16);
+
+    /// <summary>A try's id on an exam with axes: when it was made and four random characters, so it sorts by time, is made offline and never changes.</summary>
+    public static string NewTryId(DateTime utcNow) => $"{utcNow:yyyyMMdd-HHmm}-{RandomSuffix(4)}";
 
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
     private const string Hex = "0123456789abcdef";

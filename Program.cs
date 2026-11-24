@@ -24,6 +24,8 @@ static class Program
         --nb <path>           the nb binary (default: exams/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per attempt (default: the exam's nb.runner); none runs nb bare
         --variant <id>        run, grade, friction, report: only this variant's attempts, the others left as they are (repeatable)
+        --value <axis=value>  on an exam with axes: only the configurations holding this value (repeatable)
+        --configuration <name>  on an exam with axes: only the configuration the exam gives this name
         --tasks <a,b>         run, grade, friction, report: only these tasks' attempts
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the attempts' verdict files; friction --reader: ask the reader again
@@ -51,6 +53,8 @@ static class Program
                 case "--config" when i + 1 < args.Length: configFile = args[++i]; break;
                 case "--runner" when i + 1 < args.Length: runner = args[++i]; break;
                 case "--variant" when i + 1 < args.Length: (variants ??= []).Add(args[++i]); break;
+                case "--value" when i + 1 < args.Length: (Verbs.ValueFilters ??= []).Add(args[++i]); break;
+                case "--configuration" when i + 1 < args.Length: Verbs.ConfigurationName = args[++i]; break;
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
                 case "--rejudge": rejudge = true; break;

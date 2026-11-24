@@ -7,6 +7,25 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Axes, reported** (`axes-build.md`, slice 3, proctor's half).
+  `proctor report` on an exam with axes writes `stats.json` as
+  `configurations/1`: every configuration with its state (a
+  configuration nobody ran is `not_run`, never left out), and each
+  value of an axis against that axis's live value, cell by cell with
+  the other axes held and read as one across them (the van Elteren
+  test). Each comparison's sentence says which configurations it
+  covered and which were not run.
+- **Axes, run bare** (`axes-build.md`, slice 2). `proctor run` makes
+  every configuration of an exam with axes that runs nb bare; `--value
+  axis=value` and `--configuration name` narrow `run`, `grade` and
+  `friction`. A try is kept at `bank/<exam>/<try id>/`, the id its time
+  and four random characters, and its manifests name the value on each
+  axis and a hash of the workspace each stage left. A value's files are
+  laid over the checkout and committed before the first stage; declared
+  parameters reach the program as `{{param.NAME}}` and hooks and checks
+  as `PROCTOR_PARAM_<NAME>`. A value changed under a name that has made
+  attempts is refused. Through Harbor, `report` and git-sourced files
+  are not built for axes yet.
 - **Axes, declared** (`axes-build.md`, slice 1; the model is
   `axes.md`). An exam of stages can declare `axes` in `exam.json` in
   place of `variants/`: each axis a named thing with values, one value
