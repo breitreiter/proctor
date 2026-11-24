@@ -291,8 +291,8 @@ Harbor's source says it writes per step, not on a run.
    row per stage, and `summary.md`. Against live is Mann–Whitney with an
    exact two-sided p, on both measures, with proctor's sentence and what
    moved most. A lost try is in no number; a try with a stage that
-   failed a validity check is listed and not counted (my reading: the
-   author said such an attempt says nothing). `run` notes when the tries
+   failed a validity check is listed and not counted (the user,
+   2026-11-23: a validity failure drops the whole try). `run` notes when the tries
    wanted cannot confirm a difference. Not built: each step's tool kind
    for the exam page's strip.
 6. **Harbor.** BUILT 2026-11-23. Checked first on real runs of Harbor
