@@ -544,6 +544,56 @@ Added from `axes.md`, "From how others handle this" (mine, to confirm):
 - The checks a claim names are the claim. The rest are shown for
   looking, and the report says how many it showed.
 
+**Pinned (the user, 2026-11-24): a treatment, now that the rest
+exists.** Not built, no rush, and the word is open: **candidate** if
+"treatment" is too opaque. With axes, values and configurations in
+place it collapses to three things:
+
+- a name;
+- a configuration;
+- a series of claims about how that configuration should move checks
+  or metrics (friction, wall time, token cost, failures).
+
+What it is for: before a configuration is run many times, the person
+or agent writes "I think we should X, because it will improve Y",
+instead of filling the whole matrix. The claim is the reason the
+attempts are made.
+
+To settle when this is built (mine):
+
+- **A claim here hangs on a configuration; above it is one axis, two
+  values.** They meet if a treatment's configuration is read against
+  live: differing on one axis, it is the claim above with a name;
+  differing on several, it is the combination `axes.md` already names
+  ("What should we ship": `candidate` against `shipped`).
+- **Claims about metrics are new.** So far a claim names checks.
+  Friction, wall time, tokens and failure counts are numbers, so such
+  a claim needs a direction and, to be held to, a size.
+- **"Candidate" is already the example name** of the configuration
+  proposed for release in `axes.md`; taking it as the word would make
+  that the general case, which fits.
+- **Encouraged, not required.** Where the nudge lives (the skill,
+  `run` saying which attempts no claim asked for) is open; refusing an
+  unclaimed run is not proposed.
+
+Caveats (mine, agreed by the user 2026-11-24):
+
+- **Looking first stays allowed.** The loop in `axes.md` starts from
+  friction coded on existing attempts, so some attempts are made with
+  no claim, or there is nothing to find friction in. Two modes, each
+  said plainly: a small unclaimed look, labelled as one, and claimed
+  runs. Hence a nudge, never a gate.
+- **A claim does not stop hill-climbing.** `candidate-v2`, `v3`, `v4`
+  against the same tasks, each with a tidy claim, still fit the exam.
+  What guards against that is above and not yet built: fresh attempts
+  of the live side beside the candidate's, the number of attempts read
+  said beforehand, and in time tasks held back.
+- **A claim counts only if the report holds it to account.** An agent
+  will write a plausible claim for every cell. "Claimed, did not
+  happen" is shown as plainly as a claim that held.
+- **One sentence must be enough**: a check or metric and a direction.
+  Anything heavier gets skipped.
+
 ## Slice 6a: what the exam remembers
 
 Facts Claude needs for the reader's first two questions, which only
