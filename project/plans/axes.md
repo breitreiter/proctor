@@ -696,6 +696,16 @@ for the Go version the code declares.
   flexible as they are (files proctor lays, parameters the base's
   scripts act on); the risk is taken out by looking at what each one
   did by itself, and by discouraging scripts that read several axes.
+- **16. A script that reads several axes is unsafe code** (the user,
+  2026-11-24), as `unsafe` is in C#, without a marker in the syntax
+  for now. It is allowed and never refused. Whoever does it is on
+  their own: the review of each value built alone says nothing about
+  the configurations where the script acts, and proctor's checks do
+  not reach there. With several collaborators, or changes made without
+  review, keeping axes isolated is the safe route; where that is not
+  possible, care is the only guard. So there is no declared dependence
+  between axes yet, and what proctor may do is say where the safe
+  ground ends ("OPEN", 5).
 
 ## OPEN
 
@@ -732,8 +742,11 @@ for the Go version the code declares.
      reads two axes, what a configuration changed from the baseline is
      the changes of its values put together. Proctor can build the
      configuration, compare, and say where it is not: that is a script
-     reading several axes, found without reading the script. It turns
-     "strongly discouraged" into something reported.
+     reading several axes, found without reading the script. Under
+     decision 16 this is a report and never a refusal: it says which
+     configurations the reviews of single values do not cover, and a
+     comparison that reads one of them carries that in its answer. It
+     stands in for the marker the syntax does not have.
    - **Where the review is kept.** By the value's hash, with who
      reviewed it. A value's content cannot change under its name, so a
      value is reviewed once; a changed base asks for all of them again.
@@ -744,9 +757,11 @@ for the Go version the code declares.
      repeat shows as a difference with no value behind it, so the
      baseline is built twice first.
    - **Axes that do depend on each other.** A model only some agents
-     can use is why agent and model became one `assistant` axis. Is
-     that always the answer (one axis, or `exclude`), or is a declared
-     dependence between two axes ever allowed?
+     can use is why agent and model became one `assistant` axis.
+     Answered by decision 16: one axis or `exclude` is the safe form;
+     a script reading both is allowed and unguarded; nothing is
+     declared. A marker comes later (the user, 2026-11-24); whether it
+     is on the script, the axis or the pair is for then.
    - "The exam as given" (`axes-build.md`, sign 5) names a tab that was
      dropped; it becomes the value's sentence, its extent and its
      review.
