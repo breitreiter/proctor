@@ -316,8 +316,8 @@ whole repository, which nobody reads as a diff):
 6. **A value is built alone and what it changed is reviewed against
    what it says it does** (the user, 2026-11-24). Four parts:
    - the setup is built with only the named value, every other axis at
-     its baseline;
-   - what changed from the baseline is looked at, by a person or an
+     its reference value (the live value, or one the axis names);
+   - what changed from that reference build is looked at, by a person or an
      agent;
    - that is held against the value's own sentence (`note`), which is
      the claim of what the value does. A value that quietly does two
@@ -370,7 +370,8 @@ reports more than it measured.
 
 Marked as elsewhere: "the user" for what the user said, the rest mine
 and to confirm. None of it is built. It changes what slice 3's page is
-for, so `axes-build.md` needs revising after it and is not yet.
+for; `axes-build.md` was revised for it the same day (slices 3a to
+3d).
 
 ### The reader (the user)
 
@@ -392,10 +393,40 @@ axes or more. So nobody fills the cross product or looks at it: twelve
 axes of two values are 4,096 configurations. The configurations that
 exist are the ones somebody named or ran.
 
-### Claude carries it; proctor holds the evidence (the user, a leaning)
+### Settled: proctor does not do decision support (the user, 2026-11-24)
 
-Not settled, because where this reader meets proctor is hard to say.
-The leaning: the experience is Claude's, in conversation and in the
+The leaning below is now the decision ("Decided since", 17). Decision
+support is too big for proctor: one person builds it, and it is
+MIT-licensed. Proctor is three things:
+
+- **an excellent source of truth**;
+- **a solid layer for inspecting and navigating the evidence** (the
+  viewer);
+- **a solid data access layer for Claude and the dashboards Claude
+  builds.**
+
+It is not now, and likely never, good reports for product managers or
+makers, dashboards, or anything that says "ship this configuration and
+not that one". The best it can do is see that Claude, on the desktop
+or in a terminal, has accurate information and the levers for the deep
+analysis a recommendation to a person needs.
+
+What that moves (mine):
+
+- The release table under "The three questions" is not something
+  proctor outputs or holds. At most it is guidance in the skill for
+  the agent that makes the recommendation.
+- Proctor's own verdicts stay, since they are measurements: better,
+  worse or no detectable difference against live, with the interval.
+- `summary.md` stays as it is and is not built up for this reader.
+- The facts under "What the exam would declare" are judged as source
+  of truth: each earns its place if Claude cannot answer the reader
+  without it.
+
+### Claude carries it; proctor holds the evidence (the user)
+
+First said as a leaning, because where this reader meets proctor is
+hard to say: the experience is Claude's, in conversation and in the
 dashboards it builds. Proctor is a good citizen: its docs and tools
 steer Claude toward right conclusions for that reader. Proctor owns
 the evidence store, and the debugging and analysis views that let
@@ -409,7 +440,7 @@ into this" links to the attempts where Codex stumbled.
   (the user).
 - Someone working in Claude Code has the files and needs neither.
 
-### What follows, if the leaning holds (mine, to confirm)
+### What follows (mine, to confirm)
 
 1. **Claude says; proctor counts.** A rate or an interval worked out in
    a conversation cannot be checked, and two people asking one question
@@ -706,6 +737,22 @@ for the Go version the code declares.
   possible, care is the only guard. So there is no declared dependence
   between axes yet, and what proctor may do is say where the safe
   ground ends ("OPEN", 5).
+- **17. Proctor does not do decision support** (the user, 2026-11-24).
+  A source of truth, a layer for inspecting the evidence, and a data
+  access layer for Claude and what Claude builds. No reports for
+  product managers, no dashboards, no "ship this one". See "Who asks,
+  and through what", "Settled".
+- **18. A try, and an attempt** (the user, 2026-11-24, agreeing to my
+  recommendation). A **try** is one configuration run once through the
+  exam's stages. An **attempt** is one stage of a try, which is what
+  each stage's manifest already is. `CLAUDE.md`'s table,
+  `docs/configuration.md` and `hosted-auspex.md` follow when the old
+  path goes (`axes-build.md`, slice 7).
+- **19. The build plan's questions** (the user, 2026-11-24): `--value`
+  to `run` is that value with every other axis at its reference; a
+  verb builds without running and reviews are a file committed with
+  the exam; a review gates nothing; an agent's review counts and is
+  named as an agent's. `axes-build.md`, "Decided".
 
 ## OPEN
 
@@ -716,18 +763,19 @@ for the Go version the code declares.
    the report's work, and where the model succeeds or fails. If Claude
    carries it (2), legible means to Claude first: what a query answers
    and what its answer carries. The debugging views stay a person's.
-2. **Does Claude carry the experience for the product manager** (the
-   user's leaning, 2026-11-24), and so is there an MCP server. Until
-   this is answered, the five consequences, the declared facts and the
-   release table in "Who asks, and through what" are proposals.
-3. **What `axes-build.md` becomes.** If 2 holds: the query and its
+2. **Does Claude carry the experience for the product manager.**
+   Answered 2026-11-24: yes (decision 17). An MCP server over the
+   hosted bank follows from it, with hosting. The five consequences
+   and the declared facts in "Who asks, and through what" are still
+   mine and to confirm, one by one.
+3. **What `axes-build.md` becomes.** Revised 2026-11-24 as proposed
+   here, its slices 3a to 3d, to confirm. If 2 holds: the query and its
    answer come before the exam page, the page shrinks to what tells a
    reader what to ask, and signs 4, 5 and 7 stop being tests of a page
    a person reads. `run` filling every configuration (built) changes.
 4. **Left as they were, and contradicting what is built or decided**
-   (found 2026-11-24, each needing the user): whether the unit is an
-   attempt or a try (this file, `axes-build.md`, `hosted-auspex.md`
-   and `docs/configuration.md` differ); "no kinds of axis" (9) against
+   (found 2026-11-24, each needing the user): the unit, attempt or
+   try, is decided (18) and the files not yet brought to it; "no kinds of axis" (9) against
    the world axis in the code; "a value sets only parameters" (10)
    against a value that names a fixture, and what a changed fixture
    under such a value does; "agent and model are axes" (3) against one
@@ -735,11 +783,11 @@ for the Go version the code declares.
    still written in tasks where an exam with axes is one of stages.
 5. **What building a value alone needs** (mine, 2026-11-24, from
    decision 15):
-   - **A baseline on every axis.** Live serves where an axis has one.
+   - **A reference on every axis.** Live serves where an axis has one.
      An axis of the customer's (`go`) has none, so it needs a value
      named as the one others are built against, for this purpose only.
    - **The combination can be checked too, for nothing.** If no script
-     reads two axes, what a configuration changed from the baseline is
+     reads two axes, what a configuration changed from the reference build is
      the changes of its values put together. Proctor can build the
      configuration, compare, and say where it is not: that is a script
      reading several axes, found without reading the script. Under
@@ -755,7 +803,7 @@ for the Go version the code declares.
      how). A running service or a database inside one, not at all,
      unless the fixture gives a way to dump it. A build that does not
      repeat shows as a difference with no value behind it, so the
-     baseline is built twice first.
+     reference is built twice first.
    - **Axes that do depend on each other.** A model only some agents
      can use is why agent and model became one `assistant` axis.
      Answered by decision 16: one axis or `exclude` is the safe form;

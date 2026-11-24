@@ -103,6 +103,13 @@ that have worked for other people, but it owes nothing to industry convention or
 anyone else's UX. If a lever is easier to reach in a shape nobody else uses,
 use that shape.
 
+**Narrowed 2026-11-24** (`plans/axes.md`, decision 17): proctor does not
+do decision support. It is a source of truth, a layer for inspecting the
+evidence, and a data access layer for Claude and what Claude builds. The
+reader below is reached through their agent; the report is not built up
+into a product manager's report or a dashboard. What follows is as first
+written.
+
 The reports have a different audience: ordinary programmers, PMs, and
 documentation writers, across a range of skill levels. A report has to be
 legible to all of them on first read, and still hold up when an expert reviews
