@@ -7,6 +7,14 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **The first real exams of stages, and how to port a suite.**
+  `readme-answers` and `tern-docs` are staged: their `tasks/` are
+  `stages` in `exam.json`, and both `reference/shakedown.sh` scripts
+  read them there. `readme-answers` asks for 4 tries a variant, the
+  fewest that can confirm a difference. The other exams stay tasks
+  until each is next run. `docs/porting-from-suites.md` is the way from
+  a 0.3 suite to an exam of stages, and the exam-writing skill
+  (`skills/proctor-exam`) now writes stages.
 - **Stages, defined** (`bank.md`, step 4, slice 1). An exam can be one
   job of stages: `fixture` and `stages` in `exam.json` in place of
   `tasks/`, each stage with an `id`, a `prompt` and optionally `about`,

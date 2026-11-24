@@ -15,9 +15,14 @@ The three variants differ only in that bundle:
 
 The prompt is the same in every variant. It names both hosts and never says what the docs contain.
 
-## Tasks and what each needs from the docs
+## Stages and what each needs from the docs
 
-| Task | Implement | Needs |
+One try is the six stages in this order, in one container. Each stage starts from the shop as the fixture has
+it and in a new conversation, so no stage builds on another's code. Tern's sandbox at `localhost:8081` is not
+restarted between stages: a shipment one stage books is still there for the next. The checks are not affected,
+since the verifier starts a sandbox of its own.
+
+| Stage | Implement | Needs |
 |---|---|---|
 | `quote-at-checkout` | the cheapest price for a cart, in pence | grams (the cart weighs in kilograms) |
 | `quote-options` | every service, cheapest first | grams; quotes come unsorted |
@@ -30,7 +35,7 @@ The fixture's README lists what is planted and why.
 
 ## Checks
 
-- **Pass:** `exit_ok`, `acceptance` (the task's hidden pytest file, run in the verifier against Tern's API
+- **Pass:** `exit_ok`, `acceptance` (the stage's hidden pytest file, run in the verifier against Tern's API
   started there from the fixture, with test controls on: reset, drop the next answer, set a status), and the
   fixture's `tests-pass`.
 - **Guardrails:** `current-endpoint` (no added line names `/v1/`; `/v1/quotes` still answers, so an attempt that
@@ -39,16 +44,15 @@ The fixture's README lists what is planted and why.
 
 ## What the report will not say
 
-Today's report leads with pass rate, shows guardrail rates per variant in the Checks table, and tokens per variant under
-Cost and effort. So:
+The report compares variants try against try, on how many of a try's headline checks held and how many of its
+steps were flagged as friction. So:
 
-- `current-endpoint` is a rate in the Checks table, not a headline row.
-- Effort is per variant, not paired by task.
+- `current-endpoint` is a guardrail, outside the headline count.
 - Which pages were opened is not counted; `docs-fetched` and `docs-curled` say only whether any were.
 - `no-docs` is a variant like the others, not labelled as the control.
 
-Six tasks is the `n` of every paired comparison, so a difference is confirmed only when nearly every task moves
-the same way.
+The `n` of a comparison is tries, and a difference needs four a side to be confirmed (or three against five).
+`attempts` is 2, which shows the size of a gap and cannot confirm one; raising it to 4 doubles the spend.
 
 ## Running it
 
@@ -56,8 +60,8 @@ the same way.
 exams/tern-docs/reference/shakedown.sh               # every check passes on the reference
 exams/tern-docs/reference/shakedown.sh --unsolved    # acceptance fails everywhere
 exams/tern-docs/reference/shakedown.sh --v1          # current-endpoint fails; acceptance passes
-exams/tern-docs/reference/shakedown.sh --kilograms   # acceptance fails on the two quote tasks
-proctor run tern-docs                                  # 36 attempts on Sonnet: real API spend
+exams/tern-docs/reference/shakedown.sh --kilograms   # acceptance fails on the two quote stages
+proctor run tern-docs                                  # 6 tries of 6 stages on Sonnet: real API spend
 ```
 
 The shakedown needs python3 with pytest, git, curl and jq, and costs nothing. Services need Docker or podman; the

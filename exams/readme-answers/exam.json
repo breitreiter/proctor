@@ -1,8 +1,17 @@
 {
   "id": "readme-answers",
   "description": "Does a README tell a reader what they need to use jot from a script? Six questions answered from the README alone, under two versions of it: as shipped, and with a section for scripts.",
-  "attempts": 3,
+  "attempts": 4,
   "labels": { "area": "docs", "purpose": "onboarding" },
+  "fixture": "empty",
+  "stages": [
+    {"id": "add-a-task", "about": "The command that adds a task; both READMEs show it", "prompt": "Using jot, what exact command adds a task called \"buy milk\"?", "expect": {"answer_regex": "(?im)^ANSWER:.*\\badd\\s+[\"']?buy milk"}},
+    {"id": "not-found-exit", "about": "The exit code for a task that does not exist; both READMEs say", "prompt": "What exit code does `jot done 99` return when there is no task 99?", "expect": {"answer_regex": "(?im)^ANSWER:\\W*1\\W*$"}},
+    {"id": "store-location", "about": "Where the tasks are kept; both READMEs name the variable", "prompt": "Which environment variable makes jot keep its tasks somewhere other than the current directory? Give just its name.", "expect": {"answer_regex": "(?im)^ANSWER:\\W*JOT_FILE\\b"}},
+    {"id": "clear-exit-code", "about": "What a script sees when clear has no terminal: exit 0, nothing deleted; only the section for scripts says", "prompt": "A CI job runs `jot clear` with no terminal attached and nobody to answer. What exit code does the job see?", "expect": {"answer_regex": "(?im)^ANSWER:\\W*0\\W*$"}},
+    {"id": "piped-yes", "about": "Whether piping y into clear deletes the tasks: it does not; only the section for scripts says", "prompt": "Does `echo y | jot clear` delete the tasks? Answer yes or no.", "expect": {"answer_regex": "(?im)^ANSWER:\\W*no\\b"}},
+    {"id": "clear-wait", "about": "How long clear waits for a terminal before it gives up: 30 seconds; only the section for scripts says", "prompt": "With no terminal attached, how many seconds does `jot clear` wait before it gives up? Give a number.", "expect": {"answer_regex": "(?im)^ANSWER:\\D*30\\b"}}
+  ],
   "grading": {
     "checks": {
       "answered": { "exit_reason": "ok" },

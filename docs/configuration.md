@@ -244,10 +244,13 @@ hooks/*.sh       variant and attempt setup/teardown
 live.json        which variant is live, written by `proctor live` (absent until one is picked); docs/cli.md
 ```
 
-**Stages, in place of tasks (being built: a bare nb variant runs one;
-an agent variant runs one through Harbor as one task of steps, and
-`grade`, `friction` and `report` read it; no real exam is staged yet).** An exam can instead be one job of stages: `fixture` and
-`stages` in `exam.json`, and no `tasks/`.
+**Write a new exam as stages.** An exam is one job of stages: `fixture`
+and `stages` in `exam.json`, and no `tasks/`. `tasks/` is the older
+form; it still runs and will be removed, and an exam is one or the
+other, never both. `exams/readme-answers` (bare nb) and
+`exams/tern-docs` (an agent in a container) are staged; the rest of
+proctor's own exams are still tasks. Coming from a suite of an earlier
+proctor: [`porting-from-suites.md`](porting-from-suites.md).
 
 ```json
 {

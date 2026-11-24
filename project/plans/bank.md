@@ -339,6 +339,28 @@ Harbor's source says it writes per step, not on a run.
    tasks, `--tasks` and the per-task code are deleted.
 8. **Docs and the skill** (B9).
 
+**Slices 7 and 8, revised 2026-11-23 (the user).** No exam of tasks
+exists outside this repository; what is in the wild is suites from
+proctor 0.3 and earlier. So the exams here are not all converted now,
+and the only port documented is from a suite
+(`docs/porting-from-suites.md`).
+
+- BUILT: `readme-answers` and `tern-docs` are staged, with their
+  shakedowns (free, both pass). `readme-answers` asks for 4 tries.
+  `tern-docs` keeps 2, which cannot confirm a difference; 4 doubles a
+  paid run, the user's call. Neither has been run on a real model as
+  stages, so a vendor agent on a staged exam is still untested.
+- BUILT (slice 8): the skill writes stages; `configuration.md` says to
+  write a new exam as stages.
+- Each other exam is converted when it is next to be run, since
+  converting starts its bank over. The four with a fixture per task
+  wait for "something above an exam" (`todo.md`). `gate-oracle` and
+  `oracle-change` wait for a one-stage exam compiling as a plain Harbor
+  task, so the oracle bridge works. `conformance`'s `fail` task is an
+  exam of its own: as a stage it would lose every try.
+- Tasks, `--tasks`, `Stats.cs` and `Report.cs` are deleted last, once
+  no exam here uses them.
+
 **After slice 6, the same day:** the two changes under "Tasks go;
 stages gain two things" are BUILT on both runners and run for real
 through Harbor. Every check is a stage's, a workspace check sees the

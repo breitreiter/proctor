@@ -118,9 +118,10 @@ proctor report <exam>   # reports/<exam>/explore/summary.md
 
 - [`docs/getting-started.md`](docs/getting-started.md): clone to first report
 - [`docs/cli.md`](docs/cli.md): every command and flag; the live variant
-- [`docs/configuration.md`](docs/configuration.md): exams, fixtures, tasks, variants, judges, and the machine's config
+- [`docs/configuration.md`](docs/configuration.md): exams, fixtures, stages, variants, judges, and the machine's config
 - [`docs/podman.md`](docs/podman.md): running coding agents on podman
 - [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): moving an exam to coding-agent variants
+- [`docs/porting-from-suites.md`](docs/porting-from-suites.md): moving a suite from proctor 0.3 or earlier to an exam of stages
 
 ## What it is not
 

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Prove the fixture and checks without a model or an agent: for each task, make the checkout the image makes (the
+# Prove the fixture and checks without a model or an agent: for each stage, make the checkout the image makes (the
 # fixture's repo/ as one commit), apply a mode, collect the diff, and run every script check.
-#   usage: shakedown.sh [--unsolved|--v1|--kilograms] [task...]
+#   usage: shakedown.sh [--unsolved|--v1|--kilograms] [stage...]
 #   (no flag)     the reference: every check passes
 #   --unsolved    nothing changed: acceptance fails everywhere; the rest pass
 #   --v1          the reference with quotes on the retired /v1 in kilograms, as the restructured Python quickstart
-#                 shows: acceptance still passes, current-endpoint fails (on every task, since the reference is one whole file)
-#   --kilograms   the reference with quotes on /v2 but in kilograms: acceptance fails on the two quote tasks
+#                 shows: acceptance still passes, current-endpoint fails (on every stage, since the reference is one whole file)
+#   --kilograms   the reference with quotes on /v2 but in kilograms: acceptance fails on the two quote stages
 # Needs python3 with pytest, git, curl and jq. About ten seconds.
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 root="$(cd "$here/../.." && pwd)"
-mode=; case "${1:-}" in --unsolved|--v1|--kilograms) mode=$1; shift ;; -*) echo "usage: $0 [--unsolved|--v1|--kilograms] [task...]"; exit 2 ;; esac
+mode=; case "${1:-}" in --unsolved|--v1|--kilograms) mode=$1; shift ;; -*) echo "usage: $0 [--unsolved|--v1|--kilograms] [stage...]"; exit 2 ;; esac
 only=" $* "
 tmp=$(mktemp -d)
 # The image's python is `python`; the host's may be python3 only.
@@ -26,13 +26,12 @@ expected() {
   esac
 }
 unexpected=0
-for task_file in "$here"/tasks/*.json; do
-  c=$(basename "$task_file" .json)
+fixture="$root/fixtures/$(jq -r .fixture "$here/exam.json")"
+for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   [ "$only" = "  " ] || [[ "$only" == *" $c "* ]] || continue
-  fixture="$root/fixtures/$(jq -r .fixture "$task_file")"
   export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$fixture" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_TASK_JSON="$(cat "$task_file")" PROCTOR_EXPECT="{}" PROCTOR_TRANSCRIPT=""
+  export PROCTOR_TASK_JSON="$(jq -c --arg id "$c" '.stages[] | select(.id == $id)' "$here/exam.json")" PROCTOR_EXPECT="{}" PROCTOR_TRANSCRIPT=""
   mkdir -p "$PROCTOR_ATTEMPT_DIR"; cp -r "$fixture/repo" "$PROCTOR_WORK"
   (cd "$PROCTOR_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm fixture) || exit 1
   case "$mode" in

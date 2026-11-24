@@ -17,19 +17,19 @@ proctor report readme-answers     # then open reports/readme-answers/explore/sum
 |---|---|
 | fixture | `fixtures/empty`: nothing; the model's whole context is the README |
 | variants | `as-shipped`: jot's README as it ships. `for-scripts`: the same README with a section on using jot from a script. Both on Gemini Flash-Lite (`gemini-flash-lite-latest`) |
-| attempts | 3 of each task per variant, set in `exam.json` |
-| tasks | six questions about jot (`fixtures/jotcli`). Three the README as shipped answers (how to add a task, an exit code, where the tasks live); three only the section for scripts does (what exit code `clear` gives with no terminal, whether `echo y \| jot clear` works, how long it waits) |
-| pass | `correct`: the `ANSWER:` line matches the task's expected answer |
-| validity | `answered`: the attempt ended cleanly. An attempt cut short by the provider (a rate limit, say) is left out rather than counted wrong |
+| attempts | 4 tries per variant, set in `exam.json`. A try is all six stages, once; four a side is the fewest that can confirm a difference |
+| stages | six questions about jot (`fixtures/jotcli`), each asked in a conversation of its own. Three the README as shipped answers (how to add a task, an exit code, where the tasks live); three only the section for scripts does (what exit code `clear` gives with no terminal, whether `echo y \| jot clear` works, how long it waits) |
+| pass | `correct`: the `ANSWER:` line matches the stage's expected answer |
+| validity | `answered`: the stage ended cleanly. A stage the provider cut short (a rate limit, say) loses its whole try: it is left out rather than counted wrong, and `run` makes another |
 
 What to expect: both variants get the first three right. On the last three,
 `as-shipped` can only guess, and the report shows how often a guess is
-wrong. That gap is the point: a change to the documentation, measured,
-with an interval around it. The first report shows the two side by side;
+wrong. That gap is the point: a change to the documentation, measured
+try against try, as how many of a try's six answers were right. The first report shows the two side by side;
 `proctor live readme-answers as-shipped` marks the README as it ships as
 the live variant, and the next report gives `for-scripts` against it.
 
-**Cost.** 36 requests, each a few thousand tokens. On Gemini's free tier
+**Cost.** 48 requests, each a few thousand tokens. On Gemini's free tier
 that is free; free-tier requests may be used by Google to improve its
 models. A free tier allows only a few requests a minute, and nb waits and
 retries when it is throttled, so a run can take a few minutes.
@@ -42,8 +42,8 @@ the first run; after it, a changed variant needs a new id.
 
 **How it is built.** `program.nb` gives the variant's README to the model as
 the system message (`system @{{bundle}}/README.md`) with no tools, then
-asks the task's question and for the two-line reply the checks read.
-Every check is deterministic: `correct` is a regular expression per task,
-in the task's `expect`. `reference/shakedown.sh` proves the checks on
-nb's Mock provider, every attempt passing with scripted right answers and none
+asks the stage's question and for the two-line reply the checks read.
+Every check is deterministic: `correct` is a regular expression per stage,
+in the stage's `expect`. `reference/shakedown.sh` proves the checks on
+nb's Mock provider, every stage passing with scripted right answers and none
 with `--wrong`, at no cost.
