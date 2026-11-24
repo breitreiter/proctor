@@ -7,6 +7,32 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Axes: a value built alone** (`axes-build.md`, slice 3b). New verb
+  `proctor build <exam>`, for an exam with axes; it runs nothing and
+  calls no model. It builds the starting workspace (the checkout, the
+  values' files, the setup hooks) of the reference configuration
+  twice, then of each value with every other axis at its reference,
+  and says what each value changed: who does the work, the parameters
+  it sets, the paths that differ and, with `--value`, their text, for
+  whoever asked to read against the value's note. A path two builds of
+  the reference disagree on is left out of every change. Each
+  configuration the exam carries that is more than one value off the
+  reference is held against its values built alone: it is their sum,
+  more than their sum (some script reads more than one axis), or
+  cannot be told (two values change the same lines). That result is
+  kept in `exams/<exam>/combinations.json` (new, committed, in no
+  hash), and `list`, the report's rows and every comparison that reads
+  such a configuration say it. Nothing records whether anyone read
+  what a value changes. **On an exam with axes, `note` on every value
+  and `about` on every axis are now required.**
+- **A staged try starts from what its setup hook left.** On the bare
+  path the checkout is committed after the attempt setup hook, where it
+  was committed before it. A stage's `diff.patch` now holds only what
+  the agent changed, so `files_touched` no longer counts a file the
+  hook wrote; the hook's own changes are `setup.patch` in the try, and
+  a regrade puts them back before the stage's diff. Each stage's
+  manifest gains `start_tree`. A try made before this still grades:
+  its diff holds the hook's changes, and it has no patch.
 - **Axes: `run` makes what is named** (`axes-build.md`, slice 3a).
   This changes the two entries below, which were never released.
   Nobody spans the cross product of an exam's axes any more. `proctor

@@ -72,15 +72,18 @@ in the order the verbs run them. Every file is one concern:
 | file | holds |
 |---|---|
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
-| `Verbs.cs` | one method per verb: `list`, `run`, `grade`, `friction`, `report`, `live`; the conditions the report stands for (`View`) and the earlier report moved aside |
+| `Verbs.cs` | one method per verb: `list`, `run`, `build`, `grade`, `friction`, `report`, `live`; the conditions the report stands for (`View`) and the earlier report moved aside |
 | `Exam/Layout.cs` | paths and file names, nothing else |
 | `Exam/Exam.cs` | `proctor.json` (the host binary and its config), `exam.json` (attempts, the `nb` block with the runner and mounts, hooks, grading), `variants/*.json`, tasks, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per task; the exam's, each variant's and each task's hash |
 | `Exam/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
 | `Exam/EnvFile.cs` | the user's env file (`~/.config/proctor/env`, `%LOCALAPPDATA%\proctor\env` on Windows, or `PROCTOR_ENV_FILE`): `NAME=value` lines `Program.Main` loads into the process environment before any verb, the real environment winning, so every `${VAR}` resolver and child process sees them |
 | `Exam/Judges.cs` | `proctor.json`'s `judges` block: an endpoint per name by wire shape (`systemone`, `chat`), key resolution, which judge a check gets |
 | `Exam/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
+| `Exam/Axes.cs` | an exam's `axes` in `exam.json`, in place of `variants/` (`project/plans/axes.md`, built slice by slice per `axes-build.md`): axes, values, the reference of each axis, the configurations the exam carries (named, asked for, or with tries in the bank; never the cross product), the refusals, who does the work in a configuration |
+| `Exam/Combinations.cs` | `exams/<exam>/combinations.json`, written by `build` and nothing else: which several-valued configurations are their values put together, more (a script reads several axes), or cannot be told; what holds today (`Combinations.Stand`). Whether anyone read what a value changes is recorded nowhere, on purpose |
 | `Exam/Live.cs` | `exams/<exam>/live.json`: the live variant by id and hash, and since when; whether the mark still holds (`Live.Broken`) and the warning `list`, `run` and `report` print when it does not |
 | `Run/Runner.cs` | `run`: an interrupted run continued when its conditions hold (`WhyNotContinue`), then what is missing made by a new run; the log entry (`log/<id>/entry.json`), `exams-seen/` and attempt manifests, hooks, nb as a subprocess, an agent attempt through Harbor; bundles resolved (a git bundle's `paths` copied out of its clone); a changed variant under an id that made attempts refused |
+| `Run/Build.cs` | `build`: the starting workspace of the reference twice, of each value alone and of each several-valued configuration, with the setup hooks and nothing run; a value's change (`ValueChange`) and the combination check, whose changes to one file are merged line by line |
 | `Run/Bank.cs` | an exam's bank: current or stale by the variant and task hashes each attempt was made under (`Bank.Stale`), what is missing (`Bank.Missing`), which runs were interrupted (`Bank.Interrupted`), the selection `--variant` and `--tasks` narrow (`Bank.Select`) |
 | `Harbor/Compile.cs` | an agent variant's task as a Harbor task (`instruction.md`, `task.toml`, the image, the verifier) and an attempt's job file |
 | `Harbor/nb_agent.py` | nb as a Harbor agent: uploads the attempt's program and nb's config, runs nb on stdin; embedded, compiled into `log/<id>/harbor/agents/` (Python, not compiled into proctor) |

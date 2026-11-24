@@ -727,6 +727,9 @@ for the Go version the code declares.
   flexible as they are (files proctor lays, parameters the base's
   scripts act on); the risk is taken out by looking at what each one
   did by itself, and by discouraging scripts that read several axes.
+  The looking is done by whoever asks `proctor build`; proctor keeps
+  no record that it was done (the user, 2026-11-24: any way of showing
+  one reads as an approval or means nothing).
 - **16. A script that reads several axes is unsafe code** (the user,
   2026-11-24), as `unsafe` is in C#, without a marker in the syntax
   for now. It is allowed and never refused. Whoever does it is on
@@ -750,9 +753,9 @@ for the Go version the code declares.
   path goes (`axes-build.md`, slice 7).
 - **19. The build plan's questions** (the user, 2026-11-24): `--value`
   to `run` is that value with every other axis at its reference; a
-  verb builds without running and reviews are a file committed with
-  the exam; a review gates nothing; an agent's review counts and is
-  named as an agent's. `axes-build.md`, "Decided".
+  verb builds without running. The three answers about a record of
+  reviews were withdrawn the same day, with the record.
+  `axes-build.md`, "Decided".
 
 ## OPEN
 
@@ -795,9 +798,8 @@ for the Go version the code declares.
      configurations the reviews of single values do not cover, and a
      comparison that reads one of them carries that in its answer. It
      stands in for the marker the syntax does not have.
-   - **Where the review is kept.** By the value's hash, with who
-     reviewed it. A value's content cannot change under its name, so a
-     value is reviewed once; a changed base asks for all of them again.
+   - **Where the review is kept.** Nowhere (decision 15). What is
+     kept is the combination check, which proctor measures.
    - **What the comparison reaches.** The checkout as committed before
      the first stage, fully. An image only by digest (different, not
      how). A running service or a database inside one, not at all,

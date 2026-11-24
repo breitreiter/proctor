@@ -13,6 +13,12 @@ static class Layout
     public const string ReportsDir = "reports";
     public const string WorkDir = ".proctor/work";
     public const string BundlesDir = ".proctor/bundles";
+    /// <summary>What `proctor build` leaves: each value's change from the reference build, and its scratch checkouts while it runs.</summary>
+    public const string BuildsDir = ".proctor/builds";
+    /// <summary>In a try: what its setup hook did to the checkout, as a patch.</summary>
+    public const string SetupPatchFile = "setup.patch";
+    /// <summary>Beside exam.json: which configurations of several values `proctor build` found to be their values put together, and which not.</summary>
+    public const string CombinationsFile = "combinations.json";
 
     public const string ProctorConfigFile = "proctor.json";
     public const string ExamFile = "exam.json";

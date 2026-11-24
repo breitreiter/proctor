@@ -223,7 +223,7 @@ sealed class Axes
             var at = $"axes.{axisName}";
             if (!Regex.IsMatch(axisName, AxisName)) Add(at, "an axis is named in lowercase letters, digits, hyphens and underscores, starting with a letter");
             if (axis is null) { Add(at, "an axis is an object: {about, live, values}"); continue; }
-            if (axis.About is not null && string.IsNullOrWhiteSpace(axis.About)) Add($"{at}.about", "a sentence saying what the axis is, not an empty string");
+            if (string.IsNullOrWhiteSpace(axis.About)) Add($"{at}.about", "required: a sentence saying what the axis is");
             if (axis.Values is null or { Count: 0 }) { Add($"{at}.values", "at least one value is required"); continue; }
             if (axis.Live is not null && !axis.Values.ContainsKey(axis.Live)) Add($"{at}.live", $"'{axis.Live}' is not a value of this axis; declared: {string.Join(", ", axis.Values.Keys)}");
             if (axis.Reference is not null && !axis.Values.ContainsKey(axis.Reference)) Add($"{at}.reference", $"'{axis.Reference}' is not a value of this axis; declared: {string.Join(", ", axis.Values.Keys)}");
@@ -233,7 +233,7 @@ sealed class Axes
                 var v = $"{at}.values.{valueName}";
                 if (!Regex.IsMatch(valueName, ValueName)) Add(v, "a value is named in lowercase letters, digits, dots, hyphens and underscores");
                 if (value is null) { Add(v, "a value is an object; one that sets nothing is {} or {\"note\": …}"); continue; }
-                if (value.Note is not null && string.IsNullOrWhiteSpace(value.Note)) Add($"{v}.note", "a note is a sentence, not an empty string");
+                if (string.IsNullOrWhiteSpace(value.Note)) Add($"{v}.note", "required: a sentence saying what this value changes for the agent. It is what the value's change is held against when it is built alone (`proctor build`)");
                 if (value.Route is not null and not ValueDef.Bare and not ValueDef.Harbor) Add($"{v}.route", $"'{value.Route}' is not a route; known: {ValueDef.Bare}, {ValueDef.Harbor}");
                 if (value.Fixture is not null && !Regex.IsMatch(value.Fixture, "^[a-z0-9][a-z0-9-]*$")) Add($"{v}.fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens");
                 ValidateFiles(value.Files, dir, $"{v}.files", Add);

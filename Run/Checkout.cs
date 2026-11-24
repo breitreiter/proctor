@@ -25,6 +25,25 @@ static class Checkout
             ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", "values");
     }
 
+    /// <summary>
+    /// What the setup hook did to the checkout, committed: so the try's starting state is one commit, a stage's diff holds
+    /// only what the agent changed, and a fresh stage is restored to the workspace as setup left it. The hook's own changes
+    /// are kept as a patch beside the try, for a regrade that rebuilds the workspace without running the hook. Ignored
+    /// files (restored packages, build output) are in neither. Gives the starting tree's hash; null on success.
+    /// </summary>
+    public static string? CommitSetup(string workDir, string patchFile, out string? tree)
+    {
+        tree = null;
+        if (Git(workDir, "add", "-A") is { } addError) return addError;
+        var patch = Subprocess.Run("git", ["diff", "--cached", "--binary", "--no-color", "HEAD"], workDir, stdoutFile: patchFile);
+        if (!patch.Started || patch.ExitCode != 0) return $"git diff: {patch.FirstStderrLine}";
+        if (Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", "setup") is { } commitError) return commitError;
+        var parsed = Subprocess.Run("git", ["rev-parse", "HEAD^{tree}"], workDir);
+        if (!parsed.Started || parsed.ExitCode != 0) return $"git rev-parse: {parsed.FirstStderrLine}";
+        tree = "git:" + parsed.Stdout.Trim();
+        return null;
+    }
+
     static string? Base(Fixture fixture, string workDir)
     {
         if (Directory.Exists(workDir)) Directory.Delete(workDir, recursive: true);
@@ -78,10 +97,14 @@ static class Checkout
     }
 
     /// <summary>For a regrade after the checkout is gone: the fixture again, with the attempt's diff applied. Null on success.</summary>
-    public static string? Restore(Fixture fixture, string workDir, string attemptDir, IReadOnlyList<(string Dir, string? To)>? overlays = null)
+    public static string? Restore(Fixture fixture, string workDir, string attemptDir, IReadOnlyList<(string Dir, string? To)>? overlays = null, string? setupPatch = null)
     {
         if (Directory.Exists(workDir) && Directory.EnumerateFileSystemEntries(workDir).Any()) return null;
         if (Materialise(fixture, workDir, overlays) is { } error) return error;
+        // What the setup hook did is not in the stage's diff (CommitSetup), so it is put back first, from the patch the try kept.
+        if (setupPatch is not null && File.Exists(setupPatch) && new FileInfo(setupPatch).Length > 0)
+            if ((Git(workDir, "apply", "--index", "--binary", setupPatch) ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", "setup")) is { } setupError)
+                return $"git apply {Path.GetFileName(setupPatch)}: {setupError}";
         var diff = Path.Combine(attemptDir, Layout.DiffFile);
         if (!File.Exists(diff) || new FileInfo(diff).Length == 0) return null;
         return Git(workDir, "apply", "--allow-empty", diff) is { } applyError ? $"git apply {Layout.DiffFile}: {applyError}" : null;

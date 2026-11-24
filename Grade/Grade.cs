@@ -29,7 +29,7 @@ static class Grade
             // A stage's script checks run on the workspace as that stage left it, which the try's own checkout no longer is once a later stage has run: the fixture with the stage's diff, rebuilt beside it.
             if (a.Staged && !variant.IsAgent) attempt = attempt with { WorkDir = Layout.WorkAsStageLeftIt(root, exam.Id, variant.Id!, n, Path.GetFileName(attemptDir), a.Entry.IdOf(a.Variant, n)) };
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree. An agent attempt's scripts ran in the verifier.
-            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir, attempt.Overlays) is { } error)
+            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir, attempt.Overlays, a.Staged ? Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(attemptDir))!, Layout.SetupPatchFile) : null) is { } error)
                 log.WriteLine($"  {a.Label}  could not restore the checkout: {error}");
             var checks = Attempt(attempt, exam, Transcript.Read(attemptDir, Before(root, exam, a)));
             var pass = Pass(checks, exam.PassFor(c));

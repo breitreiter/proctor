@@ -9,14 +9,15 @@ namespace Proctor;
 
 /// <summary>An axis as the report shows it: its values in declared order, the live one named.</summary>
 record AxisInfo(string Name, string? About, string? Live, List<ValueInfo> Values);
-record ValueInfo(string Name, string? Note, string Hash);
+/// <summary>A value: its sentence, its identity, and whether it is the one its axis is held at while another axis's value is looked at alone.</summary>
+record ValueInfo(string Name, string? Note, string Hash, bool Reference = false);
 
 /// <summary>
 /// One configuration's standing: one the exam names or has tries of. State is not_run (no counted try), partial (fewer
 /// than the exam wants) or made. Tries holds its tries as a staged exam's variant has them; null when none were read.
 /// </summary>
 record ConfigurationRow(string Key, string Label, Dictionary<string, string> Values, string? Name, bool Live, string State, int Wanted, int Made, int Lost, int Stale,
-    List<string> Stages, int HeadlineChecks, TryVariant? Tries);
+    List<string> Stages, int HeadlineChecks, TryVariant? Tries, string? Together = null, List<string>? Differs = null);
 
 /// <summary>
 /// A value against the live value of its axis with every other axis held: one cell of a comparison. State is compared,
@@ -32,7 +33,7 @@ record ComparedCell(Dictionary<string, string> Holding, string Key, string LiveK
 record Pooled(List<string> Across, int Covered, int Of, bool CanConfirm, Measure Held, Measure? Flagged);
 
 /// <summary>One value of an axis against that axis's live value: cell by cell, pooled when more than one cell was compared, and in a sentence.</summary>
-record AxisComparison(string Axis, string Value, string Live, List<ComparedCell> Cells, Pooled? Pooled, List<string> NotRun, string Sentence);
+record AxisComparison(string Axis, string Value, string Live, List<ComparedCell> Cells, Pooled? Pooled, List<string> NotRun, string Sentence, List<string>? Cautions = null);
 
 /// <summary>stats.json of an exam with axes. Configurations are the ones the exam names or has tries of; Excluded the values it declares impossible together.</summary>
 record ConfigurationsFile(string Schema, string Exam, bool Chained, List<AxisInfo> Axes, List<StageInfo> Stages, List<ConfigurationRow> Configurations, List<Dictionary<string, string>> Excluded,
@@ -49,6 +50,7 @@ static class Configurations
         var (tries, friction) = Tries.Compute(root, exam, current, bank, rows, null, built);
         var byKey = tries.Variants.ToDictionary(v => v.Id);
         bool Live(Configuration c) => axes.Def.Any(a => a.Value.Live is not null) && axes.Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
+        var standing = Combinations.Load(exam).Stand(exam);
 
         var configurations = axes.Configurations.Select(c =>
         {
@@ -59,7 +61,8 @@ static class Configurations
                 made == 0 ? "not_run" : made < exam.Attempts ? "partial" : "made", exam.Attempts, made,
                 bank.Where(a => a.Lost && a.Variant == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
                 bank.Where(a => a.Variant == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
-                stages.Select(s => s.Id!).ToList(), stages.Sum(s => exam.PassFor(s).Count), t);
+                stages.Select(s => s.Id!).ToList(), stages.Sum(s => exam.PassFor(s).Count), t,
+                standing.TryGetValue(c.Key, out var together) ? together.State : null, together.Paths is { Count: > 0 } ? together.Paths : null);
         }).ToList();
 
         var comparisons = new List<AxisComparison>();
@@ -94,7 +97,15 @@ static class Configurations
                         Stratified(strata.Select(s => (Held(s.Mine), Held(s.Theirs))).ToList(), higherIsBetter: true), flagged);
                 }
                 var notRun = cells.Where(c => c.State != "compared").Select(c => Holding(c.Holding) + c.State switch { "not_run" => "", "live_not_run" => $" (no {axis}={def.Live} there)", _ => " (neither side)" }).ToList();
-                comparisons.Add(new AxisComparison(axis, value, def.Live!, cells, pooled, notRun, Sentence(axis, value, def.Live!, cells, compared, pooled, notRun)));
+                // Where a configuration in the comparison is not simply its values: that travels with the sentence (plans/axes.md, "What follows", 2).
+                var inIt = cells.SelectMany(k => new[] { k.Key, k.LiveKey }).Distinct().Select(key => axes.Of(key)!).ToList();
+                List<string> In(string state) => inIt.Where(k => standing.GetValueOrDefault(k.Key).State == state).Select(k => k.Name ?? k.Label).ToList();
+                var cautions = new List<string>();
+                if (In(Combinations.More) is { Count: > 0 } more) cautions.Add($"More than its values put together, since some script reads more than one axis: {string.Join("; ", more)}.");
+                if (In(Combinations.Unclear) is { Count: > 0 } unclear) cautions.Add($"Cannot be told from its values alone: {string.Join("; ", unclear)}.");
+                if (In(Combinations.NotChecked) is { Count: > 0 } unchecked_) cautions.Add($"Not checked against its values alone: {string.Join("; ", unchecked_)}.");
+                comparisons.Add(new AxisComparison(axis, value, def.Live!, cells, pooled, notRun,
+                    Sentence(axis, value, def.Live!, cells, compared, pooled, notRun) + string.Concat(cautions.Select(c => " " + c)), cautions.Count > 0 ? cautions : null));
             }
 
         var methods = "A configuration is one value on every axis. A try is every stage that applies in its configuration, once, in one workspace, and gives two numbers: "
@@ -106,7 +117,7 @@ static class Configurations
             + "A comparison looks only where the exam names or has tries of the value; in the other settings of the other axes nobody asked for it. "
             + "A try in which a stage did not run is lost and is in no number; a try with a stage that failed a validity check is listed and not counted.";
         return (new ConfigurationsFile(Schema, exam.Id, exam.Chained,
-                axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)])).ToList())).ToList(),
+                axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)], axes.ReferenceOf(a.Key) == v.Key)).ToList())).ToList(),
                 tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built), friction);
 
         static List<double> Held(TryVariant v) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)r.Held).ToList();
@@ -222,12 +233,14 @@ static class Configurations
         md.AppendLine($"# {stats.Exam}").AppendLine();
         md.AppendLine("## Axes").AppendLine();
         foreach (var a in stats.Axes)
-            md.AppendLine($"- **{a.Name}**{(a.About is null ? "" : $" ({a.About})")}: {string.Join(", ", a.Values.Select(v => v.Name == a.Live ? $"{v.Name} (live)" : v.Name))}{(a.Live is null && a.Values.Count > 1 ? "; no live value, so every value is run and none is the reference" : "")}");
+            md.AppendLine($"- **{a.Name}**{(a.About is null ? "" : $" ({a.About})")}: {string.Join(", ", a.Values.Select(v =>
+                v.Name + (v.Name == a.Live ? " (live)" : v.Reference ? " (reference)" : "")))}{(a.Values.All(v => !v.Reference) ? "; no live value and no reference, so no value of this exam can be built alone" : "")}");
         md.AppendLine().AppendLine("## Configurations").AppendLine();
         md.AppendLine("| Configuration | Tries | Passed | Checks held | Flagged steps | |").AppendLine("|---|---|---|---|---|---|");
         foreach (var c in stats.Configurations)
         {
-            var notes = string.Join(", ", new[] { c.Name, c.Live ? "live" : null, c.Lost > 0 ? $"{c.Lost} lost" : null, c.Stale > 0 ? $"{c.Stale} stale" : null }.OfType<string>());
+            var notes = string.Join(", ", new[] { c.Name, c.Live ? "live" : null, c.Lost > 0 ? $"{c.Lost} lost" : null, c.Stale > 0 ? $"{c.Stale} stale" : null,
+                c.Together == Combinations.More ? "more than its values put together" : c.Together == Combinations.Unclear ? "cannot be told from its values alone" : c.Together == Combinations.NotChecked ? "not checked against its values alone" : null }.OfType<string>());
             md.AppendLine(c.State switch
             {
                 "not_run" => $"| {c.Label} | **not run** (0 of {c.Wanted}) | | | | {notes} |",

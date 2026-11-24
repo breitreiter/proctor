@@ -23,10 +23,10 @@ public class AxesTests
                 {
                   "docs": { "about": "the README", "live": "as-shipped", "values": {
                     "as-shipped": { "note": "as it ships", "files": { "path": "values/docs/as-shipped" } },
-                    "rewritten":  { "files": { "path": "values/docs/rewritten" } } } },
-                  "assistant": { "reference": "a", "values": {
-                    "a": { "provider": "Mock", "model": "mock" },
-                    "b": { "provider": "MockB", "model": "mock" } } }
+                    "rewritten":  { "note": "rewritten", "files": { "path": "values/docs/rewritten" } } } },
+                  "assistant": { "about": "who does the work", "reference": "a", "values": {
+                    "a": { "note": "nb on Mock", "provider": "Mock", "model": "mock" },
+                    "b": { "note": "nb on the second Mock", "provider": "MockB", "model": "mock" } } }
                 }
                 """);
             edit?.Invoke(e);
@@ -119,7 +119,7 @@ public class AxesTests
         {
             e.Remove("fixture");
             Axis(e, "docs").Remove("live");
-            e["axes"]!["repository"] = JsonNode.Parse("""{ "values": { "note": { "fixture": "note" }, "empty": { "fixture": "empty" } } }""");
+            e["axes"]!["repository"] = JsonNode.Parse("""{ "about": "the repository", "values": { "note": { "note": "a repository with a note", "fixture": "note" }, "empty": { "note": "nothing", "fixture": "empty" } } }""");
             e["stages"]![0]!["when"] = "repository = note";
             e["stages"]![1]!["when"] = "repository = empty";
             e["stages"]![2]!["when"] = "repository = empty";
@@ -138,6 +138,8 @@ public class AxesTests
     {
         // what is wrong, the edit as JSON-path = value pairs, where the problem is reported, a word of what it says
         { "axes.docs.live=gone", "axes.docs.live", "not a value of this axis" },
+        { "axes.docs.about=", "axes.docs.about", "required: a sentence saying what the axis is" },
+        { "axes.docs.values.rewritten.note=", "axes.docs.values.rewritten.note", "required: a sentence saying what this value changes" },
         { "axes.assistant.reference=gone", "axes.assistant.reference", "not a value of this axis" },
         { "axes.docs.reference=rewritten", "axes.docs.reference", "which is its reference" },
         { "axes.docs.values.rewritten.files.path=values/docs/missing", "axes.docs.values.rewritten.files.path", "no such directory" },
@@ -170,7 +172,7 @@ public class AxesTests
     [Fact]
     public void TwoAxes_CannotWriteOnePath_NorSetOneParameter()
     {
-        using var repo = Smoke(e => e["axes"]!["extra"] = JsonNode.Parse("""{ "values": { "on": { "files": { "path": "values/extra/on" } }, "off": {} } }"""));
+        using var repo = Smoke(e => e["axes"]!["extra"] = JsonNode.Parse("""{ "about": "another axis", "values": { "on": { "note": "its README", "files": { "path": "values/extra/on" } }, "off": { "note": "nothing" } } }"""));
         repo.Write("smoke/values/extra/on/README.md", "another axis's README\n");
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "axes.extra" && p.Message.Contains("writes README.md") && p.Message.Contains("axis 'docs' also writes"));
 

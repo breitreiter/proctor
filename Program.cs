@@ -8,6 +8,9 @@ static class Program
           list [exam]            validate; per variant, its current attempts against those wanted; an interrupted run
           run <exam>             make the attempts the exam lacks. After a crash this is the command: it continues an
                                  interrupted run first and says so (there is no resume verb)
+          build <exam>           on an exam with axes, nothing run and no model: build the starting workspace of each value
+                                 alone and say what it changes from the reference; check each configuration of several
+                                 values against its values alone; --value for one value with its text
           grade <exam>           run the checks over every current, completed attempt; a model check's verdict is kept in the attempt
           friction <exam>        write friction.json beside each current, completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model
           report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json and summary.md, stamped with what they were built from
@@ -25,8 +28,8 @@ static class Program
         --runner <script>     the script that runs nb per attempt (default: the exam's nb.runner); none runs nb bare
         --variant <id>        run, grade, friction, report: only this variant's attempts, the others left as they are (repeatable)
         --value <axis=value>  on an exam with axes. run: make this value with every other axis at its reference
-                              (its live value, or the one it names). grade, friction, report: only the
-                              configurations holding it (repeatable)
+                              (its live value, or the one it names). build: this value only. grade, friction,
+                              report: only the configurations holding it (repeatable)
         --configuration <name>  on an exam with axes: only the configuration the exam gives this name;
                               without either, run makes the configurations the exam names
         --tasks <a,b>         run, grade, friction, report: only these tasks' attempts
@@ -80,6 +83,7 @@ static class Program
             {
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels, configFile),
                 ("run", [var exam]) => Verbs.Run(root, exam, nbPath, runner, configFile, variants, tasks),
+                ("build", [var exam]) => Verbs.Build(root, exam, nbPath, runner, configFile),
                 ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, configFile),
                 ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, reader, rejudge, configFile),
                 ("report", [var exam]) => Verbs.Report(root, exam, variants, tasks),

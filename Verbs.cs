@@ -87,6 +87,52 @@ static class Verbs
         return 0;
     }
 
+    /// <summary>
+    /// Build an exam's values without running anything (plans/axes-build.md, 3b): the reference, each value alone against
+    /// it, and each carried configuration of several values against its values alone. With --value, that one value, with
+    /// its text. What each value changes is for whoever asked to read against its note; that they did is recorded nowhere.
+    /// </summary>
+    public static int Build(string root, string examId, string? nbPath, string? runner, string? configFile)
+    {
+        var problems = new List<Problem>();
+        var config = Exam.LoadConfig(root, problems, configFile);
+        var exam = Exam.Load(root, examId, problems, config.Judges ?? []);
+        if (exam is null || problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
+        if (exam.Axes is not { } axes) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: `build` looks at what each value of an axis changes");
+        if (ConfigurationName is not null) throw new ProctorException("--configuration does not go with build: every configuration the exam carries is checked when no --value is given");
+        if (ValueFilters is { Count: > 1 }) throw new ProctorException("build looks at one value at a time: one --value. Several values together are a configuration: name it under \"configurations\" and build with no --value");
+
+        (string Axis, string Value)? only = null;
+        if (ValueFilters?[0] is { } named)
+        {
+            var given = ValuesGiven(exam, [named]).Single();
+            if (axes.ReferenceOf(given.Key) == given.Value)
+                throw new ProctorException($"{named} is the reference of its axis: the other values are built against it, so there is nothing of its own to look at");
+            only = (given.Key, given.Value);
+        }
+
+        var result = Proctor.Build.Run(root, exam, config, nbPath, runner, only, Console.Out);
+        foreach (var change in result.Values)
+        {
+            foreach (var line in Proctor.Build.Describe(change, withDiff: only is not null)) Console.WriteLine(line);
+            Console.WriteLine();
+        }
+        var combinations = Combinations.Load(exam);
+        var changed = false;
+        foreach (var c in result.Combinations)
+        {
+            Console.WriteLine(c.NotBuilt is not null ? $"{c.Name ?? c.Label}: not checked: {c.NotBuilt}"
+                : c.Differs.Count == 0 && c.Unclear.Count > 0 ? $"{c.Name ?? c.Label}: cannot be told from its values alone, since several of them change the same lines. What each value does alone does not say what this does; put what each value writes on lines apart, or look at this configuration itself."
+                : c.Differs.Count == 0 ? $"{c.Name ?? c.Label}: its values put together, and nothing more"
+                : $"{c.Name ?? c.Label}: MORE THAN ITS VALUES PUT TOGETHER, so some script reads more than one axis. What each value does alone does not say what this does.");
+            foreach (var path in c.Differs.Concat(c.Unclear)) Console.WriteLine($"  {path}");
+            if (c.NotBuilt is null) changed |= combinations.Add(new CombinationCheck(c.Configuration, c.Hash, result.Base, c.Differs, DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), c.Unclear.Count > 0 ? c.Unclear : null));
+        }
+        if (changed) combinations.Save(exam);
+        if (only is null) Console.WriteLine($"`proctor build {exam.Id} --value <axis=value>` shows one value's change with its text, to read against what the value says");
+        return 0;
+    }
+
     /// <summary>Mark a variant live in exams/&lt;exam&gt;/live.json, by its id and today's hash; with no variant, say which is live.</summary>
     public static int Live(string root, string examId, string? variantId)
     {
@@ -317,6 +363,14 @@ static class Verbs
         }
         foreach (var excluded in axes.Excludes)
             Console.WriteLine($"  excluded: {string.Join(" × ", excluded.Select(v => $"{v.Key}={v.Value}"))}");
+        // Where what each value does alone does not say what a configuration does (plans/axes-build.md, 3b): measured by `build`.
+        var standing = Combinations.Load(exam).Stand(exam);
+        foreach (var c in axes.Configurations.Where(c => standing.GetValueOrDefault(c.Key).State == Combinations.More))
+            Console.WriteLine($"  more than its values put together: {c.Name ?? c.Label} ({Count(standing[c.Key].Paths.Count, "path")}); some script reads more than one axis");
+        foreach (var c in axes.Configurations.Where(c => standing.GetValueOrDefault(c.Key).State == Combinations.Unclear))
+            Console.WriteLine($"  cannot be told from its values alone: {c.Name ?? c.Label}; several of them change the same lines");
+        var unchecked_ = axes.Configurations.Where(c => standing.GetValueOrDefault(c.Key).State == Combinations.NotChecked).Select(c => c.Name ?? c.Label).ToList();
+        if (unchecked_.Count > 0) Console.WriteLine($"  not checked against its values alone: {string.Join("; ", unchecked_)}  (`proctor build {exam.Id}`)");
         var stale = bank.Select(a => Bank.Stale(exam, a)).OfType<string>().ToList();
         if (stale.Count > 0) Console.WriteLine($"  {Count(stale.Count, "stale stage")}, not counted: {string.Join("; ", stale.GroupBy(w => w).Select(g => $"{g.Key} ({g.Count()})"))}");
     }

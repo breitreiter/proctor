@@ -46,7 +46,7 @@ What that does to this plan:
 | Was | Is |
 |---|---|
 | `run` fills every configuration not excluded (built) | `run` makes the configurations named, and a value alone against the reference (3a) |
-| each value's diff shown beside the attempt | each value built alone, its change recorded and reviewed once (3b) |
+| each value's diff shown beside the attempt | each value built alone and its change shown, for whoever asks to read against its note (3b) |
 | the exam page is where the model is judged (slice 3) | the answer to a query is (3c); the page shrinks to what tells a reader what to ask (3d) |
 | signs 4, 5 and 7 tested on a page | tested on an answer read by an agent, then on the page |
 | the stop for the user after the page | after 3c |
@@ -92,9 +92,9 @@ not explained away. Any of these is a reason to stop and talk:
    3b). The change is too large or too noisy to hold against a
    sentence, on more than the odd value: a build that does not repeat,
    a value whose whole effect is inside a service.
-9. **The reviews do not get done.** A value's review is skipped as
-   routine, and comparisons carry "not reviewed" so often that nobody
-   reads it.
+9. **Nobody builds a value before running it.** Proctor keeps no
+   record of who looked (3b), so this cannot be counted; it shows as
+   values whose notes turn out wrong after tries were paid for.
 10. **The combination check cries wolf.** It reports configurations as
     more than their values put together on exams where no script reads
     two axes.
@@ -420,21 +420,76 @@ Decision 15, on the bare path. Free: nothing here calls a model.
   changed the changes of its values put together? Where it is not,
   `build` says which paths, and that some script reads more than one
   axis. A report and never a refusal (decision 16).
-- **The review is a record committed with the exam**
-  (`exams/<exam>/reviews.json`, in no hash, as `live.json` is): per
-  value its hash, the base's hash, who looked (a person or an agent,
-  named), when, and one line of what they found. `proctor build
-  --reviewed <axis>=<value> --by <who>` writes it after showing the
-  change. A value needs one review; a changed base asks again.
+- **No record of a review** (the user, 2026-11-24; this replaces the
+  bullet first written here, which was built and then removed). The
+  first form kept who looked and what they found in a committed file.
+  Any way of showing that is either misleading, since it reads as
+  review and approval, or useless, since all it proves is that a
+  command was run. So `build` shows the change, whoever asked reads
+  it against the note, and proctor records nothing about that.
 - **`note` on every value and `about` on every axis are required** on
   an exam with axes, since the note is the claim the change is held
   against.
-- **`list` and the report say what is not reviewed, and what is
-  unsafe**: a value with no review at its hash, a named configuration
-  the combination check flagged. Each comparison that reads one says
-  so in its scope.
+- **`list` and the report say what is unsafe**: a configuration the
+  combination check flagged, or never checked. Each comparison that
+  reads one says so in its scope. This is a measurement of proctor's,
+  kept in `exams/<exam>/combinations.json`.
 
 Not here: an image and a service (slice 4, where they first exist).
+
+**BUILT 2026-11-24**, bare only (`Run/Build.cs`, `Exam/Combinations.cs`).
+
+- `proctor build <exam>` as above, and `--value` for one value with
+  its text. It runs the variant and the attempt hooks, setup then
+  teardown, around each build, and nothing else. Each value's change is
+  left as `.proctor/builds/<exam>/<axis>=<value>.json`.
+- The starting state: `Checkout.CommitSetup` after the setup hook, in a
+  try and in a build alike; `start_tree` in each stage's manifest; the
+  hook's changes kept as `setup.patch` in the try, which a regrade
+  applies before the stage's diff.
+- `combinations.json` holds the check of each several-valued
+  configuration, written by `build` when it changes.
+- `list`, the report's rows and every comparison's sentence carry
+  which configurations are more than their values, cannot be told, or
+  were never checked (`cautions` on a comparison in `stats.json`).
+
+Decided while building, to confirm:
+
+- **What a combination's check was made against** ("the base's
+  hash") is the reference configuration, its fixture, the declared
+  parameters and the hook scripts. A prompt or a check can change
+  without asking for it again; a hook cannot.
+- **A third answer from the combination check: cannot be told.** Two
+  values that each change the same file are not a fault when they
+  change different lines (one prompt file written from several
+  parameters), so their changes are merged line by line over the
+  reference and held against what was built. When they change the
+  same or neighbouring lines, a merge means nothing, and the check
+  says so in place of guessing. This is sign 10 met once already: the
+  first cut called every such file a script reading two axes.
+- **Which configurations are checked:** every one the exam carries
+  that is more than one value off the reference, named or made.
+- **The starting commit moved for every bare staged try,** with axes
+  or without, since a stage's diff meaning the agent's changes is
+  right for both. Tries by task are untouched (they go in slice 7).
+- **`start_tree` is the git tree of that commit:** tracked files only,
+  so restored packages and build output a `.gitignore` covers are in
+  no value's change.
+- **The latest change of a value is kept, not one per hash.** Nothing
+  reads an old one.
+- **`build --value` takes one value.** Several together are a
+  configuration: named, and checked by a plain `build`.
+- **Built and removed the same day:** `--reviewed`, `--by`, `--found`,
+  `reviews.json`, and "not reviewed" in `list` and the report. See "No
+  record of a review" above.
+
+Tried on the six-axis scripted exam with a setup hook that writes a
+prompt file from the parameters: a value that also rewrote another
+file showed both paths; a line written only when two parameters were
+both set was found in the named configuration that holds both, and
+not in the others; a file stamped with the time was left out as the
+build's own. Not tried on `readme-answers` or `nb-changes` as ported:
+the scratch ports did not survive the machine's restart.
 
 **Look at:** `build` on the scratch port of `readme-answers`; on a
 copy with a value that quietly does a second thing; on a copy with a
@@ -464,8 +519,8 @@ The queries answer with what was measured. They never recommend.
   its scope in words; every configuration in scope not run, as a row;
   what it was read as one across; when each side's tries were made and
   how far apart; how small a difference it could have seen; how many
-  other comparisons this report holds; which values in it are not
-  reviewed and which configurations are unsafe (3b).
+  other comparisons this report holds; which configurations in it are
+  more than their values, cannot be told, or were never checked (3b).
 - **A word for disagreement.** When the configurations read as one
   point different ways, the answer says "better here, worse there" and
   names where, and gives no pooled verdict.
@@ -482,13 +537,12 @@ The queries answer with what was measured. They never recommend.
   carries the time it was answered; the view shows the number as it
   was then and, when tries have been added since, as it is now.
 - **A second query for coverage**: the named configurations and the
-  ones live spans, each with its tries, their age, and reviewed or
-  not. It answers the inside half of "where are our customers the only
+  ones live spans, each with its tries and their age. It answers the inside half of "where are our customers the only
   testing". The outside half needs where users are (slice 6a).
 
 The test, on a scripted bank made for it: three axes; holes; one value
 that is better in one world and worse in another; two axes that only
-moved together; one unreviewed value; one difference too small for the
+moved together; one configuration more than its values; one difference too small for the
 tries made to see. A fresh agent is given the skill, the two queries
 and the reader's three questions (`axes.md`, "The reader"), and
 nothing else. Its answer is read against what the bank holds.
@@ -511,8 +565,7 @@ rewritten first, as a short proposal.
 - The bank read by try id; "setup" becomes configuration.
 - **The stage page** stays as built. Where a value is named it shows
   the author's sentence, the value's extent (files, parameters, hash,
-  the revision it came from) and its review, each marked as whose it
-  is. No diff of a database or a site.
+  the revision it came from), each marked as whose it is. No diff of a database or a site.
 - **The exam page** is rows, one per configuration somebody named or
   ran, never the cross product. A comparison is a value against live
   with its scope, at the address 3c's answer links to. No section of
@@ -703,12 +756,11 @@ Each was an open question here, with my recommendation, and agreed.
 4. **`--value` to `run`** is those values with every other axis at its
    reference. An unnamed configuration that is not that takes several
    `--value` flags or a name in `exam.json`.
-5. **A new verb, `proctor build`, and reviews in
-   `exams/<exam>/reviews.json`**, committed and in no hash.
-6. **A review gates nothing.** An unreviewed value runs; `list` and
-   every comparison that reads it say so.
-7. **An agent's review counts**, recorded as an agent's by name, and
-   the answer says who reviewed.
+5. **A new verb, `proctor build`.** The file of reviews agreed with it
+   was withdrawn with 6.
+6. **A review gates nothing.** Superseded the same day: there is no
+   record of a review at all (slice 3b, "No record of a review").
+7. **An agent's review counts.** Superseded with 6.
 8. **3c is tested by hand first**: one fresh agent, one scripted bank,
    its answer read together. An exam of its own only if the answers
    are worth tracking.

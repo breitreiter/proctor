@@ -33,11 +33,11 @@ public class AxesRunTests
                 """);
             e["axes"] = JsonNode.Parse("""
                 {
-                  "docs": { "live": "shipped", "values": {
-                    "shipped":   { "files": { "path": "values/docs/shipped" } },
-                    "rewritten": { "files": { "path": "values/docs/rewritten" } } } },
-                  "tone": { "reference": "plain", "values": { "plain": {}, "terse": { "set": { "TONE": "terse" } } } },
-                  "assistant": { "values": { "mock": { "provider": "Mock", "model": "mock" } } }
+                  "docs": { "about": "the README", "live": "shipped", "values": {
+                    "shipped":   { "note": "as it ships", "files": { "path": "values/docs/shipped" } },
+                    "rewritten": { "note": "rewritten", "files": { "path": "values/docs/rewritten" } } } },
+                  "tone": { "about": "how the program speaks", "reference": "plain", "values": { "plain": { "note": "plainly" }, "terse": { "note": "tersely", "set": { "TONE": "terse" } } } },
+                  "assistant": { "about": "who does the work", "values": { "mock": { "note": "nb on Mock", "provider": "Mock", "model": "mock" } } }
                 }
                 """);
             e["configurations"] = JsonNode.Parse("""
@@ -132,7 +132,7 @@ public class AxesRunTests
         // A configuration named and not run is not run, in the row and in the comparison's own words. One nobody named is nowhere.
         repo.EditJson("smoke/exam.json", e =>
         {
-            e["axes"]!["tone"]!["values"]!["warm"] = JsonNode.Parse("""{ "set": { "TONE": "warm" } }""");
+            e["axes"]!["tone"]!["values"]!["warm"] = JsonNode.Parse("""{ "note": "warmly", "set": { "TONE": "warm" } }""");
             e["configurations"]!["rewritten-warm"] = JsonNode.Parse("""{ "docs": "rewritten", "tone": "warm", "assistant": "mock" }""");
         });
         exam = repo.LoadExam("smoke");
@@ -156,7 +156,7 @@ public class AxesRunTests
         // Under a new name it is a new value: asked for alone it is made, and the others stand.
         repo.Write("smoke/values/docs/rewritten/README.md", "rewritten\n");
         repo.Write("smoke/values/docs/rewritten-2/README.md", "rewritten again\n");
-        repo.EditJson("smoke/exam.json", e => e["axes"]!["docs"]!["values"]!["rewritten-2"] = JsonNode.Parse("""{ "files": { "path": "values/docs/rewritten-2" } }"""));
+        repo.EditJson("smoke/exam.json", e => e["axes"]!["docs"]!["values"]!["rewritten-2"] = JsonNode.Parse("""{ "note": "rewritten again", "files": { "path": "values/docs/rewritten-2" } }"""));
         Assert.Contains("nothing to make", Run(repo));
         Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten-2"]));
         Assert.Equal(5, Tries(repo).Count);

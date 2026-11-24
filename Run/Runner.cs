@@ -63,6 +63,8 @@ record Manifest
     public string? Try { get; init; }
     public Dictionary<string, Ref>? Configuration { get; init; }
     public string? WorkspaceHash { get; set; }
+    /// <summary>The workspace the try started from, after the values' files were laid and the setup hook ran: the tree of that commit.</summary>
+    public string? StartTree { get; set; }
     /// <summary>How an nb variant ran; absent on an agent variant, whose attempt is described by <see cref="Agent"/>.</summary>
     public string? Runner { get; init; }
     public string? Harness { get; init; }
@@ -474,6 +476,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// A stage that did not run loses the try, and nothing more of it is launched. On a chained exam a stage that was
     /// stopped breaks the try: the stages after it are skipped, and the try still counts (plans/bank.md, "How a stage ends").
     /// </summary>
+    string? startTree;
+
     void RunTry(Variant variant, int n)
     {
         var stages = exam.StagesOf(variant.Id!);
@@ -490,6 +494,10 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var setupRan = lost is null;
         if (setupRan && RunHook(exam.Def.Hooks?.Attempt?.Setup, env, Path.Combine(tryDir, Layout.HooksDir, "attempt.setup.log")) is { } setupError)
             lost = $"attempt setup hook failed: {setupError}";
+        // The starting state is what setup left, committed: a stage's diff is then the agent's alone (plans/axes-build.md, 3b).
+        startTree = null;
+        if (lost is null && first.Fixture is not null && Checkout.CommitSetup(workDir, Path.Combine(tryDir, Layout.SetupPatchFile), out startTree) is { } commitError)
+            lost = $"could not record the starting state: {commitError}";
         string? lostAt = null, brokeAt = null, broke = null;
         if (lost is not null) { Mark(variant, stages[0], n, AttemptStatus.Failed, lost); lostAt = stages[0].Id; }
 
@@ -622,6 +630,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         // The workspace as this stage left it, before the next stage restores or builds on it.
         if (failure is null && collectDiff && Checkout.CollectDiff(attempt.WorkDir, attemptDir) is { } diffError) failure = $"diff collection failed: {diffError}";
         if (failure is null && collectDiff && exam.Axes is not null) manifest.WorkspaceHash = Tree.Hash(attempt.WorkDir, new HashSet<string> { ".git" });
+        manifest.StartTree = startTree;
         stopwatch.Stop();
 
         manifest.Ended = Now();
@@ -901,7 +910,9 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>Run a hook script if one is declared. Null on success, else a one-line reason. Output goes to the log file.</summary>
-    string? RunHook(string? script, IDictionary<string, string> env, string logFile)
+    string? RunHook(string? script, IDictionary<string, string> env, string logFile) => RunHook(exam, script, env, logFile);
+
+    internal static string? RunHook(Exam exam, string? script, IDictionary<string, string> env, string logFile)
     {
         if (script is null) return null;
         var result = Subprocess.Run(Path.GetFullPath(Path.Combine(exam.Dir, script)), [], exam.Dir, env);
@@ -988,7 +999,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         });
     }
 
-    static ResolvedNb ResolveNb(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride)
+    internal static ResolvedNb ResolveNb(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride)
     {
         var nb = config.NbOrDefault;
         var examsDir = Layout.Exams(root);
