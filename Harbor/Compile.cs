@@ -145,33 +145,38 @@ static class HarborCompile
     /// A staged exam as one Harbor task of steps (Harbor 0.24.0's `[[steps]]`, run here on 2026-11-23): the environment is
     /// built once, the agent starts a fresh conversation per step with that step's instruction.md, and Harbor keeps each
     /// step's agent logs, verifier output and collected diff under steps/&lt;id&gt;/. Harbor runs a verifier after every
-    /// step and ends the trial at a step that threw and has no verifier result, so every step has one: the last stage's
-    /// runs the script checks, on the workspace as the whole try left it, and the others only say they ran, so a stage
-    /// that timed out does not end the try. The diff collected after each step is the try's so far.
+    /// step, on the diff collected then, so a stage's script checks see the workspace as that stage left it; and it ends
+    /// the trial at a step that threw and has no verifier result, so every step has a verifier, which also means a stage
+    /// that timed out does not end the try. A stage starts fresh unless the exam is chained: its step's setup.sh puts the
+    /// workspace back first.
     /// </summary>
     public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? nbPublish = null, string? bundleDir = null)
     {
-        var last = exam.Tasks[^1];
-        // The environment and the shared tests are a task's; the last stage stands for the job, since its checks are the workspace's.
-        Task(dir, exam, variant, last, route, nbImage, nbPublish, bundleDir);
-        File.Delete(Path.Combine(dir, "instruction.md"));
-        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, last, route, bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
+        // The environment, and the exam and fixture the script checks read, are a task's; any stage stands for the job there.
+        Task(dir, exam, variant, exam.Tasks[0], route, nbImage, nbPublish, bundleDir);
+        foreach (var file in new[] { "instruction.md", Path.Combine("tests", "test.sh"), Path.Combine("tests", "env.sh") }) File.Delete(Path.Combine(dir, file));
+        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, exam.Tasks[0], route, bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
             + string.Concat(exam.Tasks.Select(s => $"\n[[steps]]\nname = {Toml(s.Id!)}\n")));
-        var shared = Path.Combine(dir, "tests", "test.sh");
-        var lastTests = Directory.CreateDirectory(Path.Combine(dir, "steps", last.Id!, "tests")).FullName;
-        File.Move(shared, Path.Combine(lastTests, "test.sh"));
-        File.WriteAllText(shared, "#!/bin/bash\n# Compiled by proctor: a stage before the last has no workspace check; this says its verifier ran.\necho '{\"ran\": 1}' > /logs/verifier/reward.json\n");
-        File.SetUnixFileMode(shared, File.GetUnixFileMode(Path.Combine(lastTests, "test.sh")));
-        foreach (var stage in exam.Tasks)
+        foreach (var (stage, i) in exam.Tasks.Select((s, i) => (s, i)))
         {
-            Directory.CreateDirectory(Path.Combine(dir, "steps", stage.Id!));
-            File.WriteAllText(Path.Combine(dir, "steps", stage.Id!, "instruction.md"), stage.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
+            var step = Path.Combine(dir, "steps", stage.Id!);
+            var tests = Directory.CreateDirectory(Path.Combine(step, "tests")).FullName;
+            File.WriteAllText(Path.Combine(step, "instruction.md"), stage.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
+            // Harbor lays a step's tests over the task's, so each stage's verifier has the shared exam and fixture with its own contract and script.
+            File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant.Id!, stage));
+            var test = Path.Combine(tests, "test.sh");
+            File.WriteAllText(test, TestScript(exam, stage));
+            File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+            if (exam.Chained || i == 0) continue;
+            // Harbor uploads a step's workdir/ into the agent's directory and runs its setup.sh before the agent: the workspace as the try began, as Checkout.Reset leaves it on the bare path. Cleaning removes this script too.
+            Directory.CreateDirectory(Path.Combine(step, "workdir"));
+            File.WriteAllText(Path.Combine(step, "workdir", "setup.sh"), $"#!/bin/bash\n# Compiled by proctor: this stage starts fresh.\ncd {Workdir} && git reset -q --hard HEAD && git clean -fdq\n");
         }
     }
 
-    /// <summary>Where a compiled task keeps the verifier's script: a staged exam's is its last stage's step, a task's the task's own.</summary>
-    static string TestScriptFile(string taskDir, Exam exam, TaskDef task) =>
-        exam.Staged ? Path.Combine(taskDir, "steps", task.Id!, "tests", "test.sh") : Path.Combine(taskDir, "tests", "test.sh");
+    /// <summary>Where a compiled task keeps a verifier's script and contract: a stage's are its step's, a task's the task's own.</summary>
+    static string VerifierFile(string taskDir, Exam exam, TaskDef task, string file) =>
+        exam.Staged ? Path.Combine(taskDir, "steps", task.Id!, "tests", file) : Path.Combine(taskDir, "tests", file);
 
     /// <summary>
     /// How long a Modal sandbox may sit with nothing running in it. Harbor's Modal environment otherwise keeps a sandbox
@@ -472,8 +477,8 @@ static class HarborCompile
         var names = exam.ChecksFor(task).Where(k => k.Value.Spec.ContainsKey("script")).Select(k => k.Key).ToList();
         var tests = taskDir is null ? null : Path.Combine(taskDir, "tests");
         if (names.Count == 0) return [];
-        var testScript = taskDir is null ? null : TestScriptFile(taskDir, exam, task);
-        if (tests is null || !File.Exists(testScript) || !File.Exists(Path.Combine(tests, "env.sh")))
+        var (testScript, envScript) = taskDir is null ? (null, null) : (VerifierFile(taskDir, exam, task, "test.sh"), VerifierFile(taskDir, exam, task, "env.sh"));
+        if (tests is null || !File.Exists(testScript) || !File.Exists(envScript))
             return names.ToDictionary(n => n, _ => "its run kept no compiled copy of its script checks, so nothing shows this verdict is the check's as it is now; make the attempt again");
 
         var root = Path.GetDirectoryName(Path.GetDirectoryName(exam.Dir))!;
@@ -481,7 +486,7 @@ static class HarborCompile
         var changed = ChangedFiles(Path.Combine(tests, "exam"), exam.Dir, root, ExamDefinition)
             .Concat(ChangedFiles(Path.Combine(tests, "fixture"), fixture.Dir, root, FixtureDefinition(fixture))).ToList();
         string? Line(IEnumerable<string> lines, string prefix) => lines.FirstOrDefault(l => l.StartsWith(prefix, StringComparison.Ordinal));
-        var expectThen = Line(File.ReadLines(Path.Combine(tests, "env.sh")), "export PROCTOR_EXPECT=");
+        var expectThen = Line(File.ReadLines(envScript!), "export PROCTOR_EXPECT=");
         var expectNow = Line(VerifierEnv(exam, variant, task).Split('\n'), "export PROCTOR_EXPECT=");
         var then = File.ReadAllLines(testScript!);
         var now = TestScript(exam, task).Split('\n');

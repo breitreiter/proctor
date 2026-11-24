@@ -55,8 +55,6 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     public string? VerifierTask { get; init; }
     /// <summary>A vendor agent's attempt, not nb's: nb's own behaviour (the loop nudge) has nothing to read there.</summary>
     public bool Vendor { get; init; }
-    /// <summary>Where diff.patch is: the attempt's directory, or for a stage its try's, since the workspace and its diff are the whole try's.</summary>
-    public string DiffDir { get; init; } = AttemptDir;
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
     public string WorkMount => Mounts?.Work ?? WorkDir;
@@ -82,7 +80,7 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
         ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(Task, Exam.JsonOptions),
         ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(AttemptDir, Layout.TranscriptFile),
-        ["PROCTOR_DIFF"] = Path.Combine(DiffDir, Layout.DiffFile),
+        ["PROCTOR_DIFF"] = Path.Combine(AttemptDir, Layout.DiffFile),
         ["PROCTOR_RUNNER"] = NbRunner,
         ["PROCTOR_NB"] = NbPath,
         ["PROCTOR_NB_CONFIG"] = NbConfig ?? "",

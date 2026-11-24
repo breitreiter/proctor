@@ -261,8 +261,15 @@ an agent variant runs one through Harbor as one task of steps, and
 }
 ```
 
-- The stages run in the order listed, in one workspace that is set up
-  once and never reset; the agent is started afresh for each.
+- The stages run in the order listed, in one environment, and the agent
+  is started afresh for each. **Each stage starts from the workspace as
+  the try began**: tracked files are restored and new files removed
+  before it (ignored files, such as restored packages, are left). So
+  stages cannot disturb each other. Services are not reset.
+- `"chained": true` is for an exam whose later stages need what earlier
+  ones made. Then the workspace is kept from stage to stage, and a stage
+  that was stopped ends the try: the stages after it are `skipped`, and
+  the try still counts.
 - A stage has an `id`, a `prompt`, and optionally `about`, `expect`,
   `checks` and `oracle`, which mean what they mean on a task. It has no
   `fixture` or `labels`: those are the exam's.
@@ -270,31 +277,28 @@ an agent variant runs one through Harbor as one task of steps, and
   words, about 20 characters, naming what the stage asks (`clear-wait`,
   not `stage-12`); `about` is the one-sentence version. `proctor list`
   names the ids that will not read as a label.
+- **Every check is a stage's.** The exam's and the fixture's checks
+  apply to every stage, each with that stage's `expect`; a stage's own
+  apply to it alone. A check on the transcript reads that stage's
+  transcript. A check on the workspace (`files_touched`, a script) sees
+  the workspace as that stage left it, and `files_touched` reads what
+  that stage itself changed. Each stage has its own `checks.json` and
+  `diff.patch`, and passes on the headline checks it carries. A stage
+  that was not reached is not graded.
 - One attempt is a try: every stage once. It is kept at
   `bank/<exam>/<variant>/<n>/`, each stage under `stages/<i>-<id>/`
-  with its own manifest, status, program and transcript; the attempt
-  hooks run once around the try, and `diff.patch` is the try's.
+  with its own manifest, status, program, transcript and diff; the
+  attempt hooks run once around the try.
 - A stage that did not run (a provider error, a rate limit, a
   cancelled or crashed nb) loses the try: nothing more of it is
   launched, none of it counts, and `proctor run` makes another.
-- A stage that was stopped by a limit or a denial is a result. The next
-  stage runs, unless the exam says `"chained": true`: then a later
-  stage needs what an earlier one made, so the try ends there, the
-  stages after it are `skipped`, and the try still counts.
-- Each stage is graded on its own transcript and has its own
-  `checks.json`. A check that reads the workspace (`files_touched`, a
-  script) is graded once, on what the last stage left, and belongs to
-  the last stage: declare it in `grading.checks`, on the fixture, or on
-  the last stage. One on an earlier stage is refused. So a stage whose
-  result is checked must leave it where a later stage will not touch
-  it; say where in its prompt. A stage passes on the
-  headline checks it carries, and a stage that was not reached is not
-  graded.
+- A stage that was stopped by a limit or a denial is a result, and the
+  next stage runs, unless the exam is chained.
 - `proctor report` compares variants try against try, never stage
-  against stage: stages share a workspace, so they share causes. Each
-  try gives two numbers, the headline checks it held (of all the job
-  has; a stage not reached holds nothing) and its flagged steps, and a
-  variant is compared with the live one by the Mann–Whitney test.
+  against stage: stages share an environment, so they share causes.
+  Each try gives two numbers, the headline checks it held (of all the
+  job has; a stage not reached holds nothing) and its flagged steps,
+  and a variant is compared with the live one by the Mann–Whitney test.
   **Plan for at least 4 tries of each variant** (`attempts`), or 3
   against 5: fewer can show a difference and never confirm one. One
   try is fine as a shakedown, for setup problems and plain failures.

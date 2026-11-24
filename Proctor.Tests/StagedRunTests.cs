@@ -37,10 +37,10 @@ public class StagedRunTests
     static JsonObject Manifest(TestRepo repo, int n, string stage) => JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, n), "stages", stage, "manifest.json")))!.AsObject();
 
     [Fact]
-    public void ATry_IsEveryStageInOrder_InOneWorkspace_EachWithItsOwnFiles()
+    public void AChainedTry_IsEveryStageInOrder_InOneWorkspace_EachWithItsOwnFiles()
     {
         using var repo = new TestRepo();
-        Stage(repo, 1, false, ("write", "MOCK:tool=bash echo one > made.txt"), ("read", "MOCK:tool=bash cat made.txt"), ("say", "MOCK:response=done"));
+        Stage(repo, 1, true, ("write", "MOCK:tool=bash echo one > made.txt"), ("read", "MOCK:tool=bash cat made.txt"), ("say", "MOCK:response=done"));
         var (id, log) = Run(repo);
 
         Assert.Contains("one job of 3 stages, 1 attempt wanted", log);
@@ -54,14 +54,15 @@ public class StagedRunTests
                 Assert.True(File.Exists(Path.Combine(TryDir(repo, 1), "stages", stage, file)), $"{stage}/{file}");
         }
 
-        // The workspace is the try's and is never reset: the second stage reads what the first wrote.
+        // A chained exam keeps the workspace from stage to stage: the second stage reads what the first wrote.
         Assert.Contains("\"output\":\"one", File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-read", "transcript.jsonl")));
         Assert.DoesNotContain("made.txt", File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "3-say", "transcript.jsonl")));
 
-        // The hooks run once around the try and the diff is the whole try's.
+        // The hooks run once around the try. Each stage keeps the diff as it left the workspace, so on a chained exam a later stage's holds the earlier ones' changes.
         Assert.True(File.Exists(Path.Combine(TryDir(repo, 1), "hooks", "attempt.setup.log")));
-        Assert.Contains("made.txt", File.ReadAllText(Path.Combine(TryDir(repo, 1), "diff.patch")));
-        Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "stages", "3-say", "diff.patch")));
+        Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "diff.patch")));
+        foreach (var stage in new[] { "1-write", "2-read", "3-say" })
+            Assert.Contains("made.txt", File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", stage, "diff.patch")));
 
         // A stage's manifest says its place, and carries the job's hash; the log entry names the stages in order.
         var exam = repo.LoadExam("smoke");
@@ -70,6 +71,24 @@ public class StagedRunTests
         Assert.Equal(["write", "read", "say"], Runner.LoadEntry(repo.Root, id!).Stages);
 
         Assert.Contains("nothing to make", Run(repo).Log);
+    }
+
+    [Fact]
+    public void UnlessChained_EachStageStartsFresh_FromTheWorkspaceAsTheTryBegan()
+    {
+        using var repo = new TestRepo();
+        Stage(repo, 1, false, ("write", "MOCK:tool=bash echo one > made.txt && echo changed > note.txt"), ("read", "MOCK:tool=bash cat made.txt note.txt"), ("say", "MOCK:response=done"));
+        Run(repo);
+        // The first stage's new file is gone and its edit undone before the second starts.
+        var read = File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-read", "transcript.jsonl"));
+        Assert.Contains("made.txt: No such file", read);
+        Assert.DoesNotContain("changed", read.Split("tool_result")[1]);
+        // Each stage's diff is what that stage did, and nothing of the others'.
+        var first = File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "1-write", "diff.patch"));
+        Assert.Contains("made.txt", first);
+        Assert.Contains("note.txt", first);
+        Assert.Equal("", File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-read", "diff.patch")));
+        Assert.Equal("", File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "3-say", "diff.patch")));
     }
 
     [Fact]
@@ -131,41 +150,43 @@ public class StagedRunTests
 
     static JsonObject Checks(TestRepo repo, int n, string stage) => JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, n), "stages", stage, "checks.json")))!.AsObject();
 
-    [Fact]
-    public void Grade_GivesEveryStageItsTranscriptChecks_AndTheLastStageTheWorkspaceChecks()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Grade_ChecksEachStage_OnItsOwnTranscript_AndOnTheWorkspaceAsItLeftIt(bool chained)
     {
         using var repo = new TestRepo();
-        Stage(repo, 1, false, ("write", "MOCK:tool=bash echo one > made.txt"), ("say", "MOCK:response=hello world"), ("last", "MOCK:response=done"));
+        Stage(repo, 1, chained, ("write", "MOCK:tool=bash echo one > made.txt"), ("say", "MOCK:response=hello world"), ("edit", "MOCK:tool=bash echo changed > note.txt"));
+        File.SetUnixFileMode(repo.Write("smoke/checks/made.sh", "#!/bin/bash\nif [ -f \"$PROCTOR_WORK/made.txt\" ]; then echo 'made.txt is there'; exit 0; fi\necho 'no made.txt'; exit 1\n"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         repo.EditJson("smoke/exam.json", e =>
         {
             e["stages"]![1]!["expect"] = JsonNode.Parse("""{"answer_contains": "hello"}""");
-            // The last stage may declare a workspace check of its own; it reads what the whole try left.
-            e["stages"]![2]!["checks"] = JsonNode.Parse("""{"made-it": {"files_touched": {"paths": ["made.txt"], "mode": "at_least"}}}""");
+            // A stage's own workspace checks, by the diff and by a script in the checkout.
+            e["stages"]![0]!["checks"] = JsonNode.Parse("""{"made-it": {"files_touched": {"paths": ["made.txt"], "mode": "at_least"}}}""");
+            e["grading"]!["checks"]!["has-made"] = JsonNode.Parse("""{"script": "checks/made.sh", "description": "made.txt is in the workspace"}""");
             e["grading"]!["pass"] = JsonNode.Parse("""["exit_ok", "touches-note"]""");
         });
         Run(repo);
         var exam = repo.LoadExam("smoke");
         var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
+        string Result(string stage, string check) => Checks(repo, 1, stage)[check]!["result"]!.GetValue<string>();
 
-        // The exam's workspace checks (the diff, a script) are the last stage's alone; the transcript checks are every stage's.
-        string[] onTranscript = ["exit_ok", "no_denials", "not_nudged", "says-expected", "under_budget"];
-        Assert.Equal(onTranscript.Order(), Checks(repo, 1, "1-write").Select(k => k.Key).Order());
-        Assert.Equal(onTranscript.Order(), Checks(repo, 1, "2-say").Select(k => k.Key).Order());
-        Assert.Equal(onTranscript.Concat(["answer-nonempty", "made-it", "touches-note"]).Order(), Checks(repo, 1, "3-last").Select(k => k.Key).Order());
+        // Every stage carries every check of the exam, and its own.
+        string[] exams = ["answer-nonempty", "exit_ok", "has-made", "no_denials", "not_nudged", "says-expected", "touches-note", "under_budget"];
+        Assert.Equal(exams.Append("made-it").Order(), Checks(repo, 1, "1-write").Select(k => k.Key).Order());
+        Assert.Equal(exams, Checks(repo, 1, "2-say").Select(k => k.Key).Order());
+        Assert.Equal("pass", Result("2-say", "says-expected"));
 
-        // Each stage is graded on its own transcript, with its own expected value.
-        Assert.Equal("pass", Checks(repo, 1, "2-say")["says-expected"]!["result"]!.GetValue<string>());
-        // The diff is the try's: the last stage's checks find the file the first stage wrote, and the hook's edit.
-        Assert.Equal("pass", Checks(repo, 1, "3-last")["made-it"]!["result"]!.GetValue<string>());
-        Assert.Equal("made.txt", Checks(repo, 1, "3-last")["made-it"]!["evidence"]![0]!["file"]!.GetValue<string>());
-        Assert.Equal("pass", Checks(repo, 1, "3-last")["touches-note"]!["result"]!.GetValue<string>());
-        // Evidence in a stage's verdicts points at that stage's own steps.
-        Assert.NotNull(Checks(repo, 1, "1-write")["no_denials"]);
+        // A check on the diff sees what its own stage changed: only the last stage touched note.txt, chained or not.
+        Assert.Equal(("pass", "made.txt"), (Result("1-write", "made-it"), Checks(repo, 1, "1-write")["made-it"]!["evidence"]![0]!["file"]!.GetValue<string>()));
+        Assert.Equal(("fail", "fail", "pass"), (Result("1-write", "touches-note"), Result("2-say", "touches-note"), Result("3-edit", "touches-note")));
+        Assert.Equal([false, false, true], grades.Select(g => g.Pass == true));
 
-        // A stage passes on the headline checks it carries: only the last has touches-note.
-        Assert.Equal([("write", true), ("say", true), ("last", true)], grades.Select(g => (g.Task, g.Pass == true)));
-        Assert.Equal(["exit_ok"], exam.PassFor(exam.TaskOf("say")));
-        Assert.Equal(["exit_ok", "touches-note"], exam.PassFor(exam.TaskOf("last")));
+        // A script sees the workspace as its stage left it: the first stage's file is there after it, and after the
+        // later stages only when the exam keeps the workspace from stage to stage.
+        Assert.Equal("pass", Result("1-write", "has-made"));
+        Assert.Equal(chained ? "pass" : "fail", Result("2-say", "has-made"));
+        Assert.Equal(chained ? "pass" : "fail", Result("3-edit", "has-made"));
     }
 
     [Fact]

@@ -79,6 +79,9 @@ static class Layout
     public static string Work(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null) =>
         stages is null ? Path.Combine(root, WorkDir, examId, variant, task, n.ToString())
         : Path.Combine(root, WorkDir, examId, variant, n.ToString());
+    /// <summary>A stage's workspace rebuilt for grading: the fixture with the stage's diff on it, since the try's own checkout only holds what the last stage left.</summary>
+    public static string WorkAsStageLeftIt(string root, string examId, string variant, int n, string stageDir) =>
+        Path.Combine(root, WorkDir, examId, variant, $"{n}.stages", stageDir);
     /// <summary>What one `proctor run` did: entry.json, its status counts, its variant hooks' output, and the Harbor tasks it compiled.</summary>
     public static string LogEntry(string root, string entryId) => Path.Combine(root, LogDir, entryId);
     public static string LogEntryFileIn(string root, string entryId) => Path.Combine(LogEntry(root, entryId), LogEntryFile);

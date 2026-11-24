@@ -223,9 +223,10 @@ sealed class Exam
     /// </summary>
     public bool Staged => Def.Stages is not null;
     /// <summary>
-    /// Whether a later stage consumes what an earlier one made. A stage that was stopped then ends the try: the fault
-    /// cascades, so the stages after it are not launched, and the try counts with what it held before the break.
-    /// Otherwise the stages are independent and the next one runs.
+    /// Whether a later stage consumes what an earlier one made. Then the workspace is kept from stage to stage, and a
+    /// stage that was stopped ends the try: the fault cascades, so the stages after it are not launched, and the try
+    /// counts with what it held before the break. Otherwise each stage starts fresh, from the workspace as the try
+    /// began, and the next one runs whatever became of the last.
     /// </summary>
     public bool Chained => Def.Chained == true;
     /// <summary>The stage ids in the order they run, or null for a task exam: what the bank's paths are built from.</summary>
@@ -266,15 +267,10 @@ sealed class Exam
         var checks = Grading.Checks!.ToDictionary(k => k.Key, k => new CheckDef(k.Value, Dir, "exam"));
         foreach (var (name, spec) in FixtureOf(c)?.Checks ?? []) checks[name] = new CheckDef(spec, FixtureOf(c)!.Dir, "fixture");
         foreach (var (name, spec) in c.Checks ?? []) checks[name] = new CheckDef(spec, Dir, "task");
-        // Every check belongs to a stage (plans/bank.md, B8). One that reads the transcript is each stage's, of its own
-        // transcript. One that reads the workspace runs once, on what the last stage left, so it is the last stage's;
-        // loading refuses one declared on an earlier stage.
-        if (Staged && c.Id != Tasks[^1].Id)
-            foreach (var name in checks.Where(k => Checks.OnWorkspace(k.Value.Spec)).Select(k => k.Key).ToList()) checks.Remove(name);
         return checks;
     }
 
-    /// <summary>The headline checks a task or a stage carries: all of them for a task, and for a stage those it has, since a workspace check is the last stage's alone.</summary>
+    /// <summary>The headline checks a task or a stage carries: all of them for a task, and for a stage those it has.</summary>
     public List<string> PassFor(TaskDef c) => Staged ? Grading.Pass!.Where(ChecksFor(c).ContainsKey).ToList() : Grading.Pass!;
     /// <summary>The validity checks a task or a stage carries, likewise.</summary>
     public List<string>? ValidityFor(TaskDef c) => Staged ? Grading.Validity?.Where(ChecksFor(c).ContainsKey).ToList() : Grading.Validity;
@@ -556,11 +552,6 @@ sealed class Exam
             if (stage.Description is not null) Add(at + "description", "a stage's sentence is about");
             if (stage.About is not null && string.IsNullOrWhiteSpace(stage.About)) Add(at + "about", "a sentence saying what the stage asks, not an empty string");
             ValidateTask(stage, dir, (field, message) => Add(at + field, message));
-            // The workspace is looked at once, after the last stage, on both runners: Harbor's verifier and the bare path's checkout.
-            if (i < def.Stages.Count - 1)
-                foreach (var (name, spec) in stage.Checks ?? [])
-                    if (spec is not null && Checks.OnWorkspace(spec))
-                        Add($"{at}checks.{name}", "reads the workspace, which is graded once, on what the last stage left: declare it in grading.checks or on the last stage, and have this stage leave its result where a later stage will not touch it");
             stages.Add(stage with { Fixture = def.Fixture, Description = stage.About, File = Path.Combine(dir, Layout.ExamFile), At = at });
         }
         return stages;

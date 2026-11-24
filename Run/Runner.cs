@@ -317,7 +317,6 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     public static AttemptContext Context(string root, LogEntry entry, Exam exam, Variant variant, TaskDef task, int n) =>
         new(exam.Dir, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), Layout.Work(root, exam.Id, variant.Id!, task.Id!, n, entry.Stages), exam.Id, variant.Id!, task, n)
         { Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = entry.BundleOf(variant.Id!)?.Path, NbRunner = entry.Nb.Runner?.Script ?? "", NbPath = entry.Nb.Path, NbConfig = entry.Nb.Config, Mounts = entry.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
-          DiffDir = entry.Stages is null ? Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n) : Layout.Try(root, exam.Id, variant.Id!, n),
           VerifierTask = variant.IsAgent && entry.Stages is not null ? Layout.HarborJobTask(Layout.LogEntry(root, entry.Id), variant.Id!, exam.Id) : variant.IsAgent ? Layout.HarborTask(Layout.LogEntry(root, entry.Id), variant.Id!, task.Id!) : null };
 
     /// <summary>
@@ -438,8 +437,10 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
 
     /// <summary>
     /// One try of a staged exam: the workspace checked out and set up once, then nb started afresh for each stage in
-    /// order, in that one workspace, which is never reset. Each stage keeps its own program, transcript and manifest
-    /// under the try; the attempt hooks run once around all of them and the diff is the whole try's.
+    /// order. Each stage starts from the workspace as the try began, unless the exam is chained, when it meets what the
+    /// stages before it left. Each stage keeps its own program, transcript, manifest and diff under the try: the diff is
+    /// collected as the stage ends, so a check sees the workspace as that stage left it. The attempt hooks run once
+    /// around all of them.
     /// A stage that did not run loses the try, and nothing more of it is launched. On a chained exam a stage that was
     /// stopped breaks the try: the stages after it are skipped, and the try still counts (plans/bank.md, "How a stage ends").
     /// </summary>
@@ -466,17 +467,17 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         {
             if (lostAt is not null) { Mark(variant, stage, n, AttemptStatus.Skipped, $"not launched: the try was lost at stage {lostAt}"); continue; }
             if (brokeAt is not null) { Mark(variant, stage, n, AttemptStatus.Skipped, $"not reached: stage {brokeAt} was stopped ({broke}), and this exam's stages are chained"); continue; }
-            var (failure, exit) = RunStage(variant, stage, n);
+            var fresh = !exam.Chained && stage != stages[0] && first.Fixture is not null ? Checkout.Reset(workDir) : null;
+            if (fresh is not null) { lost = $"could not restore the workspace: {fresh}"; lostAt = stage.Id; Mark(variant, stage, n, AttemptStatus.Failed, lost); continue; }
+            var (failure, exit) = RunStage(variant, stage, n, collectDiff: first.Fixture is not null);
             if (failure is not null) { lost = failure; lostAt = stage.Id; }
             else if (exam.Chained && !StageEnd.DidEnd(exit!)) { brokeAt = stage.Id; broke = exit; }
         }
 
-        // Teardown and the diff run whenever setup ran, as for a task's attempt. Failing here loses the try: its workspace checks would have nothing to read.
+        // Teardown runs whenever setup ran, as for a task's attempt, and a failure there loses the try.
         if (setupRan)
         {
-            var after = RunHook(exam.Def.Hooks?.Attempt?.Teardown, env, Path.Combine(tryDir, Layout.HooksDir, "attempt.teardown.log")) is { } teardownError ? $"attempt teardown hook failed: {teardownError}"
-                : first.Fixture is not null && Checkout.CollectDiff(workDir, tryDir) is { } diffError ? $"diff collection failed: {diffError}"
-                : null;
+            var after = RunHook(exam.Def.Hooks?.Attempt?.Teardown, env, Path.Combine(tryDir, Layout.HooksDir, "attempt.teardown.log")) is { } teardownError ? $"attempt teardown hook failed: {teardownError}" : null;
             if (after is not null && lostAt is null)
             {
                 var last = stages.Last(s => ReadStatus(AttemptDir(variant, s, n)) == AttemptStatus.Completed);
@@ -563,8 +564,6 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             if (exit is not null && StageEnd.DidNotRun(exit)) failure = $"did not run: {exit}";
             if (failure is not null) { lost = failure; lostAt = stage.Id; lostSeen = true; End(AttemptStatus.Failed, failure); continue; }
             manifest.DurationMs = ReadJson<CountedCore>(Path.Combine(attemptDir, Layout.CoreFile))?.DurationMs;
-            // The diff Harbor collected after this step is the try's so far; the last one read is the try's.
-            if (File.Exists(Path.Combine(attemptDir, Layout.DiffFile))) File.Move(Path.Combine(attemptDir, Layout.DiffFile), Path.Combine(tryDir, Layout.DiffFile), overwrite: true);
             End(AttemptStatus.Completed, null);
             if (exam.Chained && !StageEnd.DidEnd(exit!)) { brokeAt = stage.Id; broke = exit; }
         }
@@ -573,7 +572,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>One stage of a try: nb on the stage's program, in the try's workspace. Why the try is lost, or else the stage's exit reason.</summary>
-    (string? Failure, string? ExitReason) RunStage(Variant variant, TaskDef stage, int n)
+    (string? Failure, string? ExitReason) RunStage(Variant variant, TaskDef stage, int n, bool collectDiff)
     {
         var attempt = Context(root, entry, exam, variant, stage, n);
         var attemptDir = attempt.AttemptDir;
@@ -590,6 +589,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var failure = compileError is not null ? $"program compile failed: {compileError}" : RunNb(attemptDir, attempt.WorkDir, compiled!, attempt.Environment(), manifest);
         var exit = failure is null ? ExitReasonOf(attemptDir) : null;
         if (exit is not null && StageEnd.DidNotRun(exit)) failure = $"did not run: {exit}";
+        // The workspace as this stage left it, before the next stage restores or builds on it.
+        if (failure is null && collectDiff && Checkout.CollectDiff(attempt.WorkDir, attemptDir) is { } diffError) failure = $"diff collection failed: {diffError}";
         stopwatch.Stop();
 
         manifest.Ended = Now();

@@ -25,6 +25,28 @@ static class Checkout
             ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", $"fixture {fixture.Id} {fixture.Hash}");
     }
 
+    /// <summary>
+    /// The checkout as the try began, for a stage that starts fresh: tracked files restored and new untracked ones
+    /// removed. Ignored files stay (restored packages, build caches), or a build with no network would fail; a stale
+    /// build output among them can survive. Null on success.
+    /// </summary>
+    public static string? Reset(string workDir) =>
+        !Directory.Exists(Path.Combine(workDir, ".git")) ? "work directory is not a git checkout"
+        : Git(workDir, "reset", "-q", "--hard", "HEAD") ?? Git(workDir, "clean", "-fdq");
+
+    /// <summary>
+    /// What a stage itself changed, given the diff so far before it and after it: the files whose part of the diff is
+    /// new or different. On a chained exam the diff after a stage holds every earlier stage's changes too. A file an
+    /// earlier stage changed and this one put back exactly is not seen.
+    /// </summary>
+    public static string Since(string? before, string after)
+    {
+        static List<string> Files(string diff) => System.Text.RegularExpressions.Regex.Split(diff, @"(?m)^(?=diff --git )").Where(s => s.Length > 0).ToList();
+        if (string.IsNullOrEmpty(before)) return after;
+        var earlier = Files(before).ToHashSet();
+        return string.Concat(Files(after).Where(file => !earlier.Contains(file)));
+    }
+
     /// <summary>Everything the attempt changed, new files included, as one unified diff in the attempt. Null on success.</summary>
     public static string? CollectDiff(string workDir, string attemptDir)
     {

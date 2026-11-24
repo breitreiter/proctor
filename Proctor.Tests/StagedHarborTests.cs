@@ -60,7 +60,8 @@ public class StagedHarborTests
         $$"""{"step_name": "{{name}}", "agent_result": {"n_input_tokens": 10, "n_output_tokens": 5}, "agent_execution": {"started_at": "2026-11-23T10:00:00Z", "finished_at": "2026-11-23T10:00:02Z"}, "exception_info": {{(exception is null ? "null" : $$"""{"exception_type": "{{exception}}", "exception_message": "it stopped"}""")}}}""";
 
     const string TwoSteps = """
-        step look "" '{"ran": 1}'
+        step look "" '{"builds": 1, "tests-pass": 1}'
+        echo 0 > "$t/steps/look/verifier/builds.exit"; echo 0 > "$t/steps/look/verifier/tests-pass.exit"
         step fix-null-deref "" '{"builds": 1, "tests-pass": 0}'
         echo 'dotnet build: 0 errors' > "$t/steps/fix-null-deref/verifier/builds.out"; echo 0 > "$t/steps/fix-null-deref/verifier/builds.exit"
         echo '1 of 6 tests failed' > "$t/steps/fix-null-deref/verifier/tests-pass.out"; echo 1 > "$t/steps/fix-null-deref/verifier/tests-pass.exit"
@@ -77,7 +78,7 @@ public class StagedHarborTests
     static string Status(TestRepo repo, string stage) => File.ReadAllText(Path.Combine(Stage(repo, stage), "status")).Trim();
 
     [Fact]
-    public void AStagedExam_CompilesToOneTaskOfSteps_WithTheWorkspaceChecksOnTheLast()
+    public void AStagedExam_CompilesToOneTaskOfSteps_EachWithItsOwnVerifier()
     {
         using var repo = Repo(TwoSteps + "\n" + Result(Step("look"), Step("fix-null-deref")));
         var (id, _) = Run(repo);
@@ -88,10 +89,17 @@ public class StagedHarborTests
         Assert.EndsWith("\n[[steps]]\nname = \"look\"\n\n[[steps]]\nname = \"fix-null-deref\"\n", toml);
         Assert.Equal("Which test fails? Say its name.\n", File.ReadAllText(Path.Combine(task, "steps", "look", "instruction.md")));
         Assert.False(File.Exists(Path.Combine(task, "instruction.md")));
-        // Every step has a verifier, so a step that timed out does not end the trial; only the last runs the script checks.
-        Assert.Contains("{\"ran\": 1}", File.ReadAllText(Path.Combine(task, "tests", "test.sh")));
-        Assert.Contains("check 'builds' ", File.ReadAllText(Path.Combine(task, "steps", "fix-null-deref", "tests", "test.sh")));
-        Assert.False(Directory.Exists(Path.Combine(task, "steps", "look", "tests")));
+        // Every step has its own verifier and contract: a stage's script checks run on the workspace as it left it, and a step that timed out does not end the trial.
+        foreach (var stage in new[] { "look", "fix-null-deref" })
+        {
+            Assert.Contains("check 'builds' ", File.ReadAllText(Path.Combine(task, "steps", stage, "tests", "test.sh")));
+            Assert.Contains($"export PROCTOR_TASK='{stage}'", File.ReadAllText(Path.Combine(task, "steps", stage, "tests", "env.sh")));
+        }
+        Assert.False(File.Exists(Path.Combine(task, "tests", "test.sh")));
+        Assert.True(Directory.Exists(Path.Combine(task, "tests", "exam")));
+        // A stage after the first starts fresh: its step puts the workspace back before the agent runs.
+        Assert.Contains("git reset -q --hard HEAD && git clean -fdq", File.ReadAllText(Path.Combine(task, "steps", "fix-null-deref", "workdir", "setup.sh")));
+        Assert.False(Directory.Exists(Path.Combine(task, "steps", "look", "workdir")));
         Assert.True(Directory.Exists(Path.Combine(task, "environment", "repo")));
         Assert.EndsWith(Path.Combine("harbor", "tasks", "cc-haiku", "harbor-unit"), JsonNode.Parse(File.ReadAllText(Path.Combine(repo.Root, "job.seen.json")))!["tasks"]![0]!["path"]!.GetValue<string>());
     }
@@ -110,18 +118,18 @@ public class StagedHarborTests
                 Assert.True(File.Exists(Path.Combine(Stage(repo, stage), file)), $"{stage}/{file}");
         }
         Assert.Contains("did look", File.ReadAllText(Path.Combine(Stage(repo, "1-look"), "trajectory.json")));
-        // One Harbor job for the try, and the diff is the try's: what Harbor collected after the last step.
+        // One Harbor job for the try; each stage keeps the diff Harbor collected after its step.
         var tryDir = Path.GetDirectoryName(Path.GetDirectoryName(Stage(repo, "1-look")))!;
         Assert.True(File.Exists(Path.Combine(tryDir, "harbor", "job.json")));
-        Assert.Contains("Ledger/fix-null-deref", File.ReadAllText(Path.Combine(tryDir, "diff.patch")));
-        Assert.False(File.Exists(Path.Combine(Stage(repo, "2-fix-null-deref"), "diff.patch")));
+        Assert.Contains("Ledger/look", File.ReadAllText(Path.Combine(Stage(repo, "1-look"), "diff.patch")));
+        Assert.Contains("Ledger/fix-null-deref", File.ReadAllText(Path.Combine(Stage(repo, "2-fix-null-deref"), "diff.patch")));
         var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(Stage(repo, "2-fix-null-deref"), "manifest.json")))!;
         Assert.Equal((2, "claude-code", "2.1.301"), (manifest["stage"]!.GetValue<int>(), manifest["agent"]!["name"]!.GetValue<string>(), manifest["agent"]!["version"]!.GetValue<string>()));
 
-        // Grading: the transcript checks are each stage's; the verifier's verdicts and the diff are the last stage's.
+        // Grading: each stage's verdicts are its own verifier's, on its own diff.
         var exam = repo.LoadExam("harbor-unit");
         var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
-        Assert.Empty(grades[0].Checks!);
+        Assert.Equal(("pass", "pass"), (grades[0].Checks!["builds"].Result, grades[0].Checks!["tests-pass"].Result));
         Assert.Equal(("pass", "fail", "pass"), (grades[1].Checks!["builds"].Result, grades[1].Checks!["tests-pass"].Result, grades[1].Checks!["diff-in-scope"].Result));
         Assert.Equal([true, false], grades.Select(g => g.Pass == true));
         Assert.Contains("nothing to make", Run(repo).Log);

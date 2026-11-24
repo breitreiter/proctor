@@ -1197,3 +1197,41 @@ over banked reps from an agent variant; it shows as outdated. Agreed as a
 fast follow after the bank layout: rebuild the workspace from the fixture's
 image and the kept diff, run the script, record that the image is a later
 build.
+
+## Retry a stage that did not run, in place (2026-11-23)
+
+A stage that did not run (a provider error, a rate limit) loses the whole
+try, every finished stage with it (`plans/bank.md`, "How a stage ends").
+For six independent coding stages that is an hour of work thrown away for
+one bad request. Once the bare runner snapshots the workspace after each
+stage (per-stage workspace checks, decided 2026-11-23), it can put the
+workspace back to the last snapshot and launch the stage again, a few
+times, before giving the try up. The user: fine to do later, not to
+forget.
+
+- Harbor cannot: it owns the steps of a trial. A lost try through Harbor
+  stays lost, so the two runners would differ in cost, not in grading.
+- Say in the stage's manifest that it was retried and how often; a retry
+  is a fact about the run.
+- Decide what counts as worth retrying: `rate_limited` and
+  `provider_error`, not a crash of nb or a failed hook.
+
+## Something above an exam that `proctor run` can target (2026-11-23)
+
+Stages replace tasks, so an exam is one job in one environment, and a
+set of related jobs is a set of exams: `code-change` becomes three, the
+scripted controls a handful. The user: "we're generating a lot of exams,
+do we need something above them that proctor run targets? or some sort
+of metadata/tagging system so you can say 'run all the oracle exams'".
+
+- Exams already carry `labels`, and `proctor list --label` filters by
+  them. The smallest step is `run`, `grade` and `report` taking the same
+  filter.
+- A named group of exams is the other shape. The word for it is on the
+  old-words gate with its former meaning (`plans/bank.md`, B7), so it
+  needs the gate changed or another name.
+- Exams split from one family copy their variants, bundles and hooks.
+  Whatever sits above an exam is also where shared variants would live,
+  and where a variant would be compared across the family's exams.
+- Not decided: whether a report over several exams is one report or a
+  page that lists each exam's.

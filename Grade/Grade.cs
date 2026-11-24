@@ -26,10 +26,12 @@ static class Grade
                 continue;
             }
             var attempt = Runner.Context(root, a.Entry, exam, variant, c, n) with { Judges = judges };
+            // A stage's script checks run on the workspace as that stage left it, which the try's own checkout no longer is once a later stage has run: the fixture with the stage's diff, rebuilt beside it.
+            if (a.Staged && !variant.IsAgent) attempt = attempt with { WorkDir = Layout.WorkAsStageLeftIt(root, exam.Id, variant.Id!, n, Path.GetFileName(attemptDir)) };
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree. An agent attempt's scripts ran in the verifier.
-            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attempt.DiffDir) is { } error)
+            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir) is { } error)
                 log.WriteLine($"  {a.Label}  could not restore the checkout: {error}");
-            var checks = Attempt(attempt, exam, Transcript.Read(attemptDir, attempt.DiffDir));
+            var checks = Attempt(attempt, exam, Transcript.Read(attemptDir, Before(root, exam, a)));
             var pass = Pass(checks, exam.PassFor(c));
             var invalid = Invalid(checks, exam.ValidityFor(c));
             grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid));
@@ -37,6 +39,10 @@ static class Grade
         }
         return grades;
     }
+
+    /// <summary>On a chained exam, the stage before this one in the same try: its diff is in this one's, and is taken out to see what this stage changed. Null otherwise.</summary>
+    static string? Before(string root, Exam exam, BankAttempt a) =>
+        a.Staged && exam.Chained && a.Entry.Stages!.IndexOf(a.Task) is > 0 and var i ? Layout.Attempt(root, exam.Id, a.Variant, a.Entry.Stages[i - 1], a.Attempt, a.Entry.Stages) : null;
 
     /// <summary>
     /// A `--judge a=b` pass: only the checks whose declared judge is remapped are evaluated, by b, into b's verdict files
@@ -59,7 +65,7 @@ static class Grade
                 continue;
             }
             var attempt = Runner.Context(root, a.Entry, exam, variant, c, n) with { Judges = judges };
-            var transcript = Transcript.Read(attemptDir, attempt.DiffDir);
+            var transcript = Transcript.Read(attemptDir, Before(root, exam, a));
             foreach (var (name, check) in exam.ChecksFor(c))
             {
                 if (!Checks.ModelChecks(check.Spec).Any(m => judges.Remaps(m.Name, m.Spec, name))) continue;

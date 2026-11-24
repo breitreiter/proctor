@@ -476,19 +476,6 @@ public class ExamTests
     }
 
     [Fact]
-    public void AWorkspaceCheck_IsTheExamsOrTheLastStages_NeverAnEarlierStages()
-    {
-        using var repo = new TestRepo();
-        repo.CopyExam("smoke");
-        repo.Stage("smoke");
-        var check = """{"made-it": {"files_touched": {"paths": ["made.txt"], "mode": "at_least"}}}""";
-        repo.EditJson("smoke/exam.json", e => e["stages"]![2]!["checks"] = JsonNode.Parse(check));
-        Assert.Empty(repo.Problems("smoke"));
-        repo.EditJson("smoke/exam.json", e => e["stages"]![0]!["checks"] = JsonNode.Parse(check));
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "stages[0].checks.made-it" && p.Message.Contains("graded once, on what the last stage left"));
-    }
-
-    [Fact]
     public void AnExam_IsTasksOrStages_NotBoth_AndAFixtureOfItsOwnGoesWithStages()
     {
         using var repo = new TestRepo();

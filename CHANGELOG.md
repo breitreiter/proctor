@@ -23,6 +23,13 @@ formats or the vocabulary; a patch bump does not.
   per stage. Transcript checks are each stage's; a workspace check is
   graded once against the try's diff, the exam's and the fixture's on
   the last stage and a stage's own on that stage.
+- **Stages: every check is a stage's, and a stage starts fresh.** A
+  workspace check (`files_touched`, a script) now runs for each stage
+  that carries it and sees the workspace as that stage left it; each
+  stage has its own `diff.patch`, and the try has none. Unless the exam
+  says `"chained": true`, each stage starts from the workspace as the
+  try began. This replaces the rule that a workspace check belongs to
+  the last stage, on both runners.
 - **Stages, through Harbor** (slice 6). An agent variant runs a staged
   exam as one Harbor task whose steps are the stages; one trial is one
   try, each step ingested as its stage. **Breaking for a staged exam

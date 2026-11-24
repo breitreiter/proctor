@@ -208,6 +208,40 @@ failed headline check, at no cost. That bends B8 (no check between
 stages) for transcript checks only, and Harbor would need its per-step
 verifier to do the same. Not built.
 
+## Tasks go; stages gain two things (the user, 2026-11-23)
+
+Looking at the exams themselves, only `readme-answers` staged as
+stages stood: the others have a workspace check per task, or need a
+clean workspace per task. The user ruled out keeping tasks: each has
+its own configuration and transcripts, which makes it an exam within an
+exam, "confusing and hard to explain". Stages stay the one way to
+bundle small work items, with two changes.
+
+- **A workspace check is its stage's, and sees the workspace as that
+  stage left it.** This replaces B8's "runs once, at the end" and the
+  rule of slice 6 (workspace checks on the last stage only). Harbor's
+  verifier already runs after every step with the diff so far. The bare
+  runner launches nb once per stage, so it can keep the diff after
+  each. B8's objection, that nb had no equivalent, no longer holds.
+- **The workspace is fresh for each stage, unless the exam is
+  chained.** `"chained": true` stays the one setting; absent, each
+  stage starts from the workspace as the try began, so stages cannot
+  disturb each other. A third mode, one workspace shared by stages that
+  do not depend on each other, was dropped: it is fresh done by hand,
+  with room for one stage to break the next unseen.
+  - Fresh restores the tracked files and removes new untracked ones.
+    Ignored files (restored packages, build caches) are left, or an
+    offline build would fail. A stale build output in an ignored
+    directory can survive.
+  - Services are not reset. A fake API that keeps state between stages
+    is the author's to handle.
+
+What is still several exams: tasks on different environments
+(`code-change`'s three stacks, `nb-changes`, the two authoring exams),
+and the scripted controls for failure paths. See `project/todo.md`:
+something above an exam for `run` to target, and retrying a stage in
+place.
+
 ## Step 4, in slices (2026-11-23)
 
 Bare runner first; Harbor after, with its scripted multi-step check
@@ -304,6 +338,18 @@ Harbor's source says it writes per step, not on a run.
    comparison across fixtures until a roll-up of exams exists. Then
    tasks, `--tasks` and the per-task code are deleted.
 8. **Docs and the skill** (B9).
+
+**After slice 6, the same day:** the two changes under "Tasks go;
+stages gain two things" are BUILT on both runners and run for real
+through Harbor. Every check is a stage's, a workspace check sees the
+workspace as its stage left it (a `diff.patch` per stage; on a chained
+exam `files_touched` reads what the stage itself changed, by taking the
+stage before's diff out), and a stage starts fresh unless the exam is
+chained (the bare runner resets the checkout; Harbor's step runs a
+compiled `setup.sh`). Slice 3's and slice 6's rule that a workspace
+check is the last stage's is gone, with the try-level `diff.patch`.
+Grading a bare stage's script checks rebuilds its workspace from the
+fixture and its diff, beside the try's checkout.
 
 ## Checks and stages (B8)
 
