@@ -2,7 +2,7 @@
 type: plan
 title: Axes, values and configurations — every change to the fixture named and declared
 created: 2026-11-23
-status: proposed 2026-11-23, from a conversation with the user. The model's shape is theirs (marked "the user"); the refusals, the outcomes and the mapping from today are recommendations to confirm. Decisions recorded 2026-11-23 and 24 (see "Decided since"), the words among them. Nothing built. Would revise `exam-variant-attempt.md` (variant, live, claim, D5, D16) and the vocabulary table in `CLAUDE.md`. Written first as `buckets.md` in working words (bucket, family); renamed when the words were fixed
+status: proposed 2026-11-23, from a conversation with the user. The model's shape is theirs (marked "the user"); the refusals, the outcomes and the mapping from today are recommendations to confirm. Decisions recorded 2026-11-23 and 24 (see "Decided since"), the words among them. Built since, per `axes-build.md`: slices 1 and 2 and proctor's half of slice 3 (declared, run bare, reported); the declaration as built is in `axes-ports.md`, and where it differs from this file it is the later word. Revised 2026-11-24 for who reads an exam and through what ("Who asks, and through what"), which is not built and partly not settled. Would revise `exam-variant-attempt.md` (variant, live, claim, D5, D16) and the vocabulary table in `CLAUDE.md`. Written first as `buckets.md` in working words (bucket, family); renamed when the words were fixed
 ---
 
 # Axes, values and configurations
@@ -67,7 +67,7 @@ it:
   Go 1.20. As a variant, Go version gives a grid of variants (1.20 live,
   1.23 live, each with the treatment) and needs two live marks, where an
   exam has one (`live.json`). As a task, it needs every task copied per
-  version (`model.md`, Open: "Environment as its own axis").
+  version (auspex's `project/model.md`, Open: "Environment as its own axis").
 - **The agent and model are the customer's too.** Users bring Claude
   Code or Codex as they bring Go 1.20, yet both sit inside the variant,
   so an exam over two agents already needs two live variants.
@@ -236,12 +236,13 @@ What follows:
   lazily: the configurations being read or claimed first, the rest
   **not yet graded**, a state of its own and not undecided.
 - **Not applicable is a fourth outcome.** A check or a stage may apply
-  only to some values (`when go >= 1.21`). Where it does not apply it
+  only to some values (`when go != 1.20`; a condition is `=` or `!=`
+  on a value's name, never an ordering). Where it does not apply it
   is neither pass, fail nor undecided, and counts toward nothing. A
   condition naming an axis or value the exam does not declare is
   refused at load.
 
-The loop that produces a treatment (from `View/project/loop.md`), in
+The loop that produces a treatment (from auspex's `project/loop.md`), in
 order:
 
 1. A friction point is coded on existing attempts.
@@ -257,7 +258,12 @@ Step 3 comes before step 4, or the claim has no measured before.
 ## What a value can change
 
 Not every change is files. **A value sets parameters the base declares;
-it never adds steps** ("Decided since", 10):
+it never adds steps** ("Decided since", 10). The table is what a value
+can reach, not a set of kinds proctor knows: as declared and built
+(`axes-ports.md`, "The declaration") a value is named parameters the
+base's own scripts act on, plus three things proctor does itself (files
+laid over the checkout, who does the work, a whole fixture for an axis
+of worlds).
 
 | Kind | Example |
 |---|---|
@@ -267,9 +273,10 @@ it never adds steps** ("Decided since", 10):
 | a service | the docs service's content, a sandbox API's version, as parameters the service's definition declares |
 | the agent and model | which agent at which pin, which model, which provider |
 
-Files are an overlay applied after checkout. The other kinds reach the
-attempt as the setup reads them, as environment variables (say
-`PROCTOR_AXIS_GO=1.20`).
+Files are an overlay applied after checkout. The rest reaches the
+attempt as declared parameters: a build argument, `{{param.NAME}}` in
+the program, `PROCTOR_PARAM_<NAME>` for hooks and checks. The value's
+name on each axis is `PROCTOR_AXIS_<NAME>`.
 
 **The setup reads only declared axes, and every value is in the
 hash.** Proctor already warns of the trap: a hook that branches on
@@ -301,12 +308,27 @@ refusal at load or before a run, saying what to change:
    file is something you might change again, make it a value on an
    axis."
 
-And one rule it cannot check, only show:
+And one rule it cannot check, only make checkable (revised 2026-11-24;
+the first form was "every value's diff is on the page", given up
+because a value can be a seeded database, a documentation site or a
+whole repository, which nobody reads as a diff):
 
-6. **Every value's diff is on the page**, next to each attempt, in the
-   viewer's "the exam as given". A value that quietly does two things
-   (`docs=v2` also fixing the planted bug) is visible to whoever reads a
-   comparison that involves it.
+6. **A value is built alone and what it changed is reviewed against
+   what it says it does** (the user, 2026-11-24). Four parts:
+   - the setup is built with only the named value, every other axis at
+     its baseline;
+   - what changed from the baseline is looked at, by a person or an
+     agent;
+   - that is held against the value's own sentence (`note`), which is
+     the claim of what the value does. A value that quietly does two
+     things (`docs=v2` also fixing the planted bug) is caught here;
+   - a setup script that reads more than one axis is strongly
+     discouraged, since what it does in a configuration cannot be
+     predicted from the values built alone.
+
+   Building costs no model, so this is a shakedown: free, and done
+   before any attempt is paid for. What follows from it is mine and to
+   confirm ("OPEN", 5).
 
 ## Where next
 
@@ -317,8 +339,10 @@ thin configuration:
 
 - **The coverage grid**: which configurations have attempts, which are
   stale, which are empty, and which are excluded (declared impossible:
-  shown, never a gap to fill). The most important thing on the exam page,
-  since the empty configuration is where over-generalisation happens.
+  shown, never a gap to fill). The empty configuration is where
+  over-generalisation happens. Written when an exam had two or three
+  axes; with a dozen, nobody reads the grid whole ("Who asks, and
+  through what").
   The mocks' stage-by-try grid already has a "not run" state.
 - **Where users are.** A customer report names a configuration; so does
   knowing most users run Claude Code. Weighting is a fact only the user
@@ -341,6 +365,178 @@ is thin.
 The coding session reads these and proposes ("run these four, about
 $N"); the user decides. Proctor never picks what to run and never
 reports more than it measured.
+
+## Who asks, and through what (2026-11-24)
+
+Marked as elsewhere: "the user" for what the user said, the rest mine
+and to confirm. None of it is built. It changes what slice 3's page is
+for, so `axes-build.md` needs revising after it and is not yet.
+
+### The reader (the user)
+
+A product manager, or someone building alone, looking at an exam six
+months old. It holds treatments that were tried and dropped, values
+added because a customer complained, stages that crept in. The
+questions are not about one claim:
+
+- Are we doing a good job checking our work before we ship it?
+- Where is the only testing our customers trying it?
+- Given all these axes, what should we actually ship, and behind a
+  feature flag or straight to production?
+
+### An axis is not narrow (the user)
+
+The earlier picture, each axis one thing you could point at as a
+commit, is given up. "The system prompt for your chatbot" is a dozen
+axes or more. So nobody fills the cross product or looks at it: twelve
+axes of two values are 4,096 configurations. The configurations that
+exist are the ones somebody named or ran.
+
+### Claude carries it; proctor holds the evidence (the user, a leaning)
+
+Not settled, because where this reader meets proctor is hard to say.
+The leaning: the experience is Claude's, in conversation and in the
+dashboards it builds. Proctor is a good citizen: its docs and tools
+steer Claude toward right conclusions for that reader. Proctor owns
+the evidence store, and the debugging and analysis views that let
+Claude defend what it said. "Users on Codex are more likely to run
+into this" links to the attempts where Codex stumbled.
+
+- A reader on Claude Desktop means an MCP server over the hosted bank.
+  `hosted-auspex.md` puts off an API for the agent until it is wanted;
+  this is the want.
+- Even then, something in the viewer says what to ask Claude about
+  (the user).
+- Someone working in Claude Code has the files and needs neither.
+
+### What follows, if the leaning holds (mine, to confirm)
+
+1. **Claude says; proctor counts.** A rate or an interval worked out in
+   a conversation cannot be checked, and two people asking one question
+   get two numbers. "Every number is computed once" reaches the tools:
+   a query ("along `agent`, holding these, read as one across those")
+   answers with what the report would hold, and Claude quotes it.
+2. **The cautions travel in the answer.** Guidance in the docs is
+   skipped; what is in the result is read. Every comparison's answer
+   carries its scope, each configuration not run as a row of its own,
+   what it was read as one across, when its attempts were made, how
+   small a difference it could have seen, and how many comparisons
+   were asked for beside it.
+3. **Everything has an address, and the address shows the number.** A
+   try, a stage, one tool call, a verdict, a comparison. If Claude says
+   40% against 15%, the link opens a view where proctor shows 40%
+   against 15%. A friction point already has its call and a checked
+   quote; this is the same rule the judges' quotes are held to.
+4. **Two axes that only ever moved together are said to be so.** If
+   tone and examples changed in the same configurations, nothing
+   separates them. Proctor can see that from the attempts in scope and
+   answer "cannot be told apart from: `examples`". It is the mistake
+   Claude would otherwise make fluently, and telling the two apart
+   takes configurations made for the purpose, which Claude proposes
+   and the user decides, as in "Where next".
+5. **`run` stops filling every configuration.** With a dozen axes the
+   default has to be the configurations somebody named. This changes
+   slice 2 as built, where `run` fills all that are not excluded.
+   `exclude` matters less; naming matters more.
+
+### The three questions
+
+**"Are we checking before we ship" is about the times live moved.**
+Each time a live value changed: was there a claim first, which
+configurations did its attempts cover, what was not run. Today live is
+a field in `exam.json`, so that history is git's. Proposed: a move is
+recorded, with the claim it rested on or the fact that there was none.
+
+**"Where are our customers the only testing" has an inside and an
+outside.** Inside what is declared: the configurations live spans (the
+live values, across the axes with none) that have no attempts, few, or
+old ones. Outside: a value nobody declared cannot show as a gap. The
+weighting in "Where next" is the hook, if it has a share for
+everything else, so the answer can be "the evidence covers what about
+70% of users run".
+
+**"What should we ship" is about a combination.** A claim moves one
+axis and holds the rest at live. Two treatments that each beat live
+alone, shipped together, are a configuration nobody ran. So the thing
+proposed for release is a named configuration (`candidate` against
+`shipped`), filled across the axes with no live value and compared
+there. Then flag or not reads off it:
+
+| What the attempts show | What it suggests |
+|---|---|
+| better or the same everywhere, most users covered, a small difference would have been seen | ship it |
+| better in some configurations, worse in others | a flag aimed along that axis, if the product can tell those users apart |
+| good where run, a large share of users not run | a flag or a staged release: customers test the rest, so keep the way back |
+| no difference seen, but only a large one could have been | more attempts, or a flag; this reads as "the same" and is not |
+
+Proctor cannot supply how far a bad release reaches, how easily it is
+undone, or what a bad outcome costs. Those are the user's, and Claude
+asks for them. The recommendation is Claude's, from stated facts;
+proctor still never picks what to run and never reports more than it
+measured.
+
+### What the exam would declare for this (mine, to confirm)
+
+Small facts, none of them in a hash:
+
+- **A value can be retired.** A dropped treatment leaves the grid and
+  `run`, and keeps its attempts. Today removing a value makes them
+  stale, so six months on the choice is clutter or lost history.
+- **Why a value or a check is there.** A customer's report, or our own
+  initiative. The count of things customers found first is the most
+  direct answer to the second question, and it accounts for the
+  complaint-driven values instead of hiding them.
+- **The moves of live**, as above.
+- **Where users are, on every axis.** With a share for everything
+  else. On an axis you choose it says a release under way
+  (`docs: as-shipped 90%, v2 10%`), which one live value per axis
+  cannot; live stays the reference for comparisons.
+
+And two cautions for whoever builds it:
+
+- **Old attempts.** For this reader an attempt from five months ago, on
+  an agent version nobody runs, should not count as covered.
+- **Copies.** A change to the base copies the exam (D16), so six months
+  is probably several exams, and this reader's view has to run across
+  them. That is "something above an exam" (`todo.md`) again.
+
+### From how others handle this (looked up 2026-11-24; mine)
+
+What is ahead of practice and should be kept: a configuration not run
+shown as not run (no tool found tells that apart from passing, and
+GitHub's cancelled or skipped jobs count as success); axes declared and
+hashed with a reference on each (elsewhere a reference is a whole run);
+the claim written first; regrading as the ordinary path.
+
+What practice or the literature says against the plan as written:
+
+- **A claim's two sides are made at different times.** The live
+  attempts exist; the treatment's are made later. Hosted models change
+  under one name, and resources and time of day move pass rates by
+  several points. Either the claim's run makes fresh live attempts
+  beside the treatment's (as Chromium's queue reruns without the patch)
+  or the report says how far apart the two sides were made.
+- **Topping up where a result is near the line** is stopping when you
+  like what you see. A claim says how many attempts it will read; a
+  top-up after looking is labelled, beside the late-claim label.
+- **"Nothing else worse" is many comparisons.** The checks a claim
+  names are the claim; the rest are for looking, and the report says
+  how many it showed.
+- **Pairwise coverage is for finding what breaks, not for rates.** It
+  assumes axes do not interact, and agent with model is the known
+  counter-example. Where users are is the better guide.
+- **Configurations that disagree cancel when read as one.** Slice 3's
+  reading (the van Elteren test) shows each configuration, but has no
+  word for "better here, worse there". It needs one.
+- **Large projects declare what they promise to check** (Rust's and
+  CPython's tiers, Kubernetes's blocking jobs). That is the named
+  configurations of item 5, said as policy.
+
+Sources: Jenkins's matrix (axes, values); Rust's platform tiers;
+Anthropic on infrastructure noise in agentic coding exams; Epoch, "Why
+benchmarking is hard"; the Holistic Agent Leaderboard paper; Miller
+on error bars (arXiv 2411.00640); Bach and Schroeder on pairwise testing;
+Medeiros and others on configuration sampling.
 
 ## Worked example: the Go auditor
 
@@ -372,7 +568,7 @@ for the Go version the code declares.
 |---|---|
 | variant (agent, model, bundle; id and hash) | retired; a configuration is one value per axis, named when it matters |
 | `variants/<id>.json` | the exam's axis declarations |
-| bundle | values of the file and service kinds |
+| bundle | a value's files, or a tree parameter a service reads |
 | the live variant (`live.json`) | the live value of each axis that declares one |
 | D5: a variant id whose hash changed is refused | a value name whose content changed is refused, by the same rule |
 | a claim names two variants | a claim names one axis and two of its values |
@@ -490,10 +686,67 @@ for the Go version the code declares.
   stands, definitions and value contents stored by hash, log entries
   never pushed.
 
+- **13. The reader and their three questions** (the user, 2026-11-24).
+  See "Who asks, and through what", "The reader".
+- **14. An axis is not narrow** (the user, 2026-11-24). A system prompt
+  is a dozen axes or more; the picture of an axis as one commit is
+  given up.
+- **15. A value is built alone and reviewed against its sentence** (the
+  user, 2026-11-24). "What proctor enforces", 6. Values stay as
+  flexible as they are (files proctor lays, parameters the base's
+  scripts act on); the risk is taken out by looking at what each one
+  did by itself, and by discouraging scripts that read several axes.
+
 ## OPEN
 
 1. **Making it legible** (the user: "it will be my/our job"). The
    coverage grid; "the standard moved" against "got better or worse";
    standard changed after the claim; not yet graded against undecided
    against not applicable; each value's diff. This is the viewer's and
-   the report's work, and where the model succeeds or fails.
+   the report's work, and where the model succeeds or fails. If Claude
+   carries it (2), legible means to Claude first: what a query answers
+   and what its answer carries. The debugging views stay a person's.
+2. **Does Claude carry the experience for the product manager** (the
+   user's leaning, 2026-11-24), and so is there an MCP server. Until
+   this is answered, the five consequences, the declared facts and the
+   release table in "Who asks, and through what" are proposals.
+3. **What `axes-build.md` becomes.** If 2 holds: the query and its
+   answer come before the exam page, the page shrinks to what tells a
+   reader what to ask, and signs 4, 5 and 7 stop being tests of a page
+   a person reads. `run` filling every configuration (built) changes.
+4. **Left as they were, and contradicting what is built or decided**
+   (found 2026-11-24, each needing the user): whether the unit is an
+   attempt or a try (this file, `axes-build.md`, `hosted-auspex.md`
+   and `docs/configuration.md` differ); "no kinds of axis" (9) against
+   the world axis in the code; "a value sets only parameters" (10)
+   against a value that names a fixture, and what a changed fixture
+   under such a value does; "agent and model are axes" (3) against one
+   `assistant` axis (`axes-ports.md`, finding 2). This file is also
+   still written in tasks where an exam with axes is one of stages.
+5. **What building a value alone needs** (mine, 2026-11-24, from
+   decision 15):
+   - **A baseline on every axis.** Live serves where an axis has one.
+     An axis of the customer's (`go`) has none, so it needs a value
+     named as the one others are built against, for this purpose only.
+   - **The combination can be checked too, for nothing.** If no script
+     reads two axes, what a configuration changed from the baseline is
+     the changes of its values put together. Proctor can build the
+     configuration, compare, and say where it is not: that is a script
+     reading several axes, found without reading the script. It turns
+     "strongly discouraged" into something reported.
+   - **Where the review is kept.** By the value's hash, with who
+     reviewed it. A value's content cannot change under its name, so a
+     value is reviewed once; a changed base asks for all of them again.
+   - **What the comparison reaches.** The checkout as committed before
+     the first stage, fully. An image only by digest (different, not
+     how). A running service or a database inside one, not at all,
+     unless the fixture gives a way to dump it. A build that does not
+     repeat shows as a difference with no value behind it, so the
+     baseline is built twice first.
+   - **Axes that do depend on each other.** A model only some agents
+     can use is why agent and model became one `assistant` axis. Is
+     that always the answer (one axis, or `exclude`), or is a declared
+     dependence between two axes ever allowed?
+   - "The exam as given" (`axes-build.md`, sign 5) names a tab that was
+     dropped; it becomes the value's sentence, its extent and its
+     review.
