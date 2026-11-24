@@ -1,0 +1,51 @@
+{
+  "id": "axes-answers",
+  "description": "A scripted exam with known answers, for proctor's own queries (compare, coverage): a support bot's prompt, varied along five axes, on nb's Mock provider. The checks are scripted to pass at a chance set by the configuration, so what each comparison should find is known.",
+  "attempts": 4,
+  "fixture": "note",
+  "hooks": { "attempt": { "setup": "hooks/prompt.sh" } },
+  "params": {
+    "TONE": { "default": "plain", "about": "the tone line of the prompt" },
+    "EXAMPLES": { "default": "none", "about": "the examples line of the prompt" },
+    "LENGTH": { "default": "short", "about": "the length line of the prompt" }
+  },
+  "stages": [ { "id": "answer", "about": "answer a customer's question from the notes", "prompt": "MOCK:tool=bash cat GUIDE.md prompt.txt note.txt" } ],
+  "axes": {
+    "prompt": { "about": "the guide the bot is given", "live": "shipped", "values": {
+      "shipped":   { "note": "the guide as it ships", "files": { "path": "values/prompt/shipped" } },
+      "rewritten": { "note": "the guide rewritten: read note.txt first, answer in one sentence, say when the notes do not cover it", "files": { "path": "values/prompt/rewritten" } } } },
+    "tone": { "about": "how the prompt tells the bot to speak", "live": "plain", "values": {
+      "plain": { "note": "no instruction about tone" },
+      "terse": { "note": "the prompt's tone line says terse", "set": { "TONE": "terse" } } } },
+    "examples": { "about": "worked examples in the prompt", "live": "none", "values": {
+      "none": { "note": "no examples" },
+      "two":  { "note": "the prompt's examples line says two", "set": { "EXAMPLES": "two" } } } },
+    "length": { "about": "how long the prompt is", "live": "short", "values": {
+      "short": { "note": "the short prompt" },
+      "long":  { "note": "the prompt's length line says long", "set": { "LENGTH": "long" } } } },
+    "assistant": { "about": "which assistant the customer runs the bot on; not ours to choose", "reference": "mock", "values": {
+      "mock":   { "note": "nb on the Mock provider", "provider": "Mock", "model": "mock" },
+      "mock-b": { "note": "nb on the second Mock provider", "provider": "MockB", "model": "mock" } } }
+  },
+  "configurations": {
+    "shipped":        { "prompt": "shipped",   "tone": "plain", "examples": "none", "length": "short", "assistant": "mock" },
+    "shipped-b":      { "prompt": "shipped",   "tone": "plain", "examples": "none", "length": "short", "assistant": "mock-b" },
+    "rewritten":      { "prompt": "rewritten", "tone": "plain", "examples": "none", "length": "short", "assistant": "mock" },
+    "rewritten-b":    { "prompt": "rewritten", "tone": "plain", "examples": "none", "length": "short", "assistant": "mock-b" },
+    "terse-two":      { "prompt": "shipped",   "tone": "terse", "examples": "two",  "length": "short", "assistant": "mock" },
+    "long":           { "prompt": "shipped",   "tone": "plain", "examples": "none", "length": "long",  "assistant": "mock" },
+    "long-b":         { "prompt": "shipped",   "tone": "plain", "examples": "none", "length": "long",  "assistant": "mock-b" },
+    "rewritten-long": { "prompt": "rewritten", "tone": "plain", "examples": "none", "length": "long",  "assistant": "mock" }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok":           { "exit_reason": "ok" },
+      "answers-question":  { "script": "checks/answers-question.sh",  "description": "the answer addresses what the customer asked" },
+      "cites-note":        { "script": "checks/cites-note.sh",        "description": "the answer rests on note.txt" },
+      "one-sentence":      { "script": "checks/one-sentence.sh",      "description": "the answer is one sentence" },
+      "says-when-unsure":  { "script": "checks/says-when-unsure.sh",  "description": "the answer says so when the notes do not cover the question" }
+    },
+    "pass": ["answers-question", "cites-note", "one-sentence", "says-when-unsure"],
+    "validity": ["exit_ok"]
+  }
+}

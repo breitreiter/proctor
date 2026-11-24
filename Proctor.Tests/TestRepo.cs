@@ -38,13 +38,17 @@ sealed class TestRepo : IDisposable
         var source = Path.Combine(SourceRoot, "exams", examId);
         if (!Directory.Exists(source)) source = Path.Combine(SourceRoot, "Proctor.Tests", "exams", examId);   // test data, never an exam to run
         CopyDirectory(source, Path.Combine(Root, "exams", examId));
-        foreach (var file in Directory.GetFiles(Path.Combine(Root, "exams", examId, "tasks"), "*.json"))
+        // An exam of stages names its fixture itself and has no tasks/; one with axes has no variants/ either.
+        if (JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "exams", examId, "exam.json")))?["fixture"]?.GetValue<string>() is { } examFixture) CopyFixture(examFixture);
+        foreach (var file in Files("tasks"))
             if (JsonNode.Parse(File.ReadAllText(file))?["fixture"]?.GetValue<string>() is { } fixture) CopyFixture(fixture);
-        foreach (var file in Directory.GetFiles(Path.Combine(Root, "exams", examId, "variants"), "*.json"))
+        foreach (var file in Files("variants"))
             if (JsonNode.Parse(File.ReadAllText(file))?["bundle"]?["path"]?.GetValue<string>() is { } bundle && !Directory.Exists(Path.Combine(Root, bundle)))
                 CopyDirectory(Path.Combine(SourceRoot, bundle), Path.Combine(Root, bundle));
         WriteProctorConfig();
         return Path.Combine(Root, "exams", examId);
+
+        string[] Files(string sub) => Path.Combine(Root, "exams", examId, sub) is var dir && Directory.Exists(dir) ? Directory.GetFiles(dir, "*.json") : [];
     }
 
     /// <summary>Copy a fixture from this repository's fixtures/ into the temp root.</summary>

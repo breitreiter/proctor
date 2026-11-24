@@ -33,7 +33,7 @@ record ComparedCell(Dictionary<string, string> Holding, string Key, string LiveK
 record Pooled(List<string> Across, int Covered, int Of, bool CanConfirm, Measure Held, Measure? Flagged);
 
 /// <summary>One value of an axis against that axis's live value: cell by cell, pooled when more than one cell was compared, and in a sentence.</summary>
-record AxisComparison(string Axis, string Value, string Live, List<ComparedCell> Cells, Pooled? Pooled, List<string> NotRun, string Sentence, List<string>? Cautions = null);
+record AxisComparison(string Axis, string Value, string Live, List<ComparedCell> Cells, Pooled? Pooled, List<string> NotRun, string Sentence, List<string>? Cautions = null, string? Verdict = null);
 
 /// <summary>stats.json of an exam with axes. Configurations are the ones the exam names or has tries of; Excluded the values it declares impossible together.</summary>
 record ConfigurationsFile(string Schema, string Exam, bool Chained, List<AxisInfo> Axes, List<StageInfo> Stages, List<ConfigurationRow> Configurations, List<Dictionary<string, string>> Excluded,
@@ -68,57 +68,71 @@ static class Configurations
         var comparisons = new List<AxisComparison>();
         foreach (var (axis, def) in axes.Def.Where(a => a.Value.Live is not null))
             foreach (var value in def.Values!.Keys.Where(v => v != def.Live))
-            {
-                var cells = new List<ComparedCell>();
-                // Where to look: every setting of the other axes in which the exam carries this value, named or made. Where nobody asked
-                // for the value there is no gap to report, only the cross product, which nobody spans.
-                var holdings = axes.Configurations.Where(k => k[axis] == value)
-                    .Select(k => k.Values.Where(v => v.Axis != axis).ToDictionary(v => v.Axis, v => v.Value)).DistinctBy(Holding).ToList();
-                foreach (var holding in holdings)
-                {
-                    Configuration? With(string v) => axes.Make(new Dictionary<string, string>(holding) { [axis] = v }) is { Excluded: false } made && exam.StagesOf(made.Key).Count > 0 ? made : null;
-                    if (With(value) is not { } c || With(def.Live!) is not { } live) continue;   // one side cannot be made here: there is nothing to compare
-                    var (mine, theirs) = (byKey.GetValueOrDefault(c.Key), byKey.GetValueOrDefault(live.Key));
-                    var (n, m) = (mine?.Tries ?? 0, theirs?.Tries ?? 0);
-                    var state = n > 0 && m > 0 ? "compared" : n == 0 && m == 0 ? "neither_run" : n == 0 ? "not_run" : "live_not_run";
-                    cells.Add(new ComparedCell(holding, c.Key, live.Key, state, n, m,
-                        state == "compared" ? Tries.Compare(Held(mine!), Held(theirs!), higherIsBetter: true) : null,
-                        state == "compared" && Flagged(mine!) is { } f && Flagged(theirs!) is { } g ? Tries.Compare(f, g, higherIsBetter: false) : null));
-                }
-                var compared = cells.Where(c => c.State == "compared").ToList();
-                Pooled? pooled = null;
-                if (compared.Count > 1)
-                {
-                    var strata = compared.Select(c => (Mine: byKey[c.Key], Theirs: byKey[c.LiveKey])).ToList();
-                    var flagged = strata.All(s => Flagged(s.Mine) is not null && Flagged(s.Theirs) is not null)
-                        ? Stratified(strata.Select(s => (Flagged(s.Mine)!, Flagged(s.Theirs)!)).ToList(), higherIsBetter: false) : null;
-                    pooled = new Pooled(axes.Def.Keys.Where(a => a != axis && compared.Select(c => c.Holding[a]).Distinct().Count() > 1).ToList(), compared.Count, cells.Count,
-                        MinP(strata.Select(s => (s.Mine.Tries, s.Theirs.Tries)).ToList()) < Alpha,
-                        Stratified(strata.Select(s => (Held(s.Mine), Held(s.Theirs))).ToList(), higherIsBetter: true), flagged);
-                }
-                var notRun = cells.Where(c => c.State != "compared").Select(c => Holding(c.Holding) + c.State switch { "not_run" => "", "live_not_run" => $" (no {axis}={def.Live} there)", _ => " (neither side)" }).ToList();
-                // Where a configuration in the comparison is not simply its values: that travels with the sentence (plans/axes.md, "What follows", 2).
-                var inIt = cells.SelectMany(k => new[] { k.Key, k.LiveKey }).Distinct().Select(key => axes.Of(key)!).ToList();
-                List<string> In(string state) => inIt.Where(k => standing.GetValueOrDefault(k.Key).State == state).Select(k => k.Name ?? k.Label).ToList();
-                var cautions = new List<string>();
-                if (In(Combinations.More) is { Count: > 0 } more) cautions.Add($"More than its values put together, since some script reads more than one axis: {string.Join("; ", more)}.");
-                if (In(Combinations.Unclear) is { Count: > 0 } unclear) cautions.Add($"Cannot be told from its values alone: {string.Join("; ", unclear)}.");
-                if (In(Combinations.NotChecked) is { Count: > 0 } unchecked_) cautions.Add($"Not checked against its values alone: {string.Join("; ", unchecked_)}.");
-                comparisons.Add(new AxisComparison(axis, value, def.Live!, cells, pooled, notRun,
-                    Sentence(axis, value, def.Live!, cells, compared, pooled, notRun) + string.Concat(cautions.Select(c => " " + c)), cautions.Count > 0 ? cautions : null));
-            }
+                comparisons.Add(Compare(exam, byKey, standing, axis, value, def.Live!));
 
         var methods = "A configuration is one value on every axis. A try is every stage that applies in its configuration, once, in one workspace, and gives two numbers: "
             + "the headline checks it held, and its flagged steps (the steps inside any friction point). "
             + "A value is compared with the live value of its axis with every other axis held, try against try, by the Mann–Whitney test with an exact two-sided p. "
             + "Where more than one such cell was compared they are also read as one, by the van Elteren test: a try is ranked only against tries of the same cell, "
             + "so the cells may differ from each other without that counting as a difference between the values. Reading them as one assumes the difference is the same kind of thing in each cell; the cells are always shown. "
+            + "Where the cells point different ways the comparison is better here, worse there, and they are not read as one. "
             + "A difference is confirmed at p < 0.05. A configuration with no counted try is not run, never no change. "
             + "A comparison looks only where the exam names or has tries of the value; in the other settings of the other axes nobody asked for it. "
             + "A try in which a stage did not run is lost and is in no number; a try with a stage that failed a validity check is listed and not counted.";
         return (new ConfigurationsFile(Schema, exam.Id, exam.Chained,
                 axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)], axes.ReferenceOf(a.Key) == v.Key)).ToList())).ToList(),
                 tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built), friction);
+    }
+
+    /// <summary>
+    /// One value of an axis against another, every other axis held: the one place a comparison is worked out, for the
+    /// report (each value against its axis's live one) and for a query (plans/axes-build.md, 3c) alike. Within narrows
+    /// it to the settings of the other axes that hold those values. Where the settings compared point different ways it
+    /// is "better here, worse there", and they are not read as one: opposite differences would cancel into "the same".
+    /// </summary>
+    public static AxisComparison Compare(Exam exam, IReadOnlyDictionary<string, TryVariant> byKey, Dictionary<string, (string State, List<string> Paths)> standing,
+        string axis, string value, string against, IReadOnlyDictionary<string, string>? within = null)
+    {
+        var axes = exam.Axes!;
+        var cells = new List<ComparedCell>();
+        // Where to look: every setting of the other axes in which the exam carries this value, named or made. Where nobody asked
+        // for the value there is no gap to report, only the cross product, which nobody spans.
+        var holdings = axes.Configurations.Where(k => k[axis] == value && (within is null || k.Has(within)))
+            .Select(k => k.Values.Where(v => v.Axis != axis).ToDictionary(v => v.Axis, v => v.Value)).DistinctBy(Holding).ToList();
+        foreach (var holding in holdings)
+        {
+            Configuration? With(string v) => axes.Make(new Dictionary<string, string>(holding) { [axis] = v }) is { Excluded: false } made && exam.StagesOf(made.Key).Count > 0 ? made : null;
+            if (With(value) is not { } c || With(against) is not { } other) continue;   // one side cannot be made here: there is nothing to compare
+            var (mine, theirs) = (byKey.GetValueOrDefault(c.Key), byKey.GetValueOrDefault(other.Key));
+            var (n, m) = (mine?.Tries ?? 0, theirs?.Tries ?? 0);
+            var state = n > 0 && m > 0 ? "compared" : n == 0 && m == 0 ? "neither_run" : n == 0 ? "not_run" : "live_not_run";
+            cells.Add(new ComparedCell(holding, c.Key, other.Key, state, n, m,
+                state == "compared" ? Tries.Compare(Held(mine!), Held(theirs!), higherIsBetter: true) : null,
+                state == "compared" && Flagged(mine!) is { } f && Flagged(theirs!) is { } g ? Tries.Compare(f, g, higherIsBetter: false) : null));
+        }
+        var compared = cells.Where(c => c.State == "compared").ToList();
+        var disagree = compared.Any(c => c.Held!.Direction == "better") && compared.Any(c => c.Held!.Direction == "worse");
+        Pooled? pooled = null;
+        if (compared.Count > 1 && !disagree)
+        {
+            var strata = compared.Select(c => (Mine: byKey[c.Key], Theirs: byKey[c.LiveKey])).ToList();
+            var flagged = strata.All(s => Flagged(s.Mine) is not null && Flagged(s.Theirs) is not null)
+                ? Stratified(strata.Select(s => (Flagged(s.Mine)!, Flagged(s.Theirs)!)).ToList(), higherIsBetter: false) : null;
+            pooled = new Pooled(axes.Def.Keys.Where(a => a != axis && compared.Select(c => c.Holding[a]).Distinct().Count() > 1).ToList(), compared.Count, cells.Count,
+                MinP(strata.Select(s => (s.Mine.Tries, s.Theirs.Tries)).ToList()) < Alpha,
+                Stratified(strata.Select(s => (Held(s.Mine), Held(s.Theirs))).ToList(), higherIsBetter: true), flagged);
+        }
+        var notRun = cells.Where(c => c.State != "compared").Select(c => Holding(c.Holding) + c.State switch { "not_run" => "", "live_not_run" => $" (no {axis}={against} there)", _ => " (neither side)" }).ToList();
+        // Where a configuration in the comparison is not simply its values: that travels with the sentence (plans/axes.md, "What follows", 2).
+        var inIt = cells.SelectMany(k => new[] { k.Key, k.LiveKey }).Distinct().Select(key => axes.Of(key)!).ToList();
+        List<string> In(string state) => inIt.Where(k => standing.GetValueOrDefault(k.Key).State == state).Select(k => k.Name ?? k.Label).ToList();
+        var cautions = new List<string>();
+        if (In(Combinations.More) is { Count: > 0 } more) cautions.Add($"More than its values put together, since some script reads more than one axis: {string.Join("; ", more)}.");
+        if (In(Combinations.Unclear) is { Count: > 0 } unclear) cautions.Add($"Cannot be told from its values alone: {string.Join("; ", unclear)}.");
+        if (In(Combinations.NotChecked) is { Count: > 0 } unchecked_) cautions.Add($"Not checked against its values alone: {string.Join("; ", unchecked_)}.");
+        var verdict = compared.Count == 0 ? "nothing_to_compare" : disagree ? "better_here_worse_there" : (pooled?.Held ?? compared[0].Held!).Direction;
+        return new AxisComparison(axis, value, against, cells, pooled, notRun,
+            Sentence(axis, value, against, cells, compared, pooled, notRun, disagree) + string.Concat(cautions.Select(c => " " + c)), cautions.Count > 0 ? cautions : null, verdict);
 
         static List<double> Held(TryVariant v) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)r.Held).ToList();
         static List<double>? Flagged(TryVariant v) => v.Rows.Where(r => r.Invalid is null).ToList() is var counted && counted.All(r => r.Flagged is not null) ? counted.Select(r => (double)r.Flagged!.Value).ToList() : null;
@@ -127,11 +141,15 @@ static class Configurations
     static string Holding(Dictionary<string, string> holding) => holding.Count == 0 ? "the one configuration" : string.Join(" × ", holding.Select(h => $"{h.Key}={h.Value}"));
 
     /// <summary>The comparison in a sentence that says its scope: what was found, in which cells, and which were not run.</summary>
-    static string Sentence(string axis, string value, string live, List<ComparedCell> cells, List<ComparedCell> compared, Pooled? pooled, List<string> notRun)
+    static string Sentence(string axis, string value, string live, List<ComparedCell> cells, List<ComparedCell> compared, Pooled? pooled, List<string> notRun, bool disagree = false)
     {
         var name = $"{axis}={value} against {axis}={live}";
         var gaps = notRun.Count == 0 ? "" : $" Not run: {string.Join("; ", notRun)}.";
         if (compared.Count == 0) return $"{name}: nothing to compare yet.{gaps}";
+        if (disagree)
+            return $"{name}: better here, worse there on headline checks held. "
+                + string.Join(" ", compared.GroupBy(c => c.Held!.Direction).Select(g => $"{char.ToUpperInvariant(g.Key[0])}{g.Key[1..]} in {string.Join("; ", g.Select(c => Holding(c.Holding)))}."))
+                + $" They are not read as one, since opposite differences would cancel.{gaps}";
         if (pooled is null)
         {
             var only = compared[0];

@@ -547,6 +547,94 @@ tries made to see. A fresh agent is given the skill, the two queries
 and the reader's three questions (`axes.md`, "The reader"), and
 nothing else. Its answer is read against what the bank holds.
 
+**BUILT 2026-11-24**, proctor's half (`Report/Answers.cs`,
+`skills/proctor-answers/`, `Proctor.Tests/exams/axes-answers/`).
+
+- `proctor compare <exam> <axis>=<value>` with `--against`, `--within`
+  and `--as-of`; `proctor coverage <exam>`. JSON, schema `answer/1`.
+  Both come from `Configurations.Compare`, which the report now calls
+  too, so a number is worked out in one place.
+- A comparison answers with: each setting and its tries, each try's
+  id, time, what it held, an address and its directory; per headline
+  check, how many tries of each side held it; what was not run; the
+  reading as one; what the counts of tries could have shown; when each
+  side was made and how far apart; any axis that only moved with this
+  one; the configurations in it that are more than their values; the
+  other comparisons the report holds, by name; `as_of` and the tries
+  made since.
+- "Better here, worse there" is a verdict of its own, in the report
+  too, and such a comparison is not read as one.
+- `compare` is refused while a try in it is not graded.
+
+Not built, and why:
+
+- **The viewer does not open these addresses yet.** They are written
+  (`/<exam>/compare?…&as_of=…`, `/<exam>/configuration/<key>`,
+  `/<exam>/try/<id>`), and each try also carries its directory for
+  whoever has the files. auspex still reads the bank by variant and
+  number, so reading it by try id, the comparison's page and the
+  selected check in a stage's address are all slice 3d.
+- **"How small a difference it could have seen"** is given as the
+  smallest p the counts of tries can reach, in words. A rank test has
+  no size of difference to state.
+- **Two sides made at different times** could not be planted: a try's
+  time is in its id, and the scripted bank is made in one go.
+
+**The test, 2026-11-24.** `axes-answers` is a scripted exam on Mock
+whose checks pass at a chance set by the configuration; `make.sh`
+makes its bank (28 tries, two minutes, no model). Planted: the
+rewritten guide better on one assistant and worse on the other; tone
+and examples only ever changed together; a named configuration never
+run; a configuration with a hook line that reads two axes; a length
+difference too small for four tries. A fresh agent was given the
+skill, the three verbs and the reader's three questions, and told to
+read no files.
+
+What it did:
+
+- **All five found and none overstated.** It gave no overall result
+  for the rewritten guide and said where it was better and worse; it
+  said tone and examples "cannot be judged at all"; it named the
+  configuration never run; it said the combined configuration is not
+  predicted by its values; it called the length result "better, not
+  confirmed" and recommended against shipping on it.
+- **No number of its own.** Where it wanted a rate it listed the
+  tries' counts and said there was no rate.
+- **Findings and recommendation kept apart,** and it asked for the
+  four things proctor cannot know (share of users per assistant,
+  whether a flag can be aimed, how fast a release is undone, what a
+  bad answer costs).
+- **One reading slightly generous:** it called the rewritten guide on
+  the first assistant "the one change with evidence behind it", where
+  the plain setting was not confirmed alone (p = 0.086) and the
+  confirmed one is the configuration that is more than its values. It
+  was marked as its own recommendation.
+- **It said the exam is scripted, first,** from the description `list`
+  prints, and asked for a real one.
+
+What it reported about the tools, and what was done:
+
+| It said | Done |
+|---|---|
+| top-level `confirmed: false` beside "better here, worse there" misreads, since cells were confirmed | absent now when there is no one reading |
+| no way to see which check a value fails | per-check counts in each compared setting |
+| `other_comparisons` a bare number | the comparisons by name |
+| `together`, `flagged`, `listed`, and live against reference not explained | in each answer's `methods` |
+| addresses escaped (`\u0026`) | written plain |
+| the skill did not say how to point at a repository | it does |
+| `list` says attempts, the answers say tries | left: the words change together in slice 7 |
+| **no way to compare a configuration with what is live** (`rewritten-long` against `shipped`), which is what "what should we ship" asks | **not built: see OPEN** |
+| configurations nobody named are invisible in `coverage` | left: nobody spans the cross product; `methods` says so |
+
+The user on the answer's shape (2026-11-24): directionally right. The
+skill is ongoing work, shaped by surprises in how it is used and how
+it behaves on new data, not by how the model behaves. So no exam of
+the skill yet (this settles "Decided", 8).
+
+Against the signs: 4 (a comparison stated wider than its scope) did
+not happen. 7 (not run read as passed, the same read as better) did
+not happen. One trial of one agent on one bank is not much.
+
 **Look at:** that agent's answer, and each link in it. **It teaches:**
 signs 4 and 7, and whether "Claude says, proctor counts" holds: every
 number in the answer is one proctor gave, and nothing is claimed past
@@ -770,6 +858,17 @@ Each was an open question here, with my recommendation, and agreed.
 
 ## OPEN, for the user
 
-Nothing here now. What is still to confirm is in `axes.md`: the five
+1. **A configuration against another** (from the 3c trial). `compare`
+   moves one axis and holds the rest. "What should we ship" is about a
+   combination: a named candidate against what is live, which
+   `axes.md` already says ("What should we ship is about a
+   combination"). Proposed: `proctor compare <exam> --configuration
+   <name> [--against <name>]`, the same test between the two
+   configurations' tries, with every axis that differs named in the
+   answer. It would come before 3d. **Agreed** (the user, 2026-11-24:
+   "what does x change and how much evidence do we have for that?"
+   will be a very common question).
+
+Beside that, what is still to confirm is in `axes.md`: the five
 consequences and the declared facts of "Who asks, and through what",
 and what building a value alone needs (OPEN 5).

@@ -133,6 +133,34 @@ static class Verbs
         return 0;
     }
 
+    /// <summary>
+    /// One value of an axis against another, every other axis held, as JSON on standard output (plans/axes-build.md, 3c):
+    /// what an agent quotes when it answers for a person. Against defaults to the axis's live value.
+    /// </summary>
+    public static int Compare(string root, string examId, string what, string? against, List<string>? within, string? asOf)
+    {
+        var exam = LoadExam(root, examId);
+        if (exam.Axes is null) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: `compare` asks about one value of an axis against another");
+        var (axis, value) = ValuesGiven(exam, [what]).Single();
+        if (against is not null && !exam.Axes.Def[axis].Values!.ContainsKey(against))
+            throw new ProctorException($"--against {against}: not a value of axis '{axis}' ({string.Join(", ", exam.Axes.Def[axis].Values!.Keys)})");
+        var answer = Answers.Compare(root, exam, axis, value, against, within is null ? null : ValuesGiven(exam, within), asOf is null ? null : Answers.ParseAsOf(asOf));
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(answer, AnswerJson));
+        return 0;
+    }
+
+    /// <summary>An answer is read as text by an agent: an address keeps its &amp; and a label its ×, where the files' JSON escapes both.</summary>
+    static readonly System.Text.Json.JsonSerializerOptions AnswerJson = new(Exam.JsonOptions) { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    /// <summary>Where an exam with axes has tries and where it has none, as JSON on standard output (plans/axes-build.md, 3c).</summary>
+    public static int Coverage(string root, string examId, string? asOf)
+    {
+        var exam = LoadExam(root, examId);
+        if (exam.Axes is null) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: `coverage` is over an exam's axes; `proctor list {exam.Id}` shows each variant's attempts");
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(Answers.Coverage(root, exam, asOf is null ? null : Answers.ParseAsOf(asOf)), AnswerJson));
+        return 0;
+    }
+
     /// <summary>Mark a variant live in exams/&lt;exam&gt;/live.json, by its id and today's hash; with no variant, say which is live.</summary>
     public static int Live(string root, string examId, string? variantId)
     {

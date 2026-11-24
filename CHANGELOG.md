@@ -7,6 +7,24 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Axes: two queries, answered as JSON** (`axes-build.md`, slice 3c).
+  `proctor compare <exam> <axis>=<value>` (with `--against <value>`,
+  `--within <axis>=<value>` and `--as-of <time>`) answers one value
+  against another with every other axis held, from the report's own
+  code: each setting with its tries, what was not run, the settings
+  read as one, what so few tries could have shown, when each side was
+  made, which other axis only ever moved with this one, how many other
+  comparisons the report holds, and an address for the comparison,
+  each configuration and each try. `proctor coverage <exam>` answers
+  the tries of each value and configuration and of everything live
+  spans. Both are schema `answer/1`, call no model and recommend
+  nothing. `compare` is refused while a try in it is not graded.
+  `skills/proctor-answers/` is the skill for an agent answering a
+  person from them.
+- **Axes: better here, worse there.** A comparison whose settings point
+  different ways says so, in the report and in `compare`, and is not
+  read as one: opposite differences cancelled into "the same". Each
+  comparison in `stats.json` gains `verdict`.
 - **Axes: a value built alone** (`axes-build.md`, slice 3b). New verb
   `proctor build <exam>`, for an exam with axes; it runs nothing and
   calls no model. It builds the starting workspace (the checkout, the

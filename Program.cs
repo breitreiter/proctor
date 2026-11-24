@@ -14,6 +14,11 @@ static class Program
           grade <exam>           run the checks over every current, completed attempt; a model check's verdict is kept in the attempt
           friction <exam>        write friction.json beside each current, completed attempt's trajectory: where the attempt paid a cost the task did not ask for; rules only, no model
           report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json and summary.md, stamped with what they were built from
+          compare <exam> <axis=value>  on an exam with axes, as JSON: that value against its axis's live value (or
+                                 --against <value>), every other axis held; what was found, in which settings, what was
+                                 not run, when the tries were made and what so few could have shown
+          coverage <exam>        on an exam with axes, as JSON: the tries of each value and configuration, and of every
+                                 configuration live spans
           live <exam> [variant]  mark a variant live in exams/<exam>/live.json (commit it): the one in use now, which the report
                                  compares the others with; with no variant, say which is live. Delete the file to have none
           setup                  set up providers and keys for this machine, job by job (needs a terminal)
@@ -32,6 +37,9 @@ static class Program
                               report: only the configurations holding it (repeatable)
         --configuration <name>  on an exam with axes: only the configuration the exam gives this name;
                               without either, run makes the configurations the exam names
+        --against <value>     compare: the value to compare with, in place of the axis's live value
+        --within <axis=value> compare: only the settings of the other axes that hold this value (repeatable)
+        --as-of <time>        compare, coverage: the answer as it stood then (a date, or a UTC time as an answer gives it)
         --tasks <a,b>         run, grade, friction, report: only these tasks' attempts
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the attempts' verdict files; friction --reader: ask the reader again
@@ -44,7 +52,8 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, configFile = null, reader = null;
+        string? nbPath = null, runner = null, configFile = null, reader = null, against = null, asOf = null;
+        List<string>? within = null;
         List<string>? tasks = null, labels = null, judges = null, variants = null;
         var rejudge = false;
         var check = false;
@@ -61,6 +70,9 @@ static class Program
                 case "--variant" when i + 1 < args.Length: (variants ??= []).Add(args[++i]); break;
                 case "--value" when i + 1 < args.Length: (Verbs.ValueFilters ??= []).Add(args[++i]); break;
                 case "--configuration" when i + 1 < args.Length: Verbs.ConfigurationName = args[++i]; break;
+                case "--against" when i + 1 < args.Length: against = args[++i]; break;
+                case "--within" when i + 1 < args.Length: (within ??= []).Add(args[++i]); break;
+                case "--as-of" when i + 1 < args.Length: asOf = args[++i]; break;
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
                 case "--rejudge": rejudge = true; break;
@@ -84,6 +96,8 @@ static class Program
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels, configFile),
                 ("run", [var exam]) => Verbs.Run(root, exam, nbPath, runner, configFile, variants, tasks),
                 ("build", [var exam]) => Verbs.Build(root, exam, nbPath, runner, configFile),
+                ("compare", [var exam, var what]) => Verbs.Compare(root, exam, what, against, within, asOf),
+                ("coverage", [var exam]) => Verbs.Coverage(root, exam, asOf),
                 ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, configFile),
                 ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, reader, rejudge, configFile),
                 ("report", [var exam]) => Verbs.Report(root, exam, variants, tasks),
