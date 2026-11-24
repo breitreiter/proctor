@@ -348,9 +348,10 @@ sealed class Exam
 
     /// <summary>
     /// Load and validate. Returns null when anything is wrong; every problem is in the list. With the config's judges in
-    /// hand, every model check's judge is resolved too; without them (null), that is left to grade.
+    /// hand, every model check's judge is resolved too; without them (null), that is left to grade. An exam with axes
+    /// carries the configurations it names and those with tries in its bank; also names, by key, one a command asked for.
     /// </summary>
-    public static Exam? Load(string root, string examId, List<Problem> problems, Dictionary<string, JudgeDef>? judges = null)
+    public static Exam? Load(string root, string examId, List<Problem> problems, Dictionary<string, JudgeDef>? judges = null, IEnumerable<string>? also = null)
     {
         var dir = Layout.Exam(root, examId);
         var examFile = Layout.ExamFileIn(dir);
@@ -381,14 +382,18 @@ sealed class Exam
         Axes? axes = null;
         if (def.Axes is not null && problems.Count == before)
         {
-            axes = Axes.Load(def, root, dir, tasks, fixtures, (field, message) => problems.Add(new Problem(rel(examFile), field, message)));
-            foreach (var c in axes?.Wanted ?? [])
+            axes = Axes.Load(def, root, dir, tasks, fixtures, (field, message) => problems.Add(new Problem(rel(examFile), field, message)), [.. also ?? [], .. Bank.Keys(root, examId)]);
+            // Each value alone is checked too, where every other axis has a reference to hold it at: one configuration per value, so a
+            // value nobody has named yet is still read once. Only the carried ones stand where variants did.
+            var alone = axes is null ? [] : axes.Def.SelectMany(a => a.Value.Values!.Keys.Select(v => axes.Alone(new Dictionary<string, string> { [a.Key] = v }, out _)))
+                .OfType<Configuration>().Where(c => !c.Excluded && axes.Configurations.All(k => k.Key != c.Key)).DistinctBy(c => c.Key).ToList();
+            foreach (var c in (axes?.Configurations ?? []).Concat(alone))
             {
                 void Add(string field, string message) => problems.Add(new Problem(rel(examFile), "axes", $"{c.Label}: {(field.Length == 0 ? "" : field + ": ")}{message}"));
                 var who = axes!.AssistantProblems(c).ToList();
                 foreach (var problem in who) Add("", problem);
                 if (who.Count == 0) ValidateWho(axes.Assistant(c), Add);
-                if (problems.Count == before) variants.Add(axes.Assistant(c));
+                if (problems.Count == before && axes.Configurations.Contains(c)) variants.Add(axes.Assistant(c));
             }
         }
         foreach (var (field, given) in new (string, object?)[] { ("configurations", def.Configurations), ("exclude", def.Exclude), ("params", def.Params) })

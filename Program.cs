@@ -24,8 +24,11 @@ static class Program
         --nb <path>           the nb binary (default: exams/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per attempt (default: the exam's nb.runner); none runs nb bare
         --variant <id>        run, grade, friction, report: only this variant's attempts, the others left as they are (repeatable)
-        --value <axis=value>  on an exam with axes: only the configurations holding this value (repeatable)
-        --configuration <name>  on an exam with axes: only the configuration the exam gives this name
+        --value <axis=value>  on an exam with axes. run: make this value with every other axis at its reference
+                              (its live value, or the one it names). grade, friction, report: only the
+                              configurations holding it (repeatable)
+        --configuration <name>  on an exam with axes: only the configuration the exam gives this name;
+                              without either, run makes the configurations the exam names
         --tasks <a,b>         run, grade, friction, report: only these tasks' attempts
         --judge <a=b>         grade: compare judge b against judge a on the checks that name a; writes b's verdicts beside, never into checks.json (repeatable)
         --rejudge             grade: call the judges again instead of reusing the attempts' verdict files; friction --reader: ask the reader again

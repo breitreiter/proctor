@@ -7,6 +7,24 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Axes: `run` makes what is named** (`axes-build.md`, slice 3a).
+  This changes the two entries below, which were never released.
+  Nobody spans the cross product of an exam's axes any more. `proctor
+  run <exam>` makes the configurations the exam names under
+  `configurations`, and says to name one when there are none;
+  `--configuration name` makes one of them; `--value axis=value` makes
+  that value with every other axis at its reference, where it used to
+  narrow the cross product. An axis's reference is its live value, or
+  the value it names with the new `"reference"`, or its only value; an
+  axis with none is named in the refusal. A configuration made this
+  way and not named is carried from then on: `list`, `grade`,
+  `friction` and `report` read it, and a plain `run` does not top it
+  up. `list` shows a row per configuration named or made, and the
+  exclusions as lines; the grid of two axes is gone. In `stats.json`
+  (`configurations/1`) the rows are those configurations, the
+  `excluded` state is gone and `excluded` is a list of the values
+  declared impossible together; a comparison looks only where the
+  value was named or made.
 - **Axes, reported** (`axes-build.md`, slice 3, proctor's half).
   `proctor report` on an exam with axes writes `stats.json` as
   `configurations/1`: every configuration with its state (a

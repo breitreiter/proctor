@@ -72,9 +72,12 @@ static class Verbs
             foreach (var p in problems) Console.Error.WriteLine(p);
             return 1;
         }
-        variantIds = Narrowed(exam, variantIds, taskIds);
-        foreach (var c in exam.Axes?.Wanted.Where(c => variantIds is null || variantIds.Contains(c.Key)) ?? [])
-            if (exam.Axes!.NotYet(c) is { } why) throw new ProctorException($"{c.Label} {why}");
+        if (exam.Axes is null) variantIds = Narrowed(exam, variantIds, taskIds);
+        else
+        {
+            if (variantIds is not null) throw new ProctorException($"exam '{exam.Id}' has axes, not variants: say --configuration name, or --value axis=value for that value with the rest at their reference");
+            (exam, variantIds) = ForRun(root, exam, config.Judges ?? [], ValueFilters, ConfigurationName);
+        }
         if (exam.Staged)
         {
             if (taskIds is not null) throw new ProctorException($"exam '{exam.Id}' is one job of stages: a stage is never run alone, so --tasks does not apply");
@@ -197,8 +200,67 @@ static class Verbs
     public static string? ConfigurationName;
 
     /// <summary>
-    /// What --variant, or on an exam with axes --value and --configuration, narrow a verb to, as the ids the bank knows:
-    /// a variant's id, or a configuration's key. Null when nothing narrows. Each flag is refused where it does not apply.
+    /// The configurations `run` makes on an exam with axes, by key (plans/axes-build.md, 3a): the ones the exam names;
+    /// with --configuration, the one of that name; with --value, those values with every other axis at its reference,
+    /// which is a value alone. Never the cross product.
+    /// </summary>
+    internal static (Exam Exam, List<string> Keys) ForRun(string root, Exam exam, Dictionary<string, JudgeDef>? judges, List<string>? values, string? name)
+    {
+        var asked = Asked(exam, values, name);
+        // One asked for by its values may be one the exam does not carry yet: load again, carrying it, so it is validated as the others were.
+        if (exam.Axes!.Configurations.All(c => c.Key != asked[0]))
+        {
+            var problems = new List<Problem>();
+            exam = Exam.Load(root, exam.Id, problems, judges, asked) ?? throw new ProctorException(string.Join("\n", problems));
+            if (exam.Axes!.Configurations.All(c => c.Key != asked[0]))
+                throw new ProctorException($"{exam.Axes.Of(asked[0])!.Label}: no stage applies in it, so there is nothing to run");
+        }
+        foreach (var c in exam.Axes.Configurations.Where(c => asked.Contains(c.Key)))
+            if (exam.Axes.NotYet(c) is { } why) throw new ProctorException($"{c.Label} {why}");
+        return (exam, asked);
+    }
+
+    static List<string> Asked(Exam exam, List<string>? values, string? name)
+    {
+        var axes = exam.Axes!;
+        if (values is not null && name is not null)
+            throw new ProctorException("--value and --configuration: one or the other. --configuration is one the exam names; --value is those values with every other axis at its reference");
+        if (name is not null) return [NamedConfiguration(exam, name).Key];
+        if (values is not null)
+        {
+            var alone = axes.Alone(ValuesGiven(exam, values), out var problem) ?? throw new ProctorException(problem!);
+            if (alone.Excluded) throw new ProctorException($"{alone.Label} is excluded by exclude in exam.json: it cannot be made");
+            return [alone.Key];
+        }
+        var named = axes.Named.Select(c => c.Key).ToList();
+        if (named.Count == 0)
+            throw new ProctorException($"exam '{exam.Id}' names no configuration, and `run` makes only what is named: name one under \"configurations\" in exam.json (one value per axis), "
+                + "or say --value axis=value for that value with every other axis at its reference");
+        return named;
+    }
+
+    /// <summary>--value axis=value, each checked against the exam's axes.</summary>
+    static Dictionary<string, string> ValuesGiven(Exam exam, List<string>? values)
+    {
+        var axes = exam.Axes!;
+        var given = new Dictionary<string, string>();
+        foreach (var filter in values ?? [])
+        {
+            var (axis, value) = filter.Split('=', 2) is [var a, var v] ? (a, v) : throw new ProctorException($"--value {filter}: expects axis=value");
+            if (!axes.Def.TryGetValue(axis, out var def)) throw new ProctorException($"--value {filter}: '{axis}' is not an axis of exam '{exam.Id}' ({string.Join(", ", axes.Def.Keys)})");
+            if (!def.Values!.ContainsKey(value)) throw new ProctorException($"--value {filter}: '{value}' is not a value of axis '{axis}' ({string.Join(", ", def.Values.Keys)})");
+            given[axis] = value;
+        }
+        return given;
+    }
+
+    static Configuration NamedConfiguration(Exam exam, string name) => exam.Axes!.Named.FirstOrDefault(c => c.Name == name)
+        ?? throw new ProctorException($"--configuration {name}: exam '{exam.Id}' names no such configuration ({string.Join(", ", exam.Axes.Named.Select(c => c.Name!).DefaultIfEmpty("none"))})");
+
+    /// <summary>
+    /// What --variant, or on an exam with axes --value and --configuration, narrow a verb that reads the bank to, as
+    /// the ids the bank knows: a variant's id, or a configuration's key. On an exam with axes that is among the
+    /// configurations it carries, the named and the made. Null when nothing narrows. Each flag is refused where it does not apply.
     /// </summary>
     static List<string>? Narrowed(Exam exam, List<string>? variantIds, List<string>? taskIds)
     {
@@ -211,22 +273,17 @@ static class Verbs
         if (variantIds is not null) throw new ProctorException($"exam '{exam.Id}' has axes, not variants: narrow with --value axis=value or --configuration name");
         if (taskIds is not null) throw new ProctorException($"exam '{exam.Id}' is one job of stages: a stage is never run alone, so --tasks does not apply");
         if (ValueFilters is null && ConfigurationName is null) return null;
-        var wanted = new Dictionary<string, string>();
-        foreach (var filter in ValueFilters ?? [])
-        {
-            var (axis, value) = filter.Split('=', 2) is [var a, var v] ? (a, v) : throw new ProctorException($"--value {filter}: expects axis=value");
-            if (!axes.Def.TryGetValue(axis, out var def)) throw new ProctorException($"--value {filter}: '{axis}' is not an axis of exam '{exam.Id}' ({string.Join(", ", axes.Def.Keys)})");
-            if (!def.Values!.ContainsKey(value)) throw new ProctorException($"--value {filter}: '{value}' is not a value of axis '{axis}' ({string.Join(", ", def.Values.Keys)})");
-            wanted[axis] = value;
-        }
-        var named = ConfigurationName is null ? null : axes.Configurations.FirstOrDefault(c => c.Name == ConfigurationName)
-            ?? throw new ProctorException($"--configuration {ConfigurationName}: exam '{exam.Id}' names no such configuration ({string.Join(", ", axes.Configurations.Select(c => c.Name).OfType<string>().DefaultIfEmpty("none"))})");
-        var keys = axes.Wanted.Where(c => c.Has(wanted) && (named is null || c.Key == named.Key)).Select(c => c.Key).ToList();
-        if (keys.Count == 0) throw new ProctorException("no configuration holds those values and is not excluded");
+        var wanted = ValuesGiven(exam, ValueFilters);
+        var named = ConfigurationName is null ? null : NamedConfiguration(exam, ConfigurationName);
+        var keys = axes.Configurations.Where(c => c.Has(wanted) && (named is null || c.Key == named.Key)).Select(c => c.Key).ToList();
+        if (keys.Count == 0) throw new ProctorException("no configuration the exam names or has tries of holds those values");
         return keys;
     }
 
-    /// <summary>An exam's axes and the configurations they span: each axis with its values and its live one, then a row per configuration.</summary>
+    /// <summary>
+    /// An exam's axes and the configurations it carries: each axis with its values, the live one and the reference
+    /// marked, then a row per configuration the exam names or has tries of. Never the cross product (plans/axes-build.md, 3a).
+    /// </summary>
     static void ListAxes(string root, Exam exam)
     {
         var axes = exam.Axes!;
@@ -234,55 +291,34 @@ static class Verbs
         // Tries made: a configuration's current stages that count, over the stages a try of it has.
         int Made(Configuration c) => bank.Count(a => a.Variant == c.Key && a.Counts && Bank.Stale(exam, a) is null) / Math.Max(1, exam.StagesOf(c.Key).Count);
         var name = axes.Def.Keys.Max(k => k.Length);
-        var values = axes.Def.ToDictionary(a => a.Key, a => string.Join(", ", a.Value.Values!.Keys.Select(v => v == a.Value.Live ? v + " (live)" : v)));
+        var values = axes.Def.ToDictionary(a => a.Key, a => string.Join(", ", a.Value.Values!.Keys.Select(v =>
+            v == a.Value.Live ? v + " (live)" : v == a.Value.Reference ? v + " (reference)" : v)));
         var wide = values.Values.Max(v => v.Length);
         Console.WriteLine("  axes:");
         foreach (var (axis, def) in axes.Def)
             Console.WriteLine($"    {axis.PadRight(name)}  {values[axis].PadRight(wide)}  {def.About}".TrimEnd());
-        var excluded = axes.Configurations.Count(c => c.Excluded);
-        var swept = axes.Def.Where(a => a.Value.Live is null && a.Value.Values!.Count > 1).Select(a => a.Key).ToList();
-        Console.WriteLine($"  {Count(axes.Configurations.Count, "configuration")}{(excluded > 0 ? $", {excluded} excluded" : "")}; {Count(exam.Attempts, "attempt")} wanted of each"
-            + (swept.Count > 0 ? $"; no live value on {string.Join(", ", swept)}" : ""));
+        var unheld = axes.Def.Keys.Where(a => axes.ReferenceOf(a) is null).ToList();
+        var named = axes.Named.Count();
+        var others = axes.Configurations.Count - named;
+        Console.WriteLine($"  {Count(named, "configuration")} named{(others > 0 ? $", {others} more with attempts" : "")}; {Count(exam.Attempts, "attempt")} wanted of each"
+            + (unheld.Count > 0 ? $"; no live value or reference on {string.Join(", ", unheld)}" : ""));
         bool Live(Configuration c) => axes.Def.Any(a => a.Value.Live is not null) && axes.Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
-        // Two axes that vary read best as a grid, rows by the first and columns by the second; anything else is a row per configuration.
-        var varied = axes.Def.Where(a => a.Value.Values!.Count > 1).Select(a => a.Key).ToList();
-        if (varied.Count == 2)
+        if (axes.Configurations.Count == 0)
+            Console.WriteLine($"  `proctor run {exam.Id}` makes what is named: name one under \"configurations\" in exam.json, or say --value axis=value for that value with the rest at their reference");
+        else
         {
-            var (rows, columns) = (axes.Def[varied[0]].Values!.Keys.ToList(), axes.Def[varied[1]].Values!.Keys.ToList());
-            var fixedValues = axes.Def.Where(a => !varied.Contains(a.Key)).Select(a => $"{a.Key}={a.Value.Values!.Keys.First()}").ToList();
-            Console.WriteLine($"  attempts made of {exam.Attempts} wanted, {varied[0]} down and {varied[1]} across{(fixedValues.Count > 0 ? "; " + string.Join(", ", fixedValues) : "")}; * is live");
-            var first = Math.Max(varied[0].Length, rows.Max(r => r.Length));
-            var cell = Math.Max(8, columns.Max(c => c.Length));
-            Console.WriteLine($"  {"".PadRight(first)}  {string.Join("  ", columns.Select(c => c.PadRight(cell)))}".TrimEnd());
-            foreach (var row in rows)
+            var width = Math.Max("configuration".Length, axes.Configurations.Max(c => c.Label.Length));
+            Console.WriteLine($"  {"configuration".PadRight(width)}  stages  attempts  wanted");
+            foreach (var c in axes.Configurations)
             {
-                var cells = columns.Select(column =>
-                {
-                    var c = axes.Configurations.First(x => x[varied[0]] == row && x[varied[1]] == column);
-                    return (c.Excluded ? "excluded" : $"{Made(c)}/{exam.Attempts}{(Live(c) ? " *" : "")}").PadRight(cell);
-                });
-                Console.WriteLine($"  {row.PadRight(first)}  {string.Join("  ", cells)}".TrimEnd());
+                var notes = string.Join(", ", new[] { c.Name ?? "not named", Live(c) ? "live" : null }.OfType<string>());
+                Console.WriteLine($"  {c.Label.PadRight(width)}  {exam.Tasks.Count(s => axes.Applies(s, c)),-6}  {Made(c),-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
             }
-            foreach (var c in axes.Configurations.Where(c => c.Name is not null)) Console.WriteLine($"  {c.Name}: {c.Label}");
-            Stale();
-            return;
         }
-        var width = Math.Max("configuration".Length, axes.Configurations.Max(c => c.Label.Length));
-        Console.WriteLine($"  {"configuration".PadRight(width)}  stages  attempts  wanted");
-        foreach (var c in axes.Configurations)
-        {
-            var notes = string.Join(", ", new[] { c.Name, Live(c) ? "live" : null }.OfType<string>());
-            Console.WriteLine(c.Excluded
-                ? $"  {c.Label.PadRight(width)}  excluded"
-                : $"  {c.Label.PadRight(width)}  {exam.Tasks.Count(s => axes.Applies(s, c)),-6}  {Made(c),-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
-        }
-        Stale();
-
-        void Stale()
-        {
-            var stale = bank.Select(a => Bank.Stale(exam, a)).OfType<string>().ToList();
-            if (stale.Count > 0) Console.WriteLine($"  {Count(stale.Count, "stale stage")}, not counted: {string.Join("; ", stale.GroupBy(w => w).Select(g => $"{g.Key} ({g.Count()})"))}");
-        }
+        foreach (var excluded in axes.Excludes)
+            Console.WriteLine($"  excluded: {string.Join(" × ", excluded.Select(v => $"{v.Key}={v.Value}"))}");
+        var stale = bank.Select(a => Bank.Stale(exam, a)).OfType<string>().ToList();
+        if (stale.Count > 0) Console.WriteLine($"  {Count(stale.Count, "stale stage")}, not counted: {string.Join("; ", stale.GroupBy(w => w).Select(g => $"{g.Key} ({g.Count()})"))}");
     }
 
     static string Count(int n, string one) => $"{n} {one}{(n == 1 ? "" : "s")}";

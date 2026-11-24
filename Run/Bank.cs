@@ -59,6 +59,26 @@ static class Bank
         return entries;
     }
 
+    /// <summary>The ids every run of the exam made attempts under: its variants', or on an exam with axes its configurations' keys. Read from the log entries as written, since the exam is not loaded yet.</summary>
+    public static List<string> Keys(string root, string examId)
+    {
+        var logDir = Path.Combine(root, Layout.LogDir);
+        if (!Directory.Exists(logDir)) return [];
+        var keys = new List<string>();
+        foreach (var dir in Directory.GetDirectories(logDir).Order(StringComparer.Ordinal))
+        {
+            var file = Path.Combine(dir, Layout.LogEntryFile);
+            if (!File.Exists(file)) continue;
+            JsonNode? entry;
+            try { entry = JsonNode.Parse(File.ReadAllText(file)); }
+            catch (System.Text.Json.JsonException) { continue; }
+            if (entry?["exam"]?.GetValue<string>() != examId) continue;
+            foreach (var variant in entry["variants"] as JsonArray ?? [])
+                if (variant?["id"]?.GetValue<string>() is { } id && !keys.Contains(id)) keys.Add(id);
+        }
+        return keys;
+    }
+
     /// <summary>Every attempt each run of the exam set out to make. One never started has no manifest, and was to be made under the hashes its log entry recorded.</summary>
     public static List<BankAttempt> Of(string root, Exam exam)
     {

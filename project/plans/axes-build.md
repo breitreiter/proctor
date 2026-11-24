@@ -2,7 +2,7 @@
 type: plan
 title: Building axes — the order of work, and what each slice should teach us
 created: 2026-11-24
-status: proposed 2026-11-24, for the user. Slices 0 to 2 and proctor's half of slice 3 are built. Revised later the same day for `axes.md` decisions 13 to 16 and its "Who asks, and through what": slices 3a to 3d are new, the page of slice 3 is no longer where the model is judged, and `run` filling every configuration (built) is to change. What is new is marked "mine" where the user has not said it. The model is `axes.md`; this is only the order it is built in and where we stop to look. It takes over what `bank.md` step 4 left open (the eleven exams still on tasks, deleting tasks) and puts the viewer's exam page after the first lesson. The move-in and the rename (`rename-to-auspex.md`) and hosting (`hosted-auspex.md`) are deferred until this is done (the user, 2026-11-24: they are administrative and teach nothing)
+status: proposed 2026-11-24, for the user. Slices 0 to 2 and proctor's half of slice 3 are built. Revised later the same day for `axes.md` decisions 13 to 16 and its "Who asks, and through what": slices 3a to 3d are new, the page of slice 3 is no longer where the model is judged, and `run` filling every configuration was changed in 3a (built). What is new is marked "mine" where the user has not said it. The model is `axes.md`; this is only the order it is built in and where we stop to look. It takes over what `bank.md` step 4 left open (the eleven exams still on tasks, deleting tasks) and puts the viewer's exam page after the first lesson. The move-in and the rename (`rename-to-auspex.md`) and hosting (`hosted-auspex.md`) are deferred until this is done (the user, 2026-11-24: they are administrative and teach nothing)
 ---
 
 # Building axes
@@ -354,9 +354,47 @@ slice runs configurations.
 - `grade`, `friction` and `report` read what was made; `--value` on
   them still narrows.
 
-**Look at:** `list` and `run` on the scratch port of `readme-answers`,
-and on a scripted exam with six axes of two values. **It teaches:**
-sign 5.
+**BUILT 2026-11-24.**
+
+- `Axes.Configurations` is what the exam carries: named, asked for, or
+  with tries in its bank (read from the log entries when the exam
+  loads). Any other is made from its values when asked for
+  (`Axes.Make`, `Axes.Alone`); the cross product is never built.
+- `run` as above. `--value` and `--configuration` together are
+  refused. `"reference"` on an axis; an axis of one value needs none.
+- A configuration made by `--value` and not named stays carried, so
+  its tries are current and are read; a plain `run` leaves it alone.
+- At load each value is also checked alone, where every other axis has
+  a reference, so a value nobody has named is still validated once.
+- `list`: a row per carried configuration, "not named" where it has no
+  name, the exclusions as lines.
+- The report: rows are the carried configurations; `excluded` is a
+  list of the declared exclusions, not a state.
+
+Decided while building, and confirmed by the user 2026-11-24:
+
+- **A comparison looks only where its value was named or made.** The
+  first cut also listed every setting where only the live side
+  existed as "not run", which on six axes was a line per made
+  configuration per value. A value nobody tried anywhere reads
+  "nothing to compare yet".
+- **A named configuration with no stage is refused where it is
+  named.** One asked for by `--value` with no stage is refused then.
+- **An exam whose every configuration is excluded** is no longer
+  caught at load, since that needed the cross product.
+
+Tried on a scripted exam of six axes of two values (64 configurations,
+one named, one exclusion): `list` shows one row, `run` makes one try,
+`--value tone=terse` makes that value alone, an axis with no reference
+is named in the refusal, an excluded request is refused, and the
+report compares the two values that were made. The scratch port of
+`readme-answers` did not survive the machine's restart, so it was not
+tried there.
+
+**Look at:** `list` and `run` on a scripted exam with six axes of two
+values. **It teaches:** sign 5: one flag per value changed from the
+reference, so a configuration three values away is three flags or a
+name.
 
 ## Slice 3b: a value built alone
 

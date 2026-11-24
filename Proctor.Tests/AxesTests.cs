@@ -24,7 +24,7 @@ public class AxesTests
                   "docs": { "about": "the README", "live": "as-shipped", "values": {
                     "as-shipped": { "note": "as it ships", "files": { "path": "values/docs/as-shipped" } },
                     "rewritten":  { "files": { "path": "values/docs/rewritten" } } } },
-                  "assistant": { "values": {
+                  "assistant": { "reference": "a", "values": {
                     "a": { "provider": "Mock", "model": "mock" },
                     "b": { "provider": "MockB", "model": "mock" } } }
                 }
@@ -37,12 +37,26 @@ public class AxesTests
     static JsonObject Axis(JsonObject exam, string axis) => exam["axes"]![axis]!.AsObject();
     static JsonObject Value(JsonObject exam, string axis, string value) => Axis(exam, axis)["values"]![value]!.AsObject();
 
+    /// <summary>All four configurations of the two axes, named, and not in the axes' order.</summary>
+    const string EveryOne = """
+                { "shipped": { "docs": "as-shipped", "assistant": "a" }, "shipped-b": { "docs": "as-shipped", "assistant": "b" },
+                  "rewritten-b": { "docs": "rewritten", "assistant": "b" }, "rewritten": { "docs": "rewritten", "assistant": "a" } }
+                """;
+
     [Fact]
-    public void Axes_SpanEveryConfiguration_InDeclaredOrder_EachWithWhoDoesTheWork()
+    public void AnExamCarriesTheConfigurationsItNames_InTheOrderOfTheAxes_EachWithWhoDoesTheWork()
     {
-        using var repo = Smoke();
+        // Nobody spans the cross product: an exam that names none carries none, and any one is made when asked for.
+        using var none = Smoke();
+        Assert.Empty(none.LoadExam("smoke").Axes!.Configurations);
+        Assert.Empty(none.LoadExam("smoke").Variants);
+        Assert.Equal("docs=rewritten × assistant=b", none.LoadExam("smoke").Axes!.Of("docs=rewritten,assistant=b")!.Label);
+        Assert.Null(none.LoadExam("smoke").Axes!.Of("docs=gone,assistant=b"));
+
+        using var repo = Smoke(e => e["configurations"] = JsonNode.Parse(EveryOne));
         var exam = repo.LoadExam("smoke");
         var axes = exam.Axes!;
+        Assert.Equal(["shipped", "shipped-b", "rewritten", "rewritten-b"], axes.Configurations.Select(c => c.Name));
 
         Assert.Equal(["docs=as-shipped,assistant=a", "docs=as-shipped,assistant=b", "docs=rewritten,assistant=a", "docs=rewritten,assistant=b"], axes.Configurations.Select(c => c.Key));
         Assert.Equal("docs=as-shipped × assistant=a", axes.Configurations[0].Label);
@@ -70,8 +84,8 @@ public class AxesTests
         Assert.NotEqual(before.ValueHashes[("docs", "rewritten")], edited.ValueHashes[("docs", "rewritten")]);
         Assert.Equal(before.ValueHashes[("docs", "as-shipped")], edited.ValueHashes[("docs", "as-shipped")]);
         // A configuration's identity is its values': only those holding the changed value move.
-        Assert.Equal(before.Configurations[0].Hash, edited.Configurations[0].Hash);
-        Assert.NotEqual(before.Configurations[2].Hash, edited.Configurations[2].Hash);
+        Assert.Equal(before.Of("docs=as-shipped,assistant=a")!.Hash, edited.Of("docs=as-shipped,assistant=a")!.Hash);
+        Assert.NotEqual(before.Of("docs=rewritten,assistant=a")!.Hash, edited.Of("docs=rewritten,assistant=a")!.Hash);
     }
 
     [Fact]
@@ -86,11 +100,16 @@ public class AxesTests
         var exam = repo.LoadExam("smoke");
         var axes = exam.Axes!;
 
-        Assert.Equal([2, 2, 3, 2], axes.Configurations.Select(c => exam.Tasks.Count(s => axes.Applies(s, c))));
-        Assert.Equal([false, false, false, true], axes.Configurations.Select(c => c.Excluded));
-        Assert.Equal("shipped", axes.Configurations[0].Name);
-        // An excluded configuration is never made, so nobody stands in for it.
-        Assert.Equal(3, exam.Variants.Count);
+        string[] every = ["docs=as-shipped,assistant=a", "docs=as-shipped,assistant=b", "docs=rewritten,assistant=a", "docs=rewritten,assistant=b"];
+        Assert.Equal([2, 2, 3, 2], every.Select(key => exam.Tasks.Count(s => axes.Applies(s, axes.Of(key)!))));
+        Assert.Equal([false, false, false, true], every.Select(key => axes.Of(key)!.Excluded));
+        Assert.Equal("shipped", axes.Of(every[0])!.Name);
+        // Only what is named is carried, so one configuration stands where a variant did.
+        Assert.Equal(["docs=as-shipped,assistant=a"], exam.Variants.Select(v => v.Id));
+
+        // Naming the excluded one is refused, where it is named.
+        repo.EditJson("smoke/exam.json", e => e["configurations"]!["never"] = JsonNode.Parse("""{ "docs": "rewritten", "assistant": "b" }"""));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "configurations.never" && p.Message.Contains("is excluded"));
     }
 
     [Fact]
@@ -111,7 +130,7 @@ public class AxesTests
         Assert.Equal("repository", exam.Axes!.WorldAxis);
         Assert.Equal(["note", "empty", "empty"], exam.Tasks.Select(s => s.Fixture));
         Assert.Equal(["empty", "note"], exam.Fixtures.Keys.Order());
-        var inNote = exam.Axes.Configurations.First(c => c["repository"] == "note");
+        var inNote = exam.Axes.Of("docs=as-shipped,assistant=a,repository=note")!;
         Assert.Equal("note", exam.Axes.FixtureOf(inNote, exam.Def.Fixture));
     }
 
@@ -119,6 +138,8 @@ public class AxesTests
     {
         // what is wrong, the edit as JSON-path = value pairs, where the problem is reported, a word of what it says
         { "axes.docs.live=gone", "axes.docs.live", "not a value of this axis" },
+        { "axes.assistant.reference=gone", "axes.assistant.reference", "not a value of this axis" },
+        { "axes.docs.reference=rewritten", "axes.docs.reference", "which is its reference" },
         { "axes.docs.values.rewritten.files.path=values/docs/missing", "axes.docs.values.rewritten.files.path", "no such directory" },
         { "axes.docs.values.rewritten.files.to=../out", "axes.docs.values.rewritten.files.to", "inside the checkout" },
         { "axes.assistant.values.a.route=sideways", "axes.assistant.values.a.route", "not a route" },
@@ -196,11 +217,29 @@ public class AxesTests
     }
 
     [Fact]
-    public void AConfigurationWithNoStage_IsRefused_UntilItIsExcluded()
+    public void ANamedConfigurationWithNoStage_IsRefused_WhereItIsNamed()
     {
         using var repo = Smoke(e => { foreach (var stage in e["stages"]!.AsArray()) stage!["when"] = "assistant = a"; });
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "stages" && p.Message.Contains("no stage applies in docs=as-shipped × assistant=b"));
-        repo.EditJson("smoke/exam.json", e => e["exclude"] = JsonNode.Parse("""[ { "assistant": "b" } ]"""));
         Assert.Empty(repo.Problems("smoke"));
+        repo.EditJson("smoke/exam.json", e => e["configurations"] = JsonNode.Parse("""{ "other": { "docs": "as-shipped", "assistant": "b" } }"""));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "configurations.other" && p.Message.Contains("no stage applies in docs=as-shipped × assistant=b"));
+    }
+
+    [Fact]
+    public void AValueAlone_IsThatValueWithEveryOtherAxisAtItsReference()
+    {
+        using var repo = Smoke();
+        var axes = repo.LoadExam("smoke").Axes!;
+        // The live value is an axis's reference; an axis with none names one; an axis of one value needs neither.
+        Assert.Equal("as-shipped", axes.ReferenceOf("docs"));
+        Assert.Equal("a", axes.ReferenceOf("assistant"));
+        Assert.Equal("docs=rewritten,assistant=a", axes.Alone(new Dictionary<string, string> { ["docs"] = "rewritten" }, out _)!.Key);
+        Assert.Equal("docs=as-shipped,assistant=b", axes.Alone(new Dictionary<string, string> { ["assistant"] = "b" }, out _)!.Key);
+
+        repo.EditJson("smoke/exam.json", e => Axis(e, "assistant").Remove("reference"));
+        axes = repo.LoadExam("smoke").Axes!;
+        Assert.Null(axes.Alone(new Dictionary<string, string> { ["docs"] = "rewritten" }, out var problem));
+        Assert.Contains("axis 'assistant' has no live value and names no reference", problem);
+        Assert.Contains("--value assistant=<value> (a, b)", problem);
     }
 }

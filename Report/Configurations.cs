@@ -12,7 +12,7 @@ record AxisInfo(string Name, string? About, string? Live, List<ValueInfo> Values
 record ValueInfo(string Name, string? Note, string Hash);
 
 /// <summary>
-/// One configuration's standing. State is excluded (declared impossible), not_run (no counted try), partial (fewer
+/// One configuration's standing: one the exam names or has tries of. State is not_run (no counted try), partial (fewer
 /// than the exam wants) or made. Tries holds its tries as a staged exam's variant has them; null when none were read.
 /// </summary>
 record ConfigurationRow(string Key, string Label, Dictionary<string, string> Values, string? Name, bool Live, string State, int Wanted, int Made, int Lost, int Stale,
@@ -34,8 +34,8 @@ record Pooled(List<string> Across, int Covered, int Of, bool CanConfirm, Measure
 /// <summary>One value of an axis against that axis's live value: cell by cell, pooled when more than one cell was compared, and in a sentence.</summary>
 record AxisComparison(string Axis, string Value, string Live, List<ComparedCell> Cells, Pooled? Pooled, List<string> NotRun, string Sentence);
 
-/// <summary>stats.json of an exam with axes.</summary>
-record ConfigurationsFile(string Schema, string Exam, bool Chained, List<AxisInfo> Axes, List<StageInfo> Stages, List<ConfigurationRow> Configurations,
+/// <summary>stats.json of an exam with axes. Configurations are the ones the exam names or has tries of; Excluded the values it declares impossible together.</summary>
+record ConfigurationsFile(string Schema, string Exam, bool Chained, List<AxisInfo> Axes, List<StageInfo> Stages, List<ConfigurationRow> Configurations, List<Dictionary<string, string>> Excluded,
     List<AxisComparison> Comparisons, List<LostTry> Lost, string Methods, BuiltFrom? BuiltFrom);
 
 static class Configurations
@@ -56,7 +56,7 @@ static class Configurations
             var made = t?.Tries ?? 0;
             var stages = exam.StagesOf(c.Key);
             return new ConfigurationRow(c.Key, c.Label, c.Values.ToDictionary(v => v.Axis, v => v.Value), c.Name, Live(c),
-                c.Excluded ? "excluded" : made == 0 ? "not_run" : made < exam.Attempts ? "partial" : "made", exam.Attempts, made,
+                made == 0 ? "not_run" : made < exam.Attempts ? "partial" : "made", exam.Attempts, made,
                 bank.Where(a => a.Lost && a.Variant == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
                 bank.Where(a => a.Variant == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
                 stages.Select(s => s.Id!).ToList(), stages.Sum(s => exam.PassFor(s).Count), t);
@@ -67,10 +67,14 @@ static class Configurations
             foreach (var value in def.Values!.Keys.Where(v => v != def.Live))
             {
                 var cells = new List<ComparedCell>();
-                foreach (var c in axes.Wanted.Where(c => c[axis] == value))
+                // Where to look: every setting of the other axes in which the exam carries this value, named or made. Where nobody asked
+                // for the value there is no gap to report, only the cross product, which nobody spans.
+                var holdings = axes.Configurations.Where(k => k[axis] == value)
+                    .Select(k => k.Values.Where(v => v.Axis != axis).ToDictionary(v => v.Axis, v => v.Value)).DistinctBy(Holding).ToList();
+                foreach (var holding in holdings)
                 {
-                    var holding = c.Values.Where(v => v.Axis != axis).ToDictionary(v => v.Axis, v => v.Value);
-                    if (axes.Wanted.FirstOrDefault(l => l[axis] == def.Live && l.Has(holding)) is not { } live) continue;   // the live side of this cell is excluded: there is nothing to compare with
+                    Configuration? With(string v) => axes.Make(new Dictionary<string, string>(holding) { [axis] = v }) is { Excluded: false } made && exam.StagesOf(made.Key).Count > 0 ? made : null;
+                    if (With(value) is not { } c || With(def.Live!) is not { } live) continue;   // one side cannot be made here: there is nothing to compare
                     var (mine, theirs) = (byKey.GetValueOrDefault(c.Key), byKey.GetValueOrDefault(live.Key));
                     var (n, m) = (mine?.Tries ?? 0, theirs?.Tries ?? 0);
                     var state = n > 0 && m > 0 ? "compared" : n == 0 && m == 0 ? "neither_run" : n == 0 ? "not_run" : "live_not_run";
@@ -99,10 +103,11 @@ static class Configurations
             + "Where more than one such cell was compared they are also read as one, by the van Elteren test: a try is ranked only against tries of the same cell, "
             + "so the cells may differ from each other without that counting as a difference between the values. Reading them as one assumes the difference is the same kind of thing in each cell; the cells are always shown. "
             + "A difference is confirmed at p < 0.05. A configuration with no counted try is not run, never no change. "
+            + "A comparison looks only where the exam names or has tries of the value; in the other settings of the other axes nobody asked for it. "
             + "A try in which a stage did not run is lost and is in no number; a try with a stage that failed a validity check is listed and not counted.";
         return (new ConfigurationsFile(Schema, exam.Id, exam.Chained,
                 axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)])).ToList())).ToList(),
-                tries.Stages, configurations, comparisons, tries.Lost, methods, built), friction);
+                tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built), friction);
 
         static List<double> Held(TryVariant v) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)r.Held).ToList();
         static List<double>? Flagged(TryVariant v) => v.Rows.Where(r => r.Invalid is null).ToList() is var counted && counted.All(r => r.Flagged is not null) ? counted.Select(r => (double)r.Flagged!.Value).ToList() : null;
@@ -225,11 +230,13 @@ static class Configurations
             var notes = string.Join(", ", new[] { c.Name, c.Live ? "live" : null, c.Lost > 0 ? $"{c.Lost} lost" : null, c.Stale > 0 ? $"{c.Stale} stale" : null }.OfType<string>());
             md.AppendLine(c.State switch
             {
-                "excluded" => $"| {c.Label} | excluded | | | | {notes} |",
                 "not_run" => $"| {c.Label} | **not run** (0 of {c.Wanted}) | | | | {notes} |",
                 _ => $"| {c.Label} | {c.Made} of {c.Wanted} | {c.Tries!.Passed} | {Range(c.Tries.Held)} of {c.HeadlineChecks} | {Range(c.Tries.Flagged)} | {notes} |",
             });
         }
+        md.AppendLine().AppendLine("These are the configurations the exam names or has tries of. Any other was never asked for, and is in no number here.");
+        if (stats.Excluded.Count > 0)
+            md.AppendLine().AppendLine($"Declared impossible, and never made: {string.Join("; ", stats.Excluded.Select(Holding))}.");
         if (stats.Comparisons.Count > 0)
         {
             md.AppendLine().AppendLine("## Against live").AppendLine();

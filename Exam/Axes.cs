@@ -8,7 +8,8 @@ namespace Proctor;
 
 // Axes, values and configurations (project/plans/axes.md; the declaration is project/plans/axes-ports.md).
 // An exam of stages may declare axes in place of variants/: each axis a named thing with several values, a
-// configuration one value from each. Slice 1 of axes-build.md: declared, validated and listed. Nothing runs yet.
+// configuration one value from each. Nobody spans the cross product (axes.md, decision 14): the configurations an exam
+// carries are the ones it names, the ones a command asked for and the ones with tries in its bank (axes-build.md, 3a).
 
 /// <summary>
 /// A parameter the base declares, in fixture.json or (for the program template) exam.json: the only names a value may
@@ -37,8 +38,11 @@ record ValueDef(string? Note = null, Dictionary<string, JsonNode?>? Set = null, 
         [("agent", Agent), ("agent_version", AgentVersion), ("route", Route), ("model", Model), ("provider", Provider), ("harness", Harness), ("fixture", Fixture)];
 }
 
-/// <summary>An axis: its values in declared order, and optionally the live one, its reference. Without a live value it is swept.</summary>
-record AxisDef(string? About = null, string? Live = null, Dictionary<string, ValueDef?>? Values = null);
+/// <summary>
+/// An axis: its values in declared order, and optionally the live one. Reference is the value the axis is held at
+/// while a value of another axis is looked at alone, for an axis with no live value; the live value is that otherwise.
+/// </summary>
+record AxisDef(string? About = null, string? Live = null, Dictionary<string, ValueDef?>? Values = null, string? Reference = null);
 
 /// <summary>One value from each axis, in the order the exam declares its axes: what an attempt ran as. Its identity is its values' content.</summary>
 sealed record Configuration(IReadOnlyList<(string Axis, string Value)> Values, string? Name, bool Excluded, string Hash)
@@ -77,12 +81,19 @@ sealed record When(IReadOnlyList<(string Axis, bool Not, string Value)> Terms)
     }
 }
 
-/// <summary>An exam's axes, loaded: the declarations, every configuration, and which stages apply in each.</summary>
+/// <summary>An exam's axes, loaded: the declarations, the configurations the exam carries, and which stages apply in each.</summary>
 sealed class Axes
 {
     public required Dictionary<string, AxisDef> Def { get; init; }
-    /// <summary>Every configuration the axes span, in declared order, the excluded ones marked.</summary>
-    public required List<Configuration> Configurations { get; init; }
+    /// <summary>
+    /// The configurations the exam carries: those it names, those a command asked for and those with tries in its
+    /// bank, in the order of the axes' values. None is excluded. Any other is made when asked for (<see cref="Make"/>).
+    /// </summary>
+    public List<Configuration> Configurations { get; } = [];
+    /// <summary>The values declared impossible together (exclude), each as axis to value.</summary>
+    public required List<IReadOnlyDictionary<string, string>> Excludes { get; init; }
+    /// <summary>The name the exam gives a configuration, by its key.</summary>
+    public required Dictionary<string, string> Names { get; init; }
     /// <summary>Each value's identity by (axis, value): a hash of what it sets and of the files it carries, never its note.</summary>
     public required Dictionary<(string Axis, string Value), string> ValueHashes { get; init; }
     /// <summary>Each stage's condition by stage id; a stage without one applies everywhere.</summary>
@@ -90,8 +101,48 @@ sealed class Axes
     /// <summary>The axis whose values each name a fixture, or null when the exam has one fixture.</summary>
     public string? WorldAxis { get; init; }
 
-    public IEnumerable<Configuration> Wanted => Configurations.Where(c => !c.Excluded);
-    public Configuration? Of(string key) => Configurations.FirstOrDefault(c => c.Key == key);
+    public IEnumerable<Configuration> Named => Configurations.Where(c => c.Name is not null);
+
+    /// <summary>The configuration a key spells (axis=value, comma-separated): one the exam carries, or made from the key. Null when the key names something undeclared.</summary>
+    public Configuration? Of(string key) => Configurations.FirstOrDefault(c => c.Key == key)
+        ?? (key.Split(',').Select(part => part.Split('=', 2)).ToList() is var parts && parts.All(p => p.Length == 2) && parts.Select(p => p[0]).Distinct().Count() == parts.Count
+            ? Make(parts.ToDictionary(p => p[0], p => p[1])) : null);
+
+    /// <summary>One value on every axis as a configuration, with its name, whether it is excluded, and its identity. Null unless it names exactly one declared value per axis.</summary>
+    public Configuration? Make(IReadOnlyDictionary<string, string> values)
+    {
+        if (values.Count != Def.Count || Def.Any(a => !values.TryGetValue(a.Key, out var v) || !a.Value.Values!.ContainsKey(v))) return null;
+        var combination = Def.Keys.Select(a => (Axis: a, Value: values[a])).ToList();
+        var c = new Configuration(combination, null, false, "");
+        var hash = "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", combination.OrderBy(v => v.Axis, StringComparer.Ordinal).Select(v => $"{v.Axis}={ValueHashes[v]}")))));
+        return c with { Name = Names.GetValueOrDefault(c.Key), Excluded = Excludes.Any(c.Has), Hash = hash };
+    }
+
+    /// <summary>The value an axis is held at while another axis's value is looked at alone: its live value, else the reference it names, else its only value.</summary>
+    public string? ReferenceOf(string axis) => Def[axis] is var d && (d.Live ?? d.Reference) is { } named ? named : d.Values!.Count == 1 ? d.Values.Keys.First() : null;
+
+    /// <summary>The values given, with every other axis at its reference: a value alone. Null, with why, when an axis not given has no reference.</summary>
+    public Configuration? Alone(IReadOnlyDictionary<string, string> given, out string? problem)
+    {
+        problem = null;
+        var values = new Dictionary<string, string>(given);
+        foreach (var axis in Def.Keys.Where(a => !values.ContainsKey(a)))
+        {
+            if (ReferenceOf(axis) is { } reference) { values[axis] = reference; continue; }
+            problem = $"axis '{axis}' has no live value and names no reference, so there is nothing to hold it at: give it \"reference\": \"<value>\" in exam.json, or say --value {axis}=<value> ({string.Join(", ", Def[axis].Values!.Keys)})";
+            return null;
+        }
+        return Make(values);
+    }
+
+    /// <summary>Carry these configurations too, by key: one a command asked for, or one with tries in the bank. A key that names nothing declared, or something excluded, is left out.</summary>
+    void Carry(IEnumerable<string> keys)
+    {
+        foreach (var key in keys)
+            if (Configurations.All(c => c.Key != key) && Of(key) is { Excluded: false } c) Configurations.Add(c);
+        int Rank(Configuration c, int i) => Def[c.Values[i].Axis].Values!.Keys.ToList().IndexOf(c.Values[i].Value);
+        Configurations.Sort((a, b) => Enumerable.Range(0, Def.Count).Select(i => Rank(a, i).CompareTo(Rank(b, i))).FirstOrDefault(d => d != 0));
+    }
 
     /// <summary>The files a configuration's values lay over the checkout, in the order the axes are declared.</summary>
     public List<(string Dir, string? To)> Overlays(Configuration c, string examDir) =>
@@ -154,7 +205,7 @@ sealed class Axes
     /// Validate the declarations against the base and build the configurations. Every refusal names its field in
     /// exam.json and says what to change. Returns null when anything is wrong.
     /// </summary>
-    public static Axes? Load(ExamDef def, string root, string dir, List<TaskDef> stages, Dictionary<string, Fixture> fixtures, Action<string, string> add)
+    public static Axes? Load(ExamDef def, string root, string dir, List<TaskDef> stages, Dictionary<string, Fixture> fixtures, Action<string, string> add, IEnumerable<string>? also = null)
     {
         var problems = 0;
         void Add(string field, string message) { problems++; add(field, message); }
@@ -175,6 +226,8 @@ sealed class Axes
             if (axis.About is not null && string.IsNullOrWhiteSpace(axis.About)) Add($"{at}.about", "a sentence saying what the axis is, not an empty string");
             if (axis.Values is null or { Count: 0 }) { Add($"{at}.values", "at least one value is required"); continue; }
             if (axis.Live is not null && !axis.Values.ContainsKey(axis.Live)) Add($"{at}.live", $"'{axis.Live}' is not a value of this axis; declared: {string.Join(", ", axis.Values.Keys)}");
+            if (axis.Reference is not null && !axis.Values.ContainsKey(axis.Reference)) Add($"{at}.reference", $"'{axis.Reference}' is not a value of this axis; declared: {string.Join(", ", axis.Values.Keys)}");
+            if (axis.Reference is not null && axis.Live is not null) Add($"{at}.reference", "this axis has a live value, which is its reference; an axis names a reference only when nothing on it is live");
             foreach (var (valueName, value) in axis.Values)
             {
                 var v = $"{at}.values.{valueName}";
@@ -279,18 +332,20 @@ sealed class Axes
             }
 
         var excluded = (def.Exclude ?? []).Select(e => (IReadOnlyDictionary<string, string>)e!.ToDictionary(k => k.Key, k => k.Value!)).ToList();
-        var named = (def.Configurations ?? []).ToDictionary(k => string.Join(",", axes.Keys.Select(a => $"{a}={k.Value![a]}")), k => k.Key);
-        var configurations = new List<Configuration>();
-        foreach (var combination in Cross(axes.Select(a => a.Value.Values!.Keys.Select(v => (a.Key, v)).ToList()).ToList()))
+        var named = (def.Configurations ?? []).ToDictionary(k => k.Key, k => string.Join(",", axes.Keys.Select(a => $"{a}={k.Value![a]}")));
+        foreach (var group in named.GroupBy(k => k.Value).Where(g => g.Count() > 1))
+            Add($"configurations.{group.Last().Key}", $"the same values as '{group.First().Key}'; a configuration has one name");
+        if (problems > 0) return null;
+        var loaded = new Axes { Def = axes!, Excludes = excluded, Names = named.ToDictionary(k => k.Value, k => k.Key), ValueHashes = hashes, Conditions = conditions, WorldAxis = world };
+        foreach (var (name, key) in named)
         {
-            var c = new Configuration(combination, null, false, "");
-            var hash = "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", combination.OrderBy(v => v.Axis, StringComparer.Ordinal).Select(v => $"{v.Axis}={hashes[v]}")))));
-            configurations.Add(c with { Name = named.GetValueOrDefault(c.Key), Excluded = excluded.Any(c.Has), Hash = hash });
+            var c = loaded.Of(key)!;
+            if (c.Excluded) Add($"configurations.{name}", "is excluded by exclude; a named configuration is one that can be made");
+            else if (!stages.Any(s => loaded.Applies(s, c))) Add($"configurations.{name}", $"no stage applies in {c.Label}; give it one, or do not name it");
         }
-        foreach (var (name, key) in named.Select(k => (k.Value, k.Key)))
-            if (configurations.First(c => c.Key == key).Excluded) Add($"configurations.{name}", "is excluded by exclude; a named configuration is one that can be made");
-        foreach (var group in named.GroupBy(k => k.Key).Where(g => g.Count() > 1))
-            Add($"configurations.{group.Last().Value}", $"the same values as '{group.First().Value}'; a configuration has one name");
+        loaded.Carry(named.Values);
+        // Asked for or already made, and not named: carried when it can be made today, and otherwise left out, for whoever asked to say so.
+        loaded.Carry((also ?? []).Where(key => loaded.Of(key) is { } c && stages.Any(s => loaded.Applies(s, c))));
 
         // A stage belongs to one world for now: its checks and expected values come from that world's fixture.
         if (world is not null)
@@ -298,11 +353,6 @@ sealed class Axes
                 Add(stage.At + "when", $"required: axis '{world}' names the fixture, so each stage says which one it belongs to (`{world} = <value>`); a stage that runs in several is not built yet");
         if (world is null && def.Fixture is null && axes.Values.Any(a => a.Values!.Values.Any(v => v!.Files is not null)))
             Add("fixture", "required: a value's files are laid over a checkout, and this exam has none");
-        var loaded = new Axes { Def = axes!, Configurations = configurations, ValueHashes = hashes, Conditions = conditions, WorldAxis = world };
-        if (!loaded.Wanted.Any()) Add("exclude", "excludes every configuration; nothing is left to run");
-        foreach (var c in loaded.Wanted)
-            if (!stages.Any(s => loaded.Applies(s, c)))
-                Add("stages", $"no stage applies in {c.Label}; give it one, or list it under exclude");
         return problems > 0 ? null : loaded;
     }
 
@@ -356,14 +406,6 @@ sealed class Axes
             if (given is not null) parts.Add($"{key}={given}");
         if (value.Files is { } files) parts.Add("files=" + Identity(files));
         return "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", parts))));
-    }
-
-    static IEnumerable<List<(string Axis, string Value)>> Cross(List<List<(string, string)>> axes)
-    {
-        IEnumerable<List<(string, string)>> rows = [[]];
-        foreach (var axis in axes)
-            rows = rows.SelectMany(row => axis.Select(v => row.Append(v).ToList())).ToList();
-        return rows;
     }
 
     /// <summary>

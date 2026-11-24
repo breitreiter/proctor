@@ -9,7 +9,10 @@ namespace Proctor.Tests;
 /// </summary>
 public class AxesRunTests
 {
-    /// <summary>smoke as two stages and two axes: docs (a README laid over the checkout; shipped is live) and tone (a parameter the program reads).</summary>
+    /// <summary>
+    /// smoke as two stages and two axes: docs (a README laid over the checkout; shipped is live) and tone (a parameter
+    /// the program reads; plain is its reference). All four configurations are named, since run makes what is named.
+    /// </summary>
     static TestRepo Smoke(Action<JsonObject>? edit = null)
     {
         var repo = new TestRepo();
@@ -33,9 +36,13 @@ public class AxesRunTests
                   "docs": { "live": "shipped", "values": {
                     "shipped":   { "files": { "path": "values/docs/shipped" } },
                     "rewritten": { "files": { "path": "values/docs/rewritten" } } } },
-                  "tone": { "values": { "plain": {}, "terse": { "set": { "TONE": "terse" } } } },
+                  "tone": { "reference": "plain", "values": { "plain": {}, "terse": { "set": { "TONE": "terse" } } } },
                   "assistant": { "values": { "mock": { "provider": "Mock", "model": "mock" } } }
                 }
+                """);
+            e["configurations"] = JsonNode.Parse("""
+                { "shipped":   { "docs": "shipped",   "tone": "plain", "assistant": "mock" }, "shipped-terse":   { "docs": "shipped",   "tone": "terse", "assistant": "mock" },
+                  "rewritten": { "docs": "rewritten", "tone": "plain", "assistant": "mock" }, "rewritten-terse": { "docs": "rewritten", "tone": "terse", "assistant": "mock" } }
                 """);
             e["grading"] = JsonNode.Parse("""
                 { "checks": { "exit_ok": { "exit_reason": "ok" }, "wrote": { "files_touched": { "paths": ["made.txt"], "mode": "exactly" } } }, "pass": ["exit_ok"] }
@@ -45,10 +52,12 @@ public class AxesRunTests
         return repo;
     }
 
-    static string Run(TestRepo repo)
+    /// <summary>`proctor run smoke`, with --value and --configuration as given: what the verb would make, made.</summary>
+    static string Run(TestRepo repo, List<string>? values = null, string? configuration = null)
     {
         var log = new StringWriter();
-        Runner.Run(repo.Root, repo.LoadExam("smoke"), Exam.LoadConfig(repo.Root, []), null, null, "test", log);
+        var (exam, keys) = Verbs.ForRun(repo.Root, repo.LoadExam("smoke"), null, values, configuration);
+        Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", log, keys);
         return log.ToString();
     }
 
@@ -120,12 +129,17 @@ public class AxesRunTests
         Assert.Equal(["tone"], docs.Pooled!.Across);
         Assert.Contains("over 2 of 2 configurations", docs.Sentence);
 
-        // A configuration nobody ran is not run, in the row and in the comparison's own words.
-        repo.EditJson("smoke/exam.json", e => e["axes"]!["tone"]!["values"]!["warm"] = JsonNode.Parse("""{ "set": { "TONE": "warm" } }"""));
+        // A configuration named and not run is not run, in the row and in the comparison's own words. One nobody named is nowhere.
+        repo.EditJson("smoke/exam.json", e =>
+        {
+            e["axes"]!["tone"]!["values"]!["warm"] = JsonNode.Parse("""{ "set": { "TONE": "warm" } }""");
+            e["configurations"]!["rewritten-warm"] = JsonNode.Parse("""{ "docs": "rewritten", "tone": "warm", "assistant": "mock" }""");
+        });
         exam = repo.LoadExam("smoke");
         current = Bank.Select(repo.Root, exam).Current;
         (stats, _) = Configurations.Compute(repo.Root, exam, current, Bank.Of(repo.Root, exam), Results.Collect(repo.Root, exam, current), null);
-        Assert.Equal(2, stats.Configurations.Count(c => c.State == "not_run"));
+        Assert.Equal(["docs=rewritten,tone=warm,assistant=mock"], stats.Configurations.Where(c => c.State == "not_run").Select(c => c.Key));
+        Assert.Equal(5, stats.Configurations.Count);
         Assert.Contains("Not run: tone=warm × assistant=mock (neither side)", stats.Comparisons[0].Sentence);
     }
 
@@ -139,11 +153,58 @@ public class AxesRunTests
         Assert.Contains("axes.docs.values.rewritten: this is not the docs=rewritten that made attempts", refused.Message);
         Assert.Contains("give it a new name", refused.Message);
 
-        // Under a new name it is a new value: its configurations are made, and the others stand.
+        // Under a new name it is a new value: asked for alone it is made, and the others stand.
         repo.Write("smoke/values/docs/rewritten/README.md", "rewritten\n");
         repo.Write("smoke/values/docs/rewritten-2/README.md", "rewritten again\n");
         repo.EditJson("smoke/exam.json", e => e["axes"]!["docs"]!["values"]!["rewritten-2"] = JsonNode.Parse("""{ "files": { "path": "values/docs/rewritten-2" } }"""));
-        Assert.Contains("2 attempts made: 2 whole", Run(repo));
-        Assert.Equal(6, Tries(repo).Count);
+        Assert.Contains("nothing to make", Run(repo));
+        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten-2"]));
+        Assert.Equal(5, Tries(repo).Count);
+    }
+
+    [Fact]
+    public void Run_MakesWhatIsNamed_OrAValueAlone_AndNeverTheCrossProduct()
+    {
+        using var repo = Smoke(e => e["configurations"] = JsonNode.Parse("""{ "shipped": { "docs": "shipped", "tone": "plain", "assistant": "mock" } }"""));
+        Assert.Contains("1 attempt made: 1 whole", Run(repo));
+        Assert.Equal(["docs=shipped,tone=plain,assistant=mock"], Tries(repo).Keys);
+
+        // --value is that value with every other axis at its reference: the live docs, and the tone the axis names.
+        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["tone=terse"]));
+        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten"]));
+        Assert.Equal(["docs=rewritten,tone=plain,assistant=mock", "docs=shipped,tone=plain,assistant=mock", "docs=shipped,tone=terse,assistant=mock"], Tries(repo).Keys.Order());
+
+        // Once made, a configuration is carried without a name: it is read, listed and reported like a named one.
+        var exam = repo.LoadExam("smoke");
+        Assert.Equal(3, exam.Axes!.Configurations.Count);
+        Assert.Equal(["shipped"], exam.Axes.Named.Select(c => c.Name));
+        Assert.Empty(Bank.Select(repo.Root, exam).Stale);
+        Assert.Equal(6, Bank.Select(repo.Root, exam).Current.Count);
+
+        // A plain run tops up what is named and leaves the rest as it is.
+        repo.EditJson("smoke/exam.json", e => e["attempts"] = 2);
+        Assert.Contains("1 attempt made: 1 whole", Run(repo));
+        Assert.Equal(4, Directory.GetDirectories(Path.Combine(repo.Root, "bank", "smoke")).Length);
+        Assert.Contains("nothing to make", Run(repo, configuration: "shipped"));
+        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten"]));
+    }
+
+    [Fact]
+    public void Run_SaysWhatToName_WhenNothingIs_AndWhatIsMissing_WhenAValueCannotStandAlone()
+    {
+        using var repo = Smoke(e => { e.Remove("configurations"); e["axes"]!["tone"]!.AsObject().Remove("reference"); });
+        var none = Assert.Throws<ProctorException>(() => Run(repo));
+        Assert.Contains("names no configuration, and `run` makes only what is named", none.Message);
+
+        var unheld = Assert.Throws<ProctorException>(() => Run(repo, ["docs=rewritten"]));
+        Assert.Contains("axis 'tone' has no live value and names no reference", unheld.Message);
+        // Saying the value for the axis that has no reference is enough.
+        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten", "tone=terse"]));
+
+        Assert.Contains("one or the other", Assert.Throws<ProctorException>(() => Run(repo, ["docs=rewritten"], "shipped")).Message);
+        Assert.Contains("names no such configuration (none)", Assert.Throws<ProctorException>(() => Run(repo, configuration: "shipped")).Message);
+
+        repo.EditJson("smoke/exam.json", e => e["exclude"] = JsonNode.Parse("""[ { "docs": "shipped", "tone": "terse" } ]"""));
+        Assert.Contains("is excluded by exclude", Assert.Throws<ProctorException>(() => Run(repo, ["docs=shipped", "tone=terse"])).Message);
     }
 }
