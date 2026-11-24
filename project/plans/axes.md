@@ -256,14 +256,15 @@ Step 3 comes before step 4, or the claim has no measured before.
 
 ## What a value can change
 
-Not every change is files:
+Not every change is files. **A value sets parameters the base declares;
+it never adds steps** ("Decided since", 10):
 
 | Kind | Example |
 |---|---|
 | files in the checkout | a README, `AGENTS.md`, `.claude/`, a docs tree |
-| the image | the Go toolchain version, as a build argument |
+| the image | the Go toolchain version, as a build argument the fixture's Dockerfile declares (`ARG GO_VERSION`) |
 | the environment | an account or plan (`demo`, `paid`), as variables, secrets by name |
-| a service | the docs service's content, a sandbox API's version |
+| a service | the docs service's content, a sandbox API's version, as parameters the service's definition declares |
 | the agent and model | which agent at which pin, which model, which provider |
 
 Files are an overlay applied after checkout. The other kinds reach the
@@ -285,12 +286,15 @@ refusal at load or before a run, saying what to change:
    beside `repo/`, never inside it; a value that writes there is
    refused. Without this, the thing under test could change its own
    standard.
-2. **Values of different axes cannot change the same path, or the same
-   variable.** Otherwise two axes interact and the result depends on
+2. **Values of different axes cannot change the same path, variable or
+   parameter.** Otherwise two axes interact and the result depends on
    the order they apply.
 3. **Values on an axis are mutually exclusive**, and a configuration
    has exactly one per axis.
-4. **A change to the base says what it costs before it is spent.** `run`
+4. **A value sets only parameters the base declares.** No build step,
+   no service, no script of its own. With that, two axes setting the
+   same parameter is refusal 2, and nothing depends on order.
+5. **A change to the base says what it costs before it is spent.** `run`
    already knows which hash moved (`Bank.Stale`). On a base change it
    refuses with the count of attempts it would strand, and points at
    axes: "the base changed; this strands N attempts; if the changed
@@ -299,7 +303,7 @@ refusal at load or before a run, saying what to change:
 
 And one rule it cannot check, only show:
 
-5. **Every value's diff is on the page**, next to each attempt, in the
+6. **Every value's diff is on the page**, next to each attempt, in the
    viewer's "the exam as given". A value that quietly does two things
    (`docs=v2` also fixing the planted bug) is visible to whoever reads a
    comparison that involves it.
@@ -312,7 +316,8 @@ Deciding which configurations warrant more runs, or any, is the user's
 thin configuration:
 
 - **The coverage grid**: which configurations have attempts, which are
-  stale, which are empty. The most important thing on the exam page,
+  stale, which are empty, and which are excluded (declared impossible:
+  shown, never a gap to fill). The most important thing on the exam page,
   since the empty configuration is where over-generalisation happens.
   The mocks' stage-by-try grid already has a "not run" state.
 - **Where users are.** A customer report names a configuration; so does
@@ -395,12 +400,8 @@ for the Go version the code declares.
   refuses, marks live or claims a variant is rewritten whatever the
   word. "Variant" joins the old-words gate, with the archive
   allow-listed.
-- **Migration.** Every exam's variants become axes. Most map
-  mechanically: each variant's agent, model and bundle become a value
-  on `agent`, `model` and a bundle axis; the variant that was live gives
-  each of its axes its live value. Attempts already in banks keep their
-  manifests, and the reader maps old coordinates onto configurations.
-  Whether old attempts' hashes can be carried over or are stale is OPEN.
+- **Porting.** Every exam's variants become axes when it is next run
+  ("Decided since", 11). No attempt is migrated.
 
 ## Decided since
 
@@ -442,18 +443,56 @@ for the Go version the code declares.
 - **9. No kinds of axis** (the user, 2026-11-24). An axis may declare
   one live value, its reference; without one it is swept. See "Live is
   per axis". This retires the question of what to call two kinds.
+- **10. Values set parameters; they never add steps** (the user,
+  2026-11-24). The fixture's Dockerfile and service definitions declare
+  their parameters (`ARG GO_VERSION`, `ARG AUDITOR_VERSION`, a service's
+  content directory); a value sets declared ones and adds no build
+  step, service or script. The fixture already says how its parameters
+  combine, so there is no order to decide, and refusal 2 covers
+  parameters as it covers paths and variables. The file overlay is
+  unchanged (paths of different axes are disjoint). The agent axis is
+  proctor's own: the runner installs the agent, through Harbor or bare,
+  as today. Two cases remain, neither an order problem:
+  - **A configuration that cannot build** (auditor v2 does not support
+    Go 1.20) is `failed`, with the build's error as its reason, like any
+    infrastructure failure, and never graded.
+  - **A configuration known to be impossible** is declared in the exam
+    as excluded, after CI's `exclude`. `run` does not make it, and the
+    coverage grid shows it as excluded, not as a gap.
+
+  The cost: varying something new in the image means declaring a new
+  parameter in the fixture, which is a base change (D16). In practice
+  the parameters are declared when the fixture is written. Considered
+  and dropped: a fixed order of layered steps (image, services, files,
+  environment; then the exam's order of axes), which makes each
+  configuration's image a stack of steps from several authors that
+  nobody can read.
+- **11. No migration of attempts; exams port when next run** (the user,
+  2026-11-24: there is no bank anywhere). Proctor's bank, log and
+  `exams-seen/` do not exist on any machine. The paid evidence that
+  exists is the viewer's frozen `datasets/` (28 old proctor runs and
+  one private one, about 300 MB, in the layout before the bank), already
+  left behind by the bank's own change, and relevant only for trying new
+  analyses for friction detection (the user). So:
+  - An exam ports its definition when it is next run, as exams moved to
+    stages: each variant field becomes a value on an axis, and a field
+    with one value becomes an axis of one, so it stays in the
+    configuration's identity.
+  - No hash is carried over and there is no mapping table.
+  - The viewer's `project/trials/datasets_to_bank.py` learns to write
+    configurations; it is the only code that touches old data. The
+    datasets stay research material for friction, never evidence a
+    claim is judged on.
+  - The old-words gate allow-lists `project/archive/` and that script
+    for "variant".
+- **12. The shared bank is in `hosted-auspex.md`** ("The shared bank",
+  2026-11-24): attempt ids unique when made, the first verdict pushed
+  stands, definitions and value contents stored by hash, log entries
+  never pushed.
 
 ## OPEN
 
-1. **Order for the kinds that are not files.** Refusal 2 catches two
-   axes changing one path or one variable, not two build arguments that
-   interact.
-2. **Migration.** Whether attempts already in banks carry their hashes
-   over onto configurations, or go stale.
-3. **The shared bank** (pinned, not written): attempt ids unique across
-   machines, grades named by standard, definitions (values among them)
-   stored by hash on the server, each value's diff shown from there.
-4. **Making it legible** (the user: "it will be my/our job"). The
+1. **Making it legible** (the user: "it will be my/our job"). The
    coverage grid; "the standard moved" against "got better or worse";
    standard changed after the claim; not yet graded against undecided
    against not applicable; each value's diff. This is the viewer's and

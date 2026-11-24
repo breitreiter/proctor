@@ -172,11 +172,79 @@ under their email. So the only HTTP writer is a signed-in browser, and
 waits until it is wanted.
 
 **With one person this is just "push when there is something to show".**
-The split matters once a second person runs attempts or annotates, and
-the data model has gaps there (OPEN, below): attempt numbers collide
-across machines, and a regrade overwrites `checks.json`. Neither bites
-while only the user runs attempts and colleagues read and annotate,
-which is the first shape to build.
+The split matters once a second person runs attempts or annotates; the
+next section is what makes that safe. The first shape to build is the
+user running attempts and colleagues reading and annotating.
+
+## The shared bank (the user, 2026-11-24)
+
+Written in the words of `axes.md` (axis, value, configuration).
+
+**Two people running one configuration make more attempts, not a
+conflict.** An attempt is one draw from a stochastic agent; two machines
+change nothing about that. They pool when the configuration and the task
+hash alike; a value content that differs (an uncommitted README) is
+another configuration and sits beside them. Machines that differ in
+versions, engine or shape pool under D18's mixed-conditions warning.
+Both running before either pulls can overshoot the exam's `attempts`
+(5 becomes 10): more evidence, not wrong, but spend nobody meant. Pull
+before run. A reservation on the server would prevent it and needs both
+online; not until it happens.
+
+**1. An attempt's id is unique when it is made.** Time and four random
+characters, the form log entries already use (`20261124-0130-k20g`). It
+works offline, sorts by time, and never changes on push, so a mark the
+agent wrote before pushing still points at its attempt. "Try 3 of 5" is
+an ordinal computed when read, never stored and never in an address.
+Dropped: numbers handed out by the server on push, which breaks offline
+work and renames a local attempt after the fact, and with it every mark
+already written.
+
+**2. The first verdict pushed stands** (the user: "we'll go insane if
+people keep regrading attempts until they get a grade they like"). A
+grade is computed from verdicts; static and script checks agree on every
+machine, and only a judge's votes vary. Verdicts are already kept by
+request hash (`verdicts/<check>.<judge>.<hash>.json`: compiled request,
+model, threshold). So:
+
+- `push` sends verdicts. The server keeps the first one pushed for each
+  hash; a later, different one is refused, and `push` says so: "kept the
+  server's verdict for X; yours is replaced on the next pull."
+- `pull` replaces local verdicts with the server's, and the grade is
+  recomputed, so nobody keeps a private alternative.
+- Locally the cache already stops rerolling: a regrade under the same
+  standard asks no judge. Deleting verdict files to reroll is the only
+  way round it, and the server defeats that for anything shared.
+- Pulling before grading means paying once: the other person's verdict
+  is a cache hit.
+- Not pooled: both sets of votes are honest draws, but the number of
+  votes and the agreement rule are part of the standard, and pooling
+  would change it for one attempt.
+
+**3. Definitions are stored by hash.** Every exam definition and every
+value's content a pushed attempt refers to, in one store addressed by
+content (`exams-seen/`, generalised). Content can be large (a docs tree)
+and private, and is served only through the exam's access check. The
+page shows each value's diff from here.
+
+**4. What push and pull carry:**
+
+| | push | pull |
+|---|---|---|
+| attempts' evidence: manifest, trajectory, friction | yes | yes |
+| final workspaces | no; the hash only, unless the user keeps them (`axes.md`, decision 5) | no |
+| verdicts and grades, by standard | yes | yes, replacing local |
+| marks: append-only, an id each, merged as a union | yes | yes |
+| definitions and value contents referred to | yes | as needed to read |
+| log entries | **no**: host, command and paths | no |
+
+Log entries stay home, so each attempt's manifest carries a
+**conditions** summary safe to push: versions, engine and machine shape
+(what D18's warning reads), with no host name, command or path.
+
+Live, the current definition and the public flag come from the
+definition pushed last; git stays their authority, and the server shows
+them.
 
 ## The rule this bends
 
@@ -235,12 +303,6 @@ Steps 2 and 3 do not depend on each other.
 - **Merging marks** on `pull`. Part of the marks design (build step 6 of
   `View/project/build-plan.md`), not of hosting. Append-only files with
   an id per mark make it a union.
-- **The data model for more than one writer of attempts.** Attempt ids
-  unique across machines (today `n` is numbered after the local bank's
-  highest, and a mark's address contains it); a grade that names the
-  standard it was graded under, so a regrade is a new record and not a
-  rewrite; variant definitions kept by hash outside the log entry, which
-  holds machine details not worth pushing. Pending its own plan.
 - **Spend.** The viewer makes no model calls, so the hosted cost is the
   plan and the share. Anything that would add a hosted model call is a
   change to the line in `View/CLAUDE.md` (auspex renders, the runner
