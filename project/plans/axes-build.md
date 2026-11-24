@@ -867,7 +867,20 @@ Each was an open question here, with my recommendation, and agreed.
    configurations' tries, with every axis that differs named in the
    answer. It would come before 3d. **Agreed** (the user, 2026-11-24:
    "what does x change and how much evidence do we have for that?"
-   will be a very common question).
+   will be a very common question). **BUILT 2026-11-24:** the change
+   is the axes on which the two differ, taken together, compared in
+   every setting of the other axes where the exam carries it, by the
+   same function as one value (`Configurations.Compare` on a change of
+   several axes). `--against` defaults to the live value on every
+   axis that has one, the rest as the configuration has them: what is
+   in use, for the same user. Every other axis with a live value is
+   held as the configuration has it, and the change is spread only
+   across the axes with none (the ones not ours to choose): the first
+   cut spread it across every setting, so `rewritten-long` against
+   `rewritten` also read the long prompt on the shipped guide. The answer names the configuration and
+   the change, and carries a caution that it does not say which value
+   made the difference. A configuration already at live on every such
+   axis is told to name what to compare with.
 
 Beside that, what is still to confirm is in `axes.md`: the five
 consequences and the declared facts of "Who asks, and through what",

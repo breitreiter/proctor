@@ -32,7 +32,12 @@ record MovedWith(string Axis, string WithValue, string WithAgainst);
 /// <summary>What so few tries could have shown, read as one or in the single setting compared.</summary>
 record Power(bool CouldConfirm, double SmallestP, string Note);
 
-record ComparisonAnswer(string Schema, string Exam, string AsOf, string Address, string Axis, string Value, string Against, Dictionary<string, string>? Within,
+/// <summary>
+/// Change is what is compared: one value, or several changed together, by axis. Against is what it is compared with on
+/// those axes. Configuration is the configuration asked about, when one was: the change is then the axes on which it
+/// differs from the other.
+/// </summary>
+record ComparisonAnswer(string Schema, string Exam, string AsOf, string Address, string? Configuration, Dictionary<string, string> Change, Dictionary<string, string> Against, Dictionary<string, string>? Within,
     string Verdict, bool? Confirmed, string Sentence, List<CellAnswer> Cells, Pooled? ReadAsOne, List<string> NotRun, Power? Power, Timing Timing,
     List<MovedWith> MovedWith, List<string> Cautions, List<string> OtherComparisons, int TriesSince, string Methods);
 
@@ -84,8 +89,7 @@ static class Answers
 
     /// <summary>
     /// One value of an axis against another, every other axis held, as of a time (now when null). Against defaults to
-    /// the axis's live value, then its reference. Refused while a stage in it is not graded, since an ungraded try would
-    /// read as one that held nothing.
+    /// the axis's live value, then its reference.
     /// </summary>
     public static ComparisonAnswer Compare(string root, Exam exam, string axis, string value, string? against, IReadOnlyDictionary<string, string>? within, DateTime? asOf)
     {
@@ -93,7 +97,40 @@ static class Answers
         against ??= axes.Def[axis].Live ?? axes.ReferenceOf(axis)
             ?? throw new ProctorException($"axis '{axis}' has no live value and no reference to compare {axis}={value} with: say --against <value> ({string.Join(", ", axes.Def[axis].Values!.Keys.Where(v => v != value))})");
         if (against == value) throw new ProctorException($"{axis}={value} against itself: say --against <value> ({string.Join(", ", axes.Def[axis].Values!.Keys.Where(v => v != value))})");
-        if (within?.ContainsKey(axis) == true) throw new ProctorException($"--within {axis}=…: '{axis}' is the axis compared along; --within holds the other axes");
+        return Compare(root, exam, new Dictionary<string, string> { [axis] = value }, new Dictionary<string, string> { [axis] = against }, within, asOf, null);
+    }
+
+    /// <summary>
+    /// One configuration against another: what the first changes is the axes on which they differ, taken together.
+    /// Every other axis that has a live value is held as the configuration has it, since those are choices of ours and
+    /// part of what was asked about; the change is compared across the axes that have none (the ones not ours to
+    /// choose), wherever the exam carries it. Against defaults to the configuration with the live value on every axis
+    /// that has one and the rest as they are: what is in use now, for the same user.
+    /// </summary>
+    public static ComparisonAnswer Compare(string root, Exam exam, Configuration configuration, Configuration? against, IReadOnlyDictionary<string, string>? within, DateTime? asOf)
+    {
+        var axes = exam.Axes!;
+        var other = against ?? axes.Make(configuration.Values.ToDictionary(v => v.Axis, v => axes.Def[v.Axis].Live ?? v.Value))!;
+        var differs = configuration.Values.Where(v => other[v.Axis] != v.Value).Select(v => v.Axis).ToList();
+        if (differs.Count == 0)
+            throw new ProctorException(against is not null ? $"{configuration.Name ?? configuration.Label} against itself: there is nothing to compare"
+                : $"{configuration.Name ?? configuration.Label} has the live value on every axis that has one, so it is what is in use: say --against <configuration> to compare it with another");
+        var held = new Dictionary<string, string>(within ?? new Dictionary<string, string>());
+        foreach (var (axis, def) in axes.Def)
+            if (def.Live is not null && !differs.Contains(axis)) held.TryAdd(axis, configuration[axis]!);
+        return Compare(root, exam, differs.ToDictionary(a => a, a => configuration[a]!), differs.ToDictionary(a => a, a => other[a]!), held, asOf, configuration.Name ?? configuration.Key);
+    }
+
+    /// <summary>
+    /// These values together against those, every other axis held. Refused while a stage in it is not graded, since an
+    /// ungraded try would read as one that held nothing.
+    /// </summary>
+    static ComparisonAnswer Compare(string root, Exam exam, Dictionary<string, string> change, Dictionary<string, string> against, IReadOnlyDictionary<string, string>? within, DateTime? asOf, string? asked)
+    {
+        var axes = exam.Axes!;
+        if (within?.Keys.FirstOrDefault(change.ContainsKey) is { } clash) throw new ProctorException($"--within {clash}=…: '{clash}' is an axis the comparison is along; --within holds the other axes");
+        string Said(Dictionary<string, string> values) => string.Join(" × ", axes.Def.Keys.Where(values.ContainsKey).Select(x => $"{x}={values[x]}"));
+        var (changeSaid, againstSaid) = (Said(change), Said(against));
         var now = DateTime.UtcNow;
         var at = asOf ?? now;
 
@@ -104,7 +141,7 @@ static class Answers
         var (tries, _) = Tries.Compute(root, exam, current, Bank.Of(root, exam), rows, null, null);
         var byKey = tries.Variants.ToDictionary(v => v.Id);
         var standing = Combinations.Load(exam).Stand(exam);
-        var comparison = Configurations.Compare(exam, byKey, standing, axis, value, against, within);
+        var comparison = Configurations.Compare(exam, byKey, standing, change, against, within);
 
         var keys = comparison.Cells.SelectMany(c => new[] { c.Key, c.LiveKey }).ToHashSet();
         var ungraded = rows.Count(r => keys.Contains(r.Variant) && r.Status == AttemptStatus.Completed && r.Checks is null);
@@ -152,29 +189,33 @@ static class Answers
 
         // Which other axis only ever moved with this one, among the tries there are: then nothing here separates the two.
         var withTries = axes.Configurations.Where(c => (within is null || c.Has(within)) && byKey.GetValueOrDefault(c.Key)?.Tries > 0).ToList();
-        var (a, b) = (withTries.Where(c => c[axis] == value).ToList(), withTries.Where(c => c[axis] == against).ToList());
-        var moved = a.Count == 0 || b.Count == 0 ? [] : axes.Def.Keys.Where(x => x != axis)
+        var (a, b) = (withTries.Where(c => c.Has(change)).ToList(), withTries.Where(c => c.Has(against)).ToList());
+        var moved = a.Count == 0 || b.Count == 0 ? [] : axes.Def.Keys.Where(x => !change.ContainsKey(x))
             .Where(x => a.Select(c => c[x]).Distinct().Count() == 1 && b.Select(c => c[x]).Distinct().Count() == 1 && a[0][x] != b[0][x])
             .Select(x => new MovedWith(x, a[0][x]!, b[0][x]!)).ToList();
         var cautions = new List<string>(comparison.Cautions ?? []);
         foreach (var m in moved)
-            cautions.Add($"Cannot be told apart from {m.Axis}: every try with {axis}={value} had {m.Axis}={m.WithValue}, and every try with {axis}={against} had {m.Axis}={m.WithAgainst}. Telling them apart takes a configuration that changes one and not the other.");
+            cautions.Add($"Cannot be told apart from {m.Axis}: every try with {changeSaid} had {m.Axis}={m.WithValue}, and every try with {againstSaid} had {m.Axis}={m.WithAgainst}. Telling them apart takes a configuration that changes one and not the other.");
         if (timing.Note is not null) cautions.Add(timing.Note);
         if (power is { CouldConfirm: false }) cautions.Add(power.Note);
 
         // How many comparisons the exam's report holds beside this one: asked for one at a time, some will look confirmed by chance.
         var others = axes.Def.Where(d => d.Value.Live is not null).SelectMany(d => d.Value.Values!.Keys.Where(v => v != d.Value.Live).Select(v => (Axis: d.Key, Value: v, Against: d.Value.Live!)))
-            .Where(o => o != (axis, value, against)).Where(o => Configurations.Compare(exam, byKey, standing, o.Axis, o.Value, o.Against).Cells.Any(c => c.State == "compared"))
+            .Where(o => !(change.Count == 1 && change.GetValueOrDefault(o.Axis) == o.Value && against[o.Axis] == o.Against)).Where(o => Configurations.Compare(exam, byKey, standing, o.Axis, o.Value, o.Against).Cells.Any(c => c.State == "compared"))
             .Select(o => $"{o.Axis}={o.Value} against {o.Axis}={o.Against}").ToList();
         if (others.Count > 0) cautions.Add($"The exam's report holds {others.Count} other comparison{(others.Count == 1 ? "" : "s")} against live with tries on both sides ({string.Join("; ", others)}). At p < 0.05 about one in twenty comparisons of things that do not differ is confirmed by chance.");
 
         var since = asOf is null ? 0 : all.Where(x => x.Made > at && keys.Contains(x.Attempt.Variant)).Select(x => x.Id).Distinct().Count();
-        var address = $"/{exam.Id}/compare?along={Encoded(axis)}&value={Encoded(value)}&against={Encoded(against)}"
+        // A change of several values at once names the values, not their sum: what each does alone is a comparison of its own.
+        if (change.Count > 1)
+            cautions.Add($"This compares {change.Count} values changed together ({changeSaid}). It does not say which of them made a difference: ask for each alone.");
+        string Listed(Dictionary<string, string> values) => Encoded(string.Join(",", axes.Def.Keys.Where(values.ContainsKey).Select(x => $"{x}={values[x]}")));
+        var address = $"/{exam.Id}/compare?change={Listed(change)}&against={Listed(against)}"
             + (within is { Count: > 0 } ? "&within=" + Encoded(string.Join(",", within.Select(w => $"{w.Key}={w.Value}"))) : "") + $"&as_of={Encoded(Iso(at))}";
-        return new ComparisonAnswer(Schema, exam.Id, Iso(at), address, axis, value, against, within is { Count: > 0 } ? new Dictionary<string, string>(within) : null,
+        return new ComparisonAnswer(Schema, exam.Id, Iso(at), address, asked, change, against, within is { Count: > 0 } ? new Dictionary<string, string>(within) : null,
             verdict, decided?.Confirmed, comparison.Sentence, cells, comparison.Pooled, comparison.NotRun, power, timing, moved, cautions, others, since,
             "Every number here is proctor's, worked out as its report works it out. A try is one configuration run once through the exam's stages; held is the headline checks it held, of how many. "
-            + "The value is compared with the other in each setting of the other axes where the exam names or has tries of the value, try against try (Mann-Whitney, exact two-sided p), "
+            + "change is compared with against (one value of an axis, or several values changed together when a configuration was asked about) in each setting of the other axes where the exam names or has tries of the change, try against try (Mann-Whitney, exact two-sided p), "
             + "and the settings compared are read as one when they do not point different ways (van Elteren). confirmed means p < 0.05; at the top it is of the one reading there is, "
             + "and absent when there is none (nothing compared, or better here and worse there: then each cell has its own). "
             + "flagged is a try's steps inside any friction point, when friction was run. checks in a cell counts, per headline check, the tries of each side that held it; it tests nothing. "

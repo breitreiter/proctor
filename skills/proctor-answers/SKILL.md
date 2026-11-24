@@ -22,11 +22,19 @@ with `methods`, which says what its fields mean.
 proctor coverage <exam>                     # where there are tries, and where there are none
 proctor compare <exam> <axis>=<value>       # that value against its axis's live value
 proctor compare <exam> <axis>=<value> --against <value> --within <axis>=<value>
+proctor compare <exam> --configuration <name>               # everything it changes, together, against what is live
+proctor compare <exam> --configuration <name> --against <name>
 proctor list <exam>                         # the axes, their values and what each is for
 ```
 
 Start with `list` and `coverage`. Ask `compare` once for each thing the
 person is asking about, and only for those.
+
+"What does X change, and how much evidence is there for it?" is one
+`compare`. For one value, ask about the value. For something that could
+ship, ask about the configuration: it is compared as everything it
+changes, taken together. That answer does not say which of its values
+made the difference; ask about each value alone for that.
 
 ## Rules
 

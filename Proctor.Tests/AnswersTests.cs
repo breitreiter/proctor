@@ -35,7 +35,8 @@ public class AnswersTests
         var (repo, exam) = Graded();
         var answer = Answers.Compare(repo.Root, exam, "prompt", "rewritten", null, null, null);
 
-        Assert.Equal(("shipped", "better_here_worse_there", null), (answer.Against, answer.Verdict, answer.Confirmed));
+        Assert.Equal(("shipped", "better_here_worse_there", null), (answer.Against["prompt"], answer.Verdict, answer.Confirmed));
+        Assert.Null(answer.Configuration);
         Assert.Null(answer.ReadAsOne);
         Assert.Contains("better here, worse there", answer.Sentence);
         var compared = answer.Cells.Where(c => c.State == "compared").ToList();
@@ -54,7 +55,7 @@ public class AnswersTests
         Assert.All(cell.Value.Tries, t => Assert.True(Directory.Exists(Path.Combine(repo.Root, t.Path))));
         Assert.All(cell.Value.Tries, t => Assert.Equal($"/axes-answers/try/{t.Id}", t.Address));
         Assert.Equal("rewritten", cell.Value.Name);
-        Assert.StartsWith("/axes-answers/compare?along=prompt&value=rewritten&against=shipped&as_of=", answer.Address);
+        Assert.StartsWith("/axes-answers/compare?change=prompt%3Drewritten&against=prompt%3Dshipped&as_of=", answer.Address);
 
         // Held to one assistant it is one setting, read alone, and says what four tries a side could have shown.
         var onMock = Answers.Compare(repo.Root, exam, "prompt", "rewritten", null, new Dictionary<string, string> { ["assistant"] = "mock" }, null);
@@ -78,7 +79,44 @@ public class AnswersTests
         // Asked against a value outright, and refused where the question has no meaning.
         Assert.Equal("worse", Answers.Compare(repo.Root, exam, "prompt", "shipped", "rewritten", new Dictionary<string, string> { ["assistant"] = "mock" }, null).Verdict);
         Assert.Contains("against itself", Assert.Throws<ProctorException>(() => Answers.Compare(repo.Root, exam, "prompt", "shipped", null, null, null)).Message);
-        Assert.Contains("is the axis compared along", Assert.Throws<ProctorException>(() => Answers.Compare(repo.Root, exam, "prompt", "rewritten", null, new Dictionary<string, string> { ["prompt"] = "shipped" }, null)).Message);
+        Assert.Contains("is an axis the comparison is along", Assert.Throws<ProctorException>(() => Answers.Compare(repo.Root, exam, "prompt", "rewritten", null, new Dictionary<string, string> { ["prompt"] = "shipped" }, null)).Message);
+    }
+
+    [Fact]
+    public void AConfiguration_IsComparedByEverythingItChanges_Together_AgainstWhatIsLive()
+    {
+        var (repo, exam) = Graded();
+        Configuration Named(string name) => exam.Axes!.Named.Single(c => c.Name == name);
+
+        // Two values off live: the change is both, taken together, against the live value of each.
+        var answer = Answers.Compare(repo.Root, exam, Named("terse-two"), null, null, null);
+        Assert.Equal("terse-two", answer.Configuration);
+        Assert.Equal(["tone", "examples"], answer.Change.Keys);
+        Assert.Equal(("terse", "two", "plain", "none"), (answer.Change["tone"], answer.Change["examples"], answer.Against["tone"], answer.Against["examples"]));
+        Assert.StartsWith("tone=terse × examples=two against tone=plain × examples=none", answer.Sentence);
+        var cell = Assert.Single(answer.Cells);
+        Assert.Equal(("compared", "terse-two", "shipped"), (cell.State, cell.Value.Name, cell.Against.Name));
+        // Together they can be compared, where neither could alone; and the answer says it is of the two together.
+        Assert.Empty(answer.MovedWith);
+        Assert.Contains(answer.Cautions, c => c.StartsWith("This compares 2 values changed together (tone=terse × examples=two)"));
+        Assert.StartsWith("/axes-answers/compare?change=tone%3Dterse%2Cexamples%3Dtwo&against=tone%3Dplain%2Cexamples%3Dnone&within=prompt%3Dshipped%2Clength%3Dshort&as_of=", answer.Address);
+
+        // One value off live, on the assistant that is not ours to choose: the same change wherever the exam carries it, each assistant a setting.
+        var onB = Answers.Compare(repo.Root, exam, Named("rewritten-b"), null, null, null);
+        Assert.Equal(["prompt"], onB.Change.Keys);
+        Assert.Equal("better_here_worse_there", onB.Verdict);
+        Assert.StartsWith("prompt=rewritten against prompt=shipped: better here, worse there", onB.Sentence);
+        // Our own other choices are held as the configuration has them: the long prompt is another candidate, and not in this answer.
+        Assert.Equal(("plain", "none", "short"), (onB.Within!["tone"], onB.Within["examples"], onB.Within["length"]));
+        Assert.Equal(["mock", "mock-b"], onB.Cells.Select(c => c.Holding["assistant"]));
+
+        // Against another configuration by name: the change is every axis on which the two differ.
+        var two = Answers.Compare(repo.Root, exam, Named("terse-two"), Named("rewritten"), null, null);
+        Assert.Equal(["prompt", "tone", "examples"], two.Change.Keys);
+        Assert.Equal("rewritten", Assert.Single(two.Cells).Against.Name);
+
+        Assert.Contains("is what is in use", Assert.Throws<ProctorException>(() => Answers.Compare(repo.Root, exam, Named("shipped-b"), null, null, null)).Message);
+        Assert.Contains("against itself", Assert.Throws<ProctorException>(() => Answers.Compare(repo.Root, exam, Named("rewritten"), Named("rewritten"), null, null)).Message);
     }
 
     [Fact]

@@ -20,7 +20,12 @@ formats or the vocabulary; a patch bump does not.
   spans. Both are schema `answer/1`, call no model and recommend
   nothing. `compare` is refused while a try in it is not graded.
   `skills/proctor-answers/` is the skill for an agent answering a
-  person from them.
+  person from them. `proctor compare <exam> --configuration <name>
+  [--against <name>]` asks about a configuration: the axes on which it
+  differs from what is live (or from the other) are compared as one
+  change, in every setting where the exam carries it, and the answer
+  says it is of those values together. A comparison's address is
+  `/<exam>/compare?change=…&against=…&as_of=…` for both forms.
 - **Axes: better here, worse there.** A comparison whose settings point
   different ways says so, in the report and in `compare`, and is not
   read as one: opposite differences cancelled into "the same". Each

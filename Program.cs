@@ -16,7 +16,9 @@ static class Program
           report <exam>          write reports/<exam>/explore/: results.jsonl, stats.json and summary.md, stamped with what they were built from
           compare <exam> <axis=value>  on an exam with axes, as JSON: that value against its axis's live value (or
                                  --against <value>), every other axis held; what was found, in which settings, what was
-                                 not run, when the tries were made and what so few could have shown
+                                 not run, when the tries were made and what so few could have shown.
+                                 With --configuration <name> in place of the value: everything that configuration
+                                 changes, together, against what is live (or --against <name>)
           coverage <exam>        on an exam with axes, as JSON: the tries of each value and configuration, and of every
                                  configuration live spans
           live <exam> [variant]  mark a variant live in exams/<exam>/live.json (commit it): the one in use now, which the report
@@ -37,7 +39,8 @@ static class Program
                               report: only the configurations holding it (repeatable)
         --configuration <name>  on an exam with axes: only the configuration the exam gives this name;
                               without either, run makes the configurations the exam names
-        --against <value>     compare: the value to compare with, in place of the axis's live value
+        --against <value>     compare: the value to compare with, in place of the axis's live value; with
+                              --configuration, the configuration to compare with, by name
         --within <axis=value> compare: only the settings of the other axes that hold this value (repeatable)
         --as-of <time>        compare, coverage: the answer as it stood then (a date, or a UTC time as an answer gives it)
         --tasks <a,b>         run, grade, friction, report: only these tasks' attempts
@@ -97,6 +100,7 @@ static class Program
                 ("run", [var exam]) => Verbs.Run(root, exam, nbPath, runner, configFile, variants, tasks),
                 ("build", [var exam]) => Verbs.Build(root, exam, nbPath, runner, configFile),
                 ("compare", [var exam, var what]) => Verbs.Compare(root, exam, what, against, within, asOf),
+                ("compare", [var exam]) => Verbs.Compare(root, exam, null, against, within, asOf),
                 ("coverage", [var exam]) => Verbs.Coverage(root, exam, asOf),
                 ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, configFile),
                 ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, reader, rejudge, configFile),

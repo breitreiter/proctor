@@ -137,14 +137,28 @@ static class Verbs
     /// One value of an axis against another, every other axis held, as JSON on standard output (plans/axes-build.md, 3c):
     /// what an agent quotes when it answers for a person. Against defaults to the axis's live value.
     /// </summary>
-    public static int Compare(string root, string examId, string what, string? against, List<string>? within, string? asOf)
+    public static int Compare(string root, string examId, string? what, string? against, List<string>? within, string? asOf)
     {
         var exam = LoadExam(root, examId);
-        if (exam.Axes is null) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: `compare` asks about one value of an axis against another");
-        var (axis, value) = ValuesGiven(exam, [what]).Single();
-        if (against is not null && !exam.Axes.Def[axis].Values!.ContainsKey(against))
-            throw new ProctorException($"--against {against}: not a value of axis '{axis}' ({string.Join(", ", exam.Axes.Def[axis].Values!.Keys)})");
-        var answer = Answers.Compare(root, exam, axis, value, against, within is null ? null : ValuesGiven(exam, within), asOf is null ? null : Answers.ParseAsOf(asOf));
+        if (exam.Axes is not { } axes) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: `compare` asks about one value of an axis against another");
+        if ((what is null) == (ConfigurationName is null))
+            throw new ProctorException($"compare takes one thing to ask about: `proctor compare {exam.Id} <axis>=<value>` for a value, or `proctor compare {exam.Id} --configuration <name>` for a configuration");
+        var (holding, at) = (within is null ? null : ValuesGiven(exam, within), asOf is null ? (DateTime?)null : Answers.ParseAsOf(asOf));
+        ComparisonAnswer answer;
+        if (what is not null)
+        {
+            var (axis, value) = ValuesGiven(exam, [what]).Single();
+            if (against is not null && !axes.Def[axis].Values!.ContainsKey(against))
+                throw new ProctorException($"--against {against}: not a value of axis '{axis}' ({string.Join(", ", axes.Def[axis].Values!.Keys)})");
+            answer = Answers.Compare(root, exam, axis, value, against, holding, at);
+        }
+        else
+        {
+            // A configuration by the name the exam gives it, or spelled out as axis=value,…
+            Configuration Named(string flag, string given) => axes.Named.FirstOrDefault(c => c.Name == given) ?? axes.Of(given)
+                ?? throw new ProctorException($"{flag} {given}: not a configuration exam '{exam.Id}' names ({string.Join(", ", axes.Named.Select(c => c.Name!).DefaultIfEmpty("none"))}), nor one spelled as axis=value for every axis");
+            answer = Answers.Compare(root, exam, Named("--configuration", ConfigurationName!), against is null ? null : Named("--against", against), holding, at);
+        }
         Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(answer, AnswerJson));
         return 0;
     }
