@@ -118,7 +118,7 @@ in the order the verbs run them. Every file is one concern:
 | `exams/smoke/` | proctor's own exam: every task scripts nb's Mock provider |
 | `exams/code-change/` | the first real exam: three tasks on three fixtures, acceptance tests, reference solutions; five agent variants through Harbor (nb, Qwen Code, Claude Code on Haiku and on Sonnet, Codex) |
 | `exams/gate/` | the deterministic gate: one Mock variant bare and the same variant as a Harbor agent; `GateTests` (with `PROCTOR_GATE`) asserts they agree |
-| `exams/gate-oracle/` | the oracle's gate: the same pair on three oracle tasks, one per ending (`ok`, `oracle_miss`, `oracle_budget`); `OracleGateTests` (with `PROCTOR_GATE`) asserts the in-process oracle and the bridged simulated user agree, apart from the judge's tokens |
+| `exams/gate-oracle/` | the oracle's gate, on stages and axes since 2026-11-25: three stages, one per ending (`ok`, `oracle_miss`, `oracle_budget`), each applying on one value of the `ending` axis, so a try is one stage with an answer sheet; the `route` axis runs it bare (nb's in-process oracle) and through Harbor (the simulated user, as a plain task). `OracleGateTests` (with `PROCTOR_GATE`) asserts the two routes agree, apart from the judge's tokens: the same counted core, the same checks, and the same user turns by text, source and sheet keys |
 | `exams/oracle-change/` | the oracle on a real model: `add-retry-flag` with its semantics only in the answer sheet, chosen to be unconventional so a guess fails acceptance; nb on Anthropic Haiku bare and through Harbor, judged by Haiku. Real API calls (about $1 for a full set of attempts) |
 | `exams/conformance/` | Harbor conformance at $0: every vendor agent at its pin against `fixtures/stub`'s scripted model, tasks `ok`, `fail`, `hang`; `ConformanceTests` (with `PROCTOR_CONFORMANCE`, `1` or a `proctor.json` whose `harbor` block to run on) asserts each attempt came back as scripted. The plan and its benchmark are `project/archive/harbor-conformance.md` |
 | `exams/tern-docs/` | the docs showcase, and the first exam in the repository on axes (ported 2026-11-25): Claude Code on Sonnet implements six shipping functions in `fixtures/tern-shop` against Tern, an invented carrier. Its `docs` axis sets the fixture's `DOCS` tree parameter (as shipped, restructured, or none), which the fixture's docs service serves; `assistant` is the agent and model. Hidden acceptance runs against Tern's sandbox API started in the verifier; `reference/shakedown.sh` proves the checks for free (`--unsolved`, `--v1`, `--kilograms`). The plan is `project/archive/bundle-showcase.md` |
@@ -628,7 +628,14 @@ The directories are for reading, not for namespaces: everything is
   directives prepended by `Runner.OraclePrefix`); on Harbor, as
   `Harbor/oracle_user.py`, the simulated user, whose record ingest lines up
   with nb's trajectory (`Ingest.Oracle`). A vendor variant beside an oracle task
-  is refused: Harbor leaves it no ATIF.
+  is refused: Harbor leaves it no ATIF. On a staged exam a try with an answer sheet goes through Harbor only when it is
+  one stage (`HarborCompile.Plain`): it is then compiled as a plain Harbor task, with no steps, and run by the
+  single-attempt path into the try's layout (`Runner.RunAgentTask`), since the simulated user answers a task and never
+  a step. A try of several stages with a sheet among them is refused through Harbor, and says to give it one stage
+  (on an exam with axes, a stage's `when`) or to run it bare. An oracle's turn is a user step whose `extra.source` is
+  `oracle`, with the sheet entries it answered from in `extra.keys`, the same bare and bridged; a question the oracle
+  did not answer leaves no turn, only the ending (`oracle_miss`, `oracle_budget`), which through Harbor is in
+  `core.json` and not in nb's own trajectory. The viewer shows the turn as the oracle's and says the ending.
 - **Snapshot tests** fail on any rendering change and leave a `.received` file
   (gitignored) beside the approved one. Review it, then approve with
   `PROCTOR_APPROVE=1`.

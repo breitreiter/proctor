@@ -541,6 +541,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var tryDir = Layout.Try(root, exam.Id, variant.Id!, n, entry.IdOf(variant.Id!, n));
         Directory.CreateDirectory(tryDir);
         var taskDir = Layout.HarborJobTask(entryDir, variant.Id!, exam.Id);
+        // One stage with an answer sheet is a plain task: the simulated user answers a task, never a step.
+        if (HarborCompile.Plain(exam, variant.Id!)) { RunAgentTask(variant, stages[0], n, AttemptDir(variant, stages[0], n), taskDir, staged: true); return; }
         var route = Route(root, config, entry.Nb, variant);
         var fixture = exam.FixtureOf(stages[0])!;
         var stopwatch = Stopwatch.StartNew();
@@ -726,17 +728,25 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// the diff are the image's and Harbor's; variant hooks still ran on the host around the variant's attempts. The variant's bundle is
     /// the host's too: recorded here and handed to those hooks, never put in the container.
     /// </summary>
-    void RunAgentAttempt(Variant variant, TaskDef task, int n)
+    void RunAgentAttempt(Variant variant, TaskDef task, int n) =>
+        RunAgentTask(variant, task, n, Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n), Layout.HarborTask(entryDir, variant.Id!, task.Id!), staged: false);
+
+    /// <summary>
+    /// One Harbor trial of a plain task: a task's attempt, or a staged try that is one stage with an answer sheet
+    /// (<see cref="HarborCompile.Plain"/>), which the simulated user can only answer as a task. The staged try is kept
+    /// where any try is, with the manifest a stage has, and a stage that did not run loses it.
+    /// </summary>
+    void RunAgentTask(Variant variant, TaskDef task, int n, string attemptDir, string taskDir, bool staged)
     {
-        var attemptDir = Layout.Attempt(root, exam.Id, variant.Id!, task.Id!, n);
         Directory.CreateDirectory(attemptDir);
-        var taskDir = Layout.HarborTask(entryDir, variant.Id!, task.Id!);
         var route = Route(root, config, entry.Nb, variant);
         var fixture = exam.FixtureOf(task)!;
         // nb's program is compiled on the host as on the bare path, with the checkout where the image has it.
-        var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, task, n, HarborCompile.Workdir);
+        var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, task, n, HarborCompile.Workdir, attempt: staged ? Context(root, entry, exam, variant, task, n) : null);
         var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
-        var manifest = File.Exists(manifestFile)
+        var manifest = staged
+            ? NewManifest(variant, task, n, fixture, Sha256(program ?? File.ReadAllText(Path.Combine(taskDir, "instruction.md")))) with { Runner = null, Nb = null, Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif") }
+            : File.Exists(manifestFile)
             ? ReadManifest(manifestFile)
             : new Manifest
             {
@@ -770,14 +780,18 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             (trialDir, failure) = HarborRun.Trial(config.Harbor?.Uv ?? new HarborConfig().Uv, entry.Harbor.Version, entry.Harbor.Engine, attemptDir, variant, taskDir, route, exam.Def.Limits!.WallMs!.Value, HarborCompile.AgentsDir(entryDir), nb, oracle);
         if (trialDir is not null) failure = Ingest.Trial(trialDir, attemptDir, variant, manifest, variant.IsVendor ? variant.AgentVersion! : entry.Versions["nb"], bridged: oracle is not null);
         stopwatch.Stop();
+        var exitReason = failure is null ? ReadJson<CountedCore>(Path.Combine(attemptDir, Layout.CoreFile))?.ExitReason : null;
+        // A stage that did not run loses its try, here as in a try of steps.
+        if (staged && exitReason is not null && StageEnd.DidNotRun(exitReason)) failure = $"did not run: {exitReason}";
 
         manifest.Ended = Now();
         manifest.DurationMs = stopwatch.ElapsedMilliseconds;
         manifest.StatusReason = failure;
         SetStatus(attemptDir, manifest, failure is null ? AttemptStatus.Completed : AttemptStatus.Failed);
         WriteStatusCounts();
-        var exitReason = failure is null ? ReadJson<CountedCore>(Path.Combine(attemptDir, Layout.CoreFile))?.ExitReason : null;
-        log.WriteLine($"  {variant.Id}/{task.Id}/{n}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s");
+        if (!staged) { log.WriteLine($"  {variant.Id}/{task.Id}/{n}  {manifest.Status}  {failure ?? exitReason}  {stopwatch.Elapsed.TotalSeconds:F1}s"); return; }
+        log.WriteLine($"  {variant.Id}/{n}/{task.Id}  {manifest.Status}  {failure ?? exitReason}");
+        log.WriteLine($"  {variant.Id}/{n}  {(failure is null ? "whole" : $"lost at {task.Id}: {failure}")}  {stopwatch.Elapsed.TotalSeconds:F1}s");
     }
 
     /// <summary>

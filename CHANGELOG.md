@@ -7,6 +7,21 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **A one-stage try with an answer sheet runs through Harbor**
+  (`axes-build.md`, slice 4; owed since `bank.md` step 4). It is
+  compiled as a plain Harbor task, which is what Harbor's simulated
+  user can answer, and kept where any try is. An exam of stages with an
+  oracle was refused for every agent variant; now only a try of
+  several stages with a sheet among them is. `gate-oracle` is on
+  stages and axes: each ending is one stage on one value of `ending`,
+  and `route` runs it bare and through Harbor. Its `variants/` and
+  `tasks/` are gone; it had no bank kept in the repository.
+- **The viewer shows an oracle's turns as the oracle's.** A user step
+  the oracle wrote is labelled `oracle`, with the sheet entries it
+  answered from; the try's header counts its answers; and a
+  conversation that ended unanswered (`oracle_miss`, `oracle_budget`)
+  says so at the end of the transcript, since an answer that was not
+  given leaves no turn.
 - **Grades over time** (`axes-build.md`, slice 5). `grade` keeps each
   grade in the attempt as `grades/<standard>.json`, beside
   `checks.json`: the verdicts, the hash of the checks they were made

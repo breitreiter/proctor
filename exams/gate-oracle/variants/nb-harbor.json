@@ -1,8 +1,0 @@
-{
-  "id": "nb-harbor",
-  "note": "The same nb on the same Mock provider, as a Harbor agent driven by the simulated user.",
-  "agent": "nb",
-  "harness": "nb",
-  "provider": "Mock",
-  "model": "mock"
-}

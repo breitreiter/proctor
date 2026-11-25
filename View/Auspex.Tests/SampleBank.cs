@@ -80,7 +80,7 @@ public sealed class SampleBank : IDisposable
         Write(Path.Combine(first, "manifest.json"), """{"id": "s1", "exam": "staged", "variant": {"id": "live-setup", "hash": "aaaa"}, "task": {"id": "write-note", "hash": "jjjj"}, "attempt": 1, "stage": 1, "status": "completed"}""");
         Write(Path.Combine(first, "status"), "completed\n");
         Write(Path.Combine(first, "checks.json"), """{"exit_ok": {"result": "fail", "reason": "the attempt ended with 'max_tool_calls'", "describes": "the attempt ends with 'ok'", "why": "An attempt that does not end on its own answered nothing."}}""");
-        Write(Path.Combine(first, "trajectory.json"), """{"steps": [{"step_id": 1, "source": "user", "message": "Write the note."}, {"step_id": 2, "source": "agent", "message": "Trying."}]}""");
+        Write(Path.Combine(first, "trajectory.json"), """{"steps": [{"step_id": 1, "source": "user", "message": "Write the note."}, {"step_id": 2, "source": "agent", "message": "Which file?"}, {"step_id": 3, "source": "user", "message": "note.txt", "extra": {"source": "oracle", "keys": ["which-file"]}}, {"step_id": 4, "source": "agent", "message": "And where?"}], "extra": {"result": {"exit_reason": "oracle_miss"}}}""");
         var second = Path.Combine(tryDir, "stages", "2-read-note");
         Write(Path.Combine(second, "manifest.json"), """{"id": "s2", "exam": "staged", "variant": {"id": "live-setup", "hash": "aaaa"}, "task": {"id": "read-note", "hash": "jjjj"}, "attempt": 1, "stage": 2, "status": "skipped", "status_reason": "not reached: stage write-note was stopped (max_tool_calls), and this exam's stages are chained"}""");
         Write(Path.Combine(second, "status"), "skipped\n");

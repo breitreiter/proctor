@@ -162,11 +162,12 @@ public class StagedHarborTests
     }
 
     [Fact]
-    public void AnAnswerSheet_OnAStagedExam_IsRefusedForAnAgentVariant()
+    public void AnAnswerSheet_OnATryOfSeveralStages_IsRefusedForAnAgentVariant()
     {
+        // A try of one stage with an answer sheet is a plain task and is allowed (AxesHarborTests); one of several is not, since the simulated user answers a task.
         using var repo = Repo("");
         repo.Write("harbor-unit/sheet.md", "## a\nyes\n");
         repo.EditJson("harbor-unit/exam.json", e => e["stages"]![0]!["oracle"] = "sheet.md");
-        Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == "variants" && p.Message.Contains("simulated user does not run a task of several steps"));
+        Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == "variants" && p.Message.Contains("Harbor's simulated user answers one task, not a step of several"));
     }
 }

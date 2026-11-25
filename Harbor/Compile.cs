@@ -75,7 +75,8 @@ static class HarborCompile
         pairs ??= (from variant in exam.Variants.Where(a => a.IsAgent) from c in exam.Tasks select (variant, c)).ToList();
         if (exam.Staged)
             foreach (var variant in pairs.Select(p => p.Variant).Distinct())
-                Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
+                if (Plain(exam, variant.Id!)) Task(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, exam.StagesOf(variant.Id!)[0], route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
+                else Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
         else
             foreach (var (variant, c) in pairs)
                 Task(Layout.HarborTask(entryDir, variant.Id!, c.Id!), exam, variant, c, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
@@ -93,6 +94,14 @@ static class HarborCompile
         if (oracle) File.WriteAllText(Path.Combine(agents, OracleTemplateFile), OracleTemplate);
         return TreeHash(entryDir);
     }
+
+    /// <summary>
+    /// Whether a try of a staged exam is compiled as a plain Harbor task and not as a task of steps: when it is one stage
+    /// and that stage has an answer sheet. Harbor's simulated user, which answers from the sheet over the bridge, runs a
+    /// task and not a step, so a one-stage try with an oracle is a task (plans/axes-build.md, slice 4; bank.md, step 4).
+    /// On an exam with axes a try is the stages that apply in its configuration, so each configuration is asked for itself.
+    /// </summary>
+    public static bool Plain(Exam exam, string variant) => exam.Staged && exam.StagesOf(variant) is [{ Oracle: not null }];
 
     /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
     public static string AgentsDir(string entryDir) => Path.Combine(entryDir, Layout.HarborDir, "agents");
@@ -215,7 +224,7 @@ static class HarborCompile
 
     /// <summary>Where a compiled task keeps a verifier's script and contract: a stage's are its step's, a task's the task's own.</summary>
     static string VerifierFile(string taskDir, Exam exam, TaskDef task, string file) =>
-        exam.Staged ? Path.Combine(taskDir, "steps", task.Id!, "tests", file) : Path.Combine(taskDir, "tests", file);
+        exam.Staged && Directory.Exists(Path.Combine(taskDir, "steps")) ? Path.Combine(taskDir, "steps", task.Id!, "tests", file) : Path.Combine(taskDir, "tests", file);
 
     /// <summary>
     /// How long a Modal sandbox may sit with nothing running in it. Harbor's Modal environment otherwise keeps a sandbox

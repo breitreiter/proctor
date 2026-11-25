@@ -113,6 +113,27 @@ public class CrawlTests
     }
 
     [Fact]
+    public async Task AnOraclesAnswer_IsShownAsTheOracles_WithTheSheetEntryItUsed_AndAnUnansweredEndingIsSaid()
+    {
+        using var bank = new SampleBank();
+        var (app, url) = await Server.Start(bank.Root, 0);
+        try
+        {
+            using var client = Client();
+            await client.GetAsync(url);
+            var page = await client.GetStringAsync(new Uri(new Uri(url), SampleBank.Stage));
+            // The answer is the oracle's, never shown as a turn the person typed; the first prompt stays the user's.
+            Assert.Contains("<b>3</b> <span class=\"meta oracle\">oracle · answered from <code>which-file</code></span>", page);
+            Assert.Contains("<b>1</b> <span class=\"meta\">user</span>", page);
+            Assert.Contains("1 answer from the oracle", page);
+            // A question the sheet does not cover leaves no turn, so the ending is said in the transcript.
+            Assert.Contains("<b>The oracle had no answer</b> to the agent's last message", page);
+            Assert.Contains("(oracle_miss)", page);
+        }
+        finally { await app.StopAsync(); }
+    }
+
+    [Fact]
     public async Task AStageNotReached_SaysProctorsReason_AndAsksForNothingThatCannotExist()
     {
         var page = await Page(SampleBank.StageNotReached);

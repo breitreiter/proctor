@@ -724,7 +724,7 @@ agent of 3c quoted.
   anyway: a one-stage exam with an oracle compiles as a plain Harbor
   task, so the oracle's bridge works.
 
-**BUILT 2026-11-25**, apart from the oracle item.
+**BUILT 2026-11-25**, the oracle item included (see "Not built").
 
 - **A configuration is compiled into its Harbor task** (`HarborCompile.Job`
   and `Task`): the values' files into `environment/repo/` before the
@@ -782,12 +782,27 @@ Decided while building, to confirm:
 
 Not built:
 
-- **A one-stage exam with an oracle as a plain Harbor task.** It needs
-  the compile to choose a task or a job per exam, the verifier's paths
-  to follow, an agent's try stored in the try's layout from the
-  single-attempt path, and a run of the oracle gate to prove the
-  bridge. It is its own piece of work and is still owed from
-  `bank.md` step 4.
+- **A one-stage exam with an oracle as a plain Harbor task** was left
+  out on the 24th and **built on the 25th** (the user: go ahead, and
+  make sure transcripts show oracle turns accurately). A try that is
+  one stage with an answer sheet is compiled as a plain task
+  (`HarborCompile.Plain`) and run by the single-attempt path into the
+  try's layout. On an exam with axes a try is the stages that apply in
+  its configuration, so `gate-oracle` was ported with each ending as
+  one stage on one value of an `ending` axis, and bare and Harbor as a
+  `route` axis. The ported gate passes in Docker: for all three
+  endings the two routes give the same counted core, the same checks,
+  and the same user turns by text, source and sheet keys. The old gate
+  was run first, as it stood, and passed.
+
+  What the transcripts show, checked on four real tries: an oracle's
+  answer is a user step marked as the oracle's with the sheet entries
+  it used, identical bare and bridged. A question the oracle did not
+  answer leaves no turn at all, and through Harbor nb's own trajectory
+  ends "ok" while proctor's count says `oracle_miss` or
+  `oracle_budget`. So the viewer now labels the oracle's turns, counts
+  its answers, and says an unanswered ending at the end of the
+  transcript, reading proctor's count first.
 - **Text parameters to a service.** A compose file gets trees. Whether
   Harbor's compose invocation reads a `.env` beside the task's file
   was not tried.

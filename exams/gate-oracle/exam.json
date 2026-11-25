@@ -1,16 +1,137 @@
 {
   "id": "gate-oracle",
-  "description": "The oracle's deterministic gate: one Mock variant run bare (nb's in-process oracle) and the same variant through Harbor (the simulated user over the ACP bridge) must give the same counted cores, oracle turns and checks, apart from timings and the judge's tokens.",
-  "harbor": { "version": "0.24.0" },
-  "limits": { "wall_ms": 120000 },
-  "oracle": { "turns": 2 },
+  "description": "The oracle's deterministic gate: nb on Mock run bare (nb's in-process oracle) and the same nb through Harbor (the simulated user over the ACP bridge) must give the same counted cores, oracle turns and checks, apart from timings and the judge's tokens. Each ending is one stage, so a try is one stage with an answer sheet, which is the only kind the simulated user can answer.",
+  "attempts": 1,
+  "fixture": "note",
+  "harbor": {
+    "version": "0.24.0"
+  },
+  "limits": {
+    "wall_ms": 120000
+  },
+  "oracle": {
+    "turns": 2
+  },
+  "stages": [
+    {
+      "id": "asks-twice",
+      "about": "The model asks twice; each answer scripts its next turn, and the second ends the run",
+      "when": "ending = ok",
+      "prompt": "MOCK:response=Which deploy target? MOCK:oracle=deploy-target",
+      "oracle": "oracle/asks-twice.md",
+      "expect": {
+        "exit_reason": "ok",
+        "oracle_hit": [
+          "deploy-target",
+          "region"
+        ]
+      }
+    },
+    {
+      "id": "misses",
+      "about": "The model asks something the sheet lacks",
+      "when": "ending = oracle-miss",
+      "prompt": "MOCK:response=What is the root password? MOCK:oracle=MISS",
+      "oracle": "oracle/misses.md",
+      "expect": {
+        "exit_reason": "oracle_miss",
+        "oracle_hit": []
+      }
+    },
+    {
+      "id": "over-budget",
+      "about": "The model keeps asking until the answers run out",
+      "when": "ending = oracle-budget",
+      "prompt": "MOCK:response=Again? MOCK:oracle=again",
+      "oracle": "oracle/over-budget.md",
+      "expect": {
+        "exit_reason": "oracle_budget",
+        "oracle_hit": [
+          "again"
+        ]
+      }
+    }
+  ],
+  "axes": {
+    "ending": {
+      "about": "how the conversation with the oracle ends; each ending is one stage, and a try is that stage alone",
+      "values": {
+        "ok": {
+          "note": "two answers from the sheet, then the run ends"
+        },
+        "oracle-miss": {
+          "note": "a question the sheet does not cover"
+        },
+        "oracle-budget": {
+          "note": "questions until the answers run out"
+        }
+      }
+    },
+    "route": {
+      "about": "where nb runs, and so which oracle answers it",
+      "reference": "bare",
+      "values": {
+        "bare": {
+          "note": "nb on Mock on the host, answered by nb's in-process oracle",
+          "provider": "Mock",
+          "model": "mock"
+        },
+        "harbor": {
+          "note": "the same nb as a Harbor agent, answered by the simulated user over the ACP bridge",
+          "route": "harbor",
+          "provider": "Mock",
+          "model": "mock"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "ok-bare": {
+      "ending": "ok",
+      "route": "bare"
+    },
+    "ok-harbor": {
+      "ending": "ok",
+      "route": "harbor"
+    },
+    "miss-bare": {
+      "ending": "oracle-miss",
+      "route": "bare"
+    },
+    "miss-harbor": {
+      "ending": "oracle-miss",
+      "route": "harbor"
+    },
+    "budget-bare": {
+      "ending": "oracle-budget",
+      "route": "bare"
+    },
+    "budget-harbor": {
+      "ending": "oracle-budget",
+      "route": "harbor"
+    }
+  },
   "grading": {
     "checks": {
-      "exit":        { "exit_reason": "@expect" },
-      "asked":       { "oracle_hit": "@expect" },
-      "turns":       { "oracle_turns": { "max": 2 } },
-      "no-misses":   { "oracle_misses": { "max": 0 } }
+      "exit": {
+        "exit_reason": "@expect"
+      },
+      "asked": {
+        "oracle_hit": "@expect"
+      },
+      "turns": {
+        "oracle_turns": {
+          "max": 2
+        }
+      },
+      "no-misses": {
+        "oracle_misses": {
+          "max": 0
+        }
+      }
     },
-    "pass": ["exit"]
+    "pass": [
+      "exit"
+    ]
   }
 }

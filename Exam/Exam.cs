@@ -870,8 +870,17 @@ sealed class Exam
             foreach (var c in tasks) foreach (var name in Oracular(c.Checks)) addToTask(c, $"checks.{name}", never);
             return;
         }
-        if (def.Stages is not null && variants.FirstOrDefault(a => a.IsAgent) is { } staged)
-            add("variants", $"not yet: variant '{staged.Id}' runs through Harbor, and stage {oracleTasks[0]} names an answer sheet; Harbor's simulated user does not run a task of several steps. Run the variant bare, where nb's own oracle answers");
+        // Through Harbor a try with an answer sheet must be one stage: the simulated user answers a task, never a step of one. On an
+        // exam with axes a try is the stages whose condition holds in its configuration, so each configuration is looked at for itself.
+        List<TaskDef> StagesOf(Variant v)
+        {
+            if (def.Axes is null) return tasks;
+            var values = v.Id!.Split(',').Select(p => p.Split('=', 2)).Where(p => p.Length == 2).ToDictionary(p => p[0], p => p[1]);
+            return tasks.Where(s => s.When is null || When.Parse(s.When, out _) is not { } when || when.Terms.All(t => (values.GetValueOrDefault(t.Axis) == t.Value) != t.Not)).ToList();
+        }
+        if (def.Stages is not null && variants.FirstOrDefault(a => a.IsAgent && StagesOf(a) is { Count: > 1 } several && several.Any(s => s.Oracle is not null)) is { } staged)
+            add(def.Axes is null ? "variants" : "axes", $"not yet: '{staged.Id}' runs through Harbor a try of {StagesOf(staged).Count} stages, and one of them names an answer sheet; Harbor's simulated user answers one task, not a step of several. "
+                + "Give it a try of one stage (a stage's `when`), or run it bare, where nb's own oracle answers");
         foreach (var variant in variants.Where(a => a.IsVendor))
                 add("variants", $"not yet: variant '{variant.Id}' is {variant.Agent}, and task {oracleTasks[0]} names an answer sheet, and an oracle runs on nb variants only. Through Harbor's simulated user, {variant.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
     }

@@ -71,7 +71,7 @@ public static class StagePage
         if (checks.Count == 0 && a.Status == "completed") page.Append("<p class=\"empty\">This try has no <code>checks.json</code>. <code>proctor grade</code> writes it.</p>");
         page.Append("</aside>");
 
-        Transcript(page, steps, ids, points, checks, selected);
+        Transcript(page, steps, ids, points, checks, selected, ExitOf(a));
         page.Append("</div></section>");
         return Close(page);
     }
@@ -82,7 +82,9 @@ public static class StagePage
         var core = a.Core;
         var facts = new List<string> { a.ById ? $"configuration <a href=\"{U($"/{a.Exam}/configuration/{a.Variant}")}\"><b>{E(a.Variant.Replace(",", " × "))}</b></a>" : $"setup <b>{E(a.Variant)}</b>" };
         if (Bank.Str(a.Manifest?["model"]) is { Length: > 0 } model) facts.Add(E(model));
-        facts.Add(E(a.Status) + (Bank.Str(core?["exit_reason"]) is { Length: > 0 } exit && exit != "ok" ? $" ({E(exit)})" : ""));
+        facts.Add(E(a.Status) + (ExitOf(a) is { Length: > 0 } exit && exit != "ok" ? $" ({E(exit)})" : ""));
+        var answers = ((a.Trajectory?["steps"] as JsonArray) ?? []).Count(s => Bank.Str(s?["extra"]?["source"]) == "oracle");
+        if (answers > 0) facts.Add($"{answers} answer{(answers == 1 ? "" : "s")} from the oracle");
         facts.Add(Number(core?["tool_calls"]) is { } calls ? $"{calls:N0} tool calls" : $"{stepCount} steps");
         if (Number(core?["input_tokens"]) is { } tokens) facts.Add($"{tokens:N0} tokens read");
         if ((Number(core?["duration_ms"]) ?? Number(a.Manifest?["duration_ms"])) is { } ms) facts.Add(Duration(ms));
@@ -151,7 +153,15 @@ public static class StagePage
         page.Append("</nav>");
     }
 
-    static void Transcript(StringBuilder page, List<JsonObject> steps, List<string> ids, List<JsonObject> points, List<Check> checks, Check? selected)
+    /// <summary>
+    /// How the stage ended, as proctor counted it (core.json, on a try through Harbor) or as nb's own trajectory says (a bare
+    /// try has no core.json). Through Harbor nb's trajectory says "ok" when the simulated user ended the conversation, so
+    /// proctor's count comes first.
+    /// </summary>
+    static string ExitOf(Attempt a) =>
+        Bank.Str(a.Core?["exit_reason"]) is { Length: > 0 } counted ? counted : Bank.Str(a.Trajectory?["extra"]?["result"]?["exit_reason"]);
+
+    static void Transcript(StringBuilder page, List<JsonObject> steps, List<string> ids, List<JsonObject> points, List<Check> checks, Check? selected, string exit = "")
     {
         page.Append("<section class=\"transcript\" aria-label=\"Transcript\">")
             .Append("<div class=\"transcript-bar\"><wa-input id=\"search\" type=\"search\" placeholder=\"Search this stage\" with-clear size=\"small\" aria-label=\"Search this stage\"></wa-input></div>");
@@ -176,6 +186,12 @@ public static class StagePage
             var cited = checks.Where(c => c.Steps.Contains(id)).ToList();
             Step(page, step, id, covering[id], cited, quotes, lit.Contains(id));
         }
+        // An oracle that did not answer leaves no turn behind, so the ending is said where the turn would have been.
+        var answered = steps.Count(s => Bank.Str(s["extra"]?["source"]) == "oracle");
+        if (exit == "oracle_miss")
+            page.Append("<p class=\"stage-status oracle-end\"><b>The oracle had no answer</b> to the agent's last message: the answer sheet does not cover it, and the stage ended there (<code>oracle_miss</code>).</p>");
+        else if (exit == "oracle_budget")
+            page.Append($"<p class=\"stage-status oracle-end\"><b>The oracle's answers ran out</b>: it answered {answered} time{(answered == 1 ? "" : "s")}, which is all this exam allows, and the agent's last message went unanswered (<code>oracle_budget</code>).</p>");
         page.Append("</section>");
     }
 
@@ -191,7 +207,12 @@ public static class StagePage
             .Append("<span class=\"gutter\">");
         foreach (var c in cited)
             page.Append($"<a class=\"gm {(c.Result == "fail" ? "gm-fail" : "gm-pass")}\" href=\"#\" data-check=\"{E(c.Name)}\" title=\"{E(c.Name)} {(c.Result == "fail" ? "failed" : "passed")} here\">{(c.Result == "fail" ? "●" : "○")}</a>");
-        page.Append($"</span><b>{E(id)}</b> <span class=\"meta\">{E(Bank.Str(step["source"]))}</span> ");
+        // A user turn the program did not write says who did (nb's extra.source): an oracle's answer is the oracle's, with the
+        // sheet entries it answered from, and never shown as if the person had typed it.
+        var extra = step["extra"] as JsonObject;
+        var wrote = Bank.Str(extra?["source"]) is { Length: > 0 } other ? other : Bank.Str(step["source"]);
+        var keys = (extra?["keys"] as JsonArray ?? []).Select(Bank.Str).Where(k => k.Length > 0).ToList();
+        page.Append($"</span><b>{E(id)}</b> <span class=\"meta{(wrote == "oracle" ? " oracle" : "")}\">{E(wrote)}{(keys.Count > 0 ? $" · answered from {string.Join(", ", keys.Select(k => $"<code>{E(k)}</code>"))}" : "")}</span> ");
         foreach (var p in points)
             page.Append($"<a class=\"tag\" href=\"#{U(Bank.Str(p["id"]))}\"><span class=\"flabel\">{E(Bank.Str(p["label"]))}</span></a> ");
         page.Append($"<span class=\"headline\">{E(headline)}</span></summary>");

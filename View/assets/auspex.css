@@ -103,3 +103,6 @@ ul.exams, ul.tries { padding-left: 20px; }
 .methods p { color: var(--dim); font-size: 13px; max-width: 80ch; }
 .ask { margin: 16px 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 4px; color: var(--dim); max-width: 100ch; }
 .ask q { color: var(--fg); }
+
+/* An oracle's answer in the transcript: marked as the oracle's, in friction's colour family, never as the user's own turn. */
+.step .meta.oracle { color: var(--friction); font-weight: 600; }

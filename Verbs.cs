@@ -423,7 +423,8 @@ static class Verbs
         foreach (var c in axes.Configurations.Where(c => standing.GetValueOrDefault(c.Key).State == Combinations.Unclear))
             Console.WriteLine($"  cannot be told from its values alone: {c.Name ?? c.Label}; several of them change the same lines");
         var unchecked_ = axes.Configurations.Where(c => standing.GetValueOrDefault(c.Key).State == Combinations.NotChecked).Select(c => c.Name ?? c.Label).ToList();
-        if (unchecked_.Count > 0) Console.WriteLine($"  not checked against its values alone: {string.Join("; ", unchecked_)}  (`proctor build {exam.Id}`)");
+        // Where an axis has no reference nothing can be built alone, which the line above already says; listing every configuration adds nothing.
+        if (unchecked_.Count > 0 && unheld.Count == 0) Console.WriteLine($"  not checked against its values alone: {string.Join("; ", unchecked_)}  (`proctor build {exam.Id}`)");
         var stale = bank.Select(a => Bank.Stale(exam, a)).OfType<string>().ToList();
         if (stale.Count > 0) Console.WriteLine($"  {Count(stale.Count, "stale stage")}, not counted: {string.Join("; ", stale.GroupBy(w => w).Select(g => $"{g.Key} ({g.Count()})"))}");
     }

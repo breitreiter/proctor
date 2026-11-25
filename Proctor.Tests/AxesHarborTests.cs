@@ -95,6 +95,31 @@ public class AxesHarborTests
     }
 
     [Fact]
+    public void ATryOfOneStageWithAnAnswerSheet_IsCompiledAsAPlainTask_AndOneOfSeveralIsRefused()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("gate-oracle");
+        var exam = repo.LoadExam("gate-oracle");
+        var harbor = exam.Variants.Where(v => v.IsAgent).ToList();
+        Assert.Equal(3, harbor.Count);
+        Assert.All(harbor, v => Assert.True(HarborCompile.Plain(exam, v.Id!)));
+        Assert.All(exam.Variants.Where(v => !v.IsAgent), v => Assert.Single(exam.StagesOf(v.Id!)));
+
+        // The simulated user answers a task, never a step: the try is a task, with its instruction and its verifier at the top.
+        var entry = Path.Combine(repo.Root, "entry");
+        HarborCompile.Tasks(entry, exam, _ => new AgentRoute(null, null), nbImage: "proctor-nb:test", pairs: harbor.Select(v => (v, exam.StagesOf(v.Id!)[0])).ToList());
+        var task = Layout.HarborJobTask(entry, "ending=ok,route=harbor", exam.Id);
+        Assert.Contains("MOCK:oracle=deploy-target", File.ReadAllText(Path.Combine(task, "instruction.md")));
+        Assert.True(File.Exists(Path.Combine(task, "tests", "test.sh")));
+        Assert.False(Directory.Exists(Path.Combine(task, "steps")));
+        Assert.True(File.Exists(Path.Combine(HarborCompile.AgentsDir(entry), "oracle_user.py")));
+
+        // A stage with no condition would join every try, making each two stages with an answer sheet among them: that is refused, and says what to do.
+        repo.EditJson("gate-oracle/exam.json", e => e["stages"]!.AsArray().Add(JsonNode.Parse("""{ "id": "after", "prompt": "MOCK:response=done" }""")));
+        Assert.Contains(repo.Problems("gate-oracle"), p => p.Field == "axes" && p.Message.Contains("runs through Harbor a try of 2 stages") && p.Message.Contains("Give it a try of one stage"));
+    }
+
+    [Fact]
     public void AnExamWhoseAgentIsAValue_NeedsHarborPinned_EvenWhenNoConfigurationIsNamed()
     {
         var (repo, _) = Control();

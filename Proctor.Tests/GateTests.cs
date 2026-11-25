@@ -47,7 +47,10 @@ public class GateTests
         var config = Exam.LoadConfig(repo.Root, problems);
         Assert.Empty(problems);
         var exam = repo.LoadExam(examId);
-        var id = Runner.Run(repo.Root, exam, config, null, null, "gate", TextWriter.Null)!;
+        // An exam with axes makes the configurations it names, as `proctor run` does.
+        IReadOnlyCollection<string>? keys = null;
+        if (exam.Axes is not null) (exam, keys) = Verbs.ForRun(repo.Root, exam, null, null, null);
+        var id = Runner.Run(repo.Root, exam, config, null, null, "gate", TextWriter.Null, keys)!;
         Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
         return (exam, id);
     }
@@ -121,15 +124,16 @@ public class OracleGateTests
 
     internal static List<string> Differences(string root, string entryId, Exam exam)
     {
-        var entryDir = Layout.LogEntry(root, entryId);
         var differences = new List<string>();
-        var harbor = exam.Variants.Single(a => a.IsAgent);
-        var bare = exam.Variants.Single(a => !a.IsAgent);
+        var current = Bank.Select(root, exam).Current;
+        // Each ending is one stage, and a try is that stage alone: once bare, once through Harbor, where it is compiled as a plain task.
         foreach (var c in exam.Tasks)
         {
             var at = c.Id!;
-            var b = TestRepo.Attempt(root, entryId, bare.Id!, c.Id!, 1);
-            var h = TestRepo.Attempt(root, entryId, harbor.Id!, c.Id!, 1);
+            string Of(bool agent) => current.Single(a => a.Task == c.Id && exam.Variants.Single(v => v.Id == a.Variant).IsAgent == agent).Dir(root);
+            var (b, h) = (Of(false), Of(true));
+            if (!File.Exists(Path.Combine(Layout.HarborJobTask(Layout.LogEntry(root, entryId), current.Single(a => a.Dir(root) == h).Variant, exam.Id), "instruction.md")))
+                differences.Add($"{at}: the Harbor try was not compiled as a plain task");
             var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
             var manifest = Runner.ReadManifest(Path.Combine(h, Layout.ManifestFile));
             if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)
