@@ -1,0 +1,7 @@
+# A scripted exam for axes through Harbor: every stage scripts nb's Mock provider, so it runs in Docker without a model.
+provider {{provider}}
+harness {{harness}}
+loop 2
+budget tool_calls 3
+approval bash *
+run {{prompt}}

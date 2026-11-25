@@ -537,8 +537,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// </summary>
     void RunAgentTry(Variant variant, int n)
     {
-        var stages = exam.Tasks;
-        var tryDir = Layout.Try(root, exam.Id, variant.Id!, n);
+        var stages = exam.StagesOf(variant.Id!);
+        var tryDir = Layout.Try(root, exam.Id, variant.Id!, n, entry.IdOf(variant.Id!, n));
         Directory.CreateDirectory(tryDir);
         var taskDir = Layout.HarborJobTask(entryDir, variant.Id!, exam.Id);
         var route = Route(root, config, entry.Nb, variant);
@@ -554,7 +554,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         {
             var attemptDir = AttemptDir(variant, stage, n);
             Directory.CreateDirectory(attemptDir);
-            var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, stage, n, HarborCompile.Workdir);
+            var program = variant.IsVendor ? null : ResolveProgram(exam.ProgramTemplate, variant, stage, n, HarborCompile.Workdir, attempt: Context(root, entry, exam, variant, stage, n));
             var manifest = NewManifest(variant, stage, n, fixture, Sha256(program ?? stage.Prompt!)) with { Runner = null, Nb = null, Transcript = new TranscriptRef(Layout.TrajectoryFile, "atif") };
             manifest.Agent = new AgentTrial(variant.Agent!, null, variant.Model ?? "", HarborCompile.AgentKwargs(variant, route, variant.IsVendor ? null : new NbAttempt(programs, entry.Nb.Config)), HarborCompile.AgentEnv(variant, route), entry.Harbor!.Version, null);
             manifest.Tries++;

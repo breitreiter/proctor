@@ -724,6 +724,76 @@ agent of 3c quoted.
   anyway: a one-stage exam with an oracle compiles as a plain Harbor
   task, so the oracle's bridge works.
 
+**BUILT 2026-11-25**, apart from the oracle item.
+
+- **A configuration is compiled into its Harbor task** (`HarborCompile.Job`
+  and `Task`): the values' files into `environment/repo/` before the
+  image commits it; each text parameter the image reads as `ARG NAME`
+  ahead of the image's own steps; each tree parameter as
+  `environment/params/<NAME>/`, empty when nothing sets it; the stages
+  that apply as the steps; `PROCTOR_AXIS_*` and `PROCTOR_PARAM_*` in
+  each step's verifier contract.
+- **Who does the work is a value.** A vendor's agent always goes
+  through Harbor; nb does when its value says `route: harbor`, and
+  runs bare otherwise (`agent: nb` alone is bare, which the first run
+  of the control showed by finishing in five seconds).
+- **`build` reads a Harbor configuration's build context**: the
+  compiled `environment/` of the reference and of each value alone. A
+  toolchain value shows as one `ARG` line of the Dockerfile; a docs
+  value as the pages under `params/DOCS/`.
+- **A try whose image cannot be built is lost,** and its reason is the
+  build's own last error, where it was the compose command Harbor ran.
+- **`tern-docs` is ported** in the repository: `docs` sets the
+  fixture's `DOCS` tree, which the docs service mounts; `assistant` is
+  Claude Code on Sonnet. `fixtures/toolchain` and
+  `Proctor.Tests/exams/axes-harbor` are the scripted control.
+
+Run for real, in Docker, with no model:
+
+- The control, nb on Mock as the agent: two configurations in 98 and
+  44 seconds. Each image held its own toolchain (`/etc/toolchain`, read
+  by the agent and by a check in the verifier), each checkout its own
+  README, and the stage with a condition ran on one toolchain only.
+- `tern-docs` from a scratch copy with one stage that opens the docs
+  site and a value for nb on Mock: `docs=as-shipped` got Tern's front
+  page, `docs=none` got a 404.
+- `tern-docs`'s shakedown, all four modes, as ported.
+
+Decided while building, to confirm:
+
+- **A parameter is a build argument and nothing more.** `axes-ports.md`
+  says a parameter is also handed over "in the attempt's environment".
+  Through Harbor that would be the agent's own shell, and a parameter
+  can name what is planted (`PLANTED=far-cause`), so it is not put
+  there. The verifier gets it; the agent does not.
+- **`build` builds no image.** The plan asked for the image by digest,
+  built twice. A digest says only "different", and each build is
+  minutes and a network. What the build is handed says how two
+  configurations differ, at once and for nothing. What it cannot say
+  is what a Dockerfile step did with an argument; the control holds
+  that to account with a check in the verifier, and that is the advice
+  for a real fixture. Sign 8 stands here: for a value whose whole
+  effect is inside a `RUN` step, `build` shows one changed line.
+- **A value that moves the work between the host and a container** is
+  not compared path by path with the reference; `build` says so.
+- **The value for nb on Mock is not in `tern-docs`.** It proved the
+  exam in Docker from a scratch copy. In the exam it would sit on the
+  assistant axis as a setting some user is in.
+
+Not built:
+
+- **A one-stage exam with an oracle as a plain Harbor task.** It needs
+  the compile to choose a task or a job per exam, the verifier's paths
+  to follow, an agent's try stored in the try's layout from the
+  single-attempt path, and a run of the oracle gate to prove the
+  bridge. It is its own piece of work and is still owed from
+  `bank.md` step 4.
+- **Text parameters to a service.** A compose file gets trees. Whether
+  Harbor's compose invocation reads a `.env` beside the task's file
+  was not tried.
+- **A secret parameter** reaches neither the image nor the verifier.
+- **A value's files from a git revision** are still refused by `run`.
+
 A paid run of `tern-docs` is the first real test of a vendor agent on
 stages and on axes at once. It is agreed with the user first.
 

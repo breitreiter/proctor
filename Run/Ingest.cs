@@ -108,7 +108,7 @@ static class Ingest
             steps[name] = dir;
         }
         var exception = result["exception_info"];
-        return (steps, exception is null ? null : $"harbor: {exception["exception_type"]?.GetValue<string>()}: {FirstLine(exception["exception_message"]?.GetValue<string>())}");
+        return (steps, exception is null ? null : $"harbor: {exception["exception_type"]?.GetValue<string>()}: {Said(exception["exception_message"]?.GetValue<string>())}");
     }
 
     /// <summary>
@@ -142,7 +142,7 @@ static class Ingest
 
         var exception = result["exception_info"];
         var exceptionType = exception?["exception_type"]?.GetValue<string>();
-        var exceptionLine = $"{exceptionType}: {FirstLine(exception?["exception_message"]?.GetValue<string>())}";
+        var exceptionLine = $"{exceptionType}: {Said(exception?["exception_message"]?.GetValue<string>())}";
         var trajectoryFile = Path.Combine(trialDir, "agent", Layout.TrajectoryFile);
         var hasTrajectory = File.Exists(trajectoryFile);
 
@@ -343,6 +343,18 @@ static class Ingest
             ? (long)(end - start).TotalMilliseconds : null;
 
     static string FirstLine(string? text) => (text ?? "").Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0) ?? "";
+
+    /// <summary>
+    /// What Harbor's exception says, in a line. When an image could not be built its first line is the compose command and
+    /// the build's own error is far below it, so that error is the line: a configuration whose image cannot be built
+    /// should say why (plans/axes-build.md, slice 4).
+    /// </summary>
+    static string Said(string? message)
+    {
+        var lines = (message ?? "").Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+        var build = lines.LastOrDefault(l => l.StartsWith("failed to solve:", StringComparison.Ordinal) || l.StartsWith("Error: building at STEP", StringComparison.Ordinal));
+        return build is null ? lines.FirstOrDefault() ?? "" : "the image could not be built: " + (build.Length > 400 ? build[..400] + "…" : build);
+    }
 
     static void CopyTree(string from, string to)
     {

@@ -808,7 +808,8 @@ sealed class Exam
     /// </summary>
     static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, List<Variant> variants, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
     {
-        var agents = variants.Any(v => v.IsAgent);
+        // With axes only the configurations the exam carries stand here, so a value that names an agent or the Harbor route counts too.
+        var agents = variants.Any(v => v.IsAgent) || (def.Axes ?? []).Values.Any(a => a?.Values?.Values.Any(v => v?.Agent is not null || v?.Route == ValueDef.Harbor) == true);
         if (def.Harbor is { } harbor && (string.IsNullOrWhiteSpace(harbor.Version) || !Regex.IsMatch(harbor.Version, @"^\d+(\.\d+)*$")))
             add("harbor.version", "required: the Harbor release, pinned (0.24.0)");
         foreach (var (field, value) in new (string, object?)[] { ("tool_calls", def.Limits?.ToolCalls), ("tokens", def.Limits?.Tokens), ("cost_usd", def.Limits?.CostUsd) })

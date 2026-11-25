@@ -1,7 +1,7 @@
-"""Tern's documentation site: the variant's bundle, served read-only from /srv/docs (environment/bundle/ in the task).
+"""Tern's documentation site: the DOCS parameter, served read-only from /srv/docs (environment/params/DOCS/ in the task).
 
 A path is a page: / is index.html, /a/b is a/b.html or a/b/index.html. No directory listings, so a reader finds
-pages by following links, as on a real site. A variant with no bundle gets an empty directory and a 404 for every page.
+pages by following links, as on a real site. A configuration that sets no DOCS gets an empty directory and a 404 for every page.
 Each request is printed as one JSON line.
 """
 import json

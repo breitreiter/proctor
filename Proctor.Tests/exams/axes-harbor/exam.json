@@ -1,0 +1,33 @@
+{
+  "id": "axes-harbor",
+  "description": "A scripted control for axes through Harbor: nb on Mock as the agent in the fixture's image, with a toolchain set as a build argument, a README laid into the image's repository, and a stage that applies on one toolchain only. No model.",
+  "attempts": 1,
+  "fixture": "toolchain",
+  "harbor": { "version": "0.24.0" },
+  "limits": { "wall_ms": 120000 },
+  "stages": [
+    { "id": "read", "about": "read the README and the toolchain the image was built with", "prompt": "MOCK:tool=bash cat README.md /etc/toolchain" },
+    { "id": "modern-only", "about": "a stage that only makes sense on the newer toolchain", "when": "toolchain != 1.20", "prompt": "MOCK:tool=bash cat /etc/toolchain" }
+  ],
+  "axes": {
+    "toolchain": { "about": "the toolchain version the image is built with; the customer's, not ours", "reference": "1.23", "values": {
+      "1.23": { "note": "the current toolchain" },
+      "1.20": { "note": "an older toolchain some users are still on", "set": { "TOOLCHAIN": "1.20" } } } },
+    "docs": { "about": "the auditor's README", "live": "shipped", "values": {
+      "shipped":   { "note": "the README as it ships", "files": { "path": "values/docs/shipped" } },
+      "rewritten": { "note": "the README rewritten to show the --json output", "files": { "path": "values/docs/rewritten" } } } },
+    "assistant": { "about": "who does the work", "values": {
+      "nb-mock": { "note": "nb on the Mock provider, as a Harbor agent in the fixture's image", "route": "harbor", "provider": "Mock", "model": "mock" } } }
+  },
+  "configurations": {
+    "shipped":       { "toolchain": "1.23", "docs": "shipped",   "assistant": "nb-mock" },
+    "rewritten-old": { "toolchain": "1.20", "docs": "rewritten", "assistant": "nb-mock" }
+  },
+  "grading": {
+    "checks": {
+      "exit_ok":   { "exit_reason": "ok" },
+      "docs-laid": { "script": "checks/docs-laid.sh", "description": "the README in the checkout is the one this configuration's docs value carries" }
+    },
+    "pass": ["exit_ok", "docs-laid", "toolchain-built"]
+  }
+}

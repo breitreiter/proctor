@@ -118,18 +118,33 @@ static class HarborCompile
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         var fixture = exam.FixtureOf(task)!;
+        // On an exam with axes the variant stands for a configuration (plans/axes-build.md, slice 4): its values' files are in the
+        // repository the image is built from, its text parameters are the image's build arguments, and a tree parameter sits beside
+        // the fixture's services for one of them to serve.
+        var configuration = exam.Axes?.Of(variant.Id!);
         Directory.CreateDirectory(Path.Combine(dir, "environment"));
         File.WriteAllText(Path.Combine(dir, "instruction.md"), task.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
         File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, task, route, bridged: task.Oracle is not null));
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
+        foreach (var (from, to) in configuration is null ? [] : exam.Axes!.Overlays(configuration, exam.Dir))
+            CopyTree(from, Path.Combine(dir, "environment", "repo", to ?? ""), [Path.Combine(from, ".git")]);
         var nbInContext = variant.Agent == Variant.Nb && nbPublish is not null;
         if (nbInContext) CopyTree(nbPublish!, Path.Combine(dir, "environment", NbContextDir), []);
-        File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, variant, nbImage, nbInContext));
+        File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, variant, nbImage, nbInContext, BuildArgs(exam, fixture, configuration)));
         if (fixture.Def.Image!.Services is { } services)
         {
             CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
-            var bundle = Directory.CreateDirectory(Path.Combine(dir, "environment", ServiceBundleDir)).FullName;
-            if (bundleDir is not null) CopyTree(bundleDir, bundle, []);
+            if (configuration is null)
+            {
+                var bundle = Directory.CreateDirectory(Path.Combine(dir, "environment", ServiceBundleDir)).FullName;
+                if (bundleDir is not null) CopyTree(bundleDir, bundle, []);
+            }
+        }
+        // Every tree parameter the base declares, by name, empty when the configuration gives it nothing: a compose file mounts ./params/<NAME>.
+        foreach (var (name, tree) in configuration is null ? [] : TreeParams(exam, fixture, configuration))
+        {
+            var target = Directory.CreateDirectory(Path.Combine(dir, "environment", ServiceParamsDir, name)).FullName;
+            if (tree.Length > 0) CopyTree(tree, target, [Path.Combine(tree, ".git")]);
         }
 
         var tests = Path.Combine(dir, "tests");
@@ -152,12 +167,14 @@ static class HarborCompile
     /// </summary>
     public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? nbPublish = null, string? bundleDir = null)
     {
+        // A try is the stages that apply in its configuration (every stage, on an exam without axes).
+        var stages = exam.StagesOf(variant.Id!);
         // The environment, and the exam and fixture the script checks read, are a task's; any stage stands for the job there.
-        Task(dir, exam, variant, exam.Tasks[0], route, nbImage, nbPublish, bundleDir);
+        Task(dir, exam, variant, stages[0], route, nbImage, nbPublish, bundleDir);
         foreach (var file in new[] { "instruction.md", Path.Combine("tests", "test.sh"), Path.Combine("tests", "env.sh") }) File.Delete(Path.Combine(dir, file));
-        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, exam.Tasks[0], route, bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
-            + string.Concat(exam.Tasks.Select(s => $"\n[[steps]]\nname = {Toml(s.Id!)}\n")));
-        foreach (var (stage, i) in exam.Tasks.Select((s, i) => (s, i)))
+        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, stages[0], route, bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
+            + string.Concat(stages.Select(s => $"\n[[steps]]\nname = {Toml(s.Id!)}\n")));
+        foreach (var (stage, i) in stages.Select((s, i) => (s, i)))
         {
             var step = Path.Combine(dir, "steps", stage.Id!);
             var tests = Directory.CreateDirectory(Path.Combine(step, "tests")).FullName;
@@ -172,6 +189,28 @@ static class HarborCompile
             Directory.CreateDirectory(Path.Combine(step, "workdir"));
             File.WriteAllText(Path.Combine(step, "workdir", "setup.sh"), $"#!/bin/bash\n# Compiled by proctor: this stage starts fresh.\ncd {Workdir} && git reset -q --hard HEAD && git clean -fdq\n");
         }
+    }
+
+    /// <summary>Where a configuration's tree parameters sit in a task's environment/, each under its own name, for a compose file to mount as ./params/&lt;NAME&gt;.</summary>
+    public const string ServiceParamsDir = "params";
+
+    /// <summary>
+    /// The text parameters an image is built with, as a configuration has them: those the image lists (image.params), or
+    /// every one when it lists none. Never a tree, which is files, nor a secret, which would be kept in the image.
+    /// </summary>
+    static List<(string Name, string Value)> BuildArgs(Exam exam, Fixture fixture, Configuration? configuration)
+    {
+        if (configuration is null) return [];
+        var values = exam.Axes!.Params(configuration, exam.Def, fixture, exam.Dir);
+        return (fixture.Def.Params ?? []).Where(p => p.Value.Tree != true && p.Value.Secret != true && (fixture.Def.Image?.Params is not { } listed || listed.Contains(p.Key)))
+            .Select(p => (p.Key, values.GetValueOrDefault(p.Key) ?? "")).ToList();
+    }
+
+    /// <summary>Each tree parameter the fixture declares, with the directory a configuration gives it on the host, or empty for none.</summary>
+    static List<(string Name, string Dir)> TreeParams(Exam exam, Fixture fixture, Configuration configuration)
+    {
+        var values = exam.Axes!.Params(configuration, exam.Def, fixture, exam.Dir);
+        return (fixture.Def.Params ?? []).Where(p => p.Value.Tree == true).Select(p => (p.Key, values.GetValueOrDefault(p.Key) ?? "")).ToList();
     }
 
     /// <summary>Where a compiled task keeps a verifier's script and contract: a stage's are its step's, a task's the task's own.</summary>
@@ -337,12 +376,15 @@ static class HarborCompile
     /// <summary>Where nb's publish sits in an nb task's build context on a remote engine.</summary>
     const string NbContextDir = "proctor-nb";
 
-    static string Dockerfile(Fixture fixture, Variant variant, string? nbImage, bool nbInContext = false)
+    static string Dockerfile(Fixture fixture, Variant variant, string? nbImage, bool nbInContext = false, List<(string Name, string Value)>? args = null)
     {
         var image = fixture.Def.Image!;
         var sb = new StringBuilder();
         sb.Append($"# Compiled by proctor from fixture {fixture.Id} ({fixture.Hash}) for agent {variant.Agent} {(variant.IsVendor ? variant.AgentVersion : nbImage)}.\n");
         sb.Append($"FROM {image.From}\n");
+        // A configuration's parameters, for the image's own steps to act on. Build arguments, so they are not in the agent's environment:
+        // a parameter can say what is planted.
+        foreach (var (name, value) in args ?? []) sb.Append($"ARG {name}={JsonSerializer.Serialize(value)}\n");
         sb.Append("ENV NO_COLOR=1");
         foreach (var (k, v) in image.Env ?? []) sb.Append($" {k}={JsonSerializer.Serialize(v)}");
         sb.Append('\n');
@@ -418,6 +460,15 @@ static class HarborCompile
             ["PROCTOR_NB_CONFIG"] = "",
             ["PROCTOR_CONTAINER"] = "",
         };
+        // Declared axes and text parameters, as a hook or a check has them on the bare path. A tree is files and a secret is kept out of files.
+        if (exam.Axes?.Of(variant) is { } configuration)
+        {
+            foreach (var (axis, value) in configuration.Values) values["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
+            var fixture = exam.FixtureOf(task);
+            var given = exam.Axes.Params(configuration, exam.Def, fixture, exam.Dir);
+            foreach (var (name, declared) in (exam.Def.Params ?? []).Concat(fixture?.Def.Params ?? []))
+                if (declared.Tree != true && declared.Secret != true) values["PROCTOR_PARAM_" + name] = given.GetValueOrDefault(name) ?? "";
+        }
         return "# The script check contract, as the verifier sees it. Compiled by proctor.\n"
             + string.Concat(values.Select(kv => $"export {kv.Key}={Shell(kv.Value)}\n"));
     }

@@ -945,7 +945,7 @@ public class HarborTests
 
     [Theory]
     [InlineData("nowhere", "no docker-compose.yaml in nowhere")]
-    [InlineData("clash", "Dockerfile, repo and bundle are the task's own names in environment/")]
+    [InlineData("clash", "Dockerfile, repo, bundle and params are the task's own names in environment/")]
     public void FixtureServices_AreValidated(string services, string message)
     {
         using var repo = new TestRepo();

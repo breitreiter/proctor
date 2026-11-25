@@ -7,6 +7,25 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Axes through Harbor** (`axes-build.md`, slice 4). A configuration
+  whose assistant value names a vendor's agent, or `route: harbor`,
+  runs through Harbor. Its values' files are in the repository the
+  image is built from; its text parameters are build arguments (`ARG
+  NAME` before the image's own steps, limited to `image.params` when
+  the fixture lists them) and never in the agent's environment; a tree
+  parameter is `environment/params/<NAME>/` for a compose service to
+  mount; the job's steps are the stages that apply; the verifier's
+  checks get `PROCTOR_AXIS_*` and `PROCTOR_PARAM_*`. `proctor build`
+  compares what such a configuration's image build is handed and
+  builds no image. A try whose image cannot be built is lost with the
+  build's own error as its reason.
+- **`tern-docs` is on axes.** Its three variants are the `docs` axis
+  (`as-shipped` live, `restructure`, `none`) and an `assistant` axis of
+  one value; the configurations keep the variants' names. The docs
+  pages moved from `bundles/` to `values/docs/`, and `fixtures/tern-shop`
+  takes them as the tree parameter `DOCS`, mounted from
+  `./params/DOCS` where it was `./bundle`. It had no bank, so nothing
+  is stale.
 - **The viewer lives here** (`rename-to-auspex.md`, stage 1). auspex
   is `View/`, its own project in the same solution; `dotnet build`
   builds both and `dotnet test` runs both suites. It is started as

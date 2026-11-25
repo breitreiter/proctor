@@ -10,8 +10,10 @@ namespace Proctor;
 // values' files, the setup hooks, and nothing run. Each value is built with every other axis at its reference and held
 // against the reference build; what differs is what the value changes, for a person or an agent to hold against the
 // value's own sentence. A configuration of several values is held against its values built alone: where it is not what
-// they add up to, some script reads more than one axis. Nothing here calls a model. The bare path only: an image and a
-// service are slice 4.
+// they add up to, some script reads more than one axis. Nothing here calls a model. A configuration that runs through
+// Harbor has no checkout on the host: what is read is what its image build is handed (the compiled Dockerfile, the
+// repository and the trees beside the services). The image is not built, so what a step of the Dockerfile does with an
+// argument is not seen here: a check in the verifier is how that is held to account.
 
 /// <summary>One path a value changed in the starting workspace: added, changed or removed, with its size before and after.</summary>
 record PathChange(string Path, string Change, long? Before, long? After);
@@ -22,7 +24,7 @@ record PathChange(string Path, string Change, long? Before, long? After);
 /// could not be built, and then the rest is empty.
 /// </summary>
 record ValueChange(string Axis, string Value, string? Note, string Hash, string Base, string Reference, string? Tree,
-    List<string> Who, Dictionary<string, string> Sets, List<PathChange> Paths, string Diff, int DiffLeftOut, string? NotBuilt);
+    List<string> Who, Dictionary<string, string> Sets, List<PathChange> Paths, string Diff, int DiffLeftOut, string? NotBuilt, string? Compared = null);
 
 /// <summary>
 /// A configuration of several values held against those values built alone. Differs: the paths where it is not what they
@@ -39,7 +41,11 @@ static class Build
     /// <summary>A text file larger than this, and anything past this much diff in all, is listed by path and size only.</summary>
     const int MaxFile = 64 * 1024, MaxDiff = 40_000;
 
-    sealed record Built(Dictionary<string, (long Size, string Hash)> Files, string? Tree, string WorkDir);
+    /// <summary>Harbor is set when what was read is an image build's context and not a checkout on the host.</summary>
+    sealed record Built(Dictionary<string, (long Size, string Hash)> Files, string? Tree, string WorkDir, bool Harbor = false);
+
+    const string OfCheckout = "the starting workspace, after the setup hooks";
+    const string OfContext = "what the image build is handed (Dockerfile, repo/, params/); the image is not built, so what its steps do with an argument is not shown";
 
     /// <summary>The configuration every value is built against: each axis at its live value, the reference it names, or its only value.</summary>
     public static Configuration Reference(Exam exam)
@@ -108,7 +114,9 @@ static class Build
             var (built, why) = One(exam, nb, c, $"{axis}={value}", scratch);
             if (built is null) { changes.Add(NotBuilt(why!)); continue; }
             alone[(axis, value)] = built;
-            var paths = Differing(first.Files, built.Files).Except(noise).Order(StringComparer.Ordinal).Select(p =>
+            // A value that moves the work between the host and a container changes where everything is: the two are not compared path by path.
+            var comparable = built.Harbor == first.Harbor;
+            var paths = (comparable ? Differing(first.Files, built.Files).Except(noise) : []).Order(StringComparer.Ordinal).Select(p =>
                 new PathChange(p, !first.Files.ContainsKey(p) ? "added" : !built.Files.ContainsKey(p) ? "removed" : "changed",
                     first.Files.TryGetValue(p, out var before) ? before.Size : null, built.Files.TryGetValue(p, out var after) ? after.Size : null)).ToList();
             var (diff, leftOut) = DiffOf(scratch, first, built, paths);
@@ -116,7 +124,7 @@ static class Build
             changes.Add(new ValueChange(axis, value, def.Note, axes.ValueHashes[(axis, value)], @base, reference.Key, built.Tree,
                 def.Own().Except(axes.Value(axis, reference[axis]!).Own()).Where(o => o.Value is not null).Select(o => $"{o.Key} {o.Value}").ToList(),
                 (def.Set ?? []).ToDictionary(s => s.Key, s => Shown(exam.Def.Params?.GetValueOrDefault(s.Key) ?? fixture?.Def.Params?.GetValueOrDefault(s.Key), s.Value)),
-                paths, diff, leftOut, null));
+                paths, diff, leftOut, null, comparable ? (built.Harbor ? OfContext : OfCheckout) : "nothing: this value moves the work between the host and a container, so the two starting points are not compared path by path"));
         }
 
         // A configuration of several values, against its values alone. Where no script reads two axes, a path is the
@@ -161,6 +169,16 @@ static class Build
         var stages = exam.StagesOf(c.Key);
         if (stages.Count == 0) return (null, "no stage applies in it");
         var fixture = exam.FixtureOf(stages[0]);
+        if (axes.Assistant(c) is { IsAgent: true } agent)
+        {
+            // Through Harbor: the task as `run` would compile it, with no route and a fixed name for nb's layer, since neither is the value's.
+            if (fixture?.Def.Image is null) return (null, "runs through Harbor, and its fixture declares no image");
+            var task = Path.Combine(scratch, label);
+            HarborCompile.Job(task, exam, agent, new AgentRoute(null, null), nbImage: "proctor-nb");
+            var handed = Path.Combine(task, "environment");
+            return (new Built(Directory.EnumerateFiles(handed, "*", SearchOption.AllDirectories)
+                .ToDictionary(f => Path.GetRelativePath(handed, f), f => (new FileInfo(f).Length, Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(f))))), null, handed, Harbor: true), null);
+        }
         var (work, attemptDir) = (Path.Combine(scratch, label), Path.Combine(scratch, label + ".build"));
         Directory.CreateDirectory(work);
         Directory.CreateDirectory(attemptDir);
@@ -260,12 +278,13 @@ static class Build
         yield return $"{change.Axis}={change.Value}";
         yield return $"  says: {change.Note ?? "(no note)"}";
         if (change.NotBuilt is not null) { yield return $"  not built: {change.NotBuilt}"; yield break; }
+        if (change.Compared is not null && change.Compared != OfCheckout) yield return $"  compared: {change.Compared}";
         foreach (var who in change.Who) yield return $"  who does the work: {who}";
         foreach (var (name, value) in change.Sets) yield return $"  sets {name} = {value}";
         foreach (var path in change.Paths)
             yield return $"  {path.Change,-7}  {path.Path}  ({(path.Before is null ? "" : Bytes(path.Before.Value))}{(path.Before is not null && path.After is not null ? " to " : "")}{(path.After is null ? "" : Bytes(path.After.Value))})";
         if (change.Who.Count == 0 && change.Sets.Count == 0 && change.Paths.Count == 0) yield return "  changes nothing in the starting workspace, and sets nothing";
-        else if (change.Paths.Count == 0 && change.Sets.Count > 0) yield return "  no path in the starting workspace differs: what it sets is read later, by the program or a check, or by nothing";
+        else if (change.Paths.Count == 0 && change.Sets.Count > 0 && change.Compared == OfCheckout) yield return "  no path in the starting workspace differs: what it sets is read later, by the program or a check, or by nothing";
         if (!withDiff) yield break;
         if (change.Diff.Length > 0)
             foreach (var line in change.Diff.TrimEnd('\n').Split('\n')) yield return "    " + line;

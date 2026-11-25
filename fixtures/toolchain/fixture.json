@@ -1,0 +1,20 @@
+{
+  "id": "toolchain",
+  "description": "A scripted control for a base whose image is built with a parameter: the toolchain version is a build argument that the image's own step writes to /etc/toolchain. It stands in for a real toolchain axis (a Go auditor on Go 1.20 and 1.23), for which no fixture exists.",
+  "source": { "path": "repo" },
+  "stack": "none",
+  "params": {
+    "TOOLCHAIN": { "default": "1.23", "about": "the toolchain version the image is built with" }
+  },
+  "image": {
+    "from": "python:3.13",
+    "params": ["TOOLCHAIN"],
+    "run": [ "echo \"toolchain $TOOLCHAIN\" > /etc/toolchain" ]
+  },
+  "checks": {
+    "toolchain-built": {
+      "script": "checks/toolchain-built.sh",
+      "description": "the image was built with the toolchain this configuration names"
+    }
+  }
+}

@@ -1,7 +1,0 @@
-{
-  "id": "no-docs",
-  "note": "Claude Code on Sonnet with no docs: the docs site answers 404 to every page",
-  "agent": "claude-code",
-  "agent_version": "2.1.301",
-  "model": "claude-sonnet-5-5"
-}

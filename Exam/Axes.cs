@@ -175,7 +175,6 @@ sealed class Axes
     /// <summary>Why a configuration cannot be run yet, or null: what later slices of plans/axes-build.md build.</summary>
     public string? NotYet(Configuration c)
     {
-        if (Assistant(c).IsAgent) return "runs through Harbor, which does not read a configuration yet (plans/axes-build.md, slice 4)";
         foreach (var (axis, value) in c.Values)
             if (Value(axis, value) is var v && (v.Files?.Git is not null || (v.Set ?? []).Values.Any(g => g is JsonObject o && o["git"] is not null)))
                 return $"{axis}={value} takes its files from a git revision, which is not fetched yet; give it a directory";

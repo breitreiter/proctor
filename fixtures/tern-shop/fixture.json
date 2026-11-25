@@ -1,6 +1,9 @@
 {
   "id": "tern-shop",
-  "description": "A small Python shop backend that ships with Tern, an invented carrier, beside Tern's sandbox API (localhost:8081) and a docs site that serves the variant's bundle (localhost:8080)",
+  "description": "A small Python shop backend that ships with Tern, an invented carrier, beside Tern's sandbox API (localhost:8081) and a docs site that serves the DOCS parameter (localhost:8080)",
+  "params": {
+    "DOCS": { "tree": true, "about": "the pages Tern's documentation site serves; with none, every page is a 404" }
+  },
   "source": { "path": "repo" },
   "stack": "python",
   "image": {

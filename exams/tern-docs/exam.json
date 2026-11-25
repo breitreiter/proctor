@@ -1,6 +1,6 @@
 {
   "id": "tern-docs",
-  "description": "Does a restructure of an API's documentation change what a coding agent builds from it? Claude Code on Sonnet implements six shipping functions in a small shop's Python backend against Tern, an invented carrier, with Tern's docs as shipped, as restructured, or absent. The variants differ only in the docs bundle.",
+  "description": "Does a restructure of an API's documentation change what a coding agent builds from it? Claude Code on Sonnet implements six shipping functions in a small shop's Python backend against Tern, an invented carrier, with Tern's docs as shipped, as restructured, or absent. The configurations differ only in what the docs site serves.",
   "attempts": 2,
   "labels": {
     "area": "docs/api",
@@ -19,6 +19,28 @@
     "substitutes": { "hosts": ["localhost:8081", "127.0.0.1:8081"] }
   },
   "fixture": "tern-shop",
+  "axes": {
+    "docs": {
+      "about": "what Tern's documentation site serves at localhost:8080",
+      "live": "as-shipped",
+      "values": {
+        "as-shipped":  { "note": "Tern's docs as shipped: one quickstart on /v2 that states the units, a reference, a changelog that retires /v1", "set": { "DOCS": { "path": "values/docs/as-shipped" } } },
+        "restructure": { "note": "Tern's docs restructured: a quickstart per language, the Python one still on /v1 in kilograms, the units only in the reference, no changelog", "set": { "DOCS": { "path": "values/docs/restructure" } } },
+        "none":        { "note": "no docs: the site answers 404 to every page" }
+      }
+    },
+    "assistant": {
+      "about": "the coding agent and its model",
+      "values": {
+        "sonnet": { "note": "Claude Code on Sonnet", "agent": "claude-code", "agent_version": "2.1.301", "model": "claude-sonnet-5-5" }
+      }
+    }
+  },
+  "configurations": {
+    "as-shipped":  { "docs": "as-shipped",  "assistant": "sonnet" },
+    "restructure": { "docs": "restructure", "assistant": "sonnet" },
+    "no-docs":     { "docs": "none",        "assistant": "sonnet" }
+  },
   "stages": [
     {"id": "quote-at-checkout", "about": "The cheapest Tern price for a cart, in pence, for checkout (needs from the docs: D1 grams, D2 current endpoint)", "prompt": "This is the backend of Larkspur Tea, a small online tea shop. We ship with Tern, a parcel carrier. Tern's API documentation is at http://localhost:8080/ and Tern's sandbox API is running at http://localhost:8081 (the test key is already in `shop/settings.py`).\n\nImplement `quote_at_checkout` in `shop/shipping.py`: checkout needs to show the cheapest price Tern offers to ship the cart from our warehouse to the customer's postcode, in pence.\n\nKeep the shop's existing tests passing; add your own if you like."},
     {"id": "quote-options", "about": "Every Tern service for a cart, cheapest first (needs from the docs: D1 grams, D2 current endpoint)", "prompt": "This is the backend of Larkspur Tea, a small online tea shop. We ship with Tern, a parcel carrier. Tern's API documentation is at http://localhost:8080/ and Tern's sandbox API is running at http://localhost:8081 (the test key is already in `shop/settings.py`).\n\nImplement `quote_options` in `shop/shipping.py`: the customer picks a delivery speed at checkout, so we need every service Tern offers for the cart and postcode, with its price in pence and the days it takes, cheapest first.\n\nKeep the shop's existing tests passing; add your own if you like."},
