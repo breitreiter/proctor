@@ -7,6 +7,21 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **The viewer lives here** (`rename-to-auspex.md`, stage 1). auspex
+  is `View/`, its own project in the same solution; `dotnet build`
+  builds both and `dotnet test` runs both suites. It is started as
+  before, `auspex <proctor root>`.
+- **Axes: the pages** (`axes-build.md`, slice 3d). The viewer reads a
+  bank laid out by try id and serves the addresses `compare` and
+  `coverage` give: `/<exam>` (the configurations named or run, and
+  what live spans), `/<exam>/coverage?as_of=`,
+  `/<exam>/configuration/<key>`,
+  `/<exam>/compare?change=…&against=…&as_of=…` (or
+  `?configuration=<name>`), and `/<exam>/try/<id>/<stage>`. A
+  comparison's page shows proctor's own numbers, worked out by
+  proctor's code, as they stood at `as_of` and as they are now when
+  tries were made since. A stage page takes `?check=<name>` to select
+  a verdict.
 - **Axes: two queries, answered as JSON** (`axes-build.md`, slice 3c).
   `proctor compare <exam> <axis>=<value>` (with `--against <value>`,
   `--within <axis>=<value>` and `--as-of <time>`) answers one value

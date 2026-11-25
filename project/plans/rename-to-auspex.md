@@ -73,6 +73,30 @@ Not weeks.
 
 ## Stage 1: the viewer moves in
 
+**Done in part, 2026-11-24** (the user: now or later, with freedom over
+how; a hosted viewer will have no model key). Steps 1, 3, 4 and 6 are
+done: the viewer is `View/`, its design notes `project/view/`, both
+projects in `proctor.slnx`, both suites green from the root. It was
+done ahead of `axes-build.md`'s end because slice 3d needed it: a
+comparison's page has to show proctor's own number, and the viewer can
+only do that by calling proctor's code, which a second repository
+would have had to copy.
+
+What differs from the steps below, and what is left:
+
+- **`project/trials/` was left behind** (712 files): throwaway scripts
+  and their outputs, which quote transcripts. Whether any of it may be
+  published is the user's to say. `project/view/` docs still name
+  paths under it.
+- **Not committed as its own commit naming the viewer's revision**
+  (step 2) unless the user asks for that: it came from `5559896`.
+- **The viewer references proctor's project** and sees its internals,
+  which step 6 ("nothing about its behaviour changes") did not plan.
+- **Steps 5 and 7 are not done** and are the user's: `datasets/` moved
+  out, the private remote renamed and archived, the old checkout
+  deleted. Until then the old checkout is the only home of
+  `project/trials/` and `datasets/`.
+
 1. Copy the viewer's tracked files (`git ls-files`, so `bin/`, `obj/`
    and `datasets/` stay behind) into `View/`, matching proctor's
    PascalCase top-level directories (`Run/`, `Grade/`, `Report/`). Its

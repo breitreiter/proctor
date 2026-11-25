@@ -665,6 +665,43 @@ rewritten first, as a short proposal.
 - Something on the page says what to ask Claude (the user). What it
   says is designed with the proposal.
 
+**BUILT 2026-11-24**, as a first cut (`View/AxesPages.cs`,
+`View/Measured.cs`; the proposal is `project/view/exam-page-axes.md`).
+
+- **The viewer moved in first** (`rename-to-auspex.md`, stage 1, in
+  part), so that a page can show proctor's own number by calling
+  proctor's code. It computes nothing itself and calls no model.
+- The bank is read by try id; a try is `/<exam>/try/<id>/<stage>`.
+- The exam page is rows: the configurations named or run, and what is
+  live across the axes with no live value. No grid.
+- A comparison's page is at the address a `compare` answer gives. It
+  shows proctor's sentence, its cautions, each setting with every
+  try's count linked to the try, the counts per check, and the reading
+  as one. Pinned to a time it shows that time's numbers, and the
+  sentence as it is now when tries were made since.
+- A configuration's page gives, per value, the author's note (marked
+  as the author's), what the value carries and its hash; whether the
+  configuration is its values put together; and its tries.
+- The stage page links to its configuration and takes `?check=` (and
+  `?point=` with script), so a link can point at one verdict.
+- The exam page and the comparison page each say what to ask an agent,
+  with the command it would run. No page holds an agent's prose.
+
+Not built, or left for the user:
+
+- **Nothing was drawn first.** The pages are tables in the viewer's
+  existing type and colours. How they look is the user's to judge.
+- **The stage-by-try grid, friction per kind and "every try"** of the
+  earlier exam page are not on the new one: they read the report's
+  `stats.json`, which these pages do not use yet.
+- **A check's own address** selects a failed check on the server; a
+  passed check or a friction point needs the page's script.
+- `exam-page.md` and `where-we-are.md` still speak of setups.
+
+Tried on the scripted bank: every linked page answers, and the
+comparison of the rewritten guide shows the counts and p-values the
+agent of 3c quoted.
+
 **It teaches:** sign 7 on a page, for the person debugging.
 
 ## Slice 4: through Harbor

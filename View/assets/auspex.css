@@ -1,0 +1,105 @@
+:root {
+  --bg: #fbfaf7; --fg: #1f1d1a; --dim: #6b665e; --line: #ddd8ce; --panel: #f2efe8; --link: #1d4f8c;
+  --rule: #e3e8f2; --rule-fg: #1f3d6b; --model: #f4e6cf; --model-fg: #6b4310; --mark: #ffe08a; --pass: #2c6e3f; --fail: #a3312a;
+  --friction: #5b3a92; --friction-bg: #efe8f8; --sel: #e8f0fa; --sel-line: #1d4f8c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1917; --fg: #e8e4dc; --dim: #a09a8f; --line: #3a3732; --panel: #24221f; --link: #8db8ee;
+    --rule: #263247; --rule-fg: #b9cff0; --model: #46351c; --model-fg: #f0d3a0; --mark: #6b5310; --pass: #7fc793; --fail: #ee8a82;
+    --friction: #c4a6f5; --friction-bg: #2e2440; --sel: #1d2a3a; --sel-line: #8db8ee;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+nav { padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--dim); }
+main { max-width: 1440px; margin: 0 auto; padding: 8px 16px 64px; }
+a { color: var(--link); }
+h1 { font-size: 1.4rem; margin: 20px 0 4px; }
+h2 { font-size: 1.1rem; margin: 32px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 1rem; margin: 20px 0 6px; }
+code, pre { font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+th, td { text-align: left; vertical-align: top; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--dim); font-size: 13px; }
+.n { text-align: right; font-variant-numeric: tabular-nums; }
+.meta { color: var(--dim); font-size: 13px; font-weight: normal; }
+.empty { color: var(--dim); font-style: italic; }
+.pass { color: var(--pass); } .fail { color: var(--fail); font-weight: 600; }
+.chip { display: inline-block; padding: 0 7px; border-radius: 10px; font-size: 12px; line-height: 1.6; white-space: nowrap; background: var(--rule); color: var(--rule-fg); }
+.chip.model { background: var(--model); color: var(--model-fg); }
+/* Web Awesome's base layer makes every native details a card with its summary spread across the row; a step is a line. */
+.step, .step[open] { border: none; border-left: 3px solid var(--line); border-radius: 0; background: none; padding: 2px 0 2px 10px; margin: 2px 0; }
+.step > summary, .step[open] > summary { display: flex; align-items: baseline; justify-content: flex-start; gap: 8px; padding: 4px 0; margin-inline: 0; border-radius: 0; }
+.step > summary .headline { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.step > summary::after { align-self: center; flex: none; }
+.step.in-point { border-left-color: var(--link); }
+.step:target { background: var(--panel); }
+.headline { font-family: ui-monospace, monospace; font-size: 13px; }
+.message { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
+.call { margin: 6px 0 10px; }
+pre { margin: 2px 0; padding: 8px; background: var(--panel); border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 26em; overflow-y: auto; }
+pre.result { border-left: 3px solid var(--line); border-radius: 0 4px 4px 0; }
+mark { background: var(--mark); color: inherit; }
+td code { background: var(--bg); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; margin-right: 4px; }
+
+footer { max-width: 1440px; margin: 0 auto; padding: 16px; border-top: 1px solid var(--line); }
+ul.exams, ul.tries { padding-left: 20px; }
+
+/* The stage page (StagePage.cs, project/stage-page.md). Friction has its own colour and never tints a result. */
+.try-head { margin: 12px 0 0; }
+/* The stages of a try, in order; the one shown is underlined in the link colour. Bare, no box. */
+.stages { display: flex; flex-wrap: wrap; gap: 2px 18px; padding: 8px 0 0; border: none; border-bottom: 1px solid var(--line); margin: 6px 0 10px; }
+.stages a { text-decoration: none; color: var(--dim); padding: 4px 0 6px; border-bottom: 2px solid transparent; font: 13px ui-monospace, monospace; }
+.stages a[aria-current] { color: var(--fg); border-bottom-color: var(--link); font-weight: 600; }
+.stages a:hover { color: var(--fg); }
+.stages .place { color: var(--dim); font-weight: normal; }
+.stages a.unfinished { font-style: italic; }
+.stage-status { margin: 0 0 12px; color: var(--dim); }
+.stage-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin: 4px 0 12px; }
+.stage-head h1 { margin: 0; }
+.bad { color: var(--fail); font-weight: 600; }
+.good { color: var(--pass); }
+.flagged { color: var(--friction); font-weight: 600; font-variant-numeric: tabular-nums; }
+.lbl { display: block; font-size: 12px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.panes { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.panes.quiet { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
+@media (max-width: 1000px) { .panes, .panes.quiet { grid-template-columns: minmax(0, 1fr); } }
+.checks { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow-y: auto; }
+@media (max-width: 1000px) { .checks { position: static; max-height: none; } }
+.card { border: 1px solid var(--line); border-left: 3px solid var(--fail); border-radius: 6px; padding: 10px 12px; background: var(--panel); cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+.card.sel { outline: 2px solid var(--sel-line); }
+.card:focus-visible, .fric:focus-visible, .pass-row:focus-visible { outline: 2px solid var(--sel-line); outline-offset: 1px; }
+.card .reason { margin: 0; font-size: 15px; }
+.card .why p { margin: 0; font-size: 13px; color: var(--dim); }
+.steps-line a { margin-right: 6px; }
+.friction, .passed { display: flex; flex-direction: column; gap: 2px; }
+/* Web Awesome's base layer styles every native button as a centred, single-line form control; these rows are not. */
+.fric, .pass-row { font: inherit; font-weight: normal; color: inherit; text-align: left; background: none; border: none; border-radius: 4px; padding: 6px 8px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; width: 100%; height: auto; min-height: 36px; white-space: normal; overflow-wrap: anywhere; }
+.pass-row { flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.fric:hover, .pass-row:hover { background: var(--panel); }
+.fric.sel, .pass-row.sel { background: var(--sel); }
+.flabel { color: var(--friction); background: var(--friction-bg); font: 600 12px ui-monospace, monospace; padding: 1px 6px; border-radius: 4px; }
+.because { font-size: 13px; color: var(--dim); }
+.show-checks::part(header) { font-size: 13px; }
+.transcript { min-width: 0; }
+.transcript-bar { position: sticky; top: 0; z-index: 1; background: var(--bg); padding: 4px 0 8px; }
+.step.lit { border-left-color: var(--sel-line); background: var(--sel); }
+.gutter { display: inline-flex; gap: 2px; min-width: 1.2em; }
+.gm { text-decoration: none; font-size: 13px; }
+.gm-fail { color: var(--fail); } .gm-pass { color: var(--pass); }
+.tag { text-decoration: none; }
+
+/* An exam with axes (AxesPages.cs): the exam, a configuration, a comparison. Tables of what proctor counted; no chart. */
+.axes .value { margin: 0 0 6px; } .axes .says { color: var(--dim); font-size: 13px; }
+.configurations td:first-child a { text-decoration: none; } .configurations td:first-child a:hover code { text-decoration: underline; }
+.asof { margin: 12px 0 4px; color: var(--dim); }
+.verdict { font-size: 1.05rem; margin: 4px 0 12px; padding: 10px 12px; background: var(--panel); border-left: 3px solid var(--link); }
+.cautions { margin: 0 0 16px; padding-left: 20px; color: var(--dim); }
+.cells .held { display: inline-block; min-width: 2.6em; text-align: center; padding: 0 4px; margin: 2px 2px 0 0; border: 1px solid var(--line); border-radius: 3px; text-decoration: none; font: 13px ui-monospace, monospace; }
+.cells .held:hover { border-color: var(--link); } .cells .held.invalid { text-decoration: line-through; color: var(--dim); }
+.per-check, .methods { border: none; background: none; padding: 0; margin: 6px 0 0; } .per-check table { display: table; width: auto; }
+.methods p { color: var(--dim); font-size: 13px; max-width: 80ch; }
+.ask { margin: 16px 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 4px; color: var(--dim); max-width: 100ch; }
+.ask q { color: var(--fg); }

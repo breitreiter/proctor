@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="Proctor.csproj" />
   <Project Path="Proctor.Tests/Proctor.Tests.csproj" />
+  <Project Path="View/Auspex.csproj" />
+  <Project Path="View/Auspex.Tests/Auspex.Tests.csproj" />
 </Solution>

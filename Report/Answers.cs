@@ -125,7 +125,7 @@ static class Answers
     /// These values together against those, every other axis held. Refused while a stage in it is not graded, since an
     /// ungraded try would read as one that held nothing.
     /// </summary>
-    static ComparisonAnswer Compare(string root, Exam exam, Dictionary<string, string> change, Dictionary<string, string> against, IReadOnlyDictionary<string, string>? within, DateTime? asOf, string? asked)
+    internal static ComparisonAnswer Compare(string root, Exam exam, Dictionary<string, string> change, Dictionary<string, string> against, IReadOnlyDictionary<string, string>? within, DateTime? asOf, string? asked)
     {
         var axes = exam.Axes!;
         if (within?.Keys.FirstOrDefault(change.ContainsKey) is { } clash) throw new ProctorException($"--within {clash}=…: '{clash}' is an axis the comparison is along; --within holds the other axes");

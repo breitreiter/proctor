@@ -13,8 +13,8 @@
 
   <!-- The test project and the data directories sit under this root but are not compiled into the exe. -->
   <ItemGroup>
-    <Compile Remove="Proctor.Tests\**;bench\**;exams\**;fixtures\**;attempts\**;reports\**" />
-    <None Remove="Proctor.Tests\**;bench\**;exams\**;fixtures\**;attempts\**;reports\**" />
+    <Compile Remove="Proctor.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;reports\**" />
+    <None Remove="Proctor.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;reports\**" />
   </ItemGroup>
 
   <!-- The report's logo, inlined as a data URI; proctor's own Harbor agents (nb, Qwen Code), compiled into each run with a variant that uses one; setup's provider catalogue. -->
@@ -27,6 +27,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Proctor.Tests" />
+    <!-- The viewer (View/) shows proctor's own numbers by calling the code that works them out. -->
+    <InternalsVisibleTo Include="auspex" />
   </ItemGroup>
 
   <ItemGroup>
