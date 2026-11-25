@@ -1235,3 +1235,57 @@ of metadata/tagging system so you can say 'run all the oracle exams'".
   and where a variant would be compared across the family's exams.
 - Not decided: whether a report over several exams is one report or a
   page that lists each exam's.
+
+## The container-engine guides: tidy podman and Modal, write Docker (2026-11-25)
+
+The user, after a gateway on a laptop's loopback could not be reached
+from a container: proctor should ship advice on working with each
+engine, kept tidy where it exists and written where it does not. What
+there is today:
+
+| Engine | Guide | State |
+|---|---|---|
+| podman | `docs/podman.md`, 237 lines | Checked 2026-10-27. Section 5 needs changing, below |
+| Modal | `docs/modal.md`, 99 lines | Written before stages and axes |
+| Docker | none | `podman.md` says "Docker needs none of this"; `docs/configuration.md`, "Agent variants", covers both in passing |
+
+**podman.md, section 5, tells the reader to do what the user has said
+not to advise.** It gives `pasta_options = ["--map-host-loopback", …]`
+as the way to reach a gateway on the host's loopback, then warns that
+every loopback service is open to every trial and says to prefer a LAN
+address. The user (2026-11-25): opening the host's loopback to
+containers is for narrow testing on a machine that does not matter,
+"we should absolutely not advise that for general use". And a LAN
+address is not always a way out: on that laptop the Wi-Fi subnet was
+inside Docker's default bridge subnet, and a LAN address opens the
+gateway to the network. What to say in its place is not settled
+(`learnings/harbor.md`, "A gateway on the same machine as the
+containers", holds a proposal: one private address on the host that the
+gateway also listens on, untested). Another session is working out
+guidance that is safe and still works (the user, 2026-11-25); the
+section waits for that.
+
+**Docker has no guide, and rootless Docker is not "none of this".**
+To write, as `docs/docker.md`:
+
+- what Harbor needs of it (Compose v2, buildx), rootful and rootless;
+- that rootless Docker closes the host's loopback and how a container
+  is meant to reach a model gateway on the same machine, once that is
+  settled;
+- the subnet collision above, and how to see it (a container's
+  `ip route` against the host's address);
+- what a trial leaves behind and who removes it, as `podman.md` 6b
+  says for podman;
+- `DOCKER_HOST` for a rootless socket, which `~/.config/proctor/env`
+  is the place for.
+
+**modal.md** predates stages and axes. To check: that it says a
+configuration's tree parameter needs a fixture with services, which
+Modal refuses; that nb's publish copied into the task is still how nb
+gets there; that its costs and its "what cannot run" list are current.
+
+Also `Setup/SandboxPlan.cs`, which points at `docs/podman.md` and has
+nothing to point at for Docker.
+
+Each guide says when it was last checked and on what versions, as
+`podman.md` does, so "tidy" has a date to be measured against.
