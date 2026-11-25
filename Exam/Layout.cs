@@ -27,6 +27,8 @@ static class Layout
     public const string StagesDir = "stages";
     public const string VariantsDir = "variants";
     public const string LiveFile = "live.json";
+    /// <summary>Beside exam.json: one file per prediction: a named configuration and the changes expected of it (plans/axes-build.md, slice 6).</summary>
+    public const string PredictionsDir = "predictions";
     public const string FixtureFile = "fixture.json";
 
     public const string LogEntryFile = "entry.json";

@@ -1,0 +1,24 @@
+{
+  "configuration": "no-docs",
+  "note": "No documentation at all: the control.",
+  "changes": [
+    {
+      "check": "acceptance",
+      "direction": "less",
+      "because": "nothing says the units, the current endpoint, the idempotency key or the paging"
+    },
+    {
+      "metric": "tool_calls",
+      "direction": "more"
+    }
+  ],
+  "written": "2026-11-25T16:24Z",
+  "standard": {
+    "quote-at-checkout": "sha256:7d93fb8ba21c95884b8ce63ccd195401b11e41ed9a2a9a9facdf3801e61fe0f4",
+    "quote-options": "sha256:7d93fb8ba21c95884b8ce63ccd195401b11e41ed9a2a9a9facdf3801e61fe0f4",
+    "book-shipment": "sha256:7d93fb8ba21c95884b8ce63ccd195401b11e41ed9a2a9a9facdf3801e61fe0f4",
+    "sync-shipments": "sha256:7d93fb8ba21c95884b8ce63ccd195401b11e41ed9a2a9a9facdf3801e61fe0f4",
+    "order-status": "sha256:7d93fb8ba21c95884b8ce63ccd195401b11e41ed9a2a9a9facdf3801e61fe0f4",
+    "cancel-before-pickup": "sha256:7d93fb8ba21c95884b8ce63ccd195401b11e41ed9a2a9a9facdf3801e61fe0f4"
+  }
+}

@@ -38,14 +38,14 @@ record AxisComparison(string Axis, string Value, string Live, List<ComparedCell>
 
 /// <summary>stats.json of an exam with axes. Configurations are the ones the exam names or has tries of; Excluded the values it declares impossible together.</summary>
 record ConfigurationsFile(string Schema, string Exam, bool Chained, List<AxisInfo> Axes, List<StageInfo> Stages, List<ConfigurationRow> Configurations, List<Dictionary<string, string>> Excluded,
-    List<AxisComparison> Comparisons, List<LostTry> Lost, string Methods, BuiltFrom? BuiltFrom, List<StandardMove>? StandardMoved = null);
+    List<AxisComparison> Comparisons, List<LostTry> Lost, string Methods, BuiltFrom? BuiltFrom, List<StandardMove>? StandardMoved = null, List<PredictionReport>? Predictions = null);
 
 static class Configurations
 {
     public const string Schema = "configurations/1";
     const double Alpha = 0.05;
 
-    public static (ConfigurationsFile Stats, FrictionRollup Friction) Compute(string root, Exam exam, List<BankAttempt> current, List<BankAttempt> bank, List<ResultRow> rows, BuiltFrom? built)
+    public static (ConfigurationsFile Stats, FrictionRollup Friction) Compute(string root, Exam exam, List<BankAttempt> current, List<BankAttempt> bank, List<ResultRow> rows, BuiltFrom? built, List<Prediction>? predictions = null)
     {
         var axes = exam.Axes!;
         // Comparisons use the standard as it is now, both sides alike: a try graded only under earlier checks is not yet graded, and in no number.
@@ -88,7 +88,8 @@ static class Configurations
             + "A try in which a stage did not run is lost and is in no number; a try with a stage that failed a validity check is listed and not counted.";
         return (new ConfigurationsFile(Schema, exam.Id, exam.Chained,
                 axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)], axes.ReferenceOf(a.Key) == v.Key)).ToList())).ToList(),
-                tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built, moves.Count > 0 ? moves : null), friction);
+                tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built, moves.Count > 0 ? moves : null,
+                predictions is { Count: > 0 } ? PredictionOutcomes.Compute(exam, predictions, byKey, rows, current) : null), friction);
     }
 
     /// <summary>
@@ -304,6 +305,17 @@ static class Configurations
             md.AppendLine().AppendLine("## The standard moved").AppendLine();
             md.AppendLine("The checks changed after some of these tries were graded, and the tries were graded again without being made again. Every number here is under the checks as they are now.").AppendLine();
             foreach (var m in moved) md.AppendLine($"- {m.Sentence}");
+        }
+        if (stats.Predictions is { Count: > 0 } proposed)
+        {
+            md.AppendLine().AppendLine("## Predictions").AppendLine();
+            md.AppendLine("A prediction is what somebody said a configuration would change, written before its tries were made. Each change it expects is held against the tries, try against try, and a miss is said as plainly as a hit.");
+            foreach (var c in proposed)
+            {
+                md.AppendLine().AppendLine($"**{c.Name}**{(c.Note is null ? "" : $": {c.Note}")}").AppendLine();
+                foreach (var p in c.Changes) md.AppendLine($"- {p.Sentence}{(p.Because is null ? "" : $" The reason given: {p.Because}")}");
+                foreach (var label in c.Labels) md.AppendLine($"- *{label}*");
+            }
         }
         if (stats.Comparisons.Count > 0)
         {

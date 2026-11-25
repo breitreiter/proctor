@@ -21,6 +21,9 @@ static class Program
                                  changes, together, against what is live (or --against <name>)
           coverage <exam>        on an exam with axes, as JSON: the tries of each value and configuration, and of every
                                  configuration live spans
+          predict <exam> [name]  on an exam with axes: pin a prediction (exams/<exam>/predictions/<name>.json),
+                                 recording when they were written and the checks they were written under; run does this
+                                 for a prediction whose configuration it is about to make tries of. The report says how each change it expects came out
           live <exam> [variant]  mark a variant live in exams/<exam>/live.json (commit it): the one in use now, which the report
                                  compares the others with; with no variant, say which is live. Delete the file to have none
           setup                  set up providers and keys for this machine, job by job (needs a terminal)
@@ -102,6 +105,8 @@ static class Program
                 ("compare", [var exam, var what]) => Verbs.Compare(root, exam, what, against, within, asOf),
                 ("compare", [var exam]) => Verbs.Compare(root, exam, null, against, within, asOf),
                 ("coverage", [var exam]) => Verbs.Coverage(root, exam, asOf),
+                ("predict", [var exam]) => Verbs.Predict(root, exam, null),
+                ("predict", [var exam, var prediction]) => Verbs.Predict(root, exam, prediction),
                 ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, variants, tasks, configFile),
                 ("friction", [var exam]) => Verbs.Friction(root, exam, variants, tasks, reader, rejudge, configFile),
                 ("report", [var exam]) => Verbs.Report(root, exam, variants, tasks),

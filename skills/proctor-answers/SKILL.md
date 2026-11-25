@@ -69,6 +69,68 @@ made the difference; ask about each value alone for that.
 9. **Say what is yours.** Proctor's findings and your recommendation
    are different things. Mark which is which.
 
+## How many tries a question needs
+
+Proctor does not work this out yet. You carry it. A person who has just
+seen one good run wants to ship; your job is to say what that run can
+and cannot show.
+
+What a number of tries can show is fixed by the test proctor uses, and
+needs no data. With the same number on each side:
+
+| Tries a side | What it takes to confirm a difference |
+|---|---|
+| 1, 2 or 3 | Nothing can. No result confirms, however one-sided |
+| 4 | Every try on one side must beat every try on the other |
+| 5 | At most 2 of the 25 pairings may go the other way |
+| 6 | At most 5 of 36 |
+| 8 | At most 13 of 64 |
+
+Unequal sides: 3 against 5 can confirm, and only with every pairing one
+way. An answer's `power` says the same thing for the tries it has.
+
+Use it like this:
+
+- **Before tries are paid for,** say how many a side the question needs
+  and what that costs. Four is the least that can confirm anything, and
+  only a difference so large the two sides do not overlap. A small
+  change needs eight or more. If the person will only pay for two, say
+  that two shows a direction and settles nothing.
+- **After one good run,** say it is one run. "Went the way we hoped,
+  once" is the whole finding. Do not let it stand as "better".
+- **Fix the number first.** Making tries until the result looks right,
+  then stopping, finds a difference that is not there. If more tries
+  are added after looking, say so when you report them.
+- **A size is not asked for.** Nobody can say beforehand how much a
+  change will move a check, and proctor's predictions carry a direction
+  only. Do not invent one.
+
+## Predictions
+
+A prediction is one statement, written before the tries are made: "if
+this configuration is run, this is what will change." It is a file,
+`exams/<exam>/predictions/<name>.json`, naming one configuration the
+exam names and the changes expected: each a check or a metric (`held`,
+`flagged_steps`, `tool_calls`, `tokens`, `duration`) with a direction,
+`more` or `less`.
+
+```bash
+proctor predict <exam>          # pin every prediction not yet pinned, and say how each stands
+```
+
+- **Write the prediction before the run,** and suggest one when a person
+  proposes a change: it is the reason the tries are being paid for.
+  `run` pins it as it starts. One written afterwards is labelled late,
+  and you say so.
+- **The report and `compare` say how each change came out:** it went
+  that way, it did not happen, it went the other way, or it is not run
+  yet. A miss is a finding. Report it as plainly as a hit.
+- **A prediction is about one full configuration.** "This value,
+  whatever the other axes are" is not a prediction; it is every
+  combination, which nobody is going to pay for.
+- **If the checks changed after the prediction was pinned,** the answer
+  says the standard changed. Pass that on with the outcome.
+
 ## What to make of common answers
 
 - A value confirmed better across every setting that has tries, with no

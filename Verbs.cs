@@ -77,6 +77,9 @@ static class Verbs
         {
             if (variantIds is not null) throw new ProctorException($"exam '{exam.Id}' has axes, not variants: say --configuration name, or --value axis=value for that value with the rest at their reference");
             (exam, variantIds) = ForRun(root, exam, config.Judges ?? [], ValueFilters, ConfigurationName);
+            // A prediction whose configuration is about to be run is pinned first, so it is on record as written before the tries.
+            foreach (var prediction in PredictionsOf(root, exam).Where(c => variantIds.Contains(c.Configuration.Key)))
+                if (Predictions.Stamp(exam, prediction)) Console.WriteLine($"prediction {prediction.Name}: pinned now, before its tries are made");
         }
         if (exam.Staged)
         {
@@ -172,6 +175,40 @@ static class Verbs
         var exam = LoadExam(root, examId);
         if (exam.Axes is null) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: `coverage` is over an exam's axes; `proctor list {exam.Id}` shows each variant's attempts");
         Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(Answers.Coverage(root, exam, asOf is null ? null : Answers.ParseAsOf(asOf)), AnswerJson));
+        return 0;
+    }
+
+    /// <summary>The exam's predictions, or a refusal naming what is wrong with their files.</summary>
+    static List<Prediction> PredictionsOf(string root, Exam exam)
+    {
+        var problems = new List<Problem>();
+        var predictions = Predictions.Load(root, exam, problems);
+        return problems.Count == 0 ? predictions : throw new ProctorException(string.Join("\n", problems));
+    }
+
+    /// <summary>
+    /// Pin a prediction (plans/axes-build.md, slice 6): record when it was written and the standard it was written
+    /// under, once, in its file. With no name, every prediction not yet pinned. `run` does this for a prediction whose
+    /// configuration it is about to make tries of; this is for pinning one ahead of that, or saying how each stands.
+    /// </summary>
+    public static int Predict(string root, string examId, string? name)
+    {
+        var exam = LoadExam(root, examId);
+        if (exam.Axes is null) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: a prediction names a configuration of an exam with axes");
+        var predictions = PredictionsOf(root, exam);
+        if (name is not null && predictions.All(c => c.Name != name))
+            throw new ProctorException($"exam '{exam.Id}' has no prediction '{name}' ({string.Join(", ", predictions.Select(c => c.Name).DefaultIfEmpty("none"))}); a prediction is a file, exams/{exam.Id}/{Layout.PredictionsDir}/<name>.json");
+        if (predictions.Count == 0) Console.WriteLine($"{exam.Id}: no predictions. One is a file, exams/{exam.Id}/{Layout.PredictionsDir}/<name>.json: {{\"configuration\": \"<a named configuration>\", \"changes\": [{{\"check\": \"<check>\", \"direction\": \"more\"|\"less\"}}]}}");
+        var bank = Bank.Select(root, exam).Current;
+        foreach (var c in predictions.Where(c => name is null || c.Name == name))
+        {
+            var made = bank.Where(a => a.Variant == c.Configuration.Key).Select(a => a.Attempt).Distinct().Count();
+            var pinned = Predictions.Stamp(exam, c);
+            Console.WriteLine($"{c.Name}: {c.Configuration.Name} against {c.Against.Name ?? c.Against.Label}; "
+                + (pinned ? "pinned now" : $"pinned {c.Def.Written}")
+                + (pinned && made > 0 ? $". {made} {(made == 1 ? "try" : "tries")} of its configuration had already been made, so this prediction is late, and the report will say so" : ""));
+            foreach (var p in c.Def.Changes!) Console.WriteLine($"  predicts {Predictions.Said(p, c)}{(p.Because is null ? "" : $": {p.Because}")}");
+        }
         return 0;
     }
 
@@ -416,6 +453,10 @@ static class Verbs
         }
         foreach (var excluded in axes.Excludes)
             Console.WriteLine($"  excluded: {string.Join(" × ", excluded.Select(v => $"{v.Key}={v.Value}"))}");
+        var predictionProblems = new List<Problem>();
+        foreach (var c in Predictions.Load(root, exam, predictionProblems))
+            Console.WriteLine($"  prediction {c.Name}: {c.Configuration.Name} against {c.Against.Name ?? c.Against.Label}, {Count(c.Def.Changes!.Count, "change")} expected, {(c.Def.Written is { } when ? $"pinned {when}" : "not pinned yet")}");
+        foreach (var problem in predictionProblems) Console.WriteLine($"  {problem}");
         // Where what each value does alone does not say what a configuration does (plans/axes-build.md, 3b): measured by `build`.
         var standing = Combinations.Load(exam).Stand(exam);
         foreach (var c in axes.Configurations.Where(c => standing.GetValueOrDefault(c.Key).State == Combinations.More))
@@ -513,7 +554,7 @@ static class Verbs
     /// <summary>An exam with axes: stats.json the configurations and each value against its axis's live one (configurations/1), with friction.json, results.jsonl and summary.md as a staged exam has them.</summary>
     static int ReportConfigurations(string root, Exam exam, BankSelection selection, List<ResultRow> rows, BuiltFrom built)
     {
-        var (stats, friction) = Configurations.Compute(root, exam, selection.Current, Bank.Of(root, exam), rows, built);
+        var (stats, friction) = Configurations.Compute(root, exam, selection.Current, Bank.Of(root, exam), rows, built, PredictionsOf(root, exam));
         var outDir = Layout.ReportExplore(root, exam.Id);
         KeepEarlier(outDir);
         Directory.CreateDirectory(outDir);
@@ -527,6 +568,12 @@ static class Verbs
         Console.WriteLine($"  {stats.Configurations.Count(c => c.State is "made" or "partial")} of {stats.Configurations.Count} configurations have graded tries{(notRun.Count > 0 ? $"; not run: {string.Join(", ", notRun.Select(c => c.Label))}" : "")}"
             + (notGraded > 0 ? $"; {notGraded} {(notGraded == 1 ? "try is" : "tries are")} not yet graded under the checks as they are now and in no number: `proctor grade {exam.Id}`" : ""));
         foreach (var c in stats.Comparisons) Console.WriteLine($"  {c.Sentence}");
+        foreach (var c in stats.Predictions ?? [])
+        {
+            Console.WriteLine($"  prediction {c.Name}:");
+            foreach (var p in c.Changes) Console.WriteLine($"    {p.Sentence}");
+            foreach (var label in c.Labels) Console.WriteLine($"    {label}");
+        }
         foreach (var line in Bank.Describe(selection.Stale, "left out")) Console.WriteLine(line);
         return 0;
     }

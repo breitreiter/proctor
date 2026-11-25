@@ -39,7 +39,7 @@ record Power(bool CouldConfirm, double SmallestP, string Note);
 /// </summary>
 record ComparisonAnswer(string Schema, string Exam, string AsOf, string Address, string? Configuration, Dictionary<string, string> Change, Dictionary<string, string> Against, Dictionary<string, string>? Within,
     string Verdict, bool? Confirmed, string Sentence, List<CellAnswer> Cells, Pooled? ReadAsOne, List<string> NotRun, Power? Power, Timing Timing,
-    List<MovedWith> MovedWith, List<string> Cautions, List<string> OtherComparisons, int TriesSince, string Methods);
+    List<MovedWith> MovedWith, List<string> Cautions, List<string> OtherComparisons, int TriesSince, string Methods, List<PredictionReport>? Predictions = null);
 
 /// <summary>A configuration as coverage sees it: who asked for it, how far it is from what is live, its tries and how old the newest is.</summary>
 record CoverageRow(string Configuration, string? Name, Dictionary<string, string> Values, bool Live, List<string> OffLive, int Tries, int Wanted, int Lost, int Stale,
@@ -215,6 +215,9 @@ static class Answers
         string Listed(Dictionary<string, string> values) => Encoded(string.Join(",", axes.Def.Keys.Where(values.ContainsKey).Select(x => $"{x}={values[x]}")));
         var address = $"/{exam.Id}/compare?change={Listed(change)}&against={Listed(against)}"
             + (within is { Count: > 0 } ? "&within=" + Encoded(string.Join(",", within.Select(w => $"{w.Key}={w.Value}"))) : "") + $"&as_of={Encoded(Iso(at))}";
+        // What was predicted of a configuration in this comparison, and how it came out: the predictions whose configuration is one of the value's sides.
+        var problems = new List<Problem>();
+        var predicted = PredictionOutcomes.Compute(exam, Predictions.Load(root, exam, problems).Where(c => comparison.Cells.Any(k => k.Key == c.Configuration.Key)).ToList(), byKey, rows, current);
         return new ComparisonAnswer(Schema, exam.Id, Iso(at), address, asked, change, against, within is { Count: > 0 } ? new Dictionary<string, string>(within) : null,
             verdict, decided?.Confirmed, comparison.Sentence, cells, comparison.Pooled, comparison.NotRun, power, timing, moved, cautions, others, since,
             "Every number here is proctor's, worked out as its report works it out. A try is one configuration run once through the exam's stages; held is the headline checks it held, of how many. "
@@ -224,7 +227,9 @@ static class Answers
             + "flagged is a try's steps inside any friction point, when friction was run. checks in a cell counts, per headline check, the tries of each side that held it; it tests nothing. "
             + "together on a configuration more than one value off the reference says whether `proctor build` found it to be its values put together (sum), more than that (more), not to be told (unclear), or never checked (not_checked). "
             + "A setting not run is not run, never no difference. tries_since counts tries made after as_of in these configurations: the numbers are as they stood at as_of. "
-            + "An address opens the same thing in the viewer; path is its directory under the repository root. Nothing here recommends anything.");
+            + "predictions are those written about a configuration in this comparison: each change one expects, with how it came out against the configuration it named; late means tries were made before the prediction was pinned. "
+            + "An address opens the same thing in the viewer; path is its directory under the repository root. Nothing here recommends anything.",
+            predicted.Count > 0 ? predicted : null);
     }
 
     /// <summary>

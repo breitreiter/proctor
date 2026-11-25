@@ -702,6 +702,14 @@ Tried on the scripted bank: every linked page answers, and the
 comparison of the rewritten guide shows the counts and p-values the
 agent of 3c quoted.
 
+**The user's first look, 2026-11-25, on six real tries of `tern-docs`:**
+the parts make sense; the presentation is muddy, and the layout has a
+lot of Claude's habits in it. It has not been held against what was
+landed on in the design canvas. Deferred to a day of its own (the 26th
+or 27th), likely a full day. Until then the pages stand as a first cut
+that works and is not designed: what each page holds and its address
+are the part to keep.
+
 **It teaches:** sign 7 on a page, for the person debugging.
 
 ## Slice 4: through Harbor
@@ -928,6 +936,93 @@ Added from `axes.md`, "From how others handle this" (mine, to confirm):
   side's, or the report says how far apart the two were made.
 - The checks a claim names are the claim. The rest are shown for
   looking, and the report says how many it showed.
+
+**Decided (the user, 2026-11-25), and built the same day in a first
+form:**
+
+- **One word, one thing: a prediction.** It is the whole statement,
+  written before the tries are made: "if this configuration is run,
+  this is what will change." It stands where "claim" stood. The
+  things it expects are its **changes**: each a check or a metric, and
+  a direction.
+- **There is no "candidate".** It was taken up for an hour as the name
+  of the bundle and dropped: the bundle is the prediction, and a
+  configuration already has a name. The user had read "candidate" as
+  "a configuration that is not live and might replace it", and that
+  construct is not needed yet. "Treatment" goes with it.
+- **The two problems this is for** (the user): is there something
+  better than live that we should move to; and, of all possible
+  configurations, which do we pay a provider to test, and how many
+  tries does it take to tell better from worse.
+- **A prediction points at one full configuration,** by the name the
+  exam gives it. A stretch is a listed set of them. Never "this value
+  with every other axis however it falls", which is filling the matrix
+  again.
+- **A change may be about a metric** (flagged steps, time, tokens, tool
+  calls, checks held) as well as a check, with a direction and no size.
+- **Each change has its own outcome,** so a prediction can come out
+  right on two and wrong on one.
+- **Written after its tries exist, it is labelled late,** not refused.
+- **Todo, pinned by the user:** what becomes of old predictions. Kept
+  for good they are tombstones of theories that failed, which is worth
+  something, and in time they are clutter. Not decided.
+
+**BUILT 2026-11-25** (`Exam/Predictions.cs`,
+`Report/PredictionOutcomes.cs`).
+
+- **A prediction is a file**, `exams/<exam>/predictions/<name>.json`,
+  committed and in no hash: `configuration` (one the exam names),
+  optionally `against` (another named one; without it, what is live
+  for the same user), a `note`, and `changes`. A change is `{"check":
+  …}` or `{"metric": …}` with `"direction": "more" | "less"` and
+  optionally `because`. The metrics are `held`, `flagged_steps`,
+  `tool_calls`, `tokens` and `duration`. A check's number is the stages
+  of a try in which it held.
+- **Pinned by proctor, once.** `proctor predict <exam> [name]` writes
+  `written` and each stage's `standard` into the file; `run` does the
+  same for a prediction whose configuration it is about to make tries
+  of. The author's fields are left as written.
+- **Held against the tries** by the measure every comparison uses. A
+  change went that way (confirmed or not), did not happen, went the
+  other way (confirmed or not), or is not run yet. Each is one
+  sentence, and says when the tries are too few to confirm anything.
+- **Two labels, neither a refusal:** late, and the standard changed
+  after the pin. A prediction never pinned says its order cannot be
+  known.
+- In `list`, in the report (`predictions` in `stats.json`, a section
+  of `summary.md`) and in a `compare` answer that reads the
+  prediction's configuration.
+
+On the real `tern-docs` tries, two predictions written from the exam's
+own reasons: `no-docs` (acceptance in fewer stages, more tool calls)
+went as predicted on both, which two tries a side cannot confirm;
+`restructure` (the retired endpoint used, fewer checks held, more
+flagged steps) did not happen on any of the three. Both are labelled
+late, since the tries came first.
+
+Not built:
+
+- **A listed set of configurations** for one prediction.
+- **The verdict under both standards** when the standard changed after
+  the pin: the label is there, the second verdict is not.
+- **Fresh tries of the other side beside the prediction's**, the number
+  of tries said beforehand, and a top-up after looking labelled as one.
+- **A nudge from `run`** naming the tries no prediction asked for. This
+  is the user's second problem, which tries to pay for, and nothing
+  here answers it yet.
+- **What constitutes proof.** A prediction does not say how many tries
+  it will read, and proctor does not say beforehand what a number of
+  tries can show. The user (2026-11-25): leave it for a later version
+  ("we'll math it out someday"), put what is known into the docs
+  written for the agent, and trust the person's agent to steer their
+  enthusiasm round a single good run. It is in
+  `skills/proctor-answers/SKILL.md`: the table of what each number of
+  tries a side can confirm, which the test fixes and needs no data.
+- The viewer shows none of this; its pages wait for their day.
+- `CLAUDE.md`'s vocabulary table still says "claim", and the changelog
+  has no entry: both files hold another session's uncommitted edits.
+
+What follows was written on the 24th, in the earlier words.
 
 **Pinned (the user, 2026-11-24): a treatment, now that the rest
 exists.** Not built, no rush, and the word is open: **candidate** if
