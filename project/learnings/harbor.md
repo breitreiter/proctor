@@ -443,3 +443,162 @@ Both conformance tests on the same machine, Harbor run through a sandboxed
   left two exited sidecars and two networks (`…__env_default`,
   `…__verifier__trial_default`), 18 of each per run. The cause is
   AppArmor, not the sandbox (above).
+
+## A gateway on the same machine as the containers (2026-11-25)
+
+Seen on a laptop where the model gateway listens on the host's loopback
+and Docker is rootless. An agent run through Harbor is in a container,
+and could not reach the gateway at all. What was tried, and what each
+showed:
+
+- **`localhost` in the container is the container.** Expected, and the
+  reason for the rest.
+- **Rootless Docker ships with the host's loopback closed**
+  (`rootlesskit --disable-host-loopback`): `10.0.2.2` is unreachable.
+- **`host.docker.internal` and the bridge's gateway** are the rootless
+  network's own, not the host: connection refused.
+- **The host's own LAN address was unreachable too**, for an accident
+  of the network: the Wi-Fi was `172.17.1.0/24` and Docker's default
+  bridge is `172.17.0.0/16`, so a container took the host for a
+  neighbour on the bridge. A gateway bound to the LAN address would
+  also be open to whatever network the machine is on.
+- **A relay cannot be a container**: it would sit in the same network.
+- The gateway took the agent's key in `x-api-key`, which is how Claude
+  Code sends one, so auth was not a second problem.
+
+Two things are kept apart here on purpose (the user, 2026-11-25).
+
+**What was done on that laptop, for narrow testing only.** The host's
+loopback was opened to its rootless Docker
+(`DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK=false`), so a
+container reaches the gateway at `10.0.2.2`. This opens every loopback
+service on the host to every container, an agent under test included;
+Harbor's allowlist names a host, and the host is then the whole
+loopback. **It is not advice.** It is not to go into the docs, the
+skill or setup's sandbox plan, and it is not to be set on a machine
+that matters.
+
+**What to suggest for normal runs is not settled.** A proposal, mine
+and untested: give the host one private address that is neither
+loopback nor on any network (an alias on `lo`), have the gateway
+listen there as well, and name that address in `agents.<agent>.base_url`.
+A container then reaches one address and one port, nothing else on the
+host, and nothing is open to the network. It needs root on the host
+twice (the address, and the gateway's listen list), and whether
+rootless Docker lets such an address through was not tried.
+
+## When Harbor applies a network policy (read 2026-11-25)
+
+Read in Harbor 0.24.0's source for `plans/container-network.md`, not
+run.
+
+- **The agent's policy is on only during the agent's phase.**
+  `Trial._phase_network_policy` sets it on entering the phase and sets
+  the environment's baseline back on leaving. Proctor compiles the
+  environment `public`, so the agent's setup, the bridge's and the
+  simulated user's run with the internet, and so does the container
+  after the agent has finished, and between the steps of a job with
+  several. A process the agent left running outlives its allowlist.
+- **An allowlist entry is a domain, a wildcard, an IP, a CIDR or a
+  range, never a port** (`bin/network-policy`). A trial also takes
+  `extra_allowed_hosts`, merged into the task's unless the policy is
+  public.
+- **Under a policy the sidecar passes ICMP and DNS** to the resolvers
+  in the container's `resolv.conf`, and rejects all other traffic that
+  is not TCP. TCP goes to gost's transparent handler, which sniffs
+  `Host` and SNI and, failing that, falls back
+  (`sniffing.fallback: true`); what it falls back to was not read.
+- **On Modal the image's entrypoint is replaced** by `sleep infinity`
+  unless the environment is given `keepalive` (a command, or none to
+  keep the image's own).
+
+## What an agent's phase can reach, probed (2026-11-25)
+
+Leg A of `plans/container-network.md`, on golem: rootless Docker 29.1.3,
+Harbor 0.24.0, kernel 7.0. The task is `learnings/netprobe/` (Harbor's
+`oracle` agent, no model, about two minutes a trial): two targets as
+compose services that declare `networks`, so each has an address of its
+own and a connection to either crosses the sidecar. Each answers HTTP on
+two ports, TLS on a third and, on a fourth, speaks first as ssh does.
+Run under an allowlist of the one name, of that target's IP, and public
+as the control; the outputs are beside the task.
+
+- **The allowlist cannot be talked past.** HTTP to the other target's
+  address with `Host:` naming the allowed one, and TLS likewise with
+  the SNI, were both answered *by the allowed target*: gost dials the
+  name it sniffed, never the address the packet was going to. The
+  reverse (the allowed target's address, the other's name) gets nothing.
+- **Allowed by name is every HTTP and TLS port of that host, and
+  nothing else of it.** A second HTTP port answered. A protocol where
+  the server speaks first got nothing, and so did the host's own IP
+  with no name. So ssh on a gateway's host is closed to the agent;
+  another web service on it is open.
+- **Allowed by IP is the reverse, and looser.** The address answers
+  HTTP only when `Host` is the address too (so a base URL must spell
+  the IP), nothing by name, nothing over TLS with a name in the SNI.
+  But the server-speaks-first port answered: with nothing to sniff,
+  gost falls back to the address, so every port and protocol of an
+  allowed IP is open.
+- **Names resolve and ping leaves.** Under either allowlist a public
+  name resolved, and `ping 1.1.1.1` was answered. UDP to an outside
+  resolver was refused. Not a way to fetch anything, but "the agent
+  reaches nothing else" is not true as a sentence.
+- **Golem's open host loopback is shut by the allowlist and open
+  without it.** `10.0.2.2:<a loopback port>` answered under `public`
+  and not under either allowlist. Which makes the next point matter
+  more on such a machine.
+- **A process the agent leaves running gets the internet when its
+  phase ends.** A loop started in the agent's phase, fetching
+  `http://example.com` once a second, got nothing for the whole phase
+  and `200` from the second after it, through collect, until teardown.
+  This is the window read from the source above, seen. On a machine
+  with the host's loopback open it reaches that too.
+- **With the environment itself allowlisted, it never does.** The same
+  task with `[environment]` given the agent's `network_mode` and
+  `allowed_hosts`: the loop got nothing from start to teardown, and the
+  trial finished with its reward. The image still built (a build is the
+  engine's, not the sidecar's). Not yet tried with a vendor agent's
+  setup under it.
+- **The container's gateway is not the host under rootless Docker**
+  (connection refused on every port, in `public`). On rootful Docker it
+  is; not run.
+- **The agent is root in its container** (Harbor's `oracle`; the vendor
+  agents were not looked at).
+
+## A model on the host's loopback, through a socket (2026-11-25)
+
+Leg B of `plans/container-network.md`, on golem (rootless Docker
+29.1.3, Harbor 0.24.0). The stub model ran **on the host**, bound to
+`127.0.0.1`; `socat UNIX-LISTEN:<dir>/model.sock,fork TCP:127.0.0.1:<port>`
+was its host end; the stub fixture's compose file held, in place of the
+stub, a relay (`learnings/netprobe/relay/`, forty lines of Python in
+`python:3.13-alpine`) with `<dir>` bind-mounted, serving the socket at
+`localhost:8765`. Nothing else changed: `proctor run conformance` in a
+scratch root, the agents' base URLs `http://localhost:8765` as
+conformance has them.
+
+- **All three vendor agents came back as scripted.** Claude Code, Codex
+  and Qwen Code, tasks `ok` and `hang`: `ok` passed with `made-file`
+  1, `hang` was `completed` with `time_budget`. The host stub logged
+  the ten requests. A relay that declares no network is in the agent's
+  namespace like any fixture service, and a bind mount of an absolute
+  host path beside the sidecar is no trouble.
+- **It needs no network in any phase.** Claude Code's `ok` again with
+  `[agent]` and `[environment]` both `no-network`: reward 1, the same
+  trajectory. So with a relay the leftover-process window above closes
+  too, and the agent's setup (a version check, the agent being in the
+  image) is content with nothing.
+- **A socket's path is at most 108 bytes.** The first try put it under
+  the scratch root and socat refused it (110). A socket cannot live
+  under `log/<id>/…` of a repository at any depth; it wants a short
+  directory (`$XDG_RUNTIME_DIR`), or to be reached through a symlink,
+  which is what was done here.
+- **Eight streamed answers at once pass.** Outside Harbor, a container
+  with `--network none`: eight clients, each a sixty-second
+  `text/event-stream` of one event a second through one host socket.
+  Every client got its sixty events, the first within 20 ms, so nothing
+  buffers.
+- Not tried: podman (`keep-id`, a label on the mount), rootful Docker
+  (the socket is then root's on the host side of the mount), an agent
+  that is not root, the host end restarted during a run, nb as the
+  agent, the simulated user.

@@ -812,6 +812,23 @@ Not built:
 A paid run of `tern-docs` is the first real test of a vendor agent on
 stages and on axes at once. It is agreed with the user first.
 
+**Run 2026-11-25, one try** (the user: go ahead; one try first, to
+learn the cost): `as-shipped`, Claude Code 2.1.301 on Sonnet, through
+Harbor on rootless Docker, the model reached through the laptop's
+gateway. The try was whole: six stages, each `ok`.
+
+- **The path works for a vendor agent.** The steps were ingested, the
+  script checks ran in the verifier, and the agent read the docs from
+  the fixture's service, which served the `DOCS` tree the value set.
+  `grade`, `friction`, `report`, `coverage` and the viewer read it.
+- **Every stage passed its headline checks,** in three or four tool
+  calls and 15 to 24 seconds each. The agent opened the docs with
+  `curl` from the shell and never with `WebFetch`.
+- **Cost:** 25 requests and $0.54 for the try, $0.04 to $0.09 a stage.
+  The image build took 21 minutes on that connection, once.
+- So the exam's own question needs four tries a side, 12 in all:
+  about 300 requests and $6.50 at this rate.
+
 **It teaches:** whether "values set parameters, never steps" (decision
 10) holds for a real image and a real service, and sign 8 where it is
 hardest.
