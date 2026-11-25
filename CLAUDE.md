@@ -97,6 +97,7 @@ in the order the verbs run them. Every file is one concern:
 | `Grade/Checks.cs` | the built-in vocabulary and the script contract; `Glob` |
 | `Grade/Window.cs` | what a model check sees: named extractions from the transcript, joined with `+`, compiled into labelled fences |
 | `Grade/Judge.cs` | `JudgeClient` (the transports), the `decide` check over systemone, the `judge` check over chat, the verdict file as cache, the report's judge provenance |
+| `Grade/Standard.cs` | grades over time (`axes-build.md`, slice 5): the standard a stage is graded under (its checks, their conditions and scripts, the pass and validity lists, the expected values), each grade kept under it in the attempt's `grades/`, whether a check applies in a configuration (`when`), which tries are not yet graded, and what moved between an earlier grade and this one (`Standard.Moves`: narrowed, added, removed) |
 | `Grade/Grade.cs` | checks over an attempt into `checks.json`; the headline pass |
 | `Friction/Shell.cs` | a shell command as the friction rules read it: words, then actions (one per pipeline, named by its first command, heredoc bodies dropped); POSIX path and glob helpers, since the paths are the container's |
 | `Friction/Friction.cs` | `Surface` (the exam's `surface` block, compiled) and the friction rules: an attempt's trajectory into `friction.json` (schema `friction/1`: the `attempt` it is about, points, each with a checked quote, and the summary by surface part) |
@@ -149,10 +150,24 @@ The directories are for reading, not for namespaces: everything is
   exits non-zero or an nb startup error (exit 1, no `result` trailer) marks the
   attempt failed with a reason. A transcript whose exit reason is `max_tool_calls`
   is completed; grading decides what it means.
-- **Grading writes beside the evidence.** `checks.json`, and a model check's
-  `verdicts/`, are the only files the grader adds to an attempt. `report`
+- **Grading writes beside the evidence.** `checks.json`, a model check's
+  `verdicts/`, and `grades/` are the only files the grader adds to an attempt. `report`
   reads `checks.json`; a completed attempt without one is reported as not
   analysed, and `report` says to run `grade`.
+- **A grade names its standard, and an earlier grade is kept.** Every `grade` writes `checks.json` (the verdicts as they
+  are now) and `grades/<standard>.json` in the attempt: the same verdicts with the standard's hash (`Standard.Hash`),
+  the exam's hash and the time. Graded again under the same checks, that file is replaced; under changed checks,
+  another is added beside it. On an exam with axes a try with no grade under the checks as they are now is **not yet
+  graded**: it is left out of the report's numbers (`ConfigurationRow.NotGraded`, state `not_graded`), counted in
+  `coverage`, and a `compare` that would read it is refused, so both sides of a comparison are always under one
+  standard. `grade --value` or `--configuration` grades part of an exam and leaves the rest so. A check may carry
+  `"when": "<axis> = <value>"` (with `!=` and `and`, as a stage's): where it does not hold, the verdict is
+  `not-applicable`, no script runs and no judge is asked, the check is no part of the headline there
+  (`Standard.PassIn`), and it counts toward nothing. `Standard.Moves` compares the current grade with the earlier ones
+  kept: a check narrowed away from where it had been decided, one added after the first grade, one removed. Each is
+  a sentence in `grade`'s output, in the report ("The standard moved") and in every comparison that reads the tries
+  concerned, because a number can move with nothing re-run. Before a judged grade asks anything, `Grade.Cost` counts
+  what it would ask of each judge and what is already on file (`JudgeClient.Counting`).
 - **Friction is beside grading, not in it.** `proctor friction` writes
   `friction.json` in an attempt and reads only `trajectory.json` and the
   exam's `surface`; no check, verdict or report reads either. The rules

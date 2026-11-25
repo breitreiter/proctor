@@ -527,6 +527,13 @@ public class JudgeTests
         var grades = Proctor.Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, log, judges);
 
         Assert.Contains("variant 'a' (glm-4.7) is in the family of judge 'glm' (glm)", log.ToString());
+        // What a regrade would ask now is counted without asking (plans/axes-build.md, slice 5): every decide verdict is on file and costs nothing.
+        var (httpCalls, chatCalls) = (http.Calls, chat.Calls);
+        var cost = Proctor.Grade.Cost(repo.Root, exam, Bank.Select(repo.Root, exam).Current, judges);
+        Assert.Contains("  jev: nothing to ask; 3 already on file, which cost nothing", cost);
+        Assert.Contains(cost, line => line.StartsWith("  glm: "));
+        Assert.Equal((httpCalls, chatCalls), (http.Calls, chat.Calls));
+        Assert.False(judges.Counting);
         var plain = grades.Single(g => g.Task == "plain");
         Assert.Equal("pass", plain.Checks!["stance"].Result);
         Assert.Equal("yes p=0.99", plain.Checks["stance"].Reason);

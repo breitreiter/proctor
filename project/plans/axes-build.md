@@ -810,6 +810,73 @@ hardest.
 - `grade` states what a judged regrade will cost before spending it,
   and may leave configurations not yet graded.
 
+**BUILT 2026-11-25** (`Grade/Standard.cs`).
+
+- **A grade is kept under its standard.** `grades/<standard>.json` in
+  the attempt, beside `checks.json`, which stays the verdicts as they
+  are now. The standard is a stage's checks (fields, condition, a
+  script's content), the pass and validity lists and the expected
+  values. A regrade under the same standard replaces its file; under
+  another it adds one.
+- **`when` on a check**, in the words a stage's condition uses, refused
+  at load when it names something undeclared or the exam has no axes.
+  Where it does not hold the verdict is `not-applicable`: no script
+  runs, no judge is asked, and the check is not in that
+  configuration's headline, so a try there holds of fewer checks.
+- **Not yet graded** is a try with no grade under the checks as they
+  are now. The report leaves it out of every number and says how many;
+  `coverage` counts it; `compare` refuses a comparison that would read
+  it. `grade --value` or `--configuration` grades part of an exam and
+  says how many tries elsewhere are left.
+- **The standard moved**: from the grades kept, a check narrowed away
+  from where it had been decided, one added after the first grade, one
+  removed, each with the verdicts concerned. Said by `grade`, in the
+  report, and in every comparison that reads those tries.
+- **The cost first.** Before a judged `grade` asks anything it prints,
+  per judge, the verdicts it would ask, the votes they come to, and the
+  verdicts already on file. It counts by compiling each request and
+  looking for its file, and sends nothing.
+- The stage page lists a check that does not apply apart from passed
+  and failed.
+
+Tried on the scripted bank of 3c, 28 tries. One check was narrowed to
+one assistant and another added, and the tries graded again without
+being made again: 8 verdicts were withdrawn (5 failed, 3 passed), and
+the rewritten guide on the second assistant, which had read "worse,
+confirmed (p = 0.029)", read "worse, not confirmed (p = 0.286)" with
+"the standard moved" beside it. That is the case `axes.md` warns of: a
+narrowing changed a verdict with nothing re-run, and the answer says
+so.
+
+Decided while building, and confirmed by the user 2026-11-25:
+
+- **The standard is the checks, not the exam's hash.** `axes.md` says a
+  grade names the exam's hash. That changes with a prompt or a note,
+  and would make every try "not yet graded" after an edit that touched
+  no check. The exam's hash is recorded beside it.
+- **A bank graded before this reads as not yet graded** on an exam with
+  axes, until `grade` is run once. It reuses the verdicts on file.
+  Exams without axes are read as before.
+- **`compare` refuses rather than leaving ungraded tries out.** A
+  comparison quietly made of the tries that happen to be graded would
+  be a different comparison.
+- **The cost is counted in verdicts and votes, not money.** Proctor
+  does not know a judge's price.
+- **"Added later" is measured against a stage's first grade**, so it
+  keeps being said after further regrades. A narrowing is measured
+  against the last grade that decided the check.
+
+Not built:
+
+- **The verdict under both standards for a claim** ("standard changed
+  after the claim"): claims are slice 6. The grades kept are what it
+  will read.
+- **A check that was wrong** and is corrected shows as nothing here: a
+  changed check gives a new standard, and no move is named unless it
+  was narrowed, added or removed.
+- **Re-reading a final workspace that was not kept** is as before: a
+  script check on an agent's try goes `outdated`.
+
 **It teaches:** sign 7 again, with the states that only appear once
 checks change. The page from slice 3 gains them.
 

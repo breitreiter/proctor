@@ -43,7 +43,7 @@ record ComparisonAnswer(string Schema, string Exam, string AsOf, string Address,
 
 /// <summary>A configuration as coverage sees it: who asked for it, how far it is from what is live, its tries and how old the newest is.</summary>
 record CoverageRow(string Configuration, string? Name, Dictionary<string, string> Values, bool Live, List<string> OffLive, int Tries, int Wanted, int Lost, int Stale,
-    string? First, string? Last, double? DaysSinceLast, string? Together, string Address);
+    string? First, string? Last, double? DaysSinceLast, string? Together, string Address, int NotGraded = 0);
 
 /// <summary>One value: whether it is live or its axis's reference, and the tries of every configuration holding it.</summary>
 record ValueCoverage(string Axis, string Value, string? Note, bool Live, bool Reference, int Configurations, int Tries, string? Last);
@@ -141,11 +141,14 @@ static class Answers
         var (tries, _) = Tries.Compute(root, exam, current, Bank.Of(root, exam), rows, null, null);
         var byKey = tries.Variants.ToDictionary(v => v.Id);
         var standing = Combinations.Load(exam).Stand(exam);
-        var comparison = Configurations.Compare(exam, byKey, standing, change, against, within);
+        var moves = Standard.Moves(root, exam, current);
+        var comparison = Configurations.Compare(exam, byKey, standing, change, against, within, moves);
 
+        // Both sides under the checks as they are now. A try with no grade, or one graded only under earlier checks, is not yet graded;
+        // the rest of the exam may stay that way, and this comparison may not.
         var keys = comparison.Cells.SelectMany(c => new[] { c.Key, c.LiveKey }).ToHashSet();
-        var ungraded = rows.Count(r => keys.Contains(r.Variant) && r.Status == AttemptStatus.Completed && r.Checks is null);
-        if (ungraded > 0) throw new ProctorException($"{ungraded} stage{(ungraded == 1 ? "" : "s")} of the tries in this comparison {(ungraded == 1 ? "is" : "are")} not graded, and an ungraded try would read as one that held nothing: run `proctor grade {exam.Id}` first");
+        var ungraded = current.Count(a => keys.Contains(a.Variant) && a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.TaskOf(a.Task), a.Dir(root)));
+        if (ungraded > 0) throw new ProctorException($"{ungraded} stage{(ungraded == 1 ? "" : "s")} of the tries in this comparison {(ungraded == 1 ? "is" : "are")} not yet graded under the checks as they are now, and an ungraded try would read as one that held nothing: run `proctor grade {exam.Id}` first");
 
         var ids = then.GroupBy(x => (x.Attempt.Variant, x.Attempt.Attempt)).ToDictionary(g => g.Key, g => g.First().Id);
         SideAnswer Side(string key)
@@ -162,7 +165,7 @@ static class Answers
             List<int> Counted(string key) => byKey[key].Rows.Where(r => r.Invalid is null).Select(r => r.N).ToList();
             int Held(string key, List<int> ns, string stage, string check) => rows.Count(r => r.Variant == key && ns.Contains(r.Attempt) && r.Task == stage && r.Checks?.GetValueOrDefault(check) == Verdict.Pass);
             var (mineNs, theirNs) = (Counted(c.Key), Counted(c.LiveKey));
-            return exam.StagesOf(c.Key).SelectMany(s => exam.PassFor(s).Select(check =>
+            return exam.StagesOf(c.Key).SelectMany(s => Standard.PassIn(exam, s, c.Key).Select(check =>
                 new CheckHeld(s.Id!, check, exam.ChecksFor(s).GetValueOrDefault(check) is { } declared ? Checks.Describe(declared.Spec) : null, Held(c.Key, mineNs, s.Id!, check), mineNs.Count, Held(c.LiveKey, theirNs, s.Id!, check), theirNs.Count))).ToList();
         }
         var cells = comparison.Cells.Select(c => new CellAnswer(c.Holding, c.State, Side(c.Key), Side(c.LiveKey), c.Held, c.Flagged,
@@ -236,6 +239,7 @@ static class Answers
         var counted = bank.Where(a => a.Counts && Bank.Stale(exam, a) is null).Select(a => (a, Id: a.Entry.IdOf(a.Variant, a.Attempt))).Where(x => MadeAt(x.Id) <= at)
             .GroupBy(x => x.a.Variant).ToDictionary(g => g.Key, g => g.Select(x => x.Id!).Distinct().Order(StringComparer.Ordinal).ToList());
         var standing = Combinations.Load(exam).Stand(exam);
+        var ungraded = Configurations.NotGraded(root, exam, bank.Where(a => a.Counts && Bank.Stale(exam, a) is null));
         var liveAxes = axes.Def.Where(d => d.Value.Live is not null).Select(d => d.Key).ToList();
 
         CoverageRow Row(Configuration c)
@@ -247,7 +251,7 @@ static class Answers
                 bank.Where(a => a.Lost && a.Variant == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
                 bank.Where(a => a.Variant == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
                 times.Count > 0 ? Iso(times.Min()) : null, times.Count > 0 ? Iso(times.Max()) : null, times.Count > 0 ? Math.Round((at - times.Max()).TotalDays, 1) : null,
-                standing.TryGetValue(c.Key, out var together) ? together.State : null, ConfigurationAddress(exam, c.Key));
+                standing.TryGetValue(c.Key, out var together) ? together.State : null, ConfigurationAddress(exam, c.Key), ungraded.Count(u => u.Variant == c.Key));
         }
         var rows = axes.Configurations.Select(Row).ToList();
 
@@ -279,6 +283,7 @@ static class Answers
             + "live_span is every configuration with the live value on each axis that has one, across every value of the axes that have none; a row there with no tries is a setting in use that nothing here has tried. "
             + "It is listed in full unless it is over 200 configurations (listed false), and then only those with tries are given. "
             + "together on a configuration says whether `proctor build` found it to be its values put together (sum), more (more), not to be told (unclear) or never checked (not_checked); absent when it is at most one value off the reference. "
+            + "not_graded counts a configuration's tries with no grade under the checks as they are now: they are made, and in no comparison until `proctor grade` reads them. "
             + "A value nobody declared cannot show here at all. days_since_last is the age of the newest try at as_of: an old try was made on the agent and model as they were then. Nothing here recommends anything.");
     }
 

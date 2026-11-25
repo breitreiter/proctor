@@ -398,6 +398,18 @@ sealed class Exam
         }
         foreach (var (field, given) in new (string, object?)[] { ("configurations", def.Configurations), ("exclude", def.Exclude), ("params", def.Params) })
             if (def.Axes is null && given is not null) problems.Add(new Problem(rel(examFile), field, "goes with axes"));
+        // A check's `when` says which configurations it applies in (plans/axes-build.md, slice 5): it names only what the exam declares.
+        var conditioned = (def.Grading?.Checks ?? []).Select(k => (File: rel(examFile), Field: $"grading.checks.{k.Key}.when", k.Value))
+            .Concat(fixtures.Values.SelectMany(f => (f.Checks ?? []).Select(k => (File: rel(Path.Combine(f.Dir, Layout.FixtureFile)), Field: $"checks.{k.Key}.when", k.Value))))
+            .Concat(tasks.SelectMany(c => (c.Checks ?? []).Select(k => (File: rel(c.File!), Field: $"{c.At}checks.{k.Key}.when", k.Value))));
+        foreach (var (file, field, spec) in conditioned)
+        {
+            if (spec?[Checks.When] is not JsonValue v || !v.TryGetValue<string>(out var text)) continue;
+            if (def.Axes is null) { problems.Add(new Problem(file, field, "goes with axes: a condition names an axis and a value the exam declares")); continue; }
+            foreach (var (axis, _, value) in When.Parse(text, out _)?.Terms ?? [])
+                if (!def.Axes.TryGetValue(axis, out var declared) || declared is null) problems.Add(new Problem(file, field, $"'{axis}' is not a declared axis; declared: {string.Join(", ", def.Axes.Keys)}"));
+                else if (declared.Values?.ContainsKey(value) != true) problems.Add(new Problem(file, field, $"'{value}' is not a value of axis '{axis}'; declared: {string.Join(", ", declared.Values?.Keys.AsEnumerable() ?? [])}"));
+        }
 
         ValidateDef(def, root, dir, rel(examFile), examId, tasks, variants, fixtures, problems);
         if (judges is not null)

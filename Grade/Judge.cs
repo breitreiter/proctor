@@ -28,6 +28,20 @@ sealed class JudgeClient
     public Func<TimeSpan, Task> Sleep { get; init; } = d => Task.Delay(d);
     /// <summary>Where a stopped judge is announced, as it stops.</summary>
     public Action<string> Note { get; init; } = _ => { };
+    /// <summary>
+    /// Count and ask nothing (plans/axes-build.md, slice 5): each model check is compiled as far as its request, a verdict
+    /// on file is counted as on file, and one that would be asked is counted and left unasked. `grade` does this first,
+    /// so what a regrade will cost is said before it is spent.
+    /// </summary>
+    public bool Counting { get; set; }
+    /// <summary>What a counting pass found, per judge: the verdicts to ask, the votes they come to, and the verdicts already on file.</summary>
+    public Dictionary<string, (int ToAsk, int Votes, int OnFile)> Counted { get; } = [];
+    internal void Count(string judge, int toAsk, int votes, int onFile)
+    {
+        var was = Counted.GetValueOrDefault(judge);
+        Counted[judge] = (was.ToAsk + toAsk, was.Votes + votes, was.OnFile + onFile);
+    }
+
     /// <summary>The model checks that ended in error this pass, per judge, with their reasons.</summary>
     public Dictionary<string, List<string>> Errors { get; } = [];
 
@@ -279,6 +293,7 @@ static class Judge
         var hash = Hash(call.Def.Kind!, call.Def.Endpoint!, request.ToJsonString(), threshold.ToString("R"), expected);
 
         if (Cached(call, hash) is { } cached) return cached;
+        if (call.Client.Counting) { call.Client.Count(call.Judge, 1, 1, 0); return new Verdict(Verdict.NeedsJudge, "not asked: counted only"); }
 
         var started = DateTime.UtcNow;
         JsonNode response;
@@ -355,6 +370,7 @@ static class Judge
         var hash = Hash(call.Def.Kind!, call.Def.Model!, request.ToJsonString(), expected);
 
         if (Cached(call, hash) is { } cached) return cached;
+        if (call.Client.Counting) { call.Client.Count(call.Judge, 1, votes, 0); return new Verdict(Verdict.NeedsJudge, "not asked: counted only"); }
 
         var started = DateTime.UtcNow;
         var responses = new List<JsonNode>();
@@ -449,6 +465,7 @@ static class Judge
         if (call.Client.Rejudge || !File.Exists(file)) return null;
         var on = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(file), Exam.JsonOptions);
         if (on is null || on.Verdict.Result == Verdict.Error) return null;
+        if (call.Client.Counting) { call.Client.Count(call.Judge, 0, 0, 1); return on.Verdict; }
         if (!on.Applied && !call.Client.Comparing) Runner.WriteJson(file, on with { Applied = true });
         return on.Verdict;
     }

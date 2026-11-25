@@ -25,6 +25,8 @@ record Verdict(string Result, string Reason)
     public override int GetHashCode() => HashCode.Combine(Result, Reason);
 
     public const string Pass = "pass", Fail = "fail", NeedsJudge = "needs-judge", Error = "error", Outdated = "outdated";
+    /// <summary>The check does not apply in this try's configuration (its `when`). Neither pass, fail nor undecided: it counts toward nothing.</summary>
+    public const string NotApplicable = "not-applicable";
     public static Verdict Of(bool ok, string reason) => new(ok ? Pass : Fail, reason);
     public static Verdict Err(string reason) => new(Error, reason);
 }
@@ -111,7 +113,9 @@ static class Checks
     public const string Why = "why";
 
     /// <summary>A key that says something about the check rather than being one: <see cref="Description"/> or <see cref="Why"/>.</summary>
-    public static bool IsNote(string key) => key is Description or Why;
+    /// <summary>The third: the configurations a check applies in, `axis = value` or `axis != value` joined by `and`, on an exam with axes.</summary>
+    public const string When = "when";
+    public static bool IsNote(string key) => key is Description or Why or When;
 
     static readonly string[] Known =
     [
@@ -155,6 +159,8 @@ static class Checks
         var why = spec[Why];
         if (why is not null && (why is not JsonValue wv || !wv.TryGetValue<string>(out var whyText) || string.IsNullOrWhiteSpace(whyText)))
             yield return (Why, "a why is a sentence, not an empty string");
+        if (spec[When] is { } when && (when is not JsonValue cv || !cv.TryGetValue<string>(out var condition) || Proctor.When.Parse(condition, out _) is null))
+            yield return (When, when is JsonValue pv && pv.TryGetValue<string>(out var given) && Proctor.When.Parse(given, out var problem) is null ? problem! : "a condition: `axis = value` or `axis != value`, joined by `and`");
         if (description is null && spec.ContainsKey("script"))
             yield return (Description, "required for a script check: say in a sentence what the script tests, for the report's reader");
         foreach (var (key, value) in fields)

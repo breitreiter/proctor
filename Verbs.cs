@@ -207,6 +207,12 @@ static class Verbs
         var selection = Bank.Select(root, exam, variantIds, taskIds);
         var judges = exam.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge, Console.WriteLine) : null;
         var before = selection.Current.ToDictionary(a => a.Label, a => Proctor.Grade.ReadChecks(a.Dir(root)));
+        // What the judges will be asked, said before any is: a regrade's cost is the verdicts not already on file.
+        if (judges is { Comparing: false } && Proctor.Grade.Cost(root, exam, selection.Current, judges) is { Count: > 0 } cost)
+        {
+            Console.WriteLine("judged checks, before any is asked:");
+            foreach (var line in cost) Console.WriteLine(line);
+        }
         var grades = Proctor.Grade.Attempts(root, exam, selection.Current, Console.Out, judges);
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
@@ -216,6 +222,11 @@ static class Verbs
         Console.WriteLine($"graded {graded} of {grades.Count} {(exam.Staged ? "stages" : "attempts")}{(exam.Staged && grades.Count(g => g.Status == AttemptStatus.Skipped) is > 0 and var skipped ? $" ({skipped} not reached)" : "")}; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --variant/--tasks left as they were" : "")}");
         foreach (var line in Proctor.Grade.ByCheck(grades, before)) Console.WriteLine(line);
         if (Proctor.Grade.OutdatedSummary(exam.Id, grades) is { } summary) Console.WriteLine(summary);
+        foreach (var move in Standard.Moves(root, exam, selection.Current)) Console.WriteLine($"  the standard moved: {move.Sentence}");
+        if (exam.Axes is not null && untouched == 0 && Configurations.NotGraded(root, exam, Bank.Select(root, exam).Current) is { Count: > 0 } left)
+            Console.WriteLine($"  {left.Count} {(left.Count == 1 ? "try" : "tries")} not yet graded under the checks as they are now");
+        else if (exam.Axes is not null && untouched > 0 && Configurations.NotGraded(root, exam, Bank.Select(root, exam).Current) is { Count: > 0 } rest)
+            Console.WriteLine($"  {rest.Count} {(rest.Count == 1 ? "try" : "tries")} elsewhere not yet graded under the checks as they are now: in no number until graded");
         foreach (var line in Bank.Describe(selection.Stale, "not graded")) Console.WriteLine(line);
         foreach (var (judge, reasons) in judges?.Errors ?? [])
         {
@@ -511,7 +522,9 @@ static class Verbs
         File.WriteAllText(Path.Combine(outDir, Layout.SummaryFile), Configurations.Markdown(stats, friction));
         Console.WriteLine($"{Path.GetRelativePath(root, Path.Combine(outDir, Layout.SummaryFile))}");
         var notRun = stats.Configurations.Where(c => c.State == "not_run").ToList();
-        Console.WriteLine($"  {stats.Configurations.Count(c => c.State is "made" or "partial")} of {stats.Configurations.Count(c => c.State != "excluded")} configurations have tries{(notRun.Count > 0 ? $"; not run: {string.Join(", ", notRun.Select(c => c.Label))}" : "")}");
+        var notGraded = stats.Configurations.Sum(c => c.NotGraded);
+        Console.WriteLine($"  {stats.Configurations.Count(c => c.State is "made" or "partial")} of {stats.Configurations.Count} configurations have graded tries{(notRun.Count > 0 ? $"; not run: {string.Join(", ", notRun.Select(c => c.Label))}" : "")}"
+            + (notGraded > 0 ? $"; {notGraded} {(notGraded == 1 ? "try is" : "tries are")} not yet graded under the checks as they are now and in no number: `proctor grade {exam.Id}`" : ""));
         foreach (var c in stats.Comparisons) Console.WriteLine($"  {c.Sentence}");
         foreach (var line in Bank.Describe(selection.Stale, "left out")) Console.WriteLine(line);
         return 0;

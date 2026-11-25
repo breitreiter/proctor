@@ -7,6 +7,24 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Grades over time** (`axes-build.md`, slice 5). `grade` keeps each
+  grade in the attempt as `grades/<standard>.json`, beside
+  `checks.json`: the verdicts, the hash of the checks they were made
+  under, the exam's hash and the time. A regrade under changed checks
+  adds a file; the old grade stays. A check may carry `"when"` (`axis
+  = value`, `!=`, joined by `and`, on an exam with axes): where it does
+  not hold the verdict is `not-applicable`, which is neither pass, fail
+  nor undecided and no part of that configuration's headline. On an
+  exam with axes a try with no grade under the checks as they are now
+  is not yet graded: `report` leaves it out of every number and says
+  how many (`not_graded`), `coverage` counts it, and `compare` refuses
+  a comparison that would read it. `grade`, the report and each
+  comparison say where the standard moved since an earlier grade: a
+  check narrowed, added or removed, with the verdicts concerned. Before
+  a judged `grade` asks anything it prints, per judge, the verdicts it
+  would ask and those already on file. **A bank graded before this
+  reads as not yet graded on an exam with axes until `proctor grade`
+  is run once**; verdicts on file are reused, so it asks no judge.
 - **Axes through Harbor** (`axes-build.md`, slice 4). A configuration
   whose assistant value names a vendor's agent, or `route: harbor`,
   runs through Harbor. Its values' files are in the repository the

@@ -167,7 +167,7 @@ public class AnswersTests
             Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null, keys);
         }
         var refused = Assert.Throws<ProctorException>(() => Answers.Compare(repo.Root, repo.LoadExam("axes-answers"), "prompt", "rewritten", null, null, null));
-        Assert.Contains("2 stages of the tries in this comparison are not graded", refused.Message);
+        Assert.Contains("2 stages of the tries in this comparison are not yet graded under the checks as they are now", refused.Message);
         // Coverage reads no grade, so it answers.
         Assert.Equal(2, Answers.Coverage(repo.Root, repo.LoadExam("axes-answers"), null).Configurations.Count(c => c.Tries == 1));
     }

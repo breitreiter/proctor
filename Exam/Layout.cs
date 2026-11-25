@@ -42,6 +42,8 @@ static class Layout
     public const string DiffFile = "diff.patch";
     public const string ChecksFile = "checks.json";
     public const string VerdictsDir = "verdicts";
+    /// <summary>In an attempt: every grade it has been given, one file per standard it was graded under (plans/axes-build.md, slice 5).</summary>
+    public const string GradesDir = "grades";
     public const string FrictionFile = "friction.json";
     /// <summary>What a reader was sent and answered about an attempt: friction-reading.&lt;judge&gt;.&lt;hash&gt;.json, the cache and the record.</summary>
     public const string ReadingPrefix = "friction-reading";

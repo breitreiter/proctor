@@ -74,7 +74,8 @@ static class Tries
         {
             // On an exam with axes a try is the stages that apply in its configuration, and holds of those stages' headline checks.
             var stages = exam.StagesOf(variant);
-            var headline = stages.Sum(s => exam.PassFor(s).Count);
+            // Of the headline checks that apply in this configuration: one that does not apply is no part of what a try can hold.
+            var headline = stages.Sum(s => Standard.PassIn(exam, s, variant).Count);
             var found = kinds[variant] = [];
             var tryRows = new List<TryRow>();
             foreach (var group in current.Where(a => a.Variant == variant).GroupBy(a => a.Attempt).OrderBy(g => g.Key))
@@ -88,7 +89,7 @@ static class Tries
                 foreach (var (stage, attempt, row) in perStage)
                 {
                     if (row?.Checks is null) { results.Add(new TryStage(stage.Id!, row?.Status == AttemptStatus.Skipped ? "not_reached" : "undecided")); if (row?.Status == AttemptStatus.Completed) flagged = null; continue; }
-                    var pass = exam.PassFor(stage);
+                    var pass = Standard.PassIn(exam, stage, variant);
                     held += pass.Count(c => row.Checks.GetValueOrDefault(c) == Verdict.Pass);
                     undecided += pass.Count(c => row.Checks.GetValueOrDefault(c) is Verdict.NeedsJudge or Verdict.Outdated);
                     invalid ??= row.Invalid is null ? null : $"{stage.Id}: {row.Invalid}";

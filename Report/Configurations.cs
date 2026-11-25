@@ -13,11 +13,12 @@ record AxisInfo(string Name, string? About, string? Live, List<ValueInfo> Values
 record ValueInfo(string Name, string? Note, string Hash, bool Reference = false);
 
 /// <summary>
-/// One configuration's standing: one the exam names or has tries of. State is not_run (no counted try), partial (fewer
-/// than the exam wants) or made. Tries holds its tries as a staged exam's variant has them; null when none were read.
+/// One configuration's standing: one the exam names or has tries of. State is not_run (no counted try), not_graded (it
+/// has tries, and none is graded under the checks as they are now), partial (fewer than the exam wants) or made.
+/// NotGraded counts its tries without a grade under the current standard: they are in no number until `grade` reads them. Tries holds its tries as a staged exam's variant has them; null when none were read.
 /// </summary>
 record ConfigurationRow(string Key, string Label, Dictionary<string, string> Values, string? Name, bool Live, string State, int Wanted, int Made, int Lost, int Stale,
-    List<string> Stages, int HeadlineChecks, TryVariant? Tries, string? Together = null, List<string>? Differs = null);
+    List<string> Stages, int HeadlineChecks, TryVariant? Tries, string? Together = null, List<string>? Differs = null, int NotGraded = 0);
 
 /// <summary>
 /// A value against the live value of its axis with every other axis held: one cell of a comparison. State is compared,
@@ -37,7 +38,7 @@ record AxisComparison(string Axis, string Value, string Live, List<ComparedCell>
 
 /// <summary>stats.json of an exam with axes. Configurations are the ones the exam names or has tries of; Excluded the values it declares impossible together.</summary>
 record ConfigurationsFile(string Schema, string Exam, bool Chained, List<AxisInfo> Axes, List<StageInfo> Stages, List<ConfigurationRow> Configurations, List<Dictionary<string, string>> Excluded,
-    List<AxisComparison> Comparisons, List<LostTry> Lost, string Methods, BuiltFrom? BuiltFrom);
+    List<AxisComparison> Comparisons, List<LostTry> Lost, string Methods, BuiltFrom? BuiltFrom, List<StandardMove>? StandardMoved = null);
 
 static class Configurations
 {
@@ -47,6 +48,11 @@ static class Configurations
     public static (ConfigurationsFile Stats, FrictionRollup Friction) Compute(string root, Exam exam, List<BankAttempt> current, List<BankAttempt> bank, List<ResultRow> rows, BuiltFrom? built)
     {
         var axes = exam.Axes!;
+        // Comparisons use the standard as it is now, both sides alike: a try graded only under earlier checks is not yet graded, and in no number.
+        var ungraded = NotGraded(root, exam, current);
+        current = current.Where(a => !ungraded.Contains((a.Variant, a.Attempt))).ToList();
+        rows = rows.Where(r => !ungraded.Contains((r.Variant, r.Attempt))).ToList();
+        var moves = Standard.Moves(root, exam, current);
         var (tries, friction) = Tries.Compute(root, exam, current, bank, rows, null, built);
         var byKey = tries.Variants.ToDictionary(v => v.Id);
         bool Live(Configuration c) => axes.Def.Any(a => a.Value.Live is not null) && axes.Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
@@ -58,17 +64,18 @@ static class Configurations
             var made = t?.Tries ?? 0;
             var stages = exam.StagesOf(c.Key);
             return new ConfigurationRow(c.Key, c.Label, c.Values.ToDictionary(v => v.Axis, v => v.Value), c.Name, Live(c),
-                made == 0 ? "not_run" : made < exam.Attempts ? "partial" : "made", exam.Attempts, made,
+                made == 0 ? (ungraded.Any(u => u.Variant == c.Key) ? "not_graded" : "not_run") : made < exam.Attempts ? "partial" : "made", exam.Attempts, made,
                 bank.Where(a => a.Lost && a.Variant == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
                 bank.Where(a => a.Variant == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
-                stages.Select(s => s.Id!).ToList(), stages.Sum(s => exam.PassFor(s).Count), t,
-                standing.TryGetValue(c.Key, out var together) ? together.State : null, together.Paths is { Count: > 0 } ? together.Paths : null);
+                stages.Select(s => s.Id!).ToList(), stages.Sum(s => Standard.PassIn(exam, s, c.Key).Count), t,
+                standing.TryGetValue(c.Key, out var together) ? together.State : null, together.Paths is { Count: > 0 } ? together.Paths : null,
+                ungraded.Count(u => u.Variant == c.Key));
         }).ToList();
 
         var comparisons = new List<AxisComparison>();
         foreach (var (axis, def) in axes.Def.Where(a => a.Value.Live is not null))
             foreach (var value in def.Values!.Keys.Where(v => v != def.Live))
-                comparisons.Add(Compare(exam, byKey, standing, axis, value, def.Live!));
+                comparisons.Add(Compare(exam, byKey, standing, axis, value, def.Live!, moves: moves));
 
         var methods = "A configuration is one value on every axis. A try is every stage that applies in its configuration, once, in one workspace, and gives two numbers: "
             + "the headline checks it held, and its flagged steps (the steps inside any friction point). "
@@ -81,7 +88,7 @@ static class Configurations
             + "A try in which a stage did not run is lost and is in no number; a try with a stage that failed a validity check is listed and not counted.";
         return (new ConfigurationsFile(Schema, exam.Id, exam.Chained,
                 axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)], axes.ReferenceOf(a.Key) == v.Key)).ToList())).ToList(),
-                tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built), friction);
+                tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built, moves.Count > 0 ? moves : null), friction);
     }
 
     /// <summary>
@@ -91,15 +98,19 @@ static class Configurations
     /// is "better here, worse there", and they are not read as one: opposite differences would cancel into "the same".
     /// </summary>
     public static AxisComparison Compare(Exam exam, IReadOnlyDictionary<string, TryVariant> byKey, Dictionary<string, (string State, List<string> Paths)> standing,
-        string axis, string value, string against, IReadOnlyDictionary<string, string>? within = null) =>
-        Compare(exam, byKey, standing, new Dictionary<string, string> { [axis] = value }, new Dictionary<string, string> { [axis] = against }, within);
+        string axis, string value, string against, IReadOnlyDictionary<string, string>? within = null, IReadOnlyList<StandardMove>? moves = null) =>
+        Compare(exam, byKey, standing, new Dictionary<string, string> { [axis] = value }, new Dictionary<string, string> { [axis] = against }, within, moves);
+
+    /// <summary>The tries, by configuration and number, with a completed stage that holds no grade under the standard as it is now.</summary>
+    public static HashSet<(string Variant, int Attempt)> NotGraded(string root, Exam exam, IEnumerable<BankAttempt> current) =>
+        current.Where(a => a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.TaskOf(a.Task), a.Dir(root))).Select(a => (a.Variant, a.Attempt)).ToHashSet();
 
     /// <summary>
     /// The same for a change on several axes at once: these values together against those, every other axis held. It is
     /// how a configuration is compared with another (plans/axes-build.md, 3c): the change is the axes on which they differ.
     /// </summary>
     public static AxisComparison Compare(Exam exam, IReadOnlyDictionary<string, TryVariant> byKey, Dictionary<string, (string State, List<string> Paths)> standing,
-        IReadOnlyDictionary<string, string> change, IReadOnlyDictionary<string, string> instead, IReadOnlyDictionary<string, string>? within = null)
+        IReadOnlyDictionary<string, string> change, IReadOnlyDictionary<string, string> instead, IReadOnlyDictionary<string, string>? within = null, IReadOnlyList<StandardMove>? moves = null)
     {
         var axes = exam.Axes!;
         // In the order the exam declares its axes, so a change reads the same however it was asked for.
@@ -141,6 +152,9 @@ static class Configurations
         if (In(Combinations.More) is { Count: > 0 } more) cautions.Add($"More than its values put together, since some script reads more than one axis: {string.Join("; ", more)}.");
         if (In(Combinations.Unclear) is { Count: > 0 } unclear) cautions.Add($"Cannot be told from its values alone: {string.Join("; ", unclear)}.");
         if (In(Combinations.NotChecked) is { Count: > 0 } unchecked_) cautions.Add($"Not checked against its values alone: {string.Join("; ", unchecked_)}.");
+        // Where the checks changed after these tries were graded: a number here may have moved with nothing re-run.
+        foreach (var move in (moves ?? []).Where(m => m.Configurations.Any(k => inIt.Any(c => c.Key == k))))
+            cautions.Add("The standard moved: " + move.Sentence);
         var verdict = compared.Count == 0 ? "nothing_to_compare" : disagree ? "better_here_worse_there" : (pooled?.Held ?? compared[0].Held!).Direction;
         var sentence = Sentence($"{value} against {against}", cells, compared, pooled, notRun, disagree);
         // In the record one axis reads as it always did: the axis, its value and the value it is compared with.
@@ -271,16 +285,26 @@ static class Configurations
         foreach (var c in stats.Configurations)
         {
             var notes = string.Join(", ", new[] { c.Name, c.Live ? "live" : null, c.Lost > 0 ? $"{c.Lost} lost" : null, c.Stale > 0 ? $"{c.Stale} stale" : null,
+                c.NotGraded > 0 ? $"{c.NotGraded} not yet graded" : null,
                 c.Together == Combinations.More ? "more than its values put together" : c.Together == Combinations.Unclear ? "cannot be told from its values alone" : c.Together == Combinations.NotChecked ? "not checked against its values alone" : null }.OfType<string>());
             md.AppendLine(c.State switch
             {
                 "not_run" => $"| {c.Label} | **not run** (0 of {c.Wanted}) | | | | {notes} |",
+                "not_graded" => $"| {c.Label} | **not yet graded** | | | | {notes} |",
                 _ => $"| {c.Label} | {c.Made} of {c.Wanted} | {c.Tries!.Passed} | {Range(c.Tries.Held)} of {c.HeadlineChecks} | {Range(c.Tries.Flagged)} | {notes} |",
             });
         }
         md.AppendLine().AppendLine("These are the configurations the exam names or has tries of. Any other was never asked for, and is in no number here.");
         if (stats.Excluded.Count > 0)
             md.AppendLine().AppendLine($"Declared impossible, and never made: {string.Join("; ", stats.Excluded.Select(Holding))}.");
+        if (stats.Configurations.Any(c => c.NotGraded > 0))
+            md.AppendLine().AppendLine($"A try is not yet graded when it holds no grade under the checks as they are now. It is in no number here; `proctor grade {stats.Exam}` reads it.");
+        if (stats.StandardMoved is { Count: > 0 } moved)
+        {
+            md.AppendLine().AppendLine("## The standard moved").AppendLine();
+            md.AppendLine("The checks changed after some of these tries were graded, and the tries were graded again without being made again. Every number here is under the checks as they are now.").AppendLine();
+            foreach (var m in moved) md.AppendLine($"- {m.Sentence}");
+        }
         if (stats.Comparisons.Count > 0)
         {
             md.AppendLine().AppendLine("## Against live").AppendLine();

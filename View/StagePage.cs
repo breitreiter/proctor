@@ -23,7 +23,9 @@ public static class StagePage
     {
         var checks = (a.Checks ?? []).Select(c => new Check(c.Key, c.Value as JsonObject ?? [])).ToList();
         var failed = checks.Where(c => c.Result == "fail").ToList();
-        var passed = checks.Where(c => c.Result != "fail").ToList();
+        // A check that does not apply in this try's configuration is listed last, as neither: it counts toward nothing.
+        var passed = checks.Where(c => c.Result is not ("fail" or "not-applicable")).ToList();
+        var apart = checks.Where(c => c.Result == "not-applicable").ToList();
         var friction = a.Friction;
         var points = (friction?["points"] as JsonArray ?? []).OfType<JsonObject>().ToList();
         var steps = (a.Trajectory?["steps"] as JsonArray ?? []).OfType<JsonObject>().ToList();
@@ -62,6 +64,10 @@ public static class StagePage
             PassedList(page, passed);
             page.Append("</wa-details>");
         }
+        if (apart.Count > 0)
+            page.Append("<div class=\"passed\"><div class=\"lbl\">Does not apply here</div>")
+                .Append(string.Join("", apart.Select(c => $"<div class=\"pass-row na\"><span class=\"meta\">–</span> <code{(c.Describes is { } d ? $" title=\"{E(d)}\"" : "")}>{E(c.Name)}</code> <span class=\"meta\">{E(c.Reason)}</span></div>")))
+                .Append("</div>");
         if (checks.Count == 0 && a.Status == "completed") page.Append("<p class=\"empty\">This try has no <code>checks.json</code>. <code>proctor grade</code> writes it.</p>");
         page.Append("</aside>");
 

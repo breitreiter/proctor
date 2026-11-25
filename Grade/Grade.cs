@@ -40,6 +40,34 @@ static class Grade
         return grades;
     }
 
+    /// <summary>
+    /// What grading these attempts would ask of each judge, found without asking: per judge, the verdicts to ask, the votes
+    /// they come to, and the verdicts already on file, which cost nothing. A check that does not apply asks no judge. One line
+    /// per judge, none when no check asks a model.
+    /// </summary>
+    public static List<string> Cost(string root, Exam exam, List<BankAttempt> attempts, JudgeClient judges)
+    {
+        judges.Counted.Clear();
+        judges.Counting = true;
+        try
+        {
+            foreach (var a in attempts)
+            {
+                var (variant, c) = (exam.Variants.First(v => v.Id == a.Variant), exam.Tasks.First(t => t.Id == a.Task));
+                var attemptDir = a.Dir(root);
+                var asking = exam.ChecksFor(c).Where(k => Standard.Applies(exam, k.Value, a.Variant) && Checks.ModelChecks(k.Value.Spec).Any()).ToList();
+                if (asking.Count == 0 || Runner.ReadStatus(attemptDir) != AttemptStatus.Completed) continue;
+                var attempt = Runner.Context(root, a.Entry, exam, variant, c, a.Attempt) with { Judges = judges };
+                var transcript = Transcript.Read(attemptDir, Before(root, exam, a));
+                foreach (var (name, check) in asking)
+                    foreach (var (kind, spec) in Checks.ModelChecks(check.Spec)) Judge.Evaluate(kind, spec, name, attempt, transcript);
+            }
+        }
+        finally { judges.Counting = false; judges.Errors.Clear(); }
+        return judges.Counted.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k =>
+            $"  {k.Key}: {(k.Value.ToAsk == 0 ? "nothing to ask" : $"{k.Value.ToAsk} verdict{(k.Value.ToAsk == 1 ? "" : "s")} to ask, {k.Value.Votes} vote{(k.Value.Votes == 1 ? "" : "s")} in all")}; {k.Value.OnFile} already on file, which cost nothing").ToList();
+    }
+
     /// <summary>On a chained exam, the stage before this one in the same try: its diff is in this one's, and is taken out to see what this stage changed. Null otherwise.</summary>
     static string? Before(string root, Exam exam, BankAttempt a) =>
         a.Staged && exam.Chained && a.Entry.Stages!.IndexOf(a.Task) is > 0 and var i ? Layout.Attempt(root, exam.Id, a.Variant, a.Entry.Stages[i - 1], a.Attempt, a.Entry.Stages, a.Entry.IdOf(a.Variant, a.Attempt)) : null;
@@ -90,9 +118,12 @@ static class Grade
     public static Dictionary<string, Verdict> Attempt(AttemptContext attempt, Exam exam, Transcript transcript)
     {
         var outdated = attempt.ScriptsInVerifier ? HarborCompile.Outdated(attempt.VerifierTask, exam, attempt.Task, attempt.Variant) : [];
+        // A check that does not apply in this configuration is not asked: no script runs and no judge is called for it.
         var verdicts = exam.ChecksFor(attempt.Task).Where(k => !(attempt.Vendor && Checks.NbOnly(k.Value.Spec))).ToDictionary(k => k.Key,
-            k => Explained(outdated.TryGetValue(k.Key, out var why) ? new Verdict(Verdict.Outdated, why) : Checks.Evaluate(k.Value, attempt, transcript, k.Key), k.Value, exam));
+            k => Explained(!Standard.Applies(exam, k.Value, attempt.Variant) ? new Verdict(Verdict.NotApplicable, $"applies only when {k.Value.Spec[Checks.When]}")
+                : outdated.TryGetValue(k.Key, out var why) ? new Verdict(Verdict.Outdated, why) : Checks.Evaluate(k.Value, attempt, transcript, k.Key), k.Value, exam));
         Runner.WriteJson(Path.Combine(attempt.AttemptDir, Layout.ChecksFile), verdicts);
+        Standard.Keep(attempt.AttemptDir, exam, attempt.Task, verdicts);
         return verdicts;
     }
 
@@ -121,7 +152,8 @@ static class Grade
     /// </summary>
     public static bool? Pass(Dictionary<string, Verdict> checks, List<string> passChecks)
     {
-        var results = passChecks.Select(name => checks.TryGetValue(name, out var v) ? v.Result : Verdict.Error).ToList();
+        // A headline check that does not apply here is no part of this attempt's headline.
+        var results = passChecks.Select(name => checks.TryGetValue(name, out var v) ? v.Result : Verdict.Error).Where(r => r != Verdict.NotApplicable).ToList();
         if (results.Any(r => r is Verdict.Fail or Verdict.Error)) return false;
         return results.Any(r => r is Verdict.NeedsJudge or Verdict.Outdated) ? null : true;
     }
@@ -166,6 +198,7 @@ static class Grade
                 Verdict.Outdated => "cannot be regraded from what was kept",
                 Verdict.NeedsJudge => r.Count() == 1 ? "needs a judge" : "need a judge",
                 Verdict.Error => "errored",
+                Verdict.NotApplicable => r.Count() == 1 ? "does not apply" : "do not apply",
                 var other => other,
             }}");
             yield return $"  {name.PadRight(width)}  graded {decided.Count} of {on.Count}{(fresh > 0 ? $"   {fresh} new" : "")}{string.Concat(not.Select(n => $"   {n}"))}";
