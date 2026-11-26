@@ -1,0 +1,18 @@
+# Two targets with addresses of their own, so a connection to either crosses Harbor's sidecar. A service that
+# declares `networks` is left out of the agent's namespace.
+services:
+  allowed:
+    image: python:3.13-alpine
+    command: ["python", "-u", "/target.py"]
+    environment: { NAME: allowed }
+    volumes: ["./target.py:/target.py:ro", "./certs:/certs:ro"]
+    networks: { default: { ipv4_address: 10.213.@NET@.10 } }
+  other:
+    image: python:3.13-alpine
+    command: ["python", "-u", "/target.py"]
+    environment: { NAME: other }
+    volumes: ["./target.py:/target.py:ro", "./certs:/certs:ro"]
+    networks: { default: { ipv4_address: 10.213.@NET@.11 } }
+networks:
+  default:
+    ipam: { config: [ { subnet: 10.213.@NET@.0/24 } ] }

@@ -1,0 +1,35 @@
+resolve allowed / other                        10.213.8.10 / 10.213.8.11
+default gateway / resolv.conf                  10.213.8.1 / 127.0.0.11
+interfaces                                     lo eth0
+-- the named host, and one that is not
+http allowed:8080                              NOTHING (RemoteDisconnected: Remote end closed connection without response)
+http other:8080                                NOTHING (RemoteDisconnected: Remote end closed connection without response)
+http <allowed ip>:8080, Host its ip            200 allowed:8080 host=10.213.8.10:8080
+-- A1: can it be talked past
+http <other ip>:8080, Host allowed             NOTHING (RemoteDisconnected: Remote end closed connection without response)
+http <allowed ip>:8080, Host other             NOTHING (RemoteDisconnected: Remote end closed connection without response)
+tls <allowed ip>:8443, SNI allowed             NOTHING (SSLEOFError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1035))
+tls <other ip>:8443, SNI other                 NOTHING (SSLEOFError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1035))
+tls <other ip>:8443, SNI allowed               NOTHING (SSLEOFError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1035))
+-- A2: what of the allowed host is open
+http allowed:8081 (second port)                NOTHING (RemoteDisconnected: Remote end closed connection without response)
+raw allowed:2222 (server speaks first)         BANNER allowed
+raw other:2222                                 NOTHING (closed, no bytes)
+-- the internet
+resolve example.com                            172.66.147.243
+resolve a name that does not exist             None
+http example.com                               NOTHING (RemoteDisconnected: Remote end closed connection without response)
+tls example.com                                NOTHING (SSLEOFError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1035))
+http <example.com ip>, Host allowed:8080       NOTHING (RemoteDisconnected: Remote end closed connection without response)
+-- A3: what is not TCP
+ping 1.1.1.1                                   answered
+ping other                                     answered
+udp dns to 1.1.1.1                             NOTHING (PermissionError: [Errno 1] Operation not permitted)
+ipv6 tcp to 2606:4700:4700::1111 :443          NOTHING (OSError: [Errno 101] Network unreachable)
+-- A5: what is beside it
+raw gateway 10.213.8.1:22                      NOTHING (closed, no bytes)
+http gateway 10.213.8.1:18092                  NOTHING (RemoteDisconnected: Remote end closed connection without response)
+http 10.0.2.2:18092 (host loopback, rootless Docker) NOTHING (RemoteDisconnected: Remote end closed connection without response)
+http host.docker.internal:18092                NOTHING (gaierror: [Errno -2] Name does not resolve)
+engine socket in the container                 none
+user                                           uid=0(root) gid=0(root) groups=0(root),0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)

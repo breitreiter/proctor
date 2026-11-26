@@ -1,0 +1,21 @@
+version = "1.0"
+
+[task]
+name = "proctor/netprobe"
+description = "What an agent's phase can reach."
+
+[agent]
+timeout_sec = 300.0
+@AGENT@
+
+[environment]
+build_timeout_sec = 900.0
+network_mode = "public"
+
+[verifier]
+timeout_sec = 120.0
+environment_mode = "separate"
+network_mode = "no-network"
+
+[[verifier.collect]]
+command = "cd /app && sleep 6 && git add -A && git diff --cached --binary HEAD > /logs/artifacts/diff.patch"

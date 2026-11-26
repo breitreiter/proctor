@@ -1,0 +1,9 @@
+# The relay leg: no model in the task. The stub runs on the host's loopback; the host end is a unix socket in
+# /path/to/sock; this service, in the agent's namespace, serves it at localhost:8765.
+services:
+  relay:
+    image: python:3.13-alpine
+    command: ["python", "-u", "/relay/relay.py", "8765", "/run/model/model.sock"]
+    volumes:
+      - ./relay.py:/relay/relay.py:ro
+      - /path/to/sock:/run/model

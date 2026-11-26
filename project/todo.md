@@ -1263,7 +1263,8 @@ gateway to the network. What to say in its place is not settled
 containers", holds a proposal: one private address on the host that the
 gateway also listens on, untested). Another session is working out
 guidance that is safe and still works (the user, 2026-11-25); the
-section waits for that.
+section waits for that. Its research plan is
+`plans/container-network.md`.
 
 **Docker has no guide, and rootless Docker is not "none of this".**
 To write, as `docs/docker.md`:

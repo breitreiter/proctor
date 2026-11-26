@@ -1,0 +1,35 @@
+resolve allowed / other                        10.213.9.10 / 10.213.9.11
+default gateway / resolv.conf                  10.213.9.1 / 127.0.0.11
+interfaces                                     lo eth0
+-- the named host, and one that is not
+http allowed:8080                              200 allowed:8080 host=allowed:8080
+http other:8080                                200 other:8080 host=other:8080
+http <allowed ip>:8080, Host its ip            200 allowed:8080 host=10.213.9.10:8080
+-- A1: can it be talked past
+http <other ip>:8080, Host allowed             200 other:8080 host=allowed:8080
+http <allowed ip>:8080, Host other             200 allowed:8080 host=other:8080
+tls <allowed ip>:8443, SNI allowed             allowed:8443 host=allowed
+tls <other ip>:8443, SNI other                 other:8443 host=other
+tls <other ip>:8443, SNI allowed               other:8443 host=allowed
+-- A2: what of the allowed host is open
+http allowed:8081 (second port)                200 allowed:8081 host=allowed:8081
+raw allowed:2222 (server speaks first)         BANNER allowed
+raw other:2222                                 BANNER other
+-- the internet
+resolve example.com                            172.66.147.243
+resolve a name that does not exist             None
+http example.com                               200 <!doctype html><html lang=en><head><meta charset=utf-8><link rel=icon href=data:
+tls example.com                                <!doctype html><html lang=en><head><meta charset=utf-8><link rel=icon href=data:,><meta name=viewport content="width=device-width,initial-scale=1"><title>Example Domain</title><style>html{color-scheme:light dark;background:light-dark(#eee,#222)}body{font:16px/1.6 system-ui,sans-serif;max-width:26em;margin:auto;padding:25vh 2em 2em;text-align:center}</style></head><body><p>This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.</p><script src=/s.js></script></body></html>
+http <example.com ip>, Host allowed:8080       403 error code: 1003
+-- A3: what is not TCP
+ping 1.1.1.1                                   answered
+ping other                                     answered
+udp dns to 1.1.1.1                             answered, 61 bytes
+ipv6 tcp to 2606:4700:4700::1111 :443          NOTHING (OSError: [Errno 101] Network unreachable)
+-- A5: what is beside it
+raw gateway 10.213.9.1:22                      NOTHING (ConnectionRefusedError: [Errno 111] Connection refused)
+http gateway 10.213.9.1:18092                  NOTHING (ConnectionRefusedError: [Errno 111] Connection refused)
+http 10.0.2.2:18092 (host loopback, rootless Docker) 200 a service on the host's loopback
+http host.docker.internal:18092                NOTHING (gaierror: [Errno -2] Name does not resolve)
+engine socket in the container                 none
+user                                           uid=0(root) gid=0(root) groups=0(root),0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)
