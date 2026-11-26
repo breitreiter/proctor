@@ -111,7 +111,7 @@ static class HarborCompile
     {
         var tasks = Tree.Hash(Path.Combine(entryDir, Layout.HarborDir, "tasks"), new HashSet<string> { ".git" });
         var agents = AgentsDir(entryDir);
-        return Directory.Exists(agents) ? $"{tasks}+{Tree.Hash(agents, new HashSet<string> { "__pycache__" })}" : tasks;
+        return Directory.Exists(agents) ? $"{tasks}+{Tree.Hash(agents, new HashSet<string>())}" : tasks;
     }
 
     /// <summary>Where a variant's bundle sits beside the fixture's services in a task's environment/, for a compose file to mount as ./bundle.</summary>
@@ -587,8 +587,8 @@ static class HarborCompile
 
     /// <summary>What proctor reads from an exam directory itself; a script sees its checks and expected values through the environment, and the rest is in the task's hash.</summary>
     static bool ExamDefinition(string relative) =>
-        relative is Layout.ExamFile or Layout.LiveFile
-        || (relative.StartsWith(Layout.TasksDir + "/", StringComparison.Ordinal) || relative.StartsWith(Layout.VariantsDir + "/", StringComparison.Ordinal)) && relative.EndsWith(".json", StringComparison.Ordinal);
+        relative is Layout.ExamFile or Layout.LiveFile or Layout.CombinationsFile
+        || new[] { Layout.TasksDir, Layout.VariantsDir, Layout.PredictionsDir }.Any(d => relative.StartsWith(d + "/", StringComparison.Ordinal)) && relative.EndsWith(".json", StringComparison.Ordinal);
 
     /// <summary>What proctor reads from a fixture directory itself, and its source, which reaches the verifier as the image's commit and not as a file under tests/.</summary>
     static Func<string, bool> FixtureDefinition(Fixture fixture)
@@ -634,7 +634,7 @@ static class HarborCompile
             File.Copy(file, dest, overwrite: true);
             File.SetUnixFileMode(dest, File.GetUnixFileMode(file));
         }
-        foreach (var dir in Directory.GetDirectories(from).Where(d => !skip.Contains(Path.GetFullPath(d)) && Path.GetFileName(d) != ".git"))
+        foreach (var dir in Directory.GetDirectories(from).Where(d => !skip.Contains(Path.GetFullPath(d)) && Path.GetFileName(d) != ".git" && !Tree.Litter.Contains(Path.GetFileName(d))))
             CopyTree(dir, Path.Combine(to, Path.GetFileName(dir)), skip);
     }
 

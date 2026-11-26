@@ -7,6 +7,24 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **A tool's cache is no part of a fixture, a bundle or a check.**
+  `__pycache__`, `.pytest_cache`, `.mypy_cache` and `.ruff_cache` are
+  skipped wherever proctor hashes, copies or compares a directory. Git
+  ignores them, so they were on one machine and not another: a fixture
+  whose tests had been run where it lies had another hash, which made
+  every attempt of its tasks stale, and an exam whose acceptance tests
+  had been run had them compiled into each Harbor task, so the script
+  checks of attempts made there were `outdated` on any other machine. A
+  bank now reads the same on the machine it is carried to. A fixture
+  hashed with such a cache in it hashes without it now, so attempts made
+  under that hash are stale once; an interrupted run whose compiled
+  tasks hold one is not continued, and what is missing is made by a new
+  run.
+- **A prediction written after the tries leaves their script verdicts
+  alone.** `predictions/*.json` and `combinations.json` are files
+  proctor reads itself, like `exam.json`; they counted as a change to
+  what a script check reads, so pinning a prediction made every script
+  verdict of an agent's attempts `outdated` at the next `grade`.
 - **`grade` says why a check did not pass.** Each attempt's line
   printed `check=result` for a check that failed, errored or could not
   decide; it now adds the first line of the reason as `checks.json`

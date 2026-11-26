@@ -78,7 +78,7 @@ in the order the verbs run them. Every file is one concern:
 | `Exam/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
 | `Exam/EnvFile.cs` | the user's env file (`~/.config/proctor/env`, `%LOCALAPPDATA%\proctor\env` on Windows, or `PROCTOR_ENV_FILE`): `NAME=value` lines `Program.Main` loads into the process environment before any verb, the real environment winning, so every `${VAR}` resolver and child process sees them |
 | `Exam/Judges.cs` | `proctor.json`'s `judges` block: an endpoint per name by wire shape (`systemone`, `chat`), key resolution, which judge a check gets |
-| `Exam/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles) |
+| `Exam/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles); `Tree.Litter`, the tool caches (`__pycache__`, `.pytest_cache`, …) no walk, hash or compile copy ever takes, since git ignores them and they differ by machine |
 | `Exam/Axes.cs` | an exam's `axes` in `exam.json`, in place of `variants/` (`project/plans/axes.md`, built slice by slice per `axes-build.md`): axes, values, the reference of each axis, the configurations the exam carries (named, asked for, or with tries in the bank; never the cross product), the refusals, who does the work in a configuration |
 | `Exam/Combinations.cs` | `exams/<exam>/combinations.json`, written by `build` and nothing else: which several-valued configurations are their values put together, more (a script reads several axes), or cannot be told; what holds today (`Combinations.Stand`). Whether anyone read what a value changes is recorded nowhere, on purpose |
 | `Exam/Live.cs` | `exams/<exam>/live.json`: the live variant by id and hash, and since when; whether the mark still holds (`Live.Broken`) and the warning `list`, `run` and `report` print when it does not |
@@ -269,7 +269,7 @@ The directories are for reading, not for namespaces: everything is
   of `verifier/<check>.out`, a missing key `error`. So it is fixed when the
   attempt is made: `HarborCompile.Outdated` compares the run's compiled
   `tests/` (the check's `test.sh` line, every file of the exam and fixture
-  copies but `exam.json`, `live.json`, `tasks/*.json`, `variants/*.json`,
+  copies but `exam.json`, `live.json`, `combinations.json`, `tasks/*.json`, `variants/*.json`, `predictions/*.json`,
   `fixture.json` and another check's script, and `PROCTOR_EXPECT` in
   `env.sh`) with what compile would write now, and a difference, a check
   the run never compiled, or no compiled copy makes the verdict

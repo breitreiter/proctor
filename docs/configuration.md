@@ -424,9 +424,10 @@ Services run on Docker and podman, not on Modal.
 Proctor checks the fixture out into the work directory before each attempt,
 commits it, and collects `diff.patch` afterwards. In order: nb compiles the
 program on the host (a program it refuses fails the attempt before
-anything else), the fixture's `repo/` is copied (less `.git` and any
-directory named in its `source.exclude`, which the fixture hash leaves out
-too) and committed, the attempt setup hook runs, nb runs, the attempt
+anything else), the fixture's `repo/` is copied (less `.git`, any
+directory named in its `source.exclude`, and the caches a tool leaves
+where a test was run: `__pycache__`, `.pytest_cache`, `.mypy_cache`,
+`.ruff_cache`; the fixture hash leaves all of these out too) and committed, the attempt setup hook runs, nb runs, the attempt
 teardown hook runs, and the diff is collected. The commit comes before the
 setup hook, so whatever the hook writes into the work directory is in
 `diff.patch` and in `files_touched`. Teardown and the diff run whenever

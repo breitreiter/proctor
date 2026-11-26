@@ -489,6 +489,52 @@ public class HarborTests
         Assert.StartsWith("changed since the attempt was made: exams/harbor-unit/acceptance/fix-null-deref.cs", checks["tests-pass"].Reason);
     }
 
+    [Theory]
+    [InlineData("predictions/faster.json")]   // written after the tries, as a prediction about tries to come is
+    [InlineData("combinations.json")]
+    public void Grade_AFileOnlyProctorReads_OutdatesNothing(string file)
+    {
+        var checks = GradeAgentAttempt(_ => { }, afterwards: repo => repo.Write("harbor-unit/" + file, "{}\n"));
+        Assert.Equal(Verdict.Pass, checks["builds"].Result);
+        Assert.Equal(new Verdict(Verdict.Pass, "6 of 6 tests pass"), checks["tests-pass"]);
+    }
+
+    [Theory]
+    [InlineData("exams/harbor-unit/acceptance/__pycache__/conftest.cpython-314.pyc")]   // left by a shakedown on this machine
+    [InlineData("fixtures/ledger/checks/.pytest_cache/README.md")]
+    [InlineData("task/tests/exam/acceptance/__pycache__/conftest.cpython-314.pyc")]     // compiled in on the machine the attempt was made on
+    public void Grade_AToolsCacheBesideTheScripts_OutdatesNothing(string cache)
+    {
+        var checks = GradeAgentAttempt(_ => { }, afterwards: repo =>
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(repo.Root, cache))!);
+            File.WriteAllText(Path.Combine(repo.Root, cache), "bytes of this machine\n");
+        });
+        Assert.Equal(Verdict.Pass, checks["builds"].Result);
+        Assert.Equal(new Verdict(Verdict.Pass, "6 of 6 tests pass"), checks["tests-pass"]);
+    }
+
+    [Fact]
+    public void AToolsCache_IsNoPartOfAFixtureOrATask_AndIsNeverCompiled()
+    {
+        var (repo, _) = AgentRepo();
+        using var _r = repo;
+        var before = repo.LoadExam("harbor-unit");
+        foreach (var cache in new[] { "fixtures/ledger/repo/__pycache__/a.pyc", "fixtures/ledger/repo/Ledger/.pytest_cache/v/nodeids", "exams/harbor-unit/acceptance/__pycache__/a.pyc" })
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(repo.Root, cache))!);
+            File.WriteAllText(Path.Combine(repo.Root, cache), "bytes of this machine\n");
+        }
+        var exam = repo.LoadExam("harbor-unit");
+        Assert.Equal(before.Fixtures["ledger"].Hash, exam.Fixtures["ledger"].Hash);
+        Assert.Equal(before.TaskHashes, exam.TaskHashes);
+
+        var task = Path.Combine(repo.Root, "task");
+        HarborCompile.Task(task, exam, exam.Variants[0], exam.Tasks[0], new AgentRoute(BaseUrl, "k"));
+        Assert.True(File.Exists(Path.Combine(task, "tests", "exam", "program.nb")));
+        Assert.DoesNotContain(Directory.EnumerateDirectories(task, "*", SearchOption.AllDirectories), d => Tree.Litter.Contains(Path.GetFileName(d)));
+    }
+
     [Fact]
     public void Grade_ANewScriptCheck_IsOutdated_NotAnError()
     {
