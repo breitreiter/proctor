@@ -98,7 +98,8 @@ public class StagedHarborTests
         Assert.False(File.Exists(Path.Combine(task, "tests", "test.sh")));
         Assert.True(Directory.Exists(Path.Combine(task, "tests", "exam")));
         // A stage after the first starts fresh: its step puts the workspace back before the agent runs.
-        Assert.Contains("git reset -q --hard HEAD && git clean -fdq", File.ReadAllText(Path.Combine(task, "steps", "fix-null-deref", "workdir", "setup.sh")));
+        // It first gives the directory back to the repository's owner, which an upload can take from it (podman), or git refuses the repository.
+        Assert.Contains("chown --reference=.git . && chmod --reference=.git . && git reset -q --hard HEAD && git clean -fdq", File.ReadAllText(Path.Combine(task, "steps", "fix-null-deref", "workdir", "setup.sh")));
         Assert.False(Directory.Exists(Path.Combine(task, "steps", "look", "workdir")));
         Assert.True(Directory.Exists(Path.Combine(task, "environment", "repo")));
         Assert.EndsWith(Path.Combine("harbor", "tasks", "cc-haiku", "harbor-unit"), JsonNode.Parse(File.ReadAllText(Path.Combine(repo.Root, "job.seen.json")))!["tasks"]![0]!["path"]!.GetValue<string>());

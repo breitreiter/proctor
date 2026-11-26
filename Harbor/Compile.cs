@@ -195,8 +195,11 @@ static class HarborCompile
             File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
             if (exam.Chained || i == 0) continue;
             // Harbor uploads a step's workdir/ into the agent's directory and runs its setup.sh before the agent: the workspace as the try began, as Checkout.Reset leaves it on the bare path. Cleaning removes this script too.
+            // The upload can leave the directory itself with the host's owner and mode (podman's Docker API does; Docker's does not),
+            // and git then refuses the repository as not its user's, for this script and for the agent after it. .git is not
+            // uploaded over, so it still says whose the repository is.
             Directory.CreateDirectory(Path.Combine(step, "workdir"));
-            File.WriteAllText(Path.Combine(step, "workdir", "setup.sh"), $"#!/bin/bash\n# Compiled by proctor: this stage starts fresh.\ncd {Workdir} && git reset -q --hard HEAD && git clean -fdq\n");
+            File.WriteAllText(Path.Combine(step, "workdir", "setup.sh"), $"#!/bin/bash\n# Compiled by proctor: this stage starts fresh.\ncd {Workdir} && chown --reference=.git . && chmod --reference=.git . && git reset -q --hard HEAD && git clean -fdq\n");
         }
     }
 

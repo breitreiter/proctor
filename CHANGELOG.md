@@ -7,6 +7,14 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **A try of several stages through Harbor no longer dies at its second
+  stage on podman.** Harbor uploads a stage's `setup.sh` into the
+  agent's directory, and podman's Docker API gives that directory the
+  host's owner and mode as it does; git then refused the repository
+  ("dubious ownership") for the script that puts the workspace back,
+  and would have for the agent after it. The script now gives the
+  directory back to the repository's owner first. Docker was never
+  affected.
 - **A tool's cache is no part of a fixture, a bundle or a check.**
   `__pycache__`, `.pytest_cache`, `.mypy_cache` and `.ruff_cache` are
   skipped wherever proctor hashes, copies or compares a directory. Git
