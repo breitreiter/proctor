@@ -74,6 +74,8 @@ line("engine socket in the container", " ".join(p for p in ("/var/run/docker.soc
 line("user", subprocess.run("id", shell=True, capture_output=True, text=True).stdout.strip())
 print("-- a fixture's service beside the agent (it holds HELD-IN-A-FILE, HELD-IN-THE-ENVIRONMENT, HELD-ON-THE-WIRE)")
 get("http 127.0.0.1:9090 (the service)", "127.0.0.1", 9090, "127.0.0.1:9090")
+b = addr("beside"); line("its name, beside", b or "does not resolve")
+if b: get(f"http beside:9090 (the service, by name, {b})", b, 9090, "beside:9090")
 caps = int(next(l.split()[1] for l in open("/proc/self/status") if l.startswith("CapEff")), 16)
 line("capabilities", " ".join(n for n, b in (("net_raw", 13), ("net_admin", 12), ("sys_ptrace", 19), ("sys_admin", 21), ("dac_read_search", 2)) if caps >> b & 1) or "none of net_raw net_admin sys_ptrace sys_admin dac_read_search")
 procs = [open(f"/proc/{p}/cmdline", "rb").read().replace(b"\0", b" ").decode(errors="replace").strip() for p in os.listdir("/proc") if p.isdigit()]
