@@ -116,6 +116,29 @@ public class StandardTests
     }
 
     [Fact]
+    public void GradedAgainUnderTheSameChecks_NoVerdictOfAStagedExamIsNew()
+    {
+        // Issue #13: a stage's earlier verdicts were looked up under the wrong key, so a second grade called every one of them new.
+        using var repo = Made();
+        var exam = repo.LoadExam("axes-answers");
+        var current = Bank.Select(repo.Root, exam).Current;
+        var before = Grade.Before(repo.Root, current);
+        var lines = Grade.ByCheck(Grade.Attempts(repo.Root, exam, current, TextWriter.Null), before).ToList();
+        Assert.NotEmpty(lines);
+        Assert.All(lines, line => Assert.DoesNotContain("new", line));
+        Assert.Contains(lines, line => line.Contains("graded 4 of 4"));
+
+        // A check added since is new where it now decides, and only that one.
+        repo.EditJson("axes-answers/exam.json", e => e["grading"]!["checks"]!["tidy"] = JsonNode.Parse("""{ "max_tool_calls": 3 }"""));
+        exam = repo.LoadExam("axes-answers");
+        current = Bank.Select(repo.Root, exam).Current;
+        before = Grade.Before(repo.Root, current);
+        lines = Grade.ByCheck(Grade.Attempts(repo.Root, exam, current, TextWriter.Null), before).ToList();
+        Assert.Contains("4 new", Assert.Single(lines, line => line.TrimStart().StartsWith("tidy ")));
+        Assert.All(lines.Where(line => !line.TrimStart().StartsWith("tidy ")), line => Assert.DoesNotContain("new", line));
+    }
+
+    [Fact]
     public void ACondition_NamesOnlyWhatTheExamDeclares_AndGoesWithAxes()
     {
         using var repo = new TestRepo();

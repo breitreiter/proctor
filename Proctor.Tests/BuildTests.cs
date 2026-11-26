@@ -99,6 +99,19 @@ public class BuildTests
     }
 
     [Fact]
+    public void ATreeParameter_IsReadAsPartOfWhatAValueChanges_ThoughItIsOutsideTheCheckout()
+    {
+        // readme-answers: the docs value sets a directory the program reads; nothing of it is in the workspace.
+        using var repo = new TestRepo();
+        repo.CopyExam("readme-answers");
+        var change = Assert.Single(Proctor.Build.Run(repo.Root, repo.LoadExam("readme-answers"), Exam.LoadConfig(repo.Root, []), null, null, null, TextWriter.Null).Values);
+        Assert.Equal(("docs", "for-scripts"), (change.Axis, change.Value));
+        Assert.Equal(["params/README/README.md"], change.Paths.Select(p => p.Path));
+        Assert.Contains("+", change.Diff);
+        Assert.NotNull(change.Why);
+    }
+
+    [Fact]
     public void AValueThatQuietlyDoesASecondThing_ShowsBothInItsChange()
     {
         using var repo = Smoke("""[ "$PROCTOR_PARAM_TONE" = terse ] && echo fixed > note.txt""");

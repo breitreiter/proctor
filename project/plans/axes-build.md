@@ -1076,6 +1076,56 @@ Caveats (mine, agreed by the user 2026-11-24):
 
 ## Slice 6a: what the exam remembers
 
+**The user on each, 2026-11-25:**
+
+| Proposal | Answer |
+|---|---|
+| A value retired: out of `run` and the lists, its tries kept | **Can wait.** Not enough evidence yet that exams live that long, except as historical records |
+| Why a value or a check is there | **"Gotta have it."** |
+| Each move of live recorded, with what it rested on | **No immediate need**, maybe someday; it too depends on how long exams live |
+| Where users are on every axis, as shares | **Distant future, if at all.** An agent can own it ad hoc |
+
+And on what was decided alone while building slices 4 and 6:
+
+- **A parameter is a build argument and never in the agent's
+  environment: yes.** "We've got bit by this before. Especially tricky
+  for testing impossible requests, as models are clever."
+- **The nb-on-Mock value stays out of `tern-docs`: reasonable.**
+- **A prediction with no `against` is compared with what is live for
+  the same user: reasonable, and tricky.** If it ever shows in a page a
+  person reads, the page says that this is what it did. The only
+  sensible alternative is to make every prediction name what it is
+  compared with.
+- **The two `tern-docs` predictions stay.**
+- **`build` reads what an image build is handed, and builds no image:
+  correct** (once explained with an example: for `toolchain=1.20` it
+  shows one changed `ARG` line and nothing about what got installed; a
+  check that looks inside the container is what holds that to account).
+
+**Built from those answers, 2026-11-25:**
+
+- **Why a value is there.** A value may carry `why`, a sentence beside
+  its `note`: the note says what it changes, the why says what it is
+  there for (a customer's report, an idea of the author's). It is in no
+  hash. `build`, `coverage` and the report carry it. A check has had
+  `why` since `check-evidence.md`. Counting the things customers found
+  first, which is what the proposal was after, would need a category
+  and not a sentence; not built.
+- **`readme-answers` is on axes** (slice 7's first port in the
+  repository, after `tern-docs` and `gate-oracle`): `docs` sets the
+  exam's `README` tree parameter, which the program reads
+  (`system @{{param.README}}/README.md`); `assistant` is the model. Its
+  shakedown passes both ways. The getting-started guide lost its
+  `proctor live` step, since live is declared on the axis.
+- **`build` reads a tree parameter on the bare path too.** The port
+  showed that it said nothing of how two READMEs differ, since a tree
+  the program reads is outside the checkout. Its files are now read
+  under `params/<NAME>/`, as a task through Harbor has them.
+- Issue #13 (`grade` counted every verdict of a staged exam as new) is
+  fixed.
+
+What was written before those answers:
+
 Facts Claude needs for the reader's first two questions, which only
 the exam can hold. Each is mine and to confirm, and earns its place
 only as source of truth:

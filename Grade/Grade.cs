@@ -181,6 +181,14 @@ static class Grade
     /// For each check, how many of the graded attempts it has a pass or fail for, of those it applies to, as lines; then
     /// how many of those it had none for before this grade, and how many it could not decide and why.
     /// </summary>
+    /// <summary>
+    /// The verdicts each attempt held before this grade, keyed as <see cref="ByCheck"/> looks them up: variant, task,
+    /// attempt. Not an attempt's label, which for a stage of a try puts the try before the stage: keyed by label, no
+    /// stage was ever found, and every verdict of a staged exam was counted as new on every grade (issue #13).
+    /// </summary>
+    public static Dictionary<string, Dictionary<string, Verdict>?> Before(string root, IEnumerable<BankAttempt> attempts) =>
+        attempts.ToDictionary(a => $"{a.Variant}/{a.Task}/{a.Attempt}", a => ReadChecks(a.Dir(root)));
+
     public static IEnumerable<string> ByCheck(List<AttemptGrade> grades, Dictionary<string, Dictionary<string, Verdict>?> before)
     {
         static bool Decided(Verdict? v) => v?.Result is Verdict.Pass or Verdict.Fail;

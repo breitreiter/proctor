@@ -77,15 +77,10 @@ proctor report readme-answers
 
 `readme-answers` asks Gemini Flash-Lite six questions about the
 playground's CLI, answered from its README alone, under two versions of
-that README. The first report shows them side by side, since nothing is
-live yet. Mark the README as it ships live and report again, and the page
-gives the other version's difference from it: a documentation change,
-measured, with an interval around it:
-
-```bash
-proctor live readme-answers as-shipped
-proctor report readme-answers
-```
+that README. The README as it ships is the live one, so the report gives
+the other version's difference from it: a documentation change, measured
+try against try. `proctor compare readme-answers docs=for-scripts` gives
+the same comparison as JSON, for an agent to read.
 
 It is 36 requests, free on Gemini's free tier
 (whose requests Google may use to improve its models), and takes a few

@@ -24,7 +24,7 @@ record PathChange(string Path, string Change, long? Before, long? After);
 /// could not be built, and then the rest is empty.
 /// </summary>
 record ValueChange(string Axis, string Value, string? Note, string Hash, string Base, string Reference, string? Tree,
-    List<string> Who, Dictionary<string, string> Sets, List<PathChange> Paths, string Diff, int DiffLeftOut, string? NotBuilt, string? Compared = null);
+    List<string> Who, Dictionary<string, string> Sets, List<PathChange> Paths, string Diff, int DiffLeftOut, string? NotBuilt, string? Compared = null, string? Why = null);
 
 /// <summary>
 /// A configuration of several values held against those values built alone. Differs: the paths where it is not what they
@@ -109,7 +109,7 @@ static class Build
         {
             var c = axes.Alone(new Dictionary<string, string> { [axis] = value }, out _)!;
             var def = axes.Value(axis, value);
-            ValueChange NotBuilt(string why) => new(axis, value, def.Note, axes.ValueHashes[(axis, value)], @base, reference.Key, null, [], [], [], "", 0, why);
+            ValueChange NotBuilt(string why) => new(axis, value, def.Note, axes.ValueHashes[(axis, value)], @base, reference.Key, null, [], [], [], "", 0, why, Why: def.Why);
             if (c.Excluded) { changes.Add(NotBuilt("excluded with the reference values, so it cannot be built alone")); continue; }
             var (built, why) = One(exam, nb, c, $"{axis}={value}", scratch);
             if (built is null) { changes.Add(NotBuilt(why!)); continue; }
@@ -124,7 +124,7 @@ static class Build
             changes.Add(new ValueChange(axis, value, def.Note, axes.ValueHashes[(axis, value)], @base, reference.Key, built.Tree,
                 def.Own().Except(axes.Value(axis, reference[axis]!).Own()).Where(o => o.Value is not null).Select(o => $"{o.Key} {o.Value}").ToList(),
                 (def.Set ?? []).ToDictionary(s => s.Key, s => Shown(exam.Def.Params?.GetValueOrDefault(s.Key) ?? fixture?.Def.Params?.GetValueOrDefault(s.Key), s.Value)),
-                paths, diff, leftOut, null, comparable ? (built.Harbor ? OfContext : OfCheckout) : "nothing: this value moves the work between the host and a container, so the two starting points are not compared path by path"));
+                paths, diff, leftOut, null, comparable ? (built.Harbor ? OfContext : OfCheckout) : "nothing: this value moves the work between the host and a container, so the two starting points are not compared path by path", def.Why));
         }
 
         // A configuration of several values, against its values alone. Where no script reads two axes, a path is the
@@ -208,6 +208,19 @@ static class Build
                     if (new FileInfo(Path.Combine(work, path)) is { Exists: true } file)
                         files[path] = (file.Length, Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(file.FullName))));
         }
+        // A tree parameter is files the program or a script is handed, outside the checkout: they are part of what the value changes,
+        // so they are read too, under params/<NAME>/ as a task through Harbor has them.
+        if (failure is null)
+            foreach (var (name, declared) in (exam.Def.Params ?? []).Concat(fixture?.Def.Params ?? []).Where(p => p.Value.Tree == true))
+                if (context.Params.GetValueOrDefault(name) is { Length: > 0 } given && Directory.Exists(given))
+                    foreach (var (relative, full) in Tree.Files(given, new HashSet<string> { ".git" }))
+                    {
+                        var path = Path.Combine("params", name, relative);
+                        var copy = Path.Combine(work, path);
+                        Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
+                        File.Copy(full, copy, overwrite: true);
+                        files[path] = (new FileInfo(copy).Length, Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(copy))));
+                    }
         // Teardown runs whenever setup ran, as in a try; what it does is after the starting state and in no change.
         if (attemptSetupRan) Runner.RunHook(exam, exam.Def.Hooks?.Attempt?.Teardown, env, Log("attempt.teardown"));
         Runner.RunHook(exam, exam.Def.Hooks?.Variant?.Teardown, variantEnv, Log("variant.teardown"));
@@ -277,6 +290,7 @@ static class Build
     {
         yield return $"{change.Axis}={change.Value}";
         yield return $"  says: {change.Note ?? "(no note)"}";
+        if (change.Why is not null) yield return $"  there because: {change.Why}";
         if (change.NotBuilt is not null) { yield return $"  not built: {change.NotBuilt}"; yield break; }
         if (change.Compared is not null && change.Compared != OfCheckout) yield return $"  compared: {change.Compared}";
         foreach (var who in change.Who) yield return $"  who does the work: {who}";

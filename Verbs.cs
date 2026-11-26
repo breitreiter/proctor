@@ -243,7 +243,7 @@ static class Verbs
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
         var selection = Bank.Select(root, exam, variantIds, taskIds);
         var judges = exam.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge, Console.WriteLine) : null;
-        var before = selection.Current.ToDictionary(a => a.Label, a => Proctor.Grade.ReadChecks(a.Dir(root)));
+        var before = Proctor.Grade.Before(root, selection.Current);
         // What the judges will be asked, said before any is: a regrade's cost is the verdicts not already on file.
         if (judges is { Comparing: false } && Proctor.Grade.Cost(root, exam, selection.Current, judges) is { Count: > 0 } cost)
         {

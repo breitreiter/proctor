@@ -119,7 +119,7 @@ static class AxesPages
             foreach (var (param, given) in def.Set ?? []) carries.Add($"sets <code>{E(param)}</code> = <code>{E(given is System.Text.Json.Nodes.JsonValue ? given.ToString() : given?.ToJsonString() ?? "")}</code>");
             foreach (var (field, given) in def.Own()) if (given is not null) carries.Add($"{E(field)} <code>{E(given)}</code>");
             var mark = axes.Def[axis].Live == value ? " <span class=\"meta\">live</span>" : "";
-            page.Append($"<tr><td><code>{E(axis)}</code></td><td><code>{E(value)}</code>{mark}</td><td>{E(def.Note ?? "")}</td><td>{(carries.Count > 0 ? string.Join("<br>", carries) : "<span class=\"meta\">nothing</span>")}</td>")
+            page.Append($"<tr><td><code>{E(axis)}</code></td><td><code>{E(value)}</code>{mark}</td><td>{E(def.Note ?? "")}{(def.Why is { } why ? $"<div class=\"meta\">there because: {E(why)}</div>" : "")}</td><td>{(carries.Count > 0 ? string.Join("<br>", carries) : "<span class=\"meta\">nothing</span>")}</td>")
                 .Append($"<td><code>{E(P.Bank.Short(axes.ValueHashes[(axis, value)]))}</code></td></tr>");
         }
         page.Append("</table><p class=\"meta\">The third column is the author's account, not proctor's finding. <code>proctor build ").Append(E(e.Id)).Append(" --value &lt;axis=value&gt;</code> builds a value alone and shows what it actually changes.</p>");

@@ -10,7 +10,7 @@ namespace Proctor;
 /// <summary>An axis as the report shows it: its values in declared order, the live one named.</summary>
 record AxisInfo(string Name, string? About, string? Live, List<ValueInfo> Values);
 /// <summary>A value: its sentence, its identity, and whether it is the one its axis is held at while another axis's value is looked at alone.</summary>
-record ValueInfo(string Name, string? Note, string Hash, bool Reference = false);
+record ValueInfo(string Name, string? Note, string Hash, bool Reference = false, string? Why = null);
 
 /// <summary>
 /// One configuration's standing: one the exam names or has tries of. State is not_run (no counted try), not_graded (it
@@ -87,7 +87,7 @@ static class Configurations
             + "A comparison looks only where the exam names or has tries of the value; in the other settings of the other axes nobody asked for it. "
             + "A try in which a stage did not run is lost and is in no number; a try with a stage that failed a validity check is listed and not counted.";
         return (new ConfigurationsFile(Schema, exam.Id, exam.Chained,
-                axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)], axes.ReferenceOf(a.Key) == v.Key)).ToList())).ToList(),
+                axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)], axes.ReferenceOf(a.Key) == v.Key, v.Value.Why)).ToList())).ToList(),
                 tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built, moves.Count > 0 ? moves : null,
                 predictions is { Count: > 0 } ? PredictionOutcomes.Compute(exam, predictions, byKey, rows, current) : null), friction);
     }

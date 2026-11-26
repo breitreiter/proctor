@@ -26,9 +26,10 @@ record FilesSource(string? Path = null, string? Git = null, string? Rev = null, 
 /// <summary>
 /// One choice on an axis. Set names parameters the base declares, which the base's own scripts act on. Files is laid
 /// over the checkout by proctor. Agent to Harness say who does the work, and Fixture names a whole base, for an axis of
-/// worlds; those are proctor's own. Note is for a reader and no part of the value's identity.
+/// worlds; those are proctor's own. Note says what the value changes and Why says what it is there for (a customer's
+/// report, an idea of our own); both are for a reader and no part of the value's identity.
 /// </summary>
-record ValueDef(string? Note = null, Dictionary<string, JsonNode?>? Set = null, FilesSource? Files = null, string? Agent = null, string? AgentVersion = null,
+record ValueDef(string? Note = null, string? Why = null, Dictionary<string, JsonNode?>? Set = null, FilesSource? Files = null, string? Agent = null, string? AgentVersion = null,
     string? Route = null, string? Model = null, string? Provider = null, string? Harness = null, string? Fixture = null)
 {
     public const string Bare = "bare", Harbor = "harbor";
@@ -232,6 +233,7 @@ sealed class Axes
                 var v = $"{at}.values.{valueName}";
                 if (!Regex.IsMatch(valueName, ValueName)) Add(v, "a value is named in lowercase letters, digits, dots, hyphens and underscores");
                 if (value is null) { Add(v, "a value is an object; one that sets nothing is {} or {\"note\": …}"); continue; }
+                if (value.Why is not null && string.IsNullOrWhiteSpace(value.Why)) Add($"{v}.why", "a sentence saying what this value is there for, not an empty string");
                 if (string.IsNullOrWhiteSpace(value.Note)) Add($"{v}.note", "required: a sentence saying what this value changes for the agent. It is what the value's change is held against when it is built alone (`proctor build`)");
                 if (value.Route is not null and not ValueDef.Bare and not ValueDef.Harbor) Add($"{v}.route", $"'{value.Route}' is not a route; known: {ValueDef.Bare}, {ValueDef.Harbor}");
                 if (value.Fixture is not null && !Regex.IsMatch(value.Fixture, "^[a-z0-9][a-z0-9-]*$")) Add($"{v}.fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens");

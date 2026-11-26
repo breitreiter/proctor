@@ -46,7 +46,7 @@ record CoverageRow(string Configuration, string? Name, Dictionary<string, string
     string? First, string? Last, double? DaysSinceLast, string? Together, string Address, int NotGraded = 0);
 
 /// <summary>One value: whether it is live or its axis's reference, and the tries of every configuration holding it.</summary>
-record ValueCoverage(string Axis, string Value, string? Note, bool Live, bool Reference, int Configurations, int Tries, string? Last);
+record ValueCoverage(string Axis, string Value, string? Note, bool Live, bool Reference, int Configurations, int Tries, string? Last, string? Why = null);
 
 /// <summary>
 /// What live spans: the live value of each axis that has one, across every value of the axes that have none (the ones
@@ -263,7 +263,7 @@ static class Answers
         var values = axes.Def.SelectMany(d => d.Value.Values!.Select(v =>
         {
             var holding = rows.Where(r => r.Values[d.Key] == v.Key && r.Tries > 0).ToList();
-            return new ValueCoverage(d.Key, v.Key, v.Value!.Note, d.Value.Live == v.Key, axes.ReferenceOf(d.Key) == v.Key, holding.Count, holding.Sum(r => r.Tries), holding.Select(r => r.Last).Max(StringComparer.Ordinal));
+            return new ValueCoverage(d.Key, v.Key, v.Value!.Note, d.Value.Live == v.Key, axes.ReferenceOf(d.Key) == v.Key, holding.Count, holding.Sum(r => r.Tries), holding.Select(r => r.Last).Max(StringComparer.Ordinal), v.Value.Why);
         })).ToList();
 
         // What live spans. With no live value anywhere there is nothing in use to span; with one on every axis it is one configuration.
@@ -289,6 +289,7 @@ static class Answers
             + "It is listed in full unless it is over 200 configurations (listed false), and then only those with tries are given. "
             + "together on a configuration says whether `proctor build` found it to be its values put together (sum), more (more), not to be told (unclear) or never checked (not_checked); absent when it is at most one value off the reference. "
             + "not_graded counts a configuration's tries with no grade under the checks as they are now: they are made, and in no comparison until `proctor grade` reads them. "
+            + "A value's note says what it changes and its why says what it is there for (a customer's report, an idea of the author's), both in the author's words. "
             + "A value nobody declared cannot show here at all. days_since_last is the age of the newest try at as_of: an old try was made on the agent and model as they were then. Nothing here recommends anything.");
     }
 

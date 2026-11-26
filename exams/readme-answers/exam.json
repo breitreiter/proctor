@@ -4,6 +4,29 @@
   "attempts": 4,
   "labels": { "area": "docs", "purpose": "onboarding" },
   "fixture": "empty",
+  "params": {
+    "README": { "tree": true, "about": "the directory holding the README the model is given as its whole context" }
+  },
+  "axes": {
+    "docs": {
+      "about": "jot's README",
+      "live": "as-shipped",
+      "values": {
+        "as-shipped":  { "note": "jot's README as it ships", "set": { "README": { "path": "values/docs/as-shipped" } } },
+        "for-scripts": { "note": "the same README with a section on using jot from a script", "why": "a script that runs `jot clear` cannot learn from the README as shipped what will happen", "set": { "README": { "path": "values/docs/for-scripts" } } }
+      }
+    },
+    "assistant": {
+      "about": "the model that answers, with no tools",
+      "values": {
+        "gemini": { "note": "Gemini Flash-Lite, through nb", "provider": "gemini", "model": "gemini-flash-lite-latest" }
+      }
+    }
+  },
+  "configurations": {
+    "as-shipped":  { "docs": "as-shipped",  "assistant": "gemini" },
+    "for-scripts": { "docs": "for-scripts", "assistant": "gemini" }
+  },
   "stages": [
     {"id": "add-a-task", "about": "The command that adds a task; both READMEs show it", "prompt": "Using jot, what exact command adds a task called \"buy milk\"?", "expect": {"answer_regex": "(?im)^ANSWER:.*\\badd\\s+[\"']?buy milk"}},
     {"id": "not-found-exit", "about": "The exit code for a task that does not exist; both READMEs say", "prompt": "What exit code does `jot done 99` return when there is no task 99?", "expect": {"answer_regex": "(?im)^ANSWER:\\W*1\\W*$"}},
