@@ -13,8 +13,8 @@
 
   <!-- The test project and the data directories sit under this root but are not compiled into the exe. -->
   <ItemGroup>
-    <Compile Remove="Proctor.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;reports\**" />
-    <None Remove="Proctor.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;reports\**" />
+    <Compile Remove="Proctor.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;bank\**;log\**;exams-seen\**;reports\**" />
+    <None Remove="Proctor.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;bank\**;log\**;exams-seen\**;reports\**" />
   </ItemGroup>
 
   <!-- The report's logo, inlined as a data URI; proctor's own Harbor agents (nb, Qwen Code), compiled into each run with a variant that uses one; setup's provider catalogue. -->
