@@ -434,7 +434,7 @@ Claude defend what it said. "Users on Codex are more likely to run
 into this" links to the attempts where Codex stumbled.
 
 - A reader on Claude Desktop means an MCP server over the hosted bank.
-  `hosted-auspex.md` puts off an API for the agent until it is wanted;
+  the hosting plan, kept outside this repository puts off an API for the agent until it is wanted;
   this is the want.
 - Even then, something in the viewer says what to ask Claude about
   (the user).
@@ -712,7 +712,7 @@ for the Go version the code declares.
     claim is judged on.
   - The old-words gate allow-lists `project/archive/` and that script
     for "variant".
-- **12. The shared bank is in `hosted-auspex.md`** ("The shared bank",
+- **12. The shared bank is in the hosting plan, kept outside this repository** ("The shared bank",
   2026-11-24): attempt ids unique when made, the first verdict pushed
   stands, definitions and value contents stored by hash, log entries
   never pushed.
@@ -749,7 +749,7 @@ for the Go version the code declares.
   recommendation). A **try** is one configuration run once through the
   exam's stages. An **attempt** is one stage of a try, which is what
   each stage's manifest already is. `CLAUDE.md`'s table,
-  `docs/configuration.md` and `hosted-auspex.md` follow when the old
+  `docs/configuration.md` and the hosting plan, kept outside this repository follow when the old
   path goes (`axes-build.md`, slice 7).
 - **19. The build plan's questions** (the user, 2026-11-24): `--value`
   to `run` is that value with every other axis at its reference; a

@@ -2,7 +2,7 @@
 type: plan
 title: Building axes — the order of work, and what each slice should teach us
 created: 2026-11-24
-status: proposed 2026-11-24, for the user. Slices 0 to 2 and proctor's half of slice 3 are built. Revised later the same day for `axes.md` decisions 13 to 16 and its "Who asks, and through what": slices 3a to 3d are new, the page of slice 3 is no longer where the model is judged, and `run` filling every configuration was changed in 3a (built). What is new is marked "mine" where the user has not said it. The model is `axes.md`; this is only the order it is built in and where we stop to look. It takes over what `bank.md` step 4 left open (the eleven exams still on tasks, deleting tasks) and puts the viewer's exam page after the first lesson. The move-in and the rename (`rename-to-auspex.md`) and hosting (`hosted-auspex.md`) are deferred until this is done (the user, 2026-11-24: they are administrative and teach nothing)
+status: proposed 2026-11-24, for the user. Slices 0 to 2 and proctor's half of slice 3 are built. Revised later the same day for `axes.md` decisions 13 to 16 and its "Who asks, and through what": slices 3a to 3d are new, the page of slice 3 is no longer where the model is judged, and `run` filling every configuration was changed in 3a (built). What is new is marked "mine" where the user has not said it. The model is `axes.md`; this is only the order it is built in and where we stop to look. It takes over what `bank.md` step 4 left open (the eleven exams still on tasks, deleting tasks) and puts the viewer's exam page after the first lesson. The move-in and the rename (`rename-to-auspex.md`) and hosting (the hosting plan, kept outside this repository) are deferred until this is done (the user, 2026-11-24: they are administrative and teach nothing)
 ---
 
 # Building axes
@@ -209,7 +209,7 @@ whether the refusals fire on real mistakes and only those (sign 2).
 - The file overlay (applied after checkout, before the first stage)
   and environment values. Model and provider as values.
 - An attempt is a configuration at a try. **Its id is unique when
-  made** (time and four random characters; `hosted-auspex.md`, "The
+  made** (time and four random characters; the hosting plan, kept outside this repository, "The
   shared bank", 1), so the bank's layout changes once more:
   `bank/<exam>/<attempt id>/`, its manifest naming the values and their
   hashes. Which try of its configuration it is, is counted when read.
@@ -506,7 +506,7 @@ the answer. This is now the centre of the plan (`axes.md`, decision
 proctor's answers says the right things, and an agent in a terminal
 can call a verb. The same queries through an MCP server over a hosted
 bank, for Claude on the desktop, follow with hosting
-(`hosted-auspex.md`) and are not built here.
+(the hosting plan, kept outside this repository) and are not built here.
 
 The queries answer with what was measured. They never recommend.
 
@@ -1159,7 +1159,7 @@ it" or "a flag" off the result is not proctor's (decision 17).
 - **The move-in and the rename** (`rename-to-auspex.md`): deferred
   until slice 7 is done. Its 2026-11-29 target no longer holds. Doing
   it after slice 7 also means renaming less code.
-- **Hosting** (`hosted-auspex.md`): `push`, `pull`, sign-in, the first
+- **Hosting** (the hosting plan, kept outside this repository): `push`, `pull`, sign-in, the first
   verdict standing. Slice 2 takes only its attempt ids, because they
   set the bank's layout.
 - **Decision support** (the user, 2026-11-24): reports for product
