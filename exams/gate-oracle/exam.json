@@ -4,7 +4,7 @@
   "attempts": 1,
   "fixture": "note",
   "harbor": {
-    "version": "0.24.0"
+    "version": "0.26.0"
   },
   "limits": {
     "wall_ms": 120000

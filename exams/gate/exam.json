@@ -2,7 +2,7 @@
   "id": "gate",
   "description": "The deterministic gate: one Mock variant run bare and the same variant run through Harbor must give identical counted cores and checks, apart from timings.",
   "attempts": 2,
-  "harbor": { "version": "0.24.0" },
+  "harbor": { "version": "0.26.0" },
   "limits": { "wall_ms": 120000 },
   "grading": {
     "checks": {

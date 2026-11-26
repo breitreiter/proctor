@@ -7,7 +7,7 @@
     "purpose": "report-study"
   },
   "harbor": {
-    "version": "0.24.0"
+    "version": "0.26.0"
   },
   "limits": {
     "wall_ms": 2700000

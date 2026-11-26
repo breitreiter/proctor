@@ -7,6 +7,13 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **The shipped exams run on Harbor 0.26.0** (0.24.0 before), all but
+  `tern-docs`, whose paid run is half made and stays on the pin it was
+  started under. Both gates and conformance pass on it on rootless
+  podman and rootless Docker with nothing else changed, and the network
+  probe (`project/learnings/netprobe/`) answers as it did. An exam's pin
+  is its own (`harbor.version`); an interrupted run started under
+  another version is not continued.
 - **An agent beside a fixture's services can no longer capture what
   they say.** A service that declares no network shares the agent's, and
   under Docker's default capabilities the agent's container could open a

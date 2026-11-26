@@ -823,7 +823,7 @@ sealed class Exam
         // With axes only the configurations the exam carries stand here, so a value that names an agent or the Harbor route counts too.
         var agents = variants.Any(v => v.IsAgent) || (def.Axes ?? []).Values.Any(a => a?.Values?.Values.Any(v => v?.Agent is not null || v?.Route == ValueDef.Harbor) == true);
         if (def.Harbor is { } harbor && (string.IsNullOrWhiteSpace(harbor.Version) || !Regex.IsMatch(harbor.Version, @"^\d+(\.\d+)*$")))
-            add("harbor.version", "required: the Harbor release, pinned (0.24.0)");
+            add("harbor.version", "required: the Harbor release, pinned (0.26.0)");
         foreach (var (field, value) in new (string, object?)[] { ("tool_calls", def.Limits?.ToolCalls), ("tokens", def.Limits?.Tokens), ("cost_usd", def.Limits?.CostUsd) })
             if (value is not null) add($"limits.{field}", "not yet implemented; only wall_ms is enforced in this version");
         if (def.Limits?.WallMs is < 1000) add("limits.wall_ms", "at least 1000");
@@ -833,7 +833,7 @@ sealed class Exam
             if (def.Limits is not null) add("limits", "applies to agent variants; an nb variant's limits are budget directives in the program");
             return;
         }
-        if (def.Harbor is null) add("harbor.version", "required with an agent variant: the Harbor release it runs on, pinned (0.24.0)");
+        if (def.Harbor is null) add("harbor.version", "required with an agent variant: the Harbor release it runs on, pinned (0.26.0)");
         if (def.Limits?.WallMs is null) add("limits.wall_ms", "required with an agent variant: how long each attempt may take");
         if (def.Hooks?.Attempt is not null) add("hooks.attempt", "not yet with an agent variant: an attempt hook runs on the host, the agent in its container; move the setup into the fixture's image");
         foreach (var c in tasks)

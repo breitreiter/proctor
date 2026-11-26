@@ -738,7 +738,7 @@ are `variants/cc-haiku.json` and `variants/floor.json`, and `exam.json` pins
 Harbor and the time each attempt may take:
 
 ```json
-{ "harbor": { "version": "0.24.0" }, "limits": { "wall_ms": 1800000 } }
+{ "harbor": { "version": "0.26.0" }, "limits": { "wall_ms": 1800000 } }
 ```
 
 The machine needs [uv](https://docs.astral.sh/uv/), which runs the pinned

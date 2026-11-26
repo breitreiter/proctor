@@ -197,7 +197,29 @@ carry itself across days, and 0.27.0 cannot be resolved before
 
 ## Decided alone
 
-Nothing yet.
+- **`NET_RAW` is dropped from the agent's container whenever the
+  fixture has services, on both engines, with no switch** (2026-11-26).
+  The cost is `ping` for the agent on Docker. An agent overhearing a
+  fixture's service was judged the worse of the two. A compose file
+  that declares `main` itself is left alone, which is the way out for
+  an exam that needs the capability.
+- **`tern-docs` stays on Harbor 0.24.0** while every other shipped exam
+  moves to 0.26.0 (2026-11-26): its paid run is half made, and a bank
+  made under two Harbor versions is a report with mixed conditions.
+  Moving it is one line, for when the owed half is run or after it.
+- **The pin goes to 0.26.0 first, not straight to 0.27.0**, which the
+  seven-day cooldown does not resolve until 2026-11-28.
+
+## Progress
+
+- 2026-11-26. Stage 1 at 0.26.0: the probe, both gates and conformance
+  pass on rootless podman (sanjuro) and rootless Docker (golem) with no
+  change to proctor. Stage 2: what an agent sees of a fixture's service,
+  measured on both; the one leak (loopback capture on Docker) closed in
+  compile. All of it is in `learnings/harbor.md`, the last three
+  sections. Next: 0.27.0 from 2026-11-28; the hand-made relay on the new
+  pin on both engines; web tools under a policy; the stub fixture on
+  Modal.
 
 ## Not done, and why
 

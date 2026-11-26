@@ -49,7 +49,7 @@ committed; nothing else of the fixture enters the image the agent runs in.
 
 ## 4. The exam: Harbor, limits, and no runner
 
-- Add `"harbor": {"version": "0.24.0"}` (pinned; `run` does not continue an interrupted run started under another version)
+- Add `"harbor": {"version": "0.26.0"}` (pinned; `run` does not continue an interrupted run started under another version)
   and `"limits": {"wall_ms": …}` (Harbor's agent timeout; an attempt that hits it
   is completed with `time_budget`, not failed).
 - Remove the `nb` block (`runner`, `mounts`). The image is the container now,

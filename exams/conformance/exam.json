@@ -1,7 +1,7 @@
 {
   "id": "conformance",
   "description": "Does proctor drive each vendor agent through Harbor and read back what Harbor wrote? Every variant talks to the stub fixture's scripted model, so an attempt costs nothing.",
-  "harbor": { "version": "0.24.0" },
+  "harbor": { "version": "0.26.0" },
   "limits": { "wall_ms": 120000 },
   "grading": {
     "checks": {
