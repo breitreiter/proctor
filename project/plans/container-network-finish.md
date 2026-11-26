@@ -193,7 +193,7 @@ run goes through the relay.
 
 **What can still halt the work:** the session ending. It does not
 carry itself across days, and 0.27.0 cannot be resolved before
-2026-11-28. One word resumes it, and this file says where it was.
+2026-11-28. One word starts it again, and this file says where it was.
 
 ## Decided alone
 
