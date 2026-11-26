@@ -602,3 +602,41 @@ conformance has them.
   (the socket is then root's on the host side of the mount), an agent
   that is not root, the host end restarted during a run, nb as the
   agent, the simulated user.
+
+## The same probe on rootless podman (2026-11-26)
+
+Leg A of `plans/container-network.md` on sanjuro: rootless podman 5.7.0
+(netavark), docker-compose 2.40.3 behind `podman compose`, Harbor
+0.24.0. One trial of `learnings/netprobe/`, allowed by name, with
+`[environment]` given the agent's policy as compile writes it since
+ddd04fe. The output is beside the task
+(`sanjuro-rootless-podman.name.txt`, and `.late.txt` for the process
+left running).
+
+- **Every answer is the one rootless Docker gave.** The named host
+  answers and the other does not; `Host` and SNI cannot talk past it;
+  a second HTTP port of the allowed host answers and a port where the
+  server speaks first does not; a public name resolves and a ping
+  leaves; UDP to an outside resolver and IPv6 get nothing; the
+  container's gateway answers nothing; the agent is root.
+- **A process the agent leaves running never gets the internet.** Its
+  fetch of `http://example.com` once a second got nothing from the
+  start of the agent's phase to teardown: with the environment
+  allowlisted, the window is shut on podman too.
+- **The resolver is the network's gateway**, not Docker's `127.0.0.11`,
+  and `host.docker.internal` resolves under podman (to nothing that
+  answered under the allowlist).
+- `GateTests` and `OracleGateTests` pass on podman at f693887 (8 m 38 s
+  for both), so the fix for A4 holds for nb as a Harbor agent and for
+  the bridged task there.
+- Not run on podman: allowed by IP, `public` as the control, the relay
+  (leg B).
+
+**A gateway on another machine, as on sanjuro.** The allowlist names
+that machine, so every HTTP and TLS service on it is open to the agent,
+whatever port (here a second, unrelated web service), and the agent's
+key reaches every route the gateway serves that key, a web search
+upstream among them. What narrows the second is the gateway's (a key
+scoped to the one upstream). Nothing proctor has narrows the first:
+Harbor's allowlist has no port. The relay of leg B is the one mechanism
+seen that would make it "that host, that port" (B6).

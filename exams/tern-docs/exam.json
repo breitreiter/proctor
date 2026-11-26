@@ -1,7 +1,7 @@
 {
   "id": "tern-docs",
   "description": "Does a restructure of an API's documentation change what a coding agent builds from it? Claude Code on Sonnet implements six shipping functions in a small shop's Python backend against Tern, an invented carrier, with Tern's docs as shipped, as restructured, or absent. The configurations differ only in what the docs site serves.",
-  "attempts": 2,
+  "attempts": 4,
   "labels": {
     "area": "docs/api",
     "purpose": "showcase"

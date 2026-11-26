@@ -1290,3 +1290,49 @@ nothing to point at for Docker.
 
 Each guide says when it was last checked and on what versions, as
 `podman.md` does, so "tidy" has a date to be measured against.
+
+## One host and one port for an agent's model, on any machine
+
+Asked for by the user 2026-11-26 ("a shame that we don't have more
+narrow firewall controls. maybe a future feature for proctor, since we
+seem to have so many weird network issues"). Harbor's allowlist is by
+host, never by port, so an agent allowed its gateway can reach every
+web service on that machine. The candidate is the socket relay of
+`plans/container-network.md` (B1 passed on rootless Docker; B6 asks
+whether it is also right when the gateway is on another machine): the
+agent's phase has no network at all and reaches one address through a
+relay proctor starts. Not designed. What was seen is in
+`learnings/harbor.md`, "The same probe on rootless podman".
+
+## Keep the model's endpoint and key out of the agent's reach
+
+Pinned by the user 2026-11-26. An agent under test holds its model's
+base URL and key (`ANTHROPIC_API_KEY` and the like in its container),
+so it can call the gateway itself, outside its harness: another model,
+another upstream the key reaches (a web search one, on the user's
+gateway), or its own model with no record in the trajectory. Scoping a
+key per upstream at the gateway closes part of it and does not scale:
+"we're going to need tokens for every model variant we want to test".
+Two directions, neither designed:
+
+- **Hide them.** The agent's container holds a placeholder key and a
+  local address; something outside the agent's reach (the relay of
+  `plans/container-network.md`, leg B, or a sidecar) adds the real key
+  and forwards to the one route. Then the key the agent can read is
+  worth nothing and there is one route to call. To find out: whether
+  each vendor agent is content with a placeholder key, and whether the
+  sidecar's process and environment can be kept from a root agent in
+  the same namespace (a fixture's service is in the agent's network
+  namespace, not its filesystem or process list; not checked).
+- **Flag it.** The user: "flag the run if the model tries to reach
+  minrouter directly (not through the approved harness). not sure how
+  fast we can catch that". After the fact it is cheap: a rule over the
+  trajectory for a tool call that names the gateway's host, the base
+  URL or the key's variable (a friction rule, or a validity check so
+  the try does not count); and the gateway's own request count for the
+  run held against the turns the trajectory records, which catches a
+  call the trajectory hides. During the run it needs the gateway to
+  tell the harness's requests from others, which nothing does today.
+
+Beside "One host and one port for an agent's model, on any machine"
+above; C3 of the plan is the same question as advice.
