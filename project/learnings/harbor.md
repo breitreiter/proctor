@@ -678,3 +678,55 @@ public name resolved to, and the process left running got nothing
 (`sanjuro-rootless-podman.name.harbor-0.26.0.txt` and `.late.txt`).
 `run.sh` takes `HARBOR=<version>`.
 
+## What an agent sees of a fixture's service beside it (2026-11-26)
+
+For goal 2 of `plans/container-network-finish.md`. Run, Harbor 0.26.0,
+allowed by name: sanjuro (rootless podman 5.7.0) by this session, golem
+(rootless Docker 29.1.3) by its own. The probe's compose file has a
+service, `beside`, that declares no network and so shares the agent's,
+as a fixture's service does when compile lays it out. It holds a file,
+an environment variable, and a header on a request it makes of itself
+on the loopback once a second. The agent is root.
+
+| | podman | Docker |
+|---|---|---|
+| The service at `127.0.0.1` | answers | answers |
+| Its process in `/proc` | not there | not there |
+| Its file, its environment, its source, anywhere on disk | nowhere | nowhere |
+| Its listening port in `/proc/net/tcp` | seen | seen |
+| Its port taken on another address | refused, in use | refused, in use |
+| The agent's capabilities, of `net_raw net_admin sys_ptrace sys_admin dac_read_search` | none | `net_raw` |
+| Its loopback traffic captured (a packet socket on `lo`) | refused | **heard, the header with it** |
+
+- **On Docker an agent overhears whatever a fixture's service says on
+  the loopback they share**: another service calling it, its own calls,
+  a verifier's. What the service holds and does not send is safe on
+  both engines.
+- **The capability is Docker's default, not Harbor's.** `docker
+  inspect` during the trial: the agent's container and the service have
+  no capability added or dropped; only Harbor's sidecar adds any
+  (`NET_ADMIN`, `NET_RAW`), in every version in golem's uv cache.
+- **Dropping it in the task's compose file closes it.**
+  `main: { cap_drop: [NET_RAW] }` beside the task's services: Harbor
+  merges its own `main` over it, the container shows
+  `CapDrop=[CAP_NET_RAW]` in the agent's phase and in the verifier's,
+  and the capture is refused. The trial gets its reward on both
+  engines.
+- **It costs ping on Docker**: `ping: socket: Operation not permitted`
+  there with the capability gone. On podman ping still answers, with or
+  without the drop.
+- `run.sh` takes `DROP=<capability>`. Golem's outputs are on golem
+  (`golem-rootless-docker.name.harbor-0.26.0*.txt`).
+
+## Harbor 0.26.0, first runs (2026-11-26)
+
+Run. The pin in the repository is still 0.24.0.
+
+- The probe's answers are the same as at 0.24.0 under all three
+  policies on rootless Docker, and by name on rootless podman. After
+  the agent's phase the trial moves on sooner (golem saw the process
+  left running write for 6 s after it, against 16 at 0.24.0).
+- `GateTests` and `OracleGateTests` pass with the two gate exams at
+  0.26.0 and nothing else changed: 8 m 51 s on podman, 7 m 26 s on
+  rootless Docker.
+
