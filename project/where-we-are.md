@@ -55,7 +55,14 @@ configuration, Claude Code on Sonnet through Harbor:
 | `restructure` | 18/18, 18/18 | 10, 8 | 45 |
 | `none` | 13/18, 13/18 | 29, 32 | 88 |
 
-Two a side cannot confirm anything. The plan is four a side: raise
+**Finished 2026-11-26, on the desktop (rootless podman, the gateway on
+another machine):** four tries a side. No docs against as shipped is
+worse on headline checks held, confirmed (p = 0.029), and both of its
+predictions held; the restructure is the same as as shipped, and none
+of its three predictions came out. What follows is how it stood on
+the 25th.
+
+Two a side cannot confirm anything. The plan was four a side: raise
 `attempts` from 2 to 4 in `exams/tern-docs/exam.json` and run the other
 six tries. A try with docs is about 25 requests and $0.50; one without
 is about 60 requests. **Those six tries are in `bank/`, which is not in
@@ -75,13 +82,15 @@ it is not in git, it is on the laptop.
 
 ## Owed, small
 
-- `CLAUDE.md`'s vocabulary table says "claim"; it should say
-  "prediction". The changelog has no entry for slice 6. Both files held
-  the other session's edits when slice 6 was committed.
-- Issue #13: `grade` counts every verdict of a staged exam as new.
-- `docs/podman.md` section 5 advises mapping the host's loopback into
-  containers; `todo.md`, "The container-engine guides".
-- A Docker guide does not exist; the Modal guide predates axes.
+Done on 2026-11-26, from the desktop: the vocabulary table says
+"prediction", the changelog has slice 6, issue #13 is closed, and
+`docs/podman.md` section 5 no longer advises opening the host's
+loopback. Left:
+
+- A Docker guide does not exist; the Modal guide predates axes
+  (`todo.md`, "The container-engine guides").
+- What `docs/podman.md` section 5 should offer for a gateway on the
+  same machine waits for `plans/container-network.md`.
 
 ## Next in the plan
 

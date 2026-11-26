@@ -40,7 +40,7 @@ code, files, prose and the report, and no others for these things:
 | **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
 | **bank** | Every attempt of an exam, whenever it was made (`bank/<exam>/<variant>/<task>/<n>/`). What one `proctor run` did, when, on what machine and at what versions, is a **log entry** (`log/<id>/`): a record, and what `run` reads to continue after a crash, never a grouping a person reads results by. |
 | **live** | A mark on one variant: the one in use now, and the reference a change is compared with. |
-| **claim** | What should change between two variants, which checks and which way, said before the attempts are made. |
+| **prediction** | One statement written before the tries are made: run this configuration, and this will change. Its lines are **changes**, each a check or a metric and a direction. It replaced "claim" (the user, 2026-11-25); "candidate" and "treatment" are not words here. |
 
 **Built: the words and steps 1 to 4** of
 `project/plans/exam-variant-attempt-removal.md`: everything says exam,
@@ -51,8 +51,11 @@ hash, `attempts` is set on the exam, an exam's attempts are its bank
 interrupted run; `grade`, `friction` and `report` take the exam; there
 is no resume verb), and one variant may be marked live
 (`exams/<exam>/live.json`, `proctor live`), which the report compares the
-others with. **Not built:** claims and the change report (stage 3), so
-`claim` in the table above names nothing in the code yet. **The bank**
+others with. **Predictions are built on exams with axes only**
+(`axes-build.md`, slice 6): `exams/<exam>/predictions/<name>.json`,
+pinned by `proctor predict` or by `run`, held against the tries in
+`list`, the report and `compare`. An exam of variants has none, and
+the change report of stage 3 is not built. **The bank**
 (`project/plans/bank.md`, steps 1 and 2 built 2026-11-17 and 18):
 there is no batch. Attempts live in the bank by coordinates and a run
 leaves a log entry; `run` opens with each variant's attempts of those wanted and `grade`
@@ -72,7 +75,7 @@ in the order the verbs run them. Every file is one concern:
 | file | holds |
 |---|---|
 | `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure |
-| `Verbs.cs` | one method per verb: `list`, `run`, `build`, `grade`, `friction`, `report`, `compare`, `coverage`, `live`; the conditions the report stands for (`View`) and the earlier report moved aside |
+| `Verbs.cs` | one method per verb: `list`, `run`, `build`, `grade`, `friction`, `report`, `compare`, `coverage`, `predict`, `live`; the conditions the report stands for (`View`) and the earlier report moved aside |
 | `Exam/Layout.cs` | paths and file names, nothing else |
 | `Exam/Exam.cs` | `proctor.json` (the host binary and its config), `exam.json` (attempts, the `nb` block with the runner and mounts, hooks, grading), `variants/*.json`, tasks, the program template: records, loading, validation (`Problem` = file, field, message); the merged check set and expect block per task; the exam's, each variant's and each task's hash |
 | `Exam/Fixture.cs` | `fixtures/<id>/fixture.json`: source, checks, default expect; the source-tree hash |
@@ -81,6 +84,7 @@ in the order the verbs run them. Every file is one concern:
 | `Exam/Tree.cs` | a directory's files minus excluded names, and their content hash (fixtures and bundles); `Tree.Litter`, the tool caches (`__pycache__`, `.pytest_cache`, …) no walk, hash or compile copy ever takes, since git ignores them and they differ by machine |
 | `Exam/Axes.cs` | an exam's `axes` in `exam.json`, in place of `variants/` (`project/plans/axes.md`, built slice by slice per `axes-build.md`): axes, values, the reference of each axis, the configurations the exam carries (named, asked for, or with tries in the bank; never the cross product), the refusals, who does the work in a configuration |
 | `Exam/Combinations.cs` | `exams/<exam>/combinations.json`, written by `build` and nothing else: which several-valued configurations are their values put together, more (a script reads several axes), or cannot be told; what holds today (`Combinations.Stand`). Whether anyone read what a value changes is recorded nowhere, on purpose |
+| `Exam/Predictions.cs` | `exams/<exam>/predictions/<name>.json` on an exam with axes: one configuration the exam names, what it is compared with (`against`, or what is live), and the changes expected, each a check or a metric (`held`, `flagged_steps`, `tool_calls`, `tokens`, `duration`) with `more` or `less`; validation; the pin (`Predictions.Stamp`: when it was written and each stage's standard then, set once). Committed with the exam and in no hash |
 | `Exam/Live.cs` | `exams/<exam>/live.json`: the live variant by id and hash, and since when; whether the mark still holds (`Live.Broken`) and the warning `list`, `run` and `report` print when it does not |
 | `Run/Runner.cs` | `run`: an interrupted run continued when its conditions hold (`WhyNotContinue`), then what is missing made by a new run; the log entry (`log/<id>/entry.json`), `exams-seen/` and attempt manifests, hooks, nb as a subprocess, an agent attempt through Harbor; bundles resolved (a git bundle's `paths` copied out of its clone); a changed variant under an id that made attempts refused |
 | `Run/Build.cs` | `build`: the starting workspace of the reference twice, of each value alone and of each several-valued configuration, with the setup hooks and nothing run; a value's change (`ValueChange`) and the combination check, whose changes to one file are merged line by line |
@@ -113,6 +117,7 @@ in the order the verbs run them. Every file is one concern:
 | `Report/Results.cs` | `results.jsonl` rows, one per current attempt read |
 | `Report/Stats.cs` | Wilson, Newcombe paired, MDE, summaries into `stats.json`; the report's stamp (`built_from`: the runs' log entries, hashes, current and stale counts, mixed conditions) |
 | `Report/Configurations.cs` | the report of an exam with axes (`stats.json` as `configurations/1`, `summary.md`): the configurations the exam carries, and `Compare`, the one place a value is compared with another, every other axis held (Mann–Whitney in each setting, van Elteren across them, "better here, worse there" when they disagree) |
+| `Report/PredictionOutcomes.cs` | how each change a prediction expects came out against the tries, as a sentence, a miss as plainly as a hit; `late` when tries were made before the pin, and whether the standard moved since |
 | `Report/Answers.cs` | `compare` and `coverage`: what proctor answers an agent, as JSON (`answer/1`), from `Configurations.Compare` and the bank; an answer's cautions, its tries' addresses and its `as_of`. Proctor does no decision support (`project/plans/axes.md`, decision 17): these recommend nothing |
 | `Report/Report.cs` | `summary.md`, a pure function of stats and results; `Td` is a table cell. There is no HTML page: auspex is the viewer (2026-11-22) |
 | `exams/smoke/` | proctor's own exam: every task scripts nb's Mock provider |

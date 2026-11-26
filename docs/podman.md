@@ -1,7 +1,7 @@
 # Agent variants on rootless podman
 
 What a machine needs before `harbor.engine: podman` works, and why each
-step is there. Checked on 2026-10-27 with rootless podman 5.7.0 on Ubuntu,
+step is there. Checked on 2026-10-27 (section 5 on 2026-11-26) with rootless podman 5.7.0 on Ubuntu,
 docker-compose 2.40.3 and Harbor 0.24.0: conformance (every vendor agent
 against the stub) and the oracle pass over `code-change` both run green.
 Earlier findings came from podman 6.1.3. Docker needs none of this.
@@ -71,23 +71,29 @@ fails reinstalling it, and proctor's Qwen Code agent refuses the image.
 Claude Code and the oracle happen not to notice, which is why a check with
 only those passes.
 
-## 5. A gateway on the host's loopback (only if yours is one)
+## 5. Where the model gateway can be
 
-A rootless container reaches the host as `host.containers.internal`, which
-is the host's routable address, not `127.0.0.1`. For a model gateway that
-listens only on loopback:
+An agent's container may reach one host, the one in `proctor.json`'s
+`agents.<agent>.base_url`, and nothing else. Where that host is decides
+whether this works.
 
-```toml
-# ~/.config/containers/containers.conf
-[network]
-pasta_options = ["--map-host-loopback", "169.254.1.2"]
-```
+**On another machine: this works.** Name the machine in `base_url` as
+your network resolves it. The allowlist is by host, not by port, so
+every web service on that machine is open to the agent, not only the
+gateway; a service that speaks first, such as ssh, is not. The agent
+also holds the gateway's key, so it can call every route that key
+serves. Give it a key for the one route if your gateway can.
 
-and use `host.containers.internal` as the host in `proctor.json`'s
-`agents.<agent>.base_url`. **The allowlist is by host, not port**: once
-mapped, every service on the host's loopback is open to every trial, not
-just the gateway. Prefer a gateway on a LAN address the allowlist can name
-on its own.
+**On the same machine, listening on loopback: there is no supported way
+yet.** A rootless container cannot reach the host's `127.0.0.1`, and
+that is what keeps an agent under test away from everything else that
+listens there. Do not open it: pasta's `--map-host-loopback` (and
+rootless Docker's host-loopback switch) hand every loopback service on
+the machine to every trial, and an allowlist that names the host then
+names all of them. Binding the gateway to a LAN address instead opens
+it to that network, and is yours to decide knowingly. Until proctor
+carries the model through one opening of its own, run the gateway on
+another machine.
 
 ## 6. Ubuntu 26.04: let podman stop pasta (issue #7)
 

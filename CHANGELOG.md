@@ -70,6 +70,22 @@ formats or the vocabulary; a patch bump does not.
   conversation that ended unanswered (`oracle_miss`, `oracle_budget`)
   says so at the end of the transcript, since an answer that was not
   given leaves no turn.
+- **Predictions** (`axes-build.md`, slice 6). On an exam with axes, a
+  prediction is one statement written before the tries are made: run
+  this configuration, and this will change. It is a file,
+  `exams/<exam>/predictions/<name>.json`: the configuration it is about,
+  by the name the exam gives it, what it is compared with (`against`,
+  or what is live), and its `changes`, each a check or a metric
+  (`held`, `flagged_steps`, `tool_calls`, `tokens`, `duration`) with a
+  direction, `more` or `less`, and optionally why. New verb
+  `proctor predict <exam> [name]` pins it once, with the time and each
+  stage's standard; `run` pins one whose configuration it is about to
+  make tries of. `list`, the report and `compare` say how each change
+  came out in a sentence, a miss as plainly as a hit; one pinned after
+  tries of its configuration existed is labelled late, and one whose
+  checks changed since says the standard moved. A prediction gates
+  nothing and is in no hash. `tern-docs` carries two. The word
+  replaces "claim" in the vocabulary.
 - **Grades over time** (`axes-build.md`, slice 5). `grade` keeps each
   grade in the attempt as `grades/<standard>.json`, beside
   `checks.json`: the verdicts, the hash of the checks they were made

@@ -1245,12 +1245,13 @@ there is today:
 
 | Engine | Guide | State |
 |---|---|---|
-| podman | `docs/podman.md`, 237 lines | Checked 2026-10-27. Section 5 needs changing, below |
+| podman | `docs/podman.md` | Checked 2026-10-27. Section 5 was replaced 2026-11-26: it no longer gives the loopback mapping, says a gateway on another machine works and what that leaves open, and that the same machine has no supported way yet. It waits for `plans/container-network.md` to say what that way is |
 | Modal | `docs/modal.md`, 99 lines | Written before stages and axes |
 | Docker | none | `podman.md` says "Docker needs none of this"; `docs/configuration.md`, "Agent variants", covers both in passing |
 
-**podman.md, section 5, tells the reader to do what the user has said
-not to advise.** It gives `pasta_options = ["--map-host-loopback", …]`
+**podman.md, section 5, told the reader to do what the user has said
+not to advise** (replaced 2026-11-26, as the table says; what follows
+is why). It gave `pasta_options = ["--map-host-loopback", …]`
 as the way to reach a gateway on the host's loopback, then warns that
 every loopback service is open to every trial and says to prefer a LAN
 address. The user (2026-11-25): opening the host's loopback to
