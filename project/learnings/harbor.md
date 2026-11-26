@@ -667,9 +667,10 @@ repository).
   allowlisted, never. As on 2026-11-25.
 - The probe's script wrote no agent policy at all when `ENVPOL` was
   unset (the write sat inside the `if`), so a `public` trial ran with
-  the placeholder in its `task.toml`. Fixed. The earlier `public` file
-  on golem was made before that line existed in this form or by hand;
-  its answers are a public network's either way.
+  the placeholder in its `task.toml`. Fixed. The script was committed
+  with that fault, so how the earlier `public` file on golem was made
+  is not known; its answers are a public network's, and today's agree
+  with them but for the loopback line.
 
 **Sanjuro, rootless podman 5.7.0, Harbor 0.26.0**, allowed by name:
 the same answers as on 0.24.0, line for line but for the address a
