@@ -640,3 +640,40 @@ upstream among them. What narrows the second is the gateway's (a key
 scoped to the one upstream). Nothing proctor has narrows the first:
 Harbor's allowlist has no port. The relay of leg B is the one mechanism
 seen that would make it "that host, that port" (B6).
+
+## The probe again: golem with its loopback shut, podman on 0.26.0 (2026-11-26)
+
+For `plans/container-network-finish.md`. Run, both.
+
+**Golem, rootless Docker 29.1.3, Harbor 0.24.0, the host's loopback
+shut** (the user removed
+`DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK=false` that day).
+Run by golem's own session, the three policies at once, the environment
+given the agent's policy. The outputs are on golem beside the earlier
+ones (`golem-rootless-docker.<policy>.2026-11-26.txt`, not yet in the
+repository).
+
+- **One line of the 2026-11-25 results was the open loopback's, and
+  only one.** Under `public`, `10.0.2.2:<port>` answered then and is
+  `Network unreachable` now. Every other line of all three files reads
+  the same, so what was written above about the allowlist stands for a
+  machine set up as shipped.
+- **A default container holds `NET_RAW` on Docker** (`capsh` in
+  `alpine`). Podman's defaults leave it out (read, not run here). So on
+  Docker an agent can capture packets on a loopback it shares with a
+  fixture's service. Not yet tried from inside a trial.
+- With the environment `public`, the process left running had the
+  internet before, during and after the agent's phase; with it
+  allowlisted, never. As on 2026-11-25.
+- The probe's script wrote no agent policy at all when `ENVPOL` was
+  unset (the write sat inside the `if`), so a `public` trial ran with
+  the placeholder in its `task.toml`. Fixed. The earlier `public` file
+  on golem was made before that line existed in this form or by hand;
+  its answers are a public network's either way.
+
+**Sanjuro, rootless podman 5.7.0, Harbor 0.26.0**, allowed by name:
+the same answers as on 0.24.0, line for line but for the address a
+public name resolved to, and the process left running got nothing
+(`sanjuro-rootless-podman.name.harbor-0.26.0.txt` and `.late.txt`).
+`run.sh` takes `HARBOR=<version>`.
+
