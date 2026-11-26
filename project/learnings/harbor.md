@@ -761,3 +761,48 @@ agent's container.
   agent that is not root, nb as the agent, the host end restarted
   during a trial, two ports at once, and Harbor's pull request 4427.
 
+
+## Harbor's pull request 4427, read, and a service that says whose namespace it joins (2026-11-26)
+
+Read, not run: the source diff of pull request 4427 at 12a50b9
+(`egress_control.py`, `docker.py`, `podman.py`, the sidecar's scripts
+and the page it adds to the docs), open against Harbor's main from a
+fork. It answers issue 3992.
+
+- **Released (0.26.0), both engines**: one sidecar,
+  `harbor-docker-egress-control-sidecar`, and Harbor gives every service
+  that declares neither `networks` nor `network_mode` the line
+  `network_mode: service:<that sidecar>`. That is why a fixture's
+  service answers at the agent's `localhost`.
+- **Under the pull request, on Docker**: every such service gets a
+  sidecar and a namespace of its own, the sidecar carrying the
+  service's name as an alias on the project's network. The agent's
+  sidecar is `harbor-docker-egress-control-main-8e62e8c65106` (the
+  prefix, the service's name, twelve hex digits of the SHA-256 of
+  both). Traffic between services on the project's subnet is let past
+  the policy, the gateway is not, so under `no-network` a service is
+  reached by its name. **Nothing answers at `localhost` any more**:
+  not the relay, and not the stub model (`localhost:8765`) or
+  `tern-shop`'s two services either. `ports` and `links` on such a
+  service are refused.
+- **Under the pull request, on podman**: unchanged, one shared sidecar.
+  So the same task would answer at `localhost` on podman and at a name
+  on Docker.
+- A service that declares `networks` or `network_mode` is left as it is
+  written, released and under the pull request alike.
+
+Run, on rootless podman 5.7.0 (sanjuro) at 0.26.0, the probe with no
+network in either phase (`run.sh`, which now takes `JOIN=<service>` and
+`FROM=<what uv installs from>`):
+
+| `beside` declares | at `127.0.0.1:9090` | its name |
+|---|---|---|
+| nothing | answers | does not resolve |
+| `network_mode: service:harbor-docker-egress-control-sidecar` and a `depends_on` it | answers | does not resolve |
+
+So a service's name is no address on the released Harbor, and a service
+can say outright which sidecar it joins and be where it was. Whether
+that also holds under the pull request (joined to
+`harbor-docker-egress-control-main-8e62e8c65106`) is **not run**: it
+means running a fork's unmerged commit, and this session's permission
+check refused handing that to golem's.
