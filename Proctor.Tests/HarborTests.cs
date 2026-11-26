@@ -965,11 +965,20 @@ public class HarborTests
         HarborCompile.Tasks(entryDir, repo.LoadExam("conformance"), _ => new AgentRoute("http://localhost:8765/v1", "stub"));
         var environment = Path.Combine(Layout.HarborTask(entryDir, "codex", "ok"), "environment");
 
-        Assert.Equal(File.ReadAllText(Path.Combine(TestRepo.SourceRoot, "fixtures", "stub", "services", "docker-compose.yaml")), File.ReadAllText(Path.Combine(environment, "docker-compose.yaml")));
+        var written = File.ReadAllText(Path.Combine(TestRepo.SourceRoot, "fixtures", "stub", "services", "docker-compose.yaml"));
+        Assert.Equal(written.Replace("services:\n", "services:\n  main: { cap_drop: [NET_RAW] }\n"), File.ReadAllText(Path.Combine(environment, "docker-compose.yaml")));
         Assert.True(File.Exists(Path.Combine(environment, "stub.py")));
         Assert.True(File.Exists(Path.Combine(environment, "Dockerfile")));
         Assert.Contains("allowed_hosts = [\"localhost\"]", File.ReadAllText(Path.Combine(Layout.HarborTask(entryDir, "codex", "ok"), "task.toml")));
     }
+
+    /// <summary>The agent's container loses NET_RAW beside a fixture's services, so it cannot capture what they say on the loopback it shares with them; a compose file that declares `main` is its author's.</summary>
+    [Theory]
+    [InlineData("services:\n  api:\n    image: x\n", "services:\n  main: { cap_drop: [NET_RAW] }\n  api:\n    image: x\n")]
+    [InlineData("# why\nservices: # beside\n  api: {}\nvolumes:\n  main: {}\n", "# why\nservices: # beside\n  main: { cap_drop: [NET_RAW] }\n  api: {}\nvolumes:\n  main: {}\n")]
+    [InlineData("services:\n  main:\n    cap_add: [NET_RAW]\n  api: {}\n", "services:\n  main:\n    cap_add: [NET_RAW]\n  api: {}\n")]
+    public void Compile_DropsNetRaw_FromTheAgentsContainer_BesideServices(string compose, string compiled) =>
+        Assert.Equal(compiled, HarborCompile.Confined(compose));
 
     /// <summary>An agent variant's bundle reaches a fixture's services as environment/bundle/, and never the agent's image; a variant without one gets the directory empty, so a compose mount of ./bundle resolves.</summary>
     [Fact]

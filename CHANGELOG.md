@@ -7,6 +7,17 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **An agent beside a fixture's services can no longer capture what
+  they say.** A service that declares no network shares the agent's, and
+  under Docker's default capabilities the agent's container could open a
+  packet socket on that loopback: on rootless Docker a probe heard a
+  header a service sent itself. Compile now drops `NET_RAW` from the
+  agent's container (`main: { cap_drop: [NET_RAW] }` in the compiled
+  compose file) whenever the fixture has services. Podman's defaults
+  never held the capability. The cost is `ping` in the agent's container
+  on Docker. A compose file that declares `main` itself is left as
+  written. An interrupted run whose compiled tasks have services is not
+  continued, and what is missing is made by a new run.
 - **A try of several stages through Harbor no longer dies at its second
   stage on podman.** Harbor uploads a stage's `setup.sh` into the
   agent's directory, and podman's Docker API gives that directory the

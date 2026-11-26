@@ -143,6 +143,8 @@ static class HarborCompile
         if (fixture.Def.Image!.Services is { } services)
         {
             CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
+            var compose = Path.Combine(dir, "environment", "docker-compose.yaml");
+            File.WriteAllText(compose, Confined(File.ReadAllText(compose)));
             if (configuration is null)
             {
                 var bundle = Directory.CreateDirectory(Path.Combine(dir, "environment", ServiceBundleDir)).FullName;
@@ -201,6 +203,26 @@ static class HarborCompile
             Directory.CreateDirectory(Path.Combine(step, "workdir"));
             File.WriteAllText(Path.Combine(step, "workdir", "setup.sh"), $"#!/bin/bash\n# Compiled by proctor: this stage starts fresh.\ncd {Workdir} && chown --reference=.git . && chmod --reference=.git . && git reset -q --hard HEAD && git clean -fdq\n");
         }
+    }
+
+    /// <summary>
+    /// A fixture's compose file with NET_RAW dropped from the agent's container (`main`, which Harbor merges its own over). A
+    /// service that declares no network shares the agent's, and Docker's default capabilities let a container capture packets
+    /// there, so an agent overheard whatever a service said on the loopback (seen on rootless Docker, 2026-11-26; podman's
+    /// defaults leave the capability out). It costs the agent `ping` on Docker. A file that declares `main` itself is the
+    /// author's and is left as written.
+    /// </summary>
+    public static string Confined(string compose)
+    {
+        var lines = compose.Split('\n').ToList();
+        var at = lines.FindIndex(l => Regex.IsMatch(l, @"^services[ \t]*:[ \t]*(#.*)?\r?$"));
+        if (at < 0) return compose;
+        var block = lines.Skip(at + 1).TakeWhile(l => l.Trim().Length == 0 || char.IsWhiteSpace(l[0]) || l[0] == '#');
+        var first = block.FirstOrDefault(l => l.Trim().Length > 0 && !l.TrimStart().StartsWith('#'));
+        var indent = first is null ? "  " : first[..(first.Length - first.TrimStart().Length)];
+        if (block.Any(l => Regex.IsMatch(l, $@"^{Regex.Escape(indent)}main[ \t]*:"))) return compose;
+        lines.Insert(at + 1, $"{indent}main: {{ cap_drop: [NET_RAW] }}");
+        return string.Join('\n', lines);
     }
 
     /// <summary>Where a configuration's tree parameters sit in a task's environment/, each under its own name, for a compose file to mount as ./params/&lt;NAME&gt;.</summary>
