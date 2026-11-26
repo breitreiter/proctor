@@ -348,11 +348,20 @@ static class HarborCompile
     };
 
     /// <summary>
-    /// The agent's phase reaches only the model endpoint's host, exactly as the base URL spells it (Harbor's allowlist
-    /// matches names exactly), or nothing when there is no endpoint; the image builds with network; the verifier has
-    /// none, so the image restores packages. A bridged task's diff leaves out the bridge's acpx config, which Harbor
+    /// The agent's container reaches only the model endpoint's host, exactly as the base URL spells it (Harbor's allowlist
+    /// matches names exactly), or nothing when there is no endpoint. The environment carries the same policy as the
+    /// agent's phase: Harbor applies a phase's policy only while the phase runs and the environment's the rest of the
+    /// time, so under a public environment a process the agent left running had the internet once its phase ended, and
+    /// between the stages of a try (seen 2026-11-25, project/learnings/harbor.md). The image still builds with network,
+    /// which is the engine's and not the policy's; the verifier has none, so the image restores packages. The exception
+    /// is a bridged task, whose environment stays public: Harbor installs its ACP bridge (Node by nvm, then acpx from
+    /// npm) in the container before the agent's phase, on every trial and whatever the image holds, so without network
+    /// there the try fails at setup. Such a task's agent is still held to its policy during its phase. A bridged task's diff leaves out the bridge's acpx config, which Harbor
     /// writes into the work directory (its exec's default cwd, the image's WORKDIR).
     /// </summary>
+    static string Network(AgentRoute route) =>
+        route.Host is { } host ? $"network_mode = \"allowlist\"\nallowed_hosts = [{Toml(host)}]" : "network_mode = \"no-network\"";
+
     static string TaskToml(Exam exam, TaskDef c, AgentRoute route, bool bridged, string? name = null, string? description = null) => $"""
         version = "1.0"
 
@@ -362,11 +371,11 @@ static class HarborCompile
 
         [agent]
         timeout_sec = {exam.Def.Limits!.WallMs!.Value / 1000.0:0.0##}
-        {(route.Host is { } host ? $"network_mode = \"allowlist\"\nallowed_hosts = [{Toml(host)}]" : "network_mode = \"no-network\"")}
+        {Network(route)}
 
         [environment]
         build_timeout_sec = 1800.0
-        network_mode = "public"
+        {(bridged ? "network_mode = \"public\"" : Network(route))}
 
         [verifier]
         timeout_sec = 900.0

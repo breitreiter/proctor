@@ -770,8 +770,13 @@ self-contained linux-x64 publish is, for an `agent: nb` variant:
 }
 ```
 
-While the agent works, its container reaches only the host of its model's
-base URL; the checks run afterwards with no network at all.
+From the moment it starts until it is removed, the agent's container
+reaches only the host of its model's base URL, so a process the agent
+leaves running reaches no more than the agent did; the checks run
+afterwards with no network at all. One exception: a task with an
+`oracle` keeps the open network outside the agent's own turn, because
+Harbor installs the bridge its simulated user talks through when the
+attempt starts.
 
 On an agent variant a script check runs in Harbor's verifier, a separate
 container, when the attempt is made, from a copy of the exam directory and

@@ -142,6 +142,9 @@ public class HarborTests
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
         Assert.Contains("name = \"proctor/fix-null-deref\"", toml);
         Assert.Contains("timeout_sec = 900.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"library\"]", toml);
+        // The environment carries the agent's policy, so a process left running never outlives it into a public network.
+        Assert.Contains("build_timeout_sec = 1800.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"library\"]", toml);
+        Assert.DoesNotContain("public", toml);
         Assert.Contains("environment_mode = \"separate\"\nnetwork_mode = \"no-network\"", toml);
         Assert.Contains("git diff --cached --binary HEAD > /logs/artifacts/diff.patch", toml);
 
@@ -1100,6 +1103,7 @@ public class HarborTests
 
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
         Assert.Contains("timeout_sec = 120.0\nnetwork_mode = \"no-network\"\n\n[environment]", toml);
+        Assert.Contains("build_timeout_sec = 1800.0\nnetwork_mode = \"no-network\"", toml);
         var dockerfile = File.ReadAllText(Path.Combine(task, "environment", "Dockerfile"));
         Assert.Contains("COPY --from=proctor-nb:0123456789abcdef /opt/nb /opt/nb\nENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1\nRUN /opt/nb/nb --version\n", dockerfile);
         Assert.DoesNotContain("claude", dockerfile);

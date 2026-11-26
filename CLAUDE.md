@@ -242,7 +242,14 @@ The directories are for reading, not for namespaces: everything is
   committed in the image `fixture.image` describes, the variant's agent at its
   pin, and `tests/` with the exam, the fixture minus `repo/`, and a
   `test.sh` running every script check in Harbor's separate, offline
-  verifier (one `reward.json` key per check). A vendor agent reaches the
+  verifier (one `reward.json` key per check). The compiled `task.toml`
+  gives `[environment]` the same network policy as `[agent]` (the model's
+  host allowed, or `no-network`), never `public`: Harbor applies a
+  phase's policy only during the phase, so under a public environment a
+  process the agent left running had the internet once its phase ended
+  and between stages (`HarborCompile.Network`). A bridged task (an
+  answer sheet) is the exception and stays `public`: Harbor installs
+  acpx from npm in the container on every trial. A vendor agent reaches the
   host of `proctor.json` `agents.<agent>.base_url`, exactly as spelled, its
   key in Harbor's process as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`; nb
   reaches the host of its provider's `Endpoint` in nb's config, or nothing

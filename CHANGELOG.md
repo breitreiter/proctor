@@ -7,6 +7,22 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **An agent's container keeps its network policy for its whole life.**
+  The compiled `task.toml` gave the agent's phase its allowlist (the
+  model's host, or nothing) and left the environment `public`; Harbor
+  applies a phase's policy only while the phase runs, so a process the
+  agent left running had the open internet from the moment its phase
+  ended, and between the stages of a try. The environment now carries
+  the agent's policy. Nothing about an exam changes, and attempts in
+  the bank stay current. A run interrupted before this change, when
+  continued, still makes its attempts from the tasks it compiled then,
+  with the public environment: `run` compares those with what the log
+  entry recorded, not with what compile writes now. Attempts made
+  before the change on a staged exam had that window between stages.
+  A task with an answer sheet through Harbor keeps a public
+  environment: Harbor installs its ACP bridge from the network in the
+  container on every trial, so the window stays open there after the
+  agent's phase. Not run on Modal or podman yet.
 - **A one-stage try with an answer sheet runs through Harbor**
   (`axes-build.md`, slice 4; owed since `bank.md` step 4). It is
   compiled as a plain Harbor task, which is what Harbor's simulated
