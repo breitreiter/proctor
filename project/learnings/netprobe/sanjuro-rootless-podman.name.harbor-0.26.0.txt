@@ -1,5 +1,5 @@
-resolve allowed / other                        10.213.31.10 / 10.213.31.11
-default gateway / resolv.conf                  10.213.31.1 / 10.213.31.1
+resolve allowed / other                        10.213.32.10 / 10.213.32.11
+default gateway / resolv.conf                  10.213.32.1 / 10.213.32.1
 interfaces                                     lo eth0
 -- the named host, and one that is not
 http allowed:8080                              200 allowed:8080 host=allowed:8080
@@ -16,7 +16,7 @@ http allowed:8081 (second port)                200 allowed:8081 host=allowed:808
 raw allowed:2222 (server speaks first)         NOTHING (closed, no bytes)
 raw other:2222                                 NOTHING (closed, no bytes)
 -- the internet
-resolve example.com                            172.66.147.243
+resolve example.com                            104.20.23.154
 resolve a name that does not exist             None
 http example.com                               NOTHING (RemoteDisconnected: Remote end closed connection without response)
 tls example.com                                NOTHING (SSLEOFError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1035))
@@ -27,9 +27,17 @@ ping other                                     answered
 udp dns to 1.1.1.1                             NOTHING (PermissionError: [Errno 1] Operation not permitted)
 ipv6 tcp to 2606:4700:4700::1111 :443          NOTHING (OSError: [Errno 101] Network unreachable)
 -- A5: what is beside it
-raw gateway 10.213.31.1:22                     NOTHING (closed, no bytes)
-http gateway 10.213.31.1:18092                 NOTHING (RemoteDisconnected: Remote end closed connection without response)
+raw gateway 10.213.32.1:22                     NOTHING (closed, no bytes)
+http gateway 10.213.32.1:18092                 NOTHING (RemoteDisconnected: Remote end closed connection without response)
 http 10.0.2.2:18092 (host loopback, rootless Docker) NOTHING (RemoteDisconnected: Remote end closed connection without response)
 http host.docker.internal:18092                NOTHING (RemoteDisconnected: Remote end closed connection without response)
 engine socket in the container                 none
 user                                           uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)
+-- a fixture's service beside the agent (it holds HELD-IN-A-FILE, HELD-IN-THE-ENVIRONMENT, HELD-ON-THE-WIRE)
+http 127.0.0.1:9090 (the service)              200 beside: the service answers, and says nothing it holds
+capabilities                                   none of net_raw net_admin sys_ptrace sys_admin dac_read_search
+its process in /proc                           not among 6 processes
+its file, environment or source on disk        nowhere
+its listener in /proc/net/tcp                  seen
+its traffic on the shared loopback, captured   NOTHING (PermissionError: [Errno 1] Operation not permitted)
+its port taken on another address              NOTHING (OSError: [Errno 98] Address in use)

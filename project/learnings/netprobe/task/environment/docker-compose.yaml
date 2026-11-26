@@ -1,5 +1,6 @@
 # Two targets with addresses of their own, so a connection to either crosses Harbor's sidecar. A service that
-# declares `networks` is left out of the agent's namespace.
+# declares `networks` is left out of the agent's namespace. `beside` declares none, so it is in it: a fixture's service as
+# compile lays one out, holding what the agent should not learn.
 services:
   allowed:
     image: python:3.13-alpine
@@ -13,6 +14,12 @@ services:
     environment: { NAME: other }
     volumes: ["./target.py:/target.py:ro", "./certs:/certs:ro"]
     networks: { default: { ipv4_address: 10.213.@NET@.11 } }
+  beside:
+    image: python:3.13-alpine
+    command: ["python", "-u", "/beside.py"]
+    environment: { HELD: HELD-IN-THE-ENVIRONMENT }
+    volumes: ["./beside.py:/beside.py:ro"]
+    tmpfs: ["/held"]
 networks:
   default:
     ipam: { config: [ { subnet: 10.213.@NET@.0/24 } ] }

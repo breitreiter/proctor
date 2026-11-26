@@ -72,3 +72,22 @@ get("http 10.0.2.2:18092 (host loopback, rootless Docker)", "10.0.2.2", 18092, "
 get("http host.docker.internal:18092", "host.docker.internal", 18092, "host.docker.internal:18092")
 line("engine socket in the container", " ".join(p for p in ("/var/run/docker.sock", "/run/podman/podman.sock") if os.path.exists(p)) or "none")
 line("user", subprocess.run("id", shell=True, capture_output=True, text=True).stdout.strip())
+print("-- a fixture's service beside the agent (it holds HELD-IN-A-FILE, HELD-IN-THE-ENVIRONMENT, HELD-ON-THE-WIRE)")
+get("http 127.0.0.1:9090 (the service)", "127.0.0.1", 9090, "127.0.0.1:9090")
+caps = int(next(l.split()[1] for l in open("/proc/self/status") if l.startswith("CapEff")), 16)
+line("capabilities", " ".join(n for n, b in (("net_raw", 13), ("net_admin", 12), ("sys_ptrace", 19), ("sys_admin", 21), ("dac_read_search", 2)) if caps >> b & 1) or "none of net_raw net_admin sys_ptrace sys_admin dac_read_search")
+procs = [open(f"/proc/{p}/cmdline", "rb").read().replace(b"\0", b" ").decode(errors="replace").strip() for p in os.listdir("/proc") if p.isdigit()]
+line("its process in /proc", next((c for c in procs if "beside" in c), f"not among {len(procs)} processes"))
+found = subprocess.run("grep -rlsE 'HELD-IN-A-FILE|HELD-IN-THE-ENVIRONMENT|X-Held' / --exclude-dir=proc --exclude-dir=sys --exclude-dir=dev --exclude=probe.py 2>/dev/null | head -5", shell=True, capture_output=True, text=True).stdout.split()
+line("its file, environment or source on disk", " ".join(found) or "nowhere")
+line("its listener in /proc/net/tcp", "seen" if any(l.split()[1].endswith(":2382") and l.split()[3] == "0A" for l in open("/proc/net/tcp").readlines()[1:]) else "not seen")
+try:
+    s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3)); s.bind(("lo", 0)); s.settimeout(1); end = time.time() + 6; n = 0; heard = False
+    while time.time() < end and not heard:
+        try: d = s.recv(65535); n += 1; heard = b"HELD-ON-THE-WIRE" in d
+        except socket.timeout: pass
+    line("its traffic on the shared loopback, captured", "HEARD the header it sends itself" if heard else f"not heard in {n} packets")
+except Exception as e: line("its traffic on the shared loopback, captured", f"NOTHING ({type(e).__name__}: {e})")
+try:
+    s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(("0.0.0.0", 9090)); line("its port taken on another address", "bound 0.0.0.0:9090 beside it")
+except Exception as e: line("its port taken on another address", f"NOTHING ({type(e).__name__}: {e})")
