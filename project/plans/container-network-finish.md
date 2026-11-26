@@ -209,6 +209,15 @@ carry itself across days, and 0.27.0 cannot be resolved before
   Moving it is one line, for when the owed half is run or after it.
 - **The pin goes to 0.26.0 first, not straight to 0.27.0**, which the
   seven-day cooldown does not resolve until 2026-11-28.
+- **Compile will name the namespace a fixture's service joins**, by
+  engine (Harbor's sidecar on Docker and podman, `main` on Modal), in
+  place of leaning on what Harbor does with a service that declares
+  nothing (2026-11-26). It ties compile to the sidecar's name in the
+  pinned Harbor, which fails loudly if Harbor renames it. Not built
+  yet.
+- **The relay's host end in C#, its container end a short Python
+  script** on the image the stub already uses, no socat on either side
+  (2026-11-26, said to the user, not objected to).
 
 ## Progress
 
@@ -222,7 +231,30 @@ carry itself across days, and 0.27.0 cannot be resolved before
   2026-11-28; the relay against Harbor's pull request 4427, with nb as
   the agent and with its host end restarted; web tools under a policy;
   the stub fixture on Modal; then the relay's build.
+- 2026-11-26, later. Three more of stage 2, in `learnings/harbor.md`,
+  the last three sections. **Web tools under a policy are off at
+  0.26.0** for Claude Code and Codex, by Harbor: nothing to build.
+  **The stub fixture's service runs on Modal** (reward 1), once it says
+  it joins `main` and the environment's phase is public. **Harbor's
+  pull request 4427 was read**: on Docker it would move every fixture's
+  service off the agent's `localhost`, the stub and `tern-shop`'s as
+  much as the relay. A service that names outright whose namespace it
+  joins stays at `localhost` on both local engines at 0.26.0 and on
+  Modal, so compile will write that line for every fixture service,
+  chosen by engine. Next: the relay's remaining legs (nb as the agent,
+  the host end restarted, two ports), then its build; 0.27.0 from
+  2026-11-28.
 
 ## Not done, and why
 
-Nothing yet.
+- **Harbor's pull request 4427 was not run**, only read. Running it is
+  running a fork's unmerged commit; this session's permission check
+  refused sending that to golem's session, and it was not tried another
+  way. The one question a run would answer is whether a service joined
+  to `harbor-docker-egress-control-main-8e62e8c65106` answers at the
+  agent's `localhost` there. The user can say to run it, or leave it
+  until the pull request merges or dies.
+- **On Modal the environment's phase had to be public** for the image
+  to build. What that lets a process the agent left running reach is
+  not measured, and proctor compiles the agent's policy there today for
+  that reason. To settle before the Modal refusal is narrowed.

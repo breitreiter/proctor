@@ -806,3 +806,57 @@ that also holds under the pull request (joined to
 `harbor-docker-egress-control-main-8e62e8c65106`) is **not run**: it
 means running a fork's unmerged commit, and this session's permission
 check refused handing that to golem's.
+
+The same two trials on rootless Docker 29.1.3 (golem, its own session,
+0.26.0): the same answers. Joined outright the service answers at
+`127.0.0.1:9090`, Harbor starts the environment with no complaint, and
+the name does not resolve either way.
+
+## The stub fixture's service on Modal (2026-11-26)
+
+Run, by hand: Claude Code's `ok` task of conformance as proctor
+compiles it at 0.26.0 (compiled on podman in a scratch root, since
+`run` refuses a fixture with services on Modal), handed to
+`harbor[modal]@0.26.0` with proctor's Modal job settings. Three trials,
+a few cents. Harbor picked its compose strategy on Modal's VM runtime
+by itself (`Selected strategy: _ModalDinD`, `Using vm_runtime: True`).
+
+| The task | What happened |
+|---|---|
+| as compiled: `[environment]` and `[agent]` both the allowlist `["localhost"]` | **the image is never built** (19 s): the build runs inside the sandbox under the environment's policy, and the pull of the base image is refused (`mcr.microsoft.com ... connect: connection refused`) |
+| `[environment]` public | built and started, then the agent's phase timed out: Claude Code retried its model nine times and never reached `localhost:8765`. On the VM runtime the services are on an ordinary compose network, each with a namespace of its own |
+| `[environment]` public, and the stub with `network_mode: "service:main"` | **reward 1** in two minutes; the stub's tool list is the one seen on podman |
+
+So on Modal a fixture's service works, and three things differ from a
+local engine: the service must say it joins `main` (on the released
+local engines `main` is itself joined to Harbor's sidecar, and the
+sidecar is what to name); the environment's phase cannot be the
+agent's allowlist, since the build needs its registries; and there is
+no egress sidecar, the policy being Modal's own on the sandbox. Not
+measured: whether the agent's allowlist held against a host outside the
+task in that trial, and what a process left running can reach after the
+agent's phase when the environment is public.
+
+**Where a fixture's service answers, then, is not one thing:**
+
+| Harbor and engine | with nothing declared | to stay at `localhost`, the service declares |
+|---|---|---|
+| 0.26.0, Docker and podman | the agent's `localhost` | nothing, or `network_mode: service:harbor-docker-egress-control-sidecar` (run on both) |
+| 0.26.0, Modal's VM runtime | its own namespace; the agent does not find it at `localhost` | `network_mode: service:main` (run) |
+| pull request 4427, Docker | its own namespace, reached by name (read) | perhaps `network_mode: service:harbor-docker-egress-control-main-8e62e8c65106` (not run) |
+| pull request 4427, podman | the agent's `localhost` (read) | nothing |
+
+## Vendor agents' web tools under a policy, at 0.26.0 (2026-11-26)
+
+Read and seen. Harbor 0.26.0 has the default this project decided for
+itself (`agents/base.py`: under a rollout policy that is not public it
+sets `disable_web_search` on an agent that has native web tools, unless
+the job set that option itself). Claude Code is then started with
+`--disallowedTools WebSearch,WebFetch` (the trial log on Modal shows the
+command line), and the stub's record of the tools offered under the
+allowlist has neither for Claude Code and no `web_search` for Codex,
+which offered it at 0.24.0 (the first conformance run, above). Qwen
+Code has no such switch in Harbor and proctor brings its own agent
+class; its list has no web tool, and what it loads on demand
+(`web_fetch`) runs in the container, under the policy. Not done: a
+0.24.0 list for Claude Code to set beside it, and a call counted.
