@@ -730,3 +730,34 @@ Run. The pin in the repository is still 0.24.0.
   0.26.0 and nothing else changed: 8 m 51 s on podman, 7 m 26 s on
   rootless Docker.
 
+## The relay again, on Harbor 0.26.0 and on podman (2026-11-26)
+
+Run, by hand as on 2026-11-25 ("A model on the host's loopback, through
+a socket"): the stub model on the host bound to `127.0.0.1`, socat from
+a unix socket in `$XDG_RUNTIME_DIR/proctor-relay/` to it, and in a
+scratch root the stub fixture's service replaced by
+`learnings/netprobe/relay/` with that directory mounted. Proctor at
+0e979c6, so the compiled compose file also drops `NET_RAW` from the
+agent's container.
+
+- **Rootless podman 5.7.0 (sanjuro), the engine it had not been tried
+  on**: `proctor run conformance --tasks ok` made all three vendor
+  agents' attempts, each completed and passed its four checks, and the
+  host's stub logged their requests. Then Claude Code's `ok` with
+  `[agent]` and `[environment]` both `no-network`, Harbor run on the
+  compiled task directly: reward 1, two requests at the host. The
+  socket's directory mounts as it is; nothing about ownership or labels
+  had to be set (Ubuntu, so no SELinux).
+- **Rootless Docker 29.1.3 (golem), its host loopback shut**, by its
+  own session: Claude Code's `ok` through `proctor run` passed, and
+  again with no network in any phase, reward 1; the host's stub saw two
+  requests each time. Nothing had to differ from 2026-11-25.
+- **On Docker, an agent whose fixture has no services still holds
+  `NET_RAW`** (golem's `docker inspect` of the gate's and
+  `code-change`'s containers: nothing dropped). There is no service's
+  traffic for it to overhear there. Once the relay is compiled into a
+  task it is a service, so the drop will come with it.
+- Not tried on either engine: `hang` through the relay at 0.26.0, an
+  agent that is not root, nb as the agent, the host end restarted
+  during a trial, two ports at once, and Harbor's pull request 4427.
+

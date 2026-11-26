@@ -217,9 +217,11 @@ carry itself across days, and 0.27.0 cannot be resolved before
   change to proctor. Stage 2: what an agent sees of a fixture's service,
   measured on both; the one leak (loopback capture on Docker) closed in
   compile. All of it is in `learnings/harbor.md`, the last three
-  sections. Next: 0.27.0 from 2026-11-28; the hand-made relay on the new
-  pin on both engines; web tools under a policy; the stub fixture on
-  Modal.
+  sections. The hand-made relay passes on 0.26.0 on both engines, podman for
+  the first time, with no network in any phase. Next: 0.27.0 from
+  2026-11-28; the relay against Harbor's pull request 4427, with nb as
+  the agent and with its host end restarted; web tools under a policy;
+  the stub fixture on Modal; then the relay's build.
 
 ## Not done, and why
 
