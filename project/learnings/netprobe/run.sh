@@ -15,6 +15,8 @@ if os.environ.get("ENVPOL"): s = s.replace('build_timeout_sec = 900.0\nnetwork_m
 open(p, "w").write(s)
 PY
 sed -i "s/@NET@/${NET:-7}/g" "$here/t-$name/environment/docker-compose.yaml"
+# DROP=<capability> drops it from the agent's container (compose's `main`, which Harbor merges its own over).
+if [ -n "${DROP:-}" ]; then sed -i "s/^services:/services:\n  main: { cap_drop: [$DROP] }/" "$here/t-$name/environment/docker-compose.yaml"; fi
 cat > "$here/job-$name.json" <<JSON
 {"job_name": "$name", "jobs_dir": "$here/jobs", "n_attempts": 1, "n_concurrent_trials": 1, "quiet": true,
  "retry": {"max_retries": 0}, "environment": {"type": "${ENGINE:-docker}"},
