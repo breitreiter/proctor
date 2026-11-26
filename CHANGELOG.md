@@ -7,6 +7,12 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **`grade` says why a check did not pass.** Each attempt's line
+  printed `check=result` for a check that failed, errored or could not
+  decide; it now adds the first line of the reason as `checks.json`
+  holds it, cut at 100 characters, so an errored check can be read
+  from the output (#12).
+
 - **An agent's container keeps its network policy for its whole life.**
   The compiled `task.toml` gave the agent's phase its allowlist (the
   model's host, or nothing) and left the environment `public`; Harbor

@@ -39,9 +39,12 @@ public class GradeTests
         var entryDir = Layout.LogEntry(repo.Root, id);
         File.WriteAllText(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "uses-bash", 1), "status"), "failed\n");
 
-        var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
+        var log = new StringWriter();
+        var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, log);
 
         Assert.Equal(3, grades.Count);
+        // A check that did not pass shows its reason on the attempt's line, as checks.json holds it (#12).
+        Assert.Matches(@"a/loops/1  fail  .*exit_ok=fail \(exit_reason=\w+\)", log.ToString());
         var plain = grades.Single(g => g.Task == "plain");
         Assert.True(plain.Pass);
         Assert.Equal("pass", plain.Checks!["exit_ok"].Result);

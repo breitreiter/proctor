@@ -35,7 +35,7 @@ static class Grade
             var pass = Pass(checks, exam.PassFor(c));
             var invalid = Invalid(checks, exam.ValidityFor(c));
             grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid));
-            log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.PassFor(c)) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}"))}");
+            log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.PassFor(c)) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}{Because(k.Value)}"))}");
         }
         return grades;
     }
@@ -212,6 +212,15 @@ static class Grade
             yield return $"  {name.PadRight(width)}  graded {decided.Count} of {on.Count}{(fresh > 0 ? $"   {fresh} new" : "")}{string.Concat(not.Select(n => $"   {n}"))}";
         }
     }
+
+    /// <summary>A verdict's reason as the grade line shows it: its first line, cut to a readable length, in brackets; nothing when there is none.</summary>
+    static string Because(Verdict v)
+    {
+        var line = v.Reason.Split('\n', 2)[0].Trim();
+        return line.Length == 0 ? "" : $" ({(line.Length <= ReasonChars ? line : line[..ReasonChars] + "…")})";
+    }
+
+    const int ReasonChars = 100;
 
     static string? First(Dictionary<string, Verdict> checks, List<string> passChecks, string result) =>
         passChecks.Where(name => checks.TryGetValue(name, out var v) && v.Result == result).Select(name => $"{name}: {checks[name].Reason}").FirstOrDefault();
