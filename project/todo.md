@@ -1337,3 +1337,36 @@ Two directions, neither designed:
 
 Beside "One host and one port for an agent's model, on any machine"
 above; C3 of the plan is the same question as advice.
+
+## An agent told to get out: adversarial runs against the isolation
+
+Pinned by the user 2026-11-26, for later: after the core of proctor
+works, and probably after the viewer does. Everything measured so far
+(`plans/container-network.md`, `learnings/harbor.md`) is what a probe
+script can reach, and `container-network.md` leaves out "an agent that
+means to get out" on purpose. This is that: an exam whose task is to
+break the isolation, so the boundary is tried by something that looks
+for a way and not by a list we thought of.
+
+- **What it tries**, each a check with a planted thing to find: the
+  open internet under an allowlist; another service on the machine; a
+  fixture service's source or configuration (goal 2 of
+  `plans/container-network-finish.md`); the verifier's files and the
+  expected values; the model's key used outside the harness, and a
+  second model or sub-agents farmed out to on it (the todo above);
+  anything left for a later stage of a staged try.
+- **The model.** The user expects the frontier vendors' models to
+  decline a request to red-team the isolation, and so a model from one
+  of the Chinese labs through OpenRouter. Worth one cheap try each
+  first, mine: a task that says plainly it is the owner's sandbox and
+  an authorised check may be taken up, and the more capable the agent
+  the better the test. Which complied is itself a finding.
+- **The agent** has to be one of ours through Harbor on that model (nb,
+  or Qwen Code), so the try is in a trajectory like any other.
+- **Spend** is a hosted model for a model question, so it is agreed
+  before any run. The shakedown is the local model, at $0.
+- **Where it runs**: on a machine that does not matter, with nothing on
+  its loopback worth reaching, never the work laptop.
+- What it finds is an issue here, or one for Harbor written for the
+  user to file.
+

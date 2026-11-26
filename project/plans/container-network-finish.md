@@ -1,0 +1,204 @@
+---
+type: plan
+title: What an agent under test can reach — finishing it
+created: 2026-11-26
+status: under way since 2026-11-26. The user set its goals, gave it the laptop's session and said to push as it goes; the design of the relay and the stages are the agent's and have not been gone through line by line. Rewritten the same day around the user's four goals, after a survey of Harbor since our pin and of other tools. It finishes `container-network.md`. Nothing here is built. What the survey says of Harbor is read from its docs, changelog, issues and pull requests, none of it run
+---
+
+# Finishing "what an agent under test can reach"
+
+## The goals (the user, 2026-11-26)
+
+1. Manage the agent's network access selectively, so it reaches the
+   services that cannot sensibly be simulated.
+2. Make it feasible, ideally easy, to run network-service fixtures
+   mildly isolated, so the agent cannot cheat by reading their source
+   or configuration.
+3. Exams and fixtures somewhat portable: built and tried on a macOS
+   laptop, moved to a Linux server.
+4. Standardise on Harbor, to inherit its fixes.
+
+By building, by documenting, or by adopting something that exists.
+
+## What the survey changed
+
+We are pinned at Harbor 0.24.0. The latest is 0.27.0 (2026-11-21), and
+most of what the first draft of this plan would have built is in it,
+merged after it, or open as a pull request:
+
+| Ours, planned or built | Harbor |
+|---|---|
+| Refusing a fixture with services on Modal | 0.26.0 runs compose tasks on Modal's VM runtime with the allowlist and per-phase policy. The refusal is out of date |
+| Vendor-side tools off by default (C2) | on main, release not identified: a policy other than public turns off supported agents' web tools, `disable_web_search` overrides |
+| The relay that holds the key | merged 2026-11-25 for Modal only, unreleased: sidecars with their own allowed hosts and secrets, a default proxy, a dummy key for the agent. For Docker and podman a pull request is open (3538), nothing merged |
+| A port in the allowlist | nobody has proposed it. Ours to ask for |
+| What our probe found leaking (DNS and ping under a policy) | issue 4167, fix open (4376) |
+| Fixture services in the agent's namespace | issue 3992; the open fix (4427) gives each service its own namespace on Docker and leaves podman shared |
+
+Also open there: connections that bypass the hostname check (3503),
+and on macOS the allowlist depends on the engine VM's kernel (2527,
+2593).
+
+So the first move is to **adopt**: move the pin. One thing is still
+ours to build, the relay, below.
+
+## Each goal, by means
+
+| Goal | Adopt | Build | Document |
+|---|---|---|---|
+| 1 | the newer pin: web tools off, the verifier's own hosts | a port on this machine at the agent's `localhost` (below); a fixture or exam names further hosts the agent may reach (today compile allows the model's host only), in the task's hash | what an allowlist is and is not: by host, every web port, names resolve |
+| 2 | compose services as Harbor has them | nothing until measured | how to write a service fixture, and what the agent can and cannot see of it |
+| 3 | compose on Modal | the Modal refusal narrowed to what Harbor still refuses; a warning, never a refusal, for a private model host and for a bridge-subnet collision, saying why it may time out and where to go | a guide per engine, each dated; macOS from Harbor's issues and the engines' documentation, and marked not run (there is no Mac) |
+| 4 | everything above | as little as possible | issues for Harbor, written for the user to file |
+
+## A port on this machine (the user, 2026-11-26)
+
+Two things, one case. A model gateway or a local model on the machine
+that runs proctor is ordinary: two of the three machines that run
+proctor today have one. And early in an exam's life its author may
+start a working repository's dev server (vite, say) for the agent to
+reach, which is poor isolation, not reproducible, will happen, and is
+not to be forbidden or blocked. The user wants one strategy for both,
+so there are fewer special cases.
+
+Proposed, mine: **a port on this machine appears at the agent's
+`localhost`, and only that port.** It is the socket relay of
+`container-network.md`, leg B, as a byte pipe and nothing more (no key
+handling; that stays parked):
+
+- `run` holds the host end: for each port, a listener on a unix socket
+  in a short directory, forwarding to `127.0.0.1:<port>`.
+- Compile adds one relay service to the task, the directory mounted,
+  serving each socket at `localhost:<port>`. A service in the task is
+  Harbor's own mechanism; the host end is the only part beside it.
+- **The model needs no new configuration**: a base URL (or an nb
+  provider's endpoint) whose host is loopback means this machine's, and
+  is relayed. A fixture names any other port it wants (the dev server),
+  and the report says the try reached a service that is not the
+  exam's.
+- The host's loopback stays shut, nothing is bound to the network, and
+  with no other host allowed the agent's phase is `no-network`.
+- Not on Modal, which has no such machine: the existing refusal of a
+  loopback host there stands.
+
+Measured for it, on rootless Docker at 0.24.0 only: all three vendor
+agents through it, no network in any phase, eight streams at once.
+**The risk is Harbor's own direction**: the open fix for issue 3992
+gives each service its own namespace on Docker, and the relay would
+then answer at a service name, not `localhost`, under whatever policy
+that connection meets. So it is measured again on the new pin before it
+is built, and against that pull request's branch if it has not merged.
+
+## Stages
+
+All $0 (stub, Mock, no model) but a few cents of Modal, agreed
+2026-11-25. About six days.
+
+### 1. Move the pin (a day, mostly waiting)
+
+To 0.26.0 now; to 0.27.0 from 2026-11-28, when it clears the seven-day
+cooldown. Then the unit tests, both gates and conformance on podman
+(sanjuro), and the probe again on the new pin. Expect breakage: the
+web-tools default is marked breaking, and ingest reads Harbor's files
+strictly. **Stop and talk** if the move costs more than a day of
+fixes.
+
+### 2. Measure what the goals rest on (a day, beside stage 1)
+
+| What | Where | Who |
+|---|---|---|
+| What a root agent sees of a fixture service: its files, its processes, its traffic on the shared loopback. Docker grants the capability to capture packets by default and podman does not, so this may differ by engine | sanjuro, the laptop | agent |
+| Conformance's stub fixture, which has a service, on Modal | Modal | agent |
+| The probe on rootful Docker | sanjuro's system Docker | the user, three commands |
+| Web tools gone from each vendor agent's list under a policy | sanjuro, the stub | agent |
+| The hand-made relay on the new pin: on podman (the mount, an agent that is not root), nb as the agent, the host end restarted mid-trial, two ports at once; and against the branch of Harbor's pull request 4427 | sanjuro, the laptop | agent |
+
+### 3. Build (two to three days)
+
+The relay first: the host end, compile, the ports in the log entry,
+`WhyNotContinue`, what a crashed run leaves. Then the three in the
+table above: further allowed hosts declared, the Modal refusal
+narrowed, the two warnings (a loopback model host is no longer one of
+them: it is relayed). Whatever stage 2 shows of a
+service's exposure is fixed in compile only if it is a line of compose;
+otherwise it is a sentence in the guide and an issue for Harbor.
+
+### 4. Write it down (a day)
+
+The boundary page; the service-fixture guide; `docs/docker.md`;
+`docs/podman.md` and `docs/modal.md` finished; `Setup/SandboxPlan.cs`
+and the `proctor-exam` skill pointing at them; the issues for Harbor
+drafted (a port in the allowlist, and anything stage 2 finds); the
+todos closed; both plans archived.
+
+## Parked
+
+| What | Why | Until |
+|---|---|---|
+| The key out of the agent's reach | a gap in theory; no model has been seen to build its own harness on its credentials (the user, 2026-11-26). Harbor's sidecar proxy does it on Modal once released | that release, then adopt it there; the todo stays |
+| The relay on a macOS engine | a host socket is not known to mount through any of their VMs, and there is no Mac | someone has one |
+| The bare path's runners | not Harbor | decision 1 of `agent-neutral-runs.md` |
+| An agent told to get out | for after the core and the viewer work (the user, 2026-11-26) | `todo.md`, "An agent told to get out" |
+| The nine clean-machine walks | | one walk on the laptop, made by the agent over ssh from the guides alone, after stage 4 |
+
+## The user's attention
+
+As first written this plan would have stopped for the user eight or
+nine times. It is arranged for two sittings and nothing between.
+
+**Sitting one is done (2026-11-26), without ssh.** The laptop (golem,
+rootless Docker 29.1.3) has a Claude Code session of its own, reached
+from sanjuro's over Remote Control: sanjuro's session sends it tasks
+and it answers with what it ran. It runs docker, uv, dotnet and git
+unattended, and anything that would change that machine waits for the
+user there. Code travels by the branch on GitHub. Golem's host loopback
+was shut by the user the same day, so its earlier probe results are the
+record of a machine with it open, and the probe is run there again.
+
+Still optional, and the user's: one script on sanjuro's rootful Docker,
+about six minutes, proved on podman first. Skipped, the Docker guide
+says rootful was not run.
+
+**Standing answers, so that no stage asks:**
+
+- Commits go on `exam-variant-attempt` as each piece passes its tests,
+  the agent's own files only (another session commits here too),
+  and are **pushed to that branch as they are made** (the user,
+  2026-11-26), since that is how they reach golem.
+- Names in files and flags are the agent's choice, written in "Decided
+  alone" below. Nothing is released before sitting two, so each is a
+  rename.
+- Modal's cents are agreed. No hosted model, no judge.
+- Where this plan said stop and talk, it now says what happens instead:
+  - the pin move costs more than a day of fixes: stay on the highest
+    pin that passes everything, go on, and list what broke;
+  - the relay fails on podman: build it for Docker, refuse it on podman
+    with the reason, go on;
+  - the relay does not answer at `localhost` on the branch of Harbor's
+    pull request 4427: build it for what is released, and write down
+    what it would need there;
+  - a measurement contradicts this plan's design: the smaller build,
+    and the finding.
+
+**Never without the user, all held for sitting two:** a push to any other branch; an issue
+or a comment on GitHub, ours or Harbor's; anything that needs root; a
+paid model; the host's loopback opened anywhere.
+
+**Sitting two, about half an hour, when the agent says it is done.**
+One document to read, `project/plans/container-network-finish.md` with
+its two sections filled in ("Decided alone", "Not done, and why"),
+then: the names, kept or changed; the issues drafted for Harbor, to
+file or not; whether the owed half of the paid `tern-docs`
+run goes through the relay.
+
+**What can still halt the work:** the session ending. It does not
+carry itself across days, and 0.27.0 cannot be resolved before
+2026-11-28. One word resumes it, and this file says where it was.
+
+## Decided alone
+
+Nothing yet.
+
+## Not done, and why
+
+Nothing yet.
