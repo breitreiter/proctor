@@ -683,5 +683,12 @@ The directories are for reading, not for namespaces: everything is
   plurals, inside identifiers too) and exits non-zero on a hit
   that `project/gate/old-words.allow` does not list. An exception is an
   edit to the allow-list with a reason; prefer rewording.
+- **Built to be built on** (`project/plans/remix.md`, 2026-11-27). Other people's code stands beside proctor: it reads
+  the files and calls the commands. Four rules keep what is built ready for that, before anything is promised: a new
+  file a person or a program may read carries a schema name and number (`answer/1`, `tries/1`); a new verb can give
+  its answer as JSON and says what its exit codes mean; nothing new under `exams/` or `fixtures/` means something on
+  this machine only (that belongs in `proctor.json`); and no new branch on `harbor.engine` outside `Run/Harbor.cs`,
+  `Harbor/Compile.cs` and `Exam/Exam.cs`'s `HarborConfig`. The engine that is supported is rootless podman on Arch
+  and Ubuntu; Docker is not maintained, macOS is not run.
 - **The runner tests are slow** (nb takes ~2 s to start per attempt); filter them
   out while iterating on anything else: `--filter 'FullyQualifiedName!~RunnerTests'`.

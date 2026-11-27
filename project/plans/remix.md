@@ -164,7 +164,7 @@ a schema name and number.
 | The definition | `exams/`, `fixtures/`, `proctor.json` | `docs/configuration.md` | documented; two shapes until slice 7 of `axes-build.md` (variants, and axes with stages) |
 | The commands | every verb, its flags and exit codes | `docs/cli.md` | documented; exit codes not written down in one place |
 | The answers | `compare` and `coverage` as JSON | `answer/1`, `skills/proctor-answers/` | named |
-| The script check | exit 0, 1 or 2, the `PROCTOR_*` environment | `docs/configuration.md` | documented, stable since September |
+| The script check | exit 0, 1 or 2, the `PROCTOR_*` environment | `docs/configuration.md` | documented, unchanged since September; its variables are renamed once by `rename-to-auspex.md`, stage 2 |
 | Hooks and the runner script | setup and teardown, how nb is started | `docs/configuration.md` | documented |
 | The bank | an attempt's directory: `manifest.json`, `status`, `trajectory.json` (ATIF), `core.json`, `diff.patch`, `checks.json`, `grades/`, `verdicts/`, `friction.json` | `on-disk-layout.md`, a plan and not a guide | `friction/2` and `tries/1` named; the rest unnamed |
 | The log | `log/<id>/entry.json` | `bank.md` | unnamed |
@@ -255,37 +255,75 @@ it:
 2. The report in the old shape (`Report/Report.cs`) goes with it.
 3. The viewer's pages, designed (`project/view/`).
 4. `container-network-finish.md`, cut to rootless podman (above).
+5. Stage 2 of `rename-to-auspex.md`. Nothing can be promised about a
+   name that is about to change.
 
 The Docker and Modal guides are no longer owed an update for axes
 (`where-we-are.md`, "Owed, small"): each gets a date and a line
 saying it is not maintained.
 
-## The order of work
+## The order of work (the user, 2026-11-27)
 
-1. **Promises and seams, as two pages** (`docs/remix/seams.md`,
-   `promises.md`), with everything honest about its level today. A day.
-   Writing them will show which unnamed files matter.
-2. **The bank described for a user**, as a worked example of one
-   attempt's directory, file by file. It is the page every recipe links
-   to and `on-disk-layout.md` is a plan in a planner's voice.
-3. **Three recipes that cost nothing to prove**: another tool (a
-   mapping), a set for people to grade (the way out only), a page of
-   your own over the results. Each proven on `playground` or
-   `tern-docs`' existing bank.
-4. **The skill**, once there are three recipes to list.
-5. **Modal out and kept** (steps 1 and 2 under "What the core
-   supports"). Any time; sooner is cheaper, since the networking work
-   and the next move of Harbor's pin both stop carrying it. Its
-   changelog entry says what broke.
-6. Slice 7, on its own schedule. After it: names on the remaining
-   files, the contract fixtures, and described becomes held.
-7. **The README and the site say it.** The pitch moves from "a tool
-   that does this" to "a base that does this much, and here is how to
-   make it yours". Last, so that it describes something true.
-8. The recipes with gaps (the schedule, the pull request gate, the
-   audit), each when daily work or a request reaches it.
-9. The engine seam written down, an extension point chosen, and Modal
-   rewritten against it (step 3). No date.
+Not early or late as a whole. The work is of four kinds, and each has
+its own time.
+
+**Now: what is taken out.** Removal is the only surgery here and it
+costs more the longer it waits, since everything in flight carries
+what is to go.
+
+- Modal out and kept (steps 1 and 2 under "What the core supports").
+  Handed to the session doing the networking on 2026-11-27, which is in
+  the same files.
+- `container-network-finish.md` cut to rootless podman, by the same
+  session.
+
+**Now: four rules, which cost nothing.** Drift is prevented by habit
+and not by writing the documents early. They are in `CLAUDE.md`
+("Built to be built on"): a new file names its schema; a new verb can
+answer in JSON and says what its exit codes mean; nothing new under
+`exams/` or `fixtures/` means something on this machine only; no new
+branch on the engine outside the Harbor files. With these, what the
+rest of the pipeline builds arrives ready, and what is left for later
+is writing.
+
+**Meanwhile: nothing.** The networking, slices 6a and 7, the viewer's
+design and the rename go on as planned, with no remix work among them
+but one thing: when daily work next wants one of the recipes, it is
+written as a draft against `tern-docs`' bank, which is already the
+shape that survives. Half a day, and its purpose is to find the seam
+that is missing while the verbs are still being written. If no recipe
+comes up, none is written.
+
+**After two things land: the promises and the pages.** Written sooner
+they are written twice.
+
+- Slice 7 of `axes-build.md`, which deletes the earlier shape.
+- Stage 2 of `rename-to-auspex.md`, which renames every surface a
+  promise is about: the binary, the `PROCTOR_*` variables, `proctor.json`,
+  the skills. It breaks the script check's contract once, on purpose,
+  and nothing is promised until it has.
+
+Then, in this order, three or four days:
+
+1. The seams and the promises, as two pages (`docs/remix/seams.md`,
+   `promises.md`).
+2. The bank described for a user, as a worked example of one try's
+   directory, file by file. It is the page every recipe links to, and
+   `on-disk-layout.md` is a plan in a planner's voice.
+3. What the commands lack: JSON from `list`, what `run` and `grade`
+   did, the exit codes written down.
+4. Names on the files that have none, a captured example of each under
+   `Proctor.Tests/fixtures/contract/`, and described becomes held.
+
+**After that, as they come:** three recipes that cost nothing to prove
+(another tool, a set for people to grade, a page of your own), the
+skill once there are three to list, then the README and the site, last
+so that they describe something true. The recipes with gaps (the
+schedule, the pull request gate, the audit) each when daily work or a
+request reaches it.
+
+**No date:** the engine seam written down, an extension point chosen,
+and Modal rewritten against it (step 3).
 
 **Measuring the docs with proctor itself** is the obvious check and is
 not in the order above: `agent-onboarding` already hands an agent the
