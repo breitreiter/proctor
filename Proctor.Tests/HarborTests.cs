@@ -499,9 +499,20 @@ public class HarborTests
         Assert.StartsWith("changed since the attempt was made: exams/harbor-unit/acceptance/fix-null-deref.cs", checks["tests-pass"].Reason);
     }
 
+    [Fact]
+    public void Grade_AFixturesReadme_OutdatesNothing_AndAReadmeDeeperInStillDoes()
+    {
+        var top = GradeAgentAttempt(_ => { }, afterwards: repo => File.WriteAllText(Path.Combine(repo.Root, "fixtures", "ledger", "README.md"), "reworded\n"));
+        Assert.Equal(Verdict.Pass, top["builds"].Result);
+        var deeper = GradeAgentAttempt(_ => { }, afterwards: repo => repo.Write("harbor-unit/acceptance/README.md", "a script may read this\n"));
+        Assert.Equal(Verdict.Outdated, deeper["builds"].Result);
+    }
+
     [Theory]
     [InlineData("predictions/faster.json")]   // written after the tries, as a prediction about tries to come is
     [InlineData("combinations.json")]
+    [InlineData("retired.json")]
+    [InlineData("README.md")]                 // for people: a reworded sentence is not a changed check
     public void Grade_AFileOnlyProctorReads_OutdatesNothing(string file)
     {
         var checks = GradeAgentAttempt(_ => { }, afterwards: repo => repo.Write("harbor-unit/" + file, "{}\n"));

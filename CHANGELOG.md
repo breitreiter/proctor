@@ -7,6 +7,11 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **An exam's or a fixture's own `README.md` no longer outdates a
+  script verdict** on an agent variant when it is edited: it is for
+  people. Any other file a script could read still does.
+- **`coverage` says which configurations are retired** (`retired` on a
+  row, with the reason and date). Their tries are still counted.
 - **The viewer's interactive parts are Web Awesome components**
   under a theme that reads the six type roles: a transcript step and
   the fold-outs are its details, a step pill its button, and what a

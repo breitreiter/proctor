@@ -56,9 +56,9 @@ record ComparisonAnswer(string Schema, string Exam, string AsOf, string Address,
     string Verdict, bool? Confirmed, string Sentence, List<CellAnswer> Cells, Pooled? ReadAsOne, List<string> NotRun, Power? Power, Timing Timing,
     List<MovedWith> MovedWith, List<string> Cautions, List<string> OtherComparisons, int TriesSince, string Methods, List<PredictionReport>? Predictions = null);
 
-/// <summary>A configuration as coverage sees it: who asked for it, how far it is from what is live, its tries and how old the newest is.</summary>
+/// <summary>A configuration as coverage sees it: who asked for it, how far it is from what is live, its tries and how old the newest is; and, when it is retired, why and since when.</summary>
 record CoverageRow(string Configuration, string? Name, Dictionary<string, string> Values, bool Live, List<string> OffLive, int Tries, int Wanted, int Lost, int Stale,
-    string? First, string? Last, double? DaysSinceLast, string? Together, string Address, int NotGraded = 0);
+    string? First, string? Last, double? DaysSinceLast, string? Together, string Address, int NotGraded = 0, RetiredMark? Retired = null);
 
 /// <summary>One value: whether it is live or its axis's reference, and the tries of every configuration holding it.</summary>
 record ValueCoverage(string Axis, string Value, string? Note, bool Live, bool Reference, int Configurations, int Tries, string? Last, string? Why = null);
@@ -285,6 +285,7 @@ static class Answers
         var counted = bank.Where(a => a.Counts && Bank.Stale(exam, a) is null).Select(a => (a, Id: a.Entry.IdOf(a.Variant, a.Attempt))).Where(x => MadeAt(x.Id) <= at)
             .GroupBy(x => x.a.Variant).ToDictionary(g => g.Key, g => g.Select(x => x.Id!).Distinct().Order(StringComparer.Ordinal).ToList());
         var standing = Combinations.Load(exam).Stand(exam);
+        var retired = Retired.Load(exam);
         var ungraded = Configurations.NotGraded(root, exam, bank.Where(a => a.Counts && Bank.Stale(exam, a) is null));
         var liveAxes = axes.Def.Where(d => d.Value.Live is not null).Select(d => d.Key).ToList();
 
@@ -297,7 +298,7 @@ static class Answers
                 bank.Where(a => a.Lost && a.Variant == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
                 bank.Where(a => a.Variant == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
                 times.Count > 0 ? Iso(times.Min()) : null, times.Count > 0 ? Iso(times.Max()) : null, times.Count > 0 ? Math.Round((at - times.Max()).TotalDays, 1) : null,
-                standing.TryGetValue(c.Key, out var together) ? together.State : null, ConfigurationAddress(exam, c.Key), ungraded.Count(u => u.Variant == c.Key));
+                standing.TryGetValue(c.Key, out var together) ? together.State : null, ConfigurationAddress(exam, c.Key), ungraded.Count(u => u.Variant == c.Key), c.Name is null ? null : retired.GetValueOrDefault(c.Name));
         }
         var rows = axes.Configurations.Select(Row).ToList();
 
@@ -331,7 +332,7 @@ static class Answers
             + "together on a configuration says whether `proctor build` found it to be its values put together (sum), more (more), not to be told (unclear) or never checked (not_checked); absent when it is at most one value off the reference. "
             + "not_graded counts a configuration's tries with no grade under the checks as they are now: they are made, and in no comparison until `proctor grade` reads them. "
             + "A value's note says what it changes and its why says what it is there for (a customer's report, an idea of the author's), both in the author's words. "
-            + "A value nobody declared cannot show here at all. days_since_last is the age of the newest try at as_of: an old try was made on the agent and model as they were then. Nothing here recommends anything.");
+            + "A value nobody declared cannot show here at all. retired on a configuration says it was retired, since when and why: its tries are still counted and it can still be compared, and `run` makes no new tries of it. days_since_last is the age of the newest try at as_of: an old try was made on the agent and model as they were then. Nothing here recommends anything.");
     }
 
     static string P(double p) => p < 0.001 ? "<0.001" : p.ToString("0.###", CultureInfo.InvariantCulture);

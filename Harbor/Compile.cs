@@ -613,7 +613,8 @@ static class HarborCompile
     /// be the check's as it stands, keyed by check; a check missing from the result is current. The verifier ran what the run
     /// compiled into <paramref name="taskDir"/>/tests/, so that copy is compared with what compile would write today: the
     /// check's line in test.sh (which script, from which level), every file the scripts could read (the exam directory and
-    /// the fixture beside its source, less the definition files proctor reads itself and hands over through the environment),
+    /// the fixture beside its source, less the definition files proctor reads itself and hands over through the environment and
+    /// each one's own README.md),
     /// and the expected values env.sh exported. Any file counts, since a script reads what it likes (acceptance tests, a
     /// service), except another check's script. With no compiled copy, every script check is reported, since nothing shows
     /// its verdict is current.
@@ -662,16 +663,22 @@ static class HarborCompile
         static string Listed(List<string> files) => files.Count <= 3 ? string.Join(", ", files) : $"{string.Join(", ", files.Take(3))} and {files.Count - 3} more";
     }
 
+    /// <summary>
+    /// The README at the top of an exam or a fixture is for people: rewording it does not outdate a verdict (2026-11-27,
+    /// when correcting one word in tern-docs' would have meant making its tries again). A script that reads it is on its own.
+    /// </summary>
+    const string Readme = "README.md";
+
     /// <summary>What proctor reads from an exam directory itself; a script sees its checks and expected values through the environment, and the rest is in the task's hash.</summary>
     static bool ExamDefinition(string relative) =>
-        relative is Layout.ExamFile or Layout.LiveFile or Layout.CombinationsFile or Layout.RetiredFile
+        relative is Layout.ExamFile or Layout.LiveFile or Layout.CombinationsFile or Layout.RetiredFile or Readme
         || new[] { Layout.TasksDir, Layout.VariantsDir, Layout.PredictionsDir }.Any(d => relative.StartsWith(d + "/", StringComparison.Ordinal)) && relative.EndsWith(".json", StringComparison.Ordinal);
 
     /// <summary>What proctor reads from a fixture directory itself, and its source, which reaches the verifier as the image's commit and not as a file under tests/.</summary>
     static Func<string, bool> FixtureDefinition(Fixture fixture)
     {
         var source = Path.GetRelativePath(fixture.Dir, fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo")).Replace('\\', '/') + "/";
-        return relative => relative == Layout.FixtureFile || relative.StartsWith(source, StringComparison.Ordinal);
+        return relative => relative is Layout.FixtureFile or Readme || relative.StartsWith(source, StringComparison.Ordinal);
     }
 
     /// <summary>The files that differ between a compiled copy and the directory it was copied from, by content, added or removed, as paths from the repository root.</summary>

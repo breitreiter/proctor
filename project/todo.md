@@ -1437,9 +1437,9 @@ that deletes nothing.
 
 **Built 2026-11-27** as proposed below (`Exam/Retired.cs`, `proctor retire`,
 `--bring-back`; the viewer's exam, index and configuration pages). Not built:
-the same through MCP, since proctor has no MCP server yet. Open: the report's
-`summary.md` and `coverage` still list a retired configuration among the rest,
-marked.
+the same through MCP, since proctor has no MCP server yet. `list`, the report's
+`summary.md` and `coverage` keep a retired configuration among the rest,
+marked: they are the full record, and only the viewer's main lists leave it out.
 
 Settled by the user the same day: the word is **retired**, a reason is
 recorded, and a retired configuration can be brought back. The rest was proposed.
@@ -1535,6 +1535,10 @@ shakedown passes, and nb and proctor build at the pins in the fixture's base
 image.
 
 ## An exam's README is part of what a script verdict was made under
+
+**Done 2026-11-27:** the README at the top of an exam or a fixture is left out
+of that comparison (`HarborCompile.Readme`), and tern-docs' is corrected with
+no verdict outdated. What follows is how it was found.
 
 Found 2026-11-27. `exams/tern-docs/README.md` still says "headline checks"
 and calls `current-endpoint` a guardrail. Correcting it would mark every

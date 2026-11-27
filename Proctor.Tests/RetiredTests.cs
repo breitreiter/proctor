@@ -58,6 +58,19 @@ public class RetiredTests
     }
 
     [Fact]
+    public void CoverageSaysWhichConfigurationsAreRetired_AndStillCountsThem()
+    {
+        using var repo = Repo();
+        Verbs.Retire(repo.Root, Id, "rewritten", "the rewrite was dropped", false);
+
+        var coverage = Answers.Coverage(repo.Root, repo.LoadExam(Id), DateTime.UtcNow);
+
+        Assert.Equal(new RetiredMark("the rewrite was dropped", DateTime.UtcNow.ToString("yyyy-MM-dd")), coverage.Configurations.Single(c => c.Name == "rewritten").Retired);
+        Assert.Null(coverage.Configurations.Single(c => c.Name == "long").Retired);
+        Assert.Contains("retired on a configuration", coverage.Methods);
+    }
+
+    [Fact]
     public void BroughtBackItRunsAgainAndAnExamWithNothingRetiredHasNoFile()
     {
         using var repo = Repo();

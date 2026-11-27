@@ -45,10 +45,10 @@ The fixture's README lists what is planted and why.
 
 ## What the report will not say
 
-The report compares each `docs` value with the live one try against try, on how many of a try's headline checks held and how many of its
+The report compares each `docs` value with the live one try against try, on how many of a try's correctness checks held and how many of its
 steps were flagged as friction. So:
 
-- `current-endpoint` is a guardrail, outside the headline count.
+- `current-endpoint` is a quality check: reported, and deciding nothing.
 - Which pages were opened is not counted; `docs-fetched` and `docs-curled` say only whether any were.
 - `no-docs` is a configuration like the others, not labelled as the control.
 

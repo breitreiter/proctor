@@ -283,7 +283,7 @@ The directories are for reading, not for namespaces: everything is
   attempt is made: `HarborCompile.Outdated` compares the run's compiled
   `tests/` (the check's `test.sh` line, every file of the exam and fixture
   copies but `exam.json`, `live.json`, `combinations.json`, `tasks/*.json`, `variants/*.json`, `predictions/*.json`,
-  `fixture.json` and another check's script, and `PROCTOR_EXPECT` in
+  `fixture.json`, the exam's and the fixture's own `README.md`, and another check's script, and `PROCTOR_EXPECT` in
   `env.sh`) with what compile would write now, and a difference, a check
   the run never compiled, or no compiled copy makes the verdict
   `outdated` (`Verdict.Outdated`), whose reason ends "make the attempt
