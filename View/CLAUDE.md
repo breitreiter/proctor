@@ -48,8 +48,8 @@ holding `bank/` and `exams/`.
   `manifest.json`, `status`, `trajectory.json`, `checks.json`,
   `friction.json`, `core.json`), and from `exams/<exam>/` the
   description and live mark. Proctor's file names live here only.
-- `Pages.cs`: the exams, and an exam's tries as plain links by setup
-  and task, live first, nothing counted; the shared page helpers.
+- `Pages.cs`: an exam of variants' tries as plain links by setup and
+  task, live first, nothing counted; the shared page helpers.
 - `StagePage.cs` and `assets/stage.js`: a try, as the stage page
   (`project/stage-page.md`); before stages a try is one task's attempt,
   one stage with no tabs. Failure first, friction rows, passed checks,
@@ -93,6 +93,11 @@ holding `bank/` and `exams/`.
   friction spans as pills that open the step (`:target` marks it, no
   script), each step a native `details`, and `?show=prompt|files`. A
   try of an exam of variants is still `StagePage.cs`.
+- `IndexPage.cs`: the exams, `/`, the fifth designed page (2026-11-27):
+  a row an exam, most recently tried first. An exam with axes shows its
+  named configurations with the marks `ExamPage.Standing` gives them,
+  its predictions and its tries; an exam of variants is a plain row. It
+  lists exams that have a bank, as before.
 - `assets/one.css` and `assets/fonts/`: the designed pages' stylesheet
   (dark ground, Geist, Space Grotesk heads, lime rules), copied from the
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a

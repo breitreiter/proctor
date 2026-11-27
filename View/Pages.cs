@@ -6,26 +6,13 @@ using System.Text.Json.Nodes;
 
 namespace Auspex;
 
-/// <summary>The pages, rendered on the server from proctor's bank: the exams, and one exam's tries as plain links (a try
+/// <summary>The pages, rendered on the server from proctor's bank: one exam of variants' tries as plain links (a try
 /// is the stage page, StagePage.cs; an exam of stages lists each try's stages). Helpers here are shared with it. Nothing is grouped, counted across tries or
 /// worded here that proctor didn't write; the exam page that summarises tries waits on stages (project/build-plan.md).
 /// On screen proctor's variant is a setup and its attempt a try; until stages exist, a try is one task's attempt.</summary>
 public static class Pages
 {
     const int ShownChars = 200_000;
-
-    public static string Index(string root)
-    {
-        var page = Open("auspex", [("exams", null)]);
-        page.Append("<h1>Exams</h1>");
-        var exams = Bank.Exams(root).Select(id => Bank.FindExam(root, id)!).ToList();
-        if (exams.Count == 0) return Close(page.Append($"<p class=\"empty\">No exam has a bank under <code>{E(root)}</code>. auspex reads proctor's root: the directory holding <code>bank/</code> and <code>exams/</code>.</p>"));
-
-        page.Append("<ul class=\"exams\">");
-        foreach (var e in exams)
-            page.Append($"<li><a href=\"{U(e.Path)}\"><code>{E(e.Id)}</code></a>{(e.Description is { } d ? $" <span class=\"meta\">{E(d)}</span>" : "")}</li>");
-        return Close(page.Append("</ul>"));
-    }
 
     public static string Exam(Exam e)
     {

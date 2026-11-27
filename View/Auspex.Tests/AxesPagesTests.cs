@@ -97,6 +97,22 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
     }
 
     [Fact]
+    public async Task TheIndex_IsEachExam_WithItsNamedConfigurationsAndTheirMarks()
+    {
+        var html = await Get("/");
+        var page = Text(html);
+        Assert.Contains($"href=\"/{AxesBank.Exam}\"", html);
+        // The same mark a configuration carries on its exam's page, which is proctor's verdict on it against what is live.
+        foreach (var name in new[] { "shipped", "rewritten", "rewritten-b" }) Assert.Contains($">{name}</a>", html);
+        var exam = await Get($"/{AxesBank.Exam}");
+        var mark = Regex.Match(exam, "<span class=\"light [^\"]*\">[^<]*vs shipped[^<]*</span>");
+        Assert.True(mark.Success, "the exam page marks a configuration against shipped");
+        Assert.Contains(mark.Value, html);
+        Assert.Contains("The one tried most recently is first.", page);
+        Assert.DoesNotContain("<form", html);
+    }
+
+    [Fact]
     public async Task AComparisonInOneSetting_IsXVsY_TheSubjectFirst_WithProctorsNumbers()
     {
         var designed = 0;

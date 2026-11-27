@@ -185,3 +185,9 @@ details.step>summary::-webkit-details-marker{display:none}
 .sub{gap:22px;margin-bottom:4px}
 .sub .tab{min-height:38px;font-size:13.5px;padding:6px 2px}
 mark{background:#4a3f1a;color:var(--text);border-radius:2px}
+
+/* the index of exams */
+.ex{grid-template-columns:minmax(230px,1.5fr) minmax(270px,1.5fr) minmax(200px,1.1fr) 80px 120px;gap:8px 24px;align-items:start}
+.cfg{display:flex;gap:10px;align-items:center;min-height:24px;flex-wrap:wrap}
+.cfg a{font-size:14px;color:var(--text)}
+.list{display:flex;flex-direction:column;gap:6px}

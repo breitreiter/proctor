@@ -46,7 +46,7 @@ public static class Server
             await next();
         });
 
-        app.MapGet("/", () => Html(Pages.Index(root)));
+        app.MapGet("/", () => Html(IndexPage.Render(root)));
         app.MapGet("/assets/{**name}", (string name) =>
             typeof(Server).Assembly.GetManifestResourceStream(AssetPrefix + name) is { } stream ? Results.Stream(stream, ContentType(name)) : Results.NotFound());
         // An exam, then a try of it. On an exam of stages: setup, try, stage; a try alone goes to its first stage. On an

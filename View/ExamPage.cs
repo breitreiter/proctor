@@ -89,22 +89,7 @@ static class ExamPage
         foreach (var (c, i) in named.Select((c, i) => (c, i)))
         {
             var counted = c.Tries?.Rows.Where(t => t.Invalid is null).ToList() ?? [];
-            // Proctor's own comparison of this configuration with what is live: the verdict, and each measure.
-            var (answer, refused) = c.Live || live is null || counted.Count == 0 ? (null, null) : Measured.Compare(root, exam, key => key == "configuration" ? c.Name : null, now: true);
-            var cell = answer?.Cells.Where(k => k.State == "compared").ToList() is { Count: 1 } one ? one[0] : null;
-            var against = cell?.Against.Name ?? live?.Name ?? "live";
-
-            var mark = c.Live ? "<span class=\"light light-live\">live</span>"
-                : counted.Count == 0 ? $"<span class=\"tag tag-none\">{(c.NotGraded > 0 ? "not yet graded" : "no tries yet")}</span>"
-                : refused is not null ? $"<span class=\"tag tag-none\" title=\"{E(refused)}\">not compared{(c.NotGraded > 0 ? $" · {c.NotGraded} not yet graded" : "")}</span>"
-                : answer is null ? ""
-                : answer.Verdict switch
-                {
-                    "better" or "worse" => $"<span class=\"light {(answer.Confirmed == true ? $"light-{answer.Verdict}" : "light-same")}\">{answer.Verdict} vs {E(against)} · {(answer.Confirmed == true ? "confirmed" : "not confirmed")}</span>",
-                    "same" => $"<span class=\"light light-same\">no difference vs {E(against)}</span>",
-                    "better_here_worse_there" => $"<span class=\"light light-same\">better here, worse there vs {E(against)}</span>",
-                    _ => "<span class=\"tag tag-none\">nothing to compare</span>",
-                };
+            var (mark, answer, cell, against) = Standing(root, exam, c, live);
             var made = $"{c.Made} of {c.Wanted} {(c.Wanted == 1 ? "try" : "tries")}{(c.Lost > 0 ? $" · {c.Lost} lost" : "")}{(c.NotGraded > 0 && counted.Count > 0 ? $" · {c.NotGraded} not yet graded" : "")}";
             page.Append($"<div class=\"row ra{(i == 0 ? " first" : "")}\" style=\"padding:14px 0\"><span class=\"who\">")
                 .Append($"<a class=\"name\" href=\"{U($"/{e.Id}/configuration/{c.Key}")}\">{E(c.Name!)}</a>{mark}<span class=\"small dim\">{E(made)}</span>")
@@ -117,6 +102,32 @@ static class ExamPage
         if (live is not null)
             page.Append($"<div class=\"row note\" style=\"border-top-color:var(--rule)\">Each cell is the change vs {E(live.Name!)}, which is live, then the median. The strip is centred on live's median: a dot is one try, placed by how far it is from that median, from 200% less to 200% more, and a hollow dot is further out than that. The band is live's own spread. Colour means the change is confirmed.</div>");
         page.Append("</div></div></section>");
+    }
+
+    /// <summary>
+    /// A named configuration's standing against what is live, as proctor compares them: the mark (live, better or worse
+    /// and whether confirmed, no difference, or why it is not compared), proctor's answer, the one setting compared, and live's name.
+    /// </summary>
+    internal static (string Mark, P.ComparisonAnswer? Answer, P.CellAnswer? Cell, string Against) Standing(string root, P.Exam exam, P.ConfigurationRow c, P.ConfigurationRow? live)
+    {
+        var counted = c.Tries?.Rows.Where(t => t.Invalid is null).ToList() ?? [];
+        // Proctor's own comparison of this configuration with what is live: the verdict, and each measure.
+        var (answer, refused) = c.Live || live is null || counted.Count == 0 ? (null, null) : Measured.Compare(root, exam, key => key == "configuration" ? c.Name : null, now: true);
+        var cell = answer?.Cells.Where(k => k.State == "compared").ToList() is { Count: 1 } one ? one[0] : null;
+        var against = cell?.Against.Name ?? live?.Name ?? "live";
+
+        var mark = c.Live ? "<span class=\"light light-live\">live</span>"
+        : counted.Count == 0 ? $"<span class=\"tag tag-none\">{(c.NotGraded > 0 ? "not yet graded" : "no tries yet")}</span>"
+        : refused is not null ? $"<span class=\"tag tag-none\" title=\"{E(refused)}\">not compared{(c.NotGraded > 0 ? $" · {c.NotGraded} not yet graded" : "")}</span>"
+        : answer is null ? ""
+        : answer.Verdict switch
+        {
+            "better" or "worse" => $"<span class=\"light {(answer.Confirmed == true ? $"light-{answer.Verdict}" : "light-same")}\">{answer.Verdict} vs {E(against)} · {(answer.Confirmed == true ? "confirmed" : "not confirmed")}</span>",
+            "same" => $"<span class=\"light light-same\">no difference vs {E(against)}</span>",
+            "better_here_worse_there" => $"<span class=\"light light-same\">better here, worse there vs {E(against)}</span>",
+            _ => "<span class=\"tag tag-none\">nothing to compare</span>",
+        };
+        return (mark, answer, cell, against);
     }
 
     /// <summary>One measure of one configuration: the change against live and the median, over a strip centred on live's median; with nothing live, the median and the range.</summary>

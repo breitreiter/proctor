@@ -215,10 +215,6 @@ public class CrawlTests
         var queue = new Queue<string>(["/"]);
         var pending = new Queue<string>();
         void Asset(string path) { if (assets.Add(path)) pending.Enqueue(path); }
-        // The stylesheet of the pages designed on the canvas. Only an exam with axes has such a page so far, and the sample bank has none:
-        // named here until the index is one of them. Its fonts licence is linked from those pages' footer.
-        Asset("/assets/one.css");
-        Asset("/assets/fonts/README.md");
 
         while (queue.TryDequeue(out var path))
         {
@@ -226,7 +222,7 @@ public class CrawlTests
             var response = await client.GetAsync(new Uri(origin, path));
             Assert.True(response.StatusCode == HttpStatusCode.OK, $"{path} answered {(int)response.StatusCode}");
             var html = await response.Content.ReadAsStringAsync();
-            foreach (Match link in Regex.Matches(html, "<a href=\"(/[^\"#]*)"))
+            foreach (Match link in Regex.Matches(html, "<a(?: [^>]*)? href=\"(/[^\"#]*)"))
             {
                 var target = WebUtility.HtmlDecode(link.Groups[1].Value);
                 if (target.StartsWith("/assets/", StringComparison.Ordinal)) Asset(target); else queue.Enqueue(target);

@@ -57,6 +57,10 @@ formats or the vocabulary; a patch bump does not.
   that opens; the prompt and the files as the same address asked with
   `?show=`. It needs no script. `?check=<name>` is gone there: a
   verdict's address is `#check-<name>`.
+- **The viewer's index of exams is the one designed on the canvas**:
+  a row an exam, the one tried most recently first; an exam with axes
+  shows its named configurations with their marks against live, its
+  predictions with their counts, its tries and when the last was made.
 - **A predicted change's outcome is one of five words** (breaking, in
   `stats.json` and `compare`): `supported` (was `held`),
   `contradicted` (was `opposite_confirmed`), `no_effect` (was
