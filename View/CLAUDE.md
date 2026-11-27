@@ -126,6 +126,11 @@ holding `bank/` and `exams/`.
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a
   page asks nothing of the network.
 - `Quote.cs`: finds a quote by proctor's judge rule.
+- **The built pages are the design now** (the user, 2026-11-27): the
+  canvas is left to age, so a change is made here and looked at here,
+  and the boards are not kept in step. A script is added where it earns
+  its place (`assets/page.js`: a link opens its step; search on a stage,
+  on the component's input).
 - **Interactive parts are Web Awesome components** (the user,
   2026-11-27: a component library keeps the micro-interactions a
   hand-made part loses, and its theme forces type and colour to be
