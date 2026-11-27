@@ -247,13 +247,13 @@ carry itself across days, and 0.27.0 cannot be resolved before
 
 ## Not done, and why
 
-- **Harbor's pull request 4427 was not run**, only read. Running it is
-  running a fork's unmerged commit; this session's permission check
-  refused sending that to golem's session, and it was not tried another
-  way. The one question a run would answer is whether a service joined
-  to `harbor-docker-egress-control-main-8e62e8c65106` answers at the
-  agent's `localhost` there. The user can say to run it, or leave it
-  until the pull request merges or dies.
+- **Harbor's pull request 4427 is not run yet**, only read. The user
+  said to run it (2026-11-26); uv's seven-day cooldown would not
+  resolve a package its Harbor needs, and the user decided against an
+  exemption. Golem's session runs the three trials after 2026-11-28
+  01:24 UTC, the day 0.27.0 resolves too. The question it answers is
+  whether a service joined to `harbor-docker-egress-control-main-8e62e8c65106`
+  answers at the agent's `localhost` there.
 - **On Modal the environment's phase had to be public** for the image
   to build. What that lets a process the agent left running reach is
   not measured, and proctor compiles the agent's policy there today for

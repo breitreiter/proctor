@@ -803,9 +803,15 @@ network in either phase (`run.sh`, which now takes `JOIN=<service>` and
 So a service's name is no address on the released Harbor, and a service
 can say outright which sidecar it joins and be where it was. Whether
 that also holds under the pull request (joined to
-`harbor-docker-egress-control-main-8e62e8c65106`) is **not run**: it
-means running a fork's unmerged commit, and this session's permission
-check refused handing that to golem's.
+`harbor-docker-egress-control-main-8e62e8c65106`) is **not run yet**.
+The user said to run it and golem's session tried, twice, the same day;
+uv would not resolve it. The pull request sits on main's 0.27.0, which
+needs `harbor-framework-client` 0.3.0, published 2026-11-21T01:24Z and
+so inside the seven-day cooldown. Nothing else stopped it: golem's
+session read the diff too and found nothing against running it. The
+user decided against exempting the package, so the three trials (as
+the task is, joined to that sidecar, joined to `main`) run after
+2026-11-28 01:24 UTC.
 
 The same two trials on rootless Docker 29.1.3 (golem, its own session,
 0.26.0): the same answers. Joined outright the service answers at
