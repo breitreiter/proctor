@@ -86,6 +86,13 @@ holding `bank/` and `exams/`.
   statistics, friction by label. `AxesPages.Compare` hands over to it
   when proctor's answer is one compared cell, and still draws a
   comparison across several settings itself.
+- `TryStagePage.cs`: one stage of a try of an exam with axes,
+  `/<exam>/try/<id>/<stage>`, the fourth designed page (2026-11-27).
+  Stage tabs with proctor's right or wrong (from `Measured.Report`),
+  verdicts grouped by the role `checks.json` records, evidence and
+  friction spans as pills that open the step (`:target` marks it, no
+  script), each step a native `details`, and `?show=prompt|files`. A
+  try of an exam of variants is still `StagePage.cs`.
 - `assets/one.css` and `assets/fonts/`: the designed pages' stylesheet
   (dark ground, Geist, Space Grotesk heads, lime rules), copied from the
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a

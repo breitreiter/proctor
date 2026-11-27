@@ -65,7 +65,7 @@ public static class Server
             Bank.FindTryById(root, exam, id) is { Count: > 0 } stages ? Results.Redirect(Pages.U(stages[0].Path)) : Results.NotFound());
         app.MapGet("/{exam}/try/{id}/{stage}", (string exam, string id, string stage, HttpRequest request) =>
             Bank.FindTryById(root, exam, id) is { Count: > 0 } stages && stages.FirstOrDefault(s => s.Task == stage) is { } a
-                ? Html(StagePage.Render(a, stages, request.Query["check"])) : Results.NotFound());
+                ? Html(TryStagePage.Render(root, a, stages, request.Query["show"])) : Results.NotFound());
         app.MapGet("/{exam}/{variant}/{n}", (string exam, string variant, string n) =>
             Bank.FindTry(root, exam, variant, n) is { Count: > 0 } stages ? Results.Redirect(Pages.U(stages[0].Path)) : Results.NotFound());
         app.MapGet("/{exam}/{variant}/{first}/{second}", (string exam, string variant, string first, string second, HttpRequest request) =>

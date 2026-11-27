@@ -147,19 +147,21 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
     }
 
     [Fact]
-    public async Task ATry_IsAddressedByItsOwnId_AndACheckCanBeSelectedInTheAddress()
+    public async Task ATry_IsAddressedByItsOwnId_AndItsStageShowsEachVerdictByRole()
     {
         var id = bank.Tries["rewritten-b"];
         var stage = await Get($"/{AxesBank.Exam}/try/{id}");   // the try alone goes to its first stage
         Assert.Contains($"href=\"/{AxesBank.Exam}/configuration/", stage);
 
-        // The first failed check is selected unless the address names another.
-        var failed = Regex.Matches(stage, "class=\"card( sel)?\" data-check=\"([^\"]+)\"").Select(m => (Name: m.Groups[2].Value, Selected: m.Groups[1].Success)).ToList();
-        Assert.True(failed.Count >= 2, "the scripted try should fail at least two checks");
-        Assert.True(failed[0].Selected);
-        var other = await Get($"/{AxesBank.Exam}/try/{id}/answer?check={failed[1].Name}");
-        Assert.Contains($"class=\"card sel\" data-check=\"{failed[1].Name}\"", other);
-        Assert.DoesNotContain($"class=\"card sel\" data-check=\"{failed[0].Name}\"", other);
+        // Every verdict of the stage is a row with its own address, under the role proctor graded it in, in proctor's words for the outcome.
+        var page = Text(stage);
+        Assert.Contains("correctness", page);
+        Assert.Matches("id=\"check-[^\"]+\"", stage);
+        Assert.Matches("did not hold|held", page);
+        // What to read is an address, not a script: the prompt and the files are the same page asked another way.
+        Assert.Contains($"/{AxesBank.Exam}/try/{id}/answer?show=prompt", stage);
+        Assert.DoesNotContain("<script", await Get($"/{AxesBank.Exam}/try/{id}/answer?show=files"));
+        Assert.DoesNotContain("<form", stage);
 
         await Get($"/{AxesBank.Exam}/try/no-such-try", HttpStatusCode.NotFound);
     }

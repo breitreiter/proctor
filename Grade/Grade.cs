@@ -121,7 +121,7 @@ static class Grade
         // A check that does not apply in this configuration is not asked: no script runs and no judge is called for it.
         var verdicts = exam.ChecksFor(attempt.Task).Where(k => !(attempt.Vendor && Checks.NbOnly(k.Value.Spec))).ToDictionary(k => k.Key,
             k => Explained(!Standard.Applies(exam, k.Value, attempt.Variant) ? new Verdict(Verdict.NotApplicable, $"applies only when {k.Value.Spec[Checks.When]}")
-                : outdated.TryGetValue(k.Key, out var why) ? new Verdict(Verdict.Outdated, why) : Checks.Evaluate(k.Value, attempt, transcript, k.Key), k.Value, exam));
+                : outdated.TryGetValue(k.Key, out var why) ? new Verdict(Verdict.Outdated, why) : Checks.Evaluate(k.Value, attempt, transcript, k.Key), k.Value, exam) with { Role = exam.RoleOf(k.Key) });
         Runner.WriteJson(Path.Combine(attempt.AttemptDir, Layout.ChecksFile), verdicts);
         Standard.Keep(attempt.AttemptDir, exam, attempt.Task, verdicts);
         return verdicts;
@@ -129,7 +129,7 @@ static class Grade
 
     /// <summary>
     /// A verdict with the check as it was when it graded (check-evidence.md, C2): what it does, why it exists, and a script
-    /// check's script relative to proctor's root. A viewer shows these as written and derives none of them.
+    /// check's script relative to proctor's root; the caller adds its role. A viewer shows these as written and derives none of them.
     /// </summary>
     static Verdict Explained(Verdict verdict, CheckDef check, Exam exam)
     {

@@ -47,6 +47,16 @@ formats or the vocabulary; a patch bump does not.
   for a comparison in one setting: "X vs Y", every number describing
   X. A comparison across several settings keeps the earlier page. The
   token redirect keeps a page's own query.
+- **A verdict records its check's role** (`checks.json`, `role`), as
+  it was when graded, beside `describes` and `why`. Grade an exam
+  again to add it to verdicts already on file.
+- **The viewer's page for a stage of a try is the one designed on the
+  canvas**, on an exam with axes: the try's stages as tabs, each right
+  or wrong; verdicts by role, with the steps their evidence points at
+  as pills; friction points likewise; the transcript, a step a row
+  that opens; the prompt and the files as the same address asked with
+  `?show=`. It needs no script. `?check=<name>` is gone there: a
+  verdict's address is `#check-<name>`.
 - **A predicted change's outcome is one of five words** (breaking, in
   `stats.json` and `compare`): `supported` (was `held`),
   `contradicted` (was `opposite_confirmed`), `no_effect` (was

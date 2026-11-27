@@ -17,6 +17,8 @@ record Verdict(string Result, string Reason)
     public string? Why { get; init; }
     /// <summary>A script check's script, relative to proctor's root, so a person can open what decided.</summary>
     public string? Script { get; init; }
+    /// <summary>The check's role when it graded (<see cref="Exam.RoleOf"/>): correctness, integrity, quality or observation. What the answer was used for.</summary>
+    public string? Role { get; init; }
     /// <summary>Where in the attempt the check found what it looks for (check-evidence.md, C3): steps of the trajectory, or files of the diff. Absent when it found nothing to point at.</summary>
     public List<Evidence>? Evidence { get; init; }
 
