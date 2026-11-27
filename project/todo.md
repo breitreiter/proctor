@@ -1452,7 +1452,7 @@ recorded, and a retired configuration can be brought back. The rest was proposed
 - **Nothing is deleted.** A retired configuration keeps its tries in the bank,
   its page, its predictions and their outcomes, and can still be compared by
   name.
-- **It leaves the headline lists:** the index and the exam page's
+- **It leaves the main lists:** the index and the exam page's
   Configurations show the ones not retired and a count of the retired, which
   opens them. `run` makes no new tries of it.
 - **The live configuration cannot be retired;** mark another live first.
@@ -1502,3 +1502,37 @@ only proctor's tools to answer with (`compare`, `coverage`, `--within`,
 `Proctor.Tests/exams/axes-answers` is built to have, so each answer can be
 graded. What it finds decides whether the tools need more, and only then
 whether a screen is worth drawing.
+
+## exam-authoring still shows the agent the docs from before the four roles
+
+Found 2026-11-27 while moving the pins. `exams/exam-authoring`'s four variants
+pin proctor's docs at `b3250b6`, which teach `grading.pass` and
+`grading.validity`. The exam an agent writes is graded by the host's proctor,
+which refuses those names since the same day, so a try made now would fail for
+the docs it was shown. The graders are ported (`trial/run.sh`,
+`reference/shakedown.sh` read `correctness` and `integrity`; the shakedown
+passes on three tasks and fails `--naive` as it should).
+
+The pin is not moved, because that is a naming decision. A variant's bundle is
+part of its identity, and `docs-haiku` and `docs-and-examples-haiku` made tries
+under these ids (9 current, 27 stale), so `run` refuses a changed pin under the
+same id: "a changed variant is a new variant: give it a new id". Either the
+four variants get new ids at the new pin and the old files stay as the record
+of what made the banked tries, or the old tries are moved out of the bank.
+
+Separately, and from before: `continue-the-batch` and `hooks/interrupt.sh` are
+written for the layout before the bank, and that task fails its own shakedown.
+
+`exams/agent-onboarding` had no tries and its pin is moved (`e1706b4`); its
+shakedown passes, and nb and proctor build at the pins in the fixture's base
+image.
+
+## An exam's README is part of what a script verdict was made under
+
+Found 2026-11-27. `exams/tern-docs/README.md` still says "headline checks"
+and calls `current-endpoint` a guardrail. Correcting it would mark every
+script verdict of the banked tries outdated, since `HarborCompile.Outdated`
+compares every file of the exam's compiled copy but the definition files, and
+a README is one of them: the tries would have to be made again, on a paid
+model, for a change no script reads. Either a README (or `*.md`) joins the
+files that comparison leaves out, or the wording waits for the next tries.

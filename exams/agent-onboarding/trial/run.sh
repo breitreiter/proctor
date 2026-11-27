@@ -3,7 +3,7 @@
 # judged by what it passes and fails rather than by how it reads. Each written variant file is cloned once per
 # plant in <task>/plants.json, its bundle and everything else kept, and the exam asks one attempt; hooks and the nb runner
 # are dropped and trial/planted.sh answers for the bot. Model checks are dropped too, since nothing here can
-# answer one; a model check named in pass or validity is a problem, since then no run could be decided.
+# answer one; a model check named in correctness or integrity is a problem, since then no run could be decided.
 # It needs no network: proctor and nb from PATH, the bot on nb's Mock provider.
 #   env: TRIAL_TASK, TRIAL_OUT (a writable directory), WRITTEN_ROOT, WRITTEN_ID (checks/written.sh)
 #   writes: $TRIAL_OUT/trial.json {problems: [...], attempts: [{plant, variant, task, key, version, expect, status, pass, failed}]},
@@ -31,8 +31,8 @@ agents=$(jq -r '[.[] | select(.agent != null) | .id] | join(", ")' "$out/written
 spec_files=("$def" "$dir"/tasks/*.json "$root"/fixtures/*/fixture.json)
 models='def asks: [to_entries[] | select(.value | type == "object" and (has("decide") or has("judge"))) | .key];'
 asks_model=$(for f in "${spec_files[@]}"; do [ -f "$f" ] && jq -c "$models"' ((.grading.checks // .checks // {}) | asks)' "$f" 2>/dev/null; done | jq -s 'add // [] | unique')
-headline=$(jq -r --argjson m "$asks_model" '[(.grading.pass // []) + (.grading.validity // []) | .[] | select(. as $n | $m | index($n))] | first // empty' "$def")
-[ -z "$headline" ] || fail "'$headline' asks a model and is named in pass or validity, so no run can be decided without one"
+in_role=$(jq -r --argjson m "$asks_model" '[(.grading.correctness // []) + (.grading.integrity // []) | .[] | select(. as $n | $m | index($n))] | first // empty' "$def")
+[ -z "$in_role" ] || fail "'$in_role' asks a model and is named in correctness or integrity, so no run can be decided without one"
 for f in "${spec_files[@]}"; do
   [ -f "$f" ] || continue
   jq --argjson m "$asks_model" 'def drop: with_entries(select(.key as $k | $m | index($k) | not));

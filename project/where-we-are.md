@@ -49,7 +49,7 @@ note and what was decided while building:
 **The paid run of `tern-docs`.** Six tries exist, two of each named
 configuration, Claude Code on Sonnet through Harbor:
 
-| `docs` | Headline checks held, each try | Flagged steps | Tool calls, 12 stages |
+| `docs` | Correctness checks held, each try | Flagged steps | Tool calls, 12 stages |
 |---|---|---|---|
 | `as-shipped` (live) | 18/18, 18/18 | 7, 11 | 42 |
 | `restructure` | 18/18, 18/18 | 10, 8 | 45 |
@@ -57,7 +57,7 @@ configuration, Claude Code on Sonnet through Harbor:
 
 **Finished 2026-11-26, on the desktop (rootless podman, the gateway on
 another machine):** four tries a side. No docs against as shipped is
-worse on headline checks held, confirmed (p = 0.029), and both of its
+worse on correctness checks held, confirmed (p = 0.029), and both of its
 predictions held; the restructure is the same as as shipped, and none
 of its three predictions came out. What follows is how it stood on
 the 25th.

@@ -57,7 +57,7 @@ for task_file in "$here"/tasks/*.json; do
         declare -A bare=([loan-period]=9 [late-fee]=75 [membership]=12 [reserve-ahead]=3 [deposit-refund]=5)
         for t in "$s"/tasks/*.json; do edit "$t" ".expect.answer_regex = \"${bare[$(basename "$t" .json)]}\""; done ;;
       revised-prompt)  # compares the variants but checks only that the bot answered
-        edit "$s/exam.json" '.grading.pass = ["answered"] | .grading.validity = []' ;;
+        edit "$s/exam.json" '.grading.correctness = ["answered"] | .grading.integrity = []' ;;
       stays-on-topic)  # looks for the sentence anywhere, so declining and then playing along passes
         for t in "$s"/tasks/*.json; do edit "$t" 'if (.expect.answer_regex | startswith("^")) then .expect.answer_regex = "Sorry, I can only help with questions about the Bike Kitchen" else . end'; done ;;
     esac

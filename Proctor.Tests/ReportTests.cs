@@ -185,10 +185,10 @@ public class ReportTests
 
         var md = Report.Markdown(stats, rows, WorkedExam.Latest(exam));
         Assert.Contains($"> **Warning.** The check `builds` (the repository builds after the change) has changed or been added since {outdated} of the {o.Of} attempts it applies to were made, on `b` (`b` {outdated}). "
-            + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates and, as a headline check, out of the pass rates. "
+            + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates and, as a correctness check, out of the pass rates. "
             + "Make those attempts again: `proctor grade smoke` names them; move their directories out of `bank/smoke/` and run `proctor run smoke`.", md);
         Assert.Contains($"· {outdated} outdated", md);
-        Assert.Contains($"{outdated} attempts are undecided because a headline check's verdict is outdated; see the warning at the top.", md);
+        Assert.Contains($"{outdated} attempts are undecided because a correctness check's verdict is outdated; see the warning at the top.", md);
         Assert.DoesNotContain("undecided, and can be reviewed", md);
         Assert.Contains("| `b` | `plain` | 1 | ? outdated |", md);
         Assert.Contains($"builds: {why.Replace("fixtures/ledger/checks/builds.sh", "`fixtures/ledger/checks/builds.sh`")}", md);
@@ -222,7 +222,7 @@ public class ReportTests
         Assert.Contains("Variants lost attempts unequally", md);
     }
 
-    /// <summary>A headline every task declares in its own words: each task card carries the task's sentence, the check pass rates point there, and a failure names the task's criterion.</summary>
+    /// <summary>A correctness check every task declares in its own words: each task card carries the task's sentence, the check pass rates point there, and a failure names the task's criterion.</summary>
     [Fact]
     public void ACheckDescribedPerTask_ShowsEachTasksSentence()
     {

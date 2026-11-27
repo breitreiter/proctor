@@ -3,7 +3,7 @@
 # its own task and graded, so it is judged by what it passes and fails rather than by how it reads.
 # Its variants/ is replaced by one variant per planted run in /trial/$TRIAL_TASK (good-* must pass, bad-*
 # must fail), its hooks and runner by planted.sh, and its model checks dropped: a guardrail that
-# asks a model decides nothing here, and one named in pass or validity makes the trial fail.
+# asks a model decides nothing here, and one named in correctness or integrity makes the trial fail.
 #   usage: run.sh <exam id>    mounts: /authored (the work directory, read-only), /trial (read-only),
 #   /opt/proctor (the grading build), /out (writable): trial.json, the logs, the graded attempts (bank/, log/).
 set -uo pipefail
@@ -16,8 +16,8 @@ e="$root/exams/$id/exam.json"; defs="$root/exams"
 jq -e . "$e" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
 
 asks_model=$(jq -c '[.grading.checks // {} | to_entries[] | select(.value | type == "object" and (keys | any(test("(decide|judge)$")))) | .key]' "$e")
-in_headline=$(jq -r --argjson m "$asks_model" '[(.grading.pass // []) + (.grading.validity // []) | .[] | select(. as $n | $m | index($n))] | first // empty' "$e")
-[ -z "$in_headline" ] || fail "'$in_headline' asks a model and is named in pass or validity, so no run can be decided without one"
+in_role=$(jq -r --argjson m "$asks_model" '[(.grading.correctness // []) + (.grading.integrity // []) | .[] | select(. as $n | $m | index($n))] | first // empty' "$e")
+[ -z "$in_role" ] || fail "'$in_role' asks a model and is named in correctness or integrity, so no run can be decided without one"
 rm -rf "$root/exams/$id/variants" && mkdir -p "$root/exams/$id/variants"
 for f in "/trial/$TRIAL_TASK"/*.sh; do
   v=$(basename "$f" .sh)

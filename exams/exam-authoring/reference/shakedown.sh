@@ -36,9 +36,9 @@ for task_file in "$here"/tasks/*.json; do
   if [ "$mode" = --naive ] && [ "$c" != continue-the-batch ]; then
     e="$PROCTOR_WORK/exams/$id/exam.json"
     case "$c" in
-      guard-the-tests)   jq '.grading.pass -= ["tests-untouched"]' "$e" ;;
-      check-the-answer)  jq '.grading.checks["right-count"] = {answer_contains: "8"} | .grading.pass -= ["read-only"]' "$e" ;;
-      write-the-fixture) jq '.grading.pass -= ["no-legacy"]' "$e" ;;
+      guard-the-tests)   jq '.grading.correctness -= ["tests-untouched"]' "$e" ;;
+      check-the-answer)  jq '.grading.checks["right-count"] = {answer_contains: "8"} | .grading.correctness -= ["read-only"]' "$e" ;;
+      write-the-fixture) jq '.grading.correctness -= ["no-legacy"]' "$e" ;;
     esac >"$e.naive" && mv "$e.naive" "$e"
   fi
   for check in $checks; do

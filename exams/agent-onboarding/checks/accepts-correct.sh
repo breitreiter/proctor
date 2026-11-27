@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Does the written exam pass every planted run that gives the right reply? A run counts as passed only when it
-# passed and was counted (a validity check that excludes a right reply did not accept it). Reason: the trial's
+# passed and was counted (an integrity check that excludes a right reply did not accept it). Reason: the trial's
 # problem, or the right replies that failed and the checks that failed them, which are the ones asking for more
 # than the task does.
 set -uo pipefail

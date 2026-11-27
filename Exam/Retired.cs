@@ -9,7 +9,7 @@ record RetiredMark(string Reason, string Since);
 /// exams/&lt;exam&gt;/retired.json on an exam with axes: the named configurations nobody is looking at any more, each with
 /// its reason and the date (the user, 2026-11-27). Written by `proctor retire`, committed with the exam and in no hash.
 /// Retiring deletes nothing: the tries, the predictions and the comparisons stay, and the configuration can be brought
-/// back. What it changes: `run` makes no new tries of it, and the headline lists leave it out.
+/// back. What it changes: `run` makes no new tries of it, and the main lists leave it out.
 /// </summary>
 static class Retired
 {

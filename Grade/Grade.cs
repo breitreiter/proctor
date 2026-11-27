@@ -145,14 +145,14 @@ static class Grade
     }
 
     /// <summary>
-    /// The headline pass: true when every check named in grading.pass passed; false when any failed, errored or is missing;
+    /// Whether the attempt passed: true when every check named in grading.correctness passed; false when any failed, errored or is missing;
     /// null (undecided) when none failed but one could not decide or is outdated. An undecided attempt is out of the pass rate
     /// on both sides: a check that cannot decide is the check's weakness, not the variant's, and an outdated one is the
     /// attempt's age, not the variant's.
     /// </summary>
     public static bool? Pass(Dictionary<string, Verdict> checks, List<string> passChecks)
     {
-        // A headline check that does not apply here is no part of this attempt's headline.
+        // A correctness check that does not apply here decides nothing for this attempt.
         var results = passChecks.Select(name => checks.TryGetValue(name, out var v) ? v.Result : Verdict.Error).Where(r => r != Verdict.NotApplicable).ToList();
         if (results.Any(r => r is Verdict.Fail or Verdict.Error)) return false;
         return results.Any(r => r is Verdict.NeedsJudge or Verdict.Outdated) ? null : true;

@@ -192,7 +192,7 @@ https://claude.ai/artifact/XE4Baec27NiQMhLuXh5a6Q):
   exam page as proctor delivers them.
 - `project/exam-page.md`: the page for one exam (2026-11-22, written
   from artboard 1 as reviewed, for the user to confirm). Setups against
-  live on headline checks held and flagged steps per try, setup tabs,
+  live on correctness checks held and flagged steps per try, setup tabs,
   the stage-by-try grid, friction per kind, the agent's findings, every
   try.
 - `project/stage-page.md`: the page for one stage of a try (2026-11-22,

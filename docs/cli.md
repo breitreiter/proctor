@@ -174,7 +174,7 @@ leaves out, say) is the reference for nothing; the report says so.
 
 ## Retiring a configuration
 
-On an exam with axes, the named configurations are the headline: what is
+On an exam with axes, the named configurations are what a reader looks at first: what is
 shipping, what might replace it, how that is going. One nobody is looking
 at any more can be retired, with the reason:
 
@@ -194,7 +194,7 @@ the bank, the predictions keep their outcomes, and `compare` still answers
 about the configuration. What changes is that `proctor run` makes no new
 tries of it (and refuses one asked for with `--configuration` or
 `--value`), `list` and the report mark it, and the viewer lists it under
-"retired" with its reason, out of the headline lists.
+"retired" with its reason, out of the main lists.
 
 The live configuration cannot be retired: make another value live first.
 `--bring-back` removes the mark, and the next `run` makes whatever tries

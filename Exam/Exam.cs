@@ -299,7 +299,7 @@ sealed class Exam
     public List<string> CheckNames => AllChecks().Select(c => c.Name).Distinct().ToList();
 
     /// <summary>What a check tests, in plain words, when it says one thing everywhere: the declared description, or the one derived from a built-in spec.
-    /// A check that tasks describe differently (a headline every task declares with its own criterion) is left out; the sentence is each task's, in <see cref="ChecksFor"/>.</summary>
+    /// A check that tasks describe differently (a correctness check every task declares with its own criterion) is left out; the sentence is each task's, in <see cref="ChecksFor"/>.</summary>
     public Dictionary<string, string> CheckDescriptions() =>
         AllChecks().GroupBy(c => c.Name, c => Checks.Describe(c.Spec))
             .Where(g => g.Distinct().Count() == 1)

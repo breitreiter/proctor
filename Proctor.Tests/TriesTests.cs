@@ -61,7 +61,7 @@ public class TriesTests
         var exam = Staged(repo);
         new Live(new Ref("a", exam.Variants.First(v => v.Id == "a").Hash), "2026-11-23T00:00:00Z").Save(exam);
 
-        // As run, the two variants are the same: every try holds every headline check, with the same friction.
+        // As run, the two variants are the same: every try holds every correctness check, with the same friction.
         var (same, friction) = Report(repo, exam);
         Assert.Equal(("tries/1", 4, true), (same.Schema, same.CorrectnessChecks, same.Variants[0].Live));
         Assert.Equal(["exit_ok", "says-expected"], same.Stages[0].CorrectnessChecks);

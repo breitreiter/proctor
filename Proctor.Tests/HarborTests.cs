@@ -413,7 +413,7 @@ public class HarborTests
         Assert.Equal(1, row.ToolCalls);
         Assert.Equal(15, row.Usage!.Total);
         Assert.Equal(0.001, row.Usage.CostUsd);
-        // The failed headline check leads the reasons, ahead of the guardrail the exam declares first.
+        // The failed correctness check leads the reasons, ahead of the guardrail the exam declares first.
         Assert.Equal(["tests-pass", "diff-in-scope"], row.Reasons!.Keys);
     }
 
@@ -649,7 +649,7 @@ public class HarborTests
     [Theory]
     [InlineData("correctness")]
     [InlineData("integrity")]
-    public void Validate_ANudgeOnlyCheckInTheHeadline_BesideAVendorVariant_IsAProblem(string list)
+    public void Validate_ANudgeOnlyCheckThatDecides_BesideAVendorVariant_IsAProblem(string list)
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;

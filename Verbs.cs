@@ -237,7 +237,7 @@ static class Verbs
 
     /// <summary>
     /// Retire a named configuration of an exam with axes, with a reason, or bring one back; with no configuration, say
-    /// which are retired. Nothing is deleted: `run` makes no new tries of a retired configuration and the headline lists leave it out.
+    /// which are retired. Nothing is deleted: `run` makes no new tries of a retired configuration and the main lists leave it out.
     /// </summary>
     public static int Retire(string root, string examId, string? name, string? reason, bool bringBack)
     {

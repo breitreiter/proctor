@@ -47,7 +47,7 @@ public class AnswersTests
 
         // Every number has its tries behind it, each with an address and its directory in the bank.
         var cell = compared[0];
-        // Which check: counts per headline check, each side, with the check's own sentence.
+        // Which check: counts per correctness check, each side, with the check's own sentence.
         Assert.Equal(["answers-question", "cites-note", "one-sentence", "says-when-unsure"], cell.Checks!.Select(k => k.Check));
         Assert.Equal(cell.Value.Tries.Sum(t => t.Held), cell.Checks!.Sum(k => k.Value));
         Assert.Equal("the answer is one sentence", cell.Checks![2].About);

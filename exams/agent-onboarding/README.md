@@ -53,7 +53,7 @@ the third `image.run` line of the three `fixtures/onboarding-*/fixture.json`.
 The block is identical in all three, so one command does it:
 
 ```bash
-sed -i 's/b3250b68f59a9d8bb35c8fd1860cbbfb63196220/<new sha>/g' fixtures/onboarding-*/fixture.json
+sed -i 's/e1706b4faffe57defb2714b0689f3f0335914401/<new sha>/g' fixtures/onboarding-*/fixture.json
 ```
 
 The revision must be pushed to GitHub, since the image clones it. A fixture's

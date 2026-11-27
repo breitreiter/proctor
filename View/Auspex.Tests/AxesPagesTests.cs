@@ -104,7 +104,7 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
     }
 
     [Fact]
-    public async Task ARetiredConfiguration_LeavesTheHeadlineLists_AndKeepsItsPageAndItsReason()
+    public async Task ARetiredConfiguration_LeavesTheMainLists_AndKeepsItsPageAndItsReason()
     {
         bank.Proctor("retire", AxesBank.Exam, "long-b", "--reason", "nobody ships the long prompt on b");
         try

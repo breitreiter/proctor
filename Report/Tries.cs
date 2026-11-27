@@ -96,7 +96,7 @@ static class Tries
             // On an exam with axes a try is the stages that apply in its configuration, and holds of those stages' correctness checks.
             var stages = exam.StagesOf(variant);
             // Of the correctness checks that apply in this configuration: one that does not apply is no part of what a try can hold.
-            var headline = stages.Sum(s => Standard.PassIn(exam, s, variant).Count);
+            var of = stages.Sum(s => Standard.PassIn(exam, s, variant).Count);
             var found = kinds[variant] = [];
             var tryRows = new List<TryRow>();
             foreach (var group in current.Where(a => a.Variant == variant).GroupBy(a => a.Attempt).OrderBy(g => g.Key))
@@ -123,7 +123,7 @@ static class Tries
                 }
                 var manifests = group.Select(a => Path.Combine(a.Dir(root), Layout.ManifestFile)).Where(File.Exists).Select(Runner.ReadManifest).ToList();
                 var ran = perStage.Where(p => p.Row is { Status: AttemptStatus.Completed }).Select(p => p.Row!).ToList();
-                tryRows.Add(new TryRow(n, manifests.Select(m => m.Started).Where(s => s is not null).Min(), held, headline, held == headline, flagged,
+                tryRows.Add(new TryRow(n, manifests.Select(m => m.Started).Where(s => s is not null).Min(), held, of, held == of, flagged,
                     perStage.Any(p => p.Row?.Status == AttemptStatus.Skipped) ? perStage.Last(p => p.Row?.Status == AttemptStatus.Completed).Stage.Id : null,
                     invalid, undecided, results, ran.Sum(r => r.ToolCalls ?? 0), ran.Sum(r => r.Usage?.Input ?? 0), manifests.Sum(m => m.DurationMs ?? 0)));
             }

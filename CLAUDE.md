@@ -87,7 +87,7 @@ in the order the verbs run them. Every file is one concern:
 | `Exam/Combinations.cs` | `exams/<exam>/combinations.json`, written by `build` and nothing else: which several-valued configurations are their values put together, more (a script reads several axes), or cannot be told; what holds today (`Combinations.Stand`). Whether anyone read what a value changes is recorded nowhere, on purpose |
 | `Exam/Predictions.cs` | `exams/<exam>/predictions/<name>.json` on an exam with axes: one configuration the exam names, what it is compared with (`against`, or what is live), and the changes expected, each a check or a metric (`held`, `flagged_steps`, `tool_calls`, `tokens`, `duration`) with `more` or `less`; validation; when it was made (`written`, its author's, required: a date or a time in UTC); the pin (`Predictions.Stamp`: each stage's standard when proctor first saw it, set once). Committed with the exam and in no hash |
 | `Exam/Live.cs` | `exams/<exam>/live.json`: the live variant by id and hash, and since when; whether the mark still holds (`Live.Broken`) and the warning `list`, `run` and `report` print when it does not |
-| `Exam/Retired.cs` | `exams/<exam>/retired.json` on an exam with axes: the named configurations retired, each with its reason and date (`proctor retire`, `--bring-back`). Committed with the exam and in no hash. Nothing is deleted: `run` makes no new tries of one (`Verbs.ForRun`) and the headline lists leave it out; the live configuration cannot be retired |
+| `Exam/Retired.cs` | `exams/<exam>/retired.json` on an exam with axes: the named configurations retired, each with its reason and date (`proctor retire`, `--bring-back`). Committed with the exam and in no hash. Nothing is deleted: `run` makes no new tries of one (`Verbs.ForRun`) and the main lists leave it out; the live configuration cannot be retired |
 | `Run/Runner.cs` | `run`: an interrupted run continued when its conditions hold (`WhyNotContinue`), then what is missing made by a new run; the log entry (`log/<id>/entry.json`), `exams-seen/` and attempt manifests, hooks, nb as a subprocess, an agent attempt through Harbor; bundles resolved (a git bundle's `paths` copied out of its clone); a changed variant under an id that made attempts refused |
 | `Run/Build.cs` | `build`: the starting workspace of the reference twice, of each value alone and of each several-valued configuration, with the setup hooks and nothing run; a value's change (`ValueChange`) and the combination check, whose changes to one file are merged line by line |
 | `Run/Bank.cs` | an exam's bank: current or stale by the variant and task hashes each attempt was made under (`Bank.Stale`), what is missing (`Bank.Missing`), which runs were interrupted (`Bank.Interrupted`), the selection `--variant` and `--tasks` narrow (`Bank.Select`) |
@@ -106,7 +106,7 @@ in the order the verbs run them. Every file is one concern:
 | `Grade/Window.cs` | what a model check sees: named extractions from the transcript, joined with `+`, compiled into labelled fences |
 | `Grade/Judge.cs` | `JudgeClient` (the transports), the `decide` check over systemone, the `judge` check over chat, the verdict file as cache, the report's judge provenance |
 | `Grade/Standard.cs` | grades over time (`axes-build.md`, slice 5): the standard a stage is graded under (its checks, their conditions and scripts, the pass and validity lists, the expected values), each grade kept under it in the attempt's `grades/`, whether a check applies in a configuration (`when`), which tries are not yet graded, and what moved between an earlier grade and this one (`Standard.Moves`: narrowed, added, removed) |
-| `Grade/Grade.cs` | checks over an attempt into `checks.json`; the headline pass |
+| `Grade/Grade.cs` | checks over an attempt into `checks.json`; whether the attempt passed |
 | `Friction/Shell.cs` | a shell command as the friction rules read it: words, then actions (one per pipeline, named by its first command, heredoc bodies dropped); POSIX path and glob helpers, since the paths are the container's |
 | `Friction/Friction.cs` | `Surface` (the exam's `surface` block, compiled) and the friction rules: an attempt's trajectory into `friction.json` (schema `friction/1`: the `attempt` it is about, points, each with a checked quote, and the summary by surface part) |
 | `Friction/Reader.cs` | the reader stage of `friction --reader`: an attempt's trajectory rendered as text with a call id per call, the fixed instructions, the reply checked into points with a model source, the reading file kept in the attempt |
@@ -171,7 +171,7 @@ The directories are for reading, not for namespaces: everything is
   `coverage`, and a `compare` that would read it is refused, so both sides of a comparison are always under one
   standard. `grade --value` or `--configuration` grades part of an exam and leaves the rest so. A check may carry
   `"when": "<axis> = <value>"` (with `!=` and `and`, as a stage's): where it does not hold, the verdict is
-  `not-applicable`, no script runs and no judge is asked, the check is no part of the headline there
+  `not-applicable`, no script runs and no judge is asked, the check decides nothing there
   (`Standard.PassIn`), and it counts toward nothing. `Standard.Moves` compares the current grade with the earlier ones
   kept: a check narrowed away from where it had been decided, one added after the first grade, one removed. Each is
   a sentence in `grade`'s output, in the report ("The standard moved") and in every comparison that reads the tries
@@ -287,7 +287,7 @@ The directories are for reading, not for namespaces: everything is
   `env.sh`) with what compile would write now, and a difference, a check
   the run never compiled, or no compiled copy makes the verdict
   `outdated` (`Verdict.Outdated`), whose reason ends "make the attempt
-  again". An outdated headline check makes the attempt undecided (`Grade.Pass`
+  again". An outdated correctness check makes the attempt undecided (`Grade.Pass`
   null, `ResultRow.Outdated`), out of every rate like `needs-judge`; `grade`
   prints `Grade.OutdatedSummary`, and `stats.json` `outdated_checks` is a
   warning at the top of the report, always, saying how to make the attempts again (move their directories out of the bank; `run` does not continue the old run for them, since `WhyNotContinue` refuses compiled checks that are not the checks as they are now). `loop_nudged` is
@@ -446,7 +446,7 @@ The directories are for reading, not for namespaces: everything is
   reader-facing vocabulary (variant, task, attempt, check; counted, decided;
   "95% interval") are `project/plans/report-structure.md`. The page and the
   files say attempt alike.
-- **An undecided attempt is a third headline outcome.** `Grade.Pass` is `bool?`:
+- **An undecided attempt is a third outcome.** `Grade.Pass` is `bool?`:
   false when a pass check failed, errored or is missing; null when nothing
   failed but a check is `needs-judge`. An undecided attempt is counted (it is
   valid) but not decided: out of the pass rate on both sides, out of that
@@ -455,7 +455,7 @@ The directories are for reading, not for namespaces: everything is
   the attempts it applies to (`stats.json` `undecided_checks`). A check that
   cannot decide is the check's weakness, not the variant's. So is one that
   errored: an `error` is out of that check's rate too, counted beside it
-  ("· 5 error"), though a headline check that errored still fails the attempt. A
+  ("· 5 error"), though a correctness check that errored still fails the attempt. A
   check that errored in more than one attempt, and in more than 5 attempts or 5% of
   those it applies to, is one warning at the top with its count per variant
   (`stats.json` `errored_checks`) and leaves the per-variant lists under Failures.

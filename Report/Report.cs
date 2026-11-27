@@ -67,17 +67,17 @@ static class Report
             b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Attempts} of the {u.Of} attempts it applies to. Its pass rates below are over the {u.Of - u.Attempts} attempts it decided, and the check needs rewriting before this report is conclusive."));
         foreach (var x in stats.ErroredChecks ?? [])
         {
-            var headline = stats.CorrectnessChecks.Contains(x.Check);
+            var correctness = stats.CorrectnessChecks.Contains(x.Check);
             var where = x.Variants.Count == variants.Count && variants.Count > 1 ? "on every variant" : $"on {Join(x.Variants.Keys.Select(a => $"`{a}`"))}";
             b.Add(new Warning($"The check `{x.Check}` ({CheckText(stats, x.Check)}) could not grade {x.Attempts} of the {x.Of} attempts it applies to, {where} ({string.Join(", ", x.Variants.Select(a => $"`{a.Key}` {a.Value}"))}). "
-                + (headline ? "It is a headline check, so each of those attempts counts as failed and the pass rates are lower by as much. " : $"Its rates below are over the {x.Of - x.Attempts} attempts it graded. ")
+                + (correctness ? "It is a correctness check, so each of those attempts counts as failed and the pass rates are lower by as much. " : $"Its rates below are over the {x.Of - x.Attempts} attempts it graded. ")
                 + "Each attempt's reason says why; the check needs fixing before its result means much."));
         }
         foreach (var o in stats.OutdatedChecks ?? [])
         {
             var where = o.Variants.Count == variants.Count && variants.Count > 1 ? "on every variant" : $"on {Join(o.Variants.Keys.Select(a => $"`{a}`"))}";
             b.Add(new Warning($"The check `{o.Check}` ({CheckText(stats, o.Check)}) has changed or been added since {o.Attempts} of the {o.Of} attempts it applies to were made, {where} ({string.Join(", ", o.Variants.Select(a => $"`{a.Key}` {a.Value}"))}). "
-                + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates" + (stats.CorrectnessChecks.Contains(o.Check) ? " and, as a headline check, out of the pass rates" : "") + ". "
+                + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates" + (stats.CorrectnessChecks.Contains(o.Check) ? " and, as a correctness check, out of the pass rates" : "") + ". "
                 + $"Make those attempts again: ``proctor grade {stats.Exam}`` names them; move their directories out of ``{Layout.BankDir}/{stats.Exam}/`` and run ``proctor run {stats.Exam}``."));
         }
         foreach (var (variant, mixed) in stats.BuiltFrom?.Mixed ?? [])
@@ -119,7 +119,7 @@ static class Report
 
         // 4. Results: only the numbers across all tasks
         b.Add(new Heading("Results"));
-        b.Add(new Para($"Pass rate is the share of counted attempts in which every headline check held, averaged task by task so that one task with many attempts does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with {stats.NTasks} task{(stats.NTasks == 1 ? "" : "s")} it is {(stats.NTasks < 10 ? "wide" : "what it is")}."));
+        b.Add(new Para($"Pass rate is the share of counted attempts in which every correctness check held, averaged task by task so that one task with many attempts does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with {stats.NTasks} task{(stats.NTasks == 1 ? "" : "s")} it is {(stats.NTasks < 10 ? "wide" : "what it is")}."));
         b.Add(new Table(["Variant", "Pass rate", "95% interval", "Passed / decided attempts"],
             variants.Select(a => (List<Td>)[Id(a), T(RatePct(stats.Variants[a].Pass)), T(IntervalText(stats.Variants[a].Pass)), T(stats.Variants[a].Pass is { } p ? $"{p.KAttempts} / {p.NAttempts}" : "—")]).ToList()));
         if (stats.Comparisons.Count > 0)
@@ -154,7 +154,7 @@ static class Report
             b.Add(new Para($"{Join(erroredChecks.Select(x => $"`{x.Check}`"))} could not grade {(erroredChecks.Count == 1 ? "many attempts" : "many attempts each")}, and {(erroredChecks.Count == 1 ? "is" : "are")} left out of the lists above; see the warning at the top."));
         var undecided = variants.SelectMany(a => stats.Variants[a].Undecided).Where(u => u.Status != Verdict.Outdated).ToList();
         if (variants.Sum(a => stats.Variants[a].Undecided.Count) - undecided.Count is > 0 and var outdated)
-            b.Add(new Para($"{outdated} attempt{(outdated == 1 ? " is" : "s are")} undecided because a headline check's verdict is outdated; see the warning at the top. {(outdated == 1 ? "It is" : "They are")} marked {Undecided} outdated in the tables below."));
+            b.Add(new Para($"{outdated} attempt{(outdated == 1 ? " is" : "s are")} undecided because a correctness check's verdict is outdated; see the warning at the top. {(outdated == 1 ? "It is" : "They are")} marked {Undecided} outdated in the tables below."));
         if (undecided.Count > 0 && undecided.Count <= 5)
         {
             b.Add(new Para($"{undecided.Count} attempt{(undecided.Count == 1 ? " was" : "s were")} undecided, and can be reviewed top to bottom:"));
@@ -166,7 +166,7 @@ static class Report
         // 6. Attempt summary
         var unequal = UnequalLoss(stats);
         b.Add(new Heading("Attempt summary"));
-        b.Add(new Para("This is how far each attempt got before terminating. *Started* attempts began; *completed* attempts ended with a transcript; *graded* attempts have their checks; *counted* attempts are graded and passed every validity check; *decided* attempts are counted attempts whose headline checks all reached a verdict. Pass rates are over decided attempts only."));
+        b.Add(new Para("This is how far each attempt got before terminating. *Started* attempts began; *completed* attempts ended with a transcript; *graded* attempts have their checks; *counted* attempts are graded and passed every validity check; *decided* attempts are counted attempts whose correctness checks all reached a verdict. Pass rates are over decided attempts only."));
         b.Add(new Table(["Variant", "Planned", "Started", "Completed", "Graded", "Counted", "Decided"],
             variants.Select(a => { var s = stats.Variants[a]; return (List<Td>)[Id(a), T($"{s.Planned}"), T($"{s.Started}"), T($"{s.Completed}"), T($"{s.Graded}"), T($"{s.Analysed}"), T($"{s.Decided}")]; }).ToList()));
         if (unequal is not null) b.Add(new Warning(unequal));

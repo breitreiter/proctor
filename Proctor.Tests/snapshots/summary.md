@@ -116,7 +116,7 @@ Fixture **note** · Attempted **3 times** per variant · **4 checks**: 3 from th
 
 ## Results
 
-Pass rate is the share of counted attempts in which every headline check held, averaged task by task so that one task with many attempts does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 tasks it is wide.
+Pass rate is the share of counted attempts in which every correctness check held, averaged task by task so that one task with many attempts does not outweigh another. The 95% interval says how far the true rate could plausibly sit from the measured one; with 3 tasks it is wide.
 
 | Variant | Pass rate | 95% interval | Passed / decided attempts |
 |---|---|---|---|
@@ -148,7 +148,7 @@ For each variant, the checks that failed in at least one counted attempt, most f
 
 ## Attempt summary
 
-This is how far each attempt got before terminating. *Started* attempts began; *completed* attempts ended with a transcript; *graded* attempts have their checks; *counted* attempts are graded and passed every validity check; *decided* attempts are counted attempts whose headline checks all reached a verdict. Pass rates are over decided attempts only.
+This is how far each attempt got before terminating. *Started* attempts began; *completed* attempts ended with a transcript; *graded* attempts have their checks; *counted* attempts are graded and passed every validity check; *decided* attempts are counted attempts whose correctness checks all reached a verdict. Pass rates are over decided attempts only.
 
 | Variant | Planned | Started | Completed | Graded | Counted | Decided |
 |---|---|---|---|---|---|---|

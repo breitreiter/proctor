@@ -101,7 +101,7 @@ static class ExamPage
         }
         if (live is not null)
             page.Append($"<div class=\"row note\" style=\"border-top-color:var(--rule)\">Each cell is the change vs {E(live.Name!)}, which is live, then the median. The strip is centred on live's median: a dot is one try, placed by how far it is from that median, from 200% less to 200% more, and a hollow dot is further out than that. The band is live's own spread. Colour means the change is confirmed.</div>");
-        // The retired ones are out of the headline list and one click away, each with its reason: nothing about them is deleted.
+        // The retired ones are out of the main list and one click away, each with its reason: nothing about them is deleted.
         if (named.Where(c => c.Retired is not null).ToList() is { Count: > 0 } retired)
         {
             page.Append($"<details id=\"retired\" class=\"row\" style=\"display:block;padding:14px 0\"><summary class=\"small\" style=\"cursor:pointer\">{retired.Count} retired</summary>")

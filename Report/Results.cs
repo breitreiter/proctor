@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Proctor;
 
 /// <summary>One row of results.jsonl: coordinates on every row, no transcript text.
-/// <c>Outdated</c> is set, with <c>Undecided</c>, when the attempt is undecided because a headline check's verdict is outdated.</summary>
+/// <c>Outdated</c> is set, with <c>Undecided</c>, when the attempt is undecided because a correctness check's verdict is outdated.</summary>
 record ResultRow(
     string Id, string Variant, string Task, int Attempt,
     string Status, string? StatusReason, string? ExitReason,
@@ -51,7 +51,7 @@ static class Results
                 DurationMs: manifest?.DurationMs,
                 Checks: checks?.ToDictionary(k => k.Key, k => k.Value.Result),
                 Pass: checks is null ? null : Grade.Pass(checks, exam.CorrectnessFor(c)),
-                // The headline checks lead, so a failed attempt's first reason is what failed it, not a guardrail declared before it.
+                // The correctness checks lead, so a failed attempt's first reason is what failed it, not a guardrail declared before it.
                 Reasons: checks?.Where(k => k.Value.Result != Verdict.Pass).OrderBy(k => !exam.CorrectnessFor(c).Contains(k.Key))
                     .ToDictionary(k => k.Key, k => k.Value.Reason) is { Count: > 0 } r ? r : null,
                 Invalid: checks is null ? null : Grade.Invalid(checks, exam.IntegrityFor(c)),
