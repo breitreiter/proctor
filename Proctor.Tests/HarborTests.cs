@@ -891,7 +891,7 @@ public class HarborTests
         var e = Assert.Throws<ProctorException>(() => Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, [], file), null, null, "test", TextWriter.Null));
         Assert.Equal([
             "variant 'cc-haiku': its model is at library, a name without a domain, which only this network resolves, which a sandbox on modal cannot reach; run it on a local engine, or point exams/proctor.modal.json agents.claude-code at a public endpoint",
-            "fixture 'ledger' runs services beside the agent (image.services), and modal cannot confine the network of a task with services; its tasks run on docker or podman only",
+            "fixture 'ledger' runs services beside the agent (image.services), and on modal such a task's image is built inside the sandbox, which needs the network open outside the agent's phase: a process the agent left running would have the internet once its phase ended; its tasks run on docker or podman only",
         ], e.Message.Split('\n'));
         Assert.False(Directory.Exists(Path.Combine(repo.Root, "log")));
     }

@@ -352,8 +352,9 @@ The directories are for reading, not for namespaces: everything is
   `TearDown` has nothing to remove. `run` refuses, before anything is
   made, an agent variant whose model host a sandbox cannot reach
   (`HarborRun.Unreachable`: loopback, private, dotless or `.local`-style
-  names) and a fixture with `image.services`: Harbor's Modal environment
-  runs a compose task as docker-in-docker with no allowlist and refuses it.
+  names) and a fixture with `image.services`: since 0.26.0 Harbor's Modal
+  environment runs a compose task, but builds its image inside the sandbox, so the environment's phase must be public
+  and a process the agent left running has the internet after its phase (`project/learnings/harbor.md`, 2026-11-27).
   So conformance and the oracle gate stay local; the gate runs on Modal
   (`PROCTOR_GATE_ENGINE=modal`). The plan and its three spikes are
   `project/archive/modal-runs.md`; the user's guide is `docs/modal.md`.

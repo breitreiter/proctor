@@ -273,6 +273,12 @@ carry itself across days, and 0.27.0 cannot be resolved before
   (`image.allowed_hosts`) and the bridge-subnet warning. Unit tests
   only; neither has met an engine. Left of stage 3: the join line per
   engine, the Modal refusal narrowed.
+- 2026-11-27, last. The probe on Modal: the refusal of service
+  fixtures there stays, for a reason that is now true (below). The
+  join line per engine has no use until that is lifted or pull request
+  4427 lands, so it waits for the 28th. **Stage 3 is done but for
+  that.** Next: stage 4, the guides; then 0.27.0 and the pull
+  request's trials on the 28th.
 
 ## Not done, and why
 
@@ -290,7 +296,12 @@ carry itself across days, and 0.27.0 cannot be resolved before
 - **Further allowed hosts are a fixture's only**, not an exam's. A
   fixture's image is already in each task's hash; an exam-level list
   would have to be put there, and nothing asks for it yet.
-- **On Modal the environment's phase had to be public** for the image
-  to build. What that lets a process the agent left running reach is
-  not measured, and proctor compiles the agent's policy there today for
-  that reason. To settle before the Modal refusal is narrowed.
+- **The Modal refusal is kept, not narrowed**, with its reason
+  corrected. Harbor 0.26.0 does run a fixture's services on Modal, and
+  the stub passed there. But the image is built inside the sandbox, so
+  the environment's phase must be public, and the probe showed a
+  process the agent left running reaching the internet the second its
+  phase ended. That is the leak compile closes on every other engine.
+  **For the user at sitting two**: accept that for exams that want
+  Modal (then the refusal becomes a line in the report), or leave it
+  refused until Harbor builds before the policy applies.

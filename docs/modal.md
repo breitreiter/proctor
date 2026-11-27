@@ -61,10 +61,12 @@ fixture and why:
   private or link-local address, a name without a domain (`imp`,
   `library`) or a `.local`, `.lan`, `.internal` or `.home` name. Bare variants
   are not affected, since they run on your machine.
-- **A fixture with `image.services`.** Harbor runs a task with services as
-  docker-in-docker on Modal, which cannot limit the agent's network to its
-  model, so Harbor refuses the task rather than run it unconfined. Run
-  these exams on docker or podman. The stub model that conformance uses
+- **A fixture with `image.services`.** Harbor can run a task with
+  services on Modal since 0.26.0, but it builds the image inside the
+  sandbox, so the network has to be open outside the agent's phase, and
+  anything the agent left running then has the internet once its phase
+  ends. Proctor closes that everywhere else, so it refuses these tasks
+  on Modal for now. Run these exams on docker or podman. The stub model that conformance uses
   is one, so conformance stays a local check.
 
 An `agent: nb` variant runs on Modal if its provider's endpoint in nb's config

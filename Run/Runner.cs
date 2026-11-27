@@ -855,8 +855,10 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
 
     /// <summary>
     /// On a remote engine, every agent variant must reach its model from the internet, and no task may have a service beside
-    /// it: Harbor's Modal environment runs a compose task as docker-in-docker with no allowlist, and refuses it rather
-    /// than run it unconfined. Everything wrong is said at once, before anything is made.
+    /// it. Since Harbor 0.26.0 its Modal environment does run a compose task, on Modal's VM runtime, but it builds the image
+    /// inside the sandbox under the environment's policy, so that policy must be public, and a process the agent left
+    /// running then has the internet after its phase (run 2026-11-26 and 27, project/learnings/harbor.md): what compile
+    /// gives every task a closed environment to prevent. Everything wrong is said at once, before anything is made.
     /// </summary>
     static void RequireReachable(List<Variant> variants, List<TaskDef> tasks, Exam exam, ProctorConfig config, Func<Variant, AgentRoute> route)
     {
@@ -870,7 +872,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             if (fixture.Def.Image?.HostPorts is { Count: > 0 } hostPorts)
                 problems.Add($"fixture '{fixture.Id}' names ports of this machine (image.host_ports: {string.Join(", ", hostPorts)}), and a sandbox on {engine} has no such machine beside it; its tasks run on docker or podman only");
             if (fixture.Def.Image?.Services is not null)
-                problems.Add($"fixture '{fixture.Id}' runs services beside the agent (image.services), and {engine} cannot confine the network of a task with services; its tasks run on docker or podman only");
+                problems.Add($"fixture '{fixture.Id}' runs services beside the agent (image.services), and on {engine} such a task's image is built inside the sandbox, which needs the network open outside the agent's phase: a process the agent left running would have the internet once its phase ended; its tasks run on docker or podman only");
         }
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
     }

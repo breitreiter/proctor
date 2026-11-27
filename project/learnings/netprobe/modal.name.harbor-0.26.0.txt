@@ -1,0 +1,45 @@
+resolve allowed / other                        10.213.51.10 / 10.213.51.11
+default gateway / resolv.conf                  10.213.51.1 / 127.0.0.11
+interfaces                                     lo tunl0 gre0 gretap0 erspan0 ip_vti0 ip6_vti0 sit0 ip6tnl0 ip6gre0 eth0
+-- the named host, and one that is not
+http allowed:8080                              200 allowed:8080 host=allowed:8080
+http other:8080                                200 other:8080 host=other:8080
+http <allowed ip>:8080, Host its ip            200 allowed:8080 host=10.213.51.10:8080
+-- A1: can it be talked past
+http <other ip>:8080, Host allowed             200 other:8080 host=allowed:8080
+http <allowed ip>:8080, Host other             200 allowed:8080 host=other:8080
+tls <allowed ip>:8443, SNI allowed             allowed:8443 host=allowed
+tls <other ip>:8443, SNI other                 other:8443 host=other
+tls <other ip>:8443, SNI allowed               other:8443 host=allowed
+-- A2: what of the allowed host is open
+http allowed:8081 (second port)                200 allowed:8081 host=allowed:8081
+raw allowed:2222 (server speaks first)         BANNER allowed
+raw other:2222                                 BANNER other
+-- the internet
+resolve example.com                            172.66.147.243
+resolve a name that does not exist             None
+http example.com                               NOTHING (OSError: [Errno 101] Network unreachable)
+tls example.com                                NOTHING (ConnectionResetError: [Errno 104] Connection reset by peer)
+http <example.com ip>, Host allowed:8080       NOTHING (ConnectionRefusedError: [Errno 111] Connection refused)
+-- A3: what is not TCP
+ping 1.1.1.1                                   NOTHING (1 packets transmitted, 0 received, 100% packet loss, time 0ms)
+ping other                                     answered
+udp dns to 1.1.1.1                             NOTHING (TimeoutError: timed out)
+ipv6 tcp to 2606:4700:4700::1111 :443          NOTHING (OSError: [Errno 101] Network unreachable)
+-- A5: what is beside it
+raw gateway 10.213.51.1:22                     NOTHING (ConnectionRefusedError: [Errno 111] Connection refused)
+http gateway 10.213.51.1:18092                 NOTHING (ConnectionRefusedError: [Errno 111] Connection refused)
+http 10.0.2.2:18092 (host loopback, rootless Docker) NOTHING (TimeoutError: timed out)
+http host.docker.internal:18092                NOTHING (gaierror: [Errno -2] Name does not resolve)
+engine socket in the container                 none
+user                                           uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)
+-- a fixture's service beside the agent (it holds HELD-IN-A-FILE, HELD-IN-THE-ENVIRONMENT, HELD-ON-THE-WIRE)
+http 127.0.0.1:9090 (the service)              NOTHING (ConnectionRefusedError: [Errno 111] Connection refused)
+its name, beside                               10.213.51.2
+http beside:9090 (the service, by name, 10.213.51.2) NOTHING (ConnectionRefusedError: [Errno 111] Connection refused)
+capabilities                                   net_raw
+its process in /proc                           not among 6 processes
+its file, environment or source on disk        nowhere
+its listener in /proc/net/tcp                  not seen
+its traffic on the shared loopback, captured   not heard in 48 packets
+its port taken on another address              bound 0.0.0.0:9090 beside it

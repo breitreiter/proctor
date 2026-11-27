@@ -19,9 +19,11 @@ sed -i "s/@NET@/${NET:-7}/g" "$here/t-$name/environment/docker-compose.yaml"
 if [ -n "${JOIN:-}" ]; then sed -i "s/^  beside:/  beside:\n    network_mode: \"service:$JOIN\"\n    depends_on: { $JOIN: { condition: service_started } }/" "$here/t-$name/environment/docker-compose.yaml"; fi
 # DROP=<capability> drops it from the agent's container (compose's `main`, which Harbor merges its own over).
 if [ -n "${DROP:-}" ]; then sed -i "s/^services:/services:\n  main: { cap_drop: [$DROP] }/" "$here/t-$name/environment/docker-compose.yaml"; fi
+# On Modal a sandbox lives twenty minutes at most and ten idle, as proctor sets it; FROM='harbor[modal]==<version>' brings its SDK.
+kwargs=""; if [ "${ENGINE:-}" = modal ]; then kwargs=', "kwargs": {"sandbox_timeout_secs": 1200, "sandbox_idle_timeout_secs": 600}'; fi
 cat > "$here/job-$name.json" <<JSON
 {"job_name": "$name", "jobs_dir": "$here/jobs", "n_attempts": 1, "n_concurrent_trials": 1, "quiet": true,
- "retry": {"max_retries": 0}, "environment": {"type": "${ENGINE:-docker}"},
+ "retry": {"max_retries": 0}, "environment": {"type": "${ENGINE:-docker}"$kwargs},
  "agents": [{"name": "oracle"}], "tasks": [{"path": "$here/t-$name"}]}
 JSON
 # FROM=<what uv installs from> runs a Harbor that is not a release, such as a pull request's commit (git+https://...@<sha>).

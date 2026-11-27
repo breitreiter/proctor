@@ -926,3 +926,36 @@ The same on rootless Docker 29.1.3 (golem, its own session, 8fdf6e1,
 Not run yet: `hang`, an agent that is not root, long streams side by
 side through the C# end (eight at once were run through socat on
 2026-11-25).
+
+## The probe on Modal (2026-11-27)
+
+Run: `FROM='harbor[modal]==0.26.0' ENGINE=modal ./run.sh modal-name`
+with the agent on the allowlist `["allowed"]` and the environment
+public, which is what a compose task needs there to be built at all
+("The stub fixture's service on Modal", above). One trial, 1 m 23 s,
+cents. The answers are `netprobe/modal.name.harbor-0.26.0.txt` and
+`.late.txt`. Harbor used Modal's VM runtime.
+
+- **The internet is shut in the agent's phase**: `example.com` by name
+  and by address, ping, DNS over UDP and IPv6 all got nothing. Names
+  still resolve.
+- **Nothing inside the task is policed.** `other`, which the allowlist
+  does not name, answered on every port as `allowed` did. The policy is
+  Modal's, on what leaves the sandbox; between the task's containers
+  there is no sidecar. For a fixture's own services that is what is
+  wanted.
+- **A service that declares no network has an address and a name of
+  its own** (`beside` resolved to `10.213.51.2`) and is not at the
+  agent's `127.0.0.1`. The agent could bind the service's port itself.
+- **The agent holds `net_raw`** there, as on Docker. Apart, it heard
+  nothing; joined to `main`, the drop compile writes is needed.
+- **A process left running has the internet as soon as the agent's
+  phase ends**: seven refusals up to "agent phase ends", then 200 every
+  second. This is the leak a closed environment prevents on the local
+  engines, and on Modal the environment cannot be closed, since the
+  image is built inside the sandbox under that policy.
+
+So proctor goes on refusing a fixture with services on Modal, now for
+that reason and saying so. What would lift it: Harbor building the
+image before the environment's policy applies, a policy of its own for
+the build, or the user accepting the leak for an exam that wants Modal.
