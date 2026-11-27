@@ -64,8 +64,8 @@ public class CrawlTests
         Assert.Contains("<mark>curl -s localhost:8081</mark>", page);
         Assert.Contains("<mark>Not\nfound</mark>", page);
         // A friction point names its label, with the label's sentence on hover, and the step it covers as a pill; the step carries the label.
-        Assert.Matches("id=\"p1\">.*?<span class=\"tag tag-fr\" title=\"a step where the agent used a substitute within two steps of a call to the surface that failed\">fell-back</span><span class=\"pills\"><a class=\"pill\" href=\"#s2\"", page);
-        Assert.Matches("<details class=\"step step-fr\" id=\"s2\">.*?<span class=\"tag tag-fr\">fell-back</span>", page);
+        Assert.Matches("id=\"p1\">.*?<span class=\"tag tag-fr\" id=\"tip\\d+\" tabindex=\"0\">fell-back</span><wa-tooltip for=\"tip\\d+\">a step where the agent used a substitute within two steps of a call to the surface that failed</wa-tooltip><span class=\"pills\"><wa-button class=\"pill\" size=\"small\" pill appearance=\"outlined\" href=\"#s2\"", page);
+        Assert.Matches("<wa-details class=\"step step-fr\" id=\"s2\" appearance=\"plain\">.*?<span class=\"tag tag-fr\">fell-back</span>", page);
         // friction/2: a rule's point shows its `because`. A reader's point with no `because` shows what the file holds, its notes.
         Assert.Contains("<span class=\"small soft\">used curl -s localhost:8081, a declared substitute, in the same step as the call to localhost:8080 failed (Not found)</span>", page);
         Assert.Contains("<span class=\"small soft\">tries again</span>", page);
@@ -79,12 +79,11 @@ public class CrawlTests
         Assert.Contains("title=\"the acceptance tests pass\">acceptance</span>", page);
         Assert.Contains("Why it is checked: the task is only done when its tests pass", page);
         Assert.Contains("<span class=\"small dim mono\">exams/sample/checks/acceptance.sh</span>", page);
-        Assert.Contains("<a class=\"pill\" href=\"#s3\"", page);
+        Assert.Contains("appearance=\"outlined\" href=\"#s3\"", page);
         Assert.Contains("<span class=\"small dim mono\">README.md</span>", page);
         Assert.Contains("1 flagged step", page);
         // Graded before proctor recorded roles: the page says so, and guesses none.
         Assert.Contains("role not recorded", page);
-        Assert.DoesNotContain("<script", page);
     }
 
     [Fact]
@@ -119,8 +118,8 @@ public class CrawlTests
             await client.GetAsync(url);
             var page = await client.GetStringAsync(new Uri(new Uri(url), SampleBank.Stage));
             // The answer is the oracle's, never shown as a turn the person typed; the first prompt stays the user's.
-            Assert.Matches("id=\"s3\">.*?<span class=\"who\">oracle &#183; answered from which-file</span>", page);
-            Assert.Matches("id=\"s1\">.*?<span class=\"who\">user</span>", page);
+            Assert.Matches("id=\"s3\"[^>]*>.*?<span class=\"who\">oracle &#183; answered from which-file</span>", page);
+            Assert.Matches("id=\"s1\"[^>]*>.*?<span class=\"who\">user</span>", page);
             Assert.Contains("<dt>Oracle</dt><dd>1 answer</dd>", page);
             // A question the sheet does not cover leaves no turn, so the ending is said in the transcript.
             Assert.Contains("<b>The oracle had no answer</b>", page);

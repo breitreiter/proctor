@@ -126,11 +126,20 @@ holding `bank/` and `exams/`.
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a
   page asks nothing of the network.
 - `Quote.cs`: finds a quote by proctor's judge rule.
-- `assets/webawesome/` and `assets/components.js`: **in the repository
-  and not shipped** (excluded in `Auspex.csproj` since 2026-11-27). The
-  designed pages are plain HTML and CSS and use no component, so nothing
-  names these. Whether to delete them or take components up again is
-  the user's to say. What follows is how they were vendored.
+- **Interactive parts are Web Awesome components** (the user,
+  2026-11-27: a component library keeps the micro-interactions a
+  hand-made part loses, and its theme forces type and colour to be
+  named). `Pages.Open` links Web Awesome's stylesheet, then `one.css`,
+  which sets the theme's tokens from ours (faces, sizes folded onto the
+  six roles, weights, surfaces, text), so `size="small"` is Small,
+  medium Body, large Lead. In use: `wa-details` for a transcript step
+  and the fold-outs (`.quiet`), `wa-button` for step pills, `wa-tooltip`
+  for what a tag means (`Pages.Tagged`). `assets/page.js` opens the
+  step a link points at. Stage tabs are links to other pages, so they
+  are not a tab group. Tags and marks are still our own spans. Web
+  Awesome's base layer styles every native element (`details`, `pre`,
+  `button`): where a page uses one, `one.css` says what it should be.
+- `assets/webawesome/` and `assets/components.js`:
   Web Awesome 3.14.0 (MIT), vendored by
   `tools/vendor_webawesome.py` from the npm tarball's `dist-cdn/`: only
   the components in its `COMPONENTS` list, the chunks they import, and

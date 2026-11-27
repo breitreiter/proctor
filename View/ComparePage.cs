@@ -153,7 +153,7 @@ static class ComparePage
         foreach (var k in (cell.ByCheck ?? []).OrderBy(k => Array.IndexOf(RoleOrder, k.Role)))
         {
             var (tag, says) = RoleTag[k.Role];
-            page.Append($"<div class=\"row cchecks\"><span class=\"stack\"><span class=\"mono\">{E(k.Check)}</span><span>{predicted(null, k.Check)}</span></span><span><span class=\"{tag}\" title=\"{E(says)}\">{k.Role}</span></span>")
+            page.Append($"<div class=\"row cchecks\"><span class=\"stack\"><span class=\"mono\">{E(k.Check)}</span><span>{predicted(null, k.Check)}</span></span><span>{Tagged(tag, k.Role, says)}</span>")
                 .Append($"<span class=\"r num strong\" title=\"{k.Held} of {k.Asked}\">{Share(k.Held, k.Asked)}</span><span class=\"r num soft\" title=\"{k.OtherHeld} of {k.OtherAsked}\">{Share(k.OtherHeld, k.OtherAsked)}</span>")
                 .Append($"<span class=\"small dim\">{E(k.About ?? "")}</span>{Outcome(k.Measure, true, cell.CouldConfirm, cell.SmallestP, valence: k.Role != P.Roles.Observation)}</div>");
         }

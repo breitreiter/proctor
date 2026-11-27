@@ -117,7 +117,7 @@ static class TryStagePage
             var mine = checks.Where(c => (c.Role ?? "") == role || (role == "" && !RoleOrder.Contains(c.Role ?? ""))).ToList();
             if (mine.Count == 0) continue;
             var (tag, says) = RoleTag.GetValueOrDefault(role, ("tag tag-none", "Graded before proctor recorded a check's role: grade the exam again to see it."));
-            page.Append($"<div class=\"group\"><span class=\"{tag}\" title=\"{E(says)}\">{(role.Length > 0 ? role : "role not recorded")}</span></div>");
+            page.Append($"<div class=\"group\">{Tagged(tag, role.Length > 0 ? role : "role not recorded", says)}</div>");
             foreach (var c in mine)
             {
                 var observed = role == P.Roles.Observation;
@@ -151,7 +151,7 @@ static class TryStagePage
             var because = (p["evidence"] as JsonArray ?? []).OfType<JsonObject>().Select(e => Bank.Str(e["because"])).FirstOrDefault(s => s.Length > 0)
                 ?? string.Join(" · ", (p["notes"] as JsonArray)?.Select(Bank.Str).Where(s => s.Length > 0) ?? []);
             page.Append($"<div class=\"ck\" style=\"grid-template-columns:minmax(0,1fr)\" id=\"{E(Bank.Str(p["id"]))}\"><span style=\"display:flex;gap:10px;align-items:baseline;flex-wrap:wrap\">")
-                .Append($"<span class=\"tag tag-fr\"{(describes.TryGetValue(label, out var d) ? $" title=\"{E(d)}\"" : "")}>{E(label)}</span>{Pills(Span(p, ids), ids)}<span class=\"mono small dim\">{E(string.Join("; ", detail))}</span></span>")
+                .Append($"{Tagged("tag tag-fr", label, describes.GetValueOrDefault(label))}{Pills(Span(p, ids), ids)}<span class=\"mono small dim\">{E(string.Join("; ", detail))}</span></span>")
                 .Append($"<span class=\"small soft\">{E(because)}</span></div>");
         }
         page.Append("</div>");
@@ -166,8 +166,8 @@ static class TryStagePage
         foreach (var i in at)
             if (runs.Count > 0 && runs[^1].To == i - 1) runs[^1] = (runs[^1].From, i); else runs.Add((i, i));
         return "<span class=\"pills\">" + string.Concat(runs.Select(r => r.From == r.To
-            ? $"<a class=\"pill\" href=\"#s{U(ids[r.From])}\" title=\"Step {E(ids[r.From])}\" aria-label=\"Step {E(ids[r.From])}\">{E(ids[r.From])}</a>"
-            : $"<a class=\"pill\" href=\"#s{U(ids[r.From])}\" title=\"Steps {E(ids[r.From])} to {E(ids[r.To])}\" aria-label=\"Steps {E(ids[r.From])} to {E(ids[r.To])}\">{E(ids[r.From])}–{E(ids[r.To])}</a>")) + "</span>";
+            ? $"<wa-button class=\"pill\" size=\"small\" pill appearance=\"outlined\" href=\"#s{U(ids[r.From])}\" title=\"Step {E(ids[r.From])}\">{E(ids[r.From])}</wa-button>"
+            : $"<wa-button class=\"pill\" size=\"small\" pill appearance=\"outlined\" href=\"#s{U(ids[r.From])}\" title=\"Steps {E(ids[r.From])} to {E(ids[r.To])}\">{E(ids[r.From])}–{E(ids[r.To])}</wa-button>")) + "</span>";
     }
 
     static void Transcript(StringBuilder page, List<JsonObject> steps, List<string> ids, List<JsonObject> points, string exit)
@@ -200,12 +200,12 @@ static class TryStagePage
             string ResultOf(JsonObject call) => results.FirstOrDefault(r => Bank.Str(r["source_call_id"]) == Bank.Str(call["tool_call_id"])) is { } r ? Content(r["content"]) : "";
 
             // Folded, a step is who spoke and its first line or command with the first line of what came back; open, the whole of each.
-            page.Append($"<details class=\"step{(labels.Count > 0 ? " step-fr" : "")}\" id=\"s{E(id)}\"><summary><span class=\"mono dim\">{E(id)}</span>")
+            page.Append($"<wa-details class=\"step{(labels.Count > 0 ? " step-fr" : "")}\" id=\"s{E(id)}\" appearance=\"plain\"><div slot=\"summary\" class=\"step-sum\"><span class=\"mono dim\">{E(id)}</span>")
                 .Append($"<div style=\"display:flex;flex-direction:column;gap:6px;min-width:0\"><span class=\"who\">{E(who)}</span>");
             if (calls.Count == 0) page.Append($"<div class=\"out out-say\">{E(FirstLine(message))}</div>");
             else page.Append($"<div class=\"cmd\">{E(FirstLine(Gist(calls[0])))}</div><div class=\"out\">{E(FirstLine(ResultOf(calls[0])))}</div>");
             page.Append("</div><span style=\"display:flex;flex-direction:column;gap:4px;align-items:flex-end\">")
-                .Append(string.Concat(labels.Select(l => $"<span class=\"tag tag-fr\">{E(l)}</span>"))).Append("</span></summary><div class=\"step-body\">");
+                .Append(string.Concat(labels.Select(l => $"<span class=\"tag tag-fr\">{E(l)}</span>"))).Append("</span></div><div class=\"step-body\">");
             if (message.Length > 0) page.Append($"<div class=\"say\">{E(Shown(message))}</div>");
             for (var n = 0; n < calls.Count; n++)
             {
@@ -213,7 +213,7 @@ static class TryStagePage
                 page.Append($"<pre class=\"cmd\">{Marked(Shown(Command(calls[n])), marks)}</pre>");
                 if (ResultOf(calls[n]) is { Length: > 0 } result) page.Append($"<pre class=\"full\">{Marked(Shown(result), marks)}</pre>");
             }
-            page.Append("</div></details>");
+            page.Append("</div></wa-details>");
         }
         // An oracle that did not answer leaves no turn behind, so the ending is said where the turn would have been.
         if (exit == "oracle_miss") page.Append("<div class=\"said\" style=\"padding:12px 0\"><b>The oracle had no answer</b> <span class=\"soft\">to the agent's last message: the answer sheet does not cover it, and the stage ended there.</span></div>");

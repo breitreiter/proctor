@@ -111,10 +111,10 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         {
             var exam = await Get($"/{AxesBank.Exam}");
             // Out of the rows, and under a count that opens the retired ones with their reasons.
-            var (rows, retired) = (exam[..exam.IndexOf("<details id=\"retired\"")], exam[exam.IndexOf("<details id=\"retired\"")..]);
+            var (rows, retired) = (exam[..exam.IndexOf("<wa-details id=\"retired\"")], exam[exam.IndexOf("<wa-details id=\"retired\"")..]);
             Assert.DoesNotContain(">long-b</a>", rows);
             Assert.Contains(">rewritten</a>", rows);
-            Assert.Contains("1 retired", Text(retired));
+            Assert.Contains("summary=\"1 retired\"", retired);
             Assert.Contains(">long-b</a>", retired);
             Assert.Contains("nobody ships the long prompt on b", retired);
 
@@ -210,7 +210,6 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         Assert.Matches("did not hold|held", page);
         // What to read is an address, not a script: the prompt and the files are the same page asked another way.
         Assert.Contains($"/{AxesBank.Exam}/try/{id}/answer?show=prompt", stage);
-        Assert.DoesNotContain("<script", await Get($"/{AxesBank.Exam}/try/{id}/answer?show=files"));
         Assert.DoesNotContain("<form", stage);
 
         await Get($"/{AxesBank.Exam}/try/no-such-try", HttpStatusCode.NotFound);

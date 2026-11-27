@@ -19,6 +19,15 @@
    Every piece of text is one of them. Two weights, 400 and 600 (.strong); 700 belongs to Title and Heading.
    Nothing below and no page sets a font size of its own; the Title's size on a narrow screen is the one exception. */
 :root{--t-title:700 32px/1.15 var(--head);--t-heading:700 18px/1.3 var(--head);--t-lead:400 16px/1.5 var(--sans);--t-body:400 14px/1.45 var(--sans);--t-small:400 12px/1.45 var(--sans);--t-code:400 13px/1.45 var(--mono)}
+/* Web Awesome's theme reads ours: its three faces, its sizes folded onto Small, Body, Lead, Heading and Title, its two weights, its surfaces and text.
+   So a component's size="small" is Small, medium is Body, large is Lead, and none brings a size of its own. */
+:root,.wa-dark,.wa-light{
+  --wa-font-family-body:var(--sans);--wa-font-family-heading:var(--head);--wa-font-family-code:var(--mono);--wa-font-family-longform:var(--sans);
+  --wa-font-size-3xs:12px;--wa-font-size-2xs:12px;--wa-font-size-xs:12px;--wa-font-size-s:12px;--wa-font-size-m:14px;--wa-font-size-l:16px;--wa-font-size-xl:18px;--wa-font-size-2xl:18px;--wa-font-size-3xl:32px;--wa-font-size-4xl:32px;--wa-font-size-5xl:32px;
+  --wa-font-weight-light:400;--wa-font-weight-normal:400;--wa-font-weight-body:400;--wa-font-weight-code:400;--wa-font-weight-longform:400;--wa-font-weight-semibold:600;--wa-font-weight-bold:600;--wa-font-weight-action:600;--wa-font-weight-heading:700;
+  --wa-color-surface-default:var(--ground);--wa-color-surface-raised:var(--raised);--wa-color-surface-lowered:var(--ground);--wa-color-surface-border:var(--hair);
+  --wa-color-text-normal:var(--text);--wa-color-text-quiet:var(--dim);--wa-color-text-link:var(--link);
+}
 body{margin:0;background:var(--ground);font:var(--t-body);color:var(--text)}
 a{color:var(--link)}a:hover{color:var(--link-hover)}
 .dim{color:var(--dim)}
@@ -128,8 +137,9 @@ a.sq:hover{outline:2px solid var(--link);outline-offset:1px}
 /* a step, or an unbroken run of steps, as a small pill that opens it in the transcript (wa-button, small, pill, outlined) */
 .pills{display:inline-flex;gap:6px;flex-wrap:wrap}
 .pills:empty{display:none}
-.pill{display:inline-flex;align-items:center;font:var(--t-small);line-height:1;padding:4px 10px;border-radius:999px;border:1px solid var(--rule);color:var(--text);text-decoration:none;font-variant-numeric:tabular-nums}
-.pill:hover{background:var(--hover);border-color:var(--soft)}
+/* A pill is a small pill button: a step, or an unbroken run of steps, that opens it. Its focus ring, hover and press are the component's. */
+wa-button.pill{font-variant-numeric:tabular-nums}
+wa-button.pill::part(base){height:24px;min-height:24px;padding:0 10px;color:var(--text);border-color:var(--rule)}
 
 /* the exam page */
 .kind{font:var(--t-code);color:var(--accent);letter-spacing:.02em}
@@ -173,12 +183,18 @@ a.sq:hover{outline:2px solid var(--link);outline-offset:1px}
 .blk h2{margin:0 0 10px;font:var(--t-heading);color:var(--accent)}
 .ck{display:grid;grid-template-columns:92px minmax(0,1fr);gap:2px 12px;padding:9px 0;border-top:1px solid var(--hair);align-items:baseline}
 .group{font:var(--t-small);color:var(--dim);padding:14px 0 6px}
-details.step{border-top:1px solid var(--hair);border-left:3px solid transparent}
-details.step-fr{border-left-color:var(--friction)}
-details.step:target,.ck:target{background:var(--raised);outline:1px solid var(--rule)}
-details.step>summary{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;padding:12px 0 12px 12px;align-items:start;cursor:pointer;list-style:none}
-details.step>summary::-webkit-details-marker{display:none}
-.step-body{display:flex;flex-direction:column;gap:6px;padding:0 0 14px 48px;min-width:0}
+/* A step is a details component: its summary is the folded row, its chevron Web Awesome's. A link to it opens it (page.js). */
+wa-details.step{display:block;border-top:1px solid var(--hair);border-left:3px solid transparent;--spacing:12px}
+wa-details.step-fr{border-left-color:var(--friction)}
+wa-details.step:target,.ck:target{background:var(--raised);outline:1px solid var(--rule)}
+wa-details.step::part(header){padding:12px 8px 12px 12px;align-items:start;gap:12px}
+wa-details.step::part(content){padding:0 12px 14px 48px}
+.step-sum{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;align-items:start;min-width:0;width:100%}
+/* A quiet details: a line of Small that opens, for what is one click away (the retired, the minor kinds, by check). */
+wa-details.quiet{display:block;--spacing:0px}
+wa-details.quiet::part(header){padding:10px 0;font:var(--t-small);color:var(--soft);justify-content:flex-start;gap:8px}
+wa-details.quiet::part(content){padding:0 0 8px}
+.step-body{display:flex;flex-direction:column;gap:6px;min-width:0}
 .cmd{font:var(--t-code);background:var(--raised);border-radius:4px;padding:8px 10px;white-space:pre-wrap;word-break:break-word;margin:0}
 .out{font:var(--t-code);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .full{font:var(--t-code);color:var(--soft);white-space:pre-wrap;word-break:break-word;margin:0;max-height:560px;overflow:auto}
@@ -195,6 +211,10 @@ mark{background:#4a3f1a;color:var(--text);border-radius:2px}
 .cfg{display:flex;gap:10px;align-items:center;min-height:24px;flex-wrap:wrap}
 .cfg a{color:var(--text)}
 .list{display:flex;flex-direction:column;gap:6px}
+/* Web Awesome's base layer styles every pre; ours are a command (raised) and its output (plain). */
+pre.cmd{background:var(--raised);padding:8px 10px;border-radius:4px;overflow:visible}
+pre.full{background:none;padding:0;border-radius:0}
+wa-tooltip{--max-width:320px;font:var(--t-small)}
 /* Weight, last so that it holds over any role above. */
 .strong{font-weight:600}
 .regular{font-weight:400}

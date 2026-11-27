@@ -7,6 +7,10 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **The viewer's interactive parts are Web Awesome components**
+  under a theme that reads the six type roles: a transcript step and
+  the fold-outs are its details, a step pill its button, and what a
+  tag means its tooltip. A link to a step opens that step.
 - **The viewer's type is six roles** (title, heading, lead, body,
   small, code) in place of fourteen sizes, set once in its stylesheet;
   no page sets a font size of its own.
@@ -14,8 +18,8 @@ formats or the vocabulary; a patch bump does not.
   variants, a try of one, coverage and the comparison across every
   setting now use the same stylesheet and parts as the five pages
   drawn on the canvas, and the stage page is one page for every try.
-  No page loads a script: search on a stage and selecting a check went
-  with it. Web Awesome is no longer shipped in the viewer.
+  Search on a stage and selecting a check went with the first
+  pass's script.
 - **The viewer's mark beside a configuration is about that
   configuration's own tries.** On an exam where another axis varies
   too, the mark used proctor's verdict pooled over every setting of

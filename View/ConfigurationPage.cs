@@ -111,7 +111,7 @@ static class ConfigurationPage
             var spec = exam.Tasks.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Check)).FirstOrDefault(s => s is not null);
             // Only a correctness check that fell short is coloured: an observation has no preferred answer.
             var fell = k.Role == P.Roles.Correctness && k.Held < k.Asked;
-            page.Append($"<div class=\"row rates\"><span class=\"mono\">{E(k.Check)}</span><span><span class=\"{tag}\" title=\"{E(says)}\">{k.Role}</span></span>")
+            page.Append($"<div class=\"row rates\"><span class=\"mono\">{E(k.Check)}</span><span>{Tagged(tag, k.Role, says)}</span>")
                 .Append($"<span class=\"r num{(fell ? " wrong" : "")} strong\" title=\"{k.Held} of {k.Asked}\">{Share((double)k.Held / k.Asked)}</span>")
                 .Append(other is null ? "<span></span>" : $"<span class=\"r num soft\" title=\"{other.Held} of {other.Asked}\">{Share((double)other.Held / other.Asked)}</span>")
                 .Append($"<span class=\"small dim\">{E(spec is null ? "" : P.Checks.Describe(spec.Spec) ?? "")}</span></div>");
@@ -136,7 +136,7 @@ static class ConfigurationPage
         var minor = ordered.Count(k => k.PerTry < 1);
         foreach (var (k, i) in ordered.Select((k, i) => (k, i)))
         {
-            if (minor > 1 && i == ordered.Count - minor) page.Append($"<details><summary class=\"row soft\" style=\"display:block;cursor:pointer\">{minor} more, each under 1 flagged step a try</summary>");
+            if (minor > 1 && i == ordered.Count - minor) page.Append($"<div class=\"row\" style=\"display:block\"><wa-details class=\"quiet\" appearance=\"plain\" summary=\"{minor} more, each under 1 flagged step a try\">");
             // Example is try/stage: the try's number, which the bank knows by its id.
             var parts = k.Example.Split('/', 2);
             var href = parts.Length == 2 && int.TryParse(parts[0], out var n) && report.TryIds.TryGetValue((key, n), out var id) ? U($"/{e.Id}/try/{id}/{parts[1]}") : "";
@@ -144,7 +144,7 @@ static class ConfigurationPage
             page.Append($"<a class=\"row kinds\"{(href.Length > 0 ? $" href=\"{href}\"" : "")}><span class=\"stack\"><span><span class=\"tag tag-fr\">{E(k.Label)}</span> <span class=\"mono\">{E(k.Detail ?? "")}</span></span><span class=\"small dim\">{E(where)}</span></span>")
                 .Append($"<span class=\"r num\">{k.In} of {k.Of}</span><span class=\"r num\">{Count(k.When.Min)}</span><span class=\"r num\">{Count(k.When.Median)}</span><span class=\"r num\">{Count(k.When.Max)}</span><span class=\"r fr\">{Number(k.PerTry)}</span></a>");
         }
-        if (minor > 1) page.Append("</details>");
+        if (minor > 1) page.Append("</wa-details></div>");
         page.Append("<div class=\"row kinds row-sum\"><span class=\"stack\"><span>Flagged steps per try</span><span class=\"small dim\">each step once, however many labels it carries</span></span><span></span>")
             .Append($"<span class=\"r num\">{Count(tries.Flagged.Min)}</span><span class=\"r num\">{Count(tries.Flagged.Median)}</span><span class=\"r num\">{Count(tries.Flagged.Max)}</span><span class=\"r fr\">{Number(friction.PerTry)}</span></div>")
             .Append("</div></div></section>");

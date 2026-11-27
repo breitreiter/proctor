@@ -78,15 +78,27 @@ public static class Pages
 
     internal static string Usd(double? value) => value is { } v ? "$" + v.ToString(v < 0.1 ? "0.000" : "0.00", CultureInfo.InvariantCulture) : "";
 
-    /// <summary>A page's head and crumbs, in the one style designed on the canvas (assets/one.css). No page loads a script.</summary>
+    /// <summary>A page's head and crumbs, in the one style designed on the canvas (assets/one.css), over Web Awesome's theme and components. The page stays readable with no script; components add the interactions.</summary>
     internal static StringBuilder Open(string title, (string Text, string? Href)[] crumbs, string? style = "one") =>
-        new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
-            .Append($"<title>{E(title)}</title><link rel=\"stylesheet\" href=\"/assets/one.css\"></head><body data-style=\"one\"><div class=\"page\"><nav class=\"crumbs\" aria-label=\"Where this is\">")
+        new StringBuilder("<!doctype html><html lang=\"en\" class=\"wa-dark\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
+            // Web Awesome's base and theme first, then ours, unlayered, which sets the theme's tokens and wins wherever both speak.
+            .Append($"<title>{E(title)}</title><link rel=\"stylesheet\" href=\"/assets/webawesome/styles/webawesome.css\"><link rel=\"stylesheet\" href=\"/assets/one.css\">")
+            .Append("<script type=\"module\" src=\"/assets/components.js\"></script><script type=\"module\" src=\"/assets/page.js\"></script></head><body data-style=\"one\"><div class=\"page\"><nav class=\"crumbs\" aria-label=\"Where this is\">")
             .Append(string.Join("<span>/</span>", crumbs.Select(c => c.Href is null ? $"<span>{E(c.Text)}</span>" : $"<a href=\"{U(c.Href)}\">{E(c.Text)}</a>")))
             .Append("</nav>");
 
     internal static string Close(StringBuilder page) =>
-        page.Append("<footer class=\"note\">Fonts: Geist, Geist Mono and Space Grotesk, <a href=\"/assets/fonts/README.md\">SIL Open Font Licence</a>.</footer></div></body></html>").ToString();
+        page.Append("<footer class=\"note\">Components: Web Awesome, <a href=\"/assets/webawesome/LICENSE.md\">MIT licence</a>. Fonts: Geist, Geist Mono and Space Grotesk, <a href=\"/assets/fonts/README.md\">SIL Open Font Licence</a>.</footer></div></body></html>").ToString();
+
+    static int tips;
+
+    /// <summary>A tag whose meaning is one hover or one tab away: the tag, and Web Awesome's tooltip pointed at it. With no explanation it is the tag alone.</summary>
+    internal static string Tagged(string classes, string label, string? says)
+    {
+        if (says is null) return $"<span class=\"{classes}\">{E(label)}</span>";
+        var id = $"tip{Interlocked.Increment(ref tips)}";
+        return $"<span class=\"{classes}\" id=\"{id}\" tabindex=\"0\">{E(label)}</span><wa-tooltip for=\"{id}\">{E(says)}</wa-tooltip>";
+    }
 
     internal static string E(string text) => WebUtility.HtmlEncode(text);
 

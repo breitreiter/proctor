@@ -104,12 +104,12 @@ static class ExamPage
         // The retired ones are out of the main list and one click away, each with its reason: nothing about them is deleted.
         if (named.Where(c => c.Retired is not null).ToList() is { Count: > 0 } retired)
         {
-            page.Append($"<details id=\"retired\" class=\"row\" style=\"display:block;padding:14px 0\"><summary class=\"small\" style=\"cursor:pointer\">{retired.Count} retired</summary>")
+            page.Append($"<div class=\"row\" style=\"display:block\"><wa-details id=\"retired\" class=\"quiet\" appearance=\"plain\" summary=\"{retired.Count} retired\">")
                 .Append("<div class=\"note\" style=\"padding:10px 0 4px\">A retired configuration keeps its tries, its predictions and its comparisons. Proctor makes no new tries of it until it is brought back.</div>");
             foreach (var c in retired)
                 page.Append($"<div style=\"display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;padding:6px 0\"><a class=\"name\" href=\"{U($"/{e.Id}/configuration/{c.Key}")}\">{E(c.Name!)}</a>")
                     .Append($"<span class=\"small dim\">retired {E(c.Retired!.Since)} · {c.Made} {(c.Made == 1 ? "try" : "tries")}</span><span class=\"soft\">{E(c.Retired.Reason)}</span></div>");
-            page.Append("</details>");
+            page.Append("</wa-details></div>");
         }
         page.Append("</div></div></section>");
     }
@@ -268,7 +268,7 @@ static class ExamPage
         {
             var spec = exam.Tasks.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Name)).FirstOrDefault(c => c is not null);
             var (tag, says) = RoleTag[k.Role];
-            page.Append($"<div class=\"row checks\"><span class=\"mono\">{E(k.Name)}</span><span><span class=\"{tag}\" title=\"{E(says)}\">{k.Role}</span></span>")
+            page.Append($"<div class=\"row checks\"><span class=\"mono\">{E(k.Name)}</span><span>{Tagged(tag, k.Role, says)}</span>")
                 .Append($"<span class=\"soft\">{E(spec is null ? "" : P.Checks.Describe(spec.Spec) ?? "")}</span>")
                 .Append($"<span class=\"small dim r\">{(k.Stages == stats.Stages.Count ? "every stage" : $"{k.Stages} of {stats.Stages.Count} stages")}</span></div>");
         }

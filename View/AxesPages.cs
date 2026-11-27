@@ -156,9 +156,9 @@ static class AxesPages
                 : $"<b>not run</b><span class=\"small soft\">{cell.State switch { "not_run" => $"no try of {E(change)} here", "live_not_run" => $"no try of {E(against)} here", _ => "neither side" }}</span>";
             page.Append($"<div class=\"row{(i == 0 ? " first" : "")}\" style=\"{columns}\"><span {Mono}>{E(cell.Holding.Count == 0 ? "the one configuration" : Label(cell.Holding))}</span>{Side(cell.Value)}{Side(cell.Against)}<span class=\"stack\" style=\"gap:4px\">{found}");
             if (cell.Checks is { Count: > 0 } checks)
-                page.Append("<details class=\"small\"><summary style=\"cursor:pointer\">By check</summary>")
+                page.Append("<wa-details class=\"quiet\" appearance=\"plain\" summary=\"By check\"><div class=\"small\">")
                     .Append(string.Concat(checks.Select(k => $"<div style=\"display:grid;grid-template-columns:minmax(0,1fr) 70px 70px;gap:8px;padding:3px 0\"><span class=\"mono\"{(k.About is { } about ? $" title=\"{E(about)}\"" : "")}>{E(k.Check)}</span><span class=\"num\">{k.Value} of {k.ValueTries}</span><span class=\"num soft\">{k.Against} of {k.AgainstTries}</span></div>")))
-                    .Append("<div class=\"dim\">Tries that held it, each side. Counts only: nothing is tested per check here.</div></details>");
+                    .Append("<div class=\"dim\">Tries that held it, each side. Counts only: nothing is tested per check here.</div></div></wa-details>");
             page.Append("</span></div>");
         }
         page.Append("</div>");
