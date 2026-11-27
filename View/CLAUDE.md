@@ -93,6 +93,14 @@ holding `bank/` and `exams/`.
   friction spans as pills that open the step (`:target` marks it, no
   script), each step a native `details`, and `?show=prompt|files`. A
   try of an exam of variants is still `StagePage.cs`.
+- **A mark beside a configuration's name is about its own tries** (the user,
+  2026-11-27; `ExamPage.Own`, `ExamPage.Light`). Proctor's answer about a
+  configuration compares the change in every setting that has it and pools
+  them; the mark on the index, the exam page and the configuration page reads
+  only the cell that is the configuration itself, on correctness checks held,
+  as the comparison page does. A model is an axis, so tries on another model
+  are another configuration's. The pooled verdict is on the comparison page's
+  "Every setting".
 - **A retired configuration** (`ConfigurationRow.Retired`, from proctor's
   `retired.json`) is left out of the exam page's Configurations rows and the
   index's list, and counted beneath them: on the exam page a `<details

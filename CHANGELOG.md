@@ -7,6 +7,12 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **The viewer's mark beside a configuration is about that
+  configuration's own tries.** On an exam where another axis varies
+  too, the mark used proctor's verdict pooled over every setting of
+  that axis, so it could rest on tries of another model. It now reads
+  the one setting that is the configuration itself, as the comparison
+  page does.
 - **A named configuration can be retired**, on an exam with axes.
   `proctor retire <exam> <configuration> --reason "..."` records it in
   `exams/<exam>/retired.json` with the reason and the date (commit it;

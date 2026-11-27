@@ -115,6 +115,20 @@ static class ExamPage
     }
 
     /// <summary>
+    /// Of proctor's answer about a configuration, the one setting that is that configuration itself. Proctor compares
+    /// the change wherever the exam has it, so its pooled verdict may rest on tries of other settings (another model,
+    /// say); a mark beside a configuration's name is about its own tries and nothing else (the user, 2026-11-27).
+    /// </summary>
+    internal static P.CellAnswer? Own(P.ComparisonAnswer? answer, string key) => answer?.Cells.FirstOrDefault(k => k.State == "compared" && k.Value.Configuration == key);
+
+    /// <summary>The mark of a configuration against another, from its own setting on correctness checks held, as the comparison page words it.</summary>
+    internal static string Light(P.CellAnswer? cell, string against) => cell?.Held is not { } held ? "<span class=\"tag tag-none\">nothing to compare</span>" : held.Direction switch
+    {
+        "better" or "worse" => $"<span class=\"light {(held.Confirmed ? $"light-{held.Direction}" : "light-same")}\">{held.Direction} vs {E(against)} · {(held.Confirmed ? "confirmed" : cell.CouldConfirm ? "not confirmed" : "cannot confirm")}</span>",
+        _ => $"<span class=\"light light-same\">no difference vs {E(against)}</span>",
+    };
+
+    /// <summary>
     /// A named configuration's standing against what is live, as proctor compares them: the mark (live, better or worse
     /// and whether confirmed, no difference, or why it is not compared), proctor's answer, the one setting compared, and live's name.
     /// </summary>
@@ -123,20 +137,14 @@ static class ExamPage
         var counted = c.Tries?.Rows.Where(t => t.Invalid is null).ToList() ?? [];
         // Proctor's own comparison of this configuration with what is live: the verdict, and each measure.
         var (answer, refused) = c.Live || live is null || counted.Count == 0 ? (null, null) : Measured.Compare(root, exam, key => key == "configuration" ? c.Name : null, now: true);
-        var cell = answer?.Cells.Where(k => k.State == "compared").ToList() is { Count: 1 } one ? one[0] : null;
+        var cell = Own(answer, c.Key);
         var against = cell?.Against.Name ?? live?.Name ?? "live";
 
         var mark = c.Live ? "<span class=\"light light-live\">live</span>"
         : counted.Count == 0 ? $"<span class=\"tag tag-none\">{(c.NotGraded > 0 ? "not yet graded" : "no tries yet")}</span>"
         : refused is not null ? $"<span class=\"tag tag-none\" title=\"{E(refused)}\">not compared{(c.NotGraded > 0 ? $" · {c.NotGraded} not yet graded" : "")}</span>"
         : answer is null ? ""
-        : answer.Verdict switch
-        {
-            "better" or "worse" => $"<span class=\"light {(answer.Confirmed == true ? $"light-{answer.Verdict}" : "light-same")}\">{answer.Verdict} vs {E(against)} · {(answer.Confirmed == true ? "confirmed" : "not confirmed")}</span>",
-            "same" => $"<span class=\"light light-same\">no difference vs {E(against)}</span>",
-            "better_here_worse_there" => $"<span class=\"light light-same\">better here, worse there vs {E(against)}</span>",
-            _ => "<span class=\"tag tag-none\">nothing to compare</span>",
-        };
+        : Light(cell, against);
         return (mark, answer, cell, against);
     }
 

@@ -35,18 +35,12 @@ static class ConfigurationPage
         var counted = tries?.Rows.Where(t => t.Invalid is null).ToList() ?? [];
         var name = c.Name ?? c.Label;
         var (answer, refused) = row.Live || live is null || counted.Count == 0 ? (null, null) : Measured.Compare(root, exam, q => q == "configuration" ? c.Name ?? c.Key : null, now: true);
-        var cell = answer?.Cells.Where(k => k.State == "compared").ToList() is { Count: 1 } one ? one[0] : null;
+        var cell = ExamPage.Own(answer, c.Key);
         var against = cell?.Against.Name ?? live?.Name ?? "live";
 
         var mark = row.Live ? "<span class=\"light light-live\">live</span>"
             : refused is not null ? $"<span class=\"tag tag-none\" title=\"{E(refused)}\">not compared{(row.NotGraded > 0 ? $" · {row.NotGraded} not yet graded" : "")}</span>"
-            : answer?.Verdict switch
-            {
-                "better" or "worse" => $"<span class=\"light {(answer.Confirmed == true ? $"light-{answer.Verdict}" : "light-same")}\">{answer.Verdict} vs {E(against)} · {(answer.Confirmed == true ? "confirmed" : "not confirmed")}</span>",
-                "same" => $"<span class=\"light light-same\">no difference vs {E(against)}</span>",
-                "better_here_worse_there" => $"<span class=\"light light-same\">better here, worse there vs {E(against)}</span>",
-                _ => "",
-            };
+            : answer is null ? "" : ExamPage.Light(cell, against);
         var made = (tries?.Rows ?? []).Select(t => t.Made).Where(m => m is not null).Select(m => m![..Math.Min(10, m!.Length)]).Distinct().Order().ToList();
         page.Append("<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">configuration</span>")
             .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(name)}</h1>{mark}{(row.Retired is null ? "" : "<span class=\"tag tag-none\">retired</span>")}</div>")

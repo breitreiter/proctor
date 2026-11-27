@@ -37,9 +37,16 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         foreach (var heading in new[] { "Configurations", "Predictions", "Axes", "Stages", "Checks", "How this is counted" }) Assert.Contains(heading, page);
         foreach (var name in new[] { "shipped", "rewritten", "rewritten-b", "long-b" }) Assert.Contains($">{name}</a>", html);
         Assert.Contains("no tries yet", page);
-        // The mark on a configuration is proctor's verdict on it against what is live, and links to that comparison.
+        // The mark on a configuration is about its own tries against what is live: of proctor's answer, the one setting
+        // that is this configuration, never the verdict pooled with other settings (another assistant's tries, here).
         var answer = JsonNode.Parse(bank.Proctor("compare", AxesBank.Exam, "--configuration", "rewritten"))!;
-        Assert.Contains(answer["verdict"]!.GetValue<string>() switch { "same" => "no difference vs shipped", "better_here_worse_there" => "better here, worse there vs shipped", var v => $"{v} vs shipped" }, page);
+        Assert.True(answer["cells"]!.AsArray().Count(c => (string)c!["state"]! == "compared") > 1, "the bank compares this change in several settings");
+        var own = answer["cells"]!.AsArray().Single(c => (string?)c!["value"]!["name"] == "rewritten")!;
+        var held = own["held"]!;
+        var mark = (string)held["direction"]! is "better" or "worse"
+            ? $"{held["direction"]} vs shipped · {((bool)held["confirmed"]! ? "confirmed" : (bool)own["could_confirm"]! ? "not confirmed" : "cannot confirm")}"
+            : "no difference vs shipped";
+        Assert.Contains($">rewritten</a><span class=\"light {((bool)held["confirmed"]! ? $"light-{held["direction"]}" : "light-same")}\">{mark}</span>", html);
         Assert.Contains($"/{AxesBank.Exam}/compare?configuration=rewritten", html);
         // What the exam is: each check with its role, and how its stages run.
         Assert.Contains("correctness", page);
