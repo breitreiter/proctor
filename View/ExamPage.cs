@@ -55,7 +55,7 @@ static class ExamPage
             .Append($"<h1 class=\"title\">{E(e.Id)}</h1>")
             .Append(e.Description is { } d ? $"<p class=\"desc\">{E(d)}</p>" : "")
             .Append("<dl class=\"facts\">")
-            .Append(Fact("Configurations", named.Count.ToString())).Append(Fact("Predictions", (stats.Predictions?.Count ?? 0).ToString()))
+            .Append(Fact("Configurations", named.Count(c => c.Retired is null) + (named.Count(c => c.Retired is not null) is > 0 and var gone ? $" <span class=\"dim\" style=\"font-weight:400\">· {gone} retired</span>" : ""))).Append(Fact("Predictions", (stats.Predictions?.Count ?? 0).ToString()))
             .Append(Fact("Axes", stats.Axes.Count.ToString())).Append(Fact("Stages", stats.Stages.Count.ToString()))
             .Append(Fact("Tries", tries + (lost > 0 ? $" <span class=\"dim\" style=\"font-weight:400\">· {lost} lost</span>" : "")))
             .Append(Fact("As of", asOf)).Append("</dl></header>");
@@ -86,7 +86,7 @@ static class ExamPage
             page.Append("<div class=\"said soft\" style=\"padding-bottom:12px\">Nothing is live with tries of its own, so nothing is compared.</div>");
         page.Append("<div class=\"row row-head ra\"><span>Configuration</span>").Append(string.Concat(Columns.Select(c => $"<span>{E(c.Name)}</span>"))).Append("</div>");
 
-        foreach (var (c, i) in named.Select((c, i) => (c, i)))
+        foreach (var (c, i) in named.Where(c => c.Retired is null).Select((c, i) => (c, i)))
         {
             var counted = c.Tries?.Rows.Where(t => t.Invalid is null).ToList() ?? [];
             var (mark, answer, cell, against) = Standing(root, exam, c, live);
@@ -101,6 +101,16 @@ static class ExamPage
         }
         if (live is not null)
             page.Append($"<div class=\"row note\" style=\"border-top-color:var(--rule)\">Each cell is the change vs {E(live.Name!)}, which is live, then the median. The strip is centred on live's median: a dot is one try, placed by how far it is from that median, from 200% less to 200% more, and a hollow dot is further out than that. The band is live's own spread. Colour means the change is confirmed.</div>");
+        // The retired ones are out of the headline list and one click away, each with its reason: nothing about them is deleted.
+        if (named.Where(c => c.Retired is not null).ToList() is { Count: > 0 } retired)
+        {
+            page.Append($"<details id=\"retired\" class=\"row\" style=\"display:block;padding:14px 0\"><summary class=\"small\" style=\"cursor:pointer\">{retired.Count} retired</summary>")
+                .Append("<div class=\"note\" style=\"padding:10px 0 4px\">A retired configuration keeps its tries, its predictions and its comparisons. Proctor makes no new tries of it until it is brought back.</div>");
+            foreach (var c in retired)
+                page.Append($"<div style=\"display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;padding:6px 0\"><a class=\"name\" href=\"{U($"/{e.Id}/configuration/{c.Key}")}\">{E(c.Name!)}</a>")
+                    .Append($"<span class=\"small dim\">retired {E(c.Retired!.Since)} · {c.Made} {(c.Made == 1 ? "try" : "tries")}</span><span class=\"soft\">{E(c.Retired.Reason)}</span></div>");
+            page.Append("</details>");
+        }
         page.Append("</div></div></section>");
     }
 

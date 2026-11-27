@@ -58,6 +58,9 @@ proctor report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json
 proctor report <exam> [--variant a] [--tasks x,y]   # a report over only those attempts; the two combine
 proctor live <exam> <variant> # mark the variant live in exams/<exam>/live.json (commit it): the one in use now, which the report compares the others with
 proctor live <exam>           # which variant is live, and whether its mark still holds
+proctor retire <exam> <configuration> --reason "..."   # on an exam with axes: retire a named configuration (exams/<exam>/retired.json; commit it). Nothing is deleted; run makes no new tries of it
+proctor retire <exam> <configuration> --bring-back     # undo that
+proctor retire <exam>         # which configurations are retired, since when and why
 proctor --version
 ```
 
@@ -168,6 +171,34 @@ warning: exams/tern-docs/live.json marks as-shipped live, but its file has chang
 
 A live variant with no current attempt in the report (one `--variant`
 leaves out, say) is the reference for nothing; the report says so.
+
+## Retiring a configuration
+
+On an exam with axes, the named configurations are the headline: what is
+shipping, what might replace it, how that is going. One nobody is looking
+at any more can be retired, with the reason:
+
+```
+$ proctor retire tern-docs restructure --reason "we kept the docs as shipped"
+exams/tern-docs/retired.json: restructure is retired. Its tries, predictions and comparisons stay; `run` makes no new tries of it. `proctor retire tern-docs restructure --bring-back` undoes this
+```
+
+```json
+{
+  "restructure": { "reason": "we kept the docs as shipped", "since": "2026-11-27" }
+}
+```
+
+Commit the file with the exam. Retiring deletes nothing: the tries stay in
+the bank, the predictions keep their outcomes, and `compare` still answers
+about the configuration. What changes is that `proctor run` makes no new
+tries of it (and refuses one asked for with `--configuration` or
+`--value`), `list` and the report mark it, and the viewer lists it under
+"retired" with its reason, out of the headline lists.
+
+The live configuration cannot be retired: make another value live first.
+`--bring-back` removes the mark, and the next `run` makes whatever tries
+it lacks.
 
 ## The report
 

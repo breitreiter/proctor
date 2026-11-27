@@ -7,6 +7,18 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **A named configuration can be retired**, on an exam with axes.
+  `proctor retire <exam> <configuration> --reason "..."` records it in
+  `exams/<exam>/retired.json` with the reason and the date (commit it;
+  it is in no hash); `--bring-back` undoes it, and with no configuration
+  the verb lists the retired. Nothing is deleted: the tries, the
+  predictions and the comparisons stay, and `compare` still answers
+  about it. `run` makes no new tries of a retired configuration and
+  refuses one asked for by name or by its values. The live
+  configuration cannot be retired. `list` and the report mark it,
+  `stats.json` carries `retired` (`reason`, `since`) on its row, and
+  the viewer leaves it out of the exam's and the index's lists, under
+  a count that opens the retired ones with their reasons.
 - **Tool calls, tokens read and time are compared like the rest.** A
   comparison's cells (`stats.json`, `compare`) carry `tool_calls`,
   `tokens` and `duration` beside `held` and `flagged`, try against

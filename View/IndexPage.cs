@@ -51,9 +51,10 @@ static class IndexPage
 
         var row = new StringBuilder("<div class=\"row ex\" style=\"padding:18px 0\">")
             .Append(Head(e, $"{Counted(stats.Axes.Count, "axis", "axes")} · {Counted(stats.Stages.Count, "stage", "stages")}")).Append("<span class=\"list\">");
-        foreach (var c in named)
+        foreach (var c in named.Where(c => c.Retired is null))
             row.Append($"<span class=\"cfg\"><a href=\"{U($"/{e.Id}/configuration/{c.Key}")}\">{E(c.Name!)}</a>{Standing(root, exam, c, live).Mark}</span>");
         if (live is null && named.Any(c => c.Tries is { Tries: > 0 })) row.Append("<span class=\"small dim\">Nothing is live, so nothing is compared.</span>");
+        if (named.Count(c => c.Retired is not null) is > 0 and var retired) row.Append($"<a class=\"small\" href=\"{U($"/{e.Id}")}#retired\">{retired} retired</a>");
         row.Append("</span><span class=\"list\">");
         string Name(string key) => named.FirstOrDefault(c => c.Key == key)?.Name ?? key;
         foreach (var p in stats.Predictions ?? [])

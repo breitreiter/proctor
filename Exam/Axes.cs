@@ -104,6 +104,9 @@ sealed class Axes
 
     public IEnumerable<Configuration> Named => Configurations.Where(c => c.Name is not null);
 
+    /// <summary>Whether a configuration is the live one: every axis that has a live value is at it, and at least one has.</summary>
+    public bool IsLive(Configuration c) => Def.Any(a => a.Value.Live is not null) && Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
+
     /// <summary>The configuration a key spells (axis=value, comma-separated): one the exam carries, or made from the key. Null when the key names something undeclared.</summary>
     public Configuration? Of(string key) => Configurations.FirstOrDefault(c => c.Key == key)
         ?? (key.Split(',').Select(part => part.Split('=', 2)).ToList() is var parts && parts.All(p => p.Length == 2) && parts.Select(p => p[0]).Distinct().Count() == parts.Count

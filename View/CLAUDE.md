@@ -93,6 +93,11 @@ holding `bank/` and `exams/`.
   friction spans as pills that open the step (`:target` marks it, no
   script), each step a native `details`, and `?show=prompt|files`. A
   try of an exam of variants is still `StagePage.cs`.
+- **A retired configuration** (`ConfigurationRow.Retired`, from proctor's
+  `retired.json`) is left out of the exam page's Configurations rows and the
+  index's list, and counted beneath them: on the exam page a `<details
+  id="retired">` with each one's name, date, tries and reason, which the
+  index's "N retired" links to. Its own page says it is retired and why.
 - `IndexPage.cs`: the exams, `/`, the fifth designed page (2026-11-27):
   a row an exam, most recently tried first. An exam with axes shows its
   named configurations with the marks `ExamPage.Standing` gives them,

@@ -1,0 +1,107 @@
+using System.Text.Json.Nodes;
+using Proctor;
+
+namespace Proctor.Tests;
+
+/// <summary>
+/// A named configuration retired (the user, 2026-11-27): recorded with its reason in exams/&lt;exam&gt;/retired.json,
+/// given no new tries by `run`, and brought back with nothing lost.
+/// </summary>
+public class RetiredTests
+{
+    const string Id = "axes-answers";
+
+    static TestRepo Repo()
+    {
+        var repo = new TestRepo();
+        repo.CopyExam(Id);
+        return repo;
+    }
+
+    static string File(TestRepo repo) => Path.Combine(repo.Root, "exams", Id, "retired.json");
+
+    static List<string?> Asked(TestRepo repo, string? name = null)
+    {
+        var (exam, keys) = Verbs.ForRun(repo.Root, repo.LoadExam(Id), null, null, name);
+        return keys.Select(k => exam.Axes!.Of(k)!.Name).ToList();
+    }
+
+    [Fact]
+    public void RetiringRecordsTheReasonAndRunLeavesItOut()
+    {
+        using var repo = Repo();
+        Assert.Contains("rewritten", Asked(repo));
+
+        Assert.Equal(0, Verbs.Retire(repo.Root, Id, "rewritten", "the rewrite was dropped", false));
+
+        var mark = JsonNode.Parse(System.IO.File.ReadAllText(File(repo)))!["rewritten"]!;
+        Assert.Equal("the rewrite was dropped", (string)mark["reason"]!);
+        Assert.Matches(@"^\d{4}-\d{2}-\d{2}$", (string)mark["since"]!);
+        Assert.DoesNotContain("rewritten", Asked(repo));
+        Assert.Contains("long", Asked(repo));
+        var refused = Assert.Throws<ProctorException>(() => Asked(repo, "rewritten"));
+        Assert.Contains("is retired", refused.Message);
+        Assert.Contains("--bring-back", refused.Message);
+    }
+
+    [Fact]
+    public void ARetiredConfigurationIsStillNamedAndItsHashesAreUnmoved()
+    {
+        using var repo = Repo();
+        var before = repo.LoadExam(Id);
+        Verbs.Retire(repo.Root, Id, "rewritten", "dropped", false);
+        var after = repo.LoadExam(Id);
+
+        Assert.Equal(before.Hash, after.Hash);
+        Assert.Contains(after.Axes!.Named, c => c.Name == "rewritten");
+        Assert.Equal(before.Axes!.Named.Single(c => c.Name == "rewritten").Hash, after.Axes.Named.Single(c => c.Name == "rewritten").Hash);
+    }
+
+    [Fact]
+    public void BroughtBackItRunsAgainAndAnExamWithNothingRetiredHasNoFile()
+    {
+        using var repo = Repo();
+        Verbs.Retire(repo.Root, Id, "rewritten", "dropped", false);
+
+        Assert.Equal(0, Verbs.Retire(repo.Root, Id, "rewritten", null, true));
+
+        Assert.Contains("rewritten", Asked(repo));
+        Assert.False(System.IO.File.Exists(File(repo)));
+        Assert.Contains("is not retired", Assert.Throws<ProctorException>(() => Verbs.Retire(repo.Root, Id, "rewritten", null, true)).Message);
+    }
+
+    [Fact]
+    public void RetiredAgainTheReasonIsReplacedAndTheDateKept()
+    {
+        using var repo = Repo();
+        repo.Write($"{Id}/retired.json", """{ "rewritten": { "reason": "first", "since": "2026-01-02" } }""");
+
+        Verbs.Retire(repo.Root, Id, "rewritten", "second", false);
+
+        var mark = Retired.Load(repo.LoadExam(Id))["rewritten"];
+        Assert.Equal(("second", "2026-01-02"), (mark.Reason, mark.Since));
+    }
+
+    [Fact]
+    public void WhatCannotBeRetiredIsRefusedWithWhatToDo()
+    {
+        using var repo = Repo();
+        Assert.Contains("is live", Assert.Throws<ProctorException>(() => Verbs.Retire(repo.Root, Id, "shipped", "no", false)).Message);
+        Assert.Contains("--reason", Assert.Throws<ProctorException>(() => Verbs.Retire(repo.Root, Id, "rewritten", null, false)).Message);
+        Assert.Contains("names no configuration 'nope'", Assert.Throws<ProctorException>(() => Verbs.Retire(repo.Root, Id, "nope", "no", false)).Message);
+        Assert.False(System.IO.File.Exists(File(repo)));
+
+        repo.CopyExam("smoke");
+        Assert.Contains("has variants", Assert.Throws<ProctorException>(() => Verbs.Retire(repo.Root, "smoke", "local", "no", false)).Message);
+    }
+
+    [Fact]
+    public void WithEveryNamedConfigurationRetiredRunSaysSo()
+    {
+        using var repo = Repo();
+        var exam = repo.LoadExam(Id);
+        repo.Write($"{Id}/retired.json", "{" + string.Join(",", exam.Axes!.Named.Select(c => $"\"{c.Name}\": {{ \"reason\": \"x\", \"since\": \"2026-01-02\" }}")) + "}");
+
+        Assert.Contains("is retired, so there is nothing to run", Assert.Throws<ProctorException>(() => Asked(repo)).Message);
+    }
+}

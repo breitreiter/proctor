@@ -49,12 +49,14 @@ static class ConfigurationPage
             };
         var made = (tries?.Rows ?? []).Select(t => t.Made).Where(m => m is not null).Select(m => m![..Math.Min(10, m!.Length)]).Distinct().Order().ToList();
         page.Append("<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">configuration</span>")
-            .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(name)}</h1>{mark}</div>")
+            .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(name)}</h1>{mark}{(row.Retired is null ? "" : "<span class=\"tag tag-none\">retired</span>")}</div>")
             .Append($"<p class=\"soft\" style=\"margin:0;font-size:15px\"><span class=\"mono\">{E(c.Label)}</span></p><dl class=\"facts\">")
             .Append(Fact("Tries", $"{row.Made} of {row.Wanted}{(row.Lost > 0 ? $" <span class=\"dim\" style=\"font-weight:400\">· {row.Lost} lost</span>" : "")}{(row.NotGraded > 0 ? $" <span class=\"dim\" style=\"font-weight:400\">· {row.NotGraded} not yet graded</span>" : "")}"))
             .Append(tries is null ? "" : Fact("Tries passed", $"{tries.Passed} of {tries.Tries}"))
             .Append(made.Count == 0 ? "" : Fact("Made", E(made.Count == 1 ? made[0] : $"{made[0]} to {made[^1]}")))
             .Append("</dl></header>");
+        if (row.Retired is { } retired)
+            page.Append($"<div class=\"said\"><b>Retired {E(retired.Since)}.</b> <span class=\"soft\">{E(retired.Reason)} Its tries, predictions and comparisons are kept, and proctor makes no new tries of it until it is brought back.</span></div>");
         foreach (var move in (stats.StandardMoved ?? []).Where(m => m.Configurations.Contains(c.Key)))
             page.Append($"<div class=\"said\"><b>The standard moved.</b> <span class=\"soft\">{E(move.Sentence)}</span></div>");
 

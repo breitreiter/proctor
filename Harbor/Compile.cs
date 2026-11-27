@@ -664,7 +664,7 @@ static class HarborCompile
 
     /// <summary>What proctor reads from an exam directory itself; a script sees its checks and expected values through the environment, and the rest is in the task's hash.</summary>
     static bool ExamDefinition(string relative) =>
-        relative is Layout.ExamFile or Layout.LiveFile or Layout.CombinationsFile
+        relative is Layout.ExamFile or Layout.LiveFile or Layout.CombinationsFile or Layout.RetiredFile
         || new[] { Layout.TasksDir, Layout.VariantsDir, Layout.PredictionsDir }.Any(d => relative.StartsWith(d + "/", StringComparison.Ordinal)) && relative.EndsWith(".json", StringComparison.Ordinal);
 
     /// <summary>What proctor reads from a fixture directory itself, and its source, which reaches the verifier as the image's commit and not as a file under tests/.</summary>

@@ -97,6 +97,33 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
     }
 
     [Fact]
+    public async Task ARetiredConfiguration_LeavesTheHeadlineLists_AndKeepsItsPageAndItsReason()
+    {
+        bank.Proctor("retire", AxesBank.Exam, "long-b", "--reason", "nobody ships the long prompt on b");
+        try
+        {
+            var exam = await Get($"/{AxesBank.Exam}");
+            // Out of the rows, and under a count that opens the retired ones with their reasons.
+            var (rows, retired) = (exam[..exam.IndexOf("<details id=\"retired\"")], exam[exam.IndexOf("<details id=\"retired\"")..]);
+            Assert.DoesNotContain(">long-b</a>", rows);
+            Assert.Contains(">rewritten</a>", rows);
+            Assert.Contains("1 retired", Text(retired));
+            Assert.Contains(">long-b</a>", retired);
+            Assert.Contains("nobody ships the long prompt on b", retired);
+
+            var index = await Get("/");
+            Assert.DoesNotContain(">long-b</a>", index);
+            Assert.Contains($"href=\"/{AxesBank.Exam}#retired\">1 retired</a>", index);
+
+            var own = Text(await Get($"/{AxesBank.Exam}/configuration/long-b"));
+            Assert.Contains("Retired", own);
+            Assert.Contains("nobody ships the long prompt on b", own);
+        }
+        finally { bank.Proctor("retire", AxesBank.Exam, "long-b", "--bring-back"); }
+        Assert.DoesNotContain("retired", await Get("/"));
+    }
+
+    [Fact]
     public async Task TheIndex_IsEachExam_WithItsNamedConfigurationsAndTheirMarks()
     {
         var html = await Get("/");

@@ -26,6 +26,9 @@ static class Program
                                  for a prediction whose configuration it is about to make tries of. The report says how each change it expects came out
           live <exam> [variant]  mark a variant live in exams/<exam>/live.json (commit it): the one in use now, which the report
                                  compares the others with; with no variant, say which is live. Delete the file to have none
+          retire <exam> [configuration]  on an exam with axes: retire a named configuration with --reason "..." (kept in
+                                 exams/<exam>/retired.json; commit it), or bring one back with --bring-back; with no
+                                 configuration, list the retired. Nothing is deleted: `run` makes no new tries of it
           setup                  set up providers and keys for this machine, job by job (needs a terminal)
 
         An attempt is current while its variant's and its task's hashes are today's; one made before either changed is
@@ -58,7 +61,8 @@ static class Program
     static int Main(string[] args)
     {
         var root = Directory.GetCurrentDirectory();
-        string? nbPath = null, runner = null, configFile = null, reader = null, against = null, asOf = null;
+        string? nbPath = null, runner = null, configFile = null, reader = null, against = null, asOf = null, reason = null;
+        var bringBack = false;
         List<string>? within = null;
         List<string>? tasks = null, labels = null, judges = null, variants = null;
         var rejudge = false;
@@ -81,6 +85,8 @@ static class Program
                 case "--as-of" when i + 1 < args.Length: asOf = args[++i]; break;
                 case "--label" when i + 1 < args.Length: (labels ??= []).Add(args[++i]); break;
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
+                case "--reason" when i + 1 < args.Length: reason = args[++i]; break;
+                case "--bring-back": bringBack = true; break;
                 case "--rejudge": rejudge = true; break;
                 case "--reader" when i + 1 < args.Length: reader = args[++i]; break;
                 case "--check": check = true; break;
@@ -112,6 +118,8 @@ static class Program
                 ("report", [var exam]) => Verbs.Report(root, exam, variants, tasks),
                 ("live", [var exam]) => Verbs.Live(root, exam, null),
                 ("live", [var exam, var variant]) => Verbs.Live(root, exam, variant),
+                ("retire", [var exam]) => Verbs.Retire(root, exam, null, reason, bringBack),
+                ("retire", [var exam, var configuration]) => Verbs.Retire(root, exam, configuration, reason, bringBack),
                 ("setup", []) => Verbs.Setup(root, check, probe),
                 _ => Fail(Usage),
             };

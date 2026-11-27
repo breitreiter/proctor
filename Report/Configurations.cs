@@ -18,7 +18,7 @@ record ValueInfo(string Name, string? Note, string Hash, bool Reference = false,
 /// NotGraded counts its tries without a grade under the current standard: they are in no number until `grade` reads them. Tries holds its tries as a staged exam's variant has them; null when none were read.
 /// </summary>
 record ConfigurationRow(string Key, string Label, Dictionary<string, string> Values, string? Name, bool Live, string State, int Wanted, int Made, int Lost, int Stale,
-    List<string> Stages, int CorrectnessChecks, TryVariant? Tries, string? Together = null, List<string>? Differs = null, int NotGraded = 0);
+    List<string> Stages, int CorrectnessChecks, TryVariant? Tries, string? Together = null, List<string>? Differs = null, int NotGraded = 0, RetiredMark? Retired = null);
 
 /// <summary>
 /// A value against the live value of its axis with every other axis held: one cell of a comparison. State is compared,
@@ -59,6 +59,7 @@ static class Configurations
         var byKey = tries.Variants.ToDictionary(v => v.Id);
         bool Live(Configuration c) => axes.Def.Any(a => a.Value.Live is not null) && axes.Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
         var standing = Combinations.Load(exam).Stand(exam);
+        var retired = Retired.Load(exam);
 
         var configurations = axes.Configurations.Select(c =>
         {
@@ -71,7 +72,7 @@ static class Configurations
                 bank.Where(a => a.Variant == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
                 stages.Select(s => s.Id!).ToList(), stages.Sum(s => Standard.PassIn(exam, s, c.Key).Count), t,
                 standing.TryGetValue(c.Key, out var together) ? together.State : null, together.Paths is { Count: > 0 } ? together.Paths : null,
-                ungraded.Count(u => u.Variant == c.Key));
+                ungraded.Count(u => u.Variant == c.Key), c.Name is null ? null : retired.GetValueOrDefault(c.Name));
         }).ToList();
 
         var comparisons = new List<AxisComparison>();
@@ -294,7 +295,7 @@ static class Configurations
         md.AppendLine("| Configuration | Tries | Passed | Checks held | Flagged steps | |").AppendLine("|---|---|---|---|---|---|");
         foreach (var c in stats.Configurations)
         {
-            var notes = string.Join(", ", new[] { c.Name, c.Live ? "live" : null, c.Lost > 0 ? $"{c.Lost} lost" : null, c.Stale > 0 ? $"{c.Stale} stale" : null,
+            var notes = string.Join(", ", new[] { c.Name, c.Live ? "live" : null, c.Retired is not null ? "retired" : null, c.Lost > 0 ? $"{c.Lost} lost" : null, c.Stale > 0 ? $"{c.Stale} stale" : null,
                 c.NotGraded > 0 ? $"{c.NotGraded} not yet graded" : null,
                 c.Together == Combinations.More ? "more than its values put together" : c.Together == Combinations.Unclear ? "cannot be told from its values alone" : c.Together == Combinations.NotChecked ? "not checked against its values alone" : null }.OfType<string>());
             md.AppendLine(c.State switch

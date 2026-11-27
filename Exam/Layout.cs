@@ -29,6 +29,8 @@ static class Layout
     public const string LiveFile = "live.json";
     /// <summary>Beside exam.json: one file per prediction: a named configuration and the changes expected of it (plans/axes-build.md, slice 6).</summary>
     public const string PredictionsDir = "predictions";
+    /// <summary>Beside exam.json: the named configurations retired, each with its reason and date (`proctor retire`).</summary>
+    public const string RetiredFile = "retired.json";
     public const string FixtureFile = "fixture.json";
 
     public const string LogEntryFile = "entry.json";

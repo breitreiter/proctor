@@ -1435,8 +1435,14 @@ going. It stops being one after six months of configurations nobody is
 interested in any more. So a named configuration needs a way out of the list
 that deletes nothing.
 
+**Built 2026-11-27** as proposed below (`Exam/Retired.cs`, `proctor retire`,
+`--bring-back`; the viewer's exam, index and configuration pages). Not built:
+the same through MCP, since proctor has no MCP server yet. Open: the report's
+`summary.md` and `coverage` still list a retired configuration among the rest,
+marked.
+
 Settled by the user the same day: the word is **retired**, a reason is
-recorded, and a retired configuration can be brought back. The rest is proposed.
+recorded, and a retired configuration can be brought back. The rest was proposed.
 
 - **A verb beside `live`** (`proctor retire <exam> <configuration> --reason
   "..."`, and one to bring it back; the same through MCP), since the viewer has

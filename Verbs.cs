@@ -235,6 +235,46 @@ static class Verbs
         return 0;
     }
 
+    /// <summary>
+    /// Retire a named configuration of an exam with axes, with a reason, or bring one back; with no configuration, say
+    /// which are retired. Nothing is deleted: `run` makes no new tries of a retired configuration and the headline lists leave it out.
+    /// </summary>
+    public static int Retire(string root, string examId, string? name, string? reason, bool bringBack)
+    {
+        var exam = LoadExam(root, examId);
+        if (exam.Axes is not { } axes) throw new ProctorException($"exam '{exam.Id}' has variants, not axes: only a named configuration can be retired");
+        var file = Path.GetRelativePath(root, Retired.FileOf(exam));
+        var marks = Retired.Load(exam);
+        if (name is null)
+        {
+            if (reason is not null || bringBack) throw new ProctorException("say which configuration: proctor retire <exam> <configuration> --reason \"...\", or --bring-back");
+            if (marks.Count == 0) Console.WriteLine($"{exam.Id}: nothing is retired; `proctor retire {exam.Id} <configuration> --reason \"...\"` retires one");
+            foreach (var (retired, mark) in marks)
+                Console.WriteLine($"{retired}: retired {mark.Since}: {mark.Reason}{(axes.Named.Any(c => c.Name == retired) ? "" : "  (exam.json names no such configuration now)")}");
+            return 0;
+        }
+        if (bringBack)
+        {
+            if (reason is not null) throw new ProctorException("--bring-back takes no --reason: the reason it was retired for goes with the mark");
+            if (!marks.Remove(name, out var was))
+                throw new ProctorException($"{name} is not retired ({string.Join(", ", marks.Keys.DefaultIfEmpty("nothing is"))})");
+            Retired.Save(exam, marks);
+            Console.WriteLine($"{file}: {name} is back (it was retired {was.Since}: {was.Reason}); `proctor run {exam.Id}` makes what it lacks again");
+            return 0;
+        }
+        var configuration = axes.Named.FirstOrDefault(c => c.Name == name)
+            ?? throw new ProctorException($"exam '{exam.Id}' names no configuration '{name}' ({string.Join(", ", axes.Named.Select(c => c.Name!).DefaultIfEmpty("none"))})");
+        if (string.IsNullOrWhiteSpace(reason)) throw new ProctorException($"retiring {name} needs its reason, which is kept with it: --reason \"...\"");
+        if (axes.IsLive(configuration)) throw new ProctorException($"{name} is live, and the live configuration cannot be retired: make another value live in exam.json first");
+        var before = marks.GetValueOrDefault(name);
+        marks[name] = new RetiredMark(reason.Trim(), before?.Since ?? DateTime.UtcNow.ToString("yyyy-MM-dd"));
+        Retired.Save(exam, marks);
+        Console.WriteLine(before is null
+            ? $"{file}: {name} is retired. Its tries, predictions and comparisons stay; `run` makes no new tries of it. `proctor retire {exam.Id} {name} --bring-back` undoes this"
+            : $"{file}: {name} was already retired, since {before.Since}; its reason is replaced");
+        return 0;
+    }
+
     public static int Grade(string root, string examId, List<string>? judgeRemaps = null, bool rejudge = false, List<string>? variantIds = null, List<string>? taskIds = null, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
@@ -344,6 +384,19 @@ static class Verbs
     internal static (Exam Exam, List<string> Keys) ForRun(string root, Exam exam, Dictionary<string, JudgeDef>? judges, List<string>? values, string? name)
     {
         var asked = Asked(exam, values, name);
+        // A retired configuration gets no new tries: left out of a plain run, and refused when asked for by name or by its values.
+        var retired = Retired.Load(exam);
+        string? RetiredName(string key) => exam.Axes!.Of(key)?.Name is { } n && retired.ContainsKey(n) ? n : null;
+        if (values is not null || name is not null)
+        {
+            if (RetiredName(asked[0]) is { } n)
+                throw new ProctorException($"{n} is retired ({retired[n].Since}: {retired[n].Reason}), so no new tries are made of it; `proctor retire {exam.Id} {n} --bring-back` first");
+        }
+        else
+        {
+            asked = asked.Where(k => RetiredName(k) is null).ToList();
+            if (asked.Count == 0) throw new ProctorException($"every configuration exam '{exam.Id}' names is retired, so there is nothing to run; `proctor retire {exam.Id}` lists them");
+        }
         // One asked for by its values may be one the exam does not carry yet: load again, carrying it, so it is validated as the others were.
         if (exam.Axes!.Configurations.All(c => c.Key != asked[0]))
         {
@@ -439,7 +492,8 @@ static class Verbs
         var others = axes.Configurations.Count - named;
         Console.WriteLine($"  {Count(named, "configuration")} named{(others > 0 ? $", {others} more with attempts" : "")}; {Count(exam.Attempts, "attempt")} wanted of each"
             + (unheld.Count > 0 ? $"; no live value or reference on {string.Join(", ", unheld)}" : ""));
-        bool Live(Configuration c) => axes.Def.Any(a => a.Value.Live is not null) && axes.Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
+        bool Live(Configuration c) => axes.IsLive(c);
+        var retired = Retired.Load(exam);
         if (axes.Configurations.Count == 0)
             Console.WriteLine($"  `proctor run {exam.Id}` makes what is named: name one under \"configurations\" in exam.json, or say --value axis=value for that value with the rest at their reference");
         else
@@ -448,7 +502,7 @@ static class Verbs
             Console.WriteLine($"  {"configuration".PadRight(width)}  stages  attempts  wanted");
             foreach (var c in axes.Configurations)
             {
-                var notes = string.Join(", ", new[] { c.Name ?? "not named", Live(c) ? "live" : null }.OfType<string>());
+                var notes = string.Join(", ", new[] { c.Name ?? "not named", Live(c) ? "live" : null, c.Name is not null && retired.ContainsKey(c.Name) ? "retired" : null }.OfType<string>());
                 Console.WriteLine($"  {c.Label.PadRight(width)}  {exam.Tasks.Count(s => axes.Applies(s, c)),-6}  {Made(c),-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
             }
         }
