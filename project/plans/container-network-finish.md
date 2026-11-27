@@ -303,6 +303,14 @@ carry itself across days, and 0.27.0 cannot be resolved before
   findings, not a queue; it is off the list for sitting two, and the
   comment on pull request 4427 will not be written.
 
+- 2026-11-27, the user: proctor is in the middle of invasive changes
+  by another session and is not to be counted on as working. **Held
+  until the user says it is stable**: everything that runs proctor (the
+  two relay runs left, the gates and conformance at 0.27.0, the join
+  line in compile). Not held, since it runs Harbor alone through
+  `learnings/netprobe/run.sh`: the probe at 0.27.0 and golem's three
+  trials against pull request 4427, from 2026-11-28 01:24 UTC.
+
 ## Not done, and why
 
 - **Harbor's pull request 4427 is not run yet**, only read. The user
