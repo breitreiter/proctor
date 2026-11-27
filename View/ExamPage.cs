@@ -55,9 +55,9 @@ static class ExamPage
             .Append($"<h1 class=\"title\">{E(e.Id)}</h1>")
             .Append(e.Description is { } d ? $"<p class=\"desc\">{E(d)}</p>" : "")
             .Append("<dl class=\"facts\">")
-            .Append(Fact("Configurations", named.Count(c => c.Retired is null) + (named.Count(c => c.Retired is not null) is > 0 and var gone ? $" <span class=\"dim\" style=\"font-weight:400\">· {gone} retired</span>" : ""))).Append(Fact("Predictions", (stats.Predictions?.Count ?? 0).ToString()))
+            .Append(Fact("Configurations", named.Count(c => c.Retired is null) + (named.Count(c => c.Retired is not null) is > 0 and var gone ? $" <span class=\"dim regular\">· {gone} retired</span>" : ""))).Append(Fact("Predictions", (stats.Predictions?.Count ?? 0).ToString()))
             .Append(Fact("Axes", stats.Axes.Count.ToString())).Append(Fact("Stages", stats.Stages.Count.ToString()))
-            .Append(Fact("Tries", tries + (lost > 0 ? $" <span class=\"dim\" style=\"font-weight:400\">· {lost} lost</span>" : "")))
+            .Append(Fact("Tries", tries + (lost > 0 ? $" <span class=\"dim regular\">· {lost} lost</span>" : "")))
             .Append(Fact("As of", asOf)).Append("</dl></header>");
 
         foreach (var move in stats.StandardMoved ?? [])
@@ -70,7 +70,7 @@ static class ExamPage
         Checks(page, exam, stats);
 
         page.Append("<section class=\"sec sec-plain\" aria-label=\"How this is counted\"><div class=\"sec-head\"><span class=\"label\">How this is counted</span></div>")
-            .Append($"<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;font-size:13px;max-width:900px\"><div>{E(stats.Methods)}</div>");
+            .Append($"<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;max-width:900px\"><div>{E(stats.Methods)}</div>");
         foreach (var l in stats.Lost)
             page.Append($"<div>Try {l.N} of {E(named.FirstOrDefault(c => c.Key == l.Variant)?.Name ?? l.Variant)} is lost and counted nowhere, at {E(l.At)}: {E(l.Why)}</div>");
         page.Append("<div>Every number here is proctor's. Nothing on this page recommends anything.</div></div></section>");
@@ -163,7 +163,7 @@ static class ExamPage
         var centre = liveSorted is null ? (double?)null : liveSorted.Count % 2 == 1 ? liveSorted[liveSorted.Count / 2] : (liveSorted[liveSorted.Count / 2 - 1] + liveSorted[liveSorted.Count / 2]) / 2;
         // No strip without a centre: nothing live, live lacks this number, or live's median is zero and "how far from it" has no scale.
         if (centre is not > 0)
-            return $"<span class=\"stack\">{head}<span class=\"num\" style=\"font-weight:600\">{E(column.Said(median))}</span><span class=\"small dim num\">{E(range)}</span></span>";
+            return $"<span class=\"stack\">{head}<span class=\"num strong\">{E(column.Said(median))}</span><span class=\"small dim num\">{E(range)}</span></span>";
 
         string At(double x) => (50 + Math.Clamp((x / centre.Value - 1) * 100, -200, 200) / 4).ToString("0.#", CultureInfo.InvariantCulture) + "%";
         var measure = cell is null ? null : column.In(cell);
@@ -181,7 +181,7 @@ static class ExamPage
         var label = $"{column.Name}: median {column.Said(median)}, {range}{(isLive ? "" : $", {delta} against {against}")}";
         var band = $"left:{At(liveSorted![0])};width:calc({At(liveSorted[^1])} - {At(liveSorted[0])})";
         var dots = string.Concat(sorted.Select(x => $"<span class=\"div-dot{(Math.Abs(x / centre.Value - 1) > 2 ? " div-out" : "")}\" style=\"left:{At(x)}\"></span>"));
-        return $"<span class=\"stat\" title=\"{E(how)}\">{head}<span class=\"stat-line\"><span class=\"{deltaClass}\" style=\"font-size:15px\">{E(delta)}</span><span class=\"small dim num\">{E(column.Said(median))}</span></span>"
+        return $"<span class=\"stat\" title=\"{E(how)}\">{head}<span class=\"stat-line\"><span class=\"{deltaClass}\">{E(delta)}</span><span class=\"small dim num\">{E(column.Said(median))}</span></span>"
             + $"<span class=\"div\" role=\"img\" aria-label=\"{E(label)}\"><span class=\"div-band\" style=\"{band}\"></span><span class=\"div-zero\"></span>{dots}</span>{(labelled ? $"<span class=\"small dim num\">{E(range)}</span>" : "")}</span>";
     }
 
@@ -192,7 +192,7 @@ static class ExamPage
     {
         Section(page, "Predictions", note, "display:flex;flex-direction:column;gap:22px");
         if (predictions.Count == 0)
-            page.Append($"<div class=\"said soft\">None. A prediction is a file, <span class=\"mono\" style=\"font-size:13px\">exams/{E(e.Id)}/predictions/&lt;name&gt;.json</span>.</div>");
+            page.Append($"<div class=\"said soft\">None. A prediction is a file, <span class=\"mono\">exams/{E(e.Id)}/predictions/&lt;name&gt;.json</span>.</div>");
         string Name(string key) => named.FirstOrDefault(c => c.Key == key)?.Name ?? key;
         foreach (var p in predictions)
         {
@@ -223,7 +223,7 @@ static class ExamPage
                     ? m.Direction == "same" && a == b ? $"{Number(a)}{(c.Check is null ? "" : " stages")} on both sides, in {c.Tries} against {c.AgainstTries} tries"
                         : $"{(c.Check is null ? "median" : "held in a median of")} {Number(a)} vs {Number(b)}{(c.Check is null ? "" : " stages")}, p = {Measured.PValue(m.P)}"
                     : c.Outcome == P.PredictionOutcomes.NotRun ? "a side has no graded try" : "";
-                page.Append($"<div class=\"row pred\"><span><span class=\"mono\" style=\"font-size:13px\">{E(what)}</span> {(c.Direction == P.Predictions.More ? "higher" : "lower")}</span>")
+                page.Append($"<div class=\"row pred\"><span><span class=\"mono\">{E(what)}</span> {(c.Direction == P.Predictions.More ? "higher" : "lower")}</span>")
                     .Append($"<span><a href=\"{compare}\" class=\"{tag}\" style=\"text-decoration:none\" title=\"{E(c.Sentence)}\">{word}</a></span>")
                     .Append($"<span class=\"soft num\">{E(evidence)}</span><span class=\"small dim\">{E(c.Because ?? "")}</span></div>");
             }
@@ -238,7 +238,7 @@ static class ExamPage
         page.Append("<div style=\"min-width:620px\">");
         foreach (var ((axis, def), i) in exam.Axes!.Def.Select((a, i) => (a, i)))
         {
-            page.Append($"<div class=\"row axis{(i == 0 ? " first" : "")}\"><span class=\"stack\"><span class=\"mono\" style=\"font-size:14px;font-weight:500\">{E(axis)}</span><span class=\"small dim\">{E(def.About ?? "")}</span></span><div>");
+            page.Append($"<div class=\"row axis{(i == 0 ? " first" : "")}\"><span class=\"stack\"><span class=\"mono strong\">{E(axis)}</span><span class=\"small dim\">{E(def.About ?? "")}</span></span><div>");
             foreach (var (value, v) in def.Values!)
                 page.Append($"<div class=\"val\"><span><span class=\"mono\">{E(value)}</span>{(value == def.Live ? " <span class=\"tag tag-live\">live</span>" : "")}</span><span class=\"soft\">{E(v?.Note ?? "")}</span></div>");
             page.Append("</div></div>");
@@ -254,7 +254,7 @@ static class ExamPage
         Section(page, "Stages", $"Stages divide the exam into chunks. Use stages to break a large exam into manageable pieces or combine several small tasks into a single exam. {how} The agent starts every stage with a fresh context.");
         page.Append("<div style=\"min-width:620px\">");
         foreach (var s in stats.Stages)
-            page.Append($"<div class=\"row stages{(s.Place == 1 ? " first" : "")}\"><span class=\"dim num\">{s.Place}</span><span class=\"mono\" style=\"font-size:13px\">{E(s.Id)}</span><span class=\"soft\">{E(s.About)}</span><span class=\"small dim r\">{s.Checks?.Count ?? 0} checks</span></div>");
+            page.Append($"<div class=\"row stages{(s.Place == 1 ? " first" : "")}\"><span class=\"dim num\">{s.Place}</span><span class=\"mono\">{E(s.Id)}</span><span class=\"soft\">{E(s.About)}</span><span class=\"small dim r\">{s.Checks?.Count ?? 0} checks</span></div>");
         page.Append("</div></div></section>");
     }
 
@@ -268,7 +268,7 @@ static class ExamPage
         {
             var spec = exam.Tasks.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Name)).FirstOrDefault(c => c is not null);
             var (tag, says) = RoleTag[k.Role];
-            page.Append($"<div class=\"row checks\"><span class=\"mono\" style=\"font-size:13px\">{E(k.Name)}</span><span><span class=\"{tag}\" title=\"{E(says)}\">{k.Role}</span></span>")
+            page.Append($"<div class=\"row checks\"><span class=\"mono\">{E(k.Name)}</span><span><span class=\"{tag}\" title=\"{E(says)}\">{k.Role}</span></span>")
                 .Append($"<span class=\"soft\">{E(spec is null ? "" : P.Checks.Describe(spec.Spec) ?? "")}</span>")
                 .Append($"<span class=\"small dim r\">{(k.Stages == stats.Stages.Count ? "every stage" : $"{k.Stages} of {stats.Stages.Count} stages")}</span></div>");
         }

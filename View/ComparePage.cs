@@ -38,14 +38,14 @@ static class ComparePage
         };
         var same = exam.Axes!.Of(cell.Value.Configuration)!.Values.Where(v => !answer.Change.ContainsKey(v.Axis)).Select(v => $"{v.Axis}={v.Value}").ToList();
         page.Append("<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">comparison</span>")
-            .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\"><a href=\"{E(cell.Value.Address)}\" style=\"color:inherit;text-decoration:none\">{E(mine)}</a> <span class=\"dim\" style=\"font-weight:400\">vs</span> <a href=\"{E(cell.Against.Address)}\" style=\"color:inherit;text-decoration:none\">{E(other)}</a></h1>{light}</div>");
+            .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\"><a href=\"{E(cell.Value.Address)}\" style=\"color:inherit;text-decoration:none\">{E(mine)}</a> <span class=\"dim regular\">vs</span> <a href=\"{E(cell.Against.Address)}\" style=\"color:inherit;text-decoration:none\">{E(other)}</a></h1>{light}</div>");
         // With neither side live there is no given order: the same page, read from the other side.
         var live = exam.Axes.Named.FirstOrDefault(c => c.Values.All(v => exam.Axes.Def[v.Axis].Live is not { } l || l == v.Value));
         if (live?.Key != cell.Against.Configuration && live?.Key != cell.Value.Configuration)
             page.Append($"<a class=\"small\" href=\"{AxesPages.Q($"/{e.Id}/compare", ("configuration", other), ("against", mine))}\">Read it the other way: {E(other)} vs {E(mine)}</a>");
         page.Append("<dl class=\"facts\">")
-            .Append(Fact("Differs in", $"<span class=\"mono\" style=\"font-size:14px\">{E(string.Join(", ", answer.Change.Select(c => $"{c.Key}: {c.Value}, not {answer.Against[c.Key]}")))}</span>"))
-            .Append(same.Count == 0 ? "" : Fact("The same in", $"<span class=\"mono\" style=\"font-size:14px\">{E(string.Join(", ", same))}</span>"))
+            .Append(Fact("Differs in", $"<span class=\"mono\">{E(string.Join(", ", answer.Change.Select(c => $"{c.Key}: {c.Value}, not {answer.Against[c.Key]}")))}</span>"))
+            .Append(same.Count == 0 ? "" : Fact("The same in", $"<span class=\"mono\">{E(string.Join(", ", same))}</span>"))
             .Append(Fact("Tries", $"{cell.Value.Tries.Count(t => t.Invalid is null)} vs {cell.Against.Tries.Count(t => t.Invalid is null)}"))
             .Append(Fact(query("as_of") is { Length: > 0 } ? "As it stood at" : "As of", E(answer.AsOf))).Append("</dl></header>");
         if (answer.TriesSince > 0)
@@ -75,7 +75,7 @@ static class ComparePage
         Friction(page, cell, mine, other);
 
         page.Append("<section class=\"sec sec-plain\" aria-label=\"How this is counted\"><div class=\"sec-head\"><span class=\"label\">How this is counted</span></div>")
-            .Append("<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;font-size:13px;max-width:900px\">")
+            .Append("<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;max-width:900px\">")
             .Append($"<div>Every number and direction describes {E(mine)}, the name before vs. The reading at the top is on checks held.</div>")
             .Append(answer.Power is { } power ? $"<div>{E(power.Note)}</div>" : "")
             .Append($"<div>{E(answer.Methods)}</div><div>Every number here is proctor's. Nothing on this page recommends anything.</div></div></section>");
@@ -87,7 +87,7 @@ static class ComparePage
         if (predictions.Count == 0)
         {
             Section(page, "Prediction", "What we predicted for this match-up and how that turned out.");
-            page.Append($"<div class=\"said soft\">No prediction names <span class=\"mono\" style=\"font-size:13px\">{E(mine)}</span> against <span class=\"mono\" style=\"font-size:13px\">{E(other)}</span>.</div></div></section>");
+            page.Append($"<div class=\"said soft\">No prediction names <span class=\"mono\">{E(mine)}</span> against <span class=\"mono\">{E(other)}</span>.</div></div></section>");
             return;
         }
         // The same block the exam's page draws, for the predictions about this pair.
@@ -124,7 +124,7 @@ static class ComparePage
             var m = r.Measure;
             var change = m.Direction == "same" ? "" : m.Change is { } c ? (c > 0 ? "+" : "−") + Math.Abs(c).ToString("0%", CultureInfo.InvariantCulture) : "";
             page.Append($"<div class=\"row meas\"><span class=\"stack\"><span>{E(r.Name)}</span><span>{predicted(r.Metric, null)}</span></span><span class=\"lanes\">{Lane(mine, mineValues, m.Median ?? 0)}{Lane(other, otherValues, m.OtherMedian ?? 0)}</span>")
-                .Append($"<span class=\"stack r\"><span class=\"num\" style=\"font-weight:600\">{E(r.Said(m.Median ?? 0))}</span><span class=\"small dim num\">{E(Range(mineValues, r.Said))}</span></span>")
+                .Append($"<span class=\"stack r\"><span class=\"num strong\">{E(r.Said(m.Median ?? 0))}</span><span class=\"small dim num\">{E(Range(mineValues, r.Said))}</span></span>")
                 .Append($"<span class=\"stack r\"><span class=\"num\">{E(r.Said(m.OtherMedian ?? 0))}</span><span class=\"small dim num\">{E(Range(otherValues, r.Said))}</span></span>")
                 .Append($"<span class=\"r {(m.Confirmed ? $"d-{m.Direction}" : "d-none")}\">{change}</span>{Outcome(m, r.HigherIsBetter, cell.CouldConfirm, cell.SmallestP)}</div>");
         }
@@ -153,8 +153,8 @@ static class ComparePage
         foreach (var k in (cell.ByCheck ?? []).OrderBy(k => Array.IndexOf(RoleOrder, k.Role)))
         {
             var (tag, says) = RoleTag[k.Role];
-            page.Append($"<div class=\"row cchecks\"><span class=\"stack\"><span class=\"mono\" style=\"font-size:13px\">{E(k.Check)}</span><span>{predicted(null, k.Check)}</span></span><span><span class=\"{tag}\" title=\"{E(says)}\">{k.Role}</span></span>")
-                .Append($"<span class=\"r num\" style=\"font-weight:600\" title=\"{k.Held} of {k.Asked}\">{Share(k.Held, k.Asked)}</span><span class=\"r num soft\" title=\"{k.OtherHeld} of {k.OtherAsked}\">{Share(k.OtherHeld, k.OtherAsked)}</span>")
+            page.Append($"<div class=\"row cchecks\"><span class=\"stack\"><span class=\"mono\">{E(k.Check)}</span><span>{predicted(null, k.Check)}</span></span><span><span class=\"{tag}\" title=\"{E(says)}\">{k.Role}</span></span>")
+                .Append($"<span class=\"r num strong\" title=\"{k.Held} of {k.Asked}\">{Share(k.Held, k.Asked)}</span><span class=\"r num soft\" title=\"{k.OtherHeld} of {k.OtherAsked}\">{Share(k.OtherHeld, k.OtherAsked)}</span>")
                 .Append($"<span class=\"small dim\">{E(k.About ?? "")}</span>{Outcome(k.Measure, true, cell.CouldConfirm, cell.SmallestP, valence: k.Role != P.Roles.Observation)}</div>");
         }
         page.Append("</div></div></section>");
@@ -168,11 +168,11 @@ static class ComparePage
         foreach (var (s, i) in (cell.ByStage ?? []).Select((s, i) => (s, i)))
         {
             var about = exam.Tasks.FirstOrDefault(t => t.Id == s.Stage) is { } stage ? P.Exam.Describe(stage) : "";
-            string Two(Func<P.StageTally, string> of, bool strong = false) => $"<span class=\"two r num{(strong ? "" : " soft")}\"><span{(strong ? " style=\"font-weight:600\"" : "")}>{of(s.Value)}</span><span class=\"soft\">{of(s.Against)}</span></span>";
+            string Two(Func<P.StageTally, string> of, bool strong = false) => $"<span class=\"two r num{(strong ? "" : " soft")}\"><span{(strong ? " class=\"strong\"" : "")}>{of(s.Value)}</span><span class=\"soft\">{of(s.Against)}</span></span>";
             var notHeld = s.Value.DidNotHold is { Count: > 0 } failed
-                ? string.Concat(failed.Select(f => $"<span class=\"stack\"><span><span class=\"mono\" style=\"font-size:13px\">{E(f.Check)}</span> <span class=\"soft\">in {f.Tries} of {s.Value.Graded} tries of {E(mine)}</span></span><span class=\"small dim\">{E(f.Reason ?? "")}</span></span>"))
+                ? string.Concat(failed.Select(f => $"<span class=\"stack\"><span><span class=\"mono\">{E(f.Check)}</span> <span class=\"soft\">in {f.Tries} of {s.Value.Graded} tries of {E(mine)}</span></span><span class=\"small dim\">{E(f.Reason ?? "")}</span></span>"))
                 : "<span class=\"soft\">all held</span>";
-            page.Append($"<div class=\"row cstages\" style=\"padding:10px 0\"><span class=\"stack\"><span class=\"mono\" style=\"font-size:13px\">{i + 1}. {E(s.Stage)}</span><span class=\"small dim\">{E(about)} · {s.Value.Checks} correctness checks</span></span>")
+            page.Append($"<div class=\"row cstages\" style=\"padding:10px 0\"><span class=\"stack\"><span class=\"mono\">{i + 1}. {E(s.Stage)}</span><span class=\"small dim\">{E(about)} · {s.Value.Checks} correctness checks</span></span>")
                 .Append($"<span class=\"two small\"><span>{E(mine)}</span><span class=\"dim\">{E(other)}</span></span>")
                 .Append(Two(t => Share(t.Average), strong: true)).Append(Two(t => Share(t.Share?.Min))).Append(Two(t => Share(t.Share?.Max))).Append(Two(t => $"{t.Right} of {t.Of}"))
                 .Append(Outcome(s.Measure, true, cell.CouldConfirm, cell.SmallestP)).Append($"<span class=\"stack\" style=\"gap:6px\">{notHeld}</span></div>");

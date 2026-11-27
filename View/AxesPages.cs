@@ -20,7 +20,7 @@ static class AxesPages
 
     static string Label(IEnumerable<KeyValuePair<string, string>> values) => string.Join(" × ", values.Select(v => $"{v.Key}={v.Value}"));
 
-    const string Mono = "class=\"mono\" style=\"font-size:13px\"";
+    const string Mono = "class=\"mono\"";
 
     /// <summary>Coverage: the exam's axes, the configurations it names or has tries of, and what is live across the axes that are not ours to choose.</summary>
     public static string Exam(string root, Exam e, string? asOf)
@@ -71,7 +71,7 @@ static class AxesPages
             page.Append("</div></section>");
         }
         page.Append("<section class=\"sec sec-plain\" aria-label=\"How this is counted\"><div class=\"sec-head\"><span class=\"label\">How this is counted</span></div>")
-            .Append($"<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;font-size:13px;max-width:900px\"><div>{E(coverage.Methods)}</div>")
+            .Append($"<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;max-width:900px\"><div>{E(coverage.Methods)}</div>")
             .Append(coverage.Excluded.Count > 0 ? $"<div>Declared impossible, and never made: {E(string.Join("; ", coverage.Excluded.Select(Label)))}.</div>" : "");
         Ask(page, e.Id, axes.Def.Where(d => d.Value.Live is not null).SelectMany(d => d.Value.Values!.Keys.Where(v => v != d.Value.Live).Select(v => $"{d.Key}={v}")).FirstOrDefault());
         return Close(page.Append("</div></section>"));
@@ -152,7 +152,7 @@ static class AxesPages
                 $"<span class=\"stack\" style=\"gap:6px\"><a href=\"{E(side.Address)}\">{E(side.Name ?? "configuration")}</a><span class=\"num\" style=\"display:flex;gap:4px 10px;flex-wrap:wrap\">" + (side.Tries.Count == 0 ? "<b>not run</b>"
                     : string.Concat(side.Tries.Select(t => $"<a class=\"{(t.Invalid is null ? "" : "dim")}\" href=\"{E(t.Address)}\" title=\"{E(t.Id)}, made {E(t.Made)}{(t.Invalid is { } invalid ? $"; not counted: {E(invalid)}" : "")}\">{t.Held}/{t.Of}</a>"))) + "</span></span>";
             var found = cell.Held is { } m
-                ? $"<span class=\"{(m.Confirmed ? $"d-{m.Direction}" : "")}\" style=\"font-weight:600\">{E(m.Direction is "better" or "worse" ? m.Direction : "no difference")}</span><span class=\"small soft num\">p = {Measured.PValue(m.P)} · {(m.Confirmed ? "confirmed" : cell.CouldConfirm ? "not confirmed" : "this many tries cannot confirm anything")}</span>"
+                ? $"<span class=\"strong{(m.Confirmed ? $" d-{m.Direction}" : "")}\">{E(m.Direction is "better" or "worse" ? m.Direction : "no difference")}</span><span class=\"small soft num\">p = {Measured.PValue(m.P)} · {(m.Confirmed ? "confirmed" : cell.CouldConfirm ? "not confirmed" : "this many tries cannot confirm anything")}</span>"
                 : $"<b>not run</b><span class=\"small soft\">{cell.State switch { "not_run" => $"no try of {E(change)} here", "live_not_run" => $"no try of {E(against)} here", _ => "neither side" }}</span>";
             page.Append($"<div class=\"row{(i == 0 ? " first" : "")}\" style=\"{columns}\"><span {Mono}>{E(cell.Holding.Count == 0 ? "the one configuration" : Label(cell.Holding))}</span>{Side(cell.Value)}{Side(cell.Against)}<span class=\"stack\" style=\"gap:4px\">{found}");
             if (cell.Checks is { Count: > 0 } checks)
@@ -167,7 +167,7 @@ static class AxesPages
         page.Append("</div></section>");
 
         page.Append("<section class=\"sec sec-plain\" aria-label=\"How this is counted\"><div class=\"sec-head\"><span class=\"label\">How this is counted</span></div>")
-            .Append($"<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;font-size:13px;max-width:900px\"><div>{E(answer.Methods)}</div>")
+            .Append($"<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;max-width:900px\"><div>{E(answer.Methods)}</div>")
             .Append(answer.Power is { } power ? $"<div>{E(power.Note)}</div>" : "")
             .Append(answer.Timing is { ValueFirst: not null } timing ? $"<div>Tries made: {E(change)} {E(timing.ValueFirst!)} to {E(timing.ValueLast!)}; {E(against)} {E(timing.AgainstFirst ?? "none")} to {E(timing.AgainstLast ?? "none")}.</div>" : "");
         Ask(page, e.Id, answer.Configuration is null && answer.Change.Count == 1 ? change : null, answer.Configuration);

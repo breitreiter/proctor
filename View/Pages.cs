@@ -36,7 +36,7 @@ public static class Pages
                 page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><a href=\"{U(staged.First(a => a.N == n).ById ? $"/{e.Id}/try/{n}" : $"/{e.Id}/{variant}/{n}")}\">try {E(n)}</a>")
                     .Append(string.Concat(staged.Where(a => a.N == n).Select(a => $"<span class=\"small\"><a class=\"mono\" href=\"{U(a.Path)}\">{E(a.Task)}</a>{Unfinished(a)}</span>"))).Append("</span>");
             foreach (var task in e.Attempts.Where(a => a.Variant == variant && !a.Staged).Select(a => a.Task).Distinct())
-                page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><span class=\"mono\" style=\"font-size:13px\">{E(task)}</span>")
+                page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><span class=\"mono\">{E(task)}</span>")
                     .Append(string.Concat(e.Attempts.Where(a => a.Variant == variant && a.Task == task).Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">try {E(a.N)}</a>{Unfinished(a)}</span>"))).Append("</span>");
             page.Append("</span></div>");
         }

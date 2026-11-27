@@ -7,6 +7,9 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **The viewer's type is six roles** (title, heading, lead, body,
+  small, code) in place of fourteen sizes, set once in its stylesheet;
+  no page sets a font size of its own.
 - **Every page of the viewer is in the designed style.** An exam of
   variants, a try of one, coverage and the comparison across every
   setting now use the same stylesheet and parts as the five pages

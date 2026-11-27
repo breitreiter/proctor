@@ -112,6 +112,15 @@ holding `bank/` and `exams/`.
   named configurations with the marks `ExamPage.Standing` gives them,
   its predictions and its tries; an exam of variants is a plain row. It
   lists exams that have a bank, as before.
+- **Type is six roles and nothing else** (the canvas's board "6 · Type",
+  agreed 2026-11-27): Title, Heading, Lead, Body, Small and Code, each
+  one face, size and line height, as `--t-*` tokens at the top of
+  `one.css`. Two weights, 400 and 600 (`.strong`); 700 is the two
+  heading roles'. Mono (`.mono`, which is Code) is only for what could
+  be typed or pasted, so tags, marks and pills are Small in Geist. No
+  page and no rule sets a font size: a new piece of text takes a role's
+  class (`.small`, `.mono`, `.name`, `.desc`, `.said`, …) or the body's.
+  The Title's 26px on a narrow screen is the one exception.
 - `assets/one.css` and `assets/fonts/`: the one stylesheet (dark
   ground, Geist, Space Grotesk heads, lime rules), copied from the
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a

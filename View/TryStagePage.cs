@@ -49,10 +49,10 @@ static class TryStagePage
         var about = exam?.Tasks.FirstOrDefault(t => t.Id == a.Task) is { } def ? P.Exam.Describe(def) : null;
         page.Append($"<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">{(stages.Count > 0 ? $"stage {place} of {stages.Count} · " : "")}try {(a.ById ? "" : E(a.N) + " ")}of {E(name)}</span>")
             .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(a.Task)}</h1>{Light(Result(a.Task), a.Status)}</div>")
-            .Append(about is null ? "" : $"<p class=\"soft\" style=\"margin:0;font-size:15px\">{E(about)}</p>").Append("<dl class=\"facts\">")
+            .Append(about is null ? "" : $"<p class=\"desc\">{E(about)}</p>").Append("<dl class=\"facts\">")
             .Append(Bank.Str(a.Manifest?["started"]) is { Length: > 0 } started ? Fact("Made", E(When(started))) : "")
             .Append(Bank.Str(a.Manifest?["model"]) is { Length: > 0 } model ? Fact("Model", E(model)) : "")
-            .Append(exit.Length > 0 && exit != "ok" ? Fact("Ended", $"<span class=\"mono\" style=\"font-size:13px\">{E(exit)}</span>") : "")
+            .Append(exit.Length > 0 && exit != "ok" ? Fact("Ended", $"<span class=\"mono\">{E(exit)}</span>") : "")
             .Append(Fact("Steps", steps.Count.ToString()))
             .Append(answers > 0 ? Fact("Oracle", $"{answers} {(answers == 1 ? "answer" : "answers")}") : "")
             .Append(Number(core?["tool_calls"]) is { } calls ? Fact("Tool calls", calls.ToString("0", CultureInfo.InvariantCulture)) : "")
@@ -60,7 +60,7 @@ static class TryStagePage
             .Append(Number(core?["input_tokens"]) is { } tokens ? Fact("Tokens read", E(Tokens(tokens))) : "")
             .Append((Number(core?["duration_ms"]) ?? Number(a.Manifest?["duration_ms"])) is { } ms ? Fact("Time", E(Time(ms))) : "")
             .Append(Number(core?["cost_usd"]) is { } cost ? Fact("Cost", E(Usd(cost))) : "")
-            .Append(Fact("Address", $"<span class=\"mono\" style=\"font-size:13px\">{E(a.Path.TrimStart('/'))}</span>")).Append("</dl></header>");
+            .Append(Fact("Address", $"<span class=\"mono\">{E(a.Path.TrimStart('/'))}</span>")).Append("</dl></header>");
         // A stage that did not complete: proctor's status and its own sentence for why, as written.
         if (a.Status != "completed" && Bank.Text(a.Manifest?["status_reason"]) is { } reason)
             page.Append($"<div class=\"said\"><b>{E(a.Status)}</b> <span class=\"soft\">{E(reason)}</span></div>");
@@ -80,7 +80,7 @@ static class TryStagePage
 
         var diff = Bank.Read(System.IO.Path.Combine(a.Dir, P.Layout.DiffFile)) ?? "";
         page.Append("<section id=\"steps\" class=\"blk blk-top\" aria-label=\"Transcript\"><div class=\"tabs sub\" role=\"tablist\" aria-label=\"What to read\">");
-        foreach (var (key, label) in new[] { ((string?)null, "Transcript"), ("prompt", "Prompt"), ("files", $"Files{(diff.Trim().Length == 0 ? " <span class=\"dim\" style=\"font-weight:400\">· no change</span>" : "")}") })
+        foreach (var (key, label) in new[] { ((string?)null, "Transcript"), ("prompt", "Prompt"), ("files", $"Files{(diff.Trim().Length == 0 ? " <span class=\"dim regular\">· no change</span>" : "")}") })
             page.Append($"<a class=\"tab{(show == key ? " tab-on" : "")}\" role=\"tab\" aria-selected=\"{(show == key ? "true" : "false")}\" href=\"{AxesPages.Q(a.Path, ("show", key))}#steps\">{label}</a>");
         page.Append("</div>");
         if (show == "prompt")
@@ -128,8 +128,8 @@ static class TryStagePage
                     "not-applicable" => ("does not apply", "dim"),
                     var other => (other, "dim"),
                 };
-                page.Append($"<div class=\"ck\" id=\"check-{E(c.Name)}\"><span class=\"{cls}\" style=\"font-weight:600;font-size:13px\">{E(word)}</span><span class=\"stack\">")
-                    .Append($"<span class=\"mono\" style=\"font-size:13px\"{(c.Describes is { } d ? $" title=\"{E(d)}\"" : "")}>{E(c.Name)}</span><span class=\"small soft\">{E(c.Reason)}</span>")
+                page.Append($"<div class=\"ck\" id=\"check-{E(c.Name)}\"><span class=\"{cls} strong\">{E(word)}</span><span class=\"stack\">")
+                    .Append($"<span class=\"mono\"{(c.Describes is { } d ? $" title=\"{E(d)}\"" : "")}>{E(c.Name)}</span><span class=\"small soft\">{E(c.Reason)}</span>")
                     .Append(c.Why is { } why ? $"<span class=\"small dim\">Why it is checked: {E(why)}</span>" : "")
                     .Append(c.Script is { } script ? $"<span class=\"small dim mono\">{E(script)}</span>" : "")
                     .Append(Pills(c.Steps, ids)).Append(c.Files.Count > 0 ? $"<span class=\"small dim mono\">{E(string.Join(" ", c.Files))}</span>" : "").Append("</span></div>");
@@ -200,9 +200,9 @@ static class TryStagePage
             string ResultOf(JsonObject call) => results.FirstOrDefault(r => Bank.Str(r["source_call_id"]) == Bank.Str(call["tool_call_id"])) is { } r ? Content(r["content"]) : "";
 
             // Folded, a step is who spoke and its first line or command with the first line of what came back; open, the whole of each.
-            page.Append($"<details class=\"step{(labels.Count > 0 ? " step-fr" : "")}\" id=\"s{E(id)}\"><summary><span class=\"mono dim\" style=\"font-size:13px\">{E(id)}</span>")
+            page.Append($"<details class=\"step{(labels.Count > 0 ? " step-fr" : "")}\" id=\"s{E(id)}\"><summary><span class=\"mono dim\">{E(id)}</span>")
                 .Append($"<div style=\"display:flex;flex-direction:column;gap:6px;min-width:0\"><span class=\"who\">{E(who)}</span>");
-            if (calls.Count == 0) page.Append($"<div class=\"out\" style=\"color:var(--text);font-family:var(--sans);font-size:14.5px\">{E(FirstLine(message))}</div>");
+            if (calls.Count == 0) page.Append($"<div class=\"out out-say\">{E(FirstLine(message))}</div>");
             else page.Append($"<div class=\"cmd\">{E(FirstLine(Gist(calls[0])))}</div><div class=\"out\">{E(FirstLine(ResultOf(calls[0])))}</div>");
             page.Append("</div><span style=\"display:flex;flex-direction:column;gap:4px;align-items:flex-end\">")
                 .Append(string.Concat(labels.Select(l => $"<span class=\"tag tag-fr\">{E(l)}</span>"))).Append("</span></summary><div class=\"step-body\">");

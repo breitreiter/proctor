@@ -27,7 +27,7 @@ static class IndexPage
             .Append(Fact("Exams", exams.Count.ToString())).Append(Fact("Tries", rows.Sum(r => r.Tries).ToString()))
             .Append(Fact("As of", DateTime.UtcNow.ToString("d MMM yyyy, HH:mm 'UTC'", CultureInfo.InvariantCulture))).Append("</dl></header>");
         if (exams.Count == 0)
-            return Close(page.Append($"<div class=\"said soft\">No exam has a bank under <span class=\"mono\" style=\"font-size:13px\">{E(root)}</span>. auspex reads proctor's root: the directory holding <span class=\"mono\" style=\"font-size:13px\">bank/</span> and <span class=\"mono\" style=\"font-size:13px\">exams/</span>.</div>"));
+            return Close(page.Append($"<div class=\"said soft\">No exam has a bank under <span class=\"mono\">{E(root)}</span>. auspex reads proctor's root: the directory holding <span class=\"mono\">bank/</span> and <span class=\"mono\">exams/</span>.</div>"));
 
         Section(page, "Exams", "An exam is a question, the stages that ask it and the checks that grade them. The one tried most recently is first.");
         page.Append("<div style=\"min-width:1040px\"><div class=\"row row-head ex\"><span>Exam</span><span>Configurations</span><span>Predictions</span><span class=\"r\">Tries</span><span class=\"r\">Last try</span></div>")
@@ -37,7 +37,7 @@ static class IndexPage
     }
 
     static string Head(Exam e, string shape) =>
-        $"<span class=\"stack\" style=\"gap:6px\"><a class=\"name mono\" style=\"font-size:17px\" href=\"{U(e.Path)}\">{E(e.Id)}</a>{(e.Description is { } d ? $"<span class=\"soft\" style=\"line-height:1.45\">{E(d)}</span>" : "")}<span class=\"small dim\">{E(shape)}</span></span>";
+        $"<span class=\"stack\" style=\"gap:6px\"><a class=\"name\" href=\"{U(e.Path)}\">{E(e.Id)}</a>{(e.Description is { } d ? $"<span class=\"soft\" style=\"line-height:1.45\">{E(d)}</span>" : "")}<span class=\"small dim\">{E(shape)}</span></span>";
 
     /// <summary>An exam with axes: its named configurations and their marks, its predictions, its tries.</summary>
     static Row WithAxes(string root, Exam e)
@@ -61,7 +61,7 @@ static class IndexPage
         {
             var (mine, other) = (Name(p.Configuration), Name(p.Against));
             var supported = p.Changes.Count(c => c.Outcome == P.PredictionOutcomes.Supported);
-            row.Append($"<span class=\"stack\"><a href=\"{AxesPages.Q($"/{e.Id}/compare", ("configuration", mine), ("against", other))}\" style=\"font-size:14px\">{E(mine)} vs {E(other)}</a>")
+            row.Append($"<span class=\"stack\"><a href=\"{AxesPages.Q($"/{e.Id}/compare", ("configuration", mine), ("against", other))}\">{E(mine)} vs {E(other)}</a>")
                 .Append($"<span class=\"small soft\">{supported} of {Counted(p.Changes.Count, "change", "changes")} supported{(p.PostHoc ? " <span class=\"tag\">post hoc</span>" : "")}</span></span>");
         }
         if (stats.Predictions is not { Count: > 0 }) row.Append("<span class=\"small dim\">None</span>");
@@ -69,7 +69,7 @@ static class IndexPage
         var tries = named.Sum(c => c.Made);
         var notes = string.Join(" · ", new[] { stats.Lost.Count > 0 ? $"{stats.Lost.Count} lost" : null, named.Sum(c => c.NotGraded) is > 0 and var n ? $"{n} not yet graded" : null }.OfType<string>());
         var last = named.SelectMany(c => c.Tries?.Rows ?? []).Select(t => t.Made).Where(m => m is not null).Max(StringComparer.Ordinal);
-        row.Append($"</span><span class=\"stack r\"><span class=\"num\" style=\"font-weight:600\">{tries}</span><span class=\"small dim num\">{E(notes)}</span></span>")
+        row.Append($"</span><span class=\"stack r\"><span class=\"num strong\">{tries}</span><span class=\"small dim num\">{E(notes)}</span></span>")
             .Append($"<span class=\"r small soft num\">{E(last is null ? "never" : When(last))}</span></div>");
         return new Row(e, row.ToString(), last, tries);
     }
@@ -81,9 +81,9 @@ static class IndexPage
         var tries = e.Attempts.Select(a => (a.Variant, a.Task, a.N)).Distinct().Count();
         var row = new StringBuilder("<div class=\"row ex\" style=\"padding:18px 0\">").Append(Head(e, problem is null ? "an exam of variants" : "an exam with axes")).Append("<span class=\"list\">");
         if (problem is not null) row.Append($"<span class=\"small soft\" title=\"{E(problem)}\">Proctor cannot read this exam as it stands, so nothing is counted.</span>");
-        else foreach (var v in variants) row.Append($"<span class=\"cfg\"><span style=\"font-size:14px\">{E(v)}</span>{(v == e.Live ? "<span class=\"light light-live\">live</span>" : "")}</span>");
+        else foreach (var v in variants) row.Append($"<span class=\"cfg\"><span>{E(v)}</span>{(v == e.Live ? "<span class=\"light light-live\">live</span>" : "")}</span>");
         row.Append("</span><span class=\"small dim\">None</span>")
-            .Append($"<span class=\"stack r\"><span class=\"num\" style=\"font-weight:600\">{tries}</span></span><span class=\"r small dim\"></span></div>");
+            .Append($"<span class=\"stack r\"><span class=\"num strong\">{tries}</span></span><span class=\"r small dim\"></span></div>");
         return new Row(e, row.ToString(), null, tries);
     }
 

@@ -75,7 +75,7 @@ public class CrawlTests
     public async Task ACheckThatDidNotHold_SaysWhyItIsChecked_AndPointsAtItsStepsAndFiles()
     {
         var page = await Page(SampleBank.Try);
-        Assert.Matches("id=\"check-acceptance\"><span class=\"wrong\"[^>]*>did not hold</span>", page);
+        Assert.Matches("id=\"check-acceptance\"><span class=\"wrong strong\">did not hold</span>", page);
         Assert.Contains("title=\"the acceptance tests pass\">acceptance</span>", page);
         Assert.Contains("Why it is checked: the task is only done when its tests pass", page);
         Assert.Contains("<span class=\"small dim mono\">exams/sample/checks/acceptance.sh</span>", page);
