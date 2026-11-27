@@ -894,7 +894,35 @@ are, the stub model also running on the host bound to
   "fixture 'stub' names this machine's port 18766 (image.host_ports),
   and nothing answers there; start what it is for".
 
-Not run yet: rootless Docker (asked of golem's session), a run
-interrupted and continued, `hang`, an agent that is not root, long
-streams side by side through the C# end (eight at once were run through
-socat on 2026-11-25).
+The same on rootless Docker 29.1.3 (golem, its own session, 8fdf6e1,
+0.26.0):
+
+- With the host's stub stopped, `run` refused, exit 1, and made no log
+  entry and no socket directory.
+- With it running, all three vendor agents completed `ok` and passed
+  their four checks; the agent's and the environment's policy were
+  `no-network`; the host's stub logged their seven POSTs (and seven
+  `GET /v1/responses` it answers 404, Codex trying a WebSocket first,
+  which the relay carries like anything else). Every `main` container
+  had `CapDrop=[CAP_NET_RAW]`. The socket directory was gone afterwards.
+- **Interrupted and continued**: proctor sent SIGINT 25 s into the
+  first attempt (`timeout -s INT`), then `run` again: "was interrupted:
+  0 of 3 attempts finished, 1 was running", "continuing it", and all
+  three completed and passed. The socket left by the interrupted run
+  had nothing behind it; the continuing run made the directory new at
+  the same path, which is the path the compiled tasks mount.
+- Conformance as the tests run it (the stub in the task, nothing
+  relayed) still passes: 19.8 minutes.
+- **What the interrupt left**: the interrupted trial's compose project,
+  that is Harbor's sidecar still running, three exited containers and a
+  network. It did not get in the continued run's way, since Harbor names
+  a new project. Only proctor was signalled; a Ctrl-C at a terminal
+  signals Harbor too, and whether Harbor then takes its project down is
+  not known. In `todo.md`.
+- One unit test failed there, not for the relay: `Run_OnPodman_...`
+  makes proctor's real podman preflight, and golem has no podman. It
+  now skips on such a machine (`PodmanFact`).
+
+Not run yet: `hang`, an agent that is not root, long streams side by
+side through the C# end (eight at once were run through socat on
+2026-11-25).

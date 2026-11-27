@@ -1370,3 +1370,13 @@ for a way and not by a list we thought of.
 - What it finds is an issue here, or one for Harbor written for the
   user to file.
 
+## What an interrupted Harbor trial leaves in the engine
+
+Seen on rootless Docker (golem, 2026-11-27, `learnings/harbor.md`):
+proctor sent SIGINT during an agent attempt left that trial's compose
+project behind, Harbor's sidecar running, the other containers exited,
+and its network. The continued run was not hindered. Not known: whether
+a Ctrl-C at a terminal, which signals Harbor too, leaves the same;
+whether podman does; and whose it is to remove (proctor on continuing,
+by the project's name, or Harbor on the signal). To reproduce both ways
+before anything is filed.

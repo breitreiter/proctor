@@ -265,6 +265,10 @@ carry itself across days, and 0.27.0 cannot be resolved before
   in the report that a try reached a port not the exam's. Then:
   further allowed hosts, the join line per engine, the Modal refusal,
   the two warnings.
+- 2026-11-27, later. The built relay passes on rootless Docker too
+  (golem): the refusal, the three vendor agents, and a run interrupted
+  and continued. Still not run: `hang`, an agent that is not root,
+  long streams side by side.
 
 ## Not done, and why
 

@@ -5,6 +5,16 @@ using Proctor;
 namespace Proctor.Tests;
 
 /// <summary>Agent variants: validation, compiling a task for Harbor, ingesting a trial, and the runner with a stand-in for Harbor.</summary>
+/// <summary>Runs only on a machine whose podman passes proctor's own preflight, which `run` makes for real before the fake uv is reached.</summary>
+sealed class PodmanFactAttribute : FactAttribute
+{
+    public PodmanFactAttribute()
+    {
+        try { HarborRun.CheckPodman(); }
+        catch (Exception e) when (e is ProctorException or System.ComponentModel.Win32Exception) { Skip = "needs podman set up as docs/podman.md says: " + e.Message.Split('\n')[0]; }
+    }
+}
+
 public class HarborTests
 {
     const string BaseUrl = "http://library:8086/x/anthropic";
@@ -710,7 +720,7 @@ public class HarborTests
         Assert.StartsWith("exams/harbor-unit/variants/cc-haiku.json: this is not the cc-haiku that made 1 attempt\n  (bundle ", e.Message);
     }
 
-    [Fact]
+    [PodmanFact]
     public void Run_OnPodman_RecordsTheEngine_HandsItToHarbor_AndDoesNotContinueTheRunOnAnother()
     {
         using var scratch = new TestRepo();
