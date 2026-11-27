@@ -12,6 +12,12 @@ rootful Docker, Docker Desktop, and any engine on macOS or Windows.**
 What this page says of those is from Docker's and Harbor's own
 documentation and issues, and says so.
 
+**Docker is not maintained.** Proctor is run every day on rootless
+podman, and that is where a break is found and fixed. This page is what
+was known to work on the date above; nobody re-checks it when Harbor's
+pin or proctor moves. If Docker is your engine, it is yours to keep
+working, and this page is where to start.
+
 What an agent's container can reach, on any engine, is
 [`network.md`](network.md).
 

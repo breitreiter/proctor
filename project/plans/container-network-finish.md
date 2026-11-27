@@ -311,9 +311,35 @@ carry itself across days, and 0.27.0 cannot be resolved before
   `learnings/netprobe/run.sh`: the probe at 0.27.0 and golem's three
   trials against pull request 4427, from 2026-11-28 01:24 UTC.
 
+- 2026-11-27, **the plan is cut to rootless podman** (the user, and
+  `plans/remix.md`, "What the core supports"). Goals 1 and 2 stand, on
+  podman: the relay, the allowlist, a service fixture the agent cannot
+  read. Goal 3 is dropped as the core's work, and goal 4 means Harbor
+  on podman. What that removes from what was ahead:
+  - **Harbor's pull request 4427 is not run**, and the join line by
+    engine is not built. The pull request changes Docker only and
+    leaves podman as it is, so nothing supported depends on it.
+  - **No more tasks for golem.** Its results stand as dated record.
+    The untracked probe files there are still the user's to keep or not.
+  - **The Modal refusal is no longer a question for sitting two.**
+    Modal leaves the core under `remix.md`, and the refusal goes with
+    it. The probe's findings stay in the learnings for whoever writes
+    Modal against the seam.
+  - **`docs/docker.md` is dated and marked not maintained**;
+    `docs/modal.md` moves with Modal's code, in that plan's step, not
+    here. Nothing more is written for macOS.
+  - The interrupted trial's leftovers (`todo.md`) were seen on Docker;
+    worth a look only if podman shows the same.
+
+  What is left, all on podman and all held until proctor is stable:
+  the pin to 0.27.0 with the probe, the gates and conformance; the two
+  relay runs (an agent that is not root, long streams side by side);
+  then this plan and `container-network.md` archived.
+
 ## Not done, and why
 
-- **Harbor's pull request 4427 is not run yet**, only read. The user
+- **Harbor's pull request 4427 will not be run** (see Progress, the cut
+  to podman); what follows is how it stood before. It was only read. The user
   said to run it (2026-11-26); uv's seven-day cooldown would not
   resolve a package its Harbor needs, and the user decided against an
   exemption. Golem's session runs the three trials after 2026-11-28
