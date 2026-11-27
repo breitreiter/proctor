@@ -1,8 +1,0 @@
-{
-  "id": "mock",
-  "note": "nb on its Mock provider, which answers from a script in the prompt",
-  "runner": "nb",
-  "harness": "nb",
-  "provider": "Mock",
-  "model": "mock"
-}

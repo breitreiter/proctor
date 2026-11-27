@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prove the fixture and the checks without a model: for each task, check the fixture out the way
+# Prove the fixture and the checks without a model: for each stage, check the fixture out the way
 # proctor does, apply the reference solution (or nothing, with --unsolved), diff, run the checks.
 # Expected: every check passes solved; builds and tests-pass pass and acceptance fails unsolved.
 set -uo pipefail
@@ -7,12 +7,12 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 root="$(cd "$here/../.." && pwd)"
 solve=1; [ "${1:-}" = "--unsolved" ] && solve=0
 tmp=$(mktemp -d)
-for task_file in "$here"/tasks/*.json; do
-  c=$(basename "$task_file" .json)
-  f=$(jq -r .fixture "$task_file")
+f=$(jq -r .fixture "$here/exam.json")
+for c in $(jq -r '.stages[].id' "$here/exam.json"); do
+  stage=$(jq -c --arg c "$c" '.stages[] | select(.id == $c)' "$here/exam.json")
   export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work"
-  export PROCTOR_TASK_JSON="$(cat "$task_file")" PROCTOR_EXPECT="$(jq -c .expect "$task_file")"
+  export PROCTOR_TASK_JSON="$stage" PROCTOR_EXPECT="$(jq -c .expect <<<"$stage")"
   export PROCTOR_TRANSCRIPT="$PROCTOR_ATTEMPT_DIR/transcript.jsonl" PROCTOR_DIFF="$PROCTOR_ATTEMPT_DIR/diff.patch"
   mkdir -p "$PROCTOR_ATTEMPT_DIR" "$PROCTOR_WORK"
   (cd "$PROCTOR_FIXTURE/repo" && find . -type d \( -name node_modules -o -name dist -o -name .git \) -prune -o -type f -print | cpio -pdm --quiet "$PROCTOR_WORK")

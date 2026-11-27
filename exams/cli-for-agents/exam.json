@@ -2,16 +2,77 @@
   "id": "cli-for-agents",
   "description": "Can an agent make a small CLI usable from a script or by another agent? One task on a tiny TypeScript CLI whose destructive command waits for a keypress.",
   "attempts": 3,
-  "labels": { "area": "coding/change", "stack": "node", "purpose": "onboarding" },
+  "labels": {
+    "area": "coding/change",
+    "stack": "node",
+    "purpose": "onboarding",
+    "kind": "feature"
+  },
+  "fixture": "jotcli",
+  "axes": {
+    "assistant": {
+      "about": "the agent and model that make the change",
+      "values": {
+        "local": {
+          "note": "nb bare on the local qwen3-coder model; the free floor",
+          "provider": "local-qcoder",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "local": {
+      "assistant": "local"
+    }
+  },
+  "stages": [
+    {
+      "id": "clear-for-scripts",
+      "about": "Make the CLI's destructive command usable from a script: a flag to skip the prompt, and a non-zero exit when nothing was cleared",
+      "prompt": "`jot clear` cannot be used from a script. It asks `Delete N tasks? [y/N]` and waits for a keypress on the terminal, so `echo y | jot clear` does nothing, and when there is no terminal at all it waits, prints `Aborted.` and exits 0 as if it had succeeded.\n\nMake `clear` usable from a script or by another program:\n\n- Add a `--yes` flag (alias `-y`) that clears without asking.\n- Without the flag, when there is no interactive terminal to ask, do not wait: refuse, say why on stderr, and exit with a non-zero code.\n- Whenever `clear` does not clear, for any reason, the exit code must be non-zero.\n- Update the usage text and the README.\n\nExisting tests must keep passing. Add tests for the new behaviour in tests/.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "src/**",
+            "tests/**",
+            "README.md"
+          ],
+          "mode": "at_most"
+        }
+      }
+    }
+  ],
   "grading": {
     "checks": {
-      "exit_ok":      { "exit_reason": "ok" },
-      "no_denials":   { "denied_calls": { "max": 0 } },
-      "not_nudged":   { "loop_nudged": false },
-      "under_budget": { "max_tool_calls": 60, "max_duration_ms": 1200000 },
-      "acceptance":   { "script": "checks/acceptance.sh", "description": "the task's acceptance script passes against the changed repository" },
-      "scope":        { "files_touched": "@expect" }
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "no_denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "not_nudged": {
+        "loop_nudged": false
+      },
+      "under_budget": {
+        "max_tool_calls": 60,
+        "max_duration_ms": 1200000
+      },
+      "acceptance": {
+        "script": "checks/acceptance.sh",
+        "description": "the task's acceptance script passes against the changed repository"
+      },
+      "scope": {
+        "files_touched": "@expect"
+      }
     },
-    "correctness": ["exit_ok", "acceptance", "builds", "tests-pass"]
+    "correctness": [
+      "exit_ok",
+      "acceptance",
+      "builds",
+      "tests-pass"
+    ]
   }
 }

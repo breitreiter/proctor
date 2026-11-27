@@ -2,14 +2,68 @@
   "id": "playground",
   "description": "The first exam to run: two scripted tasks against a tiny TypeScript CLI, no model and no key, so the loop and the report can be seen before anything real is measured.",
   "attempts": 2,
-  "labels": { "purpose": "onboarding" },
+  "labels": {
+    "purpose": "onboarding"
+  },
+  "fixture": "jotcli",
+  "axes": {
+    "assistant": {
+      "about": "who answers: nb on its Mock provider, which reads its script from the prompt, so no model is called",
+      "values": {
+        "mock": {
+          "note": "nb on its Mock provider, which answers from a script in the prompt",
+          "provider": "Mock",
+          "model": "mock"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "mock": {
+      "assistant": "mock"
+    }
+  },
+  "stages": [
+    {
+      "id": "hello",
+      "about": "The scripted model answers in one turn; the repository's build and tests are checked afterwards",
+      "prompt": "MOCK:response=Nothing to do.",
+      "expect": {
+        "answer_contains": "Nothing to do"
+      }
+    },
+    {
+      "id": "runs-the-cli",
+      "about": "The scripted model builds the CLI and runs it once with bash, then answers OK",
+      "prompt": "MOCK:tool=bash npm ci --silent --no-audit --no-fund && npm run -s build && node dist/src/cli.js list",
+      "expect": {
+        "answer_contains": "OK"
+      }
+    }
+  ],
   "grading": {
     "checks": {
-      "exit_ok":      { "exit_reason": "ok" },
-      "no_denials":   { "denied_calls": { "max": 0 } },
-      "under_budget": { "max_tool_calls": 3, "max_tokens": 100000 },
-      "says":         { "answer_contains": "@expect" }
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "no_denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "under_budget": {
+        "max_tool_calls": 3,
+        "max_tokens": 100000
+      },
+      "says": {
+        "answer_contains": "@expect"
+      }
     },
-    "correctness": ["exit_ok", "says", "builds", "tests-pass"]
+    "correctness": [
+      "exit_ok",
+      "says",
+      "builds",
+      "tests-pass"
+    ]
   }
 }
