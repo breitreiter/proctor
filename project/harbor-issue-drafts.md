@@ -1,7 +1,12 @@
-# Issues for Harbor, drafted
+# What we found in Harbor, written up
 
-Drafts for the user to read and file, or not (2026-11-27). Nothing here
-has been posted. Each was measured on Harbor 0.26.0 unless it says
+A record of four findings, each in the shape an issue would take
+(2026-11-27). **Nothing here has been posted, and nothing is to be
+filed from it**: the user (2026-11-27) does not want issues raised in
+another project's repository under their name, the less so in a
+codebase they do not know well. It is kept so the findings and what
+proctor does about each are in one place, and so the text exists if the
+user ever chooses to raise one. Each was measured on Harbor 0.26.0 unless it says
 otherwise; the evidence is in `learnings/harbor.md` under the heading
 named. Before filing any of them, search Harbor's tracker again: the
 survey of open issues was made on 2026-11-26, and 0.27.0 has not been

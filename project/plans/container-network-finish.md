@@ -298,6 +298,11 @@ carry itself across days, and 0.27.0 cannot be resolved before
   went through the relay on podman as scripted. Still not run: an
   agent that is not root, long streams side by side.
 
+- 2026-11-27, the user: no issues in other projects' repositories
+  under their name. `project/harbor-issue-drafts.md` is a record of
+  findings, not a queue; it is off the list for sitting two, and the
+  comment on pull request 4427 will not be written.
+
 ## Not done, and why
 
 - **Harbor's pull request 4427 is not run yet**, only read. The user
