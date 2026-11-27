@@ -55,6 +55,9 @@ public class AnswersTests
         Assert.All(cell.Value.Tries, t => Assert.True(Directory.Exists(Path.Combine(repo.Root, t.Path))));
         Assert.All(cell.Value.Tries, t => Assert.Equal($"/axes-answers/try/{t.Id}", t.Address));
         Assert.Equal("rewritten", cell.Value.Name);
+        // Every scripted try makes one tool call: compared as the other measures are, and no different.
+        Assert.Equal(("same", 16), (cell.ToolCalls!.Direction, cell.ToolCalls.Pairings));
+        Assert.All(cell.Value.Tries, t => Assert.Equal(1, t.ToolCalls));
         Assert.StartsWith("/axes-answers/compare?change=prompt%3Drewritten&against=prompt%3Dshipped&as_of=", answer.Address);
 
         // Held to one assistant it is one setting, read alone, and says what four tries a side could have shown.

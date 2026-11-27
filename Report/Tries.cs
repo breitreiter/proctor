@@ -8,7 +8,7 @@ namespace Proctor;
 record TryStage(string Id, string Result);
 
 /// <summary>
-/// One try, as two numbers: the headline checks it held, of every headline check the job has (a stage not reached holds
+/// One try, as two numbers: the correctness checks it held, of every correctness check the job has (a stage not reached holds
 /// nothing), and its flagged steps, null until `proctor friction` has read every stage it ran. <c>Invalid</c> is the
 /// first validity check a stage of it failed: the exam's author said such a try says nothing, so it is listed and not counted.
 /// </summary>
@@ -20,8 +20,10 @@ record Spread(double Min, double Median, double Max);
 /// <summary>
 /// One measure of a variant's tries against live's, try against try (Mann–Whitney): in how many of the pairings the
 /// variant's try was higher, lower or tied, the exact two-sided p, and the direction in the report's words: better, worse or same.
+/// Median and OtherMedian are each side's middle try, and Change the first as a fraction above or below the second (0.8 is 80% more;
+/// null when the other's median is zero). They say how far, never whether: the direction and the p are the pairings'. Null on a measure pooled over several settings.
 /// </summary>
-record Measure(string Direction, int Higher, int Lower, int Tied, int Pairings, double P, bool Confirmed);
+record Measure(string Direction, int Higher, int Lower, int Tied, int Pairings, double P, bool Confirmed, double? Median = null, double? OtherMedian = null, double? Change = null);
 
 /// <summary><c>CanConfirm</c> is whether these two counts of tries could confirm anything at 95%: 4 a side can, or 3 against 5.</summary>
 record AgainstLive(string Vs, int Tries, int LiveTries, bool CanConfirm, Measure Held, Measure? Flagged, List<string> Moved, string Sentence);
@@ -29,7 +31,7 @@ record AgainstLive(string Vs, int Tries, int LiveTries, bool CanConfirm, Measure
 record StageTally(string Id, int Right, int Of);
 
 record TryVariant(string Id, bool Live, int Tries, int Lost, int Invalid, int Passed, Spread? Held, Spread? Flagged,
-    List<StageTally> Stages, List<TryRow> Rows, AgainstLive? AgainstLive);
+    List<StageTally> Stages, List<TryRow> Rows, AgainstLive? AgainstLive, Spread? ToolCalls = null, Spread? Tokens = null, Spread? Duration = null);
 
 /// <summary>A try in which a stage did not run: left out of every number.</summary>
 record LostTry(string Variant, int N, string At, string Why);
@@ -73,9 +75,9 @@ static class Tries
 
         foreach (var variant in ids)
         {
-            // On an exam with axes a try is the stages that apply in its configuration, and holds of those stages' headline checks.
+            // On an exam with axes a try is the stages that apply in its configuration, and holds of those stages' correctness checks.
             var stages = exam.StagesOf(variant);
-            // Of the headline checks that apply in this configuration: one that does not apply is no part of what a try can hold.
+            // Of the correctness checks that apply in this configuration: one that does not apply is no part of what a try can hold.
             var headline = stages.Sum(s => Standard.PassIn(exam, s, variant).Count);
             var found = kinds[variant] = [];
             var tryRows = new List<TryRow>();
@@ -110,7 +112,8 @@ static class Tries
             var lost = bank.Where(a => a.Lost && a.Variant == variant && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count();
             variants.Add(new TryVariant(variant, false, counted.Count, lost, tryRows.Count - counted.Count, counted.Count(t => t.Passed),
                 SpreadOf(counted.Select(t => (double)t.Held)), counted.Count > 0 && counted.All(t => t.Flagged is not null) ? SpreadOf(counted.Select(t => (double)t.Flagged!.Value)) : null,
-                stages.Select(s => new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count)).ToList(), tryRows, null));
+                stages.Select(s => new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count)).ToList(), tryRows, null,
+                Whole(counted, t => t.ToolCalls), Whole(counted, t => t.TokensIn), Whole(counted, t => t.DurationMs)));
         }
 
         // A variant never in `current` can still have lost every try it made: it is not a column, but its lost tries are said.
@@ -130,7 +133,7 @@ static class Tries
             : reference is null || v.Tries == 0 ? v
             : v with { AgainstLive = Against(v, reference, rollup.First(r => r.Id == v.Id), rollup.First(r => r.Id == reference.Id)) }).ToList();
 
-        var methods = "A try is every stage of the exam once, in one workspace. Each try gives two numbers: the headline checks it held, of all the exam has across its stages "
+        var methods = "A try is every stage of the exam once, in one workspace. Each try gives two numbers: the correctness checks it held, of all the exam has across its stages "
             + "(a stage a chained try did not reach holds nothing), and its flagged steps, the steps inside any friction point. "
             + "A variant is compared with the live one try against try, by the Mann–Whitney test with an exact two-sided p; a difference is confirmed at p < 0.05, "
             + "which needs at least 4 tries a side, or 3 against 5. A stage is never compared on its own: stages share a workspace, so they share causes. "
@@ -219,7 +222,9 @@ static class Tries
         int higher = mine.Sum(a => theirs.Count(b => a > b)), lower = mine.Sum(a => theirs.Count(b => a < b));
         var p = MannWhitneyP(mine, theirs);
         var direction = higher == lower ? "same" : (higher > lower) == higherIsBetter ? "better" : "worse";
-        return new Measure(direction, higher, lower, mine.Count * theirs.Count - higher - lower, mine.Count * theirs.Count, Math.Round(p, 4), direction != "same" && p < Alpha);
+        var (median, other) = (SpreadOf(mine)?.Median, SpreadOf(theirs)?.Median);
+        return new Measure(direction, higher, lower, mine.Count * theirs.Count - higher - lower, mine.Count * theirs.Count, Math.Round(p, 4), direction != "same" && p < Alpha,
+            median, other, median is { } m && other is { } o && o != 0 ? Math.Round((m - o) / o, 4) : null);
     }
 
     /// <summary>The smallest two-sided p two samples of these sizes can reach: every value of one above every value of the other.</summary>
@@ -272,6 +277,9 @@ static class Tries
         return 1 - tail;
     }
 
+    /// <summary>A count every counted try gives, as a spread; null when a try lacks it, since a median over some of the tries is not the tries'.</summary>
+    static Spread? Whole(List<TryRow> counted, Func<TryRow, double?> of) => counted.Count > 0 && counted.All(t => of(t) is not null) ? SpreadOf(counted.Select(t => of(t)!.Value)) : null;
+
     static Spread? SpreadOf(IEnumerable<double> values)
     {
         var v = values.Order().ToArray();
@@ -281,7 +289,7 @@ static class Tries
     /// <summary>summary.md: the comparison, each variant's stages by try, what recurs, the tries left out, and how it was counted.</summary>
     public static string Markdown(TriesFile stats, FrictionRollup friction)
     {
-        var md = new StringBuilder($"# {stats.Exam}\n\nOne job of {stats.Stages.Count} stage{(stats.Stages.Count == 1 ? "" : "s")}{(stats.Chained ? ", chained" : "")}; {stats.CorrectnessChecks} headline check{(stats.CorrectnessChecks == 1 ? "" : "s")} a try. Built {stats.BuiltFrom?.At}.\n\n");
+        var md = new StringBuilder($"# {stats.Exam}\n\nOne job of {stats.Stages.Count} stage{(stats.Stages.Count == 1 ? "" : "s")}{(stats.Chained ? ", chained" : "")}; {stats.CorrectnessChecks} correctness check{(stats.CorrectnessChecks == 1 ? "" : "s")} a try. Built {stats.BuiltFrom?.At}.\n\n");
         if (stats.Live is { NotReference: { } why }) md.Append($"> {stats.Live.Variant} is marked live, but nothing is compared with it: {why}.\n\n");
         else if (stats.Live is null && stats.Variants.Count > 1) md.Append("> Nothing is live, so no variant is compared with another; `proctor live` marks one.\n\n");
 

@@ -7,6 +7,27 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Tool calls, tokens read and time are compared like the rest.** A
+  comparison's cells (`stats.json`, `compare`) carry `tool_calls`,
+  `tokens` and `duration` beside `held` and `flagged`, try against
+  try, fewer being better; each configuration's tries carry the
+  spread of each, and a try in an answer its own three numbers. One
+  is null when a try on either side lacks the number. The verdict is
+  still made on correctness checks held alone.
+  Every measure of one cell also says how far: each side's median
+  (`median`, `other_median`) and the first as a fraction above or
+  below the second (`change`).
+- **The viewer's exam page is the one designed on the canvas**, for an
+  exam with axes: each named configuration against what is live on
+  checks held, flagged steps, tool calls, tokens read and time; its
+  predictions with each change's outcome; its axes, stages and checks
+  with their roles. The earlier page is still at `/<exam>/coverage`.
+- **A predicted change's outcome is one of five words** (breaking, in
+  `stats.json` and `compare`): `supported` (was `held`),
+  `contradicted` (was `opposite_confirmed`), `no_effect` (was
+  `no_difference`), `inconclusive` (was `leaning` and `opposite`: a
+  difference either way that is not confirmed; the measure says which
+  way) and `not_run`. The sentences are unchanged.
 - **Four roles for a check, named in the exam** (breaking). `grading.pass`
   is `grading.correctness` and `grading.validity` is
   `grading.integrity`; a new list, `grading.quality`, names checks

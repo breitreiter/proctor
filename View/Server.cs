@@ -50,7 +50,7 @@ public static class Server
         // An exam, then a try of it. On an exam of stages: setup, try, stage; a try alone goes to its first stage. On an
         // exam of tasks, the bank's own path: setup, task, number.
         app.MapGet("/{exam}", (string exam) =>
-            Bank.FindExam(root, exam) is { } e ? Html(e.Axes ? AxesPages.Exam(root, e, null) : Pages.Exam(e)) : Results.NotFound());
+            Bank.FindExam(root, exam) is { } e ? Html(e.Axes ? ExamPage.Render(root, e) : Pages.Exam(e)) : Results.NotFound());
         // An exam with axes (proctor's plans/axes-build.md, 3d): the addresses `proctor compare` and `proctor coverage` give in their
         // answers. A try sits under its own id; a comparison and coverage carry the time they were answered (as_of).
         app.MapGet("/{exam}/coverage", (string exam, HttpRequest request) =>
@@ -81,6 +81,7 @@ public static class Server
         ".css" => "text/css; charset=utf-8",
         ".js" => "text/javascript; charset=utf-8",
         ".svg" => "image/svg+xml",
+        ".woff2" => "font/woff2",
         ".md" => "text/plain; charset=utf-8",
         _ => "application/octet-stream",
     };

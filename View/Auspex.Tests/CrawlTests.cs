@@ -215,6 +215,10 @@ public class CrawlTests
         var queue = new Queue<string>(["/"]);
         var pending = new Queue<string>();
         void Asset(string path) { if (assets.Add(path)) pending.Enqueue(path); }
+        // The stylesheet of the pages designed on the canvas. Only an exam with axes has such a page so far, and the sample bank has none:
+        // named here until the index is one of them. Its fonts licence is linked from those pages' footer.
+        Asset("/assets/one.css");
+        Asset("/assets/fonts/README.md");
 
         while (queue.TryDequeue(out var path))
         {
@@ -250,7 +254,8 @@ public class CrawlTests
     }
 
     static readonly Regex JsImport = new("""(?:\bimport|\bexport)\s*(?:[^'"]*?\bfrom\s*)?["'](\.[^"']+)["']|\bimport\(\s*["'](\.[^"']+)["']\s*\)""");
-    static readonly Regex CssImport = new("""@import\s+url\(\s*['"]?([^'")]+)['"]?\s*\)|@import\s+['"]([^'"]+)['"]""");
+    // A stylesheet's imports, and the files it names by url(): its fonts.
+    static readonly Regex CssImport = new("""@import\s+['"]([^'"]+)['"]|url\(\s*['"]?([^'")]+)['"]?\s*\)""");
 
     static HttpClient Client() => new(new HttpClientHandler { CookieContainer = new CookieContainer(), AllowAutoRedirect = true });
 

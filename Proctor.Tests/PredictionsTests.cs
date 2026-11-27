@@ -73,14 +73,14 @@ public class PredictionsTests
         Assert.False(report.PostHoc);
         Assert.Empty(report.Labels);
         var (held, cites, calls) = (report.Changes[0], report.Changes[1], report.Changes[2]);
-        Assert.Contains(held.Outcome, new[] { "held", "leaning" });
+        Assert.Contains(held.Outcome, new[] { "supported", "inconclusive" });
         Assert.StartsWith("Predicted more correctness checks held than shipped: it went that way", held.Sentence);
         Assert.Equal("it says to read the note first", held.Because);
         // Predicted the wrong way round: said so, in the same words a hit gets.
-        Assert.Contains(cites.Outcome, new[] { "opposite", "opposite_confirmed" });
+        Assert.Contains(cites.Outcome, new[] { "contradicted", "inconclusive" });
         Assert.StartsWith("Predicted cites-note to hold in fewer stages than shipped: it went the other way", cites.Sentence);
         // Every scripted try makes one tool call: a prediction of more did not happen.
-        Assert.Equal("no_difference", calls.Outcome);
+        Assert.Equal("no_effect", calls.Outcome);
         Assert.Contains("it did not happen", calls.Sentence);
 
         var exam = repo.LoadExam("axes-answers");

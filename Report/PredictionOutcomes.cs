@@ -7,8 +7,9 @@ namespace Proctor;
 // A miss is said as plainly as a hit, and so is a prediction that so few tries cannot settle.
 
 /// <summary>
-/// One expected change's outcome. Outcome is held (as predicted, confirmed), leaning (as predicted, not confirmed),
-/// no_difference, opposite (the other way, not confirmed), opposite_confirmed, or not_run (a side has no graded try).
+/// One expected change's outcome, in the words the viewer shows (the user, 2026-11-27): supported (as predicted,
+/// confirmed), contradicted (the other way, confirmed), no_effect (no difference at all), inconclusive (a difference
+/// either way that is not confirmed; Measure says which way), or not_run (a side has no graded try).
 /// </summary>
 record ChangeOutcome(string? Check, string? Metric, string Direction, string? Because, string Outcome, int Tries, int AgainstTries, Measure? Measure, bool CouldConfirm, string Sentence);
 
@@ -21,6 +22,7 @@ record PredictionReport(string Name, string Configuration, string Against, strin
 static class PredictionOutcomes
 {
     const double Alpha = 0.05;
+    public const string Supported = "supported", Contradicted = "contradicted", NoEffect = "no_effect", Inconclusive = "inconclusive", NotRun = "not_run";
 
     public static List<PredictionReport> Compute(Exam exam, List<Prediction> predictions, IReadOnlyDictionary<string, TryVariant> byKey, List<ResultRow> rows, IEnumerable<BankAttempt> current)
     {
@@ -42,18 +44,18 @@ static class PredictionOutcomes
                 List<double>? Numbers(TryVariant? v, string key) => v?.Rows.Where(r => r.Invalid is null).Select(r => Number(p, r, key, rows)).ToList() is { } all && all.All(n => n is not null) ? all.Select(n => n!.Value).ToList() : null;
                 var (a, b) = (Numbers(mine, c.Configuration.Key), Numbers(theirs, c.Against.Key));
                 if (a is null or { Count: 0 } || b is null or { Count: 0 })
-                    return new ChangeOutcome(p.Check, p.Metric, p.Direction!, p.Because, "not_run", a?.Count ?? 0, b?.Count ?? 0, null, false,
+                    return new ChangeOutcome(p.Check, p.Metric, p.Direction!, p.Because, NotRun, a?.Count ?? 0, b?.Count ?? 0, null, false,
                         $"Predicted {said}: not run yet ({(a is null or { Count: 0 } ? name : other)} has no graded try{(p.Metric == "flagged_steps" && (a is null || b is null) ? ", or friction has not been run on every stage" : "")}).");
                 var measure = Tries.Compare(a, b, higherIsBetter: true);   // "better" here only means higher
                 var could = Tries.MinP(a.Count, b.Count) < Alpha;
                 var went = measure.Direction == "same" ? null : measure.Direction == "better" ? Predictions.More : Predictions.Less;
-                var outcome = went is null ? "no_difference" : went == p.Direction ? (measure.Confirmed ? "held" : "leaning") : measure.Confirmed ? "opposite_confirmed" : "opposite";
+                var outcome = went is null ? NoEffect : !measure.Confirmed ? Inconclusive : went == p.Direction ? Supported : Contradicted;
                 var tries = $"{a.Count} against {b.Count} {(a.Count + b.Count == 2 ? "try" : "tries")}";
                 var strength = measure.Confirmed ? $"confirmed (p = {P(measure.P)})" : could ? $"not confirmed (p = {P(measure.P)})" : $"which {tries} cannot confirm (p = {P(measure.P)})";
                 var sentence = outcome switch
                 {
-                    "no_difference" => $"Predicted {said}: it did not happen. No difference in {tries}{(could ? "" : ", which are too few to show one")}.",
-                    "held" or "leaning" => $"Predicted {said}: it went that way, {strength}.",
+                    NoEffect => $"Predicted {said}: it did not happen. No difference in {tries}{(could ? "" : ", which are too few to show one")}.",
+                    _ when went == p.Direction => $"Predicted {said}: it went that way, {strength}.",
                     _ => $"Predicted {said}: it went the other way, {strength}.",
                 };
                 return new ChangeOutcome(p.Check, p.Metric, p.Direction!, p.Because, outcome, a.Count, b.Count, measure, could, sentence);

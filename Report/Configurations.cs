@@ -22,16 +22,18 @@ record ConfigurationRow(string Key, string Label, Dictionary<string, string> Val
 
 /// <summary>
 /// A value against the live value of its axis with every other axis held: one cell of a comparison. State is compared,
-/// or which side has no counted try (not_run, live_not_run, neither_run). The measures are null unless compared.
+/// or which side has no counted try (not_run, live_not_run, neither_run). The measures are null unless compared. Held
+/// makes the verdict; of the rest fewer is better (the user, 2026-11-27), and each is null when a try on either side lacks the number.
 /// </summary>
-record ComparedCell(Dictionary<string, string> Holding, string Key, string LiveKey, string State, int Tries, int LiveTries, Measure? Held, Measure? Flagged);
+record ComparedCell(Dictionary<string, string> Holding, string Key, string LiveKey, string State, int Tries, int LiveTries, Measure? Held, Measure? Flagged,
+    Measure? ToolCalls = null, Measure? Tokens = null, Measure? Duration = null);
 
 /// <summary>
 /// The cells of a comparison read as one: stratified by cell, so a try is only ever ranked against tries of the same
 /// configuration of the other axes (van Elteren). Across names the axes pooled over, which is an assumption the report
 /// states: that the difference is the same kind of thing in each. Covered and Of count the cells compared and the cells there are.
 /// </summary>
-record Pooled(List<string> Across, int Covered, int Of, bool CanConfirm, Measure Held, Measure? Flagged);
+record Pooled(List<string> Across, int Covered, int Of, bool CanConfirm, Measure Held, Measure? Flagged, Measure? ToolCalls = null, Measure? Tokens = null, Measure? Duration = null);
 
 /// <summary>One value of an axis against that axis's live value: cell by cell, pooled when more than one cell was compared, and in a sentence.</summary>
 record AxisComparison(string Axis, string Value, string Live, List<ComparedCell> Cells, Pooled? Pooled, List<string> NotRun, string Sentence, List<string>? Cautions = null, string? Verdict = null);
@@ -78,7 +80,7 @@ static class Configurations
                 comparisons.Add(Compare(exam, byKey, standing, axis, value, def.Live!, moves: moves));
 
         var methods = "A configuration is one value on every axis. A try is every stage that applies in its configuration, once, in one workspace, and gives two numbers: "
-            + "the headline checks it held, and its flagged steps (the steps inside any friction point). "
+            + "the correctness checks it held, and its flagged steps (the steps inside any friction point). "
             + "A value is compared with the live value of its axis with every other axis held, try against try, by the Mann–Whitney test with an exact two-sided p. "
             + "Where more than one such cell was compared they are also read as one, by the van Elteren test: a try is ranked only against tries of the same cell, "
             + "so the cells may differ from each other without that counting as a difference between the values. Reading them as one assumes the difference is the same kind of thing in each cell; the cells are always shown. "
@@ -131,7 +133,8 @@ static class Configurations
             var state = n > 0 && m > 0 ? "compared" : n == 0 && m == 0 ? "neither_run" : n == 0 ? "not_run" : "live_not_run";
             cells.Add(new ComparedCell(holding, c.Key, other.Key, state, n, m,
                 state == "compared" ? Tries.Compare(Held(mine!), Held(theirs!), higherIsBetter: true) : null,
-                state == "compared" && Flagged(mine!) is { } f && Flagged(theirs!) is { } g ? Tries.Compare(f, g, higherIsBetter: false) : null));
+                state == "compared" && Flagged(mine!) is { } f && Flagged(theirs!) is { } g ? Tries.Compare(f, g, higherIsBetter: false) : null,
+                state == "compared" ? Fewer(mine!, theirs!, r => r.ToolCalls) : null, state == "compared" ? Fewer(mine!, theirs!, r => r.TokensIn) : null, state == "compared" ? Fewer(mine!, theirs!, r => r.DurationMs) : null));
         }
         var compared = cells.Where(c => c.State == "compared").ToList();
         var disagree = compared.Any(c => c.Held!.Direction == "better") && compared.Any(c => c.Held!.Direction == "worse");
@@ -143,7 +146,10 @@ static class Configurations
                 ? Stratified(strata.Select(s => (Flagged(s.Mine)!, Flagged(s.Theirs)!)).ToList(), higherIsBetter: false) : null;
             pooled = new Pooled(axes.Def.Keys.Where(a => !change.ContainsKey(a) && compared.Select(c => c.Holding[a]).Distinct().Count() > 1).ToList(), compared.Count, cells.Count,
                 MinP(strata.Select(s => (s.Mine.Tries, s.Theirs.Tries)).ToList()) < Alpha,
-                Stratified(strata.Select(s => (Held(s.Mine), Held(s.Theirs))).ToList(), higherIsBetter: true), flagged);
+                Stratified(strata.Select(s => (Held(s.Mine), Held(s.Theirs))).ToList(), higherIsBetter: true), flagged,
+                FewerAcross(r => r.ToolCalls), FewerAcross(r => r.TokensIn), FewerAcross(r => r.DurationMs));
+            Measure? FewerAcross(Func<TryRow, double?> of) => strata.All(s => Numbers(s.Mine, of) is not null && Numbers(s.Theirs, of) is not null)
+                ? Stratified(strata.Select(s => (Numbers(s.Mine, of)!, Numbers(s.Theirs, of)!)).ToList(), higherIsBetter: false) : null;
         }
         var notRun = cells.Where(c => c.State != "compared").Select(c => Holding(c.Holding) + c.State switch { "not_run" => "", "live_not_run" => $" (no {against} there)", _ => " (neither side)" }).ToList();
         // Where a configuration in the comparison is not simply its values: that travels with the sentence (plans/axes.md, "What follows", 2).
@@ -163,6 +169,9 @@ static class Configurations
         return new AxisComparison(axis, value, against, cells, pooled, notRun,
             sentence + string.Concat(cautions.Select(c => " " + c)), cautions.Count > 0 ? cautions : null, verdict);
 
+        // A count of a try's work (tool calls, tokens read, time): fewer is better, and it is compared only when every counted try on both sides has it.
+        static List<double>? Numbers(TryVariant v, Func<TryRow, double?> of) => v.Rows.Where(r => r.Invalid is null).ToList() is var counted && counted.All(r => of(r) is not null) ? counted.Select(r => of(r)!.Value).ToList() : null;
+        static Measure? Fewer(TryVariant mine, TryVariant theirs, Func<TryRow, double?> of) => Numbers(mine, of) is { } a && Numbers(theirs, of) is { } b ? Tries.Compare(a, b, higherIsBetter: false) : null;
         static List<double> Held(TryVariant v) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)r.Held).ToList();
         static List<double>? Flagged(TryVariant v) => v.Rows.Where(r => r.Invalid is null).ToList() is var counted && counted.All(r => r.Flagged is not null) ? counted.Select(r => (double)r.Flagged!.Value).ToList() : null;
     }

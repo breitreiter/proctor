@@ -9,7 +9,7 @@ namespace Proctor;
 // could have shown, what moved together, and an address for every number. JSON on standard output.
 
 /// <summary>One try behind a number: its id, when it was made, what it held, and where it is (the viewer's address, and the bank's directory for whoever has the files).</summary>
-record TryAddress(string Id, string Made, int Held, int Of, int? Flagged, string? Invalid, string Address, string Path);
+record TryAddress(string Id, string Made, int Held, int Of, int? Flagged, string? Invalid, string Address, string Path, int? ToolCalls = null, long? Tokens = null, long? DurationMs = null);
 
 /// <summary>One side of one setting: the configuration, whether it is known to be its values put together, and its counted tries as of the answer.</summary>
 record SideAnswer(string Configuration, string? Name, string? Together, string Address, List<TryAddress> Tries);
@@ -18,9 +18,10 @@ record SideAnswer(string Configuration, string? Name, string? Together, string A
 /// One setting of the other axes: the value's side and the other's, compared when both have tries. CouldConfirm is
 /// whether this many tries a side could confirm any difference at all; SmallestP the smallest p they could give.
 /// </summary>
-record CellAnswer(Dictionary<string, string> Holding, string State, SideAnswer Value, SideAnswer Against, Measure? Held, Measure? Flagged, bool CouldConfirm, double SmallestP, List<CheckHeld>? Checks = null);
+record CellAnswer(Dictionary<string, string> Holding, string State, SideAnswer Value, SideAnswer Against, Measure? Held, Measure? Flagged, bool CouldConfirm, double SmallestP, List<CheckHeld>? Checks = null,
+    Measure? ToolCalls = null, Measure? Tokens = null, Measure? Duration = null);
 
-/// <summary>One headline check in one setting: in how many of each side's counted tries it held. Counts only; no test is made of one check.</summary>
+/// <summary>One correctness check in one setting: in how many of each side's counted tries it held. Counts only; no test is made of one check.</summary>
 record CheckHeld(string Stage, string Check, string? About, int Value, int ValueTries, int Against, int AgainstTries);
 
 /// <summary>When each side's tries were made, and how far apart the two sides are (between the middle try of each).</summary>
@@ -156,9 +157,9 @@ static class Answers
             var c = axes.Of(key)!;
             var made = byKey.GetValueOrDefault(key)?.Rows.Where(r => ids.ContainsKey((key, r.N))).Select(r => (Row: r, Id: ids[(key, r.N)])).ToList() ?? [];
             return new SideAnswer(key, c.Name, standing.TryGetValue(key, out var together) ? together.State : null, ConfigurationAddress(exam, key),
-                made.Select(m => new TryAddress(m.Id, Iso(MadeAt(m.Id)!.Value), m.Row.Held, m.Row.Of, m.Row.Flagged, m.Row.Invalid, $"/{exam.Id}/try/{m.Id}", TryPath(exam, m.Id))).ToList());
+                made.Select(m => new TryAddress(m.Id, Iso(MadeAt(m.Id)!.Value), m.Row.Held, m.Row.Of, m.Row.Flagged, m.Row.Invalid, $"/{exam.Id}/try/{m.Id}", TryPath(exam, m.Id), m.Row.ToolCalls, m.Row.TokensIn, m.Row.DurationMs)).ToList());
         }
-        // Which check: in how many of each side's counted tries each headline check held. Counts, so a reader can see where a difference sits.
+        // Which check: in how many of each side's counted tries each correctness check held. Counts, so a reader can see where a difference sits.
         List<CheckHeld>? ChecksOf(ComparedCell c)
         {
             if (c.State != "compared") return null;
@@ -169,7 +170,7 @@ static class Answers
                 new CheckHeld(s.Id!, check, exam.ChecksFor(s).GetValueOrDefault(check) is { } declared ? Checks.Describe(declared.Spec) : null, Held(c.Key, mineNs, s.Id!, check), mineNs.Count, Held(c.LiveKey, theirNs, s.Id!, check), theirNs.Count))).ToList();
         }
         var cells = comparison.Cells.Select(c => new CellAnswer(c.Holding, c.State, Side(c.Key), Side(c.LiveKey), c.Held, c.Flagged,
-            Tries.MinP(c.Tries, c.LiveTries) < Alpha, Tries.MinP(c.Tries, c.LiveTries), ChecksOf(c))).ToList();
+            Tries.MinP(c.Tries, c.LiveTries) < Alpha, Tries.MinP(c.Tries, c.LiveTries), ChecksOf(c), c.ToolCalls, c.Tokens, c.Duration)).ToList();
 
         // What these counts of tries could have shown at best. A difference not confirmed is not a difference shown to be absent.
         var compared = cells.Where(c => c.State == "compared").ToList();
@@ -220,14 +221,14 @@ static class Answers
         var predicted = PredictionOutcomes.Compute(exam, Predictions.Load(root, exam, problems).Where(c => comparison.Cells.Any(k => k.Key == c.Configuration.Key)).ToList(), byKey, rows, current);
         return new ComparisonAnswer(Schema, exam.Id, Iso(at), address, asked, change, against, within is { Count: > 0 } ? new Dictionary<string, string>(within) : null,
             verdict, decided?.Confirmed, comparison.Sentence, cells, comparison.Pooled, comparison.NotRun, power, timing, moved, cautions, others, since,
-            "Every number here is proctor's, worked out as its report works it out. A try is one configuration run once through the exam's stages; held is the headline checks it held, of how many. "
+            "Every number here is proctor's, worked out as its report works it out. A try is one configuration run once through the exam's stages; held is the correctness checks it held, of how many. "
             + "change is compared with against (one value of an axis, or several values changed together when a configuration was asked about) in each setting of the other axes where the exam names or has tries of the change, try against try (Mann-Whitney, exact two-sided p), "
             + "and the settings compared are read as one when they do not point different ways (van Elteren). confirmed means p < 0.05; at the top it is of the one reading there is, "
             + "and absent when there is none (nothing compared, or better here and worse there: then each cell has its own). "
-            + "flagged is a try's steps inside any friction point, when friction was run. checks in a cell counts, per headline check, the tries of each side that held it; it tests nothing. "
+            + "flagged is a try's steps inside any friction point, when friction was run. checks in a cell counts, per correctness check, the tries of each side that held it; it tests nothing. "
             + "together on a configuration more than one value off the reference says whether `proctor build` found it to be its values put together (sum), more than that (more), not to be told (unclear), or never checked (not_checked). "
             + "A setting not run is not run, never no difference. tries_since counts tries made after as_of in these configurations: the numbers are as they stood at as_of. "
-            + "predictions are those written about a configuration in this comparison: each change one expects, with how it came out against the configuration it named; post hoc means tries of its configuration were made before the prediction was written. "
+            + "tool_calls, tokens and duration are compared as held and flagged are, try against try, and of each fewer is better; one is null when a try on either side does not carry the number. predictions are those written about a configuration in this comparison: each change one expects, with how it came out against the configuration it named; post hoc means tries of its configuration were made before the prediction was written. "
             + "An address opens the same thing in the viewer; path is its directory under the repository root. Nothing here recommends anything.",
             predicted.Count > 0 ? predicted : null);
     }

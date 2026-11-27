@@ -29,9 +29,30 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
     static string Text(string html) => Regex.Replace(WebUtility.HtmlDecode(Regex.Replace(html, "<[^>]+>", " ")), @"\s+", " ");
 
     [Fact]
-    public async Task TheExamPage_IsTheConfigurationsSomebodyNamedOrRan_AndSaysWhatToAskAnAgent()
+    public async Task TheExamPage_IsItsNamedConfigurationsAgainstLive_ItsPredictions_AndWhatTheExamIs()
     {
         var page = Text(await Get($"/{AxesBank.Exam}"));
+        var html = await Get($"/{AxesBank.Exam}");
+        // Each section is a word of the vocabulary, and every named configuration is a row, run or not.
+        foreach (var heading in new[] { "Configurations", "Predictions", "Axes", "Stages", "Checks", "How this is counted" }) Assert.Contains(heading, page);
+        foreach (var name in new[] { "shipped", "rewritten", "rewritten-b", "long-b" }) Assert.Contains($">{name}</a>", html);
+        Assert.Contains("no tries yet", page);
+        // The mark on a configuration is proctor's verdict on it against what is live, and links to that comparison.
+        var answer = JsonNode.Parse(bank.Proctor("compare", AxesBank.Exam, "--configuration", "rewritten"))!;
+        Assert.Contains(answer["verdict"]!.GetValue<string>() switch { "same" => "no difference vs shipped", "better_here_worse_there" => "better here, worse there vs shipped", var v => $"{v} vs shipped" }, page);
+        Assert.Contains($"/{AxesBank.Exam}/compare?configuration=rewritten", html);
+        // What the exam is: each check with its role, and how its stages run.
+        Assert.Contains("correctness", page);
+        Assert.Contains("The agent starts every stage with a fresh context.", page);
+        // A read-only page: nothing on it submits anything.
+        Assert.DoesNotContain("<form", html);
+        Assert.DoesNotContain("<button", html);
+    }
+
+    [Fact]
+    public async Task TheCoveragePage_IsTheConfigurationsSomebodyNamedOrRan_AndSaysWhatToAskAnAgent()
+    {
+        var page = Text(await Get($"/{AxesBank.Exam}/coverage"));
         // Proctor's counts: named and run, named and never run, and what is live across the assistant nobody chooses.
         var coverage = JsonNode.Parse(bank.Proctor("coverage", AxesBank.Exam))!;
         Assert.Equal(8, coverage["configurations"]!.AsArray().Count);

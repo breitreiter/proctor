@@ -96,8 +96,14 @@ public static class Pages
 
     internal static string Usd(double? value) => value is { } v ? "$" + v.ToString(v < 0.1 ? "0.000" : "0.00", CultureInfo.InvariantCulture) : "";
 
-    internal static StringBuilder Open(string title, (string Text, string? Href)[] crumbs, string? script = null)
+    /// <summary>A page's head and crumbs. Style "one" is the pages designed on the canvas (assets/one.css); without it, the first pass's stylesheet and Web Awesome's theme.</summary>
+    internal static StringBuilder Open(string title, (string Text, string? Href)[] crumbs, string? script = null, string? style = null)
     {
+        if (style == "one")
+            return new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
+                .Append($"<title>{E(title)}</title><link rel=\"stylesheet\" href=\"/assets/one.css\"></head><body data-style=\"one\"><div class=\"page\"><nav class=\"crumbs\" aria-label=\"Where this is\">")
+                .Append(string.Join("<span>/</span>", crumbs.Select(c => c.Href is null ? $"<span>{E(c.Text)}</span>" : $"<a href=\"{U(c.Href)}\">{E(c.Text)}</a>")))
+                .Append("</nav>");
         var page = new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
             .Append($"<title>{E(title)}</title>")
             // Web Awesome's theme goes dark by a class, not by the system setting; set it before the first paint.
@@ -110,8 +116,9 @@ public static class Pages
         return page.Append("</nav><main>");
     }
 
-    internal static string Close(StringBuilder page) =>
-        page.Append("</main><footer class=\"meta\">Components: Web Awesome, <a href=\"/assets/webawesome/LICENSE.md\">MIT licence</a>.</footer></body></html>").ToString();
+    internal static string Close(StringBuilder page) => page.ToString().Contains("<body data-style=\"one\">")
+        ? page.Append("<footer class=\"note\">Fonts: Geist, Geist Mono and Space Grotesk, <a href=\"/assets/fonts/README.md\">SIL Open Font Licence</a>.</footer></div></body></html>").ToString()
+        : page.Append("</main><footer class=\"meta\">Components: Web Awesome, <a href=\"/assets/webawesome/LICENSE.md\">MIT licence</a>.</footer></body></html>").ToString();
 
     internal static string E(string text) => WebUtility.HtmlEncode(text);
 

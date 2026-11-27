@@ -63,6 +63,20 @@ holding `bank/` and `exams/`.
 - `assets/auspex.css`: auspex's own tokens and layout, unlayered, so it
   wins over Web Awesome's base layer (which styles every native
   `details` and `button`; override what a component sets).
+- `ExamPage.cs`: the page of an exam with axes, `/<exam>`, the first of
+  the pages designed on the canvas to be built (2026-11-27; the others
+  are still the first pass). Sections are vocabulary words:
+  Configurations (each named one against what is live on five measures,
+  a strip centred on live's median), Predictions, Axes, Stages, Checks
+  with their roles. It reads `Measured.Stats` and, per configuration,
+  `Measured.Compare`. No form and no button: the viewer changes nothing
+  in v1.
+- `assets/one.css` and `assets/fonts/`: the designed pages' stylesheet
+  (dark ground, Geist, Space Grotesk heads, lime rules), copied from the
+  canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a
+  page asks nothing of the network. `Pages.Open(..., style: "one")`
+  links it in place of `auspex.css` and Web Awesome's theme. When every
+  page has moved, `auspex.css` goes.
 - `Quote.cs`: finds a quote by proctor's judge rule.
 - `assets/webawesome/`: Web Awesome 3.14.0 (MIT), vendored by
   `tools/vendor_webawesome.py` from the npm tarball's `dist-cdn/`: only
@@ -75,7 +89,8 @@ holding `bank/` and `exams/`.
   CDN. Dark mode is the `wa-dark` class, set from the system setting by
   an inline script in each page's head.
 - `Measured.cs`: the one doorway to proctor's code (`Proctor.Exam.Load`,
-  `Proctor.Answers.Compare` and `Coverage`). What it gives is rendered
+  `Proctor.Answers.Compare` and `Coverage`, and `Stats`, an exam's
+  report as `proctor report` computes it). What it gives is rendered
   as given; what proctor refuses is shown in proctor's words.
 - `AxesPages.cs`: an exam with axes (proctor's `axes-build.md`, slice
   3d; `project/exam-page-axes.md`). The exam as the configurations it
@@ -230,8 +245,8 @@ the same way:
 - A **task** is one prompt against a **fixture**, the repository it runs
   against.
 - A **check** is one yes-or-no grading question asked of a finished
-  attempt; where it is listed sets its role (`pass`, `validity`, or a
-  guardrail rate).
+  attempt; where it is listed sets its role (`correctness`, `integrity`,
+  `quality`, or in no list an observation).
 - A **variant** is what is under test: an agent, a model and a bundle.
 - An **attempt** is one variant at one task, once, with its evidence.
   Several per task, because the agent is stochastic.
