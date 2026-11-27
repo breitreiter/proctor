@@ -866,3 +866,35 @@ Code has no such switch in Harbor and proctor brings its own agent
 class; its list has no web tool, and what it loads on demand
 (`web_fetch`) runs in the container, under the policy. Not done: a
 0.24.0 list for Claude Code to set beside it, and a call counted.
+
+## The relay as proctor builds it, first runs (2026-11-27)
+
+Run, on rootless podman 5.7.0 (sanjuro) at Harbor 0.26.0, proctor at
+8fdf6e1, in a scratch root: conformance and `fixtures/stub` as they
+are, the stub model also running on the host bound to
+`127.0.0.1:18765`, and the three agents' base URLs at
+`http://localhost:18765`. Nothing in the task was made by hand.
+
+- `proctor run conformance --tasks ok`: Claude Code, Codex and Qwen
+  Code each completed, and `grade` passed all four checks of each. The
+  compiled task has `network_mode = "no-network"` for the agent and the
+  environment, the `proctor-relay` service beside the fixture's own
+  `stub` service, and `NET_RAW` dropped. The log entry holds
+  `harbor.relay` (`dir`, `ports: [18765]`). The socket directory was
+  gone when the run ended.
+- **nb as the agent**, on a provider entry whose `Endpoint` is
+  `http://localhost:18765/v1`: completed, and the host's stub logged
+  its chat completions. The relay had not been tried with nb before.
+- **Two ports at once**: the fixture given `"host_ports": [18766]`, a
+  file server on the host's `127.0.0.1:18766`, and a task whose one
+  command is `curl -s http://localhost:18766/hello.txt > made.txt`. The
+  diff holds the file's line and the host's server logged the request,
+  while the model went through 18765.
+- With the file server stopped, `run` refused before making anything:
+  "fixture 'stub' names this machine's port 18766 (image.host_ports),
+  and nothing answers there; start what it is for".
+
+Not run yet: rootless Docker (asked of golem's session), a run
+interrupted and continued, `hang`, an agent that is not root, long
+streams side by side through the C# end (eight at once were run through
+socat on 2026-11-25).
