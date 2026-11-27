@@ -280,6 +280,17 @@ carry itself across days, and 0.27.0 cannot be resolved before
   that.** Next: stage 4, the guides; then 0.27.0 and the pull
   request's trials on the 28th.
 
+- 2026-11-27, stage 4. Written: `docs/network.md` (the boundary page),
+  `docs/service-fixtures.md`, `docs/docker.md`; `docs/podman.md` and
+  `docs/modal.md` brought to 0.26.0; the sandbox plan, the skill, the
+  README and `docs/configuration.md` point at them; four drafts for
+  Harbor in `project/harbor-issue-drafts.md` (one waits for the 28th);
+  the two todos rewritten to what is left. Found on the way: a
+  fixture's services are in no hash (`todo.md`). Left of stage 4: the
+  walk through the guides on golem, and archiving both plans, which
+  waits for 0.27.0 and the pull request's trials since this file says
+  where they stand.
+
 ## Not done, and why
 
 - **Harbor's pull request 4427 is not run yet**, only read. The user
@@ -289,6 +300,11 @@ carry itself across days, and 0.27.0 cannot be resolved before
   01:24 UTC, the day 0.27.0 resolves too. The question it answers is
   whether a service joined to `harbor-docker-egress-control-main-8e62e8c65106`
   answers at the agent's `localhost` there.
+- **The guides were not walked on a clean machine**, and nothing in
+  them was run on macOS, Docker Desktop or rootful Docker. `docs/docker.md`
+  marks each such part.
+- **Both plans are not archived yet**: 0.27.0 and the pull request's
+  trials are still ahead, and this file is where they are tracked.
 - **No warning for a private model host.** The plan listed one. With a
   loopback host relayed there is nothing left to warn of: a model on
   another machine of the network works, and the one way it fails is the

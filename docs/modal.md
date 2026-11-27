@@ -20,8 +20,11 @@ a local model while its agent variants run on Modal.
 Modal support is **experimental**. Checked on 2026-11-10 with Harbor
 0.24.0 (Modal SDK 1.5 and later): a `code-change` task through Harbor's
 verifier, the allowlist from inside a sandbox, and the gate
-(`PROCTOR_GATE_ENGINE=modal`). No hosted model's agent has run there yet,
-nor the oracle's simulated user.
+(`PROCTOR_GATE_ENGINE=modal`). On 2026-11-26 and 27 with Harbor 0.26.0:
+a task with services, and what an agent's phase can reach there; the
+gate was not run again. No hosted model's agent has run there yet, nor
+the oracle's simulated user. What an agent's container can reach, on
+any engine, is [`network.md`](network.md).
 
 If Modal is the only place your agent variants will run, `proctor setup` can
 choose it instead (the sandbox step, "A hosted sandbox service", then
@@ -57,7 +60,7 @@ the other before anything starts.
 `run` refuses these before it makes anything, and says which variant or
 fixture and why:
 
-- **A model on your network.** A base URL whose host is `localhost`, a
+- **A model on your machine or your network.** A base URL whose host is `localhost`, a
   private or link-local address, a name without a domain (`imp`,
   `library`) or a `.local`, `.lan`, `.internal` or `.home` name. Bare variants
   are not affected, since they run on your machine.
@@ -67,7 +70,11 @@ fixture and why:
   anything the agent left running then has the internet once its phase
   ends. Proctor closes that everywhere else, so it refuses these tasks
   on Modal for now. Run these exams on docker or podman. The stub model that conformance uses
-  is one, so conformance stays a local check.
+  is one, so conformance stays a local check. So is any exam with axes
+  that sets a tree parameter, since a service is what serves it
+  ([`service-fixtures.md`](service-fixtures.md)).
+- **A port of your machine** (`image.host_ports` on a fixture): there is
+  no such machine beside a sandbox.
 
 An `agent: nb` variant runs on Modal if its provider's endpoint in nb's config
 is public. nb's publish (`harbor.nb`) is copied into each nb task's image,

@@ -116,6 +116,7 @@ have not added, run `proctor setup` yourself.
 risky instructions on purpose. In `proctor setup`, choose *On this machine*
 at **2. Sandbox**: setup looks at what is installed and writes
 `exams/sandbox-plan.md`, a brief for your coding agent to finish the job
-with you. What it needs and why is in `docs/podman.md` and
-`docs/configuration.md`, "Agent variants". Exams on the built-in harness, like
+with you. What it needs and why is in `docs/docker.md` or
+`docs/podman.md`, and what the agent can then reach is in
+`docs/network.md`. Exams on the built-in harness, like
 the two above, need no sandbox.

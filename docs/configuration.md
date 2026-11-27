@@ -419,7 +419,9 @@ reach. Proctor copies the variant's bundle beside those services as
 mount `./bundle` and serve it: a docs site, say, that the agent reads over
 HTTP and cannot grep. `fixtures/tern-shop` serves a docs bundle this way,
 and `exams/tern-docs` compares two versions of those docs with none.
-Services run on Docker and podman, not on Modal.
+Services run on Docker and podman, not on Modal. How to write one, and
+what the agent can and cannot see of it, is
+[`service-fixtures.md`](service-fixtures.md).
 
 `image.allowed_hosts` names hosts the agent may reach beside its model's
 (`"allowed_hosts": ["api.example.com"]`), for a service that cannot
@@ -777,9 +779,11 @@ Harbor, and a container engine, set by `harbor.engine` in
   Ubuntu's `docker.io` package brings neither: install `docker-compose-v2`
   and `docker-buildx` beside it. Without buildx every Harbor attempt fails
   building its egress sidecar with `unknown flag: --file`, the bare
-  attempts untouched. Rootless Docker works (the gate passes on it): set
+  attempts untouched. Rootless Docker works (the gates and conformance
+  pass on it): set
   `DOCKER_HOST=unix:///run/user/<uid>/docker.sock` in proctor's env file,
   since Harbor runs under uv and a client there may not read CLI contexts.
+  The rest is [`docker.md`](docker.md).
 - **Podman**, rootless, with its API socket running, docker-compose v2
   behind `podman compose`, and three lines of user config. The setup,
   and why each step is there, is [`podman.md`](podman.md);
@@ -788,6 +792,9 @@ Harbor, and a container engine, set by `harbor.engine` in
   as sandboxes on your Modal account. The agent's model must be on the
   internet, and a fixture with `image.services` cannot run there. Setting
   it up, and what it costs, is [`modal.md`](modal.md).
+
+What an agent's container may reach on the network, and how to see it,
+is [`network.md`](network.md).
 
 The same file says where each vendor agent's model calls go and where nb's
 self-contained linux-x64 publish is, for an `agent: nb` variant:

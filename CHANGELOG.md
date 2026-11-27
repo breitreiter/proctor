@@ -7,6 +7,10 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Three guides**: `docs/network.md` (what an agent's container can
+  reach on any engine, and what an allowlist is and is not),
+  `docs/service-fixtures.md` (a fixture with services, and what the
+  agent can and cannot see of one) and `docs/docker.md`.
 - **A fixture names further hosts its agent may reach**
   (`image.allowed_hosts`), beside the model's, for a service that
   cannot sensibly be simulated. By host, as Harbor's allowlist is:

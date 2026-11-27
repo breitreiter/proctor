@@ -1236,74 +1236,45 @@ of metadata/tagging system so you can say 'run all the oracle exams'".
 - Not decided: whether a report over several exams is one report or a
   page that lists each exam's.
 
-## The container-engine guides: tidy podman and Modal, write Docker (2026-11-25)
+## The container-engine guides: what is left (2026-11-27)
 
-The user, after a gateway on a laptop's loopback could not be reached
-from a container: proctor should ship advice on working with each
-engine, kept tidy where it exists and written where it does not. What
-there is today:
+Written 2026-11-27 (`plans/container-network-finish.md`, stage 4):
+`docs/network.md` (the page each engine guide points at),
+`docs/service-fixtures.md`, `docs/docker.md`; `docs/podman.md` and
+`docs/modal.md` brought up to Harbor 0.26.0; setup's sandbox plan, the
+`proctor-exam` skill and the README point at them. Left:
 
-| Engine | Guide | State |
-|---|---|---|
-| podman | `docs/podman.md` | Checked 2026-10-27. Section 5 was replaced 2026-11-26: it no longer gives the loopback mapping, says a gateway on another machine works and what that leaves open, and that the same machine has no supported way yet. It waits for `plans/container-network.md` to say what that way is |
-| Modal | `docs/modal.md`, 99 lines | Written before stages and axes |
-| Docker | none | `podman.md` says "Docker needs none of this"; `docs/configuration.md`, "Agent variants", covers both in passing |
-
-**podman.md, section 5, told the reader to do what the user has said
-not to advise** (replaced 2026-11-26, as the table says; what follows
-is why). It gave `pasta_options = ["--map-host-loopback", …]`
-as the way to reach a gateway on the host's loopback, then warns that
-every loopback service is open to every trial and says to prefer a LAN
-address. The user (2026-11-25): opening the host's loopback to
-containers is for narrow testing on a machine that does not matter,
-"we should absolutely not advise that for general use". And a LAN
-address is not always a way out: on that laptop the Wi-Fi subnet was
-inside Docker's default bridge subnet, and a LAN address opens the
-gateway to the network. What to say in its place is not settled
-(`learnings/harbor.md`, "A gateway on the same machine as the
-containers", holds a proposal: one private address on the host that the
-gateway also listens on, untested). Another session is working out
-guidance that is safe and still works (the user, 2026-11-25); the
-section waits for that. Its research plan is
-`plans/container-network.md`.
-
-**Docker has no guide, and rootless Docker is not "none of this".**
-To write, as `docs/docker.md`:
-
-- what Harbor needs of it (Compose v2, buildx), rootful and rootless;
-- that rootless Docker closes the host's loopback and how a container
-  is meant to reach a model gateway on the same machine, once that is
-  settled;
-- the subnet collision above, and how to see it (a container's
-  `ip route` against the host's address);
-- what a trial leaves behind and who removes it, as `podman.md` 6b
-  says for podman;
-- `DOCKER_HOST` for a rootless socket, which `~/.config/proctor/env`
-  is the place for.
-
-**modal.md** predates stages and axes. To check: that it says a
-configuration's tree parameter needs a fixture with services, which
-Modal refuses; that nb's publish copied into the task is still how nb
-gets there; that its costs and its "what cannot run" list are current.
-
-Also `Setup/SandboxPlan.cs`, which points at `docs/podman.md` and has
-nothing to point at for Docker.
-
-Each guide says when it was last checked and on what versions, as
-`podman.md` does, so "tidy" has a date to be measured against.
+- **Nothing was run on macOS**, Docker Desktop or rootful Docker; the
+  Docker guide says so, section by section. There is no Mac. The
+  relay's socket mount through an engine's VM is the open question.
+- **One walk through the guides on a clean machine**, by an agent from
+  the pages alone, has not been made.
+- **`docs/podman.md` section 8's wrapper is podman's**; not adapted for
+  Docker.
+- Each guide's date and versions move when the pin does (0.27.0 from
+  2026-11-28).
 
 ## One host and one port for an agent's model, on any machine
 
-Asked for by the user 2026-11-26 ("a shame that we don't have more
-narrow firewall controls. maybe a future feature for proctor, since we
-seem to have so many weird network issues"). Harbor's allowlist is by
-host, never by port, so an agent allowed its gateway can reach every
-web service on that machine. The candidate is the socket relay of
-`plans/container-network.md` (B1 passed on rootless Docker; B6 asks
-whether it is also right when the gateway is on another machine): the
-agent's phase has no network at all and reaches one address through a
-relay proctor starts. Not designed. What was seen is in
-`learnings/harbor.md`, "The same probe on rootless podman".
+Asked for by the user 2026-11-26. **Built for the machine that runs
+proctor** (2026-11-27): a loopback base URL is relayed, one port, and
+the agent's phase is `no-network` (`docs/network.md`). **Not built for
+a host elsewhere**: Harbor's allowlist is by host, never by port, so an
+agent allowed a gateway on another machine reaches every web service
+on it. That is Harbor's to give (`harbor-issue-drafts.md`, draft 1);
+the relay could carry a remote host's port too, from the machine that
+runs proctor, and nobody has asked.
+
+## A fixture's services are in no hash
+
+Found 2026-11-27 writing `docs/service-fixtures.md`. A task's hash
+covers the fixture's `image` block and the content of `repo/`
+(`Exam.JobHash`), not the files under `image.services`. Edit
+`fixtures/stub/services/stub.py` or `tern-shop`'s API and every attempt
+stays current, though the agent met another service. The guide says to
+copy the fixture and exam; to decide: whether the services directory
+belongs in the task's hash (it is what the agent meets), which would
+make the banks of `conformance` and `tern-docs` stale once.
 
 ## Keep the model's endpoint and key out of the agent's reach
 

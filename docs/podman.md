@@ -1,10 +1,14 @@
 # Agent variants on rootless podman
 
 What a machine needs before `harbor.engine: podman` works, and why each
-step is there. Checked on 2026-10-27 (section 5 on 2026-11-26) with rootless podman 5.7.0 on Ubuntu,
+step is there. Checked on 2026-10-27 with rootless podman 5.7.0 on Ubuntu,
 docker-compose 2.40.3 and Harbor 0.24.0: conformance (every vendor agent
 against the stub) and the oracle pass over `code-change` both run green.
-Earlier findings came from podman 6.1.3. Docker needs none of this.
+Checked again on 2026-11-26 and 27 with Harbor 0.26.0: both gates,
+conformance, and section 5. Earlier findings came from podman 6.1.3.
+Docker needs little of this; its own page is [`docker.md`](docker.md).
+What an agent's container can reach, on any engine, is
+[`network.md`](network.md).
 
 `run` checks the compose frontend, the compose banner and the
 search registry before a run starts, and says which step is
@@ -24,8 +28,8 @@ sudo loginctl enable-linger "$USER"
   (`grep "^$USER:" /etc/subuid` to see).
 - Linger keeps the user's systemd running without a login session, so
   the API socket below survives logging out.
-- **docker-compose v2 is the only compose frontend that works with Harbor
-  0.24.0.** `podman-compose` has no `compose ls`, which Harbor's preflight
+- **docker-compose v2 is the only compose frontend that works with
+  Harbor** (0.24.0 and 0.26.0). `podman-compose` has no `compose ls`, which Harbor's preflight
   runs, and refuses `exec --no-TTY`, which the allowlist phase runs. With
   both installed, set `PODMAN_COMPOSE_PROVIDER` to docker-compose's path
   (`/usr/libexec/docker/cli-plugins/docker-compose` on Ubuntu); proctor
@@ -74,8 +78,9 @@ only those passes.
 ## 5. Where the model gateway can be
 
 An agent's container may reach one host, the one in `proctor.json`'s
-`agents.<agent>.base_url`, and nothing else. Where that host is decides
-whether this works.
+`agents.<agent>.base_url`, and what its fixture provides
+([`network.md`](network.md) has the whole rule). Where that host is
+decides whether this works.
 
 **On another machine: this works.** Name the machine in `base_url` as
 your network resolves it. The allowlist is by host, not by port, so

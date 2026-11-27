@@ -153,6 +153,15 @@ bank, live.
   `description`. They read `PROCTOR_WORK`, `PROCTOR_DIFF`,
   `PROCTOR_TRANSCRIPT` and `PROCTOR_EXPECT`. On an agent variant they run in an
   offline verifier, never on the host, and see no transcript.
+- **An agent variant reaches its model and what its fixture provides,
+  nothing else.** Code that calls an API needs that API as a service of
+  the fixture (`image.services`), reached at `localhost`, which the
+  agent can call and cannot read; the checks get no services and start
+  their own. A model or a dev server on the user's own machine is named
+  as `localhost` and proctor relays the one port. Never propose opening
+  the host's loopback to containers. `docs/network.md` and
+  `docs/service-fixtures.md` have the rules; plan for them before
+  writing a fixture, since they decide where things listen.
 - **Deterministic first.** A regex, an exit code, the user's own tests run
   against the result: free, repeatable, and they never drift. Use a model
   judge only for what cannot be checked otherwise, from a provider other

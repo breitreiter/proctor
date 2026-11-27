@@ -75,10 +75,12 @@ static class SandboxPlan
             : $"- `harbor.engine` in `exams/proctor.json` naming the engine (`docker` is the default; setup wrote `{engine}` here, from what it found).");
         b.AppendLine();
         b.AppendLine("Why each of these exists, and the known traps (Ubuntu's pasta AppArmor profile among them), are in "
-            + "`docs/podman.md` for podman and `docs/configuration.md`, \"Agent variants\", for both.");
+            + "`docs/podman.md` for podman and `docs/docker.md` for Docker (rootless Docker's socket, its bridge's address range, "
+            + "what was not run on macOS). What an agent's container may reach, and that the host's loopback is never to be opened to "
+            + "containers to reach a model on this machine (proctor relays that port itself), is `docs/network.md`.");
         if (OperatingSystem.IsWindows())
             b.AppendLine().AppendLine("This is Windows. Harbor on a Windows host has not been tried with proctor; Docker Desktop on WSL2 is the "
-                + "likely route, and `docs/podman.md` is Linux-only. Say so to the user before they spend effort on it.");
+                + "likely route, and `docs/podman.md` and `docs/docker.md` were checked on Linux only. Say so to the user before they spend effort on it.");
         b.AppendLine();
 
         b.AppendLine("## How to proceed").AppendLine();
