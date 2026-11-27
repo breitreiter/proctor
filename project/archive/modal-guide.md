@@ -1,3 +1,6 @@
+> **Archived 2026-11-27.** The modal engine was moved out of proctor (`project/plans/remix.md`). This guide describes
+> the code at the git tag `modal-in-core` and nothing in the tree now. `proctor.modal.example.json` is beside it.
+
 # Agent variants on Modal
 
 `harbor.engine: modal` runs each agent attempt's containers as sandboxes on

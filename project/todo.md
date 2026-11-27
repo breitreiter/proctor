@@ -292,8 +292,14 @@ about that much.
 
 ## Hosted sandboxes for agent arms
 
-Modal shipped as `harbor.engine: modal` (`docs/modal.md`,
-`project/plans/modal-runs.md`). Other hosted services wait for a user who
+**2026-11-27: Modal was taken out of the core** (`project/plans/remix.md`). Its code is at the tag
+`modal-in-core`, its plan and guide in `project/archive/` (`modal-runs.md`, `modal-guide.md`), and with it went
+the whole path for an engine off the machine (`HarborConfig.Remote`, nb's publish copied into the build context,
+`Unreachable`). It is to come back as the first engine written against an extension point that does not exist
+yet; the two sections below this one are kept for that day and describe nothing in the code now.
+
+Modal shipped as `harbor.engine: modal` (`project/archive/modal-guide.md`,
+`project/archive/modal-runs.md`). Other hosted services wait for a user who
 needs one. Harbor's `environment.type` is believed to cover Daytona, E2B and
 Runloop too (verify at the pinned version), and Modal's work is the
 template for each:

@@ -7,6 +7,13 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: the modal engine is gone from proctor.** `harbor.engine:
+  modal` is refused with a sentence saying where it went: the code is
+  at the git tag `modal-in-core`, and its guide and example machine
+  file are in `project/archive/`. Rootless podman on Arch and Ubuntu
+  is the engine that is supported; Docker still works and is not
+  maintained. `--config <file>` stays. `proctor setup` records Modal
+  as a hosted service that is wanted, like the others.
 - **An exam's or a fixture's own `README.md` no longer outdates a
   script verdict** on an agent variant when it is edited: it is for
   people. Any other file a script could read still does.

@@ -141,7 +141,7 @@ in the order the verbs run them. Every file is one concern:
 | `fixtures/` | the repositories tasks run against, each with its own checks beside (never inside) its `repo/`. `jotcli` is a tiny TypeScript CLI whose `clear` reads its confirmation from `/dev/tty` with no `--yes` and exits 0 when it gives up, planted on purpose (its README says why); one of two non-.NET fixtures, with `tern-shop` (Python, beside two compose services: Tern's sandbox API and a docs site serving the variant's bundle). `empty` holds nothing, for tasks whose whole context is in the prompt. `toolchain` is a scripted control whose image takes a declared parameter as a build argument and writes it to `/etc/toolchain`, standing in for a real toolchain axis |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (the site), the credit goes with it |
 | `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one nb run (`capture.sh` regenerates them); `snapshots/` are the approved renderings; `exams/` is test data `TestRepo.CopyExam` finds after `exams/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never an exam to run; `exams/axes-harbor` is the scripted control for axes through Harbor (nb on Mock in `fixtures/toolchain`'s image, a toolchain as a build argument, a README laid into the repository, a stage with a condition), compiled by `AxesHarborTests` and run in Docker by hand; `exams/axes-answers` is a scripted exam with known answers for `compare` and `coverage` (its checks pass at a chance set by the configuration; `make.sh <dir>` makes its bank in a scratch root, no model), which `AnswersTests` runs part of; `python/` is `oracle_user.py`'s unittests, on stub `harbor` modules and captured `acpx` output, which `OracleHarborTests` runs with `python3` |
-| `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own exam with your agent); `cli.md`, every verb and flag, the live variant, the report files (moved out of the README); `configuration.md`, the reference for exam, fixture, task, variant and `proctor.json` (moved out of the README; `exam-authoring`'s variants name it in their bundle's paths); `porting-to-agent-neutral.md`, how an exam moves to agent variants (a draft, from porting `code-change`); `network.md`, what an agent's container can reach on any engine, what an allowlist is and is not, and how to see it (the page every engine guide points at); `service-fixtures.md`, how to write a fixture with services and what the agent can and cannot see of one; `docker.md`, what Docker needs, rootless and its bridge's range, what a trial leaves, and macOS marked not run; `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor; `modal.md`, agent variants on Modal's sandboxes from a second machine file (`--config`), what it costs and what cannot run there |
+| `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own exam with your agent); `cli.md`, every verb and flag, the live variant, the report files (moved out of the README); `configuration.md`, the reference for exam, fixture, task, variant and `proctor.json` (moved out of the README; `exam-authoring`'s variants name it in their bundle's paths); `porting-to-agent-neutral.md`, how an exam moves to agent variants (a draft, from porting `code-change`); `network.md`, what an agent's container can reach on any engine, what an allowlist is and is not, and how to see it (the page every engine guide points at); `service-fixtures.md`, how to write a fixture with services and what the agent can and cannot see of one; `docker.md`, what Docker needs, rootless and its bridge's range, what a trial leaves, and macOS marked not run; `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor |
 | `skills/proctor-answers/` | the skill for an agent answering a person from `compare` and `coverage`: quote proctor's numbers, keep each inside its scope, link the evidence, and say which part is the agent's own recommendation |
 | `skills/proctor-exam/` | the onboarding skill a user copies into their agent's skills directory: plan an exam with the user (inventory, tasks, checks, variants, cost; a `PLAN.md` approved), then build it and prove its checks for free; only what a frontier model would not guess and proctor's gotchas, pointing at `docs/configuration.md` and the example exams for the rest |
 | `View/` | the viewer, auspex, moved in on 2026-11-24 (stage 1 of `project/plans/rename-to-auspex.md`): its own project (`View/Auspex.csproj`, ASP.NET, pages rendered on the server) and tests (`View/Auspex.Tests/`) in the same solution, not compiled into proctor. It reads the bank's files itself and calls proctor's code for what only proctor may work out (`View/Measured.cs`: an exam's configurations, `Answers.Compare`, `Answers.Coverage`), so proctor's internals are visible to it. It makes no model call. Its own notes are `View/CLAUDE.md`; its design notes are `project/view/` |
@@ -341,29 +341,13 @@ The directories are for reading, not for namespaces: everything is
   model's host in the allowlist (`HarborCompile.Hosts`), and `run` warns, never refuses, when one of them is inside
   the engine's default container range (`HarborRun.SubnetWarning`). The plan is
   `project/plans/container-network-finish.md`; what was measured is `project/learnings/harbor.md`.
-- **Modal is an engine off the machine, picked by a second machine file.**
-  `harbor.engine: modal` (`HarborConfig.Remote`) runs each attempt as Modal
-  sandboxes on the user's login (`~/.modal.toml` or `MODAL_TOKEN_*`,
-  inherited by Harbor's process; `HarborRun.Preflight` checks it), Harbor
-  with its `modal` extra (`harbor[modal]@<pin>`). `--config <file>` on
-  `list`, `run` and `grade` reads that file in place of
-  `exams/proctor.json` (relative paths still against `exams/`;
-  `ProctorConfig.Source` is what messages call it), so an exam shaken down
-  locally is promoted by naming another file. On a remote engine nb's layer
-  is not built: compile copies the publish into each nb task's context
-  (`environment/proctor-nb/`, `COPY proctor-nb /opt/nb`), the tag kept as
-  the publish's identity. Each job gives Modal's sandboxes the attempt's
-  lifetime and a ten-minute idle limit (`HarborCompile.ModalIdle`), since
-  Harbor's default is a day with none, so a killed trial costs minutes and
-  `TearDown` has nothing to remove. `run` refuses, before anything is
-  made, an agent variant whose model host a sandbox cannot reach
-  (`HarborRun.Unreachable`: loopback, private, dotless or `.local`-style
-  names) and a fixture with `image.services`: since 0.26.0 Harbor's Modal
-  environment runs a compose task, but builds its image inside the sandbox, so the environment's phase must be public
-  and a process the agent left running has the internet after its phase (`project/learnings/harbor.md`, 2026-11-27).
-  So conformance and the oracle gate stay local; the gate runs on Modal
-  (`PROCTOR_GATE_ENGINE=modal`). The plan and its three spikes are
-  `project/archive/modal-runs.md`; the user's guide is `docs/modal.md`.
+- **The engine is on this machine; a second machine file picks another.** `--config <file>` on `list`, `run` and
+  `grade` reads that file in place of `exams/proctor.json` (relative paths still against `exams/`;
+  `ProctorConfig.Source` is what messages call it), and `run` continues an interrupted run only with the engine it was
+  made on. Modal, an engine off the machine, was taken out of the core on 2026-11-27 (`project/plans/remix.md`):
+  `harbor.engine: modal` is refused with where it went (`HarborConfig.GoneWhere`), the code is at the git tag
+  `modal-in-core`, and its plan, guide and example file are in `project/archive/` (`modal-runs.md` lists what it
+  touched). The path for a remote engine went with it, having no other user.
 - **A check of the layer costs nothing.** Proctor checks that it drives
   Harbor and reads back what Harbor wrote, never Harbor itself and never a
   model: the unit tests, the gate (nb on Mock) and conformance (each vendor

@@ -48,16 +48,15 @@ record AgentEndpoint(string? BaseUrl, string? ApiKey, string? Config = null);
 /// <summary>
 /// proctor.json's harbor block: the uv that runs the exam's pinned Harbor (default: uv on PATH), nb's self-contained
 /// linux-x64 publish directory, which an nb variant's image carries (relative to exams/, like nb.path), and the container
-/// engine Harbor drives, its environment type: docker (the default) or podman on this machine, or modal, Modal's
-/// sandboxes on the user's Modal login.
+/// engine Harbor drives, its environment type: docker (the default) or podman, on this machine. An engine off the machine (Modal) was
+/// taken out of the core on 2026-11-27 and is kept at the tag modal-in-core (project/archive/modal-runs.md).
 /// </summary>
 record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker")
 {
-    public const string Modal = "modal";
-    public static readonly string[] Engines = ["docker", "podman", Modal];
-
-    /// <summary>Whether the attempts run off this machine: a remote builder cannot see a local image, and a sandbox there reaches only public hosts.</summary>
-    [JsonIgnore] public bool Remote => Engine == Modal;
+    public static readonly string[] Engines = ["docker", "podman"];
+    /// <summary>An engine that was here once, with where its code went.</summary>
+    public const string Gone = "modal";
+    public const string GoneWhere = "the modal engine was moved out of proctor on 2026-11-27; its code is at the git tag modal-in-core, with its plan and guide in project/archive/. Supported: podman";
 }
 
 /// <summary>
@@ -349,7 +348,7 @@ sealed class Exam
             if (raw?[field] is not null)
                 problems.Add(new Problem(Path.GetRelativePath(root, file), $"nb.{field}", $"belongs in the exam: exam.json nb.{field}"));
         if (config?.Harbor is { } harbor && !HarborConfig.Engines.Contains(harbor.Engine))
-            problems.Add(new Problem(Path.GetRelativePath(root, file), "harbor.engine", $"unknown engine '{harbor.Engine}'; known: {string.Join(", ", HarborConfig.Engines)}"));
+            problems.Add(new Problem(Path.GetRelativePath(root, file), "harbor.engine", harbor.Engine == HarborConfig.Gone ? HarborConfig.GoneWhere : $"unknown engine '{harbor.Engine}'; known: {string.Join(", ", HarborConfig.Engines)}"));
         Judges.Validate(config?.Judges, (field, message) => problems.Add(new Problem(Path.GetRelativePath(root, file), field, message)));
         foreach (var (name, endpoint) in config?.Agents ?? [])
         {

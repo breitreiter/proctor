@@ -121,7 +121,7 @@ proctor report <exam>   # reports/<exam>/explore/summary.md
 - [`docs/configuration.md`](docs/configuration.md): exams, fixtures, stages, variants, judges, and the machine's config
 - [`docs/network.md`](docs/network.md): what a coding agent's container can reach, and why
 - [`docs/service-fixtures.md`](docs/service-fixtures.md): a fixture that brings an API or a docs site the agent can call and cannot read
-- [`docs/docker.md`](docs/docker.md), [`docs/podman.md`](docs/podman.md), [`docs/modal.md`](docs/modal.md): running coding agents on each engine
+- [`docs/podman.md`](docs/podman.md): running coding agents on rootless podman, the engine that is supported; [`docs/docker.md`](docs/docker.md) is not maintained
 - [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): moving an exam to coding-agent variants
 - [`docs/porting-from-suites.md`](docs/porting-from-suites.md): moving a suite from proctor 0.3 or earlier to an exam of stages
 

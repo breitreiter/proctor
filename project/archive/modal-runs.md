@@ -2,12 +2,31 @@
 type: plan
 title: Modal runs — promote a suite from this machine to Modal, unchanged
 created: 2026-11-08
-status: built 2026-11-10 (steps 2–4 and 6); conformance stays local (spike 2)
+status: built 2026-11-10 (steps 2–4 and 6); conformance stays local (spike 2). Taken out of the core 2026-11-27 (project/plans/remix.md); the code is at the git tag modal-in-core
 ---
 
 Written in proctor's earlier vocabulary (suite, arm, experiment, baseline, sample). Superseded by project/plans/exam-variant-attempt.md; kept for the reasoning.
 
 # Modal runs
+
+## Where the code went (2026-11-27)
+
+The last commit with the engine in it is tagged `modal-in-core` (`git show modal-in-core`). What it touched, for
+whoever writes it again outside the core:
+
+| file | what was Modal's or the remote path's |
+|---|---|
+| `Exam/Exam.cs` `HarborConfig` | `modal` in `Engines`; `Remote` |
+| `Run/Harbor.cs` | `UvArgs` (the `harbor[modal]` extra), `NbImage` not building a layer, `Preflight` and `ModalProblem` (the login), `Unreachable` (hosts a sandbox cannot reach), `TearDown`'s sentence |
+| `Harbor/Compile.cs` | `ModalIdle` and the sandbox lifetimes in `Job`; nb's publish copied into the task (`proctor-nb/`, `nbPublish`, `nbInContext`) |
+| `Run/Runner.cs` | `RequireReachable` (a model on this network, `image.services`, `image.host_ports` refused) |
+| `Setup/SetupWizard.cs`, `SetupCheck.cs`, `SetupState.cs`, `SandboxPlan.cs` | Modal as a sandbox that counts, its check lines, its wizard page |
+| `Proctor.Tests/HarborTests.cs`, `SetupFilesTests.cs` | the tests of each |
+| `docs/modal.md`, `exams/proctor.modal.example.json` | moved here: `modal-guide.md`, `proctor.modal.example.json` |
+
+The path for an engine off the machine went with it, since it had no other user. `--config` stayed: a second
+machine file is useful by itself (another engine, another gateway). What an engine must provide, as far as it is
+known, is `project/learnings/engines-diy.md`.
 
 ## Why
 

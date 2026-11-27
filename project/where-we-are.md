@@ -87,7 +87,7 @@ Done on 2026-11-26, from the desktop: the vocabulary table says
 `docs/podman.md` section 5 no longer advises opening the host's
 loopback. Left:
 
-- A Docker guide does not exist; the Modal guide predates axes
+- The Modal guide went to the archive with the engine (2026-11-27); the Docker guide is dated and not maintained
   (`todo.md`, "The container-engine guides").
 - What `docs/podman.md` section 5 should offer for a gateway on the
   same machine waits for `plans/container-network.md`.

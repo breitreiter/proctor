@@ -22,7 +22,7 @@ appsettings.json
 !appsettings.example.json
 exams/proctor.json
 exams/nb.json
-# A second machine's config, such as exams/proctor.modal.json
+# A second machine's config, such as exams/proctor.other.json
 exams/proctor.*.json
 exams/nb.*.json
 !exams/*.example.json

@@ -46,7 +46,7 @@ proctor list [exam]           # validate; per variant, its current attempts agai
 proctor list --label kind=bugfix   # only the exams carrying that label
 proctor run <exam>            # make the attempts the exam lacks, into bank/<exam>/<variant>/<task>/<n>/; continues an interrupted run first
 proctor run <exam> --variant a [--tasks x,y]   # only what those variants and tasks lack
-proctor run <exam> --config exams/proctor.modal.json   # another machine's config, such as Modal's (docs/modal.md); also list, grade
+proctor run <exam> --config exams/proctor.other.json   # another machine file in place of exams/proctor.json; also list, grade
 proctor grade <exam>          # checks over every current, completed attempt -> checks.json; model verdicts cached in verdicts/
 proctor grade <exam> --rejudge   # call the judges again instead of reusing the attempts' verdict files
 proctor grade <exam> --judge glm=k2   # compare k2 against glm on the checks glm grades; checks.json is untouched

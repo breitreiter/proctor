@@ -92,7 +92,7 @@ static class SandboxPlan
         b.AppendLine("- Propose the steps as a short plan and let the user approve it. Run nothing that needs root without saying so "
             + "first. Do not put any API key on a command line or in a file other than the user's proctor env file.");
         b.AppendLine("- If this machine cannot be made to work within the user's constraints, say so plainly. Exams with no agent "
-            + "(the built-in harness) need no sandbox, and agent variants can run on Modal instead (experimental; `docs/modal.md`); `proctor setup` offers both.");
+            + "(the built-in harness) need no sandbox.");
         b.AppendLine();
 
         b.AppendLine("## Done means").AppendLine();

@@ -165,12 +165,13 @@ public class SetupFilesTests : IDisposable
     }
 
     [Fact]
-    public void Modal_CountsAsASandbox_AnotherHostedServiceIsOnlyIntent()
+    public void AHostedService_IsOnlyIntent_NotASandbox()
     {
         var state = SetupState.Empty();
-        state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: "modal", Engine: "modal");
-        Assert.True(state.HasSandbox);
         state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: "daytona");
+        Assert.False(state.HasSandbox);
+        // A state file written while Modal was an engine reads as wanted, like any hosted service.
+        state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: "modal", Engine: "modal");
         Assert.False(state.HasSandbox);
     }
 
@@ -195,24 +196,6 @@ public class SetupFilesTests : IDisposable
         state.Jobs["sandbox"] = new SetupJob(SetupJob.Later);
         state.Jobs["judge"] = new SetupJob(SetupJob.Set, [providers[0].Name]);
         state.Save(exams);
-    }
-
-    [Fact]
-    public async Task Check_Modal_IsExperimental_AndNamesAProctorJsonOnAnotherEngine()
-    {
-        WriteState(Provider("gem", "gemini", "GEM_KEY"));
-        var state = SetupState.Load(exams)!;
-        state.Jobs["sandbox"] = new SetupJob(SetupJob.Set, Where: "hosted", Service: "modal", Engine: "modal");
-        state.Save(exams);
-
-        var (exit, output) = await Check();
-        Assert.Equal(1, exit);
-        Assert.Contains("job sandbox: Modal (experimental)", output);
-        Assert.DoesNotContain("not supported yet", output);
-        Assert.Contains("problem: sandbox is Modal, but exams/proctor.json harbor.engine is not modal", output);
-
-        SetupFiles.PutEngine(exams, "modal");
-        Assert.DoesNotContain("harbor.engine is not modal", (await Check()).Output);
     }
 
     [Fact]

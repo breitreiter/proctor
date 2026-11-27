@@ -8,8 +8,7 @@ That last part is the point: a planted behaviour stays planted when the
 agent can only ask.
 
 Checked on 2026-11-27 with Harbor 0.26.0 on rootless podman 5.7.0 and
-rootless Docker 29.1.3, both on Linux. Services do not run on Modal
-([`modal.md`](modal.md)), and nothing here was run on macOS.
+rootless Docker 29.1.3, both on Linux. Nothing here was run on macOS.
 
 Two fixtures in this repository have services, and are the examples to
 copy: `fixtures/stub` (one service, a scripted model) and

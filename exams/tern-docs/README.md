@@ -66,5 +66,5 @@ proctor build tern-docs                                # what each docs value ha
 proctor run tern-docs                                  # the three named configurations: 6 tries of 6 stages on Sonnet, real API spend
 ```
 
-The shakedown needs python3 with pytest, git, curl and jq, and costs nothing. Services need Docker or podman; the
-exam cannot run on Modal. The plan behind it is `project/archive/bundle-showcase.md`.
+The shakedown needs python3 with pytest, git, curl and jq, and costs nothing. Services need podman (or Docker). The
+plan behind it is `project/archive/bundle-showcase.md`.

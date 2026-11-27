@@ -4,13 +4,11 @@ An agent variant runs in a container, through
 [Harbor](https://github.com/harbor-framework/harbor), and proctor
 compiles what that container may reach on the network. This page says
 what that is, what it is not, and how to see it for yourself. The engine
-guides ([`docker.md`](docker.md), [`podman.md`](podman.md),
-[`modal.md`](modal.md)) say how to set a machine up; they point here for
+guides ([`docker.md`](docker.md), [`podman.md`](podman.md)) say how to set a machine up; they point here for
 the rules.
 
 Checked on 2026-11-27 with Harbor 0.26.0, on rootless podman 5.7.0 and
-rootless Docker 29.1.3, both on Linux. Modal is as [`modal.md`](modal.md)
-says. Not run: rootful Docker, Docker Desktop, any engine on macOS or
+rootless Docker 29.1.3, both on Linux. Not run: rootful Docker, Docker Desktop, any engine on macOS or
 Windows.
 
 None of this applies to a variant with no agent. Bare nb runs on your
@@ -56,8 +54,6 @@ Two exceptions:
   environment open, because Harbor installs its bridge to the simulated
   user from npm inside the container on every trial. The agent's own
   phase is still held to the policy.
-- **Modal** cannot close the environment for a task with services, which
-  is why proctor refuses those there ([`modal.md`](modal.md)).
 
 ## What an allowlist is, and is not
 
@@ -121,7 +117,7 @@ beside the agent is named `proctor-relay`, and runs on
 a gateway bound to every interface). Each hands every loopback service
 on the machine to every trial.
 
-The relay is not available on Modal, and has not been tried on Docker
+The relay has not been tried on Docker
 Desktop or any macOS engine, where a host socket may not mount through
 the engine's virtual machine.
 

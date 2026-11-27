@@ -159,7 +159,7 @@ An exam and its fixtures do not change between machines: the engine is
 the machine's (`exams/proctor.json`), never the exam's. If the laptop
 cannot run agent variants, the exam can still be written and its checks
 proved there (bare nb, the reference scripts), and its agent variants
-run on a Linux machine or on Modal ([`modal.md`](modal.md)).
+run on a Linux machine.
 
 ## 8. Harbor without your credentials in reach
 

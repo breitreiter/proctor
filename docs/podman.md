@@ -107,9 +107,8 @@ rootless Docker's host-loopback switch) hand every loopback service on
 the machine to every trial, and an allowlist that names the host then
 names all of them.
 
-Run on rootless podman and rootless Docker. Not on Modal, which has no
-such machine beside its sandboxes, and not tried on Docker Desktop or
-any macOS engine.
+Run on rootless podman and rootless Docker. Not tried on Docker Desktop
+or any macOS engine.
 
 ## 6. Ubuntu 26.04: let podman stop pasta (issue #7)
 

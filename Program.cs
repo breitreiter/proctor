@@ -35,7 +35,7 @@ static class Program
         stale, listed and never counted.
 
         --root <dir>          the repository root holding exams/ (default: current directory)
-        --config <file>       list, run, grade: this machine's config in place of exams/proctor.json, such as one for Modal
+        --config <file>       list, run, grade: this machine's config in place of exams/proctor.json
         --label <k[=glob]>    list: only exams carrying the label, or the label with a matching value (repeatable)
         --nb <path>           the nb binary (default: exams/proctor.json nb.path, else PATH)
         --runner <script>     the script that runs nb per attempt (default: the exam's nb.runner); none runs nb bare

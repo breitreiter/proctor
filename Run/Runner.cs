@@ -219,14 +219,10 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         if (agents)
         {
             HarborRun.Preflight(config.HarborOrDefault);
-            if (config.HarborOrDefault.Remote) RequireReachable(variants, tasks, exam, config, variant => Route(root, config, nb, variant));
-            else
-            {
-                var made = attempts.Where(a => a.Variant.IsAgent).Select(a => (a.Variant, a.Task)).Distinct().ToList();
-                relay = Relay(id, exam, made, variant => Route(root, config, nb, variant));
-                foreach (var host in made.SelectMany(p => HarborCompile.Hosts(Route(root, config, nb, p.Variant), exam.FixtureOf(p.Task)!)).Distinct().Where(h => !HostRelay.Loopback(h)))
-                    if (HarborRun.SubnetWarning(config.HarborOrDefault.Engine, host, System.Net.Dns.GetHostAddresses) is { } warning) log.WriteLine($"warning: {warning}");
-            }
+            var made = attempts.Where(a => a.Variant.IsAgent).Select(a => (a.Variant, a.Task)).Distinct().ToList();
+            relay = Relay(id, exam, made, variant => Route(root, config, nb, variant));
+            foreach (var host in made.SelectMany(p => HarborCompile.Hosts(Route(root, config, nb, p.Variant), exam.FixtureOf(p.Task)!)).Distinct().Where(h => !HostRelay.Loopback(h)))
+                if (HarborRun.SubnetWarning(config.HarborOrDefault.Engine, host, System.Net.Dns.GetHostAddresses) is { } warning) log.WriteLine($"warning: {warning}");
         }
         var dir = Layout.LogEntry(root, id);
         Directory.CreateDirectory(dir);
@@ -239,7 +235,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             entry = entry with
             {
                 Versions = new(entry.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, variant => Route(root, config, nb, variant), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, entry.Bundles, pairs, relay?.Dir), nbImage, engine, relay),
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, variant => Route(root, config, nb, variant), nbImage, entry.Bundles, pairs, relay?.Dir), nbImage, engine, relay),
             };
         }
         KeepExam(root, exam);
@@ -853,30 +849,6 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         return new ResolvedRelay(HostRelay.Dir(entryId), ports);
     }
 
-    /// <summary>
-    /// On a remote engine, every agent variant must reach its model from the internet, and no task may have a service beside
-    /// it. Since Harbor 0.26.0 its Modal environment does run a compose task, on Modal's VM runtime, but it builds the image
-    /// inside the sandbox under the environment's policy, so that policy must be public, and a process the agent left
-    /// running then has the internet after its phase (run 2026-11-26 and 27, project/learnings/harbor.md): what compile
-    /// gives every task a closed environment to prevent. Everything wrong is said at once, before anything is made.
-    /// </summary>
-    static void RequireReachable(List<Variant> variants, List<TaskDef> tasks, Exam exam, ProctorConfig config, Func<Variant, AgentRoute> route)
-    {
-        var engine = config.HarborOrDefault.Engine;
-        var problems = new List<string>();
-        foreach (var variant in variants.Where(a => a.IsAgent))
-            if (route(variant).Host is { } host && HarborRun.Unreachable(host) is { } why)
-                problems.Add($"variant '{variant.Id}': its model is at {host}, {why}, which a sandbox on {engine} cannot reach; run it on a local engine, or point {(variant.IsVendor ? $"{config.Source} agents.{variant.Agent}" : $"nb's config {variant.Provider}")} at a public endpoint");
-        foreach (var fixture in tasks.Select(exam.FixtureOf).OfType<Fixture>().DistinctBy(f => f.Id))
-        {
-            if (fixture.Def.Image?.HostPorts is { Count: > 0 } hostPorts)
-                problems.Add($"fixture '{fixture.Id}' names ports of this machine (image.host_ports: {string.Join(", ", hostPorts)}), and a sandbox on {engine} has no such machine beside it; its tasks run on docker or podman only");
-            if (fixture.Def.Image?.Services is not null)
-                problems.Add($"fixture '{fixture.Id}' runs services beside the agent (image.services), and on {engine} such a task's image is built inside the sandbox, which needs the network open outside the agent's phase: a process the agent left running would have the internet once its phase ended; its tasks run on docker or podman only");
-        }
-        if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
-    }
-
     static readonly System.Text.RegularExpressions.Regex EnvRef = new(@"\$\{([A-Za-z_][A-Za-z0-9_]*)\}");
 
     static AgentRoute NbRoute(ResolvedNb nb, Variant variant)
@@ -904,7 +876,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         return tag;
     }
 
-    /// <summary>The directory of nb's publish, proctor.json harbor.nb resolved against exams/; compile copies it into each nb task's image on a remote engine.</summary>
+    /// <summary>The directory of nb's publish, proctor.json harbor.nb resolved against exams/.</summary>
     static string NbPublish(string root, ProctorConfig config) => Path.GetFullPath(Path.Combine(Layout.Exams(root), config.Harbor!.Nb!));
 
     static string ResolveEnv(string value, string field) =>

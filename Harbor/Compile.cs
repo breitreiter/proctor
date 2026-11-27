@@ -65,21 +65,20 @@ static class HarborCompile
     /// The tasks a run's agent attempts run as, one per agent variant and task it makes attempts of (every agent variant's
     /// every task when <paramref name="pairs"/> is not given), and proctor's own Harbor agents beside them for the variants
     /// that use one. Returns the tree's hash, which the log entry records and `run` checks before it continues the run. The nb
-    /// image is the tag of proctor's nb layer; on a remote engine, which cannot see a local image, nb's publish directory
-    /// comes too and is copied into each nb task. The bundles are the run's resolved ones, which reach a task only through
+    /// image is the tag of proctor's nb layer. The bundles are the run's resolved ones, which reach a task only through
     /// its fixture's services.
     /// </summary>
-    public static string Tasks(string entryDir, Exam exam, Func<Variant, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
+    public static string Tasks(string entryDir, Exam exam, Func<Variant, AgentRoute> route, string? nbImage = null,
         IReadOnlyDictionary<string, ResolvedBundle>? bundles = null, IReadOnlyCollection<(Variant Variant, TaskDef Task)>? pairs = null, string? relayDir = null)
     {
         pairs ??= (from variant in exam.Variants.Where(a => a.IsAgent) from c in exam.Tasks select (variant, c)).ToList();
         if (exam.Staged)
             foreach (var variant in pairs.Select(p => p.Variant).Distinct())
-                if (Plain(exam, variant.Id!)) Task(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, exam.StagesOf(variant.Id!)[0], route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
-                else Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
+                if (Plain(exam, variant.Id!)) Task(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, exam.StagesOf(variant.Id!)[0], route(variant), nbImage, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
+                else Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
         else
             foreach (var (variant, c) in pairs)
-                Task(Layout.HarborTask(entryDir, variant.Id!, c.Id!), exam, variant, c, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
+                Task(Layout.HarborTask(entryDir, variant.Id!, c.Id!), exam, variant, c, route(variant), nbImage, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
         var files = pairs.Select(p => p.Variant).Where(IsOwnAgent).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
         var oracle = pairs.Any(p => p.Task.Oracle is not null);
         if (oracle) files.Add(OracleUserFile);
@@ -122,7 +121,7 @@ static class HarborCompile
     /// fixture has services, the variant's bundle is copied beside them as environment/bundle/ (empty without one), so a
     /// service can serve it, a docs site say, while the agent's own container never holds it.
     /// </summary>
-    public static void Task(string dir, Exam exam, Variant variant, TaskDef task, AgentRoute route, string? nbImage = null, string? nbPublish = null,
+    public static void Task(string dir, Exam exam, Variant variant, TaskDef task, AgentRoute route, string? nbImage = null,
         string? bundleDir = null, string? relayDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
@@ -139,9 +138,7 @@ static class HarborCompile
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
         foreach (var (from, to) in configuration is null ? [] : exam.Axes!.Overlays(configuration, exam.Dir))
             CopyTree(from, Path.Combine(dir, "environment", "repo", to ?? ""), [Path.Combine(from, ".git")]);
-        var nbInContext = variant.Agent == Variant.Nb && nbPublish is not null;
-        if (nbInContext) CopyTree(nbPublish!, Path.Combine(dir, "environment", NbContextDir), []);
-        File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, variant, nbImage, nbInContext, BuildArgs(exam, fixture, configuration)));
+        File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, variant, nbImage, BuildArgs(exam, fixture, configuration)));
         if (fixture.Def.Image!.Services is { } services)
         {
             CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
@@ -185,12 +182,12 @@ static class HarborCompile
     /// that timed out does not end the try. A stage starts fresh unless the exam is chained: its step's setup.sh puts the
     /// workspace back first.
     /// </summary>
-    public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? nbPublish = null, string? bundleDir = null, string? relayDir = null)
+    public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? bundleDir = null, string? relayDir = null)
     {
         // A try is the stages that apply in its configuration (every stage, on an exam without axes).
         var stages = exam.StagesOf(variant.Id!);
         // The environment, and the exam and fixture the script checks read, are a task's; any stage stands for the job there.
-        Task(dir, exam, variant, stages[0], route, nbImage, nbPublish, bundleDir, relayDir);
+        Task(dir, exam, variant, stages[0], route, nbImage, bundleDir, relayDir);
         foreach (var file in new[] { "instruction.md", Path.Combine("tests", "test.sh"), Path.Combine("tests", "env.sh") }) File.Delete(Path.Combine(dir, file));
         File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, stages[0], Reached(exam.FixtureOf(stages[0])!, route, relayDir), bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
             + string.Concat(stages.Select(s => $"\n[[steps]]\nname = {Toml(s.Id!)}\n")));
@@ -298,20 +295,13 @@ static class HarborCompile
         exam.Staged && Directory.Exists(Path.Combine(taskDir, "steps")) ? Path.Combine(taskDir, "steps", task.Id!, "tests", file) : Path.Combine(taskDir, "tests", file);
 
     /// <summary>
-    /// How long a Modal sandbox may sit with nothing running in it. Harbor's Modal environment otherwise keeps a sandbox
-    /// for a day with no idle limit, so a trial Harbor never closed would bill for a day.
-    /// </summary>
-    public static readonly TimeSpan ModalIdle = TimeSpan.FromMinutes(10);
-
-    /// <summary>
     /// Harbor's job for one attempt: one trial of one task by one agent. Every setting Harbor would otherwise default is
     /// stated: the container engine, the pinned version, the permission mode, each model alias (Harbor maps them all to one model on a custom
     /// base URL; proctor says so rather than inherits it), no retries (a retry is proctor's attempt), one trial at a time.
     /// The key is not here: it goes in the environment of the one Harbor process. proctor's own agents (nb, Qwen
-    /// Code) are named by import path; nb's kwargs carry the attempt's host-compiled program and nb's config. On Modal each
-    /// sandbox lives no longer than the attempt may take (<paramref name="lifetime"/>) and ends after <see cref="ModalIdle"/> idle.
+    /// Code) are named by import path; nb's kwargs carry the attempt's host-compiled program and nb's config.
     /// </summary>
-    public static JsonObject Job(Variant variant, string taskDir, string jobsDir, AgentRoute route, NbAttempt? nb = null, string engine = "docker", OracleAttempt? oracle = null, TimeSpan? lifetime = null)
+    public static JsonObject Job(Variant variant, string taskDir, string jobsDir, AgentRoute route, NbAttempt? nb = null, string engine = "docker", OracleAttempt? oracle = null)
     {
         var agent = new JsonObject();
         if (OwnAgents.TryGetValue(variant.Agent!, out var own)) agent["import_path"] = own.Import;
@@ -327,17 +317,7 @@ static class HarborCompile
             ["n_concurrent_trials"] = 1,
             ["quiet"] = true,
             ["retry"] = new JsonObject { ["max_retries"] = 0 },
-            ["environment"] = engine == HarborConfig.Modal
-                ? new JsonObject
-                {
-                    ["type"] = engine,
-                    ["kwargs"] = new JsonObject
-                    {
-                        ["sandbox_timeout_secs"] = (int)(lifetime ?? TimeSpan.FromHours(1)).TotalSeconds,
-                        ["sandbox_idle_timeout_secs"] = (int)ModalIdle.TotalSeconds,
-                    },
-                }
-                : new JsonObject { ["type"] = engine },
+            ["environment"] = new JsonObject { ["type"] = engine },
             ["agents"] = new JsonArray(agent),
             ["tasks"] = new JsonArray(new JsonObject { ["path"] = taskDir }),
         };
@@ -468,10 +448,7 @@ static class HarborCompile
     /// The fixture as a commit in the work directory, so the diff after the agent is the change; the fixture's own
     /// setup after it; then the variant's agent, pinned, so a trial installs nothing and needs no network to start.
     /// </summary>
-    /// <summary>Where nb's publish sits in an nb task's build context on a remote engine.</summary>
-    const string NbContextDir = "proctor-nb";
-
-    static string Dockerfile(Fixture fixture, Variant variant, string? nbImage, bool nbInContext = false, List<(string Name, string Value)>? args = null)
+    static string Dockerfile(Fixture fixture, Variant variant, string? nbImage, List<(string Name, string Value)>? args = null)
     {
         var image = fixture.Def.Image!;
         var sb = new StringBuilder();
@@ -487,14 +464,13 @@ static class HarborCompile
         sb.Append($"WORKDIR {Workdir}\n");
         sb.Append($"RUN git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm {Shell($"fixture {fixture.Id} {fixture.Hash}")}\n");
         foreach (var command in image.Run ?? []) sb.Append($"RUN {command}\n");
-        sb.Append(AgentInstall(variant, nbInContext ? NbContextDir : $"--from={nbImage} /opt/nb"));
+        sb.Append(AgentInstall(variant, $"--from={nbImage} /opt/nb"));
         return sb.ToString();
     }
 
     /// <summary>
     /// The agent at its pin. nb comes from proctor's nb layer (the publish proctor.json names, tagged by its hash), so the
-    /// image holds that binary and nothing it was built from: <paramref name="nbSource"/> is `--from=&lt;tag&gt; /opt/nb` on a
-    /// local engine, the publish's directory in the build context on a remote one.
+    /// image holds that binary and nothing it was built from.
     /// </summary>
     static string AgentInstall(Variant variant, string nbSource) => variant.Agent switch
     {

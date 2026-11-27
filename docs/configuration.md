@@ -104,7 +104,7 @@ machine file in place of `exams/proctor.json`, with the same fields and
 its relative paths still resolved against `exams/`. An exam is the
 question and this file is the machine, so the same exam runs somewhere
 else by naming a different file: `proctor run code-change --config
-exams/proctor.modal.json`. `run` continues an interrupted run only with
+exams/proctor.other.json`. `run` continues an interrupted run only with
 the `--config` it was started with. Files named `exams/proctor.*.json` and `exams/nb.*.json`
 are gitignored, apart from the `*.example.json` ones.
 
@@ -419,7 +419,7 @@ reach. Proctor copies the variant's bundle beside those services as
 mount `./bundle` and serve it: a docs site, say, that the agent reads over
 HTTP and cannot grep. `fixtures/tern-shop` serves a docs bundle this way,
 and `exams/tern-docs` compares two versions of those docs with none.
-Services run on Docker and podman, not on Modal. How to write one, and
+How to write one, and
 what the agent can and cannot see of it, is
 [`service-fixtures.md`](service-fixtures.md).
 
@@ -443,7 +443,7 @@ Two more fields of `image` are about ports at the agent's `localhost`:
   dev server you started by hand beside the run, say. Each is relayed
   like a model on the machine's loopback, and only those ports. A try
   made this way depends on something the exam does not hold, so it is
-  for an exam's early days, and such a fixture does not run on Modal.
+  for an exam's early days.
 
 A model whose base URL is `localhost` or a `127.` address, on a port no
 fixture service serves, is the machine's: `run` relays that port to the
@@ -795,10 +795,12 @@ Harbor, and a container engine, set by `harbor.engine` in
   behind `podman compose`, and three lines of user config. The setup,
   and why each step is there, is [`podman.md`](podman.md);
   `run` checks what it can before it starts.
-- **Modal** (experimental), no engine on this machine at all: each attempt's containers run
-  as sandboxes on your Modal account. The agent's model must be on the
-  internet, and a fixture with `image.services` cannot run there. Setting
-  it up, and what it costs, is [`modal.md`](modal.md).
+
+Rootless podman on Linux (Arch and Ubuntu) is the engine that is
+supported: it is where proctor's own gates are run. Docker is not
+maintained. An engine off the machine (Modal) was in proctor until
+2026-11-27 and is not now: `harbor.engine: modal` is refused, and its
+code is at the git tag `modal-in-core`.
 
 What an agent's container may reach on the network, and how to see it,
 is [`network.md`](network.md).
