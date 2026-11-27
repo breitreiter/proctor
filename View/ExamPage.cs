@@ -14,9 +14,9 @@ namespace Auspex;
 static class ExamPage
 {
     /// <summary>A measure of a try as a column: its name, the try's number, how the number is written, and what a comparison's cell holds for it.</summary>
-    sealed record Column(string Name, Func<P.TryRow, double?> Of, Func<double, string> Said, Func<P.CellAnswer, P.Measure?> In);
+    internal sealed record Column(string Name, Func<P.TryRow, double?> Of, Func<double, string> Said, Func<P.CellAnswer, P.Measure?> In);
 
-    static readonly Column[] Columns =
+    internal static readonly Column[] Columns =
     [
         new("Checks held", t => t.Held, Count, c => c.Held),
         new("Friction · flagged steps", t => t.Flagged, Count, c => c.Flagged),
@@ -25,9 +25,9 @@ static class ExamPage
         new("Time", t => t.DurationMs, Time, c => c.Duration),
     ];
 
-    static readonly string[] RoleOrder = [P.Roles.Correctness, P.Roles.Integrity, P.Roles.Quality, P.Roles.Observation];
+    internal static readonly string[] RoleOrder = [P.Roles.Correctness, P.Roles.Integrity, P.Roles.Quality, P.Roles.Observation];
 
-    static readonly Dictionary<string, (string Class, string Says)> RoleTag = new()
+    internal static readonly Dictionary<string, (string Class, string Says)> RoleTag = new()
     {
         [P.Roles.Correctness] = ("tag tag-live", "Correctness: was the task completed in a way that satisfies our intent. Decides right or wrong."),
         [P.Roles.Integrity] = ("tag tag-fr", "Integrity: can the result be trusted. A failure takes the try out of every number."),
@@ -64,7 +64,7 @@ static class ExamPage
             page.Append($"<div class=\"said\"><b>The standard moved.</b> <span class=\"soft\">{E(move.Sentence)}</span></div>");
 
         Configurations(page, root, e, exam, named);
-        Predictions(page, e, stats, named);
+        Predictions(page, e, stats.Predictions ?? [], named, "A prediction captures how you expect a new configuration to behave. Using them helps keep your experimentation focused and honest.");
         Axes(page, exam);
         Stages(page, stats);
         Checks(page, exam, stats);
@@ -120,10 +120,11 @@ static class ExamPage
     }
 
     /// <summary>One measure of one configuration: the change against live and the median, over a strip centred on live's median; with nothing live, the median and the range.</summary>
-    static string Cell(Column column, List<P.TryRow> counted, P.ConfigurationRow? live, bool isLive, P.CellAnswer? cell, string against)
+    internal static string Cell(Column column, List<P.TryRow> counted, P.ConfigurationRow? live, bool isLive, P.CellAnswer? cell, string against, bool labelled = false)
     {
+        var head = labelled ? $"<span class=\"label\">{E(column.Name)}</span>" : "";
         var values = counted.Select(column.Of).ToList();
-        if (values.Count == 0 || values.Any(v => v is null)) return "<span class=\"dim\">–</span>";
+        if (values.Count == 0 || values.Any(v => v is null)) return $"<span class=\"stat\">{head}<span class=\"dim\">–</span></span>";
         var sorted = values.Select(v => v!.Value).Order().ToList();
         var median = sorted.Count % 2 == 1 ? sorted[sorted.Count / 2] : (sorted[sorted.Count / 2 - 1] + sorted[sorted.Count / 2]) / 2;
         var range = sorted[0] == sorted[^1] ? $"in all {sorted.Count} {(sorted.Count == 1 ? "try" : "tries")}" : $"{column.Said(sorted[0])} to {column.Said(sorted[^1])}";
@@ -133,7 +134,7 @@ static class ExamPage
         var centre = liveSorted is null ? (double?)null : liveSorted.Count % 2 == 1 ? liveSorted[liveSorted.Count / 2] : (liveSorted[liveSorted.Count / 2 - 1] + liveSorted[liveSorted.Count / 2]) / 2;
         // No strip without a centre: nothing live, live lacks this number, or live's median is zero and "how far from it" has no scale.
         if (centre is not > 0)
-            return $"<span class=\"stack\"><span class=\"num\" style=\"font-weight:600\">{E(column.Said(median))}</span><span class=\"small dim num\">{E(range)}</span></span>";
+            return $"<span class=\"stack\">{head}<span class=\"num\" style=\"font-weight:600\">{E(column.Said(median))}</span><span class=\"small dim num\">{E(range)}</span></span>";
 
         string At(double x) => (50 + Math.Clamp((x / centre.Value - 1) * 100, -200, 200) / 4).ToString("0.#", CultureInfo.InvariantCulture) + "%";
         var measure = cell is null ? null : column.In(cell);
@@ -151,20 +152,20 @@ static class ExamPage
         var label = $"{column.Name}: median {column.Said(median)}, {range}{(isLive ? "" : $", {delta} against {against}")}";
         var band = $"left:{At(liveSorted![0])};width:calc({At(liveSorted[^1])} - {At(liveSorted[0])})";
         var dots = string.Concat(sorted.Select(x => $"<span class=\"div-dot{(Math.Abs(x / centre.Value - 1) > 2 ? " div-out" : "")}\" style=\"left:{At(x)}\"></span>"));
-        return $"<span class=\"stat\" title=\"{E(how)}\"><span class=\"stat-line\"><span class=\"{deltaClass}\" style=\"font-size:15px\">{E(delta)}</span><span class=\"small dim num\">{E(column.Said(median))}</span></span>"
-            + $"<span class=\"div\" role=\"img\" aria-label=\"{E(label)}\"><span class=\"div-band\" style=\"{band}\"></span><span class=\"div-zero\"></span>{dots}</span></span>";
+        return $"<span class=\"stat\" title=\"{E(how)}\">{head}<span class=\"stat-line\"><span class=\"{deltaClass}\" style=\"font-size:15px\">{E(delta)}</span><span class=\"small dim num\">{E(column.Said(median))}</span></span>"
+            + $"<span class=\"div\" role=\"img\" aria-label=\"{E(label)}\"><span class=\"div-band\" style=\"{band}\"></span><span class=\"div-zero\"></span>{dots}</span>{(labelled ? $"<span class=\"small dim num\">{E(range)}</span>" : "")}</span>";
     }
 
     static string How(P.Measure m, string against) =>
         $"Against {against}: Mann–Whitney, try against try, exact two-sided p = {Measured.PValue(m.P)}, {(m.Confirmed ? "confirmed" : "not confirmed")}; higher in {m.Higher}, lower in {m.Lower}, tied in {m.Tied} of {m.Pairings} pairings";
 
-    static void Predictions(StringBuilder page, Exam e, P.ConfigurationsFile stats, List<P.ConfigurationRow> named)
+    internal static void Predictions(StringBuilder page, Exam e, List<P.PredictionReport> predictions, List<P.ConfigurationRow> named, string note)
     {
-        Section(page, "Predictions", "A prediction captures how you expect a new configuration to behave. Using them helps keep your experimentation focused and honest.", "display:flex;flex-direction:column;gap:22px");
-        if (stats.Predictions is not { Count: > 0 })
+        Section(page, "Predictions", note, "display:flex;flex-direction:column;gap:22px");
+        if (predictions.Count == 0)
             page.Append($"<div class=\"said soft\">None. A prediction is a file, <span class=\"mono\" style=\"font-size:13px\">exams/{E(e.Id)}/predictions/&lt;name&gt;.json</span>.</div>");
         string Name(string key) => named.FirstOrDefault(c => c.Key == key)?.Name ?? key;
-        foreach (var p in stats.Predictions ?? [])
+        foreach (var p in predictions)
         {
             var (mine, other) = (Name(p.Configuration), Name(p.Against));
             var compare = AxesPages.Q($"/{e.Id}/compare", ("configuration", mine), ("against", other));
@@ -245,13 +246,13 @@ static class ExamPage
         page.Append("</div></div></section>");
     }
 
-    static void Section(StringBuilder page, string heading, string note, string? bodyStyle = null) =>
+    internal static void Section(StringBuilder page, string heading, string note, string? bodyStyle = null) =>
         page.Append($"<section class=\"sec\" aria-label=\"{E(heading)}\"><div class=\"sec-head\"><h2>{E(heading)}</h2><span class=\"note\">{E(note)}</span></div><div class=\"sec-body\"{(bodyStyle is null ? "" : $" style=\"{bodyStyle}\"")}>");
 
-    static string Fact(string term, string html) => $"<div><dt>{E(term)}</dt><dd>{html}</dd></div>";
+    internal static string Fact(string term, string html) => $"<div><dt>{E(term)}</dt><dd>{html}</dd></div>";
 
-    static string Number(double x) => x.ToString("0.##", CultureInfo.InvariantCulture);
-    static string Count(double x) => x.ToString("0.#", CultureInfo.InvariantCulture);
-    static string Tokens(double x) => x >= 1e6 ? (x / 1e6).ToString("0.00", CultureInfo.InvariantCulture) + "M" : x >= 1e3 ? (x / 1e3).ToString("0", CultureInfo.InvariantCulture) + "k" : Count(x);
-    static string Time(double ms) => Math.Round(ms / 1000) is var s && s >= 60 ? $"{(int)(s / 60)}m {(int)(s % 60):00}s" : $"{s:0}s";
+    internal static string Number(double x) => x.ToString("0.##", CultureInfo.InvariantCulture);
+    internal static string Count(double x) => x.ToString("0.#", CultureInfo.InvariantCulture);
+    internal static string Tokens(double x) => x >= 1e6 ? (x / 1e6).ToString("0.00", CultureInfo.InvariantCulture) + "M" : x >= 1e3 ? (x / 1e3).ToString("0", CultureInfo.InvariantCulture) + "k" : Count(x);
+    internal static string Time(double ms) => Math.Round(ms / 1000) is var s && s >= 60 ? $"{(int)(s / 60)}m {(int)(s % 60):00}s" : $"{s:0}s";
 }

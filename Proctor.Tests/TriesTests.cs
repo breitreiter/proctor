@@ -86,7 +86,15 @@ public class TriesTests
         Assert.Equal(("worse", 0, 16, true), (b.AgainstLive!.Held.Direction, b.AgainstLive.Held.Higher, b.AgainstLive.Held.Lower, b.AgainstLive.Held.Confirmed));
         Assert.Equal("Correctness checks held: worse. Flagged steps: same. Confirmed on correctness checks held: a try held fewer than a try of live in 16 of 16 pairings. Moved most: say-hello (right in 0 of 4, live 4 of 4).", b.AgainstLive.Sentence);
         Assert.Equal(["right", "wrong"], b.Rows[0].Stages.Select(s => s.Result));
-        Assert.Equal(new StageTally("say-hello", 0, 4), b.Stages[1]);
+        // A stage across the tries: right in none, and each try held one of its two correctness checks, so the share is a half however many checks a stage has.
+        var stage = b.Stages[1];
+        Assert.Equal(("say-hello", 0, 4, 2, 4, new Spread(0.5, 0.5, 0.5), 0.5), (stage.Id, stage.Right, stage.Of, stage.Checks, stage.Graded, stage.Share, stage.Average));
+        Assert.Equal(("says-expected", 4), (Assert.Single(stage.DidNotHold!).Check, stage.DidNotHold![0].Tries));
+        Assert.Null(b.Stages[0].DidNotHold);
+        Assert.Equal((1, 2), (b.Rows[0].Stages[1].Held, b.Rows[0].Stages[1].Of));
+        // Each check's rate is over the times it was asked, whatever the stage.
+        var said = b.Checks!.Single(k => k.Check == "says-expected");
+        Assert.Equal((Roles.Correctness, said.Asked - 4, said.Asked), (said.Role, said.Held, said.Asked));
     }
 
     [Fact]

@@ -71,6 +71,13 @@ holding `bank/` and `exams/`.
   with their roles. It reads `Measured.Stats` and, per configuration,
   `Measured.Compare`. No form and no button: the viewer changes nothing
   in v1.
+- `ConfigurationPage.cs`: one configuration, `/<exam>/configuration/<key
+  or name>`, the second designed page (2026-11-27): against live on the
+  five measures, its predictions, each stage as shares of correctness
+  checks held (average, lowest, highest) and what did not hold, each
+  check's rate beside live's, friction by kind, and every try with its
+  stages as squares that open that stage. It reads `Measured.Report`
+  (the stats, the friction rollup, each try's id).
 - `assets/one.css` and `assets/fonts/`: the designed pages' stylesheet
   (dark ground, Geist, Space Grotesk heads, lime rules), copied from the
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a

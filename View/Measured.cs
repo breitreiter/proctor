@@ -55,14 +55,21 @@ static class Measured
     /// An exam's report as `proctor report` computes it, from the bank as it is now: its named configurations with their
     /// tries, its stages and each check's role, its predictions and how each change came out, what is lost.
     /// </summary>
-    public static (P.ConfigurationsFile? Stats, string? Problem) Stats(string root, P.Exam exam) => Asked(() =>
+    public static (P.ConfigurationsFile? Stats, string? Problem) Stats(string root, P.Exam exam) => Report(root, exam) is var (report, problem) ? (report?.Stats, problem) : default;
+
+    /// <summary>The same with what recurs as friction in each configuration's tries, and each try's id by its number, which is its address here.</summary>
+    public static (Reported? Report, string? Problem) Report(string root, P.Exam exam) => Asked(() =>
     {
         var current = P.Bank.Select(root, exam).Current;
         var problems = new List<P.Problem>();
         var predictions = P.Predictions.Load(root, exam, problems);
         if (problems.Count > 0) throw new P.ProctorException(string.Join("\n", problems));
-        return P.Configurations.Compute(root, exam, current, P.Bank.Of(root, exam), P.Results.Collect(root, exam, current), null, predictions).Stats;
+        var (stats, friction) = P.Configurations.Compute(root, exam, current, P.Bank.Of(root, exam), P.Results.Collect(root, exam, current), null, predictions);
+        var ids = current.Select(a => (a.Variant, a.Attempt, Id: a.Entry.IdOf(a.Variant, a.Attempt))).Where(a => a.Id is not null).Distinct().ToDictionary(a => (a.Variant, a.Attempt), a => a.Id!);
+        return new Reported(stats, friction, ids);
     });
+
+    public sealed record Reported(P.ConfigurationsFile Stats, P.FrictionRollup Friction, Dictionary<(string Configuration, int Try), string> TryIds);
 
     static (T? Answer, string? Problem) Asked<T>(Func<T> ask) where T : class
     {

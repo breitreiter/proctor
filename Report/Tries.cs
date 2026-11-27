@@ -4,8 +4,11 @@ using System.Text.Json.Nodes;
 
 namespace Proctor;
 
-/// <summary>One stage of one try, in a word: right, wrong, undecided, invalid, or not_reached (a chained try broke before it).</summary>
-record TryStage(string Id, string Result);
+/// <summary>
+/// One stage of one try, in a word: right, wrong, undecided, invalid, or not_reached (a chained try broke before it).
+/// Held and Of are the correctness checks it held, of those that apply to it; null when the stage has no grade.
+/// </summary>
+record TryStage(string Id, string Result, int? Held = null, int? Of = null);
 
 /// <summary>
 /// One try, as two numbers: the correctness checks it held, of every correctness check the job has (a stage not reached holds
@@ -28,10 +31,22 @@ record Measure(string Direction, int Higher, int Lower, int Tied, int Pairings, 
 /// <summary><c>CanConfirm</c> is whether these two counts of tries could confirm anything at 95%: 4 a side can, or 3 against 5.</summary>
 record AgainstLive(string Vs, int Tries, int LiveTries, bool CanConfirm, Measure Held, Measure? Flagged, List<string> Moved, string Sentence);
 
-record StageTally(string Id, int Right, int Of);
+/// <summary>A correctness check that did not hold in a stage: in how many counted tries, and the reason the first of them gave.</summary>
+record NotHeld(string Check, int Tries, string? Reason);
+
+/// <summary>
+/// One stage across a configuration's counted tries (the user, 2026-11-27: outcomes and plain statistics, nothing per
+/// try). Right of Of tries. Checks is its correctness checks; Share is, per try, the fraction of them that held (so
+/// stages with different numbers of checks read alike), as lowest, median and highest, and Average its mean. Graded is
+/// the tries the share is over: a try whose stage has no grade is in none of it. DidNotHold names what failed.
+/// </summary>
+record StageTally(string Id, int Right, int Of, int Checks = 0, int Graded = 0, Spread? Share = null, double? Average = null, List<NotHeld>? DidNotHold = null);
+
+/// <summary>One check across a configuration's counted tries: how often it held, of the times it was asked and answered pass or fail, whatever the stage.</summary>
+record CheckRate(string Check, string Role, int Held, int Asked);
 
 record TryVariant(string Id, bool Live, int Tries, int Lost, int Invalid, int Passed, Spread? Held, Spread? Flagged,
-    List<StageTally> Stages, List<TryRow> Rows, AgainstLive? AgainstLive, Spread? ToolCalls = null, Spread? Tokens = null, Spread? Duration = null);
+    List<StageTally> Stages, List<TryRow> Rows, AgainstLive? AgainstLive, Spread? ToolCalls = null, Spread? Tokens = null, Spread? Duration = null, List<CheckRate>? Checks = null);
 
 /// <summary>A try in which a stage did not run: left out of every number.</summary>
 record LostTry(string Variant, int N, string At, string Why);
@@ -96,7 +111,8 @@ static class Tries
                     held += pass.Count(c => row.Checks.GetValueOrDefault(c) == Verdict.Pass);
                     undecided += pass.Count(c => row.Checks.GetValueOrDefault(c) is Verdict.NeedsJudge or Verdict.Outdated);
                     invalid ??= row.Invalid is null ? null : $"{stage.Id}: {row.Invalid}";
-                    results.Add(new TryStage(stage.Id!, row.Invalid is not null ? "invalid" : row.Pass switch { true => "right", false => "wrong", null => "undecided" }));
+                    results.Add(new TryStage(stage.Id!, row.Invalid is not null ? "invalid" : row.Pass switch { true => "right", false => "wrong", null => "undecided" },
+                        pass.Count(c => row.Checks.GetValueOrDefault(c) == Verdict.Pass), pass.Count));
                     var points = ReadFriction(root, attempt!, surface);
                     if (points is null) { flagged = null; continue; }
                     if (flagged is not null) flagged += points.Value.Flagged;
@@ -112,8 +128,20 @@ static class Tries
             var lost = bank.Where(a => a.Lost && a.Variant == variant && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count();
             variants.Add(new TryVariant(variant, false, counted.Count, lost, tryRows.Count - counted.Count, counted.Count(t => t.Passed),
                 SpreadOf(counted.Select(t => (double)t.Held)), counted.Count > 0 && counted.All(t => t.Flagged is not null) ? SpreadOf(counted.Select(t => (double)t.Flagged!.Value)) : null,
-                stages.Select(s => new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count)).ToList(), tryRows, null,
-                Whole(counted, t => t.ToolCalls), Whole(counted, t => t.TokensIn), Whole(counted, t => t.DurationMs)));
+                stages.Select(s =>
+                {
+                    var graded = counted.Select(t => t.Stages.First(x => x.Id == s.Id)).Where(x => x.Of is > 0).ToList();
+                    var shares = graded.Select(x => (double)x.Held!.Value / x.Of!.Value).ToList();
+                    var mine = rows.Where(r => r.Variant == variant && r.Task == s.Id && r.Checks is not null && counted.Any(t => t.N == r.Attempt)).ToList();
+                    var notHeld = Standard.PassIn(exam, s, variant).Select(c => (Check: c, Failed: mine.Where(r => r.Checks!.GetValueOrDefault(c) == Verdict.Fail).OrderBy(r => r.Attempt).ToList()))
+                        .Where(x => x.Failed.Count > 0).Select(x => new NotHeld(x.Check, x.Failed.Count, x.Failed[0].Reasons?.GetValueOrDefault(x.Check))).ToList();
+                    return new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count, Standard.PassIn(exam, s, variant).Count, graded.Count,
+                        SpreadOf(shares), shares.Count > 0 ? Math.Round(shares.Average(), 4) : null, notHeld.Count > 0 ? notHeld : null);
+                }).ToList(), tryRows, null,
+                Whole(counted, t => t.ToolCalls), Whole(counted, t => t.TokensIn), Whole(counted, t => t.DurationMs),
+                // An integrity check's rate is over every graded try, since it says how many were counted; any other check's is over the counted ones.
+                exam.CheckNames.Select(c => (Check: c, Verdicts: rows.Where(r => r.Variant == variant && (exam.RoleOf(c) == Roles.Integrity ? tryRows : counted).Any(t => t.N == r.Attempt)).Select(r => r.Checks?.GetValueOrDefault(c)).Where(v => v is Verdict.Pass or Verdict.Fail).ToList()))
+                    .Where(x => x.Verdicts.Count > 0).Select(x => new CheckRate(x.Check, exam.RoleOf(x.Check), x.Verdicts.Count(v => v == Verdict.Pass), x.Verdicts.Count)).ToList()));
         }
 
         // A variant never in `current` can still have lost every try it made: it is not a column, but its lost tries are said.

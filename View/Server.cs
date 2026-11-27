@@ -58,7 +58,7 @@ public static class Server
         app.MapGet("/{exam}/compare", (string exam, HttpRequest request) =>
             Bank.FindExam(root, exam) is { Axes: true } e ? Html(AxesPages.Compare(root, e, key => request.Query[key])) : Results.NotFound());
         app.MapGet("/{exam}/configuration/{key}", (string exam, string key) =>
-            Bank.FindExam(root, exam) is { Axes: true } e ? Html(AxesPages.Configuration(root, e, key)) : Results.NotFound());
+            Bank.FindExam(root, exam) is { Axes: true } e ? Html(ConfigurationPage.Render(root, e, key)) : Results.NotFound());
         app.MapGet("/{exam}/try/{id}", (string exam, string id) =>
             Bank.FindTryById(root, exam, id) is { Count: > 0 } stages ? Results.Redirect(Pages.U(stages[0].Path)) : Results.NotFound());
         app.MapGet("/{exam}/try/{id}/{stage}", (string exam, string id, string stage, HttpRequest request) =>

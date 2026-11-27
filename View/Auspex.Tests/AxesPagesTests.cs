@@ -102,13 +102,18 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         var page = Text(await Get($"/{AxesBank.Exam}/configuration/{Uri.EscapeDataString(key)}"));
         Assert.Contains("rewritten-b", page);
         Assert.Contains("the guide rewritten: read note.txt first", page);
-        Assert.Contains("1 file from values/prompt/rewritten", page);
-        Assert.Contains("The third column is the author's account, not proctor's finding.", page);
+        Assert.Contains("files from values/prompt/rewritten", page);
+        Assert.Contains("What a value changes is its author's account, not proctor's finding.", page);
+        // The sections the canvas drew, each a word of the vocabulary, and each try's stages as squares that open a stage.
+        foreach (var heading in new[] { "Predictions", "Stages", "Checks", "Friction", "Tries", "Axes" }) Assert.Contains(heading, page);
+        var html = await Get($"/{AxesBank.Exam}/configuration/{Uri.EscapeDataString(key)}");
+        Assert.Matches($"<a class=\"sq sq-(right|wrong)\" href=\"/{AxesBank.Exam}/try/{bank.Tries["rewritten-b"]}/", html);
+        Assert.DoesNotContain("<form", html);
         Assert.Contains(bank.Tries["rewritten-b"], page);
         Assert.DoesNotContain(bank.Tries["rewritten"], page);
 
         var gone = Text(await Get($"/{AxesBank.Exam}/configuration/{Uri.EscapeDataString("prompt=gone,tone=plain")}"));
-        Assert.Contains("Not a configuration this exam declares now", gone);
+        Assert.Contains("Not a configuration this exam names or has tries of now.", gone);
     }
 
     [Fact]

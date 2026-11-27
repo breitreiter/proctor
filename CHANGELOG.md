@@ -22,6 +22,20 @@ formats or the vocabulary; a patch bump does not.
   checks held, flagged steps, tool calls, tokens read and time; its
   predictions with each change's outcome; its axes, stages and checks
   with their roles. The earlier page is still at `/<exam>/coverage`.
+- **A stage and a check across a configuration's tries, as plain
+  statistics** (`stats.json`, each configuration's `tries`). A stage
+  gives its count of correctness checks, the share of them a try held
+  as lowest, median, highest and average (a share, so stages with
+  different numbers of checks read alike), the tries it is over, and
+  each correctness check that did not hold with in how many tries and
+  the first reason. `checks` gives each check's role and how often it
+  held of the times it was asked, whatever the stage; an integrity
+  check's is over every graded try. A stage of a try carries the
+  checks it held, of how many.
+- **The viewer's configuration page is the one designed on the
+  canvas**: the same five measures against live, its predictions,
+  stages, checks, friction and tries, each try's stages as squares
+  that open that stage.
 - **A predicted change's outcome is one of five words** (breaking, in
   `stats.json` and `compare`): `supported` (was `held`),
   `contradicted` (was `opposite_confirmed`), `no_effect` (was

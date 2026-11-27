@@ -92,50 +92,6 @@ static class AxesPages
 
     static string Ago(double? days) => days is not { } d ? "" : d < 1 ? "today" : $"{d:0} day{(d < 1.5 ? "" : "s")} before";
 
-    /// <summary>One configuration: what each of its values says it changes and what it carries, and its tries.</summary>
-    public static string Configuration(string root, Exam e, string key)
-    {
-        var (exam, problem) = Measured.Load(root, e.Id);
-        var c = exam?.Axes!.Of(key);
-        var page = Open($"{key} · {e.Id}", [("exams", "/"), (e.Id, e.Path), (c?.Name ?? "configuration", null)]);
-        if (exam is null || c is null)
-        {
-            page.Append($"<h1><code>{E(key)}</code></h1><p class=\"stage-status\">{(exam is null ? "<b>Proctor cannot read this exam as it stands.</b>" : "<b>Not a configuration this exam declares now</b>: an axis or a value in it was renamed or removed. Its tries are stale.")}</p>{(problem is null ? "" : $"<pre>{E(problem)}</pre>")}");
-            Tries(page, e, [key]);
-            return Close(page);
-        }
-        var axes = exam.Axes!;
-        page.Append($"<h1>{(c.Name is { } name ? $"{E(name)} " : "")}<code>{E(c.Label)}</code></h1>");
-        var offLive = c.Values.Any(v => axes.Def[v.Axis].Live is { } live && live != v.Value);
-        if (offLive) page.Append($"<p><a href=\"{Q($"/{e.Id}/compare", ("configuration", c.Key))}\">Compare with what is live</a>: everything this changes, together.</p>");
-
-        page.Append("<table class=\"values\"><tr><th>Axis</th><th>Value</th><th>What its author says it changes</th><th>What it carries</th><th>Identity</th></tr>");
-        foreach (var (axis, value) in c.Values)
-        {
-            var def = axes.Value(axis, value);
-            var carries = new List<string>();
-            if (def.Files?.Path is { } path) carries.Add($"{FileCount(System.IO.Path.Combine(exam.Dir, path)) switch { 1 => "1 file", var n => $"{n} files" }} from <code>{E(path)}</code>");
-            if (def.Files?.Git is { } git) carries.Add($"files from <code>{E(git)}</code> at <code>{E(def.Files.Rev ?? "")}</code>");
-            foreach (var (param, given) in def.Set ?? []) carries.Add($"sets <code>{E(param)}</code> = <code>{E(given is System.Text.Json.Nodes.JsonValue ? given.ToString() : given?.ToJsonString() ?? "")}</code>");
-            foreach (var (field, given) in def.Own()) if (given is not null) carries.Add($"{E(field)} <code>{E(given)}</code>");
-            var mark = axes.Def[axis].Live == value ? " <span class=\"meta\">live</span>" : "";
-            page.Append($"<tr><td><code>{E(axis)}</code></td><td><code>{E(value)}</code>{mark}</td><td>{E(def.Note ?? "")}{(def.Why is { } why ? $"<div class=\"meta\">there because: {E(why)}</div>" : "")}</td><td>{(carries.Count > 0 ? string.Join("<br>", carries) : "<span class=\"meta\">nothing</span>")}</td>")
-                .Append($"<td><code>{E(P.Bank.Short(axes.ValueHashes[(axis, value)]))}</code></td></tr>");
-        }
-        page.Append("</table><p class=\"meta\">The third column is the author's account, not proctor's finding. <code>proctor build ").Append(E(e.Id)).Append(" --value &lt;axis=value&gt;</code> builds a value alone and shows what it actually changes.</p>");
-
-        var together = P.Combinations.Load(exam).Stand(exam).GetValueOrDefault(c.Key);
-        if (together.State == P.Combinations.More) page.Append($"<p class=\"stage-status\"><b>More than its values put together</b>: built whole, it differs from what its values do alone, so some script reads more than one axis. {E(string.Join("; ", together.Paths))}</p>");
-        else if (together.State == P.Combinations.Unclear) page.Append($"<p class=\"stage-status\"><b>Cannot be told from its values alone</b>: several of them change the same lines. {E(string.Join("; ", together.Paths))}</p>");
-        else if (together.State == P.Combinations.NotChecked) page.Append($"<p class=\"meta\">Not checked against its values built alone. <code>proctor build {E(e.Id)}</code> does that.</p>");
-
-        page.Append("<h2>Tries</h2>");
-        Tries(page, e, [c.Key]);
-        return Close(page);
-    }
-
-    static int FileCount(string dir) => Directory.Exists(dir) ? Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Count() : 0;
-
     /// <summary>The tries the bank holds of these configurations, newest first, each with its stages; nothing counted.</summary>
     static void Tries(StringBuilder page, Exam e, IReadOnlyCollection<string> configurations)
     {

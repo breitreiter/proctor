@@ -143,3 +143,12 @@ a.sq:hover{outline:2px solid var(--link);outline-offset:1px}
 .r{text-align:right}
 .said{font-size:15px;line-height:1.5;max-width:760px}
 .first{border-top:none;padding-top:0}
+
+/* the configuration page */
+.five{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:8px 28px}
+.five .label{margin-bottom:4px;display:block}
+.grid{grid-template-columns:minmax(230px,1.3fr) 72px 72px 72px 72px 110px minmax(230px,1.3fr);align-items:baseline;gap:8px 24px}
+.rates{grid-template-columns:200px 110px 130px 130px minmax(0,1fr);align-items:baseline;padding:8px 0;gap:8px 24px}
+.kinds{grid-template-columns:minmax(300px,2.2fr) 80px 52px 60px 52px minmax(96px,.8fr);align-items:center}
+.everytry{grid-template-columns:160px 140px minmax(210px,1fr) 80px 64px 70px 80px 70px;align-items:center;padding-right:8px}
+.values{grid-template-columns:150px 150px minmax(0,1.2fr) minmax(0,1fr);align-items:baseline}
