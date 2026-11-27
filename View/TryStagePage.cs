@@ -8,20 +8,22 @@ using static Auspex.ExamPage;
 namespace Auspex;
 
 /// <summary>
-/// One stage of a try of an exam with axes, as designed on the canvas (2026-11-26 and 27): the stages of the try as
-/// tabs, each right or wrong; its checks by role, each with the steps its evidence points at as pills; its friction
+/// One stage of a try, as designed on the canvas (2026-11-26 and 27): the stages of the try as
+/// tabs, each right or wrong on an exam with axes; its checks by role, each with the steps its evidence points at as pills; its friction
 /// points likewise; and the transcript, a step a row that opens. It shows what the stage's files hold (checks.json,
 /// friction.json, trajectory.json, the diff) and what proctor says of the stage (right or wrong). A pill opens its
-/// step, which the browser marks as the target, so nothing here needs script. A try of an exam of variants is still
-/// the first pass's page (StagePage.cs).
+/// step, which the browser marks as the target, so nothing here needs script. A try of an exam of variants is the
+/// same page with no word from proctor on right or wrong, since proctor works that out for exams with axes only; a try
+/// of one task has one stage, and so no tabs.
 /// </summary>
 static class TryStagePage
 {
-    public static string Render(string root, Attempt a, IReadOnlyList<Attempt> stages, string? show)
+    public static string Render(string root, Attempt a, IReadOnlyList<Attempt>? stagesOfTry, string? show)
     {
+        IReadOnlyList<Attempt> stages = stagesOfTry is { Count: > 1 } ? stagesOfTry : [];
         var (exam, _) = Measured.Load(root, a.Exam);
-        var report = exam is null ? null : Measured.Report(root, exam).Report;
-        var configuration = exam?.Axes!.Of(a.Variant);
+        var report = exam?.Axes is null ? null : Measured.Report(root, exam).Report;
+        var configuration = exam?.Axes?.Of(a.Variant);
         var name = configuration?.Name ?? a.Variant;
         // Proctor's word for each stage of this try: right, wrong, or why it is neither.
         var number = report?.TryIds.FirstOrDefault(t => t.Key.Configuration == a.Variant && t.Value == a.N).Key.Try;
@@ -35,33 +37,44 @@ static class TryStagePage
         var ids = steps.Select(s => Bank.Str(s["step_id"])).ToList();
         var place = stages.ToList().FindIndex(s => s.Task == a.Task) + 1;
 
-        var page = Open($"{a.Task} · {a.N}", [("exams", "/"), (a.Exam, $"/{a.Exam}"), (name, $"/{a.Exam}/configuration/{a.Variant}"), (a.N, $"/{a.Exam}/try/{a.N}"), (a.Task, null)], style: "one");
+        // A try under its own id belongs to a configuration, which has a page; on an exam of variants a try is a variant's, by number.
+        (string, string?)[] crumbs = a.ById ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), (name, $"/{a.Exam}/configuration/{a.Variant}"), (a.N, $"/{a.Exam}/try/{a.N}"), (a.Task, null)]
+            : a.Staged ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Variant} · try {a.N}", $"/{a.Exam}/{a.Variant}/{a.N}"), (a.Task, null)]
+            : [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Variant} · {a.Task} · try {a.N}", null)];
+        var page = Open($"{a.Task} · {a.N}", crumbs, style: "one");
         var core = a.Core;
+        var exit = ExitOf(a);
+        var answers = steps.Count(s => Bank.Str(s["extra"]?["source"]) == "oracle");
         var flagged = points.SelectMany(p => Span(p, ids)).Distinct().Count();
         var about = exam?.Tasks.FirstOrDefault(t => t.Id == a.Task) is { } def ? P.Exam.Describe(def) : null;
-        page.Append($"<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">stage {place} of {stages.Count} · try of {E(name)}</span>")
+        page.Append($"<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">{(stages.Count > 0 ? $"stage {place} of {stages.Count} · " : "")}try {(a.ById ? "" : E(a.N) + " ")}of {E(name)}</span>")
             .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(a.Task)}</h1>{Light(Result(a.Task), a.Status)}</div>")
             .Append(about is null ? "" : $"<p class=\"soft\" style=\"margin:0;font-size:15px\">{E(about)}</p>").Append("<dl class=\"facts\">")
             .Append(Bank.Str(a.Manifest?["started"]) is { Length: > 0 } started ? Fact("Made", E(When(started))) : "")
+            .Append(Bank.Str(a.Manifest?["model"]) is { Length: > 0 } model ? Fact("Model", E(model)) : "")
+            .Append(exit.Length > 0 && exit != "ok" ? Fact("Ended", $"<span class=\"mono\" style=\"font-size:13px\">{E(exit)}</span>") : "")
             .Append(Fact("Steps", steps.Count.ToString()))
+            .Append(answers > 0 ? Fact("Oracle", $"{answers} {(answers == 1 ? "answer" : "answers")}") : "")
             .Append(Number(core?["tool_calls"]) is { } calls ? Fact("Tool calls", calls.ToString("0", CultureInfo.InvariantCulture)) : "")
             .Append(friction is null ? "" : Fact("Friction", $"<span class=\"fr\">{flagged} flagged {(flagged == 1 ? "step" : "steps")}</span>"))
             .Append(Number(core?["input_tokens"]) is { } tokens ? Fact("Tokens read", E(Tokens(tokens))) : "")
             .Append((Number(core?["duration_ms"]) ?? Number(a.Manifest?["duration_ms"])) is { } ms ? Fact("Time", E(Time(ms))) : "")
-            .Append(Fact("Address", $"<span class=\"mono\" style=\"font-size:13px\">{E($"{a.Exam}/try/{a.N}/{a.Task}")}</span>")).Append("</dl></header>");
+            .Append(Number(core?["cost_usd"]) is { } cost ? Fact("Cost", E(Usd(cost))) : "")
+            .Append(Fact("Address", $"<span class=\"mono\" style=\"font-size:13px\">{E(a.Path.TrimStart('/'))}</span>")).Append("</dl></header>");
         // A stage that did not complete: proctor's status and its own sentence for why, as written.
         if (a.Status != "completed" && Bank.Text(a.Manifest?["status_reason"]) is { } reason)
             page.Append($"<div class=\"said\"><b>{E(a.Status)}</b> <span class=\"soft\">{E(reason)}</span></div>");
 
-        page.Append("<div class=\"tabs\" role=\"tablist\" aria-label=\"Stages of this try\">");
+        if (stages.Count > 0) page.Append("<div class=\"tabs\" role=\"tablist\" aria-label=\"Stages of this try\">");
         foreach (var s in stages)
         {
             var result = Result(s.Task);
-            var tag = result switch { "right" => "<span class=\"tag tag-right\">right</span>", "wrong" => "<span class=\"tag tag-wrong\">wrong</span>", null => "", _ => $"<span class=\"tag tag-none\">{E(result.Replace('_', ' '))}</span>" };
+            // Without proctor's word on a stage, one that did not complete still says its status.
+            var tag = result switch { "right" => "<span class=\"tag tag-right\">right</span>", "wrong" => "<span class=\"tag tag-wrong\">wrong</span>", null => s.Status is var status && status != "completed" ? $"<span class=\"tag tag-none\">{E(status)}</span>" : "", _ => $"<span class=\"tag tag-none\">{E(result.Replace('_', ' '))}</span>" };
             page.Append($"<a class=\"tab stab{(s.Task == a.Task ? " tab-on" : "")}\" role=\"tab\" aria-selected=\"{(s.Task == a.Task ? "true" : "false")}\" href=\"{U(s.Path)}\"><span class=\"dim num\">{s.Place}</span><span>{E(s.Task)}</span>{tag}</a>");
         }
-        page.Append("</div><div class=\"cols\"><aside style=\"display:flex;flex-direction:column;gap:32px\">");
-        Checks(page, checks, ids);
+        page.Append($"{(stages.Count > 0 ? "</div>" : "")}<div class=\"cols\"><aside style=\"display:flex;flex-direction:column;gap:32px\">");
+        Checks(page, checks, ids, a.Status == "completed");
         Friction(page, friction, points, ids);
         page.Append("</aside>");
 
@@ -74,9 +87,10 @@ static class TryStagePage
             page.Append(steps.FirstOrDefault(s => Bank.Str(s["source"]) == "user") is { } first ? $"<div class=\"say\" style=\"padding-top:12px\">{E(Shown(Bank.Str(first["message"])))}</div>" : "<div class=\"said soft\">This stage's trajectory holds no prompt.</div>");
         else if (show == "files")
             page.Append(diff.Trim().Length == 0 ? "<div class=\"said soft\" style=\"padding-top:12px\">The stage left the workspace as it found it.</div>" : $"<pre class=\"full\" style=\"padding-top:12px;max-height:none\">{E(Shown(diff))}</pre>");
-        else Transcript(page, steps, ids, points, ExitOf(a));
+        else Transcript(page, steps, ids, points, exit);
 
         var next = place < stages.Count ? stages[place] : null;
+        if (stages.Count == 0) return Close(page.Append("</section></div>"));
         page.Append("<div class=\"row\" style=\"display:flex;justify-content:space-between;gap:12px;border-top-color:var(--rule)\">")
             .Append($"<span class=\"dim small\">{(place == 1 ? "First stage of this try" : $"<a href=\"{U(stages[place - 2].Path)}\">Previous stage: {stages[place - 2].Place}. {E(stages[place - 2].Task)}</a>")}</span>")
             .Append(next is null ? "<span class=\"dim small\">Last stage of this try</span>" : $"<a href=\"{U(next.Path)}\">Next stage: {next.Place}. {E(next.Task)}{(Result(next.Task) is { } r ? $", {E(r.Replace('_', ' '))}" : "")}</a>")
@@ -93,10 +107,11 @@ static class TryStagePage
     };
 
     /// <summary>The verdicts by role, as graded: held or did not hold where there is a preferred answer, yes or no for an observation; and the steps each points at.</summary>
-    static void Checks(StringBuilder page, List<Check> checks, List<string> ids)
+    static void Checks(StringBuilder page, List<Check> checks, List<string> ids, bool completed)
     {
         page.Append("<div class=\"blk blk-top\" aria-label=\"Checks\"><h2>Checks</h2>");
-        if (checks.Count == 0) page.Append("<div class=\"said soft\">This stage has no grade yet. Grading the exam writes it.</div>");
+        // A stage that did not complete has nothing to grade, so nothing is asked for.
+        if (checks.Count == 0) page.Append(!completed ? "<div class=\"said soft\">None: this stage did not complete.</div>" : "<div class=\"said soft\">This stage has no grade yet. Grading the exam writes it.</div>");
         foreach (var role in RoleOrder.Append(""))
         {
             var mine = checks.Where(c => (c.Role ?? "") == role || (role == "" && !RoleOrder.Contains(c.Role ?? ""))).ToList();
@@ -115,6 +130,8 @@ static class TryStagePage
                 };
                 page.Append($"<div class=\"ck\" id=\"check-{E(c.Name)}\"><span class=\"{cls}\" style=\"font-weight:600;font-size:13px\">{E(word)}</span><span class=\"stack\">")
                     .Append($"<span class=\"mono\" style=\"font-size:13px\"{(c.Describes is { } d ? $" title=\"{E(d)}\"" : "")}>{E(c.Name)}</span><span class=\"small soft\">{E(c.Reason)}</span>")
+                    .Append(c.Why is { } why ? $"<span class=\"small dim\">Why it is checked: {E(why)}</span>" : "")
+                    .Append(c.Script is { } script ? $"<span class=\"small dim mono\">{E(script)}</span>" : "")
                     .Append(Pills(c.Steps, ids)).Append(c.Files.Count > 0 ? $"<span class=\"small dim mono\">{E(string.Join(" ", c.Files))}</span>" : "").Append("</span></div>");
             }
         }
@@ -238,6 +255,9 @@ static class TryStagePage
         public string Reason => Bank.Str(V["reason"]);
         public string? Role => Bank.Text(V["role"]);
         public string? Describes => Bank.Text(V["describes"]);
+        public string? Why => Bank.Text(V["why"]);
+        /// <summary>A script check's script, relative to proctor's root, so a person can open what decided.</summary>
+        public string? Script => Bank.Text(V["script"]);
         public List<string> Steps => [.. (V["evidence"] as JsonArray ?? []).OfType<JsonObject>().Select(e => Bank.Str(e["step"])).Where(s => s.Length > 0).Distinct()];
         public List<string> Files => [.. (V["evidence"] as JsonArray ?? []).OfType<JsonObject>().Select(e => Bank.Str(e["file"])).Where(s => s.Length > 0).Distinct()];
     }

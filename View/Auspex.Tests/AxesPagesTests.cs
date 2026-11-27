@@ -65,7 +65,7 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         Assert.Equal(8, coverage["configurations"]!.AsArray().Count);
         Assert.Matches(@"rewritten-b prompt=rewritten .*?1 of 1", page);
         Assert.Matches(@"long-b length=long .*?not run 0 of 1", page);
-        Assert.Contains("What is live, across assistant", page);
+        Assert.Contains("Live, across assistant", page);
         Assert.Contains("2 of 2 have tries", page);
         Assert.Contains("nobody runs every combination", page);
         // No finding of an agent's is on the page; it says what to ask one, and of what.
@@ -168,9 +168,9 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
             foreach (var check in compared[0]!["by_check"]!.AsArray())
                 Assert.Contains($"title=\"{check!["held"]} of {check["asked"]}\"", html);
             Assert.DoesNotContain("<form", html);
-            // Every setting of the same change is one link away, on the earlier page.
+            // Every setting of the same change is one link away, with proctor's reading of them as one.
             if (cells.Count(c => c!["state"]!.GetValue<string>() == "compared") > 1)
-                Assert.Contains("Setting by setting", Text(await Get($"/{AxesBank.Exam}/compare?configuration={name}&against={against}&settings=all")));
+                Assert.Contains("comparison · every setting", Text(await Get($"/{AxesBank.Exam}/compare?configuration={name}&against={against}&settings=all")));
         }
         Assert.True(designed > 0, "no comparison of the test bank is in one setting, so the designed page was not exercised");
     }

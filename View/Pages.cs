@@ -6,44 +6,41 @@ using System.Text.Json.Nodes;
 
 namespace Auspex;
 
-/// <summary>The pages, rendered on the server from proctor's bank: one exam of variants' tries as plain links (a try
-/// is the stage page, StagePage.cs; an exam of stages lists each try's stages). Helpers here are shared with it. Nothing is grouped, counted across tries or
-/// worded here that proctor didn't write; the exam page that summarises tries waits on stages (project/build-plan.md).
-/// On screen proctor's variant is a setup and its attempt a try; until stages exist, a try is one task's attempt.</summary>
+/// <summary>An exam of variants as the tries the bank holds, by variant, the live one marked: plain links, nothing
+/// counted, since proctor's numbers for such an exam are in its report and not behind Measured.cs. A try is the stage
+/// page (TryStagePage.cs). The helpers every page shares are here too.</summary>
 public static class Pages
 {
     const int ShownChars = 200_000;
 
     public static string Exam(Exam e)
     {
-        var page = Open(e.Id, [("exams", "/"), (e.Id, null)]);
-        page.Append($"<h1><code>{E(e.Id)}</code></h1>");
-        if (e.Description is not null) page.Append($"<p>{E(e.Description)}</p>");
-        if (e.Attempts.Count == 0) return Close(page.Append("<p class=\"empty\">No try in this bank yet.</p>"));
+        var page = Open(e.Id, [("exams", "/"), (e.Id, null)], style: "one");
+        var tries = e.Attempts.Select(a => (a.Variant, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
+        page.Append("<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">exam of variants</span>")
+            .Append($"<h1 class=\"title\">{E(e.Id)}</h1>").Append(e.Description is { } d ? $"<p class=\"desc\">{E(d)}</p>" : "")
+            .Append("<dl class=\"facts\">").Append(ExamPage.Fact("Variants", e.Variants.Count().ToString())).Append(ExamPage.Fact("Tries", tries.ToString())).Append("</dl></header>");
+        if (e.Attempts.Count == 0) return Close(page.Append("<div class=\"said soft\">No try in this bank yet.</div>"));
 
+        ExamPage.Section(page, "Variants", "A variant is what is under test: an agent, a model and what it is given. Each try is listed as the bank holds it. The numbers are in proctor's report of this exam.");
+        string Unfinished(Attempt a) => a.Status is var status && status == "completed" ? "" : $" <span class=\"tag tag-none\">{E(status)}</span>";
+        var first = true;
         foreach (var variant in e.Variants)
         {
-            page.Append($"<h2>{E(variant)}{(variant == e.Live ? " <span class=\"meta\">live</span>" : "")}</h2>");
+            page.Append($"<div class=\"row{(first ? " first" : "")}\" style=\"grid-template-columns:minmax(180px,260px) minmax(0,1fr);padding:14px 0\">")
+                .Append($"<span style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap\"><span class=\"name\">{E(variant)}</span>{(variant == e.Live ? "<span class=\"light light-live\">live</span>" : "")}</span><span class=\"stack\" style=\"gap:8px\">");
+            first = false;
             // An exam of stages: each try, then its stages in order. A stage that did not complete says its status.
             var staged = e.Attempts.Where(a => a.Variant == variant && a.Staged).ToList();
-            if (staged.Count > 0)
-            {
-                page.Append("<ul class=\"tries\">");
-                foreach (var tryN in staged.Select(a => a.N).Distinct())
-                    page.Append($"<li><a href=\"{U(staged.First(a => a.N == tryN).ById ? $"/{e.Id}/try/{tryN}" : $"/{e.Id}/{variant}/{tryN}")}\">try {E(tryN)}</a> ")
-                        .Append(string.Join(" · ", staged.Where(a => a.N == tryN).Select(a => $"<a href=\"{U(a.Path)}\">{E(a.Task)}</a>{(a.Status == "completed" ? "" : $" <span class=\"meta\">{E(a.Status)}</span>")}")))
-                        .Append("</li>");
-                page.Append("</ul>");
-            }
+            foreach (var n in staged.Select(a => a.N).Distinct())
+                page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><a href=\"{U(staged.First(a => a.N == n).ById ? $"/{e.Id}/try/{n}" : $"/{e.Id}/{variant}/{n}")}\">try {E(n)}</a>")
+                    .Append(string.Concat(staged.Where(a => a.N == n).Select(a => $"<span class=\"small\"><a class=\"mono\" href=\"{U(a.Path)}\">{E(a.Task)}</a>{Unfinished(a)}</span>"))).Append("</span>");
             foreach (var task in e.Attempts.Where(a => a.Variant == variant && !a.Staged).Select(a => a.Task).Distinct())
-            {
-                page.Append($"<h3><code>{E(task)}</code></h3><ul class=\"tries\">");
-                foreach (var a in e.Attempts.Where(a => a.Variant == variant && a.Task == task))
-                    page.Append($"<li><a href=\"{U(a.Path)}\">try {E(a.N)}</a> <span class=\"meta\">{E(a.Status)}</span></li>");
-                page.Append("</ul>");
-            }
+                page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><span class=\"mono\" style=\"font-size:13px\">{E(task)}</span>")
+                    .Append(string.Concat(e.Attempts.Where(a => a.Variant == variant && a.Task == task).Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">try {E(a.N)}</a>{Unfinished(a)}</span>"))).Append("</span>");
+            page.Append("</span></div>");
         }
-        return Close(page);
+        return Close(page.Append("</div></section>"));
     }
 
     /// <summary>The text with each cited quote wrapped in a mark, found by the judge rule. A quote not found leaves the text alone.</summary>
@@ -77,35 +74,19 @@ public static class Pages
         return line.Length > 140 ? line[..140].ToString() + "…" : line.ToString();
     }
 
-    internal static string Chip(string label, bool model) => $"<span class=\"chip l-{E(label)}{(model ? " model" : "")}\">{E(label)}</span>";
-
     internal static double? Number(JsonNode? node) => node is JsonValue v && v.TryGetValue<double>(out var d) ? d : null;
 
     internal static string Usd(double? value) => value is { } v ? "$" + v.ToString(v < 0.1 ? "0.000" : "0.00", CultureInfo.InvariantCulture) : "";
 
-    /// <summary>A page's head and crumbs. Style "one" is the pages designed on the canvas (assets/one.css); without it, the first pass's stylesheet and Web Awesome's theme.</summary>
-    internal static StringBuilder Open(string title, (string Text, string? Href)[] crumbs, string? script = null, string? style = null)
-    {
-        if (style == "one")
-            return new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
-                .Append($"<title>{E(title)}</title><link rel=\"stylesheet\" href=\"/assets/one.css\"></head><body data-style=\"one\"><div class=\"page\"><nav class=\"crumbs\" aria-label=\"Where this is\">")
-                .Append(string.Join("<span>/</span>", crumbs.Select(c => c.Href is null ? $"<span>{E(c.Text)}</span>" : $"<a href=\"{U(c.Href)}\">{E(c.Text)}</a>")))
-                .Append("</nav>");
-        var page = new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
-            .Append($"<title>{E(title)}</title>")
-            // Web Awesome's theme goes dark by a class, not by the system setting; set it before the first paint.
-            .Append("<script>(function(){var m=matchMedia('(prefers-color-scheme: dark)'),r=document.documentElement;function a(){r.classList.toggle('wa-dark',m.matches)}a();m.addEventListener('change',a)})()</script>")
-            .Append("<link rel=\"stylesheet\" href=\"/assets/webawesome/styles/webawesome.css\"><link rel=\"stylesheet\" href=\"/assets/auspex.css\">")
-            .Append("<script type=\"module\" src=\"/assets/components.js\"></script>")
-            .Append(script is null ? "" : $"<script type=\"module\" src=\"{U(script)}\"></script>")
-            .Append("</head><body><nav>");
-        page.Append(string.Join(" / ", crumbs.Select(c => c.Href is null ? E(c.Text) : $"<a href=\"{U(c.Href)}\">{E(c.Text)}</a>")));
-        return page.Append("</nav><main>");
-    }
+    /// <summary>A page's head and crumbs, in the one style designed on the canvas (assets/one.css). No page loads a script.</summary>
+    internal static StringBuilder Open(string title, (string Text, string? Href)[] crumbs, string? style = "one") =>
+        new StringBuilder("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
+            .Append($"<title>{E(title)}</title><link rel=\"stylesheet\" href=\"/assets/one.css\"></head><body data-style=\"one\"><div class=\"page\"><nav class=\"crumbs\" aria-label=\"Where this is\">")
+            .Append(string.Join("<span>/</span>", crumbs.Select(c => c.Href is null ? $"<span>{E(c.Text)}</span>" : $"<a href=\"{U(c.Href)}\">{E(c.Text)}</a>")))
+            .Append("</nav>");
 
-    internal static string Close(StringBuilder page) => page.ToString().Contains("<body data-style=\"one\">")
-        ? page.Append("<footer class=\"note\">Fonts: Geist, Geist Mono and Space Grotesk, <a href=\"/assets/fonts/README.md\">SIL Open Font Licence</a>.</footer></div></body></html>").ToString()
-        : page.Append("</main><footer class=\"meta\">Components: Web Awesome, <a href=\"/assets/webawesome/LICENSE.md\">MIT licence</a>.</footer></body></html>").ToString();
+    internal static string Close(StringBuilder page) =>
+        page.Append("<footer class=\"note\">Fonts: Geist, Geist Mono and Space Grotesk, <a href=\"/assets/fonts/README.md\">SIL Open Font Licence</a>.</footer></div></body></html>").ToString();
 
     internal static string E(string text) => WebUtility.HtmlEncode(text);
 

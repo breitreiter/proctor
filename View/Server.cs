@@ -69,7 +69,7 @@ public static class Server
         app.MapGet("/{exam}/{variant}/{n}", (string exam, string variant, string n) =>
             Bank.FindTry(root, exam, variant, n) is { Count: > 0 } stages ? Results.Redirect(Pages.U(stages[0].Path)) : Results.NotFound());
         app.MapGet("/{exam}/{variant}/{first}/{second}", (string exam, string variant, string first, string second, HttpRequest request) =>
-            Bank.FindAttempt(root, exam, variant, first, second) is { } a ? Html(StagePage.Render(a, Bank.FindTry(root, exam, variant, a.N), request.Query["check"])) : Results.NotFound());
+            Bank.FindAttempt(root, exam, variant, first, second) is { } a ? Html(TryStagePage.Render(root, a, Bank.FindTry(root, exam, variant, a.N), request.Query["show"])) : Results.NotFound());
 
         await app.StartAsync();
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();

@@ -7,6 +7,12 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Every page of the viewer is in the designed style.** An exam of
+  variants, a try of one, coverage and the comparison across every
+  setting now use the same stylesheet and parts as the five pages
+  drawn on the canvas, and the stage page is one page for every try.
+  No page loads a script: search on a stage and selecting a check went
+  with it. Web Awesome is no longer shipped in the viewer.
 - **The viewer's mark beside a configuration is about that
   configuration's own tries.** On an exam where another axis varies
   too, the mark used proctor's verdict pooled over every setting of

@@ -14,7 +14,8 @@
   <ItemGroup>
     <Compile Include="*.cs" />
     <!-- VERSION records which Web Awesome was vendored and its checksum; it is for the repository, not the page -->
-    <EmbeddedResource Include="assets/**" Exclude="assets/webawesome/VERSION" LogicalName="assets/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Web Awesome is vendored (assets/webawesome, assets/components.js) and not shipped: since 2026-11-27 no page uses a component. -->
+    <EmbeddedResource Include="assets/**" Exclude="assets/webawesome/**;assets/components.js" LogicalName="assets/%(RecursiveDir)%(Filename)%(Extension)" />
     <InternalsVisibleTo Include="Auspex.Tests" />
   </ItemGroup>
 

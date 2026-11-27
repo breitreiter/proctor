@@ -48,24 +48,14 @@ holding `bank/` and `exams/`.
   `manifest.json`, `status`, `trajectory.json`, `checks.json`,
   `friction.json`, `core.json`), and from `exams/<exam>/` the
   description and live mark. Proctor's file names live here only.
-- `Pages.cs`: an exam of variants' tries as plain links by setup and
-  task, live first, nothing counted; the shared page helpers.
-- `StagePage.cs` and `assets/stage.js`: a try, as the stage page
-  (`project/stage-page.md`); before stages a try is one task's attempt,
-  one stage with no tabs. Failure first, friction rows, passed checks,
-  the transcript with gutter marks, friction tags and marked quotes,
-  search. It shows only what the files hold. On an exam of stages
-  (proctor's `bank.md`, step 4; since 2026-11-23) the route is
-  `/<exam>/<setup>/<try>/<stage>`, the page carries a strip of the
-  try's stages in order, and a stage that did not complete shows
-  proctor's status and reason. On an exam of tasks the route is still
-  the bank's path, `/<exam>/<variant>/<task>/<n>`.
-- `assets/auspex.css`: auspex's own tokens and layout, unlayered, so it
-  wins over Web Awesome's base layer (which styles every native
-  `details` and `button`; override what a component sets).
+- `Pages.cs`: an exam of variants, `/<exam>`: its tries as plain links
+  by variant and task, the live one marked, nothing counted (proctor's
+  numbers for such an exam are in its report, not behind
+  `Measured.cs`); the shared page helpers. `Open` is the one page head:
+  every page is in the designed style (since 2026-11-27) and none loads
+  a script.
 - `ExamPage.cs`: the page of an exam with axes, `/<exam>`, the first of
-  the pages designed on the canvas to be built (2026-11-27; the others
-  are still the first pass). Sections are vocabulary words:
+  the pages designed on the canvas to be built (2026-11-27). Sections are vocabulary words:
   Configurations (each named one against what is live on five measures,
   a strip centred on live's median), Predictions, Axes, Stages, Checks
   with their roles. It reads `Measured.Stats` and, per configuration,
@@ -84,15 +74,26 @@ holding `bank/` and `exams/`.
   of every number. Predictions about the pair, the five measures as two
   lanes on one scale, each check's rate, each stage as plain
   statistics, friction by label. `AxesPages.Compare` hands over to it
-  when proctor's answer is one compared cell, and still draws a
-  comparison across several settings itself.
-- `TryStagePage.cs`: one stage of a try of an exam with axes,
-  `/<exam>/try/<id>/<stage>`, the fourth designed page (2026-11-27).
-  Stage tabs with proctor's right or wrong (from `Measured.Report`),
-  verdicts grouped by the role `checks.json` records, evidence and
-  friction spans as pills that open the step (`:target` marks it, no
-  script), each step a native `details`, and `?show=prompt|files`. A
-  try of an exam of variants is still `StagePage.cs`.
+  when one setting is the subject, and draws every setting of a change
+  itself (`&settings=all`): a row a setting, both sides' tries, what
+  was found, and proctor's reading of them as one.
+- `AxesPages.cs`: coverage, `/<exam>/coverage` (each value's tries, the
+  configurations named or run, what is live across an axis nobody
+  chooses), and the every-setting comparison. Neither was drawn on the
+  canvas; both use the designed pages' parts.
+- `TryStagePage.cs`: one stage of a try, the fourth designed page
+  (2026-11-27), at `/<exam>/try/<id>/<stage>` on an exam with axes and
+  at the bank's path on an exam of variants
+  (`/<exam>/<variant>/<try>/<stage>`, or `/<exam>/<variant>/<task>/<n>`
+  for a try of one task, which has no tabs). Stage tabs with proctor's
+  right or wrong (from `Measured.Report`, exams with axes only; without
+  it a stage that did not complete says its status), verdicts grouped
+  by the role `checks.json` records ("role not recorded" for a grade
+  from before roles), each with why it is checked and its script when
+  the file has them, evidence and friction spans as pills that open the
+  step (`:target` marks it, no script), each step a native `details`,
+  and `?show=prompt|files`. It replaced the first pass's `StagePage.cs`
+  and `stage.js`; search and selecting a check went with the script.
 - **A mark beside a configuration's name is about its own tries** (the user,
   2026-11-27; `ExamPage.Own`, `ExamPage.Light`). Proctor's answer about a
   configuration compares the change in every setting that has it and pools
@@ -111,14 +112,17 @@ holding `bank/` and `exams/`.
   named configurations with the marks `ExamPage.Standing` gives them,
   its predictions and its tries; an exam of variants is a plain row. It
   lists exams that have a bank, as before.
-- `assets/one.css` and `assets/fonts/`: the designed pages' stylesheet
-  (dark ground, Geist, Space Grotesk heads, lime rules), copied from the
+- `assets/one.css` and `assets/fonts/`: the one stylesheet (dark
+  ground, Geist, Space Grotesk heads, lime rules), copied from the
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a
-  page asks nothing of the network. `Pages.Open(..., style: "one")`
-  links it in place of `auspex.css` and Web Awesome's theme. When every
-  page has moved, `auspex.css` goes.
+  page asks nothing of the network.
 - `Quote.cs`: finds a quote by proctor's judge rule.
-- `assets/webawesome/`: Web Awesome 3.14.0 (MIT), vendored by
+- `assets/webawesome/` and `assets/components.js`: **in the repository
+  and not shipped** (excluded in `Auspex.csproj` since 2026-11-27). The
+  designed pages are plain HTML and CSS and use no component, so nothing
+  names these. Whether to delete them or take components up again is
+  the user's to say. What follows is how they were vendored.
+  Web Awesome 3.14.0 (MIT), vendored by
   `tools/vendor_webawesome.py` from the npm tarball's `dist-cdn/`: only
   the components in its `COMPONENTS` list, the chunks they import, and
   the stylesheet with its `@import`s. `VERSION` records the version and
