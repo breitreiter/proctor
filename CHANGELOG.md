@@ -36,6 +36,17 @@ formats or the vocabulary; a patch bump does not.
   canvas**: the same five measures against live, its predictions,
   stages, checks, friction and tries, each try's stages as squares
   that open that stage.
+- **A comparison's cell goes check by check and stage by stage**
+  (`compare`): `by_check`, each check's rate on both sides and the two
+  compared on the stages of a try in which it held; `by_stage`, each
+  stage on both sides as a configuration has it, compared on the share
+  of its correctness checks a try held; `friction`, flagged steps a
+  try by label, which `friction.json` now gives per configuration too
+  (`labels`).
+- **The viewer's comparison page is the one designed on the canvas**,
+  for a comparison in one setting: "X vs Y", every number describing
+  X. A comparison across several settings keeps the earlier page. The
+  token redirect keeps a page's own query.
 - **A predicted change's outcome is one of five words** (breaking, in
   `stats.json` and `compare`): `supported` (was `held`),
   `contradicted` (was `opposite_confirmed`), `no_effect` (was

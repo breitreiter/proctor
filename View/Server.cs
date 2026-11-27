@@ -32,7 +32,9 @@ public static class Server
             if (context.Request.Query["t"] == token)
             {
                 context.Response.Cookies.Append(cookie, token, new CookieOptions { HttpOnly = true, SameSite = SameSiteMode.Strict, Path = "/" });
-                context.Response.Redirect(context.Request.Path);
+                // On to the same address without the token: the rest of the query is the page's own (a comparison's sides, a time).
+                var rest = QueryString.Create(context.Request.Query.Where(q => q.Key != "t"));
+                context.Response.Redirect(context.Request.Path + rest);
                 return;
             }
             if (context.Request.Cookies[cookie] != token)

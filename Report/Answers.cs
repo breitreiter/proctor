@@ -19,7 +19,21 @@ record SideAnswer(string Configuration, string? Name, string? Together, string A
 /// whether this many tries a side could confirm any difference at all; SmallestP the smallest p they could give.
 /// </summary>
 record CellAnswer(Dictionary<string, string> Holding, string State, SideAnswer Value, SideAnswer Against, Measure? Held, Measure? Flagged, bool CouldConfirm, double SmallestP, List<CheckHeld>? Checks = null,
-    Measure? ToolCalls = null, Measure? Tokens = null, Measure? Duration = null);
+    Measure? ToolCalls = null, Measure? Tokens = null, Measure? Duration = null,
+    List<CheckCompared>? ByCheck = null, List<StageCompared>? ByStage = null, List<LabelCompared>? Friction = null, double? FlaggedPerTry = null, double? OtherFlaggedPerTry = null);
+
+/// <summary>
+/// One check in one setting, both sides: how often it held of the times it was asked, and the two compared try against
+/// try on the stages of a try in which it held. Higher is the measure's "better" whatever the check's role: an
+/// observation has no preferred answer, and a reader of one takes the direction and leaves the word.
+/// </summary>
+record CheckCompared(string Check, string Role, string? About, int Held, int Asked, int OtherHeld, int OtherAsked, Measure Measure);
+
+/// <summary>One stage in one setting, both sides as the configuration's page has them, compared try against try on the share of its correctness checks a try held.</summary>
+record StageCompared(string Stage, StageTally Value, StageTally Against, Measure? Measure);
+
+/// <summary>One label of friction in one setting: flagged steps a try on each side.</summary>
+record LabelCompared(string Label, double PerTry, double OtherPerTry);
 
 /// <summary>One correctness check in one setting: in how many of each side's counted tries it held. Counts only; no test is made of one check.</summary>
 record CheckHeld(string Stage, string Check, string? About, int Value, int ValueTries, int Against, int AgainstTries);
@@ -139,7 +153,7 @@ static class Answers
         var then = all.Where(x => x.Made <= at).ToList();
         var current = then.Select(x => x.Attempt).ToList();
         var rows = Results.Collect(root, exam, current);
-        var (tries, _) = Tries.Compute(root, exam, current, Bank.Of(root, exam), rows, null, null);
+        var (tries, rollup) = Tries.Compute(root, exam, current, Bank.Of(root, exam), rows, null, null);
         var byKey = tries.Variants.ToDictionary(v => v.Id);
         var standing = Combinations.Load(exam).Stand(exam);
         var moves = Standard.Moves(root, exam, current);
@@ -169,8 +183,34 @@ static class Answers
             return exam.StagesOf(c.Key).SelectMany(s => Standard.PassIn(exam, s, c.Key).Select(check =>
                 new CheckHeld(s.Id!, check, exam.ChecksFor(s).GetValueOrDefault(check) is { } declared ? Checks.Describe(declared.Spec) : null, Held(c.Key, mineNs, s.Id!, check), mineNs.Count, Held(c.LiveKey, theirNs, s.Id!, check), theirNs.Count))).ToList();
         }
+        // Check by check and stage by stage, each side as its configuration's page has it, and the two compared as every measure is.
+        List<CheckCompared>? ByCheck(ComparedCell c)
+        {
+            if (c.State != "compared") return null;
+            var (mine, theirs) = (byKey[c.Key], byKey[c.LiveKey]);
+            List<double> Stages(TryVariant v, string check) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)rows.Count(x => x.Variant == v.Id && x.Attempt == r.N && x.Checks?.GetValueOrDefault(check) == Verdict.Pass)).ToList();
+            return (mine.Checks ?? []).Select(k => (Mine: k, Theirs: theirs.Checks?.FirstOrDefault(o => o.Check == k.Check))).Where(k => k.Theirs is not null).Select(k =>
+                new CheckCompared(k.Mine.Check, k.Mine.Role, exam.Tasks.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Mine.Check)).FirstOrDefault(d => d is not null) is { } declared ? Checks.Describe(declared.Spec) : null,
+                    k.Mine.Held, k.Mine.Asked, k.Theirs!.Held, k.Theirs.Asked, Tries.Compare(Stages(mine, k.Mine.Check), Stages(theirs, k.Mine.Check), higherIsBetter: true))).ToList();
+        }
+        List<StageCompared>? ByStage(ComparedCell c)
+        {
+            if (c.State != "compared") return null;
+            var (mine, theirs) = (byKey[c.Key], byKey[c.LiveKey]);
+            List<double> Shares(TryVariant v, string stage) => v.Rows.Where(r => r.Invalid is null).Select(r => r.Stages.FirstOrDefault(s => s.Id == stage)).Where(s => s?.Of is > 0).Select(s => (double)s!.Held!.Value / s.Of!.Value).ToList();
+            return mine.Stages.Select(s => (Mine: s, Theirs: theirs.Stages.FirstOrDefault(o => o.Id == s.Id))).Where(s => s.Theirs is not null).Select(s =>
+                new StageCompared(s.Mine.Id, s.Mine, s.Theirs!, Shares(mine, s.Mine.Id) is { Count: > 0 } a && Shares(theirs, s.Mine.Id) is { Count: > 0 } b ? Tries.Compare(a, b, higherIsBetter: true) : null)).ToList();
+        }
+        List<LabelCompared>? ByLabel(ComparedCell c)
+        {
+            if (c.State != "compared" || byKey[c.Key].Flagged is null || byKey[c.LiveKey].Flagged is null) return null;
+            var (mine, theirs) = (rollup.Variants.FirstOrDefault(v => v.Id == c.Key)?.Labels ?? [], rollup.Variants.FirstOrDefault(v => v.Id == c.LiveKey)?.Labels ?? []);
+            return mine.Select(l => l.Label).Union(theirs.Select(l => l.Label)).Select(l => new LabelCompared(l, mine.FirstOrDefault(x => x.Label == l)?.PerTry ?? 0, theirs.FirstOrDefault(x => x.Label == l)?.PerTry ?? 0))
+                .OrderByDescending(l => Math.Max(l.PerTry, l.OtherPerTry)).ToList();
+        }
         var cells = comparison.Cells.Select(c => new CellAnswer(c.Holding, c.State, Side(c.Key), Side(c.LiveKey), c.Held, c.Flagged,
-            Tries.MinP(c.Tries, c.LiveTries) < Alpha, Tries.MinP(c.Tries, c.LiveTries), ChecksOf(c), c.ToolCalls, c.Tokens, c.Duration)).ToList();
+            Tries.MinP(c.Tries, c.LiveTries) < Alpha, Tries.MinP(c.Tries, c.LiveTries), ChecksOf(c), c.ToolCalls, c.Tokens, c.Duration,
+            ByCheck(c), ByStage(c), ByLabel(c), c.State == "compared" ? rollup.Variants.FirstOrDefault(v => v.Id == c.Key)?.PerTry : null, c.State == "compared" ? rollup.Variants.FirstOrDefault(v => v.Id == c.LiveKey)?.PerTry : null)).ToList();
 
         // What these counts of tries could have shown at best. A difference not confirmed is not a difference shown to be absent.
         var compared = cells.Where(c => c.State == "compared").ToList();
@@ -228,7 +268,7 @@ static class Answers
             + "flagged is a try's steps inside any friction point, when friction was run. checks in a cell counts, per correctness check, the tries of each side that held it; it tests nothing. "
             + "together on a configuration more than one value off the reference says whether `proctor build` found it to be its values put together (sum), more than that (more), not to be told (unclear), or never checked (not_checked). "
             + "A setting not run is not run, never no difference. tries_since counts tries made after as_of in these configurations: the numbers are as they stood at as_of. "
-            + "tool_calls, tokens and duration are compared as held and flagged are, try against try, and of each fewer is better; one is null when a try on either side does not carry the number. predictions are those written about a configuration in this comparison: each change one expects, with how it came out against the configuration it named; post hoc means tries of its configuration were made before the prediction was written. "
+            + "by_check and by_stage give each check and each stage on both sides, compared the same way (a check on the stages of a try in which it held, a stage on the share of its correctness checks a try held); friction is flagged steps a try by label. tool_calls, tokens and duration are compared as held and flagged are, try against try, and of each fewer is better; one is null when a try on either side does not carry the number. predictions are those written about a configuration in this comparison: each change one expects, with how it came out against the configuration it named; post hoc means tries of its configuration were made before the prediction was written. "
             + "An address opens the same thing in the viewer; path is its directory under the repository root. Nothing here recommends anything.",
             predicted.Count > 0 ? predicted : null);
     }

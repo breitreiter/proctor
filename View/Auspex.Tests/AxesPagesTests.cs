@@ -90,9 +90,39 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         Assert.Contains("nothing to compare yet", earlier);
 
         // A configuration is asked about by name, as `proctor compare --configuration` takes it.
-        Assert.Contains("Asked of the configuration rewritten-b", Text(await Get($"/{AxesBank.Exam}/compare?configuration=rewritten-b")));
+        Assert.Contains("rewritten-b vs shipped-b", Text(await Get($"/{AxesBank.Exam}/compare?configuration=rewritten-b")));
+        Assert.Contains("Asked of the configuration rewritten-b", Text(await Get($"/{AxesBank.Exam}/compare?configuration=rewritten-b&settings=all")));
         // What proctor refuses, the page says in proctor's words.
         Assert.Contains("is not a value this exam declares", Text(await Get($"/{AxesBank.Exam}/compare?change=prompt%3Dnope&against=prompt%3Dshipped")));
+    }
+
+    [Fact]
+    public async Task AComparisonInOneSetting_IsXVsY_TheSubjectFirst_WithProctorsNumbers()
+    {
+        var designed = 0;
+        foreach (var (name, against) in new[] { ("rewritten", "shipped"), ("rewritten-b", "shipped-b") })
+        {
+            var answer = JsonNode.Parse(bank.Proctor("compare", AxesBank.Exam, "--configuration", name, "--against", against))!;
+            var cells = answer["cells"]!.AsArray();
+            // Proctor compares the change wherever the exam has it; the page is the setting that is these two configurations.
+            var compared = cells.Where(c => c!["state"]!.GetValue<string>() == "compared" && c["value"]!["name"]?.GetValue<string>() == name).ToList();
+            if (compared.Count != 1) continue;
+            designed++;
+            var html = await Get($"/{AxesBank.Exam}/compare?configuration={name}&against={against}");
+            var page = Text(html);
+            var other = compared[0]!["against"]!["name"]!.GetValue<string>();
+            Assert.Contains($"{name} vs {other}", page);
+            foreach (var heading in new[] { "Tries", "Checks", "Stages", "Friction", "How this is counted" }) Assert.Contains(heading, page);
+            Assert.Contains($"Every number and direction describes {name}, the name before vs.", page);
+            // Each check proctor compared is a row, with the rate proctor gives.
+            foreach (var check in compared[0]!["by_check"]!.AsArray())
+                Assert.Contains($"title=\"{check!["held"]} of {check["asked"]}\"", html);
+            Assert.DoesNotContain("<form", html);
+            // Every setting of the same change is one link away, on the earlier page.
+            if (cells.Count(c => c!["state"]!.GetValue<string>() == "compared") > 1)
+                Assert.Contains("Setting by setting", Text(await Get($"/{AxesBank.Exam}/compare?configuration={name}&against={against}&settings=all")));
+        }
+        Assert.True(designed > 0, "no comparison of the test bank is in one setting, so the designed page was not exercised");
     }
 
     [Fact]

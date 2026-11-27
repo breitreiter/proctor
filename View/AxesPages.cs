@@ -114,6 +114,9 @@ static class AxesPages
         if (answer is null)
             return Close(page.Append($"<h1>Comparison</h1><p class=\"stage-status\"><b>Proctor did not answer this.</b></p><pre>{E(why ?? "")}</pre>"));
 
+        // One setting compared is the page designed on the canvas; several settings are still drawn here.
+        if (query("settings") != "all" && ComparePage.Render(root, e, exam!, answer, query) is { } designed) return designed;
+
         var (change, against) = (Label(answer.Change), Label(answer.Against));
         page.Append($"<h1><code>{E(change)}</code> against <code>{E(against)}</code></h1>");
         if (answer.Configuration is { } asked) page.Append($"<p class=\"meta\">Asked of the configuration <a href=\"{U($"/{e.Id}/configuration/{exam!.Axes!.Named.FirstOrDefault(c => c.Name == asked)?.Key ?? asked}")}\">{E(asked)}</a>: everything it changes, together.</p>");

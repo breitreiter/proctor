@@ -78,6 +78,14 @@ holding `bank/` and `exams/`.
   check's rate beside live's, friction by kind, and every try with its
   stages as squares that open that stage. It reads `Measured.Report`
   (the stats, the friction rollup, each try's id).
+- `ComparePage.cs`: one configuration against another in one setting,
+  `/<exam>/compare?configuration=<name>[&against=<name>]`, the third
+  designed page (2026-11-27): "X vs Y", the name before vs the subject
+  of every number. Predictions about the pair, the five measures as two
+  lanes on one scale, each check's rate, each stage as plain
+  statistics, friction by label. `AxesPages.Compare` hands over to it
+  when proctor's answer is one compared cell, and still draws a
+  comparison across several settings itself.
 - `assets/one.css` and `assets/fonts/`: the designed pages' stylesheet
   (dark ground, Geist, Space Grotesk heads, lime rules), copied from the
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a

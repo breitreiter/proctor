@@ -65,7 +65,10 @@ record TriesFile(string Schema, string Exam, bool Chained, List<StageInfo> Stage
 /// </summary>
 record FrictionKind(string Label, string? Detail, List<string> Stages, int In, int Of, Spread When, double PerTry, string Example);
 
-record FrictionVariant(string Id, int Tries, double PerTry, List<FrictionKind> Kinds);
+/// <summary>One label of friction in a variant's tries: its flagged steps a try, over all the counted tries. A step may carry several labels, so the labels add up to more than the flagged steps.</summary>
+record FrictionLabel(string Label, double PerTry);
+
+record FrictionVariant(string Id, int Tries, double PerTry, List<FrictionKind> Kinds, List<FrictionLabel>? Labels = null);
 
 /// <summary>reports/&lt;exam&gt;/explore/friction.json: what recurs across a variant's tries (check-evidence.md, C5.4).</summary>
 record FrictionRollup(string Schema, string Exam, List<FrictionVariant> Variants, BuiltFrom? BuiltFrom);
@@ -205,7 +208,9 @@ static class Tries
             return new FrictionKind(g.Key.Label, g.Key.Detail, g.Select(f => f.Stage).Distinct().ToList(), perTry.Count, n, SpreadOf(perTry)!, Math.Round(perTry.Sum() / n, 2), $"{example.Try}/{example.Stage}");
         }).OrderByDescending(k => k.PerTry).ThenBy(k => k.Label, StringComparer.Ordinal).ThenBy(k => k.Detail, StringComparer.Ordinal).ToList();
         var flagged = v.Rows.Where(t => t.Invalid is null && t.Flagged is not null).Select(t => (double)t.Flagged!.Value).ToList();
-        return new FrictionVariant(v.Id, n, flagged.Count == 0 ? 0 : Math.Round(flagged.Average(), 2), kinds);
+        var labels = n == 0 ? [] : found.Where(f => counted.Contains(f.Try)).GroupBy(f => f.Label).Select(g => new FrictionLabel(g.Key, Math.Round((double)g.Sum(f => f.Steps) / n, 2)))
+            .OrderByDescending(l => l.PerTry).ThenBy(l => l.Label, StringComparer.Ordinal).ToList();
+        return new FrictionVariant(v.Id, n, flagged.Count == 0 ? 0 : Math.Round(flagged.Average(), 2), kinds, labels);
     }
 
     static AgainstLive Against(TryVariant v, TryVariant live, FrictionVariant vFriction, FrictionVariant liveFriction)

@@ -152,3 +152,12 @@ a.sq:hover{outline:2px solid var(--link);outline-offset:1px}
 .kinds{grid-template-columns:minmax(300px,2.2fr) 80px 52px 60px 52px minmax(96px,.8fr);align-items:center}
 .everytry{grid-template-columns:160px 140px minmax(210px,1fr) 80px 64px 70px 80px 70px;align-items:center;padding-right:8px}
 .values{grid-template-columns:150px 150px minmax(0,1.2fr) minmax(0,1fr);align-items:baseline}
+
+/* the comparison page */
+.meas{grid-template-columns:minmax(150px,.9fr) minmax(240px,2fr) 124px 124px 64px minmax(170px,1fr);align-items:center;gap:8px 20px}
+.lanes{display:flex;flex-direction:column;gap:5px}
+.lane-name{width:78px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cchecks{grid-template-columns:minmax(170px,1fr) 110px 100px 100px minmax(160px,1fr) minmax(190px,1.1fr);align-items:baseline;padding:8px 0;gap:8px 24px}
+.cstages{grid-template-columns:minmax(180px,1.1fr) 92px 64px 64px 64px 72px minmax(130px,.8fr) minmax(170px,1fr);align-items:start;gap:8px 20px}
+.two{display:flex;flex-direction:column;gap:4px}
+.fric{grid-template-columns:minmax(170px,1fr) 110px 110px 110px minmax(0,1fr);align-items:baseline;padding:8px 0;gap:8px 24px}
