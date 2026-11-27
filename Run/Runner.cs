@@ -438,6 +438,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             var hooksDir = Path.Combine(entryDir, Layout.HooksDir);
             Directory.CreateDirectory(hooksDir);
             var variantEnv = new Dictionary<string, string> { ["PROCTOR_EXAM"] = exam.Id, ["PROCTOR_VARIANT"] = variant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = entry.BundleOf(variant.Id!)?.Path ?? "", ["PROCTOR_RUNNER"] = entry.Nb.Runner?.Script ?? "" };
+            if (exam.Axes?.Of(variant.Id!) is { } configuration)
+                foreach (var (axis, value) in configuration.Values) variantEnv["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
             var setup = RunHook(exam.Def.Hooks?.Variant?.Setup, variantEnv, Path.Combine(hooksDir, $"{variant.Id}.setup.log"));
             if (setup is not null)
             {

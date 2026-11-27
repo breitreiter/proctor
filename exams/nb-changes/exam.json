@@ -17,6 +17,175 @@
       "setup": "../code-change/hooks/ensure-model.sh"
     }
   },
+  "axes": {
+    "planted": {
+      "about": "what is planted in nb at the pinned revision; a stage belongs to the one it reports",
+      "reference": "none",
+      "values": {
+        "none": {
+          "note": "nb as pinned, nothing planted",
+          "fixture": "nb-pinned"
+        },
+        "far-cause": {
+          "note": "a defect whose symptom is in a different module from its cause",
+          "fixture": "nb-far-cause"
+        },
+        "red-test": {
+          "note": "a defect one of nb's own tests catches",
+          "fixture": "nb-red-test"
+        },
+        "report-only": {
+          "note": "a defect no test catches, reported by a user",
+          "fixture": "nb-report-only"
+        },
+        "two-causes": {
+          "note": "two defects behind one report, the second showing once the first is fixed",
+          "fixture": "nb-two-causes"
+        }
+      }
+    },
+    "assistant": {
+      "about": "the agent and the model that make the change",
+      "values": {
+        "qwen": {
+          "note": "Qwen Code on the local model: the free shakedown",
+          "agent": "qwen-code",
+          "agent_version": "0.25.2",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "qwen.none": {
+      "planted": "none",
+      "assistant": "qwen"
+    },
+    "qwen.far-cause": {
+      "planted": "far-cause",
+      "assistant": "qwen"
+    },
+    "qwen.red-test": {
+      "planted": "red-test",
+      "assistant": "qwen"
+    },
+    "qwen.report-only": {
+      "planted": "report-only",
+      "assistant": "qwen"
+    },
+    "qwen.two-causes": {
+      "planted": "two-causes",
+      "assistant": "qwen"
+    }
+  },
+  "stages": [
+    {
+      "id": "ask-user-question",
+      "about": "A new feature across nb's tool surface, oracle, budget and transcript: a tool the model asks its user with, answered from the answer sheet, to a written contract",
+      "when": "planted = none",
+      "prompt": "nb has no user. When a model needs something from one, all it can do today is end its turn with a question, and the oracle (an answer sheet attached to the program; see *On `oracle`* in `docs/conversation-program-cli.md`) judges that last message. I'd like the model to be able to ask through a tool as well. Please add it, to this contract:\n\n1. A native tool named `ask_user_question`, with one required string argument, `question`.\n2. The tool is offered to the model only while the program has an `oracle` sheet attached. `tools -ask_user_question` removes it like any other native tool, so the name has to be valid in a `tools` directive. With no oracle, a call to it is refused the way any unadvertised tool is.\n3. A call is answered by the same oracle judgement an end-of-turn ask gets, with the question standing where the model's last message would. On a hit, the tool result is the selected sheet entries, verbatim, composed exactly as the end-of-turn answer is.\n4. If the sheet has no answer (the judge's verdict is anything but entry ids), the tool result is exactly `The user has no answer to that question. Proceed on your own judgement.` and the run goes on. This does not end the run and does not set `oracle_miss`.\n5. A hit counts against `budget oracle_turns`, the same counter end-of-turn resolutions use. A question that would be a hit when the budget is already spent gets the tool result `The user is no longer answering questions in this run.`, and the run then ends with exit reason `oracle_budget`.\n6. In the transcript this is an ordinary `tool_call` and `tool_result`. The `tool_result` event also carries `\"source\": \"oracle\"`, and on a hit `\"keys\"`, the selected entry ids. The trailer's `oracle_turns` counts hits from either route.\n7. The judge call's tokens count in the run's usage, as the end-of-turn judge call's do.\n8. So that it can be tested: on the Mock provider, `MOCK:tool=ask_user_question <text>` sends `<text>` as the `question` argument, and a `MOCK:oracle=<verdict>` rider inside the question scripts the judge's verdict, as it does for an end-of-turn ask.\n\nNothing that works today should change, the end-of-turn oracle included. Add tests for the new behaviour and bring the docs up to date.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "nb.Core/**",
+            "nb.Tests/**",
+            "docs/**",
+            "Providers/**",
+            "evals/**",
+            "Program.cs",
+            "CLAUDE.md",
+            "README.md"
+          ],
+          "mode": "at_most"
+        },
+        "answer_regex": "ask_user_question"
+      }
+    },
+    {
+      "id": "not-a-bug",
+      "about": "A report of documented behaviour as a bug: the right outcome is no code change and an answer that says where the docs describe it",
+      "when": "planted = none",
+      "prompt": "Bug: `@file` includes don't work in the middle of a prompt. With a program like\n\n```\nrun @notes.md and summarise it\n```\n\nnb sends the literal text `@notes.md and summarise it` to the model; the file is never included. `run @notes.md` on its own line works fine, so the include code is clearly there. Can you fix this?",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "docs/**",
+            "*.md"
+          ],
+          "mode": "at_most"
+        },
+        "answer_regex": "conversation-program-cli"
+      }
+    },
+    {
+      "id": "far-cause",
+      "about": "A report that some transcripts replay as seeds with a message out of place; the defect is in a different module from the one that replays, and shows only for runs the report does not characterise",
+      "when": "planted = far-cause",
+      "prompt": "We keep the transcript of every nb run (`--output jsonl`) and often continue one the next day by replaying it as a seed (`--seed run.jsonl`) with a follow-up prompt. On some of them the model behaves oddly after the replay, as though it had been told off before it did anything. A colleague compared what was sent to the provider and says one user message sits earlier in the replayed conversation than it did in the original run. Most transcripts replay exactly; I haven't worked out what the bad ones have in common, and I can't share them.\n\nnb's tests and evals all pass. Can you find what's wrong and fix it? Don't change the existing tests.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "nb.Core/**",
+            "nb.Tests/**",
+            "docs/**"
+          ],
+          "mode": "at_most"
+        },
+        "answer_regex": "RunJournal|TranscriptLoader"
+      }
+    },
+    {
+      "id": "red-test",
+      "about": "One of nb's own tests is red; find the defect behind it and fix it without touching the tests",
+      "when": "planted = red-test",
+      "prompt": "The build is red on main: `dotnet test` fails in nb.Tests. Find out why and fix it.\n\nThe unit tests are what to go by here; you don't need `evals/run.sh` for this one. Don't change the existing tests.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "nb.Core/**",
+            "nb.Tests/**",
+            "docs/**"
+          ],
+          "mode": "at_most"
+        },
+        "answer_regex": "DoomLoopDetector"
+      }
+    },
+    {
+      "id": "report-only",
+      "about": "A user's report that headings vanish from a multi-line prompt, with no failing test; reproduce it, find the defect and fix it",
+      "when": "planted = report-only",
+      "prompt": "A user sent this in:\n\n> My system prompt is Markdown, written over several lines with continuation backslashes. The model never sees my headings. This is the program:\n>\n> ```\n> system You answer support mail for a bike shop. \\\n> # Rules \\\n> Never promise a refund. \\\n> # Tone \\\n> Be brief.\n> run A customer asks whether they can return a helmet.\n> ```\n>\n> `nb --compile` on it shows a system prompt with no `# Rules` and no `# Tone` line in it. I'm sure this used to work.\n\nnb's tests all pass. Can you find what's wrong and fix it? Don't change the existing tests; add one if it helps.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "nb.Core/**",
+            "nb.Tests/**",
+            "docs/**"
+          ],
+          "mode": "at_most"
+        },
+        "answer_regex": "ProgramParser"
+      }
+    },
+    {
+      "id": "two-causes",
+      "about": "A user's report that apply_patch fails on the end of a CRLF file; two defects contribute, and the second shows only once the first is fixed",
+      "when": "planted = two-causes",
+      "prompt": "Bug report from a Windows user:\n\n> `apply_patch` fails whenever the change is in the last function of a file. Our files have CRLF line endings. A file like this (every line ending in `\\r\\n`, the last one too):\n>\n> ```\n> int First()\n> {\n>     return 0;\n> }\n>\n> int Last()\n> {\n>     return 1;\n> }\n> ```\n>\n> with this patch:\n>\n> ```\n> *** Begin Patch\n> *** Update File: Tail.cs\n>  int Last()\n>  {\n> -    return 1;\n> +    return 2;\n>  }\n> *** End Patch\n> ```\n>\n> gives \"failed to locate chunk\". The patched file should differ from the original only in the changed line.\n\nPlease fix it. Don't change the existing tests.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "nb.Core/**",
+            "nb.Tests/**",
+            "docs/**"
+          ],
+          "mode": "at_most"
+        },
+        "answer_regex": "(?s)(?=.*SeekSequence)(?=.*PatchApplier)"
+      }
+    }
+  ],
   "grading": {
     "checks": {
       "exit_ok": {

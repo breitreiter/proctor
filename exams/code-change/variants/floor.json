@@ -1,8 +1,0 @@
-{
-  "id": "floor",
-  "note": "the local floor: nb on qwen3-coder-next",
-  "agent": "nb",
-  "harness": "nb",
-  "provider": "local-qcoder",
-  "model": "qwen3-coder-next"
-}

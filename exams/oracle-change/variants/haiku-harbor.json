@@ -1,8 +1,0 @@
-{
-  "id": "haiku-harbor",
-  "note": "nb on Haiku through Harbor, driven by the simulated user",
-  "agent": "nb",
-  "harness": "nb",
-  "provider": "anthropic-haiku",
-  "model": "claude-haiku-5-5"
-}

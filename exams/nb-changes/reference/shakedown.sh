@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Prove the fixtures and checks without a model or an agent: for each task, make the repository the image makes
+# Prove the fixtures and checks without a model or an agent: for each stage, make the repository the image makes
 # (nb at the fixture's pin, plant.patch applied, one commit), apply the reference fix, collect the diff, and run
 # every script check.
-#   usage: shakedown.sh [--unsolved|--half] [task...]
+#   usage: shakedown.sh [--unsolved|--half] [stage...]
 #   (no flag)    the references: every check passes
 #   --unsolved   nothing changed: acceptance fails on every planted task and on the feature, and tests-green on the
 #                two whose defect nb's own tests see (red-test, two-causes); not-a-bug passes, since its right
@@ -14,7 +14,7 @@
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 root="$(cd "$here/../.." && pwd)"
-mode=; case "${1:-}" in --unsolved|--half) mode=$1; shift ;; -*) echo "usage: $0 [--unsolved|--half] [task...]"; exit 2 ;; esac
+mode=; case "${1:-}" in --unsolved|--half) mode=$1; shift ;; -*) echo "usage: $0 [--unsolved|--half] [stage...]"; exit 2 ;; esac
 only=" $* "
 tmp=$(mktemp -d)
 checks=(planted-present builds acceptance tests-green tests-untouched)
@@ -30,13 +30,14 @@ expected() {  # the outcome each mode should give a task's check
   esac
 }
 unexpected=0
-for task_file in "$here"/tasks/*.json; do
-  c=$(basename "$task_file" .json)
+# A stage belongs to the fixture its condition names: `when` is `<axis> = <value>`, and that value's `fixture`.
+for c in $(jq -r '.stages[].id' "$here/exam.json"); do
+  stage=$(jq -c --arg c "$c" '.stages[] | select(.id == $c)' "$here/exam.json")
   [ "$only" = "  " ] || [[ "$only" == *" $c "* ]] || continue
-  f=$(jq -r .fixture "$task_file")
+  f=$(jq -r --arg c "$c" '. as $e | .stages[] | select(.id == $c) | .when | capture("^(?<a>[a-z_-]+) = (?<v>.+)$") | $e.axes[.a].values[.v].fixture' "$here/exam.json")
   export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_TASK_JSON="$(cat "$task_file")" PROCTOR_EXPECT="$(jq -c '.expect // {}' "$task_file")" PROCTOR_TRANSCRIPT=""
+  export PROCTOR_TASK_JSON="$stage" PROCTOR_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" PROCTOR_TRANSCRIPT=""
   mkdir -p "$PROCTOR_ATTEMPT_DIR"
   git -c safe.directory='*' clone -q "${NB_REPO:-$(jq -r .source.git "$PROCTOR_FIXTURE/fixture.json")}" "$PROCTOR_WORK" || exit 1
   (

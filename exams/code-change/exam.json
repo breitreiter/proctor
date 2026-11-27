@@ -17,6 +17,170 @@
       "setup": "hooks/ensure-model.sh"
     }
   },
+  "axes": {
+    "repository": {
+      "about": "the repository the change is made in; each has one change asked of it",
+      "reference": "fetchcli",
+      "values": {
+        "fetchcli": {
+          "note": "a small command-line fetcher, where a flag is added",
+          "fixture": "fetchcli"
+        },
+        "ledger": {
+          "note": "a statement parser with one failing test, where a bug is fixed",
+          "fixture": "ledger"
+        },
+        "widgets": {
+          "note": "a library in a legacy namespace, which is renamed",
+          "fixture": "widgets"
+        }
+      }
+    },
+    "assistant": {
+      "about": "the agent and the model that make the change; they only ever change together here, so they are one axis",
+      "values": {
+        "cc-haiku": {
+          "note": "Claude Code on Haiku, the cheapest Anthropic model",
+          "agent": "claude-code",
+          "agent_version": "2.1.301",
+          "model": "claude-haiku-5-5"
+        },
+        "cc-sonnet": {
+          "note": "Claude Code on Sonnet, Anthropic's everyday model",
+          "agent": "claude-code",
+          "agent_version": "2.1.301",
+          "model": "claude-sonnet-5-5"
+        },
+        "codex": {
+          "note": "Codex on GPT-5.5, OpenAI's everyday model",
+          "agent": "codex",
+          "agent_version": "0.163.0",
+          "model": "gpt-5.5"
+        },
+        "qwen": {
+          "note": "Qwen Code on the local model",
+          "agent": "qwen-code",
+          "agent_version": "0.25.2",
+          "model": "qwen3-coder-next"
+        },
+        "floor": {
+          "note": "the local floor: nb on the same local model, through Harbor",
+          "route": "harbor",
+          "provider": "local-qcoder",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "cc-haiku.fetchcli": {
+      "repository": "fetchcli",
+      "assistant": "cc-haiku"
+    },
+    "cc-haiku.ledger": {
+      "repository": "ledger",
+      "assistant": "cc-haiku"
+    },
+    "cc-haiku.widgets": {
+      "repository": "widgets",
+      "assistant": "cc-haiku"
+    },
+    "cc-sonnet.fetchcli": {
+      "repository": "fetchcli",
+      "assistant": "cc-sonnet"
+    },
+    "cc-sonnet.ledger": {
+      "repository": "ledger",
+      "assistant": "cc-sonnet"
+    },
+    "cc-sonnet.widgets": {
+      "repository": "widgets",
+      "assistant": "cc-sonnet"
+    },
+    "codex.fetchcli": {
+      "repository": "fetchcli",
+      "assistant": "codex"
+    },
+    "codex.ledger": {
+      "repository": "ledger",
+      "assistant": "codex"
+    },
+    "codex.widgets": {
+      "repository": "widgets",
+      "assistant": "codex"
+    },
+    "qwen.fetchcli": {
+      "repository": "fetchcli",
+      "assistant": "qwen"
+    },
+    "qwen.ledger": {
+      "repository": "ledger",
+      "assistant": "qwen"
+    },
+    "qwen.widgets": {
+      "repository": "widgets",
+      "assistant": "qwen"
+    },
+    "floor.fetchcli": {
+      "repository": "fetchcli",
+      "assistant": "floor"
+    },
+    "floor.ledger": {
+      "repository": "ledger",
+      "assistant": "floor"
+    },
+    "floor.widgets": {
+      "repository": "widgets",
+      "assistant": "floor"
+    }
+  },
+  "stages": [
+    {
+      "id": "add-retry-flag",
+      "about": "Add a --retry flag to a small CLI, with tests and a README line",
+      "when": "repository = fetchcli",
+      "prompt": "Add a `--retry <n>` flag to fetchcli.\n\n- `Options.Parse` gains an `int Retry` property, default 0, set by `--retry <n>`. A negative n is an error, like any other bad argument.\n- `Fetcher.RunAsync` retries the fetch up to `Retry` more times when the getter throws, so `--retry 2` means at most three attempts. The last exception propagates when every attempt fails.\n- Update the usage line in Program.cs and the README.\n\nExisting tests must keep passing. Add tests for the new behaviour in tests/FetchCli.Tests.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "src/FetchCli/**",
+            "tests/FetchCli.Tests/**",
+            "README.md"
+          ],
+          "mode": "at_most"
+        }
+      }
+    },
+    {
+      "id": "fix-null-deref",
+      "about": "Fix the one failing test in a statement parser without touching the tests",
+      "when": "repository = ledger",
+      "prompt": "`dotnet test Ledger.Tests` has one failing test: `Parse_LineWithoutMemo_HasNullMemo` throws a NullReferenceException. A statement line without a memo field (`2026-01-03,-12.50`) must parse with a null memo; a memo that is present is trimmed, and an empty memo is null, as the other tests already say.\n\nFix the bug in the Ledger project. Do not change the tests.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "Ledger/**"
+          ],
+          "mode": "at_most"
+        }
+      }
+    },
+    {
+      "id": "rename-module",
+      "about": "Rename a namespace across source, project file and tests",
+      "when": "repository = widgets",
+      "prompt": "The widgets library still lives in the `Legacy.Widgets` namespace. Rename the namespace to `Acme.Widgets` everywhere: the source files under src/Widgets, the `RootNamespace` in Widgets.csproj, and the `using` directives in tests/Widgets.Tests. No type may remain in `Legacy.Widgets`, and no type names change.\n\n`dotnet test tests/Widgets.Tests` must pass afterwards.",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "src/Widgets/**",
+            "tests/Widgets.Tests/**"
+          ],
+          "mode": "at_most"
+        }
+      }
+    }
+  ],
   "grading": {
     "checks": {
       "exit_ok": {

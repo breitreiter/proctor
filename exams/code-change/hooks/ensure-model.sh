@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Variant setup: make sure the model box is serving the model this variant needs. Blocks until healthy.
+# Configuration setup: make sure the model box is serving the model this configuration's assistant needs. Blocks until healthy.
 # LLM_MODEL_HOST is the ssh host that runs the models behind the gateway, with a `swap-model` on
 # its PATH; unset, the gateway is trusted to serve the profile itself.
 set -euo pipefail
 # Another exam's hook may name the profile as the first argument instead.
-case "${1:-$PROCTOR_VARIANT}" in
+case "${1:-${PROCTOR_AXIS_ASSISTANT:-}}" in
   floor|qwen|qcoder) profile=qcoder ;;
-  *) echo "no model profile for variant $PROCTOR_VARIANT; nothing to do"; exit 0 ;;
+  *) echo "no model profile for assistant ${PROCTOR_AXIS_ASSISTANT:-}; nothing to do"; exit 0 ;;
 esac
 host="${LLM_MODEL_HOST:-}"
 [ -n "$host" ] || { echo "LLM_MODEL_HOST not set; trusting the gateway to serve $profile"; exit 0; }

@@ -1,7 +1,0 @@
-{
-  "id": "cc-sonnet",
-  "note": "Claude Code on Sonnet, Anthropic's everyday model",
-  "agent": "claude-code",
-  "agent_version": "2.1.301",
-  "model": "claude-sonnet-5-5"
-}

@@ -2,20 +2,108 @@
   "id": "oracle-change",
   "description": "Does the agent ask when a change is underspecified, and does the answer get it right? code-change's add-retry-flag with the semantics left out of the prompt: only the answer sheet has them, and the acceptance tests check them. nb on Anthropic, bare (nb's in-process oracle) and through Harbor (the simulated user over the ACP bridge), judged by Haiku.",
   "attempts": 5,
-  "labels": { "area": "coding/oracle", "stack": "dotnet" },
-  "harbor": { "version": "0.26.0" },
-  "limits": { "wall_ms": 1800000 },
-  "oracle": { "judge": "anthropic-haiku", "turns": 4 },
+  "labels": {
+    "area": "coding/oracle",
+    "stack": "dotnet",
+    "kind": "feature"
+  },
+  "fixture": "fetchcli",
+  "harbor": {
+    "version": "0.26.0"
+  },
+  "limits": {
+    "wall_ms": 1800000
+  },
+  "oracle": {
+    "judge": "anthropic-haiku",
+    "turns": 4
+  },
+  "axes": {
+    "route": {
+      "about": "where nb runs, and so which oracle answers it",
+      "reference": "bare",
+      "values": {
+        "bare": {
+          "note": "nb on Haiku, bare on the host, its oracle in-process",
+          "provider": "anthropic-haiku",
+          "model": "claude-haiku-5-5"
+        },
+        "harbor": {
+          "note": "the same nb on Haiku through Harbor, driven by the simulated user over the ACP bridge",
+          "route": "harbor",
+          "provider": "anthropic-haiku",
+          "model": "claude-haiku-5-5"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "haiku-bare": {
+      "route": "bare"
+    },
+    "haiku-harbor": {
+      "route": "harbor"
+    }
+  },
+  "stages": [
+    {
+      "id": "add-retry-flag",
+      "about": "Add a --retry flag to a small CLI, its semantics only in the answer sheet",
+      "prompt": "Add a `--retry <n>` flag to fetchcli, so a fetch that fails can be retried. `Options` gains an `int Retry` property for it, and `Fetcher.RunAsync` does the retrying. Update the usage line in Program.cs and the README.\n\nExisting tests must keep passing. Add tests for the new behaviour in tests/FetchCli.Tests.",
+      "oracle": "oracle/add-retry-flag.md",
+      "expect": {
+        "oracle_hit": [
+          "attempts"
+        ],
+        "files_touched": {
+          "paths": [
+            "src/FetchCli/**",
+            "tests/FetchCli.Tests/**",
+            "README.md"
+          ],
+          "mode": "at_most"
+        }
+      }
+    }
+  ],
   "grading": {
     "checks": {
-      "exit_ok":      { "exit_reason": "ok" },
-      "no_denials":   { "denied_calls": { "max": 0 } },
-      "acceptance":   { "script": "checks/acceptance.sh", "description": "the task's acceptance tests pass against the changed repository" },
-      "asked":        { "oracle_hit": "@expect", "description": "the agent asked about the semantics the prompt left out" },
-      "no_misses":    { "oracle_misses": { "max": 0 }, "description": "the agent asked nothing the sheet lacks" },
-      "few_turns":    { "oracle_turns": { "max": 4 } },
-      "diff-in-scope": { "files_touched": "@expect" }
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "no_denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "acceptance": {
+        "script": "checks/acceptance.sh",
+        "description": "the task's acceptance tests pass against the changed repository"
+      },
+      "asked": {
+        "oracle_hit": "@expect",
+        "description": "the agent asked about the semantics the prompt left out"
+      },
+      "no_misses": {
+        "oracle_misses": {
+          "max": 0
+        },
+        "description": "the agent asked nothing the sheet lacks"
+      },
+      "few_turns": {
+        "oracle_turns": {
+          "max": 4
+        }
+      },
+      "diff-in-scope": {
+        "files_touched": "@expect"
+      }
     },
-    "correctness": ["exit_ok", "builds", "tests-pass", "acceptance"]
+    "correctness": [
+      "exit_ok",
+      "builds",
+      "tests-pass",
+      "acceptance"
+    ]
   }
 }
