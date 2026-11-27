@@ -130,7 +130,8 @@ holding `bank/` and `exams/`.
   canvas is left to age, so a change is made here and looked at here,
   and the boards are not kept in step. A script is added where it earns
   its place (`assets/page.js`: a link opens its step; search on a stage,
-  on the component's input).
+  on the component's input; "Open flagged steps", since steps start
+  folded by the user's choice).
 - **Any two configurations compared** (2026-11-27): on the exam page
   each configuration with counted tries has a `wa-checkbox`
   (`data-pick`), and `page.js` turns two ticks into the Compare

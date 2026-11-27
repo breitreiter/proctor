@@ -49,3 +49,14 @@ if (compare) {
     }
   });
 }
+
+// The flagged steps of a stage, opened or folded together: they start folded, since half a transcript can be flagged.
+const flagged = document.getElementById("open-flagged");
+if (flagged) {
+  flagged.addEventListener("click", () => {
+    const steps = [...document.querySelectorAll("wa-details.step-fr")];
+    const open = steps.some(step => !step.open);
+    for (const step of steps) step.open = open;
+    flagged.textContent = open ? "Fold flagged steps" : "Open flagged steps";
+  });
+}

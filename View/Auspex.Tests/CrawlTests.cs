@@ -69,6 +69,9 @@ public class CrawlTests
         // friction/2: a rule's point shows its `because`. A reader's point with no `because` shows what the file holds, its notes.
         Assert.Contains("<span class=\"small soft\">used curl -s localhost:8081, a declared substitute, in the same step as the call to localhost:8080 failed (Not found)</span>", page);
         Assert.Contains("<span class=\"small soft\">tries again</span>", page);
+        // Flagged steps start folded; one button opens them together.
+        Assert.Contains("<wa-button id=\"open-flagged\"", page);
+        Assert.DoesNotContain("<wa-button id=\"open-flagged\"", await Page(SampleBank.GreenTry));
     }
 
     [Fact]

@@ -84,7 +84,7 @@ static class TryStagePage
             page.Append($"<a class=\"tab{(show == key ? " tab-on" : "")}\" role=\"tab\" aria-selected=\"{(show == key ? "true" : "false")}\" href=\"{AxesPages.Q(a.Path, ("show", key))}#steps\">{label}</a>");
         // Search is the component's input and a few lines of script (page.js): it leaves the steps that hold the words and says how many.
         if (show is null && steps.Count > 0)
-            page.Append("<span class=\"search\"><span id=\"search-count\" class=\"small dim num\" aria-live=\"polite\"></span><wa-input id=\"search\" type=\"search\" size=\"small\" placeholder=\"Search this stage\" aria-label=\"Search this stage\" with-clear></wa-input></span>");
+            page.Append($"<span class=\"search\">{(points.Count > 0 ? "<wa-button id=\"open-flagged\" size=\"small\" appearance=\"outlined\">Open flagged steps</wa-button>" : "")}<span id=\"search-count\" class=\"small dim num\" aria-live=\"polite\"></span><wa-input id=\"search\" type=\"search\" size=\"small\" placeholder=\"Search this stage\" aria-label=\"Search this stage\" with-clear></wa-input></span>");
         page.Append("</div>");
         if (show == "prompt")
             page.Append(steps.FirstOrDefault(s => Bank.Str(s["source"]) == "user") is { } first ? $"<div class=\"say\" style=\"padding-top:12px\">{E(Shown(Bank.Str(first["message"])))}</div>" : "<div class=\"said soft\">This stage's trajectory holds no prompt.</div>");
