@@ -42,7 +42,7 @@
       "on_form":  { "answer_regex": "(?m)^ANSWER:.*\\n+WHY:", "description": "the reply is the two lines asked for, ANSWER then WHY" },
       "brief":    { "answer_words": { "max": 80 } }
     },
-    "pass": ["correct"],
-    "validity": ["answered"]
+    "correctness": ["correct"],
+    "integrity": ["answered"]
   }
 }

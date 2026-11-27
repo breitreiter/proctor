@@ -5,7 +5,7 @@ namespace Proctor.Tests;
 
 /// <summary>
 /// Predictions and predictions (plans/axes-build.md, slice 6), on the scripted exam with known answers: a prediction names
-/// one full configuration, its predictions are pinned before its tries or said to be late, and each is held against the
+/// one full configuration, its predictions say when they were written, are pinned before its tries or said to be post hoc, and each is held against the
 /// tries, a miss as plainly as a hit.
 /// </summary>
 public class PredictionsTests
@@ -48,19 +48,19 @@ public class PredictionsTests
     {
         // The scripted exam makes the rewritten guide better on the first assistant: one prediction is right, and one is wrong on purpose.
         using var repo = Repo("rewritten", """
-            { "configuration": "rewritten", "note": "the guide rewritten",
+            { "configuration": "rewritten", "note": "the guide rewritten", "written": "2020-01-01",
               "changes": [ { "metric": "held", "direction": "more", "because": "it says to read the note first" },
                                { "check": "cites-note", "direction": "less" },
                                { "metric": "tool_calls", "direction": "more" } ] }
             """);
         var prediction = Assert.Single(Load(repo).Predictions);
         Assert.Equal(("rewritten", "shipped"), (prediction.Configuration.Name, prediction.Against.Name));
-        Assert.Null(prediction.Def.Written);
+        Assert.Null(prediction.Def.Standard);
 
         // Pinned once, with the standard of each stage it will be graded under; pinning again changes nothing.
         Assert.True(Predictions.Stamp(repo.LoadExam("axes-answers"), prediction));
         prediction = Load(repo).Predictions[0];
-        Assert.Matches(@"^\d{4}-\d\d-\d\dT\d\d:\d\dZ$", prediction.Def.Written);
+        Assert.Equal("2020-01-01", prediction.Def.Written);
         Assert.Equal(["answer"], prediction.Def.Standard!.Keys);
         Assert.False(Predictions.Stamp(repo.LoadExam("axes-answers"), prediction));
         Assert.Contains("\"note\": \"the guide rewritten\"", File.ReadAllText(prediction.File));
@@ -70,11 +70,11 @@ public class PredictionsTests
 
         Make(repo, "shipped", "rewritten");
         var report = Assert.Single(Outcomes(repo));
-        Assert.False(report.Late);
+        Assert.False(report.PostHoc);
         Assert.Empty(report.Labels);
         var (held, cites, calls) = (report.Changes[0], report.Changes[1], report.Changes[2]);
         Assert.Contains(held.Outcome, new[] { "held", "leaning" });
-        Assert.StartsWith("Predicted more headline checks held than shipped: it went that way", held.Sentence);
+        Assert.StartsWith("Predicted more correctness checks held than shipped: it went that way", held.Sentence);
         Assert.Equal("it says to read the note first", held.Because);
         // Predicted the wrong way round: said so, in the same words a hit gets.
         Assert.Contains(cites.Outcome, new[] { "opposite", "opposite_confirmed" });
@@ -91,18 +91,18 @@ public class PredictionsTests
     }
 
     [Fact]
-    public void APredictionWrittenAfterItsTries_IsLate_AndOneWhoseChecksChanged_SaysTheStandardMoved()
+    public void APredictionWrittenAfterItsTries_IsPostHoc_AndOneWhoseChecksChanged_SaysTheStandardMoved()
     {
-        using var repo = Repo("rewritten", """{ "configuration": "rewritten", "changes": [ { "metric": "held", "direction": "more" } ] }""", attempts: 1);
+        using var repo = Repo("rewritten", """{ "configuration": "rewritten", "written": "2020-01-01", "changes": [ { "metric": "held", "direction": "more" } ] }""", attempts: 1);
         Make(repo, "shipped", "rewritten");
-        // Never pinned: it cannot be said to have come first.
-        Assert.Contains("Not pinned", Assert.Single(Assert.Single(Outcomes(repo)).Labels));
+        // Written before any try was made: nothing to say.
+        Assert.Empty(Assert.Single(Outcomes(repo)).Labels);
 
-        // Pinned at a time before which a try had been made: late, and said.
+        // Written at a time before which a try had been made: post hoc, and said.
         repo.EditJson("axes-answers/predictions/rewritten.json", c => { c["written"] = "2099-01-01T00:00Z"; c["standard"] = new JsonObject { ["answer"] = Standard.Hash(repo.LoadExam("axes-answers"), repo.LoadExam("axes-answers").Tasks[0]) }; });
         var late = Assert.Single(Outcomes(repo));
-        Assert.True(late.Late);
-        Assert.StartsWith("Late: 1 try of rewritten had been made before this prediction was pinned", Assert.Single(late.Labels));
+        Assert.True(late.PostHoc);
+        Assert.StartsWith("Post hoc: 1 try of rewritten had been made before this prediction was written", Assert.Single(late.Labels));
 
         // The checks change after the pin: the prediction is held against a standard it was not written under.
         repo.EditJson("axes-answers/exam.json", e => e["grading"]!["checks"]!["cites-note"]!["when"] = "assistant != mock-b");
@@ -117,13 +117,15 @@ public class PredictionsTests
     {
         { """{ "changes": [ { "metric": "held", "direction": "more" } ] }""", "configuration", "required" },
         // One full configuration by name: never a value with the other axes however they fall.
-        { """{ "configuration": "prompt=rewritten", "changes": [ { "metric": "held", "direction": "more" } ] }""", "configuration", "is not a configuration this exam names" },
+        { """{ "configuration": "prompt=rewritten", "written": "2026-11-24", "changes": [ { "metric": "held", "direction": "more" } ] }""", "configuration", "is not a configuration this exam names" },
         { """{ "configuration": "shipped", "changes": [ { "metric": "held", "direction": "more" } ] }""", "configuration", "nothing live to compare it with" },
         { """{ "configuration": "rewritten" }""", "changes", "at least one is required" },
-        { """{ "configuration": "rewritten", "changes": [ { "metric": "held", "check": "cites-note", "direction": "more" } ] }""", "changes[0]", "names one thing" },
-        { """{ "configuration": "rewritten", "changes": [ { "metric": "held", "direction": "better" } ] }""", "changes[0].direction", "\"more\" or \"less\"" },
-        { """{ "configuration": "rewritten", "changes": [ { "metric": "happiness", "direction": "more" } ] }""", "changes[0].metric", "not a number a try gives" },
-        { """{ "configuration": "rewritten", "changes": [ { "check": "gone", "direction": "more" } ] }""", "changes[0].check", "not a check any stage carries" },
+        { """{ "configuration": "rewritten", "changes": [ { "metric": "held", "direction": "more" } ] }""", "written", "required: when this prediction was made" },
+        { """{ "configuration": "rewritten", "written": "last Tuesday", "changes": [ { "metric": "held", "direction": "more" } ] }""", "written", "is not a date" },
+        { """{ "configuration": "rewritten", "written": "2026-11-24", "changes": [ { "metric": "held", "check": "cites-note", "direction": "more" } ] }""", "changes[0]", "names one thing" },
+        { """{ "configuration": "rewritten", "written": "2026-11-24", "changes": [ { "metric": "held", "direction": "better" } ] }""", "changes[0].direction", "\"more\" or \"less\"" },
+        { """{ "configuration": "rewritten", "written": "2026-11-24", "changes": [ { "metric": "happiness", "direction": "more" } ] }""", "changes[0].metric", "not a number a try gives" },
+        { """{ "configuration": "rewritten", "written": "2026-11-24", "changes": [ { "check": "gone", "direction": "more" } ] }""", "changes[0].check", "not a check any stage carries" },
     };
 
     [Theory]

@@ -16,6 +16,6 @@
       "few_turns":    { "oracle_turns": { "max": 4 } },
       "diff-in-scope": { "files_touched": "@expect" }
     },
-    "pass": ["exit_ok", "builds", "tests-pass", "acceptance"]
+    "correctness": ["exit_ok", "builds", "tests-pass", "acceptance"]
   }
 }

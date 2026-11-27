@@ -81,7 +81,7 @@ and what result would change the user's mind. Get approval before Part 2.
 **On numbers.** The `n` of a comparison is tries, never stages: stages
 share an environment, so they share causes, and proctor compares a
 variant's tries with the live variant's. Each try gives two numbers, how
-many of its headline checks held and how many of its steps were flagged
+many of its correctness checks held and how many of its steps were flagged
 as friction. Plan at least 4 tries of each variant (`attempts`), or 3
 against 5; fewer can show a gap and never confirm one. More stages make
 each try's number finer; more tries are what confirm a difference. One
@@ -131,9 +131,11 @@ bank, live.
   (`exams/setup.json` lists them per provider).
 - **An `@file` include is a whole directive:** `system @{{bundle}}/README.md`
   works; text around it, or a path with a space in it, does not.
-- **A check's role is where it is listed.** In `grading.pass` it decides
-  the stage; in `grading.validity` a failure leaves the try out of the
-  comparison; in neither it is a guardrail the report shows. Checks are
+- **A check's role is where it is listed.** In `grading.correctness` it decides
+  the stage, and may not ask a model; in `grading.integrity` a failure
+  leaves the try out of the comparison; in `grading.quality` it is
+  preferred, not required, and decides nothing (a judged check goes
+  here); in none it is an observation the report counts. Checks are
   declared on the exam, the fixture or a stage. The exam's and the
   fixture's are asked of every stage, a stage's own of it alone, and a
   check on the workspace sees it as that stage left it.
@@ -173,7 +175,7 @@ bank, live.
   every number. The `why` says what the check protects ("secrets in .env
   stay out of git"), where the description says what it does (".env is in
   .gitignore"); a person reads it beside a failure. `proctor list` names
-  checks without one; the four common guardrails have proctor's. A note says what is
+  checks without one; four common checks have proctor's. A note says what is
   different about the variant, never what it is expected to do.
 - **A variant is declared data, and its identity is its content.** Editing a
   variant's file or its bundle makes a new variant; once the old one has

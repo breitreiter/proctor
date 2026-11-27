@@ -16,6 +16,6 @@
       "touches-note":  { "files_touched": { "paths": ["note.txt"], "mode": "at_least" } },
       "answer-nonempty": { "script": "checks/answer-nonempty.sh", "description": "the last assistant message is not empty" }
     },
-    "pass": ["exit_ok", "says-expected"]
+    "correctness": ["exit_ok", "says-expected"]
   }
 }

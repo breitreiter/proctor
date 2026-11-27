@@ -22,7 +22,7 @@ static class Program
           coverage <exam>        on an exam with axes, as JSON: the tries of each value and configuration, and of every
                                  configuration live spans
           predict <exam> [name]  on an exam with axes: pin a prediction (exams/<exam>/predictions/<name>.json),
-                                 recording when they were written and the checks they were written under; run does this
+                                 recording the checks it was made under (when it was made is its own "written", required); run does this
                                  for a prediction whose configuration it is about to make tries of. The report says how each change it expects came out
           live <exam> [variant]  mark a variant live in exams/<exam>/live.json (commit it): the one in use now, which the report
                                  compares the others with; with no variant, say which is live. Delete the file to have none

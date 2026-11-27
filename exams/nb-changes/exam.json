@@ -50,13 +50,13 @@
         "description": "the closing message names the file that holds the defect (for a report of documented behaviour, the page that documents it)"
       }
     },
-    "pass": [
+    "correctness": [
       "exit_ok",
       "builds",
       "acceptance",
       "tests-green"
     ],
-    "validity": [
+    "integrity": [
       "planted-present"
     ]
   }

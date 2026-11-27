@@ -9,6 +9,6 @@
       "one-shell-call": { "max_tool_calls": 1 },
       "lists-tools": { "answer_contains": "tools: " }
     },
-    "pass": ["exit-ok", "made-file"]
+    "correctness": ["exit-ok", "made-file"]
   }
 }

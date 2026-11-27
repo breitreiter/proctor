@@ -231,8 +231,8 @@ public class ReportTests
         repo.EditJson("smoke/exam.json", e =>
         {
             e["grading"]!["checks"] = JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}, \"no_denials\": {\"denied_calls\": {\"max\": 0}}}");
-            e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"builds\"]");
-            e["grading"]!["validity"] = JsonNode.Parse("[\"no_denials\"]");
+            e["grading"]!["correctness"] = JsonNode.Parse("[\"exit_ok\", \"builds\"]");
+            e["grading"]!["integrity"] = JsonNode.Parse("[\"no_denials\"]");
         });
         foreach (var (task, criterion) in new[] { ("loops", "the loop ends within four turns"), ("plain", "the answer gives `#fbedef`"), ("uses-bash", "the answer gives 120") })
             repo.EditJson($"smoke/tasks/{task}.json", t => t["checks"] = JsonNode.Parse($"{{\"builds\": {{\"script\": \"checks/answer-nonempty.sh\", \"description\": \"{criterion}\"}}}}"));
@@ -248,9 +248,9 @@ public class ReportTests
         var md = Report.Markdown(stats, rows, exp);
         var plain = md.Split("### plain")[1].Split("### uses-bash")[0];
         Assert.Contains("**3 checks**: 2 from the exam, 1 of its own", plain);
-        Assert.Contains("| builds | the answer gives `#fbedef` | headline | this task |", plain);
-        Assert.Contains("| `builds` | per task; see Tasks | headline |", md);
-        Assert.Contains("**`builds`** (headline) failed in", md);
+        Assert.Contains("| builds | the answer gives `#fbedef` | correctness | this task |", plain);
+        Assert.Contains("| `builds` | per task; see Tasks | correctness |", md);
+        Assert.Contains("**`builds`** (correctness) failed in", md);
         Assert.Contains("on uses-bash (the answer gives 120)", md);
         Assert.DoesNotContain("the answer gives `#fbedef`", md.Split("## Check pass rates")[1]);
     }

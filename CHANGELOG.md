@@ -7,6 +7,33 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Four roles for a check, named in the exam** (breaking). `grading.pass`
+  is `grading.correctness` and `grading.validity` is
+  `grading.integrity`; a new list, `grading.quality`, names checks
+  that are preferred and not required, and a check in no list is an
+  observation (it was a guardrail). An `exam.json` with the earlier
+  names is refused with the new one: rename the two keys. A check
+  that asks a model (`judge`, `decide`) is refused under correctness
+  and belongs under quality. The report says correctness, integrity,
+  quality and observation where it said headline, validity and
+  guardrail; `stats.json` says `correctness_checks`,
+  `integrity_checks` and `quality_checks`, and each stage of an exam
+  with stages lists its checks with their roles. Every stage's
+  standard moves with the rename, so tries on exams with axes are not
+  yet graded until `proctor grade <exam>`; nothing is run again.
+  `tern-docs` names `tests-untouched` as integrity and
+  `current-endpoint` as quality.
+- **A prediction says when it was made, and must** (breaking). `written`
+  in `exams/<exam>/predictions/<name>.json` is its author's: a date
+  (`2026-11-24`, read as the end of that day) or a time in UTC
+  (`2026-11-24T21:05Z`), required, and never set by proctor. A file
+  without one is a problem naming the field; add the date it was
+  written. `proctor predict` and `run` still pin the standard it was
+  made under, once. With the date always there, "Not pinned" is gone,
+  and a prediction written after tries of its configuration were made
+  is **post hoc**, not "late": in the report, `list`, `predict` and
+  `compare`, and as `post_hoc` where `stats.json` and an answer said
+  `late`.
 - **Three guides**: `docs/network.md` (what an agent's container can
   reach on any engine, and what an allowlist is and is not),
   `docs/service-fixtures.md` (a fixture with services, and what the

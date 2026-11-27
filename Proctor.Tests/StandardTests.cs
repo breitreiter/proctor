@@ -88,7 +88,7 @@ public class StandardTests
     {
         using var repo = Made();
         var (before, _) = Report(repo);
-        Assert.All(before.Configurations.Where(c => c.Made > 0), c => Assert.Equal(4, c.HeadlineChecks));
+        Assert.All(before.Configurations.Where(c => c.Made > 0), c => Assert.Equal(4, c.CorrectnessChecks));
         Assert.Null(before.StandardMoved);
 
         repo.EditJson("axes-answers/exam.json", e => e["grading"]!["checks"]!["cites-note"]!["when"] = "assistant != mock-b");
@@ -100,7 +100,7 @@ public class StandardTests
 
         var (after, exam) = Report(repo);
         // A try there holds of three checks now, not four: the check is no part of what it can hold.
-        Assert.Equal([4, 3, 4, 3], after.Configurations.Where(c => c.Made > 0).Select(c => c.HeadlineChecks));
+        Assert.Equal([4, 3, 4, 3], after.Configurations.Where(c => c.Made > 0).Select(c => c.CorrectnessChecks));
         Assert.All(after.Configurations.Where(c => c.Name is "shipped-b" or "rewritten-b"), c => Assert.Equal(3, c.Tries!.Rows[0].Of));
         // The report says the standard moved, with what was withdrawn, and so does a comparison that reads those tries.
         var moved = Assert.Single(after.StandardMoved!);

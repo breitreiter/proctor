@@ -12,6 +12,6 @@
       "acceptance":   { "script": "checks/acceptance.sh", "description": "the task's acceptance script passes against the changed repository" },
       "scope":        { "files_touched": "@expect" }
     },
-    "pass": ["exit_ok", "acceptance", "builds", "tests-pass"]
+    "correctness": ["exit_ok", "acceptance", "builds", "tests-pass"]
   }
 }

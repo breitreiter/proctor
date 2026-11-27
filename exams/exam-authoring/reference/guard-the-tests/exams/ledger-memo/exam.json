@@ -17,7 +17,7 @@
         "description": "the change stays in the Ledger project; nothing under Ledger.Tests is edited"
       }
     },
-    "pass": [
+    "correctness": [
       "exit_ok",
       "builds",
       "tests-pass",

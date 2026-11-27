@@ -124,7 +124,7 @@ public class ConformanceTests
                 if (reward["made-file"]?.GetValue<double>() != 1) Miss("ok", $"the verifier's made-file is {reward["made-file"]?.ToJsonString() ?? "missing"}");
                 var checks = Grade.ReadChecks(Attempt("ok"));
                 if (checks is null) Miss("ok", "not graded");
-                else if (Grade.Pass(checks, exam.Grading.Pass!) != true)
+                else if (Grade.Pass(checks, exam.Grading.Correctness!) != true)
                     Miss("ok", "does not pass: " + string.Join("; ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result} ({k.Value.Reason})")));
                 var answer = Transcript.Read(Attempt("ok")).Answer ?? "";
                 if (!answer.StartsWith("tools: ")) Miss("ok", $"the answer is not the stub's tool list: '{answer}'");

@@ -15,6 +15,6 @@
       "touches":        { "files_touched": "@expect" },
       "new-file":       { "script": "checks/new-file.sh", "description": "the checkout has new.txt as the Mock wrote it" }
     },
-    "pass": ["exit-ok", "says-expected"]
+    "correctness": ["exit-ok", "says-expected"]
   }
 }

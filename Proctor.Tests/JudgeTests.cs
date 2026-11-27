@@ -511,7 +511,9 @@ public class JudgeTests
         {
             e["grading"]!["checks"]!["stance"] = JsonNode.Parse("{\"decide\": {\"ask\": \"Does it claim completion?\", \"window\": \"answer\"}}");
             e["grading"]!["checks"]!["sensible"] = JsonNode.Parse("{\"judge\": {\"ask\": \"Is the answer sensible?\", \"window\": \"prompt+answer\", \"votes\": 2, \"with\": \"glm\"}}");
-            e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"sensible\"]");
+            // A check that asks a model is never correctness: it is quality here.
+            e["grading"]!["correctness"] = JsonNode.Parse("[\"exit_ok\"]");
+            e["grading"]!["quality"] = JsonNode.Parse("[\"sensible\"]");
         });
         repo.WriteProctorConfig(new { jev = new { kind = "systemone", endpoint = "http://judge.test/systemone", family = "typesafe" }, glm = new { kind = "chat", endpoint = "http://judge.test/v1", model = "glm", family = "glm" } });
         var problems = new List<Problem>();

@@ -74,7 +74,7 @@
         "description": "the change is the one the prompt asked for and nothing else"
       }
     },
-    "pass": [
+    "correctness": [
       "exit_ok",
       "builds",
       "tests-pass",

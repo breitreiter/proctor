@@ -16,7 +16,7 @@ public class ExamTests
         Assert.Equal(2, exam.Variants.Count);
         Assert.Equal(3, exam.Tasks.Count);
         Assert.Equal(2, exam.Attempts);
-        Assert.Equal(["exit_ok", "says-expected"], exam.Grading.Pass);
+        Assert.Equal(["exit_ok", "says-expected"], exam.Grading.Correctness);
         Assert.StartsWith("sha256:", exam.Hash);
         Assert.Equal(exam.Hash, repo.LoadExam("smoke").Hash);
     }
@@ -83,14 +83,14 @@ public class ExamTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => e["grading"]!["pass"]!.AsArray().Add("own"));
+        repo.EditJson("smoke/exam.json", e => e["grading"]!["correctness"]!.AsArray().Add("own"));
         repo.EditJson("smoke/tasks/plain.json", c => c["checks"] = JsonNode.Parse("{\"own\": {\"answer_contains\": \"hello\"}}"));
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.pass" && p.Message.Contains("task 'loops'"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.correctness" && p.Message.Contains("task 'loops'"));
 
         repo.EditJson("smoke/tasks/loops.json", c => c["checks"] = JsonNode.Parse("{\"own\": {\"exit_reason\": \"ok\"}}"));
         repo.EditJson("smoke/tasks/uses-bash.json", c => c["checks"] = JsonNode.Parse("{\"own\": {\"tools_used\": [\"bash\"]}}"));
         var exam = repo.LoadExam("smoke");
-        Assert.Contains("own", exam.Grading.Pass!);
+        Assert.Contains("own", exam.Grading.Correctness!);
         Assert.False(exam.CheckDescriptions().ContainsKey("own"));   // three tasks, three criteria: no one sentence is the check's
         Assert.Equal("the attempt ends with 'ok'", exam.ChecksFor(exam.Tasks.Single(t => t.Id == "loops")).Values.Select(k => Checks.Describe(k.Spec)).Last());
         Assert.All(exam.Tasks, t => Assert.Equal("task", exam.ChecksFor(t)["own"].Level));
@@ -123,23 +123,28 @@ public class ExamTests
     [InlineData("labels", "{\"area\": 1}", "smoke/exam.json", "labels.area")]
     [InlineData("labels", "{\"area\": []}", "smoke/exam.json", "labels.area")]
     [InlineData("labels", "{\"area\": [\"x\", \"\"]}", "smoke/exam.json", "labels.area")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"judge\": {}}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.judge")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"judge\": {}}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.judge")]
     [InlineData("variants", "[]", "smoke/exam.json", "variants")]
     [InlineData("attempts", "0", "smoke/exam.json", "attempts")]
     [InlineData("hooks", "{\"run\": {\"setup\": \"hooks/variant-setup.sh\"}}", "smoke/exam.json", "hooks.run")]
     [InlineData("hooks", "{\"task\": {\"setup\": \"hooks/variant-setup.sh\"}}", "smoke/exam.json", "hooks.task")]
     [InlineData("hooks", "{\"variant\": {\"setup\": \"hooks/missing.sh\"}}", "smoke/exam.json", "hooks.variant.setup")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"y\"]}", "smoke/exam.json", "grading.pass")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"], \"validity\": [\"y\"]}", "smoke/exam.json", "grading.validity")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"], \"validity\": [\"x\"]}", "smoke/exam.json", "grading.validity")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"bogus\": 1}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.bogus")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"oracle_hit\": [\"k\"]}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"files_touched\": {\"paths\": []}}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.files_touched")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"script\": \"checks/nope.sh\"}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.script")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"not_script\": \"checks/answer-nonempty.sh\", \"description\": \"d\"}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.not_script")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"script\": \"checks/answer-nonempty.sh\"}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.description")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\", \"description\": \" \"}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.description")]
-    [InlineData("grading", "{\"checks\": {\"x\": {\"description\": \"only words\"}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.checks.x")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"y\"]}", "smoke/exam.json", "grading.correctness")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"x\"], \"integrity\": [\"y\"]}", "smoke/exam.json", "grading.integrity")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"x\"], \"integrity\": [\"x\"]}", "smoke/exam.json", "grading.integrity")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"pass\": [\"x\"]}", "smoke/exam.json", "grading.pass")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"x\"], \"validity\": []}", "smoke/exam.json", "grading.validity")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"x\"], \"quality\": [\"x\"]}", "smoke/exam.json", "grading.quality")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"x\"], \"quality\": [\"y\"]}", "smoke/exam.json", "grading.quality")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"decide\": \"is the answer right?\", \"expect\": \"yes\"}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.correctness")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"bogus\": 1}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.bogus")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"oracle_hit\": [\"k\"]}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"files_touched\": {\"paths\": []}}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.files_touched")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"script\": \"checks/nope.sh\"}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.script")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"not_script\": \"checks/answer-nonempty.sh\", \"description\": \"d\"}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.not_script")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"script\": \"checks/answer-nonempty.sh\"}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.description")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\", \"description\": \" \"}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.description")]
+    [InlineData("grading", "{\"checks\": {\"x\": {\"description\": \"only words\"}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x")]
     [InlineData("description", "\"\"", "smoke/exam.json", "description")]
     public void ExamJson_ProblemsNameFileAndField(string field, string json, string file, string expectedField)
     {
@@ -230,7 +235,7 @@ public class ExamTests
 
         // The checks and the expected values are the standard: changing them is a regrade, never a rerun.
         repo.EditJson("smoke/exam.json", e => e["grading"]!["checks"]!["exit_ok"]!["description"] = "the run ended on its own");
-        repo.EditJson("smoke/exam.json", e => e["grading"]!["validity"] = JsonNode.Parse("[]"));
+        repo.EditJson("smoke/exam.json", e => e["grading"]!["integrity"] = JsonNode.Parse("[]"));
         repo.EditJson("smoke/tasks/plain.json", t => t["expect"] = JsonNode.Parse("""{"answer": "another"}"""));
         Assert.Equal(after, repo.LoadExam("smoke").TaskHashes);
     }
@@ -343,11 +348,11 @@ public class ExamTests
         Assert.Contains(repo.Problems("smoke"), p => p.File == Path.Combine("fixtures", "nope") && p.Message.Contains("no such fixture"));
 
         repo.EditJson("smoke/tasks/plain.json", c => c["fixture"] = "note");
-        repo.EditJson("smoke/exam.json", e => e["grading"]!["pass"]!.AsArray().Add("builds"));
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.pass" && p.Message.Contains("fixture 'note'") && p.Message.Contains("declares it"));
+        repo.EditJson("smoke/exam.json", e => e["grading"]!["correctness"]!.AsArray().Add("builds"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.correctness" && p.Message.Contains("fixture 'note'") && p.Message.Contains("declares it"));
 
         repo.EditJson("../fixtures/note/fixture.json", f => f["checks"] = System.Text.Json.Nodes.JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}}"));
-        repo.EditJson("smoke/exam.json", e => e["grading"]!["pass"]!.AsArray().RemoveAt(2));
+        repo.EditJson("smoke/exam.json", e => e["grading"]!["correctness"]!.AsArray().RemoveAt(2));
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.checks.exit_ok" && p.Message.Contains("also declared by fixture"));
 
         repo.EditJson("../fixtures/note/fixture.json", f => { f.Remove("checks"); f["source"] = System.Text.Json.Nodes.JsonNode.Parse("{\"git\": \"https://example.invalid/x\"}"); });
@@ -375,8 +380,8 @@ public class ExamTests
 
     [Theory]
     [InlineData("smoke/exam.json", "grading.checks", "grading.checks.nothing")]
-    [InlineData("smoke/exam.json", "grading.pass", "grading.pass")]
-    [InlineData("smoke/exam.json", "grading.validity", "grading.validity")]
+    [InlineData("smoke/exam.json", "grading.correctness", "grading.correctness")]
+    [InlineData("smoke/exam.json", "grading.integrity", "grading.integrity")]
     [InlineData("smoke/tasks/plain.json", "checks", "checks.nothing")]
     [InlineData("../fixtures/note/fixture.json", "checks", "checks.nothing")]
     public void ANullEntry_IsAProblem_NotACrash(string file, string path, string field)
@@ -391,7 +396,7 @@ public class ExamTests
             {
                 case JsonArray a: a.Add(null); break;
                 case JsonObject o: o["nothing"] = null; break;
-                case null when parts[^1] == "validity": parent[parts[^1]] = new JsonArray((JsonNode?)null); break;
+                case null when parts[^1] == "integrity": parent[parts[^1]] = new JsonArray((JsonNode?)null); break;
                 case null: parent[parts[^1]] = new JsonObject { ["nothing"] = null }; break;
             }
         });

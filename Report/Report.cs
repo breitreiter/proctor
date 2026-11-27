@@ -67,7 +67,7 @@ static class Report
             b.Add(new Warning($"The check `{u.Check}` ({CheckText(stats, u.Check)}) could not decide {u.Attempts} of the {u.Of} attempts it applies to. Its pass rates below are over the {u.Of - u.Attempts} attempts it decided, and the check needs rewriting before this report is conclusive."));
         foreach (var x in stats.ErroredChecks ?? [])
         {
-            var headline = stats.PassChecks.Contains(x.Check);
+            var headline = stats.CorrectnessChecks.Contains(x.Check);
             var where = x.Variants.Count == variants.Count && variants.Count > 1 ? "on every variant" : $"on {Join(x.Variants.Keys.Select(a => $"`{a}`"))}";
             b.Add(new Warning($"The check `{x.Check}` ({CheckText(stats, x.Check)}) could not grade {x.Attempts} of the {x.Of} attempts it applies to, {where} ({string.Join(", ", x.Variants.Select(a => $"`{a.Key}` {a.Value}"))}). "
                 + (headline ? "It is a headline check, so each of those attempts counts as failed and the pass rates are lower by as much. " : $"Its rates below are over the {x.Of - x.Attempts} attempts it graded. ")
@@ -77,7 +77,7 @@ static class Report
         {
             var where = o.Variants.Count == variants.Count && variants.Count > 1 ? "on every variant" : $"on {Join(o.Variants.Keys.Select(a => $"`{a}`"))}";
             b.Add(new Warning($"The check `{o.Check}` ({CheckText(stats, o.Check)}) has changed or been added since {o.Attempts} of the {o.Of} attempts it applies to were made, {where} ({string.Join(", ", o.Variants.Select(a => $"`{a.Key}` {a.Value}"))}). "
-                + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates" + (stats.PassChecks.Contains(o.Check) ? " and, as a headline check, out of the pass rates" : "") + ". "
+                + "On an agent variant a script check runs when the attempt is made, so their verdicts are outdated: left out of its rates" + (stats.CorrectnessChecks.Contains(o.Check) ? " and, as a headline check, out of the pass rates" : "") + ". "
                 + $"Make those attempts again: ``proctor grade {stats.Exam}`` names them; move their directories out of ``{Layout.BankDir}/{stats.Exam}/`` and run ``proctor run {stats.Exam}``."));
         }
         foreach (var (variant, mixed) in stats.BuiltFrom?.Mixed ?? [])
@@ -100,9 +100,10 @@ static class Report
         b.Add(new Para("A check is one yes-or-no test over a finished attempt. Every task carries the checks the exam declares; a fixture or the task itself can add more. A check's role decides what it does to an attempt:"));
         b.Add(new Pairs(
         [
-            ("headline", "Together, the headline checks decide whether an attempt passed."),
-            ("validity", "Decides whether an attempt counts at all: an attempt that fails one is left out of every rate, not counted as a failure."),
-            ("guardrail", "Reported, not part of the pass."),
+            ("correctness", "Was the task completed as intended. Together, the correctness checks decide whether an attempt passed."),
+            ("integrity", "Can the result be trusted. An attempt that fails one is left out of every rate, not counted as a failure."),
+            ("quality", "Something preferred and not required. Reported, and decides nothing."),
+            ("observation", "Something of interest with no preferred answer. Counted, never judged."),
         ]));
         b.Add(new Para("A check that cannot decide an attempt leaves that attempt out of its rate on both sides."));
         var examChecks = (stats.TaskDetails ?? []).Values.SelectMany(td => td.Checks).Where(k => k.Level == "exam").DistinctBy(k => k.Name).ToList();
@@ -183,7 +184,7 @@ static class Report
 
         // 7. Check pass rates
         b.Add(new Heading("Check pass rates"));
-        b.Add(new Para("How often each check held, per variant, over the attempts it applies to. Headline and guardrail checks are over counted attempts; a validity check is over every graded attempt, because it says how many were counted. An attempt the check could not decide is out of its rate and counted beside it."));
+        b.Add(new Para("How often each check held, per variant, over the attempts it applies to. Correctness, quality and observation checks are over counted attempts; an integrity check is over every graded attempt, because it says how many were counted. An attempt the check could not decide is out of its rate and counted beside it."));
         b.Add(new Table(["Check", "What it tests", "Role", .. variants.Select(a => $"`{a}`")],
             CheckNames(stats).Select(c => (List<Td>)[Id(c), T(CheckText(stats, c)), T(Role(stats, c)), .. variants.Select(a => T(CheckRateText(stats.Variants[a].Checks.GetValueOrDefault(c))))]).ToList()));
 
@@ -470,12 +471,12 @@ static class Report
     static string TaskText(StatsFile stats, string c) => stats.Descriptions.Tasks.GetValueOrDefault(c, c);
 
     static IEnumerable<string> CheckNames(StatsFile stats) =>
-        stats.PassChecks.Concat(stats.ValidityChecks).Concat(stats.Variants.Values.SelectMany(a => a.Checks.Keys)).Distinct();
+        stats.CorrectnessChecks.Concat(stats.IntegrityChecks).Concat(stats.Variants.Values.SelectMany(a => a.Checks.Keys)).Distinct();
 
     static string? FixtureOf(StatsFile stats, string task) => stats.TaskDetails?.GetValueOrDefault(task)?.Fixture;
 
     static string Role(StatsFile stats, string check) =>
-        stats.PassChecks.Contains(check) ? "headline" : stats.ValidityChecks.Contains(check) ? "validity" : "guardrail";
+        stats.CorrectnessChecks.Contains(check) ? Roles.Correctness : stats.IntegrityChecks.Contains(check) ? Roles.Integrity : stats.QualityChecks?.Contains(check) == true ? Roles.Quality : Roles.Observation;
 
     static IEnumerable<string> ExitReasons(StatsFile stats) =>
         stats.Variants.Values.SelectMany(a => a.ExitReasons).GroupBy(k => k.Key).OrderByDescending(g => g.Sum(k => k.Value)).ThenBy(g => g.Key).Select(g => g.Key);

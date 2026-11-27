@@ -43,9 +43,10 @@ A check is one yes-or-no test over a finished attempt. Every task carries the ch
 
 | | |
 |---|---|
-| headline | Together, the headline checks decide whether an attempt passed. |
-| validity | Decides whether an attempt counts at all: an attempt that fails one is left out of every rate, not counted as a failure. |
-| guardrail | Reported, not part of the pass. |
+| correctness | Was the task completed as intended. Together, the correctness checks decide whether an attempt passed. |
+| integrity | Can the result be trusted. An attempt that fails one is left out of every rate, not counted as a failure. |
+| quality | Something preferred and not required. Reported, and decides nothing. |
+| observation | Something of interest with no preferred answer. Counted, never judged. |
 
 A check that cannot decide an attempt leaves that attempt out of its rate on both sides.
 
@@ -53,9 +54,9 @@ A check that cannot decide an attempt leaves that attempt out of its rate on bot
 
 | Check | What it tests | Role |
 |---|---|---|
-| exit_ok | the attempt ends with 'ok' | headline |
-| builds | the repository builds after the change | headline |
-| no_denials | no denied tool calls | validity |
+| exit_ok | the attempt ends with 'ok' | correctness |
+| builds | the repository builds after the change | correctness |
+| no_denials | no denied tool calls | integrity |
 
 Each task's results show one mark per attempt: ● passed, ○ failed, ? undecided, × not counted. Each attempt's reason is under Every attempt. A task scores its mean over its counted, decided attempts.
 
@@ -99,7 +100,7 @@ Fixture **note** · Attempted **3 times** per variant · **4 checks**: 3 from th
 
 | Check | What it tests | Role | Declared by |
 |---|---|---|---|
-| used-bash | uses bash | guardrail | this task |
+| used-bash | uses bash | observation | this task |
 
 **Results**
 
@@ -138,12 +139,12 @@ For each variant, the checks that failed in at least one counted attempt, most f
 
 **`floor`** (the local floor) failed 2 checks:
 
-- **the repository builds after the change** (`builds`, headline) failed in 3 of 7 attempts: twice on uses-bash, once on loops.
-- **the attempt ends with 'ok'** (`exit_ok`, headline) failed in 1 of 7 attempts: once on loops.
+- **the repository builds after the change** (`builds`, correctness) failed in 3 of 7 attempts: twice on uses-bash, once on loops.
+- **the attempt ends with 'ok'** (`exit_ok`, correctness) failed in 1 of 7 attempts: once on loops.
 
 **`b`** failed 1 check:
 
-- **the repository builds after the change** (`builds`, headline) failed in 1 of 9 attempts: once on uses-bash.
+- **the repository builds after the change** (`builds`, correctness) failed in 1 of 9 attempts: once on uses-bash.
 
 ## Attempt summary
 
@@ -170,14 +171,14 @@ How each completed attempt ended, per variant. `ok` is a normal finish; anything
 
 ## Check pass rates
 
-How often each check held, per variant, over the attempts it applies to. Headline and guardrail checks are over counted attempts; a validity check is over every graded attempt, because it says how many were counted. An attempt the check could not decide is out of its rate and counted beside it.
+How often each check held, per variant, over the attempts it applies to. Correctness, quality and observation checks are over counted attempts; an integrity check is over every graded attempt, because it says how many were counted. An attempt the check could not decide is out of its rate and counted beside it.
 
 | Check | What it tests | Role | `floor` | `b` |
 |---|---|---|---|---|
-| `exit_ok` | the attempt ends with 'ok' | headline | 89% (6/7) | 100% (9/9) |
-| `builds` | the repository builds after the change | headline | 56% (4/7) | 89% (8/9) |
-| `no_denials` | no denied tool calls | validity | 89% (7/8) | 100% (9/9) |
-| `used-bash` | uses bash | guardrail | 100% (2/2) | 100% (3/3) |
+| `exit_ok` | the attempt ends with 'ok' | correctness | 89% (6/7) | 100% (9/9) |
+| `builds` | the repository builds after the change | correctness | 56% (4/7) | 89% (8/9) |
+| `no_denials` | no denied tool calls | integrity | 89% (7/8) | 100% (9/9) |
+| `used-bash` | uses bash | observation | 100% (2/2) | 100% (3/3) |
 
 ## Cost and effort
 

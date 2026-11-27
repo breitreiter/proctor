@@ -10,6 +10,6 @@
       "under_budget": { "max_tool_calls": 3, "max_tokens": 100000 },
       "says":         { "answer_contains": "@expect" }
     },
-    "pass": ["exit_ok", "says", "builds", "tests-pass"]
+    "correctness": ["exit_ok", "says", "builds", "tests-pass"]
   }
 }

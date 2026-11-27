@@ -16,8 +16,8 @@ static class WorkedExam
             e["description"] = "Can a local coder model make a small change to a .NET repository so that it builds and the tests pass?";
             e["attempts"] = attempts;
             e["grading"]!["checks"] = JsonNode.Parse("{\"exit_ok\": {\"exit_reason\": \"ok\"}, \"builds\": {\"script\": \"checks/answer-nonempty.sh\", \"description\": \"the repository builds after the change\"}, \"no_denials\": {\"denied_calls\": {\"max\": 0}}}");
-            e["grading"]!["pass"] = JsonNode.Parse("[\"exit_ok\", \"builds\"]");
-            e["grading"]!["validity"] = JsonNode.Parse("[\"no_denials\"]");
+            e["grading"]!["correctness"] = JsonNode.Parse("[\"exit_ok\", \"builds\"]");
+            e["grading"]!["integrity"] = JsonNode.Parse("[\"no_denials\"]");
         });
         repo.EditVariant("smoke", "a", v => { v["note"] = "the local floor"; v["model"] = "qwen-coder"; v["provider"] = "local-qcoder"; });
         repo.RenameVariant("smoke", "a", "floor");

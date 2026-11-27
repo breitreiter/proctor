@@ -1351,3 +1351,120 @@ a Ctrl-C at a terminal, which signals Harbor too, leaves the same;
 whether podman does; and whose it is to remove (proctor on continuing,
 by the project's name, or Harbor on the signal). To reproduce both ways
 before anything is filed.
+
+## A prediction's date is the author's, and required
+
+**Built 2026-11-27**: `written` is required and the author's, proctor pins only the standard, "late" is "post hoc" and "Not pinned" is gone.
+
+Decided with the user on 2026-11-27, during the viewer's design day. Not built.
+
+- **`written` is a required field of a prediction file**, set by the person who
+  writes it. A prediction without one is a validation problem, refused like any
+  other missing field. Today `proctor predict` and `run` set it
+  (`Predictions.Stamp`), and a file without it is reported as "Not pinned".
+- **`predict` and `run` stop setting `written`** and keep stamping `standard`,
+  each stage's checks at that moment, which nobody can type by hand. A prediction
+  with a date and no standard yet needs no mark of its own.
+- **"Not pinned" goes away** as a label in `PredictionOutcomes` and everywhere
+  it is printed. What is left: the date is the author's claim, and proctor
+  compares it with when the tries were made.
+- **"Late" becomes "post hoc"** on the screens, and should in the report and
+  `list` too, so the three say one word.
+- **Migrate what exists:** `exams/tern-docs/predictions/*.json` already carry
+  `written`; `docs/configuration.md`, `docs/cli.md` and the changelog say who
+  sets it.
+
+## Four roles for a check: correctness, integrity, quality, observation
+
+**Built 2026-11-27**: the lists are `grading.correctness`, `grading.integrity` and `grading.quality` in every exam; a judged check is refused under correctness; fewer tool calls, tokens and time count as better (the user, the same day). Still open below: integrity's own rate. Not built: anything that computes with quality apart from observation.
+
+Decided with the user on 2026-11-27, during the viewer's design day ("the
+taxonomy is solid"). Drawn on the canvas; nothing is built. It replaces the
+three kinds a check has by where it is named (`grading.pass`, the headline;
+`grading.validity`; neither, a guardrail rate).
+
+- **correctness:** was the task completed in a way that satisfies our intent.
+  Zero fuzziness. Decides right or wrong. Today's `grading.pass`.
+- **integrity:** can the result be trusted; did the agent cheat or act
+  improperly. Today's `grading.validity`: a failure takes the try out of the
+  numbers, with its reason.
+- **quality:** the result has a quality we prefer and do not require (vanilla
+  in a sundae). It has a preferred answer, so it can be said to be better or
+  worse, and it aggregates as correctness does: quality checks held, of N,
+  unweighted. No weights: nobody can defend the numbers, and a composite hides
+  the trade-offs.
+- **observation:** a quality we are interested in, or that is diagnostic, with
+  no preferred answer (a favourite flavour). Never aggregated and never
+  coloured better or worse; each is its own rate. The default: a check named
+  in no list.
+
+In `tern-docs` as drawn: `exit_ok`, `acceptance`, `tests-pass` are correctness;
+`tests-untouched` is integrity (it sits among the guardrails today, so an agent
+that edits the shop's tests still counts); `current-endpoint` is quality;
+`docs-fetched` and `docs-curled` are observations.
+
+Proposed and not yet answered by the user:
+
+- **The names in the exam's files too** (`grading.correctness`,
+  `grading.integrity`, `grading.quality`), not only on the screens, so the user,
+  the agent and proctor say one word. "Headline" goes from the report, `list`
+  and the docs with it.
+- **Correctness is deterministic by rule:** a judged check (`judge`, `decide`)
+  named as correctness is refused, and can only be quality.
+- **Integrity gets its own rate** on the exam and in a comparison, since a
+  configuration whose agent cheats more otherwise only has fewer tries.
+- **The measures have the same question.** Tool calls, tokens and time are
+  observations unless the exam says fewer is preferred; the viewer's mock
+  assumes fewer is better to colour them.
+
+## Four roles are too many to explain in a section's side note
+
+From the same day. The viewer's sections each carry a two-line note beside the
+heading, and four roles with their consequences do not fit in one. Drawn for
+now: the note says a role is what the answer is used for, and each role's tag
+carries its sentence as a tooltip. To settle when the pages are built: a
+tooltip, a legend under the table, or a short glossary the tags link to; and
+whether a tooltip is enough on a screen with no hover.
+
+## A configuration can be retired
+
+From the user, 2026-11-27, reviewing the viewer's index of exams. The index
+lists each exam's named configurations with their marks, and that list is the
+headline read: what is shipping, what is in the pipe to replace it, how that is
+going. It stops being one after six months of configurations nobody is
+interested in any more. So a named configuration needs a way out of the list
+that deletes nothing.
+
+Settled by the user the same day: the word is **retired**, a reason is
+recorded, and a retired configuration can be brought back. The rest is proposed.
+
+- **A verb beside `live`** (`proctor retire <exam> <configuration> --reason
+  "..."`, and one to bring it back; the same through MCP), since the viewer has
+  no write actions in v1. Recorded with the exam with the reason and the date,
+  committed, in no hash. "Rejected" was passed over because it is a judgement
+  proctor does not make, "expired" because it suggests a clock.
+- **Nothing is deleted.** A retired configuration keeps its tries in the bank,
+  its page, its predictions and their outcomes, and can still be compared by
+  name.
+- **It leaves the headline lists:** the index and the exam page's
+  Configurations show the ones not retired and a count of the retired, which
+  opens them. `run` makes no new tries of it.
+- **The live configuration cannot be retired;** mark another live first.
+- The retired list shows each one's reason and date.
+
+## The viewer's pages are designed; two exams to follow the build
+
+From the user, 2026-11-27, at the end of the design days. The five pages
+(exams, exam, configuration, comparison, stage of a try) and a board of states
+are drawn on the canvas and agreed as far as drawings go; the next gains need
+the pages live on real data. The build goes ahead on tern-docs. Two exams
+follow it closely, both for the data they give the viewer and for their own
+questions:
+
+- **Can Claude Code build a conforming, useful exam?** Including the Harbor
+  side. Probably on Modal, since Harbor cannot run inside Harbor.
+  `exams/exam-authoring` and `exams/agent-onboarding` are the starting points.
+- **Can an agent break out of our sandbox?** Qwen Code or opencode as the
+  agent, on whatever model OpenRouter offers that will try. A measurement of
+  our own containment (`docs/network.md` says what it claims). Spend agreed
+  before any run; opencode is not an agent proctor drives yet.

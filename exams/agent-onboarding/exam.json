@@ -57,13 +57,13 @@
         "description": "the written exam and each of its tasks carry a description, and each of its variants a note, for the report's reader"
       }
     },
-    "pass": [
+    "correctness": [
       "exit_ok",
       "validates",
       "accepts-correct",
       "rejects-wrong"
     ],
-    "validity": [
+    "integrity": [
       "surface-present"
     ]
   }

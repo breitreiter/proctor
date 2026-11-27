@@ -77,9 +77,9 @@ static class Verbs
         {
             if (variantIds is not null) throw new ProctorException($"exam '{exam.Id}' has axes, not variants: say --configuration name, or --value axis=value for that value with the rest at their reference");
             (exam, variantIds) = ForRun(root, exam, config.Judges ?? [], ValueFilters, ConfigurationName);
-            // A prediction whose configuration is about to be run is pinned first, so it is on record as written before the tries.
+            // A prediction whose configuration is about to be run is pinned first: the standard it was made under is on record before the tries.
             foreach (var prediction in PredictionsOf(root, exam).Where(c => variantIds.Contains(c.Configuration.Key)))
-                if (Predictions.Stamp(exam, prediction)) Console.WriteLine($"prediction {prediction.Name}: pinned now, before its tries are made");
+                if (Predictions.Stamp(exam, prediction)) Console.WriteLine($"prediction {prediction.Name}: its standard pinned now, before its tries are made");
         }
         if (exam.Staged)
         {
@@ -187,8 +187,8 @@ static class Verbs
     }
 
     /// <summary>
-    /// Pin a prediction (plans/axes-build.md, slice 6): record when it was written and the standard it was written
-    /// under, once, in its file. With no name, every prediction not yet pinned. `run` does this for a prediction whose
+    /// Pin a prediction (plans/axes-build.md, slice 6): record the standard it was made under, once, in its file. When
+    /// it was made is its author's to write, and required. With no name, every prediction not yet pinned. `run` does this for a prediction whose
     /// configuration it is about to make tries of; this is for pinning one ahead of that, or saying how each stands.
     /// </summary>
     public static int Predict(string root, string examId, string? name)
@@ -202,11 +202,12 @@ static class Verbs
         var bank = Bank.Select(root, exam).Current;
         foreach (var c in predictions.Where(c => name is null || c.Name == name))
         {
-            var made = bank.Where(a => a.Variant == c.Configuration.Key).Select(a => a.Attempt).Distinct().Count();
+            var written = Predictions.WrittenAt(c.Def.Written!);
+            var made = bank.Where(a => a.Variant == c.Configuration.Key).Select(a => (a.Attempt, Made: Answers.MadeAt(a.Entry.IdOf(a.Variant, a.Attempt)))).Distinct().Count(a => a.Made < written);
             var pinned = Predictions.Stamp(exam, c);
-            Console.WriteLine($"{c.Name}: {c.Configuration.Name} against {c.Against.Name ?? c.Against.Label}; "
-                + (pinned ? "pinned now" : $"pinned {c.Def.Written}")
-                + (pinned && made > 0 ? $". {made} {(made == 1 ? "try" : "tries")} of its configuration had already been made, so this prediction is late, and the report will say so" : ""));
+            Console.WriteLine($"{c.Name}: {c.Configuration.Name} against {c.Against.Name ?? c.Against.Label}; written {c.Def.Written}"
+                + (pinned ? ", its standard pinned now" : "")
+                + (made > 0 ? $". {made} {(made == 1 ? "try" : "tries")} of its configuration had been made before then, so this prediction is post hoc, and the report says so" : ""));
             foreach (var p in c.Def.Changes!) Console.WriteLine($"  predicts {Predictions.Said(p, c)}{(p.Because is null ? "" : $": {p.Because}")}");
         }
         return 0;
@@ -254,7 +255,7 @@ static class Verbs
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
         var undecided = grades.Where(g => g.Checks is not null && g.Invalid is null && g.Pass is null).ToList();
-        var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.PassFor(exam.TaskOf(g.Task))) is not null);
+        var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.CorrectnessFor(exam.TaskOf(g.Task))) is not null);
         var untouched = variantIds is null && taskIds is null ? 0 : Bank.Select(root, exam).Current.Count - grades.Count;
         Console.WriteLine($"graded {graded} of {grades.Count} {(exam.Staged ? "stages" : "attempts")}{(exam.Staged && grades.Count(g => g.Status == AttemptStatus.Skipped) is > 0 and var skipped ? $" ({skipped} not reached)" : "")}; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --variant/--tasks left as they were" : "")}");
         foreach (var line in Proctor.Grade.ByCheck(grades, before)) Console.WriteLine(line);
@@ -455,7 +456,7 @@ static class Verbs
             Console.WriteLine($"  excluded: {string.Join(" × ", excluded.Select(v => $"{v.Key}={v.Value}"))}");
         var predictionProblems = new List<Problem>();
         foreach (var c in Predictions.Load(root, exam, predictionProblems))
-            Console.WriteLine($"  prediction {c.Name}: {c.Configuration.Name} against {c.Against.Name ?? c.Against.Label}, {Count(c.Def.Changes!.Count, "change")} expected, {(c.Def.Written is { } when ? $"pinned {when}" : "not pinned yet")}");
+            Console.WriteLine($"  prediction {c.Name}: {c.Configuration.Name} against {c.Against.Name ?? c.Against.Label}, {Count(c.Def.Changes!.Count, "change")} expected, written {c.Def.Written}");
         foreach (var problem in predictionProblems) Console.WriteLine($"  {problem}");
         // Where what each value does alone does not say what a configuration does (plans/axes-build.md, 3b): measured by `build`.
         var standing = Combinations.Load(exam).Stand(exam);

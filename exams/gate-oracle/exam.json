@@ -130,7 +130,7 @@
         }
       }
     },
-    "pass": [
+    "correctness": [
       "exit"
     ]
   }

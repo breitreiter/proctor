@@ -104,7 +104,18 @@ record HookPair(string? Setup, string? Teardown);
 
 record Hooks(HookPair? Run, HookPair? Variant, HookPair? Task, HookPair? Attempt);
 
-record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Pass, List<string>? Validity);
+/// <summary>
+/// The checks, and the role of each by the list that names it (the user, 2026-11-26): correctness (was the task
+/// completed as intended; together they decide right or wrong, and none may ask a model), integrity (can the result be
+/// trusted; a failure takes the try out of every number), quality (preferred, not required; reported, decides nothing).
+/// A check in no list is an observation: counted, with no preferred answer. Pass and Validity are the lists' earlier names, refused.
+/// </summary>
+record Grading(Dictionary<string, JsonObject>? Checks, List<string>? Correctness, List<string>? Integrity, List<string>? Quality = null, JsonNode? Pass = null, JsonNode? Validity = null);
+
+static class Roles
+{
+    public const string Correctness = "correctness", Integrity = "integrity", Quality = "quality", Observation = "observation";
+}
 
 /// <summary>
 /// exam.json's oracle block, for the tasks that name an answer sheet: the nb config entry that judges (absent, the variant's
@@ -275,10 +286,13 @@ sealed class Exam
         return checks;
     }
 
-    /// <summary>The headline checks a task or a stage carries: all of them for a task, and for a stage those it has.</summary>
-    public List<string> PassFor(TaskDef c) => Staged ? Grading.Pass!.Where(ChecksFor(c).ContainsKey).ToList() : Grading.Pass!;
-    /// <summary>The validity checks a task or a stage carries, likewise.</summary>
-    public List<string>? ValidityFor(TaskDef c) => Staged ? Grading.Validity?.Where(ChecksFor(c).ContainsKey).ToList() : Grading.Validity;
+    /// <summary>The correctness checks a task or a stage carries: all of them for a task, and for a stage those it has.</summary>
+    public List<string> CorrectnessFor(TaskDef c) => Staged ? Grading.Correctness!.Where(ChecksFor(c).ContainsKey).ToList() : Grading.Correctness!;
+    /// <summary>A check's role, by the list that names it; in none, an observation.</summary>
+    public string RoleOf(string check) =>
+        Grading.Correctness!.Contains(check) ? Roles.Correctness : Grading.Integrity?.Contains(check) == true ? Roles.Integrity : Grading.Quality?.Contains(check) == true ? Roles.Quality : Roles.Observation;
+    /// <summary>The integrity checks a task or a stage carries, likewise.</summary>
+    public List<string>? IntegrityFor(TaskDef c) => Staged ? Grading.Integrity?.Where(ChecksFor(c).ContainsKey).ToList() : Grading.Integrity;
     public TaskDef TaskOf(string id) => Tasks.First(t => t.Id == id);
 
     /// <summary>Every check name any attempt can carry, exam checks first, then each task's fixture's and its own, in declared order.</summary>
@@ -709,23 +723,37 @@ sealed class Exam
             }
             return tasks.Count == 0 ? $"'{name}' is not a declared check" : null;
         }
-        if (def.Grading.Pass is null or { Count: 0 }) Add("grading.pass", "required: the checks whose conjunction is the headline pass");
-        foreach (var name in def.Grading.Pass ?? [])
-            if (name is null) Add("grading.pass", "a check name, not null");
-            else if (Undeclared(name) is { } why) Add("grading.pass", why);
-            else if (NbOnlyBesideVendor(name)) Add("grading.pass", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's attempts do not carry, so they could never pass; make it a guardrail");
-        foreach (var name in def.Grading.Validity ?? [])
+        if (def.Grading.Pass is not null) Add("grading.pass", "renamed: these are \"correctness\", the checks that together decide right or wrong");
+        if (def.Grading.Validity is not null) Add("grading.validity", "renamed: these are \"integrity\", the checks that decide whether a try counts at all");
+        if (def.Grading.Correctness is null or { Count: 0 }) Add("grading.correctness", "required: the checks that together decide whether the task was completed as intended");
+        foreach (var name in def.Grading.Correctness ?? [])
+            if (name is null) Add("grading.correctness", "a check name, not null");
+            else if (Undeclared(name) is { } why) Add("grading.correctness", why);
+            else if (NbOnlyBesideVendor(name)) Add("grading.correctness", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's attempts do not carry, so they could never pass; leave it out of the lists, as an observation");
+        foreach (var name in def.Grading.Integrity ?? [])
         {
-            if (name is null) Add("grading.validity", "a check name, not null");
-            else if (Undeclared(name) is { } why) Add("grading.validity", why);
-            else if (def.Grading.Pass?.Contains(name) == true) Add("grading.validity", $"'{name}' is also in pass; a check decides the pass or whether the attempt counts, not both");
-            else if (NbOnlyBesideVendor(name)) Add("grading.validity", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's attempts do not carry; make it a guardrail");
+            if (name is null) Add("grading.integrity", "a check name, not null");
+            else if (Undeclared(name) is { } why) Add("grading.integrity", why);
+            else if (def.Grading.Correctness?.Contains(name) == true) Add("grading.integrity", $"'{name}' is also in correctness; a check has one role");
+            else if (NbOnlyBesideVendor(name)) Add("grading.integrity", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's attempts do not carry; leave it out of the lists, as an observation");
         }
 
+        foreach (var name in def.Grading.Quality ?? [])
+        {
+            if (name is null) Add("grading.quality", "a check name, not null");
+            else if (Undeclared(name) is { } why) Add("grading.quality", why);
+            else if (def.Grading.Correctness?.Contains(name) == true || def.Grading.Integrity?.Contains(name) == true) Add("grading.quality", $"'{name}' is also in {(def.Grading.Correctness?.Contains(name) == true ? "correctness" : "integrity")}; a check has one role");
+        }
+        // Correctness has no fuzziness: a check that asks a model can prefer, and so be quality, never decide right or wrong.
+        foreach (var name in def.Grading.Correctness ?? [])
+            if (name is not null && SpecsOf(name).Any(s => s is not null && Checks.AsksAModel(s)))
+                Add("grading.correctness", $"'{name}' asks a model (judge or decide), and correctness is decided by deterministic checks only; name it under \"quality\"");
+
+        IEnumerable<JsonObject?> SpecsOf(string name) =>
+            def.Grading.Checks.TryGetValue(name, out var spec) ? [spec] : tasks.Select(c => c.Checks?.GetValueOrDefault(name) ?? (c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture)?.Checks.GetValueOrDefault(name)));
         bool NbOnlyBesideVendor(string name) =>
             variants.Any(v => v.IsVendor)
-            && (def.Grading.Checks.TryGetValue(name, out var spec) ? [spec] : tasks.Select(c => c.Checks?.GetValueOrDefault(name) ?? (c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture)?.Checks.GetValueOrDefault(name))))
-                .Any(s => s is not null && Checks.NbOnly(s));
+            && SpecsOf(name).Any(s => s is not null && Checks.NbOnly(s));
     }
 
     static void ValidateVariant(Variant variant, string root, string fileId, Action<string, string> add)

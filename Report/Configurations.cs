@@ -18,7 +18,7 @@ record ValueInfo(string Name, string? Note, string Hash, bool Reference = false,
 /// NotGraded counts its tries without a grade under the current standard: they are in no number until `grade` reads them. Tries holds its tries as a staged exam's variant has them; null when none were read.
 /// </summary>
 record ConfigurationRow(string Key, string Label, Dictionary<string, string> Values, string? Name, bool Live, string State, int Wanted, int Made, int Lost, int Stale,
-    List<string> Stages, int HeadlineChecks, TryVariant? Tries, string? Together = null, List<string>? Differs = null, int NotGraded = 0);
+    List<string> Stages, int CorrectnessChecks, TryVariant? Tries, string? Together = null, List<string>? Differs = null, int NotGraded = 0);
 
 /// <summary>
 /// A value against the live value of its axis with every other axis held: one cell of a comparison. State is compared,
@@ -175,18 +175,18 @@ static class Configurations
         var gaps = notRun.Count == 0 ? "" : $" Not run: {string.Join("; ", notRun)}.";
         if (compared.Count == 0) return $"{name}: nothing to compare yet.{gaps}";
         if (disagree)
-            return $"{name}: better here, worse there on headline checks held. "
+            return $"{name}: better here, worse there on correctness checks held. "
                 + string.Join(" ", compared.GroupBy(c => c.Held!.Direction).Select(g => $"{char.ToUpperInvariant(g.Key[0])}{g.Key[1..]} in {string.Join("; ", g.Select(c => Holding(c.Holding)))}."))
                 + $" They are not read as one, since opposite differences would cancel.{gaps}";
         if (pooled is null)
         {
             var only = compared[0];
-            return $"{name}{(only.Holding.Count > 0 ? $", in {Holding(only.Holding)}" : "")}: {Said(only.Held!, "headline checks held", only.Tries, only.LiveTries, Tries.MinP(only.Tries, only.LiveTries) < Alpha)}.{gaps}";
+            return $"{name}{(only.Holding.Count > 0 ? $", in {Holding(only.Holding)}" : "")}: {Said(only.Held!, "correctness checks held", only.Tries, only.LiveTries, Tries.MinP(only.Tries, only.LiveTries) < Alpha)}.{gaps}";
         }
         var directions = compared.GroupBy(c => c.Held!.Direction).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} in {g.Count()}").ToList();
         return $"{name}, over {compared.Count} of {cells.Count} configurations of the other axes ({string.Join(", ", directions)}): read as one"
             + (pooled.Across.Count > 0 ? $", across {string.Join(" and ", pooled.Across)}" : "")
-            + $", {Said(pooled.Held, "headline checks held", 0, 0, pooled.CanConfirm)}.{gaps}";
+            + $", {Said(pooled.Held, "correctness checks held", 0, 0, pooled.CanConfirm)}.{gaps}";
     }
 
     static string Said(Measure m, string name, int n, int k, bool canConfirm) =>
@@ -292,7 +292,7 @@ static class Configurations
             {
                 "not_run" => $"| {c.Label} | **not run** (0 of {c.Wanted}) | | | | {notes} |",
                 "not_graded" => $"| {c.Label} | **not yet graded** | | | | {notes} |",
-                _ => $"| {c.Label} | {c.Made} of {c.Wanted} | {c.Tries!.Passed} | {Range(c.Tries.Held)} of {c.HeadlineChecks} | {Range(c.Tries.Flagged)} | {notes} |",
+                _ => $"| {c.Label} | {c.Made} of {c.Wanted} | {c.Tries!.Passed} | {Range(c.Tries.Held)} of {c.CorrectnessChecks} | {Range(c.Tries.Flagged)} | {notes} |",
             });
         }
         md.AppendLine().AppendLine("These are the configurations the exam names or has tries of. Any other was never asked for, and is in no number here.");

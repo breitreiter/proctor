@@ -28,6 +28,6 @@
       "exit_ok":   { "exit_reason": "ok" },
       "docs-laid": { "script": "checks/docs-laid.sh", "description": "the README in the checkout is the one this configuration's docs value carries" }
     },
-    "pass": ["exit_ok", "docs-laid", "toolchain-built"]
+    "correctness": ["exit_ok", "docs-laid", "toolchain-built"]
   }
 }

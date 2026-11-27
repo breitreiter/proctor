@@ -44,7 +44,7 @@ public class BuildTests
                 { "shipped": { "docs": "shipped", "tone": "plain", "examples": "none", "assistant": "mock" },
                   "terse-two": { "docs": "shipped", "tone": "terse", "examples": "two", "assistant": "mock" } }
                 """);
-            e["grading"] = JsonNode.Parse("""{ "checks": { "exit_ok": { "exit_reason": "ok" }, "wrote": { "files_touched": { "paths": ["made.txt"], "mode": "exactly" } } }, "pass": ["exit_ok", "wrote"] }""");
+            e["grading"] = JsonNode.Parse("""{ "checks": { "exit_ok": { "exit_reason": "ok" }, "wrote": { "files_touched": { "paths": ["made.txt"], "mode": "exactly" } } }, "correctness": ["exit_ok", "wrote"] }""");
             edit?.Invoke(e);
         });
         return repo;

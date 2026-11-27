@@ -37,8 +37,9 @@ static class Standard
             if (check.Spec["script"] is JsonValue v && v.TryGetValue<string>(out var script) && Path.Combine(check.Dir, script) is var file && File.Exists(file))
                 parts.Add("  " + Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(file))));
         }
-        parts.Add("pass " + string.Join(",", exam.PassFor(stage)));
-        parts.Add("validity " + string.Join(",", exam.ValidityFor(stage) ?? []));
+        parts.Add("correctness " + string.Join(",", exam.CorrectnessFor(stage)));
+        parts.Add("integrity " + string.Join(",", exam.IntegrityFor(stage) ?? []));
+        parts.Add("quality " + string.Join(",", (exam.Grading.Quality ?? []).Where(exam.ChecksFor(stage).ContainsKey)));
         parts.Add("expect " + (exam.ExpectFor(stage)?.ToJsonString() ?? ""));
         return "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", parts))));
     }
@@ -55,7 +56,7 @@ static class Standard
     public static List<string> PassIn(Exam exam, TaskDef stage, string configuration)
     {
         var checks = exam.ChecksFor(stage);
-        return exam.PassFor(stage).Where(name => Applies(exam, checks[name], configuration)).ToList();
+        return exam.CorrectnessFor(stage).Where(name => Applies(exam, checks[name], configuration)).ToList();
     }
 
     static string File_(string attemptDir, string standard) => Path.Combine(attemptDir, Layout.GradesDir, standard[7..23] + ".json");

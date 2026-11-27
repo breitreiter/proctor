@@ -12,7 +12,7 @@
         "description": "Legacy.Widgets appears nowhere under src/ or tests/"
       }
     },
-    "pass": [
+    "correctness": [
       "exit_ok",
       "builds",
       "tests-pass",

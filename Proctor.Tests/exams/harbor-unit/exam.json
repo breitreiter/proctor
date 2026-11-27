@@ -14,7 +14,7 @@
         "files_touched": "@expect"
       }
     },
-    "pass": [
+    "correctness": [
       "builds",
       "tests-pass"
     ]

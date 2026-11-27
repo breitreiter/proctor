@@ -17,7 +17,7 @@ The words, which the report and every file use the same way:
 |---|---|
 | **exam** | A collection of related tasks with one business goal and the checks that grade them, with one pass list for every task so a pass rate across them means one thing. Its variants are files beside it, outside its identity. |
 | **task** | One input and one desired outcome: a prompt against a fixture, with its own answer key (`expect`) for the checks that apply to it, and any checks of its own. |
-| **check** | One yes-or-no question asked of a finished attempt, declared on the exam, a fixture or a task; an attempt carries all three. Where it is listed sets its role: `pass`, `validity`, or a guardrail rate. |
+| **check** | One yes-or-no question asked of a finished attempt, declared on the exam, a fixture or a task; an attempt carries all three. Where it is listed sets its role: `correctness`, `integrity`, `quality`, or in no list an observation. |
 | **fixture** | The repository a task runs against and what "done" looks like in it; reused across exams. |
 | **variant** | What is under test: an agent or nb's harness and provider, a model and a bundle, as declared data, one file per variant. Its identity is its content. |
 | **attempt** | One variant at one task, once, with the evidence. Several per task, because the agent is stochastic. |
@@ -286,7 +286,7 @@ proctor: [`porting-from-suites.md`](porting-from-suites.md).
   transcript. A check on the workspace (`files_touched`, a script) sees
   the workspace as that stage left it, and `files_touched` reads what
   that stage itself changed. Each stage has its own `checks.json` and
-  `diff.patch`, and passes on the headline checks it carries. A stage
+  `diff.patch`, and passes on the correctness checks it carries. A stage
   that was not reached is not graded.
 - One attempt is a try: every stage once. It is kept at
   `bank/<exam>/<variant>/<n>/`, each stage under `stages/<i>-<id>/`
@@ -299,7 +299,7 @@ proctor: [`porting-from-suites.md`](porting-from-suites.md).
   next stage runs, unless the exam is chained.
 - `proctor report` compares variants try against try, never stage
   against stage: stages share an environment, so they share causes.
-  Each try gives two numbers, the headline checks it held (of all the
+  Each try gives two numbers, the correctness checks it held (of all the
   job has; a stage not reached holds nothing) and its flagged steps,
   and a variant is compared with the live one by the Mann–Whitney test.
   **Plan for at least 4 tries of each variant** (`attempts`), or 3
@@ -484,12 +484,19 @@ Checks live at three levels and an attempt carries the union: the exam's
 `grading.checks` on every task, a fixture's `checks` on every task run
 against it, and a task's own `checks` on that task alone, for the outcome
 only it can state. A name declared at two levels is a problem. A check
-named in `pass` that the exam does not declare must reach every task from
-its fixture or its own block. A check named in `validity` decides whether an
-attempt counts at all: an attempt that fails one is excluded, not failed;
-an `error` or `needs-judge` there excludes nothing, and a check is in `pass`
-or `validity`, not both. A task's check is reported over the tasks that
-carry it.
+named in a role's list that the exam does not declare must reach every
+task from its fixture or its own block. A task's check is reported over
+the tasks that carry it.
+
+A check has one of four roles, set by the list under `grading` that names
+it, and a check is in one list at most:
+
+| role | list | what it does |
+|---|---|---|
+| correctness | `correctness` | Was the task completed as intended. Together these decide whether an attempt passed. Deterministic checks only: one that asks a model (`judge`, `decide`) is refused here. |
+| integrity | `integrity` | Can the result be trusted. An attempt that fails one is excluded, not failed; an `error` or `needs-judge` there excludes nothing. |
+| quality | `quality` | Something you prefer and do not require. Reported, and decides nothing. A judged check belongs here. |
+| observation | none | Something you want counted, with no preferred answer. |
 
 ```json
 {
@@ -523,7 +530,7 @@ protecting, not only what tripped:
 { "no-secrets": { "script": "checks/no-secrets.sh", "description": "no key or secret value is in a written file", "why": "a suite that leaks a key would publish it with the attempt" } }
 ```
 
-`proctor list` names the checks that have none. Four guardrails get
+`proctor list` names the checks that have none. Four common checks get
 proctor's own reason when they have none: an exit reason of `ok`, no
 denied calls, no loop nudge, and a budget of calls, tokens or time.
 `grade` writes each check's description, why and (for a script) its path
@@ -678,11 +685,11 @@ and why. Results holds the numbers across all tasks (pass rates, the
 comparison of each variant with the live one, when one is live), then Failures: per variant, each check
 that failed, in the author's words, with how often and on which tasks.
 Everything after that is evidence: what ran and what was left out, check
-pass rates, cost, every attempt, and the method last. An attempt whose headline check
+pass rates, cost, every attempt, and the method last. An attempt whose correctness check
 could not decide (a script's exit 2, a split judge) is *undecided*: out of
 the pass rate on both sides, listed for review when there are a few, and
 flagged as a defect in the check when there are many. An attempt whose
-headline script check is *outdated* (an agent variant's, changed since the
+correctness script check is *outdated* (an agent variant's, changed since the
 attempt was made; see "Agent variants") is undecided the same way, shown as
 outdated, and named in a warning at the top that says how to make those attempts again.
 
@@ -821,7 +828,7 @@ never runs the script again. So its verdict is fixed when the attempt is
 made. Change the script, any file beside it in the exam or the fixture, or
 the task's expected values, or add a script check, and `grade` marks those
 attempts' verdicts for it `outdated`: out of the check's rate and, for a
-headline check, out of the pass rate, never counted as a fail. They stay
+correctness check, out of the pass rate, never counted as a fail. They stay
 outdated until the attempts are made again (move their directories out of
 `bank/<exam>/`, which `grade` names, and `proctor run` the exam). Built-in and judged checks on the
 same attempts are graded afresh as on any variant. An interrupted run

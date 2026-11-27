@@ -71,11 +71,16 @@
         "description": "the agent opened the docs site from the shell"
       }
     },
-    "pass": [
+    "correctness": [
       "exit_ok",
       "acceptance",
       "tests-pass"
     ],
-    "validity": []
+    "integrity": [
+      "tests-untouched"
+    ],
+    "quality": [
+      "current-endpoint"
+    ]
   }
 }

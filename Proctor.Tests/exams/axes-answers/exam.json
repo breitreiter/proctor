@@ -45,7 +45,7 @@
       "one-sentence":      { "script": "checks/one-sentence.sh",      "description": "the answer is one sentence" },
       "says-when-unsure":  { "script": "checks/says-when-unsure.sh",  "description": "the answer says so when the notes do not cover the question" }
     },
-    "pass": ["answers-question", "cites-note", "one-sentence", "says-when-unsure"],
-    "validity": ["exit_ok"]
+    "correctness": ["answers-question", "cites-note", "one-sentence", "says-when-unsure"],
+    "integrity": ["exit_ok"]
   }
 }

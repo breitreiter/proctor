@@ -45,7 +45,7 @@ public class AxesRunTests
                   "rewritten": { "docs": "rewritten", "tone": "plain", "assistant": "mock" }, "rewritten-terse": { "docs": "rewritten", "tone": "terse", "assistant": "mock" } }
                 """);
             e["grading"] = JsonNode.Parse("""
-                { "checks": { "exit_ok": { "exit_reason": "ok" }, "wrote": { "files_touched": { "paths": ["made.txt"], "mode": "exactly" } } }, "pass": ["exit_ok"] }
+                { "checks": { "exit_ok": { "exit_reason": "ok" }, "wrote": { "files_touched": { "paths": ["made.txt"], "mode": "exactly" } } }, "correctness": ["exit_ok"] }
                 """);
             edit?.Invoke(e);
         });
@@ -121,7 +121,7 @@ public class AxesRunTests
         var (stats, _) = Configurations.Compute(repo.Root, exam, current, Bank.Of(repo.Root, exam), Results.Collect(repo.Root, exam, current), null);
         Assert.Equal(Configurations.Schema, stats.Schema);
         Assert.All(stats.Configurations, c => Assert.Equal("made", c.State));
-        Assert.Equal([1, 2, 1, 2], stats.Configurations.Select(c => c.HeadlineChecks));
+        Assert.Equal([1, 2, 1, 2], stats.Configurations.Select(c => c.CorrectnessChecks));
         Assert.Equal([true, true, false, false], stats.Configurations.Select(c => c.Live));
         var docs = Assert.Single(stats.Comparisons);
         Assert.Equal(("docs", "rewritten", "shipped"), (docs.Axis, docs.Value, docs.Live));

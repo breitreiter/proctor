@@ -13,10 +13,10 @@ namespace Proctor;
 record ChangeOutcome(string? Check, string? Metric, string Direction, string? Because, string Outcome, int Tries, int AgainstTries, Measure? Measure, bool CouldConfirm, string Sentence);
 
 /// <summary>
-/// A prediction with each change it expects held against the tries. Late: some of its configuration's tries were made
-/// before it was pinned. StandardChanged: the checks of one of its stages are not those it was pinned under.
+/// A prediction with each change it expects held against the tries. PostHoc: some of its configuration's tries were made
+/// before it was written. StandardChanged: the checks of one of its stages are not those it was pinned under.
 /// </summary>
-record PredictionReport(string Name, string Configuration, string Against, string? Note, string? Written, bool Late, bool StandardChanged, List<string> Labels, List<ChangeOutcome> Changes);
+record PredictionReport(string Name, string Configuration, string Against, string? Note, string Written, bool PostHoc, bool StandardChanged, List<string> Labels, List<ChangeOutcome> Changes);
 
 static class PredictionOutcomes
 {
@@ -30,10 +30,9 @@ static class PredictionOutcomes
             var (mine, theirs) = (byKey.GetValueOrDefault(c.Configuration.Key), byKey.GetValueOrDefault(c.Against.Key));
             var (name, other) = (c.Configuration.Name ?? c.Configuration.Label, c.Against.Name ?? c.Against.Label);
             var labels = new List<string>();
-            var written = c.Def.Written is null ? (DateTime?)null : Answers.ParseAsOf(c.Def.Written);
-            var before = written is null ? 0 : made.Count(m => m.Variant == c.Configuration.Key && m.Made < written);
-            if (written is null) labels.Add($"Not pinned: when this prediction was written is not recorded, so it cannot be said that it came before the tries. `proctor predict {exam.Id} {c.Name}` pins it.");
-            else if (before > 0) labels.Add($"Late: {before} {(before == 1 ? "try" : "tries")} of {name} had been made before this prediction was pinned ({c.Def.Written}).");
+            var written = Predictions.WrittenAt(c.Def.Written!);
+            var before = made.Count(m => m.Variant == c.Configuration.Key && m.Made < written);
+            if (before > 0) labels.Add($"Post hoc: {before} {(before == 1 ? "try" : "tries")} of {name} had been made before this prediction was written ({c.Def.Written}).");
             var moved = c.Def.Standard is { } pinned && exam.StagesOf(c.Configuration.Key).Any(s => pinned.GetValueOrDefault(s.Id!) != Standard.Hash(exam, s));
             if (moved) labels.Add("The standard changed after this prediction was pinned: the checks it is held against are not the checks it was written under.");
 
@@ -59,7 +58,7 @@ static class PredictionOutcomes
                 };
                 return new ChangeOutcome(p.Check, p.Metric, p.Direction!, p.Because, outcome, a.Count, b.Count, measure, could, sentence);
             }).ToList();
-            return new PredictionReport(c.Name, c.Configuration.Key, c.Against.Key, c.Def.Note, c.Def.Written, before > 0, moved, labels, outcomes);
+            return new PredictionReport(c.Name, c.Configuration.Key, c.Against.Key, c.Def.Note, c.Def.Written!, before > 0, moved, labels, outcomes);
         }).ToList();
     }
 

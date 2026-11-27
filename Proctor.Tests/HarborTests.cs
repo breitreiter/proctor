@@ -647,8 +647,8 @@ public class HarborTests
     }
 
     [Theory]
-    [InlineData("pass")]
-    [InlineData("validity")]
+    [InlineData("correctness")]
+    [InlineData("integrity")]
     public void Validate_ANudgeOnlyCheckInTheHeadline_BesideAVendorVariant_IsAProblem(string list)
     {
         var (repo, _) = AgentRepo();

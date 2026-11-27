@@ -63,8 +63,8 @@ public class TriesTests
 
         // As run, the two variants are the same: every try holds every headline check, with the same friction.
         var (same, friction) = Report(repo, exam);
-        Assert.Equal(("tries/1", 4, true), (same.Schema, same.HeadlineChecks, same.Variants[0].Live));
-        Assert.Equal(["exit_ok", "says-expected"], same.Stages[0].HeadlineChecks);
+        Assert.Equal(("tries/1", 4, true), (same.Schema, same.CorrectnessChecks, same.Variants[0].Live));
+        Assert.Equal(["exit_ok", "says-expected"], same.Stages[0].CorrectnessChecks);
         Assert.All(same.Variants, v => Assert.Equal((4, 4, 0, new Spread(4, 4, 4)), (v.Tries, v.Passed, v.Lost, v.Held)));
         var against = same.Variants[1].AgainstLive!;
         Assert.Equal(("a", true, "same", 16), (against.Vs, against.CanConfirm, against.Held.Direction, against.Held.Pairings));
@@ -77,14 +77,14 @@ public class TriesTests
         Assert.Equal(["ask-help"], kind.Stages);
         Assert.Equal(new Spread(1, 1, 1), same.Variants[0].Flagged);
 
-        // Now b's second stage answers wrong in every try: fewer headline checks held, in all 16 pairings.
+        // Now b's second stage answers wrong in every try: fewer correctness checks held, in all 16 pairings.
         foreach (var n in new[] { 1, 2, 3, 4 })
             EditChecks(repo, "b", n, "2-say-hello", c => c["says-expected"]!["result"] = "fail");
         var (worse, _) = Report(repo, exam);
         var b = worse.Variants[1];
         Assert.Equal((0, new Spread(3, 3, 3)), (b.Passed, b.Held));
         Assert.Equal(("worse", 0, 16, true), (b.AgainstLive!.Held.Direction, b.AgainstLive.Held.Higher, b.AgainstLive.Held.Lower, b.AgainstLive.Held.Confirmed));
-        Assert.Equal("Headline checks held: worse. Flagged steps: same. Confirmed on headline checks held: a try held fewer than a try of live in 16 of 16 pairings. Moved most: say-hello (right in 0 of 4, live 4 of 4).", b.AgainstLive.Sentence);
+        Assert.Equal("Correctness checks held: worse. Flagged steps: same. Confirmed on correctness checks held: a try held fewer than a try of live in 16 of 16 pairings. Moved most: say-hello (right in 0 of 4, live 4 of 4).", b.AgainstLive.Sentence);
         Assert.Equal(["right", "wrong"], b.Rows[0].Stages.Select(s => s.Result));
         Assert.Equal(new StageTally("say-hello", 0, 4), b.Stages[1]);
     }

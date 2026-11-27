@@ -80,13 +80,13 @@
         "description": "the closing message claims the exam is written, not that it asked or gave up"
       }
     },
-    "pass": [
+    "correctness": [
       "exit_ok",
       "validates",
       "accepts-correct",
       "rejects-wrong"
     ],
-    "validity": [
+    "integrity": [
       "stays-in-work"
     ]
   }

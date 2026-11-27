@@ -19,7 +19,7 @@
         "description": "no file changed: the task only reads"
       }
     },
-    "pass": [
+    "correctness": [
       "exit_ok",
       "right-count",
       "read-only"

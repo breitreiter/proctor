@@ -205,7 +205,7 @@ public class StatsTests
         Assert.Equal(("floor/uses-bash/1", "invalid", "no_denials: 1 denied call"), (ex.Attempt, ex.Status, ex.Reason));
         Assert.Equal(2, f.Pass!.N);
         Assert.Equal(["invalid"], stats.Matrix["floor"]["uses-bash"]);
-        Assert.Equal(["no_denials"], stats.ValidityChecks);
+        Assert.Equal(["no_denials"], stats.IntegrityChecks);
         // The validity check is rated over all three graded attempts; the pass checks over the two that count.
         Assert.Equal((2, 3), (f.Checks["no_denials"].KAttempts, f.Checks["no_denials"].NAttempts));
         Assert.Equal((2, 2), (f.Checks["builds"].KAttempts, f.Checks["builds"].NAttempts));

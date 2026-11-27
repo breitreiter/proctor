@@ -8,7 +8,7 @@
       "on-script": { "answer_regex": "@expect", "description": "an off-topic request gets system.md's sentence and nothing else; a Bike Kitchen question gets an answer, not that sentence" },
       "brief": { "answer_words": { "max": 120 } }
     },
-    "pass": ["on-script"],
-    "validity": ["answered"]
+    "correctness": ["on-script"],
+    "integrity": ["answered"]
   }
 }

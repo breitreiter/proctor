@@ -32,10 +32,10 @@ static class Grade
             if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir, attempt.Overlays, a.Staged ? Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(attemptDir))!, Layout.SetupPatchFile) : null) is { } error)
                 log.WriteLine($"  {a.Label}  could not restore the checkout: {error}");
             var checks = Attempt(attempt, exam, Transcript.Read(attemptDir, Before(root, exam, a)));
-            var pass = Pass(checks, exam.PassFor(c));
-            var invalid = Invalid(checks, exam.ValidityFor(c));
+            var pass = Pass(checks, exam.CorrectnessFor(c));
+            var invalid = Invalid(checks, exam.IntegrityFor(c));
             grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid));
-            log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.PassFor(c)) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}{Because(k.Value)}"))}");
+            log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.CorrectnessFor(c)) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}{Because(k.Value)}"))}");
         }
         return grades;
     }
@@ -104,7 +104,7 @@ static class Grade
                 if (applied?.Result == other.Result) agreed++;
                 log.WriteLine($"  {a.Label}  {name}: {from}={applied?.Result ?? "none"} ({applied?.Reason})  {to}={other.Result} ({other.Reason})");
             }
-            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, existing, Pass(existing, exam.PassFor(c)), Invalid(existing, exam.ValidityFor(c))));
+            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, existing, Pass(existing, exam.CorrectnessFor(c)), Invalid(existing, exam.IntegrityFor(c))));
         }
         log.WriteLine($"  {agreed} of {compared} verdicts agree; checks.json unchanged");
         return grades;

@@ -81,10 +81,10 @@ record LiveStats(string Variant, string Since, string? NotReference = null);
 record StatsFile(
     string Exam, int NTasks, bool Paired,
     Dictionary<string, VariantStats> Variants, List<Comparison> Comparisons, Mde Mde, string Methods,
-    List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> PassChecks, List<string> ValidityChecks,
+    List<string> Tasks, Dictionary<string, Dictionary<string, List<string>>> Matrix, List<string> CorrectnessChecks, List<string> IntegrityChecks,
     Descriptions Descriptions, List<UndecidedCheck> UndecidedChecks, LiveStats? Live = null, Dictionary<string, TaskJson>? TaskDetails = null,
     List<ErroredCheck>? ErroredChecks = null, BuiltFrom? BuiltFrom = null, List<OutdatedCheck>? OutdatedChecks = null,
-    int Attempts = 1);
+    int Attempts = 1, List<string>? QualityChecks = null);
 
 /// <summary>
 /// The report's stamp: when it was built, the log entries of the runs that made its attempts, each variant's and task's hash as the exam has them now, how
@@ -111,7 +111,7 @@ static class Stats
         var checks = exam.CheckNames;
         var byVariant = variants.ToDictionary(v => v, v => rows.Where(r => r.Variant == v).ToList());
 
-        var validity = exam.Grading.Validity ?? [];
+        var validity = exam.Grading.Integrity ?? [];
         var variantStats = variants.ToDictionary(v => v, v => VariantStats(byVariant[v], tasks, checks, validity));
 
         var scores = variants.ToDictionary(v => v, v => TaskScores(byVariant[v].Where(r => r.Decided).ToList(), tasks, r => r.Pass == true));
@@ -174,8 +174,8 @@ static class Stats
 
         var taskDetails = exam.Tasks.Where(c => tasks.Contains(c.Id!)).ToDictionary(c => c.Id!, c => new TaskJson(c.Fixture, exam.ChecksFor(c).Select(k => new TaskCheck(k.Key, k.Value.Level, Checks.Describe(k.Value.Spec))).ToList()));
 
-        return new StatsFile(exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Pass!, validity, descriptions, undecidedChecks, liveStats, taskDetails,
-            erroredChecks.Count > 0 ? erroredChecks : null, built, outdatedChecks.Count > 0 ? outdatedChecks : null, exam.Attempts);
+        return new StatsFile(exam.Id, tasks.Count, Paired: true, variantStats, comparisons, mde, methods, tasks, matrix, exam.Grading.Correctness!, validity, descriptions, undecidedChecks, liveStats, taskDetails,
+            erroredChecks.Count > 0 ? erroredChecks : null, built, outdatedChecks.Count > 0 ? outdatedChecks : null, exam.Attempts, exam.Grading.Quality);
     }
 
     /// <summary>

@@ -164,7 +164,7 @@ public class StagedRunTests
             // A stage's own workspace checks, by the diff and by a script in the checkout.
             e["stages"]![0]!["checks"] = JsonNode.Parse("""{"made-it": {"files_touched": {"paths": ["made.txt"], "mode": "at_least"}}}""");
             e["grading"]!["checks"]!["has-made"] = JsonNode.Parse("""{"script": "checks/made.sh", "description": "made.txt is in the workspace"}""");
-            e["grading"]!["pass"] = JsonNode.Parse("""["exit_ok", "touches-note"]""");
+            e["grading"]!["correctness"] = JsonNode.Parse("""["exit_ok", "touches-note"]""");
         });
         Run(repo);
         var exam = repo.LoadExam("smoke");

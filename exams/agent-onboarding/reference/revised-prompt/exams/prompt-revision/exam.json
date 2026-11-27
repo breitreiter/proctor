@@ -7,7 +7,7 @@
       "answered": { "exit_reason": "ok", "description": "the bot replied; a run the server cut short is left out, not counted wrong" },
       "correct": { "answer_regex": "@expect", "description": "the reply gives the handbook's figure, unrounded" }
     },
-    "pass": ["correct"],
-    "validity": ["answered"]
+    "correctness": ["correct"],
+    "integrity": ["answered"]
   }
 }

@@ -227,7 +227,7 @@ static class Answers
             + "flagged is a try's steps inside any friction point, when friction was run. checks in a cell counts, per headline check, the tries of each side that held it; it tests nothing. "
             + "together on a configuration more than one value off the reference says whether `proctor build` found it to be its values put together (sum), more than that (more), not to be told (unclear), or never checked (not_checked). "
             + "A setting not run is not run, never no difference. tries_since counts tries made after as_of in these configurations: the numbers are as they stood at as_of. "
-            + "predictions are those written about a configuration in this comparison: each change one expects, with how it came out against the configuration it named; late means tries were made before the prediction was pinned. "
+            + "predictions are those written about a configuration in this comparison: each change one expects, with how it came out against the configuration it named; post hoc means tries of its configuration were made before the prediction was written. "
             + "An address opens the same thing in the viewer; path is its directory under the repository root. Nothing here recommends anything.",
             predicted.Count > 0 ? predicted : null);
     }

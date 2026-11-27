@@ -112,16 +112,17 @@ this configuration is run, this is what will change." It is a file,
 `exams/<exam>/predictions/<name>.json`, naming one configuration the
 exam names and the changes expected: each a check or a metric (`held`,
 `flagged_steps`, `tool_calls`, `tokens`, `duration`) with a direction,
-`more` or `less`.
+`more` or `less`. It says when it was made, in `written`, a date or a
+time in UTC: required, and its author's to set.
 
 ```bash
-proctor predict <exam>          # pin every prediction not yet pinned, and say how each stands
+proctor predict <exam>          # pin the checks each prediction was made under, and say how each stands
 ```
 
 - **Write the prediction before the run,** and suggest one when a person
   proposes a change: it is the reason the tries are being paid for.
-  `run` pins it as it starts. One written afterwards is labelled late,
-  and you say so.
+  Set `written` to the time you write it. One written after tries of
+  its configuration were made is labelled post hoc, and you say so.
 - **The report and `compare` say how each change came out:** it went
   that way, it did not happen, it went the other way, or it is not run
   yet. A miss is a finding. Report it as plainly as a hit.
