@@ -70,16 +70,16 @@ static class HarborCompile
     /// its fixture's services.
     /// </summary>
     public static string Tasks(string entryDir, Exam exam, Func<Variant, AgentRoute> route, string? nbImage = null, string? nbPublish = null,
-        IReadOnlyDictionary<string, ResolvedBundle>? bundles = null, IReadOnlyCollection<(Variant Variant, TaskDef Task)>? pairs = null)
+        IReadOnlyDictionary<string, ResolvedBundle>? bundles = null, IReadOnlyCollection<(Variant Variant, TaskDef Task)>? pairs = null, string? relayDir = null)
     {
         pairs ??= (from variant in exam.Variants.Where(a => a.IsAgent) from c in exam.Tasks select (variant, c)).ToList();
         if (exam.Staged)
             foreach (var variant in pairs.Select(p => p.Variant).Distinct())
-                if (Plain(exam, variant.Id!)) Task(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, exam.StagesOf(variant.Id!)[0], route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
-                else Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
+                if (Plain(exam, variant.Id!)) Task(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, exam.StagesOf(variant.Id!)[0], route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
+                else Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
         else
             foreach (var (variant, c) in pairs)
-                Task(Layout.HarborTask(entryDir, variant.Id!, c.Id!), exam, variant, c, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path);
+                Task(Layout.HarborTask(entryDir, variant.Id!, c.Id!), exam, variant, c, route(variant), nbImage, nbPublish, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
         var files = pairs.Select(p => p.Variant).Where(IsOwnAgent).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
         var oracle = pairs.Any(p => p.Task.Oracle is not null);
         if (oracle) files.Add(OracleUserFile);
@@ -123,7 +123,7 @@ static class HarborCompile
     /// service can serve it, a docs site say, while the agent's own container never holds it.
     /// </summary>
     public static void Task(string dir, Exam exam, Variant variant, TaskDef task, AgentRoute route, string? nbImage = null, string? nbPublish = null,
-        string? bundleDir = null)
+        string? bundleDir = null, string? relayDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         var fixture = exam.FixtureOf(task)!;
@@ -133,7 +133,9 @@ static class HarborCompile
         var configuration = exam.Axes?.Of(variant.Id!);
         Directory.CreateDirectory(Path.Combine(dir, "environment"));
         File.WriteAllText(Path.Combine(dir, "instruction.md"), task.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
-        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, task, route, bridged: task.Oracle is not null));
+        // The ports of this machine the task's agent reaches at its own localhost, when the run holds a relay (a local engine).
+        var relayed = relayDir is null ? [] : RelayPorts(fixture, route);
+        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, task, Reached(fixture, route, relayDir), bridged: task.Oracle is not null));
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
         foreach (var (from, to) in configuration is null ? [] : exam.Axes!.Overlays(configuration, exam.Dir))
             CopyTree(from, Path.Combine(dir, "environment", "repo", to ?? ""), [Path.Combine(from, ".git")]);
@@ -143,14 +145,21 @@ static class HarborCompile
         if (fixture.Def.Image!.Services is { } services)
         {
             CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
-            var compose = Path.Combine(dir, "environment", "docker-compose.yaml");
-            File.WriteAllText(compose, Confined(File.ReadAllText(compose)));
             if (configuration is null)
             {
                 var bundle = Directory.CreateDirectory(Path.Combine(dir, "environment", ServiceBundleDir)).FullName;
                 if (bundleDir is not null) CopyTree(bundleDir, bundle, []);
             }
         }
+        var compose = Path.Combine(dir, "environment", "docker-compose.yaml");
+        if (relayed.Count > 0)
+        {
+            using (var source = typeof(HarborCompile).Assembly.GetManifestResourceStream(RelayFile)!)
+            using (var dest = File.Create(Path.Combine(dir, "environment", RelayScript)))
+                source.CopyTo(dest);
+            File.WriteAllText(compose, Relayed(File.Exists(compose) ? File.ReadAllText(compose) : "services:\n", relayDir!, relayed));
+        }
+        if (File.Exists(compose)) File.WriteAllText(compose, Confined(File.ReadAllText(compose)));
         // Every tree parameter the base declares, by name, empty when the configuration gives it nothing: a compose file mounts ./params/<NAME>.
         foreach (var (name, tree) in configuration is null ? [] : TreeParams(exam, fixture, configuration))
         {
@@ -176,14 +185,14 @@ static class HarborCompile
     /// that timed out does not end the try. A stage starts fresh unless the exam is chained: its step's setup.sh puts the
     /// workspace back first.
     /// </summary>
-    public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? nbPublish = null, string? bundleDir = null)
+    public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? nbPublish = null, string? bundleDir = null, string? relayDir = null)
     {
         // A try is the stages that apply in its configuration (every stage, on an exam without axes).
         var stages = exam.StagesOf(variant.Id!);
         // The environment, and the exam and fixture the script checks read, are a task's; any stage stands for the job there.
-        Task(dir, exam, variant, stages[0], route, nbImage, nbPublish, bundleDir);
+        Task(dir, exam, variant, stages[0], route, nbImage, nbPublish, bundleDir, relayDir);
         foreach (var file in new[] { "instruction.md", Path.Combine("tests", "test.sh"), Path.Combine("tests", "env.sh") }) File.Delete(Path.Combine(dir, file));
-        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, stages[0], route, bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
+        File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, stages[0], Reached(exam.FixtureOf(stages[0])!, route, relayDir), bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
             + string.Concat(stages.Select(s => $"\n[[steps]]\nname = {Toml(s.Id!)}\n")));
         foreach (var (stage, i) in stages.Select((s, i) => (s, i)))
         {
@@ -205,6 +214,40 @@ static class HarborCompile
         }
     }
 
+    /// <summary>The relay's container end (Harbor/relay.py) as a task's environment holds it, its service's name, and where that service finds the sockets.</summary>
+    const string RelayFile = "relay.py", RelayScript = "proctor-relay.py", RelayMount = "/run/proctor-relay";
+    public const string RelayService = "proctor-relay";
+
+    /// <summary>
+    /// The ports of the machine that runs proctor a task's agent reaches at its own localhost: the model's, when its base
+    /// URL is loopback and no service of the fixture answers there (image.serves), and the fixture's image.host_ports.
+    /// </summary>
+    public static List<int> RelayPorts(Fixture fixture, AgentRoute route)
+    {
+        var ports = new SortedSet<int>(fixture.Def.Image?.HostPorts ?? []);
+        if (HostPort(fixture, route) is { } model) ports.Add(model);
+        return [.. ports];
+    }
+
+    /// <summary>The model's port on this machine, when the route's base URL is loopback and the port is not one the fixture's own services answer on.</summary>
+    static int? HostPort(Fixture fixture, AgentRoute route) =>
+        route.BaseUrl is { } url && new Uri(url) is var uri && HostRelay.Loopback(uri.Host) && fixture.Def.Image?.Serves?.Contains(uri.Port) != true ? uri.Port : null;
+
+    /// <summary>The route as the task's network policy reads it: a model the relay carries is no host to allow, so the agent's phase has no network.</summary>
+    static AgentRoute Reached(Fixture fixture, AgentRoute route, string? relayDir) =>
+        relayDir is not null && HostPort(fixture, route) is not null ? route with { BaseUrl = null } : route;
+
+    /// <summary>
+    /// A compose file with the relay's service in it: Harbor/relay.py on the image the stub fixture's service uses, the
+    /// run's socket directory mounted, declaring no network so that it is in the agent's namespace and answers at its
+    /// localhost. Written on one line in flow style, so the file's own indentation does not matter.
+    /// </summary>
+    public static string Relayed(string compose, string hostDir, List<int> ports)
+    {
+        var command = string.Join(", ", new[] { "python", "-u", $"/{RelayScript}", RelayMount }.Concat(ports.Select(p => p.ToString())).Select(Toml));
+        return InServices(compose, $"{RelayService}: {{ image: \"python:3.13-alpine\", command: [{command}], volumes: [{Toml($"./{RelayScript}:/{RelayScript}:ro")}, {Toml($"{hostDir}:{RelayMount}")}] }}", RelayService);
+    }
+
     /// <summary>
     /// A fixture's compose file with NET_RAW dropped from the agent's container (`main`, which Harbor merges its own over). A
     /// service that declares no network shares the agent's, and Docker's default capabilities let a container capture packets
@@ -212,7 +255,10 @@ static class HarborCompile
     /// defaults leave the capability out). It costs the agent `ping` on Docker. A file that declares `main` itself is the
     /// author's and is left as written.
     /// </summary>
-    public static string Confined(string compose)
+    public static string Confined(string compose) => InServices(compose, "main: { cap_drop: [NET_RAW] }", "main");
+
+    /// <summary>A compose file with one more service, written as the first line under `services:` at the file's own indentation; unchanged when it has no `services:` or already declares a service of that name.</summary>
+    static string InServices(string compose, string line, string name)
     {
         var lines = compose.Split('\n').ToList();
         var at = lines.FindIndex(l => Regex.IsMatch(l, @"^services[ \t]*:[ \t]*(#.*)?\r?$"));
@@ -220,8 +266,8 @@ static class HarborCompile
         var block = lines.Skip(at + 1).TakeWhile(l => l.Trim().Length == 0 || char.IsWhiteSpace(l[0]) || l[0] == '#');
         var first = block.FirstOrDefault(l => l.Trim().Length > 0 && !l.TrimStart().StartsWith('#'));
         var indent = first is null ? "  " : first[..(first.Length - first.TrimStart().Length)];
-        if (block.Any(l => Regex.IsMatch(l, $@"^{Regex.Escape(indent)}main[ \t]*:"))) return compose;
-        lines.Insert(at + 1, $"{indent}main: {{ cap_drop: [NET_RAW] }}");
+        if (block.Any(l => Regex.IsMatch(l, $@"^{Regex.Escape(indent)}{Regex.Escape(name)}[ \t]*:"))) return compose;
+        lines.Insert(at + 1, indent + line);
         return string.Join('\n', lines);
     }
 

@@ -15,9 +15,12 @@ record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclu
 /// ready (a package restore), run in the work directory after the fixture is committed, at build time and with network,
 /// so neither the agent nor the checks need any. Services is a directory beside repo/ holding a docker-compose.yaml of
 /// extra services (and whatever it mounts), copied into the task's environment/: Harbor runs them beside the agent, in
-/// its network namespace.
+/// its network namespace. Serves is the ports those services answer on at the agent's localhost, which is how a model
+/// endpoint there (the stub's) is told from one on the machine that runs proctor. HostPorts is ports of that machine the
+/// agent is to reach at its own localhost (a dev server started by hand beside the run): each is relayed, and the try
+/// then depends on something the exam does not hold.
 /// </summary>
-record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env, string? Services = null, List<string>? Params = null);
+record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env, string? Services = null, List<string>? Params = null, List<int>? Serves = null, List<int>? HostPorts = null);
 
 record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, FixtureImage? Image = null, Dictionary<string, ParamDef>? Params = null);
 
@@ -78,6 +81,11 @@ sealed record Fixture
             if (string.IsNullOrWhiteSpace(image.From)) Add("image.from", "required: the base image (mcr.microsoft.com/dotnet/sdk:10.0)");
             foreach (var key in (image.Env ?? []).Keys.Where(k => !Regex.IsMatch(k, "^[A-Za-z_][A-Za-z0-9_]*$"))) Add($"image.env.{key}", "not an environment variable name");
             if (image.Run?.Any(string.IsNullOrWhiteSpace) == true) Add("image.run", "a command, not an empty string");
+            foreach (var (field, ports) in new[] { ("image.serves", image.Serves), ("image.host_ports", image.HostPorts) })
+                if (ports?.Any(p => p is < 1 or > 65535) == true) Add(field, "ports, each 1 to 65535");
+            if (image.Serves is { Count: > 0 } && image.Services is null) Add("image.serves", "the ports image.services' services answer on, and there is no image.services");
+            if (image.HostPorts?.Intersect(image.Serves ?? []).Order().ToList() is { Count: > 0 } both)
+                Add("image.host_ports", $"{string.Join(", ", both)} {(both.Count == 1 ? "is" : "are")} in image.serves too: a port is the fixture's service or this machine's, not both");
             if (image.Services is { } services)
             {
                 var servicesDir = System.IO.Path.Combine(dir, services);

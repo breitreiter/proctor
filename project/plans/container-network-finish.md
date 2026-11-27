@@ -215,6 +215,15 @@ carry itself across days, and 0.27.0 cannot be resolved before
   nothing (2026-11-26). It ties compile to the sidecar's name in the
   pinned Harbor, which fails loudly if Harbor renames it. Not built
   yet.
+- **A fixture says which ports are whose** (2026-11-27):
+  `image.serves`, the ports its own services answer on, and
+  `image.host_ports`, ports of the machine that runs proctor. A
+  loopback model on a served port is the fixture's (the stub's 8765);
+  on any other it is the machine's and relayed. The names are mine.
+- **`run` refuses when a relayed port does not answer** on the machine,
+  before anything is made (2026-11-27): a model that is not running is
+  otherwise found by every attempt timing out. It is a refusal of a run
+  that could not work, not of the arrangement.
 - **The relay's host end in C#, its container end a short Python
   script** on the image the stub already uses, no socat on either side
   (2026-11-26, said to the user, not objected to).
@@ -244,6 +253,18 @@ carry itself across days, and 0.27.0 cannot be resolved before
   chosen by engine. Next: the relay's remaining legs (nb as the agent,
   the host end restarted, two ports), then its build; 0.27.0 from
   2026-11-28.
+
+- 2026-11-27. **The relay is built** (`Run/Relay.cs`, `Harbor/relay.py`,
+  compile, `run`, the log entry's `harbor.relay`), with unit tests, and
+  documented in `docs/podman.md` section 5 and `docs/configuration.md`.
+  Run on rootless podman at 0.26.0 in a scratch root, the stub on the
+  host's loopback: Claude Code, Codex, Qwen Code and nb each completed
+  `ok` through it with `no-network` in the agent's phase; the three
+  vendor agents' four checks pass. Not yet: Docker (golem), two ports
+  at once (`image.host_ports`), a continued run, `hang`, the sentence
+  in the report that a try reached a port not the exam's. Then:
+  further allowed hosts, the join line per engine, the Modal refusal,
+  the two warnings.
 
 ## Not done, and why
 

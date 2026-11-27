@@ -7,6 +7,20 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **A model on the machine that runs proctor is relayed to the agent.**
+  An agent variant whose base URL (or nb provider's endpoint) is at
+  `localhost` or a `127.` address used to reach nothing: a container
+  cannot see the host's loopback, and opening it hands every loopback
+  service to every trial. `run` now holds a unix socket per such port
+  in the user's runtime directory and compiles a small service into
+  the task (`proctor-relay`, `Harbor/relay.py`) that serves the port at
+  the agent's own `localhost`. Only that port crosses, the agent's
+  phase is `no-network`, and `run` refuses before anything is made when
+  nothing answers there. A fixture names further ports of the machine
+  in `image.host_ports` (a dev server), and the ports its own services
+  answer on in `image.serves`, which is how the stub's
+  `localhost:8765` stays the fixture's. The log entry records the
+  ports as `harbor.relay`. Local engines only; run on rootless podman.
 - **The shipped exams run on Harbor 0.26.0** (0.24.0 before), all but
   `tern-docs`, whose paid run is half made and stays on the pin it was
   started under. Both gates and conformance pass on it on rootless

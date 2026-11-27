@@ -22,6 +22,7 @@
     <EmbeddedResource Include="Harbor\nb_agent.py" LogicalName="nb_agent.py" />
     <EmbeddedResource Include="Harbor\oracle_user.py" LogicalName="oracle_user.py" />
     <EmbeddedResource Include="Harbor\qwen_code_agent.py" LogicalName="qwen_code_agent.py" />
+    <EmbeddedResource Include="Harbor\relay.py" LogicalName="relay.py" />
     <EmbeddedResource Include="Setup\providers.json" LogicalName="providers.json" />
   </ItemGroup>
 

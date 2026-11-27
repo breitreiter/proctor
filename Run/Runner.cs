@@ -215,10 +215,12 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
             Bundles: ResolveBundles(root, variants), Stages: exam.StageIds);
         var agents = variants.Any(v => v.IsAgent);
+        ResolvedRelay? relay = null;
         if (agents)
         {
             HarborRun.Preflight(config.HarborOrDefault);
             if (config.HarborOrDefault.Remote) RequireReachable(variants, tasks, exam, config, variant => Route(root, config, nb, variant));
+            else relay = Relay(id, exam, attempts.Where(a => a.Variant.IsAgent).Select(a => (a.Variant, a.Task)).Distinct(), variant => Route(root, config, nb, variant));
         }
         var dir = Layout.LogEntry(root, id);
         Directory.CreateDirectory(dir);
@@ -231,7 +233,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             entry = entry with
             {
                 Versions = new(entry.Versions) { ["harbor"] = version },
-                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, variant => Route(root, config, nb, variant), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, entry.Bundles, pairs), nbImage, engine),
+                Harbor = new ResolvedHarbor(version, HarborCompile.Tasks(dir, exam, variant => Route(root, config, nb, variant), nbImage, nbImage is not null && config.HarborOrDefault.Remote ? NbPublish(root, config) : null, entry.Bundles, pairs, relay?.Dir), nbImage, engine, relay),
             };
         }
         KeepExam(root, exam);
@@ -424,6 +426,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// <summary>Make the given attempts of this run, variant by variant, the variant hooks around each variant's; then say how they came out.</summary>
     void Make(List<(Variant Variant, TaskDef Task, int Attempt)> attempts)
     {
+        // The relay's host end lives as long as the attempts are being made, a continued run's at the directory its tasks were compiled with.
+        using var relay = entry.Harbor?.Relay is { } r && attempts.Any(a => a.Variant.IsAgent) ? HostRelay.Start(r.Dir, r.Ports) : null;
         WriteStatusCounts();
         foreach (var group in attempts.GroupBy(a => a.Variant))
         {
@@ -822,6 +826,28 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>
+    /// What a run on a local engine relays to its agents (Run/Relay.cs), or null when nothing: the ports of this machine
+    /// its tasks reach, each of which must answer now, since a model that is not running is better said here than found
+    /// by every attempt timing out.
+    /// </summary>
+    static ResolvedRelay? Relay(string entryId, Exam exam, IEnumerable<(Variant Variant, TaskDef Task)> pairs, Func<Variant, AgentRoute> route)
+    {
+        var wanted = pairs.Select(p => (Fixture: exam.FixtureOf(p.Task)!, p.Variant, Route: route(p.Variant))).ToList();
+        var ports = wanted.SelectMany(w => HarborCompile.RelayPorts(w.Fixture, w.Route)).Distinct().Order().ToList();
+        if (ports.Count == 0) return null;
+        var problems = new List<string>();
+        foreach (var port in ports.Where(p => !HostRelay.Answers(p)))
+        {
+            var models = wanted.Where(w => w.Route.BaseUrl is { } url && new Uri(url).Port == port && w.Fixture.Def.Image?.HostPorts?.Contains(port) != true).ToList();
+            problems.Add(models.Count > 0
+                ? $"variant '{models[0].Variant.Id}': its model is at {models[0].Route.BaseUrl}, which is this machine's port {port}, and nothing answers there; start it, or if a service of fixture '{models[0].Fixture.Id}' answers on that port beside the agent, list it in the fixture's image.serves"
+                : $"fixture '{wanted.First(w => w.Fixture.Def.Image?.HostPorts?.Contains(port) == true).Fixture.Id}' names this machine's port {port} (image.host_ports), and nothing answers there; start what it is for");
+        }
+        if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
+        return new ResolvedRelay(HostRelay.Dir(entryId), ports);
+    }
+
+    /// <summary>
     /// On a remote engine, every agent variant must reach its model from the internet, and no task may have a service beside
     /// it: Harbor's Modal environment runs a compose task as docker-in-docker with no allowlist, and refuses it rather
     /// than run it unconfined. Everything wrong is said at once, before anything is made.
@@ -834,8 +860,12 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             if (route(variant).Host is { } host && HarborRun.Unreachable(host) is { } why)
                 problems.Add($"variant '{variant.Id}': its model is at {host}, {why}, which a sandbox on {engine} cannot reach; run it on a local engine, or point {(variant.IsVendor ? $"{config.Source} agents.{variant.Agent}" : $"nb's config {variant.Provider}")} at a public endpoint");
         foreach (var fixture in tasks.Select(exam.FixtureOf).OfType<Fixture>().DistinctBy(f => f.Id))
+        {
+            if (fixture.Def.Image?.HostPorts is { Count: > 0 } hostPorts)
+                problems.Add($"fixture '{fixture.Id}' names ports of this machine (image.host_ports: {string.Join(", ", hostPorts)}), and a sandbox on {engine} has no such machine beside it; its tasks run on docker or podman only");
             if (fixture.Def.Image?.Services is not null)
                 problems.Add($"fixture '{fixture.Id}' runs services beside the agent (image.services), and {engine} cannot confine the network of a task with services; its tasks run on docker or podman only");
+        }
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
     }
 

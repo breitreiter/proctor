@@ -94,6 +94,8 @@ in the order the verbs run them. Every file is one concern:
 | `Harbor/oracle_user.py` | the oracle as Harbor's simulated user, on the host: sends the task over the ACP bridge (`acpx`), judges each finished turn with the host's `nb --judge`, answers from the sheet, writes `oracle-user.json`; embedded and compiled like `nb_agent.py` with its template (`oracle_user.j2`) when an agent variant meets an oracle task |
 | `Harbor/qwen_code_agent.py` | Harbor's Qwen Code agent with its per-trial network install replaced by a check that the image holds the pin; embedded and compiled like `nb_agent.py` |
 | `Run/Harbor.cs` | one attempt's Harbor job: `uv tool run harbor@<pin>` with a seven-day `--exclude-newer` cooldown on everything it resolves, telemetry off, the key in its environment only; nb's layer image from its publish |
+| `Run/Relay.cs` | the relay's host end (`HostRelay`): for each port of this machine a run's agents reach, a unix socket in the user's runtime directory passed to `127.0.0.1:<port>`; what the log entry records of it (`ResolvedRelay`) |
+| `Harbor/relay.py` | the relay's container end, compiled into a task as the service `proctor-relay`: serves each port at the agent's `localhost` and passes every connection to the mounted socket; embedded like `nb_agent.py` |
 | `Run/Ingest.cs` | a Harbor trial into an attempt, and the counted core (`core.json`) from the ATIF trajectory |
 | `Run/Checkout.cs` | the work directory: materialise the fixture, collect the diff, restore both for a regrade |
 | `Run/Subprocess.cs` | the one process helper: hooks, nb, Harbor, script checks, git; an optional timeout |
@@ -320,6 +322,17 @@ The directories are for reading, not for namespaces: everything is
   machine's setup is `docs/podman.md`; what was seen is
   `project/learnings/harbor.md`.
   The bare path's hooks pick their own engine (`command -v podman`).
+- **A port on this machine reaches the agent through the relay, and only that port.** A base URL (or an nb
+  provider's endpoint) whose host is loopback means the machine that runs proctor (`HostRelay.Loopback`), unless
+  the fixture's own services answer on that port (`image.serves`, as `fixtures/stub` declares 8765). A fixture
+  names further ports in `image.host_ports`. `Runner.Relay` works out a run's ports and refuses when one does not
+  answer; `HarborCompile.Task` writes `proctor-relay.py` and the `proctor-relay` service into the task's compose
+  file (creating one for a fixture with no services, so `NET_RAW` is dropped there too) and compiles the policy
+  with no host for a relayed model (`HarborCompile.Reached`), so the agent's phase is `no-network`. `Make` holds
+  the host end while attempts are made, at the directory the log entry recorded (`harbor.relay`), which a
+  continued run needs since its compiled tasks mount it. The relay passes bytes and holds no key. Never open the
+  host's loopback to containers in its place. Not on a remote engine. The plan is
+  `project/plans/container-network-finish.md`; what was measured is `project/learnings/harbor.md`.
 - **Modal is an engine off the machine, picked by a second machine file.**
   `harbor.engine: modal` (`HarborConfig.Remote`) runs each attempt as Modal
   sandboxes on the user's login (`~/.modal.toml` or `MODAL_TOKEN_*`,

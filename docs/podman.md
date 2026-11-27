@@ -84,16 +84,27 @@ gateway; a service that speaks first, such as ssh, is not. The agent
 also holds the gateway's key, so it can call every route that key
 serves. Give it a key for the one route if your gateway can.
 
-**On the same machine, listening on loopback: there is no supported way
-yet.** A rootless container cannot reach the host's `127.0.0.1`, and
-that is what keeps an agent under test away from everything else that
-listens there. Do not open it: pasta's `--map-host-loopback` (and
+**On the same machine, listening on loopback: proctor relays it.** Leave
+`base_url` as you would use it yourself, `http://localhost:8086` say. A
+base URL whose host is `localhost` or a `127.` address means this
+machine's, and `run` carries that one port to the agent's own
+`localhost`: it listens on a unix socket in your runtime directory,
+mounts that directory into a small service beside the agent, and the
+service serves the port there. Nothing else on the machine is reachable
+that way, nothing is bound to the network, and the agent's phase gets no
+network at all, since it needs no host. `run` refuses to start when
+nothing answers on the port. The agent still holds the gateway's key.
+
+A rootless container cannot reach the host's `127.0.0.1` by itself,
+and that is what keeps an agent under test away from everything else
+that listens there. Do not open it: pasta's `--map-host-loopback` (and
 rootless Docker's host-loopback switch) hand every loopback service on
 the machine to every trial, and an allowlist that names the host then
-names all of them. Binding the gateway to a LAN address instead opens
-it to that network, and is yours to decide knowingly. Until proctor
-carries the model through one opening of its own, run the gateway on
-another machine.
+names all of them.
+
+Run on rootless podman and rootless Docker. Not on Modal, which has no
+such machine beside its sandboxes, and not tried on Docker Desktop or
+any macOS engine.
 
 ## 6. Ubuntu 26.04: let podman stop pasta (issue #7)
 

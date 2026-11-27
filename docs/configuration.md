@@ -421,6 +421,26 @@ HTTP and cannot grep. `fixtures/tern-shop` serves a docs bundle this way,
 and `exams/tern-docs` compares two versions of those docs with none.
 Services run on Docker and podman, not on Modal.
 
+Two more fields of `image` are about ports at the agent's `localhost`:
+
+- `serves` lists the ports the fixture's own services answer on
+  (`"serves": [8765]`). It matters when a model endpoint is one of them,
+  as with `fixtures/stub`: a base URL at `localhost` on a served port is
+  the fixture's service, and on any other port it is the machine's own
+  (below).
+- `host_ports` lists ports of the machine that runs proctor which the
+  agent is to reach at its own `localhost` (`"host_ports": [5173]`): a
+  dev server you started by hand beside the run, say. Each is relayed
+  like a model on the machine's loopback, and only those ports. A try
+  made this way depends on something the exam does not hold, so it is
+  for an exam's early days, and such a fixture does not run on Modal.
+
+A model whose base URL is `localhost` or a `127.` address, on a port no
+fixture service serves, is the machine's: `run` relays that port to the
+agent's `localhost` and gives the agent's phase no network. The log
+entry records the ports (`harbor.relay`). `docs/podman.md`, section 5,
+says how it is carried.
+
 Proctor checks the fixture out into the work directory before each attempt,
 commits it, and collects `diff.patch` afterwards. In order: nb compiles the
 program on the host (a program it refuses fails the attempt before

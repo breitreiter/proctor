@@ -7,7 +7,7 @@ namespace Proctor;
 /// unchanged to continue the run; with an nb variant, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
 /// engine every attempt runs on (proctor.json harbor.engine), which holds that layer.
 /// </summary>
-record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, string Engine = "docker");
+record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, string Engine = "docker", ResolvedRelay? Relay = null);
 
 /// <summary>
 /// One attempt's trial: Harbor's job file in the attempt, then `uv tool run harbor@&lt;pin&gt; run` on it with telemetry off and

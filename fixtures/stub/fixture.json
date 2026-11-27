@@ -5,7 +5,8 @@
   "stack": "none",
   "image": {
     "from": "mcr.microsoft.com/dotnet/sdk:10.0",
-    "services": "services"
+    "services": "services",
+    "serves": [8765]
   },
   "checks": {
     "made-file": {
