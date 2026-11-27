@@ -923,7 +923,13 @@ The same on rootless Docker 29.1.3 (golem, its own session, 8fdf6e1,
   makes proctor's real podman preflight, and golem has no podman. It
   now skips on such a machine (`PodmanFact`).
 
-Not run yet: `hang`, an agent that is not root, long streams side by
+**`hang` through the relay** (2026-11-27, podman, the same scratch
+root): Claude Code's `hang` task came back completed with
+`time_budget` after 174.5 s, as it does with the stub in the task. So a
+connection the model holds open and never answers is carried until the
+agent's time is up, and the run ends cleanly.
+
+Not run yet: an agent that is not root, long streams side by
 side through the C# end (eight at once were run through socat on
 2026-11-25).
 

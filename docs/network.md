@@ -62,7 +62,10 @@ Two exceptions:
 ## What an allowlist is, and is not
 
 When the model is on another host, the agent's container is on Harbor's
-allowlist, with that host on it. Measured from inside a trial:
+allowlist, with that host on it. Measured from inside a trial, on
+rootless Docker by name, by address and with the network open as the
+control, and on rootless podman by name, where every answer was the
+same:
 
 - **It is by host, never by port.** Every HTTP and TLS port of an allowed
   host is open to the agent: a second web service on your gateway's
@@ -78,7 +81,11 @@ allowlist, with that host on it. Measured from inside a trial:
   every port and to every protocol. Prefer a name.
 - **Names still resolve, and a ping may still leave.** Nothing can be
   fetched that way, but "the agent can touch nothing else" is not true
-  as a sentence.
+  as a sentence. Ping is gone on Docker wherever proctor drops the
+  `NET_RAW` capability from the agent's container, which is every task
+  with a fixture's services or a relayed port
+  ([`service-fixtures.md`](service-fixtures.md) says why). A fixture
+  with neither, its model on another host, keeps it.
 
 So a gateway on another machine of your network works, and opens that
 machine's other web services to the agent. If that matters, run the
@@ -100,8 +107,14 @@ it listens on a unix socket in your runtime directory and mounts the
 directory into a small service beside the agent. Nothing is bound to
 the network, nothing else on the machine can be reached that way, and
 the agent's phase has no network at all. `run` refuses to start when
-nothing answers on the port. [`podman.md`](podman.md), section 5, has
-more; it is the same on Docker.
+nothing answers on the port. It is the same on Docker and podman.
+
+The sockets are under `$XDG_RUNTIME_DIR/proctor-relay/`, one directory
+per run, removed when the run ends. A session with no runtime directory
+(`su` with no login session, say) gets them under the system's temporary
+directory instead. The service
+beside the agent is named `proctor-relay`, and runs on
+`python:3.13-alpine`, which the engine pulls once.
 
 **Never open the host's loopback to containers** to get the same effect
 (pasta's `--map-host-loopback`, rootless Docker's host-loopback switch,

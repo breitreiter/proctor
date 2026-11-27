@@ -1,8 +1,8 @@
 # Agent variants on Docker
 
 Docker is the default engine (`harbor.engine: docker`, or no
-`harbor.engine` at all). It needs less setting up than podman, and
-rootless Docker is not nothing.
+`harbor.engine` at all). It needs less setting up than podman. Rootless
+Docker needs a little more than rootful, in section 2.
 
 Checked on 2026-11-27 with rootless Docker 29.1.3 on Linux (kernel 7.0)
 and Harbor 0.26.0: both gates (about seven and a half minutes),
@@ -25,7 +25,17 @@ What an agent's container can reach, on any engine, is
 - [uv](https://docs.astral.sh/uv/), which runs the pinned Harbor. It
   needs no root.
 
-## 2. Rootless Docker: say where the socket is
+## 2. Rootless Docker
+
+Getting it, as seen on Ubuntu with the `docker.io` package: install
+`rootlesskit`, `uidmap` and `slirp4netns` (the package only suggests
+rootlesskit), run `dockerd-rootless-setuptool.sh install` (in
+`/usr/share/docker.io/contrib/`, not on `PATH`), and turn on linger
+(`sudo loginctl enable-linger "$USER"`, once). Without linger the user's
+daemon stops when you log out, and a run started over ssh loses its
+engine.
+
+Then say where the socket is:
 
 ```
 # ~/.config/proctor/env
@@ -35,6 +45,12 @@ DOCKER_HOST=unix:///run/user/<uid>/docker.sock
 Harbor runs under uv, and a Docker client there may not read the CLI
 context your shell uses. Proctor loads its env file into every process
 it starts. `id -u` prints the number.
+
+The env file reaches proctor's processes, not your shell. The `docker`
+commands on this page need the same daemon: either export `DOCKER_HOST`
+in the shell too, or use the `rootless` context the setup tool makes.
+With both, the CLI says the variable overrides the context, which is
+fine. With neither, the commands go to the rootful daemon or fail.
 
 ## 3. A model on the same machine
 
@@ -69,8 +85,11 @@ bridge, and never finds it. Every model call times out.
 ranges. To see it yourself, compare `ip -4 addr` on the machine with
 `docker network inspect bridge`. The ways out: reach the model by an
 address outside the range, run it on the same machine (section 3), or
-give Docker other ranges (`default-address-pools` in the daemon's
-config, which is the machine owner's to change).
+give Docker other ranges: `default-address-pools` in the daemon's
+config, which is `~/.config/docker/daemon.json` for rootless Docker
+(then `systemctl --user restart docker`) and `/etc/docker/daemon.json`,
+root's, for rootful. The collision was seen on rootless Docker; changing
+the pools to get out of it was not tried.
 
 ## 5. What a trial leaves behind
 
@@ -87,8 +106,9 @@ Two things skip that:
   labels, and the attempt's failure says what was removed.
 - **An interrupted run.** A `run` that was sent an interrupt in the
   middle of an attempt left that trial's compose project behind: the
-  sidecar still running, the other containers exited, and the network.
-  The continued run was not hindered. Whether a Ctrl-C at the terminal
+  sidecar still running, the other containers exited, the network, and
+  the trial's two images. The relay left nothing. The continued run was
+  not hindered. Whether a Ctrl-C at the terminal
   leaves the same is not yet known.
 
 To clear what is left, when no run is in progress:
@@ -99,6 +119,8 @@ docker network ls --format '{{.Name}}' | grep -E '__env_default$|__trial_default
 docker images --format '{{.Repository}}' | grep -E '__env-main$|__verifier__trial-main$' | xargs -r docker image rm
 ```
 
+The lines leave `harbor-prebuilt:…` (Harbor's sidecar) and
+`proctor-nb:…` (nb's layer) alone. Both are caches the next run reuses.
 Networks matter more than their size suggests: each holds a subnet from
 a finite pool.
 

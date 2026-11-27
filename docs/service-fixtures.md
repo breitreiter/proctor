@@ -92,8 +92,10 @@ On Docker a container holds the `NET_RAW` capability by default, and
 with it an agent could capture everything a service says on the loopback
 they share: one service calling another, a header with a secret in it.
 Proctor writes `main: { cap_drop: [NET_RAW] }` into the task's compose
-file whenever there is one, and the capture is then refused. The cost
-is `ping` for the agent on Docker.
+file, and the capture is then refused. The cost is `ping` for the agent
+on Docker. (A task has a compose file when its fixture has services or
+a port of your machine is relayed to it, so those are the tasks with no
+ping there.)
 
 So:
 

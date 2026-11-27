@@ -291,6 +291,13 @@ carry itself across days, and 0.27.0 cannot be resolved before
   waits for 0.27.0 and the pull request's trials since this file says
   where they stand.
 
+- 2026-11-27, after. Golem's session walked the three guides against
+  its machine, read-only, and its findings are in them (how rootless
+  Docker is got, the daemon file that is the user's there, that an
+  interrupted trial leaves its images too, when ping is gone). `hang`
+  went through the relay on podman as scripted. Still not run: an
+  agent that is not root, long streams side by side.
+
 ## Not done, and why
 
 - **Harbor's pull request 4427 is not run yet**, only read. The user
