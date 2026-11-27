@@ -23,3 +23,29 @@ if (search) {
     count.textContent = words.length ? `${shown} of ${steps.length} steps` : "";
   });
 }
+
+// Any two configurations compared: tick two on the exam's page and the button names the pair, "X vs Y", and goes there.
+// X is the one ticked first, unless that one is live: what is live is what the other is compared with.
+const compare = document.getElementById("compare");
+if (compare) {
+  const hint = document.getElementById("compare-hint");
+  let picked = [];
+  document.addEventListener("change", event => {
+    const box = event.target.closest?.("wa-checkbox[data-pick]");
+    if (!box) return;
+    picked = picked.filter(other => other !== box);
+    if (box.checked) picked.push(box);
+    if (picked.length === 2) {
+      const [x, y] = picked[0].hasAttribute("data-live") ? [picked[1], picked[0]] : picked;
+      compare.textContent = `Compare ${x.dataset.pick} vs ${y.dataset.pick}`;
+      compare.href = `${compare.dataset.to}?configuration=${encodeURIComponent(x.dataset.pick)}&against=${encodeURIComponent(y.dataset.pick)}`;
+      compare.disabled = false;
+      hint.textContent = "";
+    } else {
+      compare.textContent = "Compare";
+      compare.removeAttribute("href");
+      compare.disabled = true;
+      hint.textContent = picked.length > 2 ? "Two at a time: untick one." : picked.length === 1 ? "Tick one more." : "Tick two configurations to compare them.";
+    }
+  });
+}

@@ -92,13 +92,16 @@ static class ExamPage
             var (mark, answer, cell, against) = Standing(root, exam, c, live);
             var made = $"{c.Made} of {c.Wanted} {(c.Wanted == 1 ? "try" : "tries")}{(c.Lost > 0 ? $" · {c.Lost} lost" : "")}{(c.NotGraded > 0 && counted.Count > 0 ? $" · {c.NotGraded} not yet graded" : "")}";
             page.Append($"<div class=\"row ra{(i == 0 ? " first" : "")}\" style=\"padding:14px 0\"><span class=\"who\">")
-                .Append($"<a class=\"name\" href=\"{U($"/{e.Id}/configuration/{c.Key}")}\">{E(c.Name!)}</a>{mark}<span class=\"small dim\">{E(made)}</span>")
+                // Ticked, a configuration is one side of a comparison of the reader's choosing (page.js); one with no counted try has nothing to compare.
+                .Append($"<span class=\"pick\">{(counted.Count > 0 ? $"<wa-checkbox size=\"small\" data-pick=\"{E(c.Name!)}\"{(c.Live ? " data-live" : "")} aria-label=\"Compare {E(c.Name!)}\"></wa-checkbox>" : "")}<a class=\"name\" href=\"{U($"/{e.Id}/configuration/{c.Key}")}\">{E(c.Name!)}</a></span>{mark}<span class=\"small dim\">{E(made)}</span>")
                 .Append(answer is null ? "" : $"<a class=\"small\" href=\"{AxesPages.Q($"/{e.Id}/compare", ("configuration", c.Name))}\">{E(c.Name!)} vs {E(against)}</a>")
                 .Append("</span>");
             foreach (var column in Columns)
                 page.Append(Cell(column, counted, live, c.Live, cell, against));
             page.Append("</div>");
         }
+        if (named.Count(c => c.Retired is null && c.Tries?.Rows.Any(t => t.Invalid is null) == true) > 1)
+            page.Append($"<div class=\"row\" style=\"display:flex;gap:14px;align-items:center;border-top-color:var(--rule)\"><wa-button id=\"compare\" size=\"small\" appearance=\"outlined\" disabled data-to=\"{U($"/{e.Id}/compare")}\">Compare</wa-button><span id=\"compare-hint\" class=\"small dim\" aria-live=\"polite\">Tick two configurations to compare them.</span></div>");
         if (live is not null)
             page.Append($"<div class=\"row note\" style=\"border-top-color:var(--rule)\">Each cell is the change vs {E(live.Name!)}, which is live, then the median. The strip is centred on live's median: a dot is one try, placed by how far it is from that median, from 200% less to 200% more, and a hollow dot is further out than that. The band is live's own spread. Colour means the change is confirmed.</div>");
         // The retired ones are out of the main list and one click away, each with its reason: nothing about them is deleted.

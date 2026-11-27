@@ -131,6 +131,13 @@ holding `bank/` and `exams/`.
   and the boards are not kept in step. A script is added where it earns
   its place (`assets/page.js`: a link opens its step; search on a stage,
   on the component's input).
+- **Any two configurations compared** (2026-11-27): on the exam page
+  each configuration with counted tries has a `wa-checkbox`
+  (`data-pick`), and `page.js` turns two ticks into the Compare
+  button's label and address, `X vs Y`, the first ticked first unless
+  it is live. The button goes to a page and submits nothing, which is
+  what "read-only" means here: buttons and scripts are fine, writes
+  are not.
 - **Interactive parts are Web Awesome components** (the user,
   2026-11-27: a component library keeps the micro-interactions a
   hand-made part loses, and its theme forces type and colour to be

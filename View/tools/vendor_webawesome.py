@@ -20,7 +20,7 @@ The old assets/webawesome/ is removed first, so what is there is exactly what th
 import os, re, shutil, sys
 
 # The components auspex's pages use. Add one here and rerun; nothing else registers a component.
-COMPONENTS = ["badge", "button", "details", "dropdown", "dropdown-item", "input", "tab", "tab-group", "tab-panel", "tooltip"]
+COMPONENTS = ["badge", "button", "checkbox", "details", "dropdown", "dropdown-item", "input", "tab", "tab-group", "tab-panel", "tooltip"]
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "assets", "webawesome")

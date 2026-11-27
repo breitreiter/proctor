@@ -46,12 +46,16 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         var mark = (string)held["direction"]! is "better" or "worse"
             ? $"{held["direction"]} vs shipped · {((bool)held["confirmed"]! ? "confirmed" : (bool)own["could_confirm"]! ? "not confirmed" : "cannot confirm")}"
             : "no difference vs shipped";
-        Assert.Contains($">rewritten</a><span class=\"light {((bool)held["confirmed"]! ? $"light-{held["direction"]}" : "light-same")}\">{mark}</span>", html);
+        Assert.Contains($">rewritten</a></span><span class=\"light {((bool)held["confirmed"]! ? $"light-{held["direction"]}" : "light-same")}\">{mark}</span>", html);
         Assert.Contains($"/{AxesBank.Exam}/compare?configuration=rewritten", html);
         // What the exam is: each check with its role, and how its stages run.
         Assert.Contains("correctness", page);
         Assert.Contains("The agent starts every stage with a fresh context.", page);
-        // A read-only page: nothing on it submits anything.
+        // Any two configurations with tries can be ticked and compared; one with no try has no box.
+        Assert.Contains("<wa-checkbox size=\"small\" data-pick=\"rewritten\"", html);
+        Assert.DoesNotContain("data-pick=\"long-b\"", html);
+        Assert.Contains($"<wa-button id=\"compare\" size=\"small\" appearance=\"outlined\" disabled data-to=\"/{AxesBank.Exam}/compare\">", html);
+        // A read-only page: nothing on it submits anything, and the button only goes to another page.
         Assert.DoesNotContain("<form", html);
         Assert.DoesNotContain("<button", html);
     }

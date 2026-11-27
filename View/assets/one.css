@@ -218,6 +218,7 @@ wa-tooltip{--max-width:320px;font:var(--t-small)}
 .search{margin-left:auto;display:flex;gap:12px;align-items:center;padding-bottom:6px}
 .search wa-input{width:240px}
 wa-details.step[hidden]{display:none}
+.pick{display:flex;gap:10px;align-items:center}
 /* Weight, last so that it holds over any role above. */
 .strong{font-weight:600}
 .regular{font-weight:400}

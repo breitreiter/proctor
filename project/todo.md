@@ -1477,6 +1477,12 @@ questions:
 
 ## A link to compare any two configurations
 
+**Built 2026-11-27**, as the user asked for it: a checkbox on each configuration
+of the exam page that has tries, and a Compare button that names the pair once
+two are ticked ("Compare X vs Y"; what is live is always Y) and goes to that
+comparison. Retired configurations are not offered. What follows was the
+earlier thinking.
+
 From the user, 2026-11-27. The comparison page answers any pair
 (`/<exam>/compare?configuration=X&against=Y`), but the viewer links only to
 "X vs live" (the exam page's rows, the configuration page) and to the pair a
