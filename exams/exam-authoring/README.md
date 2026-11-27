@@ -21,13 +21,13 @@ attempted three times."
 | | |
 |---|---|
 | agent | nb with the local qwen3-coder model, in a container (`../runners/container.sh`) |
-| variants | `variants/docs.json`: the README, the configuration and CLI references and two layout plans; `variants/docs-and-examples.json`: the same, with the example exams and fixtures beside them |
+| variants | `variants/docs-r2.json`: the README, the configuration and CLI references and two layout plans; `variants/docs-and-examples-r2.json`: the same, with the example exams and fixtures beside them |
 | tasks | three workspaces, each asking for one exam, and one that starts from an interrupted batch (below) |
 | attempts | 3 per variant and task: 24 in all |
 
 Both variants pin the same proctor revision as their `bundle`, and each names the
 `paths` of that revision it shows: the README, `docs/configuration.md`, `docs/cli.md`
-and two plans, `on-disk-layout` and `report-structure`; `docs-and-examples` adds every
+and two plans, `on-disk-layout` and `report-structure`; `docs-and-examples-r2` adds every
 example exam and fixture by name, leaving out this exam and its `authoring-*`
 workspaces. What the agent reads is therefore declared in the variant's file and is
 part of its hash. `hooks/variant-setup.sh` prepares the machine and does not branch on

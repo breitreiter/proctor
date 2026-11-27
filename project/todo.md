@@ -1505,6 +1505,13 @@ whether a screen is worth drawing.
 
 ## exam-authoring still shows the agent the docs from before the four roles
 
+**Done 2026-11-27**, the user's call: the four variants have new ids at the
+new pin (`docs-r2`, `docs-haiku-r2`, `docs-and-examples-r2`,
+`docs-and-examples-haiku-r2`, at `c91da64`). The old files are gone from
+`variants/`; their definitions are in the log entries of the runs that used
+them, and their 36 tries stay in the bank, listed as stale. What follows is
+how it was found. `continue-the-batch` is still open.
+
 Found 2026-11-27 while moving the pins. `exams/exam-authoring`'s four variants
 pin proctor's docs at `b3250b6`, which teach `grading.pass` and
 `grading.validity`. The exam an agent writes is graded by the host's proctor,

@@ -1,13 +1,13 @@
 {
-  "id": "docs",
-  "note": "the README, the configuration and CLI references and two layout plans, no example exams",
+  "id": "docs-haiku-r2",
+  "note": "the README, the configuration and CLI references and two layout plans, no example exams; nb on Claude Haiku 5.5",
   "runner": "nb",
   "harness": "nb",
-  "provider": "local-qcoder",
-  "model": "qwen3-coder-next",
+  "provider": "anthropic-haiku",
+  "model": "claude-haiku-5-5",
   "bundle": {
     "git": "https://github.com/breitreiter/proctor.git",
-    "rev": "b3250b68f59a9d8bb35c8fd1860cbbfb63196220",
+    "rev": "c91da646036c7663775d597643d8897f787fd92d",
     "paths": [
       "README.md",
       "docs/configuration.md",
