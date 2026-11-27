@@ -430,10 +430,16 @@ static class HarborCompile
     /// there the try fails at setup. Such a task's agent is still held to its policy during its phase. A bridged task's diff leaves out the bridge's acpx config, which Harbor
     /// writes into the work directory (its exec's default cwd, the image's WORKDIR).
     /// </summary>
-    static string Network(AgentRoute route) =>
-        route.Host is { } host ? $"network_mode = \"allowlist\"\nallowed_hosts = [{Toml(host)}]" : "network_mode = \"no-network\"";
+    static string Network(AgentRoute route, Fixture fixture) =>
+        Hosts(route, fixture) is { Count: > 0 } hosts ? $"network_mode = \"allowlist\"\nallowed_hosts = [{string.Join(", ", hosts.Select(Toml))}]" : "network_mode = \"no-network\"";
 
-    static string TaskToml(Exam exam, TaskDef c, AgentRoute route, bool bridged, string? name = null, string? description = null) => $"""
+    /// <summary>The hosts a task's agent may reach: its model's, then those the fixture names (image.allowed_hosts), each once and as spelled.</summary>
+    public static List<string> Hosts(AgentRoute route, Fixture fixture) =>
+        [.. new[] { route.Host }.OfType<string>().Concat(fixture.Def.Image?.AllowedHosts ?? []).Distinct()];
+
+    static string TaskToml(Exam exam, TaskDef c, AgentRoute route, bool bridged, string? name = null, string? description = null) => TaskToml(exam, c, Network(route, exam.FixtureOf(c)!), bridged, name, description);
+
+    static string TaskToml(Exam exam, TaskDef c, string network, bool bridged, string? name, string? description) => $"""
         version = "1.0"
 
         [task]
@@ -442,11 +448,11 @@ static class HarborCompile
 
         [agent]
         timeout_sec = {exam.Def.Limits!.WallMs!.Value / 1000.0:0.0##}
-        {Network(route)}
+        {network}
 
         [environment]
         build_timeout_sec = 1800.0
-        {(bridged ? "network_mode = \"public\"" : Network(route))}
+        {(bridged ? "network_mode = \"public\"" : network)}
 
         [verifier]
         timeout_sec = 900.0

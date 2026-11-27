@@ -97,6 +97,32 @@ static class HarborRun
     }
 
     /// <summary>
+    /// Whether a host an agent is to reach has an address inside the range a local engine gives its container networks by
+    /// default, and the sentence that says so, or null. A container then takes the address for a neighbour on its own
+    /// network and never leaves it, and the attempt times out with nothing to say why (seen on golem, 2026-11-25: the
+    /// Wi-Fi was 172.17.1.0/24 and Docker's bridge 172.17.0.0/16). A warning and never a refusal: the ranges are the
+    /// engines' defaults, which a machine may have moved, and only a network in use at the address collides.
+    /// </summary>
+    public static string? SubnetWarning(string engine, string host, Func<string, System.Net.IPAddress[]> resolve)
+    {
+        System.Net.IPAddress[] addresses;
+        try { addresses = System.Net.IPAddress.TryParse(host.Trim('[', ']'), out var literal) ? [literal] : resolve(host); }
+        catch (Exception e) when (e is System.Net.Sockets.SocketException or ArgumentException) { return null; }
+        foreach (var b in addresses.Where(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).Select(a => a.GetAddressBytes()))
+        {
+            var range = engine switch
+            {
+                "docker" when b[0] == 172 && b[1] is >= 17 and <= 31 => "172.17.0.0 to 172.31.255.255",
+                "podman" when b[0] == 10 && b[1] is 88 or 89 => "10.88.0.0 to 10.89.255.255",
+                _ => null,
+            };
+            if (range is not null)
+                return $"{host} is at {string.Join('.', b)}, inside the range {engine} gives its container networks by default ({range}). If a trial's network takes that address, the agent's container looks for {host} among its neighbours and the attempt times out. If attempts time out, move the engine's address pools off that range, or reach {host} at another address";
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Under podman, what would fail a trial partway that is cheap to see first: the compose frontend `podman compose`
     /// delegates to, the banner it prints before delegating, and whether short names resolve. Harbor's egress sidecar builds `FROM gogost/gost`, which podman
     /// refuses with no search registry; podman-compose has no `compose ls` (Harbor's preflight) and rejects

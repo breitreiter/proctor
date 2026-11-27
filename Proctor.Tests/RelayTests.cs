@@ -133,4 +133,48 @@ public class RelayTests
         Assert.Contains("image.host_ports: ports, each 1 to 65535", problems);
         Assert.Contains("image.host_ports: 8765 is in image.serves too: a port is the fixture's service or this machine's, not both", problems);
     }
+
+    /// <summary>A fixture's further hosts join the model's in the agent's allowlist, and stand alone when the model is relayed.</summary>
+    [Fact]
+    public void Compile_AllowsTheHostsAFixtureNames_BesideTheModels()
+    {
+        using var repo = new TestRepo();
+        repo.CopyExam("conformance");
+        var file = Path.Combine(repo.Root, "fixtures", "stub", "fixture.json");
+        File.WriteAllText(file, File.ReadAllText(file).Replace("\"serves\": [8765]", "\"serves\": [8765], \"allowed_hosts\": [\"api.example.com\", \"library\"]"));
+        var exam = repo.LoadExam("conformance");
+        var far = Path.Combine(repo.Root, "log", "far");
+        HarborCompile.Tasks(far, exam, _ => new AgentRoute("http://library:8086/v1", "key"), relayDir: "/run/x");
+        var near = Path.Combine(repo.Root, "log", "near");
+        HarborCompile.Tasks(near, exam, _ => new AgentRoute("http://localhost:8086/v1", "key"), relayDir: "/run/x");
+
+        Assert.Contains("[agent]\ntimeout_sec = 120.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"library\", \"api.example.com\"]\n", File.ReadAllText(Path.Combine(Layout.HarborTask(far, "codex", "ok"), "task.toml")));
+        Assert.Contains("[agent]\ntimeout_sec = 120.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"api.example.com\", \"library\"]\n", File.ReadAllText(Path.Combine(Layout.HarborTask(near, "codex", "ok"), "task.toml")));
+
+        File.WriteAllText(file, File.ReadAllText(file).Replace("\"api.example.com\"", "\"https://api.example.com:443/v1\""));
+        Assert.Contains(repo.Problems("conformance"), p => p.Field == "image.allowed_hosts" && p.Message.StartsWith("'https://api.example.com:443/v1' is not a host"));
+    }
+
+    /// <summary>A host inside the range an engine gives its container networks is warned of, by address or by name, and no other.</summary>
+    [Theory]
+    [InlineData("docker", "172.17.1.20", true)]
+    [InlineData("docker", "172.16.0.5", false)]
+    [InlineData("docker", "10.88.0.5", false)]
+    [InlineData("podman", "10.89.3.2", true)]
+    [InlineData("podman", "172.17.1.20", false)]
+    [InlineData("docker", "library", true)]
+    [InlineData("docker", "api.example.com", false)]
+    [InlineData("docker", "nowhere", false)]
+    public void SubnetWarning_NamesAHostInsideTheEnginesDefaultRange(string engine, string host, bool warned)
+    {
+        IPAddress[] Resolve(string name) => name switch
+        {
+            "library" => [IPAddress.Parse("fe80::1"), IPAddress.Parse("172.20.0.9")],
+            "api.example.com" => [IPAddress.Parse("93.184.216.34")],
+            _ => throw new SocketException(11001),
+        };
+        var warning = HarborRun.SubnetWarning(engine, host, Resolve);
+        Assert.Equal(warned, warning is not null);
+        if (warned) Assert.StartsWith($"{host} is at ", warning);
+    }
 }

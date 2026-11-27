@@ -18,9 +18,10 @@ record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclu
 /// its network namespace. Serves is the ports those services answer on at the agent's localhost, which is how a model
 /// endpoint there (the stub's) is told from one on the machine that runs proctor. HostPorts is ports of that machine the
 /// agent is to reach at its own localhost (a dev server started by hand beside the run): each is relayed, and the try
-/// then depends on something the exam does not hold.
+/// then depends on something the exam does not hold. AllowedHosts is hosts the agent may reach beside its model's, for a
+/// service that cannot sensibly be simulated: by name, as Harbor's allowlist matches them, never a port or a path.
 /// </summary>
-record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env, string? Services = null, List<string>? Params = null, List<int>? Serves = null, List<int>? HostPorts = null);
+record FixtureImage(string? From, List<string>? Run, Dictionary<string, string>? Env, string? Services = null, List<string>? Params = null, List<int>? Serves = null, List<int>? HostPorts = null, List<string>? AllowedHosts = null);
 
 record FixtureDef(string? Id, FixtureSource? Source, string? Stack, JsonObject? Expect, Dictionary<string, JsonObject>? Checks, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, FixtureImage? Image = null, Dictionary<string, ParamDef>? Params = null);
 
@@ -83,6 +84,9 @@ sealed record Fixture
             if (image.Run?.Any(string.IsNullOrWhiteSpace) == true) Add("image.run", "a command, not an empty string");
             foreach (var (field, ports) in new[] { ("image.serves", image.Serves), ("image.host_ports", image.HostPorts) })
                 if (ports?.Any(p => p is < 1 or > 65535) == true) Add(field, "ports, each 1 to 65535");
+            foreach (var host in image.AllowedHosts ?? [])
+                if (!Regex.IsMatch(host, @"^(\*\.)?[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$"))
+                    Add("image.allowed_hosts", $"'{host}' is not a host: a name or an address, with no scheme, port or path (the allowlist is by host, and every web port of it is open)");
             if (image.Serves is { Count: > 0 } && image.Services is null) Add("image.serves", "the ports image.services' services answer on, and there is no image.services");
             if (image.HostPorts?.Intersect(image.Serves ?? []).Order().ToList() is { Count: > 0 } both)
                 Add("image.host_ports", $"{string.Join(", ", both)} {(both.Count == 1 ? "is" : "are")} in image.serves too: a port is the fixture's service or this machine's, not both");

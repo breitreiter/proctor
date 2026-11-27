@@ -220,7 +220,13 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         {
             HarborRun.Preflight(config.HarborOrDefault);
             if (config.HarborOrDefault.Remote) RequireReachable(variants, tasks, exam, config, variant => Route(root, config, nb, variant));
-            else relay = Relay(id, exam, attempts.Where(a => a.Variant.IsAgent).Select(a => (a.Variant, a.Task)).Distinct(), variant => Route(root, config, nb, variant));
+            else
+            {
+                var made = attempts.Where(a => a.Variant.IsAgent).Select(a => (a.Variant, a.Task)).Distinct().ToList();
+                relay = Relay(id, exam, made, variant => Route(root, config, nb, variant));
+                foreach (var host in made.SelectMany(p => HarborCompile.Hosts(Route(root, config, nb, p.Variant), exam.FixtureOf(p.Task)!)).Distinct().Where(h => !HostRelay.Loopback(h)))
+                    if (HarborRun.SubnetWarning(config.HarborOrDefault.Engine, host, System.Net.Dns.GetHostAddresses) is { } warning) log.WriteLine($"warning: {warning}");
+            }
         }
         var dir = Layout.LogEntry(root, id);
         Directory.CreateDirectory(dir);

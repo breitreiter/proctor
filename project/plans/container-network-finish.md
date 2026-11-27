@@ -269,6 +269,10 @@ carry itself across days, and 0.27.0 cannot be resolved before
   (golem): the refusal, the three vendor agents, and a run interrupted
   and continued. Still not run: `hang`, an agent that is not root,
   long streams side by side.
+- 2026-11-27, later still. Built: a fixture's further allowed hosts
+  (`image.allowed_hosts`) and the bridge-subnet warning. Unit tests
+  only; neither has met an engine. Left of stage 3: the join line per
+  engine, the Modal refusal narrowed.
 
 ## Not done, and why
 
@@ -279,6 +283,13 @@ carry itself across days, and 0.27.0 cannot be resolved before
   01:24 UTC, the day 0.27.0 resolves too. The question it answers is
   whether a service joined to `harbor-docker-egress-control-main-8e62e8c65106`
   answers at the agent's `localhost` there.
+- **No warning for a private model host.** The plan listed one. With a
+  loopback host relayed there is nothing left to warn of: a model on
+  another machine of the network works, and the one way it fails is the
+  subnet collision, which has its warning.
+- **Further allowed hosts are a fixture's only**, not an exam's. A
+  fixture's image is already in each task's hash; an exam-level list
+  would have to be put there, and nothing asks for it yet.
 - **On Modal the environment's phase had to be public** for the image
   to build. What that lets a process the agent left running reach is
   not measured, and proctor compiles the agent's policy there today for

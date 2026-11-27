@@ -7,6 +7,17 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **A fixture names further hosts its agent may reach**
+  (`image.allowed_hosts`), beside the model's, for a service that
+  cannot sensibly be simulated. By host, as Harbor's allowlist is:
+  no port, and every web port of a named host is open. Part of each
+  task's hash on the fixture.
+- **`run` warns when a host the agent is to reach sits inside the
+  range the engine gives its container networks by default**
+  (172.17 to 172.31 on Docker, 10.88 and 10.89 on podman): a trial
+  whose network takes that address never reaches the host, and the
+  attempt times out with nothing to say why. A warning, never a
+  refusal.
 - **A model on the machine that runs proctor is relayed to the agent.**
   An agent variant whose base URL (or nb provider's endpoint) is at
   `localhost` or a `127.` address used to reach nothing: a container

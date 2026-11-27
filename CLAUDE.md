@@ -331,7 +331,9 @@ The directories are for reading, not for namespaces: everything is
   with no host for a relayed model (`HarborCompile.Reached`), so the agent's phase is `no-network`. `Make` holds
   the host end while attempts are made, at the directory the log entry recorded (`harbor.relay`), which a
   continued run needs since its compiled tasks mount it. The relay passes bytes and holds no key. Never open the
-  host's loopback to containers in its place. Not on a remote engine. The plan is
+  host's loopback to containers in its place. Not on a remote engine. A fixture's `image.allowed_hosts` join the
+  model's host in the allowlist (`HarborCompile.Hosts`), and `run` warns, never refuses, when one of them is inside
+  the engine's default container range (`HarborRun.SubnetWarning`). The plan is
   `project/plans/container-network-finish.md`; what was measured is `project/learnings/harbor.md`.
 - **Modal is an engine off the machine, picked by a second machine file.**
   `harbor.engine: modal` (`HarborConfig.Remote`) runs each attempt as Modal

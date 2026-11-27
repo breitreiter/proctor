@@ -421,6 +421,14 @@ HTTP and cannot grep. `fixtures/tern-shop` serves a docs bundle this way,
 and `exams/tern-docs` compares two versions of those docs with none.
 Services run on Docker and podman, not on Modal.
 
+`image.allowed_hosts` names hosts the agent may reach beside its model's
+(`"allowed_hosts": ["api.example.com"]`), for a service that cannot
+sensibly be simulated. Each is a name or an address as the agent will
+spell it, with no scheme, port or path: Harbor's allowlist is by host,
+it matches a name exactly, and every web port of an allowed host is
+open. The list is part of each task's hash on that fixture, so adding a
+host makes the earlier attempts stale.
+
 Two more fields of `image` are about ports at the agent's `localhost`:
 
 - `serves` lists the ports the fixture's own services answer on
