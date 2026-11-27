@@ -1474,3 +1474,31 @@ questions:
   agent, on whatever model OpenRouter offers that will try. A measurement of
   our own containment (`docs/network.md` says what it claims). Spend agreed
   before any run; opencode is not an agent proctor drives yet.
+
+## A link to compare any two configurations
+
+From the user, 2026-11-27. The comparison page answers any pair
+(`/<exam>/compare?configuration=X&against=Y`), but the viewer links only to
+"X vs live" (the exam page's rows, the configuration page) and to the pair a
+prediction names. Any other pair is reached by typing the address. Wanted: a
+way to get from the pages to X vs Y for two configurations the reader picks.
+
+Not designed. The viewer has no forms in v1, so the likely shape is links: on
+a configuration's page, "vs" each other named configuration that has tries.
+Retired ones are a question (probably listed last, or under their count).
+
+## Many variables at once: can an agent do the analysis with what we offer
+
+From the user, 2026-11-27. Not for this weekend. Somebody will want to turn
+several axes at once and read what comes out: which value matters, where two
+of them interact, whether a finding holds on another model. That is not who
+proctor is for, it brings real complexity and a real risk of the reader
+confusing themselves, and it may not be worth a screen at all.
+
+What is wanted first is evidence, not a page: an exam in which an agent (Opus)
+is asked questions of that kind about a bank with several varying axes and has
+only proctor's tools to answer with (`compare`, `coverage`, `--within`,
+`--against`, the skill `proctor-answers`). The bank's answers are known, as
+`Proctor.Tests/exams/axes-answers` is built to have, so each answer can be
+graded. What it finds decides whether the tools need more, and only then
+whether a screen is worth drawing.
