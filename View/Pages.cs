@@ -23,12 +23,12 @@ public static class Pages
         if (e.Attempts.Count == 0) return Close(page.Append("<div class=\"said soft\">No try in this bank yet.</div>"));
 
         ExamPage.Section(page, "Variants", "A variant is what is under test: an agent, a model and what it is given. Each try is listed as the bank holds it. The numbers are in proctor's report of this exam.");
-        string Unfinished(Attempt a) => a.Status is var status && status == "completed" ? "" : $" <span class=\"tag tag-none\">{E(status)}</span>";
+        string Unfinished(Attempt a) => a.Status is var status && status == "completed" ? "" : $" <wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(status)}</wa-badge>";
         var first = true;
         foreach (var variant in e.Variants)
         {
             page.Append($"<div class=\"row{(first ? " first" : "")}\" style=\"grid-template-columns:minmax(180px,260px) minmax(0,1fr);padding:14px 0\">")
-                .Append($"<span style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap\"><span class=\"name\">{E(variant)}</span>{(variant == e.Live ? "<span class=\"light light-live\">live</span>" : "")}</span><span class=\"stack\" style=\"gap:8px\">");
+                .Append($"<span style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap\"><span class=\"name\">{E(variant)}</span>{(variant == e.Live ? "<wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>" : "")}</span><span class=\"stack\" style=\"gap:8px\">");
             first = false;
             // An exam of stages: each try, then its stages in order. A stage that did not complete says its status.
             var staged = e.Attempts.Where(a => a.Variant == variant && a.Staged).ToList();
@@ -95,9 +95,9 @@ public static class Pages
     /// <summary>A tag whose meaning is one hover or one tab away: the tag, and Web Awesome's tooltip pointed at it. With no explanation it is the tag alone.</summary>
     internal static string Tagged(string classes, string label, string? says)
     {
-        if (says is null) return $"<span class=\"{classes}\">{E(label)}</span>";
+        if (says is null) return $"<wa-badge class=\"{classes}\" appearance=\"outlined\">{E(label)}</wa-badge>";
         var id = $"tip{Interlocked.Increment(ref tips)}";
-        return $"<span class=\"{classes}\" id=\"{id}\" tabindex=\"0\">{E(label)}</span><wa-tooltip for=\"{id}\">{E(says)}</wa-tooltip>";
+        return $"<wa-badge class=\"{classes}\" appearance=\"outlined\" id=\"{id}\" tabindex=\"0\">{E(label)}</wa-badge><wa-tooltip for=\"{id}\">{E(says)}</wa-tooltip>";
     }
 
     internal static string E(string text) => WebUtility.HtmlEncode(text);

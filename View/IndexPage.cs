@@ -62,7 +62,7 @@ static class IndexPage
             var (mine, other) = (Name(p.Configuration), Name(p.Against));
             var supported = p.Changes.Count(c => c.Outcome == P.PredictionOutcomes.Supported);
             row.Append($"<span class=\"stack\"><a href=\"{AxesPages.Q($"/{e.Id}/compare", ("configuration", mine), ("against", other))}\">{E(mine)} vs {E(other)}</a>")
-                .Append($"<span class=\"small soft\">{supported} of {Counted(p.Changes.Count, "change", "changes")} supported{(p.PostHoc ? " <span class=\"tag\">post hoc</span>" : "")}</span></span>");
+                .Append($"<span class=\"small soft\">{supported} of {Counted(p.Changes.Count, "change", "changes")} supported{(p.PostHoc ? " <wa-badge class=\"tag\" appearance=\"outlined\">post hoc</wa-badge>" : "")}</span></span>");
         }
         if (stats.Predictions is not { Count: > 0 }) row.Append("<span class=\"small dim\">None</span>");
 
@@ -81,7 +81,7 @@ static class IndexPage
         var tries = e.Attempts.Select(a => (a.Variant, a.Task, a.N)).Distinct().Count();
         var row = new StringBuilder("<div class=\"row ex\" style=\"padding:18px 0\">").Append(Head(e, problem is null ? "an exam of variants" : "an exam with axes")).Append("<span class=\"list\">");
         if (problem is not null) row.Append($"<span class=\"small soft\" title=\"{E(problem)}\">Proctor cannot read this exam as it stands, so nothing is counted.</span>");
-        else foreach (var v in variants) row.Append($"<span class=\"cfg\"><span>{E(v)}</span>{(v == e.Live ? "<span class=\"light light-live\">live</span>" : "")}</span>");
+        else foreach (var v in variants) row.Append($"<span class=\"cfg\"><span>{E(v)}</span>{(v == e.Live ? "<wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>" : "")}</span>");
         row.Append("</span><span class=\"small dim\">None</span>")
             .Append($"<span class=\"stack r\"><span class=\"num strong\">{tries}</span></span><span class=\"r small dim\"></span></div>");
         return new Row(e, row.ToString(), null, tries);

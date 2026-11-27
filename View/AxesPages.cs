@@ -49,7 +49,7 @@ static class AxesPages
             page.Append($"<div class=\"row axis{(i == 0 ? " first" : "")}\"><span class=\"stack\"><span {Mono}>{E(axis)}</span><span class=\"small soft\">{E(def.About ?? "")}</span></span><span>");
             foreach (var v in coverage.Values.Where(v => v.Axis == axis))
             {
-                var mark = v.Live ? " <span class=\"light light-live\">live</span>" : v.Reference ? " <span class=\"tag tag-none\" title=\"Held here when another axis is looked at\">reference</span>" : "";
+                var mark = v.Live ? " <wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>" : v.Reference ? " <wa-badge class=\"tag tag-none\" appearance=\"outlined\" title=\"Held here when another axis is looked at\">reference</wa-badge>" : "";
                 var compare = def.Live is { } live && !v.Live
                     ? $" · <a href=\"{Q($"/{e.Id}/compare", ("change", $"{axis}={v.Value}"), ("against", $"{axis}={live}"), ("as_of", coverage.AsOf))}\">{E(v.Value)} vs {E(live)}</a>" : "";
                 page.Append($"<div class=\"val\"><span><span {Mono}>{E(v.Value)}</span>{mark}</span><span class=\"stack\"><span class=\"small\">{(v.Tries == 0 ? "<b>no tries</b>" : $"{v.Tries} {(v.Tries == 1 ? "try" : "tries")} in {v.Configurations} configuration{(v.Configurations == 1 ? "" : "s")}")}{compare}</span>")
@@ -93,7 +93,7 @@ static class AxesPages
                 r.Together == P.Combinations.More ? "more than its values put together" : r.Together == P.Combinations.Unclear ? "cannot be told from its values alone" : r.Together == P.Combinations.NotChecked ? "not checked against its values alone" : null,
                 !r.Live && r.OffLive.Count > 0 ? $"<a href=\"{Q($"/{exam}/compare", ("configuration", r.Configuration), ("as_of", asOf))}\">vs what is live</a>" : null,
             }.OfType<string>());
-            page.Append($"<div class=\"row{(i == 0 ? " first" : "")}\" style=\"{RowColumns}\"><span class=\"stack\"><span style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap\"><a class=\"name\" href=\"{U($"/{exam}/configuration/{r.Configuration}")}\">{E(what)}</a>{(r.Name is not null && differs.Length > 0 ? $"<span {Mono}>{E(differs)}</span>" : "")}{(r.Live ? "<span class=\"light light-live\">live</span>" : "")}{(r.Retired is { } gone ? Tagged("tag tag-none", "retired", $"Retired {gone.Since}: {gone.Reason}") : "")}</span>")
+            page.Append($"<div class=\"row{(i == 0 ? " first" : "")}\" style=\"{RowColumns}\"><span class=\"stack\"><span style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap\"><a class=\"name\" href=\"{U($"/{exam}/configuration/{r.Configuration}")}\">{E(what)}</a>{(r.Name is not null && differs.Length > 0 ? $"<span {Mono}>{E(differs)}</span>" : "")}{(r.Live ? "<wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>" : "")}{(r.Retired is { } gone ? Tagged("tag tag-none", "retired", $"Retired {gone.Since}: {gone.Reason}") : "")}</span>")
                 .Append($"<span class=\"small dim mono\">{E(Label(r.Values))}</span></span>")
                 .Append(r.Tries == 0 ? $"<span><b>not run</b> <span class=\"small dim\">0 of {r.Wanted}</span></span><span></span>" : $"<span class=\"num\">{r.Tries} of {r.Wanted}</span><span class=\"stack\"><span class=\"small\">{E(r.Last ?? "")}</span><span class=\"small dim\">{Ago(r.DaysSinceLast)}</span></span>")
                 .Append($"<span class=\"small soft\">{notes}</span></div>");
@@ -110,7 +110,7 @@ static class AxesPages
         if (tries.Count == 0) { page.Append("<div class=\"said soft\">No try of it in the bank.</div>"); return; }
         foreach (var t in tries)
             page.Append($"<div class=\"row\" style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><a {Mono} href=\"{U($"/{e.Id}/try/{t.Key}")}\">{E(t.Key)}</a>")
-                .Append(string.Concat(t.Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">{E(a.Task)}</a>{(a.Status == "completed" ? "" : $" <span class=\"tag tag-none\">{E(a.Status)}</span>")}</span>")))
+                .Append(string.Concat(t.Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">{E(a.Task)}</a>{(a.Status == "completed" ? "" : $" <wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(a.Status)}</wa-badge>")}</span>")))
                 .Append(configurations.Count > 1 ? $"<span class=\"small dim\">{E(t.First().Variant)}</span>" : "").Append("</div>");
     }
 

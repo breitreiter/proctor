@@ -70,7 +70,7 @@ static class TryStagePage
         {
             var result = Result(s.Task);
             // Without proctor's word on a stage, one that did not complete still says its status.
-            var tag = result switch { "right" => "<span class=\"tag tag-right\">right</span>", "wrong" => "<span class=\"tag tag-wrong\">wrong</span>", null => s.Status is var status && status != "completed" ? $"<span class=\"tag tag-none\">{E(status)}</span>" : "", _ => $"<span class=\"tag tag-none\">{E(result.Replace('_', ' '))}</span>" };
+            var tag = result switch { "right" => "<wa-badge class=\"tag tag-right\" appearance=\"outlined\">right</wa-badge>", "wrong" => "<wa-badge class=\"tag tag-wrong\" appearance=\"outlined\">wrong</wa-badge>", null => s.Status is var status && status != "completed" ? $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(status)}</wa-badge>" : "", _ => $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(result.Replace('_', ' '))}</wa-badge>" };
             page.Append($"<a class=\"tab stab{(s.Task == a.Task ? " tab-on" : "")}\" role=\"tab\" aria-selected=\"{(s.Task == a.Task ? "true" : "false")}\" href=\"{U(s.Path)}\"><span class=\"dim num\">{s.Place}</span><span>{E(s.Task)}</span>{tag}</a>");
         }
         page.Append($"{(stages.Count > 0 ? "</div>" : "")}<div class=\"cols\"><aside style=\"display:flex;flex-direction:column;gap:32px\">");
@@ -103,10 +103,10 @@ static class TryStagePage
 
     static string Light(string? result, string status) => result switch
     {
-        "right" => "<span class=\"light light-better\">right</span>",
-        "wrong" => "<span class=\"light light-worse\">wrong</span>",
-        null => status == "completed" ? "" : $"<span class=\"light light-same\">{E(status)}</span>",
-        _ => $"<span class=\"light light-same\">{E(result.Replace('_', ' '))}</span>",
+        "right" => "<wa-badge class=\"light light-better\" appearance=\"accent\">right</wa-badge>",
+        "wrong" => "<wa-badge class=\"light light-worse\" appearance=\"accent\">wrong</wa-badge>",
+        null => status == "completed" ? "" : $"<wa-badge class=\"light light-same\" appearance=\"accent\">{E(status)}</wa-badge>",
+        _ => $"<wa-badge class=\"light light-same\" appearance=\"accent\">{E(result.Replace('_', ' '))}</wa-badge>",
     };
 
     /// <summary>The verdicts by role, as graded: held or did not hold where there is a preferred answer, yes or no for an observation; and the steps each points at.</summary>
@@ -208,7 +208,7 @@ static class TryStagePage
             if (calls.Count == 0) page.Append($"<div class=\"out out-say\">{E(FirstLine(message))}</div>");
             else page.Append($"<div class=\"cmd\">{E(FirstLine(Gist(calls[0])))}</div><div class=\"out\">{E(FirstLine(ResultOf(calls[0])))}</div>");
             page.Append("</div><span style=\"display:flex;flex-direction:column;gap:4px;align-items:flex-end\">")
-                .Append(string.Concat(labels.Select(l => $"<span class=\"tag tag-fr\">{E(l)}</span>"))).Append("</span></div><div class=\"step-body\">");
+                .Append(string.Concat(labels.Select(l => $"<wa-badge class=\"tag tag-fr\" appearance=\"outlined\">{E(l)}</wa-badge>"))).Append("</span></div><div class=\"step-body\">");
             if (message.Length > 0) page.Append($"<div class=\"say\">{E(Shown(message))}</div>");
             for (var n = 0; n < calls.Count; n++)
             {

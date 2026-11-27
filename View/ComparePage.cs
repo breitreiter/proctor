@@ -33,8 +33,8 @@ static class ComparePage
         // The reading is this setting's own, on checks held: with other settings in the answer, proctor's pooled verdict is about more than X and Y.
         var light = held.Direction switch
         {
-            "better" or "worse" => $"<span class=\"light {(held.Confirmed ? $"light-{held.Direction}" : "light-same")}\">{E(mine)} is {held.Direction} · {(held.Confirmed ? "confirmed" : cell.CouldConfirm ? "not confirmed" : "cannot confirm")}</span>",
-            _ => "<span class=\"light light-same\">no difference</span>",
+            "better" or "worse" => $"<wa-badge class=\"light {(held.Confirmed ? $"light-{held.Direction}" : "light-same")}\" appearance=\"accent\">{E(mine)} is {held.Direction} · {(held.Confirmed ? "confirmed" : cell.CouldConfirm ? "not confirmed" : "cannot confirm")}</wa-badge>",
+            _ => "<wa-badge class=\"light light-same\" appearance=\"accent\">no difference</wa-badge>",
         };
         var same = exam.Axes!.Of(cell.Value.Configuration)!.Values.Where(v => !answer.Change.ContainsKey(v.Axis)).Select(v => $"{v.Axis}={v.Value}").ToList();
         page.Append("<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">comparison</span>")
@@ -66,7 +66,7 @@ static class ComparePage
             var change = predictions.SelectMany(p => p.Changes).FirstOrDefault(c => (metric is not null && c.Metric == metric) || (check is not null && c.Check == check));
             if (change is null) return "";
             var tag = change.Outcome switch { P.PredictionOutcomes.Supported => "tag tag-right", P.PredictionOutcomes.Contradicted => "tag tag-wrong", _ => "tag" };
-            return $"<span class=\"{tag}\" title=\"{E(change.Sentence)}\">predicted {(change.Direction == P.Predictions.More ? "higher" : "lower")}</span>";
+            return $"<wa-badge class=\"{tag}\" appearance=\"outlined\" title=\"{E(change.Sentence)}\">predicted {(change.Direction == P.Predictions.More ? "higher" : "lower")}</wa-badge>";
         }
 
         Measures(page, cell, mine, other, Predicted);
@@ -191,7 +191,7 @@ static class ComparePage
         string Change(double a, double b) => a == b ? "" : (a > b ? "+" : "−") + Number(Math.Abs(a - b));
         page.Append($"<div style=\"min-width:760px\"><div class=\"row row-head fric\"><span>Label</span><span class=\"r\">{E(mine)}</span><span class=\"r\">{E(other)}</span><span class=\"r\">Change</span><span></span></div>");
         foreach (var l in cell.Friction)
-            page.Append($"<div class=\"row fric\"><span><span class=\"tag tag-fr\">{E(l.Label)}</span></span><span class=\"r fr\">{Number(l.PerTry)}</span><span class=\"r num soft\">{Number(l.OtherPerTry)}</span><span class=\"r num dim\">{Change(l.PerTry, l.OtherPerTry)}</span><span></span></div>");
+            page.Append($"<div class=\"row fric\"><span><wa-badge class=\"tag tag-fr\" appearance=\"outlined\">{E(l.Label)}</wa-badge></span><span class=\"r fr\">{Number(l.PerTry)}</span><span class=\"r num soft\">{Number(l.OtherPerTry)}</span><span class=\"r num dim\">{Change(l.PerTry, l.OtherPerTry)}</span><span></span></div>");
         var total = cell.Flagged;
         page.Append($"<div class=\"row fric row-sum\"><span>Flagged steps per try</span><span class=\"r fr\">{Number(cell.FlaggedPerTry.Value)}</span><span class=\"r num soft\">{Number(cell.OtherFlaggedPerTry.Value)}</span>")
             .Append($"<span class=\"r num {(total is { Confirmed: true } ? $"d-{total.Direction}" : "dim")}\">{Change(cell.FlaggedPerTry.Value, cell.OtherFlaggedPerTry.Value)}</span><span class=\"small dim\">each step once</span></div></div></div></section>");

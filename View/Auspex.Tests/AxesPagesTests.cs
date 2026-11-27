@@ -46,7 +46,7 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         var mark = (string)held["direction"]! is "better" or "worse"
             ? $"{held["direction"]} vs shipped · {((bool)held["confirmed"]! ? "confirmed" : (bool)own["could_confirm"]! ? "not confirmed" : "cannot confirm")}"
             : "no difference vs shipped";
-        Assert.Contains($">rewritten</a></span><span class=\"light {((bool)held["confirmed"]! ? $"light-{held["direction"]}" : "light-same")}\">{mark}</span>", html);
+        Assert.Contains($">rewritten</a></span><wa-badge class=\"light {((bool)held["confirmed"]! ? $"light-{held["direction"]}" : "light-same")}\" appearance=\"accent\">{mark}</wa-badge>", html);
         Assert.Contains($"/{AxesBank.Exam}/compare?configuration=rewritten", html);
         // What the exam is: each check with its role, and how its stages run.
         Assert.Contains("correctness", page);
@@ -143,7 +143,7 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         // The same mark a configuration carries on its exam's page, which is proctor's verdict on it against what is live.
         foreach (var name in new[] { "shipped", "rewritten", "rewritten-b" }) Assert.Contains($">{name}</a>", html);
         var exam = await Get($"/{AxesBank.Exam}");
-        var mark = Regex.Match(exam, "<span class=\"light [^\"]*\">[^<]*vs shipped[^<]*</span>");
+        var mark = Regex.Match(exam, "<wa-badge class=\"light [^\"]*\" appearance=\"accent\">[^<]*vs shipped[^<]*</wa-badge>");
         Assert.True(mark.Success, "the exam page marks a configuration against shipped");
         Assert.Contains(mark.Value, html);
         Assert.Contains("The one tried most recently is first.", page);

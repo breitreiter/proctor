@@ -38,12 +38,12 @@ static class ConfigurationPage
         var cell = ExamPage.Own(answer, c.Key);
         var against = cell?.Against.Name ?? live?.Name ?? "live";
 
-        var mark = row.Live ? "<span class=\"light light-live\">live</span>"
-            : refused is not null ? $"<span class=\"tag tag-none\" title=\"{E(refused)}\">not compared{(row.NotGraded > 0 ? $" · {row.NotGraded} not yet graded" : "")}</span>"
+        var mark = row.Live ? "<wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>"
+            : refused is not null ? $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\" title=\"{E(refused)}\">not compared{(row.NotGraded > 0 ? $" · {row.NotGraded} not yet graded" : "")}</wa-badge>"
             : answer is null ? "" : ExamPage.Light(cell, against);
         var made = (tries?.Rows ?? []).Select(t => t.Made).Where(m => m is not null).Select(m => m![..Math.Min(10, m!.Length)]).Distinct().Order().ToList();
         page.Append("<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">configuration</span>")
-            .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(name)}</h1>{mark}{(row.Retired is null ? "" : "<span class=\"tag tag-none\">retired</span>")}</div>")
+            .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(name)}</h1>{mark}{(row.Retired is null ? "" : "<wa-badge class=\"tag tag-none\" appearance=\"outlined\">retired</wa-badge>")}</div>")
             .Append($"<p class=\"desc\"><span class=\"mono\">{E(c.Label)}</span></p><dl class=\"facts\">")
             .Append(Fact("Tries", $"{row.Made} of {row.Wanted}{(row.Lost > 0 ? $" <span class=\"dim regular\">· {row.Lost} lost</span>" : "")}{(row.NotGraded > 0 ? $" <span class=\"dim regular\">· {row.NotGraded} not yet graded</span>" : "")}"))
             .Append(tries is null ? "" : Fact("Tries passed", $"{tries.Passed} of {tries.Tries}"))
@@ -141,7 +141,7 @@ static class ConfigurationPage
             var parts = k.Example.Split('/', 2);
             var href = parts.Length == 2 && int.TryParse(parts[0], out var n) && report.TryIds.TryGetValue((key, n), out var id) ? U($"/{e.Id}/try/{id}/{parts[1]}") : "";
             var where = k.Stages.Count == report.Stats.Stages.Count ? $"all {k.Stages.Count} stages" : string.Join(", ", k.Stages);
-            page.Append($"<a class=\"row kinds\"{(href.Length > 0 ? $" href=\"{href}\"" : "")}><span class=\"stack\"><span><span class=\"tag tag-fr\">{E(k.Label)}</span> <span class=\"mono\">{E(k.Detail ?? "")}</span></span><span class=\"small dim\">{E(where)}</span></span>")
+            page.Append($"<a class=\"row kinds\"{(href.Length > 0 ? $" href=\"{href}\"" : "")}><span class=\"stack\"><span><wa-badge class=\"tag tag-fr\" appearance=\"outlined\">{E(k.Label)}</wa-badge> <span class=\"mono\">{E(k.Detail ?? "")}</span></span><span class=\"small dim\">{E(where)}</span></span>")
                 .Append($"<span class=\"r num\">{k.In} of {k.Of}</span><span class=\"r num\">{Count(k.When.Min)}</span><span class=\"r num\">{Count(k.When.Median)}</span><span class=\"r num\">{Count(k.When.Max)}</span><span class=\"r fr\">{Number(k.PerTry)}</span></a>");
         }
         if (minor > 1) page.Append("</wa-details></div>");
@@ -191,7 +191,7 @@ static class ConfigurationPage
             if (def.Files?.Git is { } git) carries.Add($"files from {git} at {def.Files.Rev}");
             foreach (var (param, given) in def.Set ?? []) carries.Add($"sets {param} = {(given is System.Text.Json.Nodes.JsonValue ? given.ToString() : given?.ToJsonString() ?? "")}");
             foreach (var (field, given) in def.Own()) if (given is not null) carries.Add($"{field} {given}");
-            page.Append($"<div class=\"row values\"><span class=\"mono\">{E(axis)}</span><span><span class=\"mono\">{E(value)}</span>{(axes.Def[axis].Live == value ? " <span class=\"tag tag-live\">live</span>" : "")}</span>")
+            page.Append($"<div class=\"row values\"><span class=\"mono\">{E(axis)}</span><span><span class=\"mono\">{E(value)}</span>{(axes.Def[axis].Live == value ? " <wa-badge class=\"tag tag-live\" appearance=\"outlined\">live</wa-badge>" : "")}</span>")
                 .Append($"<span class=\"soft\">{E(def.Note ?? "")}</span><span class=\"small dim mono\">{E(string.Join("; ", carries))}</span></div>");
         }
         page.Append("</div></div></section>");

@@ -36,8 +36,8 @@ public class CrawlTests
             var page = await client.GetStringAsync(new Uri(new Uri(url), "/sample"));
             Assert.Contains("A made-up exam about the docs site", page);
             Assert.True(page.IndexOf("live-setup", StringComparison.Ordinal) < page.IndexOf("other-setup", StringComparison.Ordinal));
-            Assert.Contains("<span class=\"name\">live-setup</span><span class=\"light light-live\">live</span>", page);
-            Assert.Contains("try 1</a> <span class=\"tag tag-none\">failed</span>", page);
+            Assert.Contains("<span class=\"name\">live-setup</span><wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>", page);
+            Assert.Contains("try 1</a> <wa-badge class=\"tag tag-none\" appearance=\"outlined\">failed</wa-badge>", page);
         }
         finally { await app.StopAsync(); }
     }
@@ -64,8 +64,8 @@ public class CrawlTests
         Assert.Contains("<mark>curl -s localhost:8081</mark>", page);
         Assert.Contains("<mark>Not\nfound</mark>", page);
         // A friction point names its label, with the label's sentence on hover, and the step it covers as a pill; the step carries the label.
-        Assert.Matches("id=\"p1\">.*?<span class=\"tag tag-fr\" id=\"tip\\d+\" tabindex=\"0\">fell-back</span><wa-tooltip for=\"tip\\d+\">a step where the agent used a substitute within two steps of a call to the surface that failed</wa-tooltip><span class=\"pills\"><wa-button class=\"pill\" size=\"small\" pill appearance=\"outlined\" href=\"#s2\"", page);
-        Assert.Matches("<wa-details class=\"step step-fr\" id=\"s2\" appearance=\"plain\">.*?<span class=\"tag tag-fr\">fell-back</span>", page);
+        Assert.Matches("id=\"p1\">.*?<wa-badge class=\"tag tag-fr\" appearance=\"outlined\" id=\"tip\\d+\" tabindex=\"0\">fell-back</wa-badge><wa-tooltip for=\"tip\\d+\">a step where the agent used a substitute within two steps of a call to the surface that failed</wa-tooltip><span class=\"pills\"><wa-button class=\"pill\" size=\"small\" pill appearance=\"outlined\" href=\"#s2\"", page);
+        Assert.Matches("<wa-details class=\"step step-fr\" id=\"s2\" appearance=\"plain\">.*?<wa-badge class=\"tag tag-fr\" appearance=\"outlined\">fell-back</wa-badge>", page);
         // friction/2: a rule's point shows its `because`. A reader's point with no `because` shows what the file holds, its notes.
         Assert.Contains("<span class=\"small soft\">used curl -s localhost:8081, a declared substitute, in the same step as the call to localhost:8080 failed (Not found)</span>", page);
         Assert.Contains("<span class=\"small soft\">tries again</span>", page);
@@ -100,7 +100,7 @@ public class CrawlTests
     {
         var page = await Page(SampleBank.Stage);
         // The tabs: every stage of the try by its id, in the order they ran, the one shown selected; one that did not complete says its status.
-        Assert.Matches("<a class=\"tab stab tab-on\"[^>]*href=\"/staged/live-setup/1/write-note\">.*?write-note</span></a><a class=\"tab stab\"[^>]*href=\"/staged/live-setup/1/read-note\">.*?read-note</span><span class=\"tag tag-none\">skipped</span></a>", page);
+        Assert.Matches("<a class=\"tab stab tab-on\"[^>]*href=\"/staged/live-setup/1/write-note\">.*?write-note</span></a><a class=\"tab stab\"[^>]*href=\"/staged/live-setup/1/read-note\">.*?read-note</span><wa-badge class=\"tag tag-none\" appearance=\"outlined\">skipped</wa-badge></a>", page);
         Assert.Contains("the attempt ended with &#39;max_tool_calls&#39;", page);
 
         // A try alone opens on its first stage.
@@ -140,7 +140,7 @@ public class CrawlTests
     public async Task TheExamPage_ListsAStagedTryWithItsStages()
     {
         var page = await Page("/staged");
-        Assert.Contains("<a href=\"/staged/live-setup/1\">try 1</a><span class=\"small\"><a class=\"mono\" href=\"/staged/live-setup/1/write-note\">write-note</a></span><span class=\"small\"><a class=\"mono\" href=\"/staged/live-setup/1/read-note\">read-note</a> <span class=\"tag tag-none\">skipped</span></span>", page);
+        Assert.Contains("<a href=\"/staged/live-setup/1\">try 1</a><span class=\"small\"><a class=\"mono\" href=\"/staged/live-setup/1/write-note\">write-note</a></span><span class=\"small\"><a class=\"mono\" href=\"/staged/live-setup/1/read-note\">read-note</a> <wa-badge class=\"tag tag-none\" appearance=\"outlined\">skipped</wa-badge></span>", page);
     }
 
     static async Task<string> Page(string path)

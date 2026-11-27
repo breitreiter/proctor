@@ -125,10 +125,10 @@ static class ExamPage
     internal static P.CellAnswer? Own(P.ComparisonAnswer? answer, string key) => answer?.Cells.FirstOrDefault(k => k.State == "compared" && k.Value.Configuration == key);
 
     /// <summary>The mark of a configuration against another, from its own setting on correctness checks held, as the comparison page words it.</summary>
-    internal static string Light(P.CellAnswer? cell, string against) => cell?.Held is not { } held ? "<span class=\"tag tag-none\">nothing to compare</span>" : held.Direction switch
+    internal static string Light(P.CellAnswer? cell, string against) => cell?.Held is not { } held ? "<wa-badge class=\"tag tag-none\" appearance=\"outlined\">nothing to compare</wa-badge>" : held.Direction switch
     {
-        "better" or "worse" => $"<span class=\"light {(held.Confirmed ? $"light-{held.Direction}" : "light-same")}\">{held.Direction} vs {E(against)} · {(held.Confirmed ? "confirmed" : cell.CouldConfirm ? "not confirmed" : "cannot confirm")}</span>",
-        _ => $"<span class=\"light light-same\">no difference vs {E(against)}</span>",
+        "better" or "worse" => $"<wa-badge class=\"light {(held.Confirmed ? $"light-{held.Direction}" : "light-same")}\" appearance=\"accent\">{held.Direction} vs {E(against)} · {(held.Confirmed ? "confirmed" : cell.CouldConfirm ? "not confirmed" : "cannot confirm")}</wa-badge>",
+        _ => $"<wa-badge class=\"light light-same\" appearance=\"accent\">no difference vs {E(against)}</wa-badge>",
     };
 
     /// <summary>
@@ -143,9 +143,9 @@ static class ExamPage
         var cell = Own(answer, c.Key);
         var against = cell?.Against.Name ?? live?.Name ?? "live";
 
-        var mark = c.Live ? "<span class=\"light light-live\">live</span>"
-        : counted.Count == 0 ? $"<span class=\"tag tag-none\">{(c.NotGraded > 0 ? "not yet graded" : "no tries yet")}</span>"
-        : refused is not null ? $"<span class=\"tag tag-none\" title=\"{E(refused)}\">not compared{(c.NotGraded > 0 ? $" · {c.NotGraded} not yet graded" : "")}</span>"
+        var mark = c.Live ? "<wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>"
+        : counted.Count == 0 ? $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\">{(c.NotGraded > 0 ? "not yet graded" : "no tries yet")}</wa-badge>"
+        : refused is not null ? $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\" title=\"{E(refused)}\">not compared{(c.NotGraded > 0 ? $" · {c.NotGraded} not yet graded" : "")}</wa-badge>"
         : answer is null ? ""
         : Light(cell, against);
         return (mark, answer, cell, against);
@@ -207,8 +207,8 @@ static class ExamPage
                 .Append("<span style=\"display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline\" class=\"small\">")
                 .Append($"<span class=\"soft\"><a href=\"{compare}\">{E(mine)} vs {E(other)}</a></span>")
                 .Append($"<span class=\"soft\">{supported} of {p.Changes.Count} {(p.Changes.Count == 1 ? "change" : "changes")} supported</span>")
-                .Append(p.PostHoc ? $"<span class=\"tag\" title=\"{E(p.Labels.FirstOrDefault(l => l.StartsWith("Post hoc")) ?? "")}\">post hoc</span>" : "")
-                .Append(p.StandardChanged ? $"<span class=\"tag\" title=\"{E(p.Labels.FirstOrDefault(l => l.StartsWith("The standard")) ?? "")}\">standard changed</span>" : "")
+                .Append(p.PostHoc ? $"<wa-badge class=\"tag\" appearance=\"outlined\" title=\"{E(p.Labels.FirstOrDefault(l => l.StartsWith("Post hoc")) ?? "")}\">post hoc</wa-badge>" : "")
+                .Append(p.StandardChanged ? $"<wa-badge class=\"tag\" appearance=\"outlined\" title=\"{E(p.Labels.FirstOrDefault(l => l.StartsWith("The standard")) ?? "")}\">standard changed</wa-badge>" : "")
                 .Append($"<span class=\"dim\">written {E(p.Written)}</span></span></div>")
                 .Append("<div class=\"row row-head pred\"><span>Change predicted</span><span>Outcome</span><span>Evidence</span><span>The author's reason</span></div>");
             foreach (var c in p.Changes)
@@ -227,7 +227,7 @@ static class ExamPage
                         : $"{(c.Check is null ? "median" : "held in a median of")} {Number(a)} vs {Number(b)}{(c.Check is null ? "" : " stages")}, p = {Measured.PValue(m.P)}"
                     : c.Outcome == P.PredictionOutcomes.NotRun ? "a side has no graded try" : "";
                 page.Append($"<div class=\"row pred\"><span><span class=\"mono\">{E(what)}</span> {(c.Direction == P.Predictions.More ? "higher" : "lower")}</span>")
-                    .Append($"<span><a href=\"{compare}\" class=\"{tag}\" style=\"text-decoration:none\" title=\"{E(c.Sentence)}\">{word}</a></span>")
+                    .Append($"<span><a href=\"{compare}\" style=\"text-decoration:none\" title=\"{E(c.Sentence)}\"><wa-badge class=\"{tag}\" appearance=\"outlined\">{word}</wa-badge></a></span>")
                     .Append($"<span class=\"soft num\">{E(evidence)}</span><span class=\"small dim\">{E(c.Because ?? "")}</span></div>");
             }
             page.Append("</div>");
@@ -243,7 +243,7 @@ static class ExamPage
         {
             page.Append($"<div class=\"row axis{(i == 0 ? " first" : "")}\"><span class=\"stack\"><span class=\"mono strong\">{E(axis)}</span><span class=\"small dim\">{E(def.About ?? "")}</span></span><div>");
             foreach (var (value, v) in def.Values!)
-                page.Append($"<div class=\"val\"><span><span class=\"mono\">{E(value)}</span>{(value == def.Live ? " <span class=\"tag tag-live\">live</span>" : "")}</span><span class=\"soft\">{E(v?.Note ?? "")}</span></div>");
+                page.Append($"<div class=\"val\"><span><span class=\"mono\">{E(value)}</span>{(value == def.Live ? " <wa-badge class=\"tag tag-live\" appearance=\"outlined\">live</wa-badge>" : "")}</span><span class=\"soft\">{E(v?.Note ?? "")}</span></div>");
             page.Append("</div></div>");
         }
         page.Append("</div></div></section>");

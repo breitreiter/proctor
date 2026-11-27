@@ -148,7 +148,11 @@ holding `bank/` and `exams/`.
   and the fold-outs (`.quiet`), `wa-button` for step pills, `wa-tooltip`
   for what a tag means (`Pages.Tagged`). `assets/page.js` opens the
   step a link points at. Stage tabs are links to other pages, so they
-  are not a tab group. Tags and marks are still our own spans. Web
+  are not a tab group. Tags and marks are `wa-badge` with our own
+  kinds (`.tag-*` outlined, `.light-*` filled): each kind sets the four
+  colour tokens the badge reads, and none uses the library's `variant`,
+  so no colour borrows its meanings (the user, 2026-11-27: lime is not
+  "brand", lilac is friction and never "warning"). Web
   Awesome's base layer styles every native element (`details`, `pre`,
   `button`): where a page uses one, `one.css` says what it should be.
 - `assets/webawesome/` and `assets/components.js`:

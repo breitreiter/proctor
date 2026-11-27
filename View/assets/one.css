@@ -78,11 +78,15 @@ a.res:hover{box-shadow:inset 0 0 0 2px var(--link);color:inherit}
 .fr{color:var(--friction);font-weight:600;font-variant-numeric:tabular-nums}
 
 /* a mark beside a name: live, late, held. Mono, lower case, a hairline box */
-.tag{display:inline-block;font:var(--t-small);line-height:1;padding:3px 6px;border-radius:3px;border:1px solid var(--rule);color:var(--soft);white-space:nowrap}
-.tag-live{border-color:var(--accent);color:var(--accent)}
-.tag-fr{border-color:#6b5a8f;color:var(--friction)}
-.tag-right{border-color:#2f6b3f;color:var(--right)}
-.tag-wrong{border-color:#8a4a14;color:var(--wrong)}
+/* A tag and a mark are Web Awesome's badge: its shape, spacing and behaviour, with our colours. The badge reads four tokens
+   (text and border when outlined, text and fill when filled); each kind below sets them, so no kind borrows the library's
+   meanings (lime is not "brand", orange is not "warning", lilac is friction and nothing else). */
+wa-badge{font:var(--t-small);line-height:1;border-radius:4px}
+wa-badge.tag{--wa-color-on-quiet:var(--soft);--wa-color-border-loud:var(--rule)}
+wa-badge.tag-live{--wa-color-on-quiet:var(--accent);--wa-color-border-loud:var(--accent)}
+wa-badge.tag-fr{--wa-color-on-quiet:var(--friction);--wa-color-border-loud:#6b5a8f}
+wa-badge.tag-right{--wa-color-on-quiet:var(--right);--wa-color-border-loud:#2f6b3f}
+wa-badge.tag-wrong{--wa-color-on-quiet:var(--wrong);--wa-color-border-loud:#8a4a14}
 
 /* tabs: which configuration, or which stage, everything below is about */
 .tabs{display:flex;gap:28px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
@@ -105,14 +109,14 @@ a.res:hover{box-shadow:inset 0 0 0 2px var(--link);color:inherit}
 .dist-med{position:absolute;top:0;width:2px;height:12px;margin-left:-1px;background:var(--text)}
 .dist-fr .dist-dot{background:var(--friction)}
 .dist-fr .dist-med{background:var(--friction)}
-.tag-none{border-style:dashed;color:var(--dim)}
+wa-badge.tag-none{--wa-color-on-quiet:var(--dim);border-style:dashed}
 
 /* a configuration's reading against live, beside its name */
-.light{display:inline-block;font:var(--t-small);font-weight:600;line-height:1;padding:5px 9px;border-radius:4px;white-space:nowrap}
-.light-worse{background:var(--wrong-bg);color:var(--wrong)}
-.light-better{background:var(--right-bg);color:var(--right)}
-.light-same{background:var(--lost-bg);color:var(--lost)}
-.light-live{box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent)}
+wa-badge.light{font-weight:600}
+wa-badge.light-worse{--wa-color-fill-loud:var(--wrong-bg);--wa-color-on-loud:var(--wrong)}
+wa-badge.light-better{--wa-color-fill-loud:var(--right-bg);--wa-color-on-loud:var(--right)}
+wa-badge.light-same{--wa-color-fill-loud:var(--lost-bg);--wa-color-on-loud:var(--lost)}
+wa-badge.light-live{--wa-color-on-quiet:var(--accent);--wa-color-border-loud:var(--accent)}
 /* a change from live: coloured only when confirmed */
 .delta{font:var(--t-small);font-variant-numeric:tabular-nums;white-space:nowrap}
 .d-worse{color:var(--wrong);font-weight:600}
