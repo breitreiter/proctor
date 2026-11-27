@@ -1437,7 +1437,7 @@ that deletes nothing.
 
 **Built 2026-11-27** as proposed below (`Exam/Retired.cs`, `proctor retire`,
 `--bring-back`; the viewer's exam, index and configuration pages). Not built:
-the same through MCP, since proctor has no MCP server yet. `list`, the report's
+the same through MCP: `remix.md` puts an MCP server in a separate repository, not here. Owed under that plan's rules: `retire` answers in text only (no JSON yet), and its exit codes are not written down. `list`, the report's
 `summary.md` and `coverage` keep a retired configuration among the rest,
 marked: they are the full record, and only the viewer's main lists leave it out.
 

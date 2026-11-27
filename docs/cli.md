@@ -185,7 +185,10 @@ exams/tern-docs/retired.json: restructure is retired. Its tries, predictions and
 
 ```json
 {
-  "restructure": { "reason": "we kept the docs as shipped", "since": "2026-11-27" }
+  "schema": "retired/1",
+  "configurations": {
+    "restructure": { "reason": "we kept the docs as shipped", "since": "2026-11-27" }
+  }
 }
 ```
 

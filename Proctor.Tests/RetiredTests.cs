@@ -34,7 +34,8 @@ public class RetiredTests
 
         Assert.Equal(0, Verbs.Retire(repo.Root, Id, "rewritten", "the rewrite was dropped", false));
 
-        var mark = JsonNode.Parse(System.IO.File.ReadAllText(File(repo)))!["rewritten"]!;
+        var mark = JsonNode.Parse(System.IO.File.ReadAllText(File(repo)))!["configurations"]!["rewritten"]!;
+        Assert.Equal("retired/1", (string)JsonNode.Parse(System.IO.File.ReadAllText(File(repo)))!["schema"]!);
         Assert.Equal("the rewrite was dropped", (string)mark["reason"]!);
         Assert.Matches(@"^\d{4}-\d{2}-\d{2}$", (string)mark["since"]!);
         Assert.DoesNotContain("rewritten", Asked(repo));
@@ -87,7 +88,7 @@ public class RetiredTests
     public void RetiredAgainTheReasonIsReplacedAndTheDateKept()
     {
         using var repo = Repo();
-        repo.Write($"{Id}/retired.json", """{ "rewritten": { "reason": "first", "since": "2026-01-02" } }""");
+        repo.Write($"{Id}/retired.json", """{ "schema": "retired/1", "configurations": { "rewritten": { "reason": "first", "since": "2026-01-02" } } }""");
 
         Verbs.Retire(repo.Root, Id, "rewritten", "second", false);
 
@@ -113,7 +114,7 @@ public class RetiredTests
     {
         using var repo = Repo();
         var exam = repo.LoadExam(Id);
-        repo.Write($"{Id}/retired.json", "{" + string.Join(",", exam.Axes!.Named.Select(c => $"\"{c.Name}\": {{ \"reason\": \"x\", \"since\": \"2026-01-02\" }}")) + "}");
+        repo.Write($"{Id}/retired.json", "{\"schema\": \"retired/1\", \"configurations\": {" + string.Join(",", exam.Axes!.Named.Select(c => $"\"{c.Name}\": {{ \"reason\": \"x\", \"since\": \"2026-01-02\" }}")) + "}}");
 
         Assert.Contains("is retired, so there is nothing to run", Assert.Throws<ProctorException>(() => Asked(repo)).Message);
     }
