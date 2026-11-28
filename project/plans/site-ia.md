@@ -161,10 +161,17 @@ not a wall of text. The sections in order:
   | Linux with rootless podman, and uv | the sandbox the agents under test run in | only bare nb runs, no coding agents |
   | the .NET 10 SDK and git | building auspex and nb from source, until binaries ship | — |
   | keys for the agents you want to measure | Anthropic for Claude Code, OpenAI for Codex, and so on | measure nb on a local or free model |
-  | a key for a frontier judge | checks only a model can grade | use deterministic checks only |
-  | a key for a decider | classifier checks | skip them |
+  | a key for a frontier judge, from a family you are not measuring | checks only a model can grade. A judge from the same family as an agent under test grades its own kind, so it sits off-distribution: GLM or Kimi through OpenRouter or z.ai, beside Claude and GPT | use deterministic checks only |
+  | a key for a decider (a System One endpoint, such as Jev) | classifier checks | skip them |
 
-- **Length**: about 150 words with the table.
+  Below the table, the usual set spelled out, since "four keys" is the
+  surprise: **a normal sweep of Claude Code and Codex needs an Anthropic
+  key, an OpenAI key, a key for the judge's provider (OpenRouter, z.ai, …),
+  and a key for the decider's (OpenRouter, Typesafe, …).** Then the
+  escape hatch: fewer agents need fewer keys, a deterministic exam needs
+  no judge, and `playground` needs none at all.
+
+- **Length**: about 200 words with the table.
 - **Facts**: setup's jobs (`SetupState.JobOrder`, `Setup/providers.json`),
   the README's Install, `docs/podman.md`. The supported platform is
   rootless podman on Arch and Ubuntu, and the page says only that.
