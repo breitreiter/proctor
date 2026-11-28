@@ -1,5 +1,4 @@
-# The smoke exam: every task scripts nb's Mock provider, so this runs without a model.
-# bundle: {{bundle}}
+# The smoke exam: every stage scripts nb's Mock provider, so this runs without a model.
 provider {{provider}}
 harness {{harness}}
 loop 2

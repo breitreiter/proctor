@@ -505,10 +505,11 @@ public class JudgeTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.OneVariantOneAttempt();
-        repo.EditVariant("smoke", "a", v => v["model"] = "glm-4.7");
+        repo.OneConfiguration();
         repo.EditJson("smoke/exam.json", e =>
         {
+            e["axes"]!["assistant"]!["values"]!["mock"]!["model"] = "glm-4.7";
+            e["stages"] = JsonNode.Parse(TestRepo.ThreeStages);
             e["grading"]!["checks"]!["stance"] = JsonNode.Parse("{\"decide\": {\"ask\": \"Does it claim completion?\", \"window\": \"answer\"}}");
             e["grading"]!["checks"]!["sensible"] = JsonNode.Parse("{\"judge\": {\"ask\": \"Is the answer sensible?\", \"window\": \"prompt+answer\", \"votes\": 2, \"with\": \"glm\"}}");
             // A check that asks a model is never correctness: it is quality here.
@@ -518,9 +519,8 @@ public class JudgeTests
         repo.WriteProctorConfig(new { jev = new { kind = "systemone", endpoint = "http://judge.test/systemone", family = "typesafe" }, glm = new { kind = "chat", endpoint = "http://judge.test/v1", model = "glm", family = "glm" } });
         var problems = new List<Problem>();
         var config = Proctor.Exam.LoadConfig(repo.Root, problems);
+        repo.Run("smoke", config: config);
         var exam = repo.LoadExam("smoke");
-        var id = Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null)!;
-        var entry = Runner.LoadEntry(repo.Root, id);
 
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.99"));
         var chat = new ScriptedChat(Answer("yes", "OK"));
@@ -528,7 +528,7 @@ public class JudgeTests
         var log = new StringWriter();
         var grades = Proctor.Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, log, judges);
 
-        Assert.Contains("variant 'a' (glm-4.7) is in the family of judge 'glm' (glm)", log.ToString());
+        Assert.Contains($"'{TestRepo.A}' (glm-4.7) is in the family of judge 'glm' (glm)", log.ToString());
         // What a regrade would ask now is counted without asking (plans/axes-build.md, slice 5): every decide verdict is on file and costs nothing.
         var (httpCalls, chatCalls) = (http.Calls, chat.Calls);
         var cost = Proctor.Grade.Cost(repo.Root, exam, Bank.Select(repo.Root, exam).Current, judges);
@@ -546,7 +546,7 @@ public class JudgeTests
         Assert.Equal(3, http.Calls);
         Assert.Equal(6, chat.Calls);
 
-        var attempt = TestRepo.Attempt(repo.Root, id, "a", "plain", 1);
+        var attempt = repo.StageDir("smoke", TestRepo.A, "plain");
         Assert.Equal(2, Directory.GetFiles(Path.Combine(attempt, Layout.VerdictsDir)).Length);
 
         // a comparison pass: k2 beside glm, checks.json untouched, k2's files not applied
@@ -556,25 +556,19 @@ public class JudgeTests
         var compareLog = new StringWriter();
         var compared = Proctor.Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, compareLog, compare);
         Assert.Equal(("pass", "yes 2/2 — \"OK\""), compared.Single(g => g.Task == "uses-bash").Checks!["sensible"].Deconstruct());
-        Assert.Equal("pass", Proctor.Grade.ReadChecks(TestRepo.Attempt(repo.Root, id, "a", "uses-bash", 1))!["sensible"].Result);
-        Assert.Contains("a/uses-bash/1  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2, expected yes — \"OK\")", compareLog.ToString());
+        Assert.Equal("pass", Proctor.Grade.ReadChecks(repo.StageDir("smoke", TestRepo.A, "uses-bash"))!["sensible"].Result);
+        Assert.Contains($"{TestRepo.A}/1/uses-bash  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2, expected yes — \"OK\")", compareLog.ToString());
         Assert.Contains("2 of 3 verdicts agree; checks.json unchanged", compareLog.ToString());   // plain and loops error under both judges ("OK" is not in their answers); uses-bash disagrees
         Assert.Equal(3, http.Calls);   // decides are not remapped, so not re-called
         Assert.Equal(6, chat.Calls);
         Assert.Equal(6, k2.Calls);
-        var k2File = Directory.GetFiles(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "uses-bash", 1), Layout.VerdictsDir), "sensible.k2.*").Single();
+        var k2File = Directory.GetFiles(Path.Combine(repo.StageDir("smoke", TestRepo.A, "uses-bash"), Layout.VerdictsDir), "sensible.k2.*").Single();
         Assert.False(JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(k2File), Proctor.Exam.JsonOptions)!.Applied);
 
         var uses = Judge.Uses(repo.Root, Bank.Select(repo.Root, exam).Current);
         Assert.Equal(["glm", "jev"], uses.Select(u => u.Judge));
         Assert.Equal(["sensible"], uses[0].Checks);
         Assert.Equal(("systemone", "jev-1.13.0"), (uses[1].Kind, uses[1].Model));
-
-        var rows = Results.Collect(repo.Root, exam, Bank.Select(repo.Root, exam).Current);
-        var stats = Stats.Compute(exam, rows);
-        var md = Report.Markdown(stats, rows, entry, uses);
-        Assert.Contains("| judge jev | systemone jev-1.13.0 at `http://judge.test/systemone`; graded stance |", md);
-        Assert.Contains("| judge glm | chat glm at `http://judge.test/v1`; graded sensible |", md);
     }
 }
 

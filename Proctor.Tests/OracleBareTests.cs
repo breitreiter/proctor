@@ -4,7 +4,7 @@ using Proctor;
 namespace Proctor.Tests;
 
 // The oracle on the bare path (plans/oracle-in-proctor.md, work item 2): proctor prepends nb's own directives and nb's
-// in-process oracle answers. One attempt per ending, on nb's Mock provider, whose verdict rides on the scripted reply.
+// in-process oracle answers. One try per ending, on nb's Mock provider, whose verdict rides on the scripted reply.
 public class OracleBareTests
 {
     // An answer that is the subject's next scripted turn too, as nb's evals/fixtures/oracle-sheet.md chains them.
@@ -23,16 +23,14 @@ public class OracleBareTests
         var repo = new TestRepo();
         repo.CopyExam("smoke");
         repo.Write("smoke/oracle/plain.md", Sheet);
-        foreach (var other in new[] { "loops", "uses-bash" }) File.Delete(Path.Combine(repo.Root, "exams", "smoke", "tasks", other + ".json"));
-        repo.EditJson("smoke/tasks/plain.json", t => { t["prompt"] = prompt; t["oracle"] = "oracle/plain.md"; });
-        repo.OneVariantOneAttempt();
+        repo.OneConfiguration();
         repo.EditJson("smoke/exam.json", s =>
         {
+            s["stages"] = new JsonArray(new JsonObject { ["id"] = "plain", ["prompt"] = prompt, ["oracle"] = "oracle/plain.md" });
             if (oracle is not null) s["oracle"] = System.Text.Json.JsonSerializer.SerializeToNode(oracle);
         });
-        var exam = repo.LoadExam("smoke");
-        var id = Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null)!;
-        return (repo, TestRepo.Attempt(repo.Root, id, "a", "plain", 1));
+        repo.Run("smoke");
+        return (repo, repo.StageDir("smoke", TestRepo.A, "plain"));
     }
 
     static Verdict Check(string attemptDir, string spec)

@@ -15,7 +15,7 @@ sealed class GateFactAttribute : FactAttribute
 }
 
 /// <summary>
-/// The deterministic gate (agent-neutral-runs decision 12): exams/gate's Mock variant run bare and the same variant run
+/// The deterministic gate (agent-neutral-runs decision 12): exams/gate's nb on Mock run bare and the same nb run
 /// through Harbor give the same nb transcript, the same counted core and the same checks.json, apart from timings and
 /// the checkout's path.
 /// </summary>
@@ -46,28 +46,26 @@ public class GateTests
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         Assert.Empty(problems);
-        var exam = repo.LoadExam(examId);
-        // An exam with axes makes the configurations it names, as `proctor run` does.
-        IReadOnlyCollection<string>? keys = null;
-        if (exam.Axes is not null) (exam, keys) = Verbs.ForRun(repo.Root, exam, null, null, null);
+        // The configurations the exam names, as `proctor run` makes them.
+        var (exam, keys) = Verbs.ForRun(repo.Root, repo.LoadExam(examId), null, null, null);
         var id = Runner.Run(repo.Root, exam, config, null, null, "gate", TextWriter.Null, keys)!;
         Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
         return (exam, id);
     }
 
-    /// <summary>Every way a Harbor attempt differs from its bare twin, as "task/attempt: what"; empty when the gate is green.</summary>
+    /// <summary>Every way a stage through Harbor differs from its bare twin, as "stage/try: what"; empty when the gate is green.</summary>
     internal static List<string> Differences(string root, string entryId, Exam exam)
     {
-        var entryDir = Layout.LogEntry(root, entryId);
         var differences = new List<string>();
         var harbor = exam.Variants.Single(a => a.IsAgent);
         var bare = exam.Variants.Single(a => !a.IsAgent);
+        var bank = Bank.Of(root, exam);
         foreach (var c in exam.Tasks)
             foreach (var n in Enumerable.Range(1, exam.Attempts))
             {
                 var at = $"{c.Id}/{n}";
-                var b = TestRepo.Attempt(root, entryId, bare.Id!, c.Id!, n);
-                var h = TestRepo.Attempt(root, entryId, harbor.Id!, c.Id!, n);
+                BankAttempt Of(Variant v) => bank.Single(a => a.Variant == v.Id && a.Task == c.Id && a.Attempt == n);
+                var (b, h) = (Of(bare).Dir(root), Of(harbor).Dir(root));
                 var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
                 if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)
                 {
@@ -76,7 +74,9 @@ public class GateTests
                 }
 
                 // The checkout is at a host path bare and at /app in the image; a tool's output naming it is the one other expected difference.
-                var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(TestRepo.Work(root, entryId, bare.Id!, c.Id!, n), HarborCompile.Workdir));
+                var entry = Of(bare).Entry;
+                var work = Layout.Work(root, exam.Id, bare.Id!, c.Id!, n, entry.Stages, entry.IdOf(bare.Id!, n));
+                var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(work, HarborCompile.Workdir));
                 var harborJsonl = Untimed(File.ReadAllText(Path.Combine(h, Layout.AgentLogsDir, Layout.NbLogFile)));
                 if (bareJsonl != harborJsonl) differences.Add($"{at}: nb's transcript differs\n--- bare\n{bareJsonl}\n--- harbor\n{harborJsonl}");
 

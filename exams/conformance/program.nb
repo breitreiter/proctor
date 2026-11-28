@@ -1,2 +1,2 @@
-# conformance: every variant is a vendor agent, which takes the task's prompt as its instruction; nb variants would use this.
+# conformance: every assistant is a vendor's agent, which takes the stage's prompt as its instruction; nb would use this.
 run {{prompt}}

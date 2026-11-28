@@ -69,7 +69,7 @@ public class RelayTests
         repo.CopyExam("conformance");
         var entryDir = Path.Combine(repo.Root, "log", "exp");
         HarborCompile.Tasks(entryDir, repo.LoadExam("conformance"), _ => new AgentRoute("http://localhost:8086/v1", "key"), relayDir: "/run/user/1000/proctor-relay/abc");
-        var task = Layout.HarborTask(entryDir, "codex", "ok");
+        var task = Layout.HarborJobTask(entryDir, "script=ok,assistant=codex", "conformance");
 
         var compose = File.ReadAllText(Path.Combine(task, "environment", "docker-compose.yaml")).Split('\n');
         var services = Array.IndexOf(compose, "services:");
@@ -96,7 +96,7 @@ public class RelayTests
 
         foreach (var entryDir in new[] { served, none })
         {
-            var task = Layout.HarborTask(entryDir, "codex", "ok");
+            var task = Layout.HarborJobTask(entryDir, "script=ok,assistant=codex", "conformance");
             Assert.DoesNotContain("proctor-relay", File.ReadAllText(Path.Combine(task, "environment", "docker-compose.yaml")));
             Assert.False(File.Exists(Path.Combine(task, "environment", "proctor-relay.py")));
             Assert.Contains("allowed_hosts = [\"localhost\"]", File.ReadAllText(Path.Combine(task, "task.toml")));
@@ -112,7 +112,7 @@ public class RelayTests
         var exam = repo.LoadExam("harbor-unit");
         var entryDir = Path.Combine(repo.Root, "log", "exp");
         HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute("http://127.0.0.1:8086", "key"), relayDir: "/run/x");
-        var task = Layout.HarborTask(entryDir, "cc-haiku", "fix-null-deref");
+        var task = Layout.HarborJobTask(entryDir, "assistant=cc-haiku", "harbor-unit");
 
         Assert.Equal(
             "services:\n  main: { cap_drop: [NET_RAW] }\n  proctor-relay: { image: \"python:3.13-alpine\", command: [\"python\", \"-u\", \"/proctor-relay.py\", \"/run/proctor-relay\", \"8086\"], volumes: [\"./proctor-relay.py:/proctor-relay.py:ro\", \"/run/x:/run/proctor-relay\"] }\n",
@@ -148,8 +148,8 @@ public class RelayTests
         var near = Path.Combine(repo.Root, "log", "near");
         HarborCompile.Tasks(near, exam, _ => new AgentRoute("http://localhost:8086/v1", "key"), relayDir: "/run/x");
 
-        Assert.Contains("[agent]\ntimeout_sec = 120.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"library\", \"api.example.com\"]\n", File.ReadAllText(Path.Combine(Layout.HarborTask(far, "codex", "ok"), "task.toml")));
-        Assert.Contains("[agent]\ntimeout_sec = 120.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"api.example.com\", \"library\"]\n", File.ReadAllText(Path.Combine(Layout.HarborTask(near, "codex", "ok"), "task.toml")));
+        Assert.Contains("[agent]\ntimeout_sec = 120.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"library\", \"api.example.com\"]\n", File.ReadAllText(Path.Combine(Layout.HarborJobTask(far, "script=ok,assistant=codex", "conformance"), "task.toml")));
+        Assert.Contains("[agent]\ntimeout_sec = 120.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"api.example.com\", \"library\"]\n", File.ReadAllText(Path.Combine(Layout.HarborJobTask(near, "script=ok,assistant=codex", "conformance"), "task.toml")));
 
         File.WriteAllText(file, File.ReadAllText(file).Replace("\"api.example.com\"", "\"https://api.example.com:443/v1\""));
         Assert.Contains(repo.Problems("conformance"), p => p.Field == "image.allowed_hosts" && p.Message.StartsWith("'https://api.example.com:443/v1' is not a host"));

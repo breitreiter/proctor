@@ -1,8 +1,0 @@
-{
-  "id": "nb-harbor",
-  "note": "The same nb on the same Mock provider, run as a Harbor agent in the fixture's image.",
-  "agent": "nb",
-  "harness": "nb",
-  "provider": "Mock",
-  "model": "mock"
-}

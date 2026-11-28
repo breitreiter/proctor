@@ -6,7 +6,8 @@ namespace Proctor;
 /// <summary>Runs the declared checks over the exam's current, completed attempts and writes checks.json beside the evidence.</summary>
 static class Grade
 {
-    public record AttemptGrade(string Variant, string Task, int Attempt, string Status, Dictionary<string, Verdict>? Checks, bool? Pass, string? Invalid);
+    /// <summary>One stage of a try as grade left it. Try is the id the try is kept under in the bank, which is its directory there.</summary>
+    public record AttemptGrade(string Variant, string Task, int Attempt, string Status, Dictionary<string, Verdict>? Checks, bool? Pass, string? Invalid, string? Try = null);
 
     /// <summary>Grade the given attempts, each a current one from the bank; one that did not complete is returned ungraded. With a `--judge a=b` client, compare instead.</summary>
     public static List<AttemptGrade> Attempts(string root, Exam exam, List<BankAttempt> attempts, TextWriter log, JudgeClient? judges = null)
@@ -34,7 +35,7 @@ static class Grade
             var checks = Attempt(attempt, exam, Transcript.Read(attemptDir, Before(root, exam, a)));
             var pass = Pass(checks, exam.CorrectnessFor(c));
             var invalid = Invalid(checks, exam.IntegrityFor(c));
-            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid));
+            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid, a.Entry.IdOf(a.Variant, n)));
             log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.CorrectnessFor(c)) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}{Because(k.Value)}"))}");
         }
         return grades;
@@ -166,15 +167,17 @@ static class Grade
     public static string? Outdated(Dictionary<string, Verdict> checks, List<string> passChecks) =>
         Pass(checks, passChecks) is null ? First(checks, passChecks, Verdict.Outdated) : null;
 
-    /// <summary>What grade says when any attempt holds an outdated verdict: how many attempts, which checks, and how to make them again; null when none does.</summary>
+    /// <summary>What grade says when any stage holds an outdated verdict: how many tries, which checks, and how to make them again; null when none does.</summary>
     public static string? OutdatedSummary(string examId, List<AttemptGrade> grades)
     {
         var holding = grades.Where(g => g.Checks?.Values.Any(v => v.Result == Verdict.Outdated) == true).ToList();
         if (holding.Count == 0) return null;
         var checks = holding.SelectMany(g => g.Checks!.Where(k => k.Value.Result == Verdict.Outdated).Select(k => k.Key)).Distinct().Order(StringComparer.Ordinal).ToList();
-        return $"{holding.Count} attempt{(holding.Count == 1 ? "" : "s")} {(holding.Count == 1 ? "holds" : "hold")} outdated verdicts for {string.Join(", ", checks)}: "
-            + $"on an agent variant a script check runs when the attempt is made, and {(checks.Count == 1 ? "this check has" : "these checks have")} changed or been added since, so those verdicts are left out of every rate. "
-            + $"Make the attempts again: move {(holding.Count == 1 ? "its directory" : "their directories")} out of {Layout.BankDir}/{examId}/ ({string.Join(" ", holding.Select(g => $"{g.Variant}/{g.Task}/{g.Attempt}"))}) and run `proctor run {examId}`, which makes what is missing with the checks as they are now.";
+        // A try is made again whole, so it is the try's directory that moves, whichever of its stages hold the verdicts.
+        var tries = holding.Select(g => g.Try ?? $"{g.Variant}/{g.Attempt}").Distinct().ToList();
+        return $"{tries.Count} {(tries.Count == 1 ? "try holds" : "tries hold")} outdated verdicts for {string.Join(", ", checks)}: "
+            + $"through Harbor a script check runs when the try is made, and {(checks.Count == 1 ? "this check has" : "these checks have")} changed or been added since, so those verdicts are left out of every number. "
+            + $"Make the {(tries.Count == 1 ? "try" : "tries")} again: move {(tries.Count == 1 ? "its directory" : "their directories")} out of {Layout.BankDir}/{examId}/ ({string.Join(" ", tries)}) and run `proctor run {examId}`, which makes what is missing with the checks as they are now.";
     }
 
     /// <summary>

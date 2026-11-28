@@ -1,7 +1,0 @@
-{
-  "id": "qwen-code",
-  "note": "Qwen Code at code-change's pin, on the stub's OpenAI Chat Completions endpoint",
-  "agent": "qwen-code",
-  "agent_version": "0.25.2",
-  "model": "qwen3-coder-next"
-}

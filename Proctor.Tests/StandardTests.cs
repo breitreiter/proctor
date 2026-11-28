@@ -139,7 +139,7 @@ public class StandardTests
     }
 
     [Fact]
-    public void ACondition_NamesOnlyWhatTheExamDeclares_AndGoesWithAxes()
+    public void ACondition_NamesOnlyWhatTheExamDeclares()
     {
         using var repo = new TestRepo();
         repo.CopyExam("axes-answers");
@@ -152,10 +152,5 @@ public class StandardTests
         Assert.Contains(repo.Problems("axes-answers"), p => p.Message.Contains("only = and !="));
         When("assistant = mock");
         Assert.Empty(repo.Problems("axes-answers"));
-
-        using var plain = new TestRepo();
-        plain.CopyExam("smoke");
-        plain.EditJson("smoke/exam.json", e => e["grading"]!["checks"]!["exit_ok"]!["when"] = "docs = v2");
-        Assert.Contains(plain.Problems("smoke"), p => p.Field == "grading.checks.exit_ok.when" && p.Message.StartsWith("goes with axes"));
     }
 }

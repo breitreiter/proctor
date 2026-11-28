@@ -69,8 +69,15 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     /// <summary>The path the model is told the bundle is at, when the variant has one.</summary>
     public string? BundleMount => BundleDir is null ? null : Mounts?.Bundle ?? BundleDir;
 
-    /// <summary>A container name for this attempt, derived from its coordinates. Proctor never uses it; hooks and runners that own a container agree on it through this.</summary>
-    public string Container => $"proctor-{ExamId}-{Variant}-{Task.Id}-{Attempt}";
+    /// <summary>The id the try is kept under in the bank.</summary>
+    public string? Try { get; init; }
+
+    /// <summary>
+    /// A container name for the try, the same for every stage of it, since the hooks that would make a container run once
+    /// around the try. Proctor never uses it; hooks and runners that own a container agree on it through this. A try's
+    /// id is letters, digits and hyphens, which every engine takes as a name.
+    /// </summary>
+    public string Container => $"proctor-{ExamId}-{Try ?? Attempt.ToString()}";
 
     public IDictionary<string, string> Environment()
     {

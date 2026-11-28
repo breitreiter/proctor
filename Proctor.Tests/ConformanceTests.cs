@@ -19,7 +19,7 @@ sealed class ConformanceFactAttribute : FactAttribute
 
 /// <summary>
 /// Harbor conformance (project/archive/harbor-conformance.md, rows 3 to 9): exams/conformance runs each vendor agent at
-/// its pin against the stub fixture's scripted model, which costs nothing, and every attempt must come back as the stub
+/// its pin against the stub fixture's scripted model, which costs nothing, and every try must come back as the stub
 /// scripted it: ok completes with one shell call, the verifier's check and every offered tool mapped; fail is an
 /// outage; hang is a completed run that hit its time budget.
 /// </summary>
@@ -54,35 +54,39 @@ public class ConformanceTests
             harbor = new { uv, engine },
         }));
         var config = Exam.LoadConfig(repo.Root, []);
-        var exam = repo.LoadExam("conformance");
-        var id = Runner.Run(repo.Root, exam, config, null, null, "conformance", TextWriter.Null)!;
+        var (exam, keys) = Verbs.ForRun(repo.Root, repo.LoadExam("conformance"), null, null, null);
+        Runner.Run(repo.Root, exam, config, null, null, "conformance", TextWriter.Null, keys);
         Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
 
-        var misses = Misses(repo.Root, id, exam);
+        var misses = Misses(repo.Root, exam);
         Assert.True(misses.Count == 0, string.Join("\n", misses));
     }
 
     /// <summary>
-    /// Row 10: each code-change task, compiled as proctor compiles it, with its reference solution (reference/<task>.*) as the
-    /// task's solution/ and Harbor's oracle agent in place of a model, passes every script check in the verifier.
-    /// That proves the image and the offline verifier for the exam's own tasks; no model, no network in the agent phase.
+    /// Row 10: each code-change stage, compiled as proctor compiles it, with its reference solution (reference/<stage>.*) as its
+    /// step's solution/ and Harbor's oracle agent in place of a model, passes every script check in the verifier.
+    /// That proves the image and the offline verifier for the exam's own stages; no model, no network in the agent phase.
     /// </summary>
     [ConformanceFact]
-    public void EveryCodeChangeTask_PassesItsChecks_WithItsReferenceSolution()
+    public void EveryCodeChangeStage_PassesItsChecks_WithItsReferenceSolution()
     {
         using var repo = new TestRepo();
         repo.CopyExam("code-change");
         var exam = repo.LoadExam("code-change");
-        var variant = exam.Variants.First(a => a.IsVendor);
         var (uv, engine) = MachineHarbor();
         var entryDir = Path.Combine(repo.Root, "log", "oracle");
-        HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(null, null));
+        // One vendor's agent in each repository: the image is the fixture's, whoever the assistant is.
+        var pairs = exam.Variants.Where(v => v.IsVendor).GroupBy(v => exam.Axes!.Of(v.Id!)![exam.Axes.WorldAxis!]).Select(g => g.First())
+            .Select(v => (Variant: v, Stage: exam.StagesOf(v.Id!).Single())).ToList();
+        Assert.Equal(exam.Tasks.Count, pairs.Count);
+        HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(null, null), pairs: pairs);
 
         var misses = new List<string>();
-        foreach (var c in exam.Tasks)
+        foreach (var (variant, c) in pairs)
         {
-            var taskDir = Layout.HarborTask(entryDir, variant.Id!, c.Id!);
-            var solution = Path.Combine(taskDir, "solution");
+            var taskDir = Layout.HarborJobTask(entryDir, variant.Id!, exam.Id);
+            // Harbor's oracle agent runs a step's own solution/solve.sh.
+            var solution = Path.Combine(taskDir, "steps", c.Id!, "solution");
             Directory.CreateDirectory(solution);
             foreach (var file in Directory.GetFiles(Path.Combine(exam.Dir, "reference"), $"{c.Id}.*")) File.Copy(file, Path.Combine(solution, Path.GetFileName(file)));
             File.WriteAllText(Path.Combine(solution, "solve.sh"), $"#!/usr/bin/env bash\nset -euo pipefail\nbash \"$(dirname \"$0\")/{c.Id}.sh\" {HarborCompile.Workdir}\n");
@@ -103,17 +107,19 @@ public class ConformanceTests
         Assert.True(misses.Count == 0, string.Join("\n", misses));
     }
 
-    /// <summary>Every way an attempt differs from the stub's script, as "variant/task: what"; empty when conformance is green.</summary>
-    internal static List<string> Misses(string root, string entryId, Exam exam)
+    /// <summary>Every way a try differs from the stub's script, as "assistant/script: what"; empty when conformance is green.</summary>
+    internal static List<string> Misses(string root, Exam exam)
     {
-        var entryDir = Layout.LogEntry(root, entryId);
         var misses = new List<string>();
-        foreach (var variant in exam.Variants)
+        var bank = Bank.Of(root, exam);
+        foreach (var assistant in exam.Axes!.Def["assistant"].Values!.Keys)
         {
-            void Miss(string task, string what) => misses.Add($"{variant.Id}/{task}: {what}");
-            string Attempt(string task) => TestRepo.Attempt(root, entryId, variant.Id!, task, 1);
-            string Reason(string task) => Runner.ReadManifest(Path.Combine(Attempt(task), Layout.ManifestFile)).StatusReason ?? "";
-            CountedCore? Core(string task) => File.Exists(Path.Combine(Attempt(task), Layout.CoreFile)) ? Runner.ReadJson<CountedCore>(Path.Combine(Attempt(task), Layout.CoreFile)) : null;
+            var agent = exam.Axes.Value("assistant", assistant).Agent!;
+            void Miss(string script, string what) => misses.Add($"{assistant}/{script}: {what}");
+            // A try is one script's stage alone, in the configuration of that script and this assistant.
+            string Attempt(string script) => bank.Single(a => a.Variant == $"script={script},assistant={assistant}" && a.Task == script).Dir(root);
+            string Reason(string script) => Runner.ReadManifest(Path.Combine(Attempt(script), Layout.ManifestFile)).StatusReason ?? "";
+            CountedCore? Core(string script) => File.Exists(Path.Combine(Attempt(script), Layout.CoreFile)) ? Runner.ReadJson<CountedCore>(Path.Combine(Attempt(script), Layout.CoreFile)) : null;
 
             if (Runner.ReadStatus(Attempt("ok")) is var ok && ok != AttemptStatus.Completed) Miss("ok", $"{ok}: {Reason("ok")}");
             else
@@ -130,7 +136,7 @@ public class ConformanceTests
                 if (!answer.StartsWith("tools: ")) Miss("ok", $"the answer is not the stub's tool list: '{answer}'");
                 else
                 {
-                    var unmapped = answer["tools: ".Length..].Split(", ").Where(t => !Ingest.Kinds[variant.Agent!].ContainsKey(t)).ToList();
+                    var unmapped = answer["tools: ".Length..].Split(", ").Where(t => !Ingest.Kinds[agent].ContainsKey(t)).ToList();
                     if (unmapped.Count > 0) Miss("ok", $"tools the agent offers that Ingest.Kinds lacks: {string.Join(", ", unmapped)}");
                 }
             }

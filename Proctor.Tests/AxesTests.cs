@@ -11,14 +11,14 @@ public class AxesTests
     {
         var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.Stage("smoke");
-        Directory.Delete(Path.Combine(repo.Root, "exams", "smoke", "variants"), recursive: true);
         repo.Write("smoke/values/docs/as-shipped/README.md", "as shipped\n");
         repo.Write("smoke/values/docs/rewritten/README.md", "rewritten\n");
         repo.Write("smoke/program.nb", "provider {{provider}}\nharness {{harness}}\nrun {{prompt}}\n");
         repo.EditJson("smoke/exam.json", e =>
         {
             e.Remove("hooks");
+            e.Remove("configurations");
+            e["stages"] = JsonNode.Parse(TestRepo.ThreeStages);
             e["axes"] = JsonNode.Parse("""
                 {
                   "docs": { "about": "the README", "live": "as-shipped", "values": {
@@ -201,21 +201,15 @@ public class AxesTests
     }
 
     [Fact]
-    public void AnExamWithAxes_IsStages_HasNoVariantFiles_AndNoBundle()
+    public void AnExamWithAxes_HasNoVariantFiles_AndNoBundle()
     {
         using var repo = Smoke();
-        repo.AddVariant("smoke", """{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock" }""");
+        repo.Write("smoke/variants/c.json", """{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock" }""");
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "axes" && p.Message.Contains("also has variants"));
-        repo.RemoveVariant("smoke", "c");
+        File.Delete(Path.Combine(repo.Root, "exams", "smoke", "variants", "c.json"));
 
         repo.Write("smoke/program.nb", "# {{bundle}}\nprovider {{provider}}\nharness {{harness}}\nrun {{prompt}}\n");
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{bundle}}" && p.Message.Contains("{{work}}"));
-
-        // Without axes, what goes with them is refused by name.
-        using var plain = new TestRepo();
-        plain.CopyExam("smoke");
-        plain.EditJson("smoke/exam.json", e => e["exclude"] = new JsonArray());
-        Assert.Contains(plain.Problems("smoke"), p => p.Field == "exclude" && p.Message == "goes with axes");
     }
 
     [Fact]

@@ -1,20 +1,137 @@
 {
   "id": "gate",
-  "description": "The deterministic gate: one Mock variant run bare and the same variant run through Harbor must give identical counted cores and checks, apart from timings.",
+  "description": "The deterministic gate: nb on Mock run bare and the same nb run through Harbor must give identical counted cores and checks, stage for stage, apart from timings. The stage that writes a file comes second, so the gate also holds each route to starting the next stage from a clean workspace.",
   "attempts": 2,
-  "harbor": { "version": "0.26.0" },
-  "limits": { "wall_ms": 120000 },
+  "fixture": "note",
+  "harbor": {
+    "version": "0.26.0"
+  },
+  "limits": {
+    "wall_ms": 120000
+  },
+  "axes": {
+    "route": {
+      "about": "where nb runs: on the host, or as a Harbor agent in the fixture's image. The gate is that nothing else changes along it",
+      "reference": "bare",
+      "values": {
+        "bare": {
+          "note": "nb on the Mock provider, run bare on the host",
+          "provider": "Mock",
+          "model": "mock"
+        },
+        "harbor": {
+          "note": "the same nb on the same Mock provider, run as a Harbor agent in the fixture's image",
+          "route": "harbor",
+          "provider": "Mock",
+          "model": "mock"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "nb-bare": {
+      "route": "bare"
+    },
+    "nb-harbor": {
+      "route": "harbor"
+    }
+  },
+  "stages": [
+    {
+      "id": "plain",
+      "about": "The model answers in one turn with no tools",
+      "prompt": "MOCK:response=hello world",
+      "expect": {
+        "answer_contains": "hello",
+        "files_touched": {
+          "paths": [],
+          "mode": "exactly"
+        }
+      }
+    },
+    {
+      "id": "writes",
+      "about": "The model writes a new file",
+      "prompt": "MOCK:tool=write_file new.txt",
+      "expect": {
+        "files_touched": {
+          "paths": [
+            "new.txt"
+          ],
+          "mode": "exactly"
+        }
+      }
+    },
+    {
+      "id": "uses-bash",
+      "about": "The model runs one allowed bash command and answers",
+      "prompt": "MOCK:tool=bash echo hi",
+      "expect": {
+        "files_touched": {
+          "paths": [],
+          "mode": "exactly"
+        }
+      }
+    },
+    {
+      "id": "denied",
+      "about": "The model asks for a bash command that writes, which nb refuses",
+      "prompt": "MOCK:tool=bash echo changed > note.txt",
+      "expect": {
+        "files_touched": {
+          "paths": [],
+          "mode": "exactly"
+        }
+      }
+    },
+    {
+      "id": "loops",
+      "about": "The model repeats a bash command until nb nudges it, then hits the tool-call budget",
+      "prompt": "MOCK:loop=bash echo x",
+      "expect": {
+        "files_touched": {
+          "paths": [],
+          "mode": "exactly"
+        }
+      }
+    }
+  ],
   "grading": {
     "checks": {
-      "exit-ok":        { "exit_reason": "ok" },
-      "no-denials":     { "denied_calls": { "max": 0 } },
-      "not-nudged":     { "loop_nudged": false },
-      "under-budget":   { "max_tool_calls": 2, "max_tokens": 100000 },
-      "no-tool-errors": { "tool_errors": { "max": 0 } },
-      "says-expected":  { "answer_contains": "@expect" },
-      "touches":        { "files_touched": "@expect" },
-      "new-file":       { "script": "checks/new-file.sh", "description": "the checkout has new.txt as the Mock wrote it" }
+      "exit-ok": {
+        "exit_reason": "ok"
+      },
+      "no-denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "not-nudged": {
+        "loop_nudged": false
+      },
+      "under-budget": {
+        "max_tool_calls": 2,
+        "max_tokens": 100000
+      },
+      "no-tool-errors": {
+        "tool_errors": {
+          "max": 0
+        }
+      },
+      "says-expected": {
+        "answer_contains": "@expect"
+      },
+      "touches": {
+        "files_touched": "@expect"
+      },
+      "new-file": {
+        "script": "checks/new-file.sh",
+        "description": "the checkout has new.txt as the Mock wrote it"
+      }
     },
-    "correctness": ["exit-ok", "says-expected"]
+    "correctness": [
+      "exit-ok",
+      "says-expected"
+    ]
   }
 }

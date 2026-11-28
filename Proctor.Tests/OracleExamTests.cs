@@ -3,23 +3,19 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-// A task's answer sheet and the exam's oracle block, as loaded and validated (plans/oracle-in-proctor.md, work item 1).
+// A stage's answer sheet and the exam's oracle block, as loaded and validated (plans/oracle-in-proctor.md, work item 1).
 public class OracleExamTests
 {
     const string Sheet = "# Answers\n\n## deploy-target\nStaging only.\n";
 
-    /// <summary>The gate exam with its plain task naming a sheet: one bare nb variant and one through Harbor.</summary>
-    static TestRepo GateWithOracle(string sheet = Sheet, string path = "oracle/plain.md")
-    {
-        var repo = new TestRepo();
-        repo.CopyExam("gate");
-        repo.Write("gate/oracle/plain.md", sheet);
-        repo.EditJson("gate/tasks/plain.json", t => t["oracle"] = path);
-        return repo;
-    }
+    /// <summary>
+    /// The gate exam as two stages, each on one value of an `ending` axis, so a try is one stage: plain names a sheet,
+    /// writes does not. Each is named bare and through Harbor.
+    /// </summary>
+    static TestRepo GateWithOracle(string sheet = Sheet, string path = "oracle/plain.md") => TestRepo.GateWithOracle(sheet, path);
 
     [Fact]
-    public void AnOracleTask_Loads_WithItsSheetOnTheHost_AndNbsDefaultTurns()
+    public void AStageWithASheet_Loads_WithItsSheetOnTheHost_AndNbsDefaultTurns()
     {
         using var repo = GateWithOracle();
         var exam = repo.LoadExam("gate");
@@ -56,14 +52,14 @@ public class OracleExamTests
     public void TheSheet_MustBeInsideTheExam_AndExist(string path, string message)
     {
         using var repo = GateWithOracle(path: path);
-        Assert.Contains(repo.Problems("gate"), p => p.File.EndsWith("plain.json") && p.Field == "oracle" && p.Message.Contains(message));
+        Assert.Contains(repo.Problems("gate"), p => p.File.EndsWith("exam.json") && p.Field == "stages[0].oracle" && p.Message.Contains(message));
     }
 
     [Fact]
     public void ASheetWithNoHeadedEntry_IsAProblem()
     {
         using var repo = GateWithOracle(sheet: "Staging only.\n");
-        Assert.Contains(repo.Problems("gate"), p => p.Field == "oracle" && p.Message.Contains("no headed entries"));
+        Assert.Contains(repo.Problems("gate"), p => p.Field == "stages[0].oracle" && p.Message.Contains("no headed entries"));
     }
 
     [Fact]
@@ -81,20 +77,25 @@ public class OracleExamTests
 
     // Decided 2026-10-29: bridged, a vendor agent leaves no ATIF, so an oracle runs on nb variants only.
     [Fact]
-    public void AVendorVariant_IsRefused_WhenATaskHasAnOracle()
+    public void AVendorsAgent_IsRefused_WhereAStageHasASheet()
     {
         using var repo = GateWithOracle();
-        repo.AddVariant("gate", """{"id": "cc", "agent": "claude-code", "model": "claude-haiku-5-5", "agent_version": "2.1.290"}""");
+        repo.EditJson("gate/exam.json", e =>
+        {
+            e["axes"]!["route"]!["values"]!["cc"] = JsonNode.Parse("""{"note": "Claude Code", "agent": "claude-code", "model": "claude-haiku-5-5", "agent_version": "2.1.290"}""");
+            e["configurations"]!["plain-cc"] = JsonNode.Parse("""{"ending": "plain", "route": "cc"}""");
+        });
         var problem = Assert.Single(repo.Problems("gate"));
 
-        Assert.Equal(("exams/gate/exam.json", "variants"), (problem.File, problem.Field));
-        Assert.StartsWith("not yet: variant 'cc' is claude-code, and task plain names an answer sheet", problem.Message);
+        Assert.Equal("exams/gate/exam.json", problem.File);
+        Assert.Contains("is claude-code", problem.Message);
+        Assert.Contains("plain names an answer sheet", problem.Message);
     }
 
     [Theory]
     [InlineData("oracle @answers.md", "the exam's oracle block sets the oracle")]
     [InlineData("budget oracle_turns 2", "set oracle.turns in exam.json")]
-    public void TheTemplate_MayNotStateTheOracle_WhenATaskHasOne(string directive, string message)
+    public void TheTemplate_MayNotStateTheOracle_WhenAStageHasASheet(string directive, string message)
     {
         using var repo = GateWithOracle();
         var template = File.ReadAllText(Path.Combine(repo.Root, "exams", "gate", "program.nb"));
@@ -106,7 +107,7 @@ public class OracleExamTests
     [InlineData("provider {{provider}}\nrun Task: {{prompt}}\n")]
     [InlineData("provider {{provider}}\nrun {{prompt}}\nrun and again\n")]
     [InlineData("run {{prompt}}\nprovider {{provider}}\n")]
-    public void OnAnNbAgentVariant_TheTemplateMustEndInItsOneRun(string template)
+    public void ThroughHarbor_TheTemplateMustEndInItsOneRun(string template)
     {
         using var repo = GateWithOracle();
         repo.Write("gate/program.nb", template);
@@ -116,11 +117,12 @@ public class OracleExamTests
     [Fact]
     public void TheRunRule_IsTheBridgesOnly_AndIgnoresCommentsAndContinuations()
     {
-        // Bare variants only: the program runs the prompt itself, so any run is fine.
+        // Bare only: the program runs the prompt itself, so any run is fine.
         using var bare = GateWithOracle();
-        bare.RemoveVariant("gate", "nb-harbor");
         bare.EditJson("gate/exam.json", s =>
         {
+            s["axes"]!["route"]!["values"]!.AsObject().Remove("harbor");
+            foreach (var name in new[] { "plain-harbor", "writes-harbor" }) s["configurations"]!.AsObject().Remove(name);
             s.Remove("harbor");
             s.Remove("limits");
         });

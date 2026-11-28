@@ -352,6 +352,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         { Axis = exam.Axes?.Of(variant.Id!) is { } c ? c.Values.ToDictionary(v => v.Axis, v => v.Value) : new(),
           Params = exam.Axes?.Of(variant.Id!) is { } pc ? exam.Axes.Params(pc, exam.Def, exam.FixtureOf(task), exam.Dir) : new(),
           Overlays = exam.Axes?.Of(variant.Id!) is { } oc ? exam.Axes.Overlays(oc, exam.Dir) : [],
+          Try = entry.IdOf(variant.Id!, n),
           Expect = exam.ExpectFor(task), Fixture = exam.FixtureOf(task), BundleDir = entry.BundleOf(variant.Id!)?.Path, NbRunner = entry.Nb.Runner?.Script ?? "", NbPath = entry.Nb.Path, NbConfig = entry.Nb.Config, Mounts = entry.Nb.Mounts, ScriptsInVerifier = variant.IsAgent, Vendor = variant.IsVendor,
           VerifierTask = variant.IsAgent && entry.Stages is not null ? Layout.HarborJobTask(Layout.LogEntry(root, entry.Id), variant.Id!, exam.Id) : variant.IsAgent ? Layout.HarborTask(Layout.LogEntry(root, entry.Id), variant.Id!, task.Id!) : null };
 

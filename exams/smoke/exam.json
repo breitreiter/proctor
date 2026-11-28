@@ -1,21 +1,124 @@
 {
   "id": "smoke",
-  "description": "Proctor's own shakedown: three scripted tasks against nb's Mock provider, so the pipeline and the report can be tested without a model.",
+  "description": "Proctor's own shakedown: four scripted stages against nb's Mock provider, so the pipeline and the report can be tested without a model.",
   "attempts": 2,
+  "fixture": "note",
   "hooks": {
-    "variant":    { "setup": "hooks/variant-setup.sh" },
-    "attempt": { "setup": "hooks/attempt-setup.sh", "teardown": "hooks/attempt-teardown.sh" }
+    "variant": {
+      "setup": "hooks/configuration-setup.sh"
+    },
+    "attempt": {
+      "setup": "hooks/try-setup.sh",
+      "teardown": "hooks/try-teardown.sh"
+    }
   },
+  "axes": {
+    "assistant": {
+      "about": "which of nb's Mock providers answers; both read their script from the prompt, so no model is called",
+      "reference": "mock",
+      "values": {
+        "mock": {
+          "note": "nb on its Mock provider",
+          "provider": "Mock",
+          "model": "mock"
+        },
+        "mock-b": {
+          "note": "nb on a second Mock provider, standing in for another model",
+          "provider": "MockB",
+          "model": "mock"
+        }
+      }
+    },
+    "extra": {
+      "about": "files laid over the checkout before the first stage",
+      "reference": "none",
+      "values": {
+        "none": {
+          "note": "the fixture as it is"
+        },
+        "smoke": {
+          "note": "a README under extra/, standing in for docs a value brings",
+          "files": {
+            "path": "values/extra/smoke",
+            "to": "extra"
+          }
+        }
+      }
+    }
+  },
+  "configurations": {
+    "a": {
+      "assistant": "mock",
+      "extra": "none"
+    },
+    "b": {
+      "assistant": "mock-b",
+      "extra": "smoke"
+    }
+  },
+  "stages": [
+    {
+      "id": "plain",
+      "about": "The model answers in one turn with no tools",
+      "prompt": "MOCK:response=hello world",
+      "expect": {
+        "answer_contains": "hello"
+      }
+    },
+    {
+      "id": "uses-bash",
+      "about": "The model runs one bash command and answers",
+      "prompt": "MOCK:tool=bash echo hi"
+    },
+    {
+      "id": "loops",
+      "about": "The model repeats a bash command until nb nudges it out of the loop",
+      "prompt": "MOCK:loop=bash echo x"
+    },
+    {
+      "id": "writes-a-file",
+      "about": "The model writes a new file, the one stage that changes the checkout",
+      "prompt": "MOCK:tool=write_file made.txt",
+      "checks": {
+        "made-a-file": {
+          "files_touched": {
+            "paths": [
+              "made.txt"
+            ],
+            "mode": "exactly"
+          }
+        }
+      }
+    }
+  ],
   "grading": {
     "checks": {
-      "exit_ok":       { "exit_reason": "ok" },
-      "no_denials":    { "denied_calls": { "max": 0 } },
-      "not_nudged":    { "loop_nudged": false },
-      "under_budget":  { "max_tool_calls": 3, "max_tokens": 100000 },
-      "says-expected": { "answer_contains": "@expect" },
-      "touches-note":  { "files_touched": { "paths": ["note.txt"], "mode": "at_least" } },
-      "answer-nonempty": { "script": "checks/answer-nonempty.sh", "description": "the last assistant message is not empty" }
+      "exit_ok": {
+        "exit_reason": "ok"
+      },
+      "no_denials": {
+        "denied_calls": {
+          "max": 0
+        }
+      },
+      "not_nudged": {
+        "loop_nudged": false
+      },
+      "under_budget": {
+        "max_tool_calls": 3,
+        "max_tokens": 100000
+      },
+      "says-expected": {
+        "answer_contains": "@expect"
+      },
+      "answer-nonempty": {
+        "script": "checks/answer-nonempty.sh",
+        "description": "the last assistant message is not empty"
+      }
     },
-    "correctness": ["exit_ok", "says-expected"]
+    "correctness": [
+      "exit_ok",
+      "says-expected"
+    ]
   }
 }

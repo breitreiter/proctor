@@ -27,31 +27,30 @@ public class GradeTests
     }
 
     [Fact]
-    public void Grade_WritesChecksJsonPerCompletedAttempt_AndComputesPass()
+    public void Grade_WritesChecksJsonPerCompletedStage_AndComputesPass()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.OneVariantOneAttempt();
-        var problems = new List<Problem>();
-        var config = Exam.LoadConfig(repo.Root, problems);
+        repo.OneConfiguration();
+        repo.Run("smoke");
         var exam = repo.LoadExam("smoke");
-        var id = Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null)!;
-        var entryDir = Layout.LogEntry(repo.Root, id);
-        File.WriteAllText(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "uses-bash", 1), "status"), "failed\n");
+        string Stage(string id) => repo.StageDir("smoke", TestRepo.A, id);
 
         var log = new StringWriter();
         var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, log);
 
-        Assert.Equal(3, grades.Count);
-        // A check that did not pass shows its reason on the attempt's line, as checks.json holds it (#12).
-        Assert.Matches(@"a/loops/1  fail  .*exit_ok=fail \(exit_reason=\w+\)", log.ToString());
+        Assert.Equal(4, grades.Count);
+        // A check that did not pass shows its reason on the stage's line, as checks.json holds it (#12).
+        Assert.Matches($@"{TestRepo.A}/1/loops  fail  .*exit_ok=fail \(exit_reason=\w+\)", log.ToString());
         var plain = grades.Single(g => g.Task == "plain");
         Assert.True(plain.Pass);
         Assert.Equal("pass", plain.Checks!["exit_ok"].Result);
         Assert.Equal("pass", plain.Checks["says-expected"].Result);
-        Assert.Equal("pass", plain.Checks["touches-note"].Result);
         Assert.Equal("pass", plain.Checks["answer-nonempty"].Result);
         Assert.Contains("words", plain.Checks["answer-nonempty"].Reason);
+        // A stage's own check is graded on that stage and on no other.
+        Assert.False(plain.Checks.ContainsKey("made-a-file"));
+        Assert.Equal("pass", grades.Single(g => g.Task == "writes-a-file").Checks!["made-a-file"].Result);
 
         var loops = grades.Single(g => g.Task == "loops");
         Assert.False(loops.Pass);
@@ -59,15 +58,10 @@ public class GradeTests
         Assert.Equal("fail", loops.Checks["not_nudged"].Result);
         Assert.Equal("pass", loops.Checks["under_budget"].Result);
 
-        var failed = grades.Single(g => g.Task == "uses-bash");
-        Assert.Null(failed.Checks);
-        Assert.Null(failed.Pass);
-        Assert.False(File.Exists(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "uses-bash", 1), "checks.json")));
-
         // checks.json is the map the plan shows, re-readable.
-        var written = Grade.ReadChecks(TestRepo.Attempt(repo.Root, id, "a", "plain", 1))!;
+        var written = Grade.ReadChecks(Stage("plain"))!;
         Assert.Equal(exam.Grading.Checks!.Keys.Order(), written.Keys.Order());
-        var raw = JsonNode.Parse(File.ReadAllText(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "plain", 1), "checks.json")))!;
+        var raw = JsonNode.Parse(File.ReadAllText(Path.Combine(Stage("plain"), "checks.json")))!;
         Assert.Equal("exit_reason=ok", raw["exit_ok"]!["reason"]!.GetValue<string>());
         Assert.Equal("pass", raw["exit_ok"]!["result"]!.GetValue<string>());
 
@@ -80,36 +74,33 @@ public class GradeTests
         Assert.Null(raw["exit_ok"]!["script"]);
 
         // Graded from the trajectory nb wrote beside its JSONL, so evidence points at its steps (C3).
-        Assert.True(File.Exists(Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "plain", 1), Layout.TrajectoryFile)));
+        Assert.True(File.Exists(Path.Combine(Stage("plain"), Layout.TrajectoryFile)));
         Assert.NotNull(raw["says-expected"]!["evidence"]![0]!["step"]);
-        Assert.Equal("note.txt", raw["touches-note"]!["evidence"]![0]!["file"]!.GetValue<string>());
+        var made = JsonNode.Parse(File.ReadAllText(Path.Combine(Stage("writes-a-file"), "checks.json")))!;
+        Assert.Equal("made.txt", made["made-a-file"]!["evidence"]![0]!["file"]!.GetValue<string>());
         Assert.Null(raw["exit_ok"]!["evidence"]);
     }
 
     [Fact]
-    public void Grade_LimitedToVariantsAndTasks_LeavesTheOtherAttemptsAsTheyWere()
+    public void Grade_LimitedToAConfiguration_LeavesTheOthersTriesAsTheyWere()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
         repo.EditJson("smoke/exam.json", e => e["attempts"] = 1);
-        var config = Exam.LoadConfig(repo.Root, []);
+        repo.Run("smoke");
         var exam = repo.LoadExam("smoke");
-        var id = Runner.Run(repo.Root, exam, config, null, null, "test", TextWriter.Null)!;
-        var entryDir = Layout.LogEntry(repo.Root, id);
-        bool Graded(string variant, string task) => File.Exists(Path.Combine(TestRepo.Attempt(repo.Root, id, variant, task, 1), "checks.json"));
+        bool Graded(string key, string stage) => File.Exists(Path.Combine(repo.StageDir("smoke", key, stage), "checks.json"));
 
-        var onlyA = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, variants: ["a"]).Current, TextWriter.Null);
-        Assert.All(onlyA, g => Assert.Equal("a", g.Variant));
-        Assert.True(Graded("a", "plain"));
-        Assert.False(Graded("b", "plain"));
+        var onlyA = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, variants: [TestRepo.A]).Current, TextWriter.Null);
+        Assert.All(onlyA, g => Assert.Equal(TestRepo.A, g.Variant));
+        Assert.True(Graded(TestRepo.A, "plain"));
+        Assert.False(Graded(TestRepo.B, "plain"));
 
-        // a later pass over b's plain task leaves a's checks.json untouched
-        var aPlain = Path.Combine(TestRepo.Attempt(repo.Root, id, "a", "plain", 1), "checks.json");
+        // a later pass over b leaves a's checks.json untouched
+        var aPlain = Path.Combine(repo.StageDir("smoke", TestRepo.A, "plain"), "checks.json");
         File.WriteAllText(aPlain, "{}");
-        var bPlain = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, variants: ["b"], tasks: ["plain"]).Current, TextWriter.Null);
-        Assert.Equal(("b", "plain"), (Assert.Single(bPlain).Variant, bPlain[0].Task));
-        Assert.True(Graded("b", "plain"));
-        Assert.False(Graded("b", "loops"));
+        Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, variants: [TestRepo.B]).Current, TextWriter.Null);
+        Assert.True(Graded(TestRepo.B, "plain"));
         Assert.Equal("{}", File.ReadAllText(aPlain));
     }
 

@@ -8,15 +8,7 @@ namespace Proctor.Tests;
 // work items 3 and 4).
 public class OracleHarborTests
 {
-    /// <summary>The gate exam with its plain task naming a sheet: one bare nb variant and one through Harbor.</summary>
-    static TestRepo GateWithOracle()
-    {
-        var repo = new TestRepo();
-        repo.CopyExam("gate");
-        repo.Write("gate/oracle/plain.md", "# Answers\n\n## deploy-target\nStaging only.\n");
-        repo.EditJson("gate/tasks/plain.json", t => t["oracle"] = "oracle/plain.md");
-        return repo;
-    }
+    static TestRepo GateWithOracle() => TestRepo.GateWithOracle();
 
     [Fact]
     public void Compile_AnOracleExam_BringsTheSimulatedUser_AndItsTemplate()
@@ -32,13 +24,13 @@ public class OracleHarborTests
         File.AppendAllText(Path.Combine(agents, "oracle_user.py"), "# edited\n");
         Assert.NotEqual(hash, HarborCompile.TreeHash(entryDir));
 
-        // The bridge's acpx config lands in the work directory; an oracle task's diff leaves it out, and no other task's does.
-        Assert.Contains("git add -A -- . ':(exclude).acpxrc.json' && git diff", File.ReadAllText(Path.Combine(Layout.HarborTask(entryDir, "nb-harbor", "plain"), "task.toml")));
-        Assert.Contains("git add -A && git diff", File.ReadAllText(Path.Combine(Layout.HarborTask(entryDir, "nb-harbor", "writes"), "task.toml")));
+        // The bridge's acpx config lands in the work directory; the diff of a try with a sheet leaves it out, and no other's does.
+        Assert.Contains("git add -A -- . ':(exclude).acpxrc.json' && git diff", File.ReadAllText(Path.Combine(Layout.HarborJobTask(entryDir, "ending=plain,route=harbor", "gate"), "task.toml")));
+        Assert.Contains("git add -A && git diff", File.ReadAllText(Path.Combine(Layout.HarborJobTask(entryDir, "ending=writes,route=harbor", "gate"), "task.toml")));
     }
 
     [Fact]
-    public void Compile_AnExamWithNoOracleTask_BringsNoSimulatedUser()
+    public void Compile_AnExamWithNoSheet_BringsNoSimulatedUser()
     {
         using var repo = new TestRepo();
         repo.CopyExam("gate");

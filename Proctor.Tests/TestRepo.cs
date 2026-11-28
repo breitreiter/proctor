@@ -38,17 +38,13 @@ sealed class TestRepo : IDisposable
         var source = Path.Combine(SourceRoot, "exams", examId);
         if (!Directory.Exists(source)) source = Path.Combine(SourceRoot, "Proctor.Tests", "exams", examId);   // test data, never an exam to run
         CopyDirectory(source, Path.Combine(Root, "exams", examId));
-        // An exam of stages names its fixture itself and has no tasks/; one with axes has no variants/ either.
-        if (JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "exams", examId, "exam.json")))?["fixture"]?.GetValue<string>() is { } examFixture) CopyFixture(examFixture);
-        foreach (var file in Files("tasks"))
-            if (JsonNode.Parse(File.ReadAllText(file))?["fixture"]?.GetValue<string>() is { } fixture) CopyFixture(fixture);
-        foreach (var file in Files("variants"))
-            if (JsonNode.Parse(File.ReadAllText(file))?["bundle"]?["path"]?.GetValue<string>() is { } bundle && !Directory.Exists(Path.Combine(Root, bundle)))
-                CopyDirectory(Path.Combine(SourceRoot, bundle), Path.Combine(Root, bundle));
+        var exam = JsonNode.Parse(File.ReadAllText(Path.Combine(Root, "exams", examId, "exam.json")))!;
+        if (exam["fixture"]?.GetValue<string>() is { } examFixture) CopyFixture(examFixture);
+        // A world axis names a fixture per value.
+        foreach (var fixture in (exam["axes"] as JsonObject ?? []).SelectMany(a => (a.Value?["values"] as JsonObject ?? []).Select(v => v.Value?["fixture"]?.GetValue<string>())).OfType<string>())
+            CopyFixture(fixture);
         WriteProctorConfig();
         return Path.Combine(Root, "exams", examId);
-
-        string[] Files(string sub) => Path.Combine(Root, "exams", examId, sub) is var dir && Directory.Exists(dir) ? Directory.GetFiles(dir, "*.json") : [];
     }
 
     /// <summary>Copy a fixture from this repository's fixtures/ into the temp root.</summary>
@@ -98,55 +94,77 @@ sealed class TestRepo : IDisposable
         File.WriteAllText(path, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    /// <summary>Edit one variant's file, exams/&lt;exam&gt;/variants/&lt;id&gt;.json, in place.</summary>
-    public void EditVariant(string examId, string variantId, Action<JsonObject> edit) => EditJson($"{examId}/variants/{variantId}.json", edit);
+    /// <summary>Edit one stage of an exam, by id, in its exam.json.</summary>
+    public void EditStage(string examId, string stage, Action<JsonObject> edit) =>
+        EditJson($"{examId}/exam.json", e => edit(e["stages"]!.AsArray().Select(s => s!.AsObject()).Single(s => s["id"]!.GetValue<string>() == stage)));
 
-    /// <summary>Write a variant's file from its JSON, named by its id.</summary>
-    public void AddVariant(string examId, string json) =>
-        Write($"{examId}/variants/{JsonNode.Parse(json)!["id"]!.GetValue<string>()}.json", json);
-
-    /// <summary>Retire a variant: delete its file.</summary>
-    public void RemoveVariant(string examId, string variantId) => File.Delete(Path.Combine(Root, "exams", examId, "variants", variantId + ".json"));
-
-    /// <summary>Give a variant another id: its file moves with it.</summary>
-    public void RenameVariant(string examId, string from, string to)
-    {
-        EditVariant(examId, from, v => v["id"] = to);
-        File.Move(Path.Combine(Root, "exams", examId, "variants", from + ".json"), Path.Combine(Root, "exams", examId, "variants", to + ".json"));
-    }
-
-    /// <summary>Retire every variant of the exam but one.</summary>
-    public void KeepOnlyVariant(string examId, string keep)
-    {
-        foreach (var file in Directory.GetFiles(Path.Combine(Root, "exams", examId, "variants"), "*.json"))
-            if (Path.GetFileNameWithoutExtension(file) != keep) File.Delete(file);
-    }
-
-    /// <summary>The smoke exam's commonest shape in a test: variant a alone, one attempt of each task.</summary>
-    public void OneVariantOneAttempt(string examId = "smoke", string keep = "a")
-    {
-        KeepOnlyVariant(examId, keep);
-        EditJson($"{examId}/exam.json", e => e["attempts"] = 1);
-    }
-
-    /// <summary>Turn a copied task exam into one job of stages: each task, in file order, becomes a stage of exam.json on the one fixture they share.</summary>
-    public void Stage(string examId)
-    {
-        var tasksDir = Path.Combine(Root, "exams", examId, "tasks");
-        var stages = new JsonArray();
-        string? fixture = null;
-        foreach (var file in Directory.GetFiles(tasksDir, "*.json").Order(StringComparer.Ordinal))
+    /// <summary>The smoke exam's commonest shape in a test: one named configuration alone (a: the first Mock, nothing laid over), one try.</summary>
+    public void OneConfiguration(string examId = "smoke", string keep = "a") =>
+        EditJson($"{examId}/exam.json", e =>
         {
-            var task = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
-            fixture = task["fixture"]?.GetValue<string>();
-            task.Remove("fixture");
-            task.Remove("labels");   // labels are the exam's; a stage has none
-            if (task["description"] is { } description) { task["about"] = description.DeepClone(); task.Remove("description"); }
-            stages.Add(task);
-        }
-        Directory.Delete(tasksDir, recursive: true);
-        EditJson($"{examId}/exam.json", e => { e["fixture"] = fixture; e["stages"] = stages; });
+            e["attempts"] = 1;
+            var named = e["configurations"]!.AsObject();
+            foreach (var name in named.Select(c => c.Key).Where(n => n != keep).ToList()) named.Remove(name);
+        });
+
+    /// <summary>`proctor run` as the verb does it: the configurations the exam names (or those asked for), made. Returns the log entry's id and what was printed.</summary>
+    public (string? Id, string Log) Run(string examId, List<string>? values = null, string? configuration = null, ProctorConfig? config = null)
+    {
+        var log = new StringWriter();
+        var (exam, keys) = Verbs.ForRun(Root, LoadExam(examId), null, values, configuration);
+        var id = Runner.Run(Root, exam, config ?? Exam.LoadConfig(Root, []), null, null, "test", log, keys);
+        return (id, log.ToString());
     }
+
+    /// <summary>The smoke exam's two named configurations, by key: a (the first Mock, nothing laid over) and b (the second Mock, with the extra files).</summary>
+    public const string A = "assistant=mock,extra=none", B = "assistant=mock-b,extra=smoke";
+
+    /// <summary>One stage of a configuration's n-th try: the directory its manifest, transcript and checks are in.</summary>
+    public string StageDir(string examId, string key, string stage, int n = 1)
+    {
+        var entry = Bank.Entries(Root, examId).Last(e => e.Attempts.Any(a => a.Variant == key && a.Attempt == n));
+        return Layout.Attempt(Root, examId, key, stage, n, entry.Stages, entry.IdOf(key, n));
+    }
+
+    /// <summary>The directory of a configuration's n-th try, by its number, whatever id it is kept under.</summary>
+    public string TryDir(string examId, string key, int n)
+    {
+        var entry = Bank.Entries(Root, examId).Last(e => e.Attempts.Any(a => a.Variant == key && a.Attempt == n));
+        return Layout.Try(Root, examId, key, n, entry.IdOf(key, n));
+    }
+
+    /// <summary>
+    /// The gate exam as two stages, each on one value of an `ending` axis, so a try is one stage: plain names an answer
+    /// sheet, writes does not. Each is named bare and through Harbor, where the one with the sheet is a plain task.
+    /// </summary>
+    public static TestRepo GateWithOracle(string sheet = "# Answers\n\n## deploy-target\nStaging only.\n", string path = "oracle/plain.md")
+    {
+        var repo = new TestRepo();
+        repo.CopyExam("gate");
+        repo.Write("gate/oracle/plain.md", sheet);
+        repo.EditJson("gate/exam.json", e =>
+        {
+            var stages = e["stages"]!.AsArray().Select(s => s!.AsObject()).Where(s => s["id"]!.GetValue<string>() is "plain" or "writes").Select(s => s.DeepClone().AsObject()).ToList();
+            foreach (var stage in stages) stage["when"] = $"ending = {stage["id"]!.GetValue<string>()}";
+            stages.Single(s => s["id"]!.GetValue<string>() == "plain")["oracle"] = path;
+            e["stages"] = new JsonArray(stages.ToArray<JsonNode?>());
+            var axes = new JsonObject { ["ending"] = JsonNode.Parse("""{ "about": "which stage a try is", "reference": "plain", "values": { "plain": { "note": "the stage with the sheet" }, "writes": { "note": "the stage that writes" } } }""") };
+            foreach (var (name, axis) in e["axes"]!.AsObject().ToList()) { e["axes"]!.AsObject().Remove(name); axes[name] = axis; }
+            e["axes"] = axes;
+            e["configurations"] = JsonNode.Parse("""
+                { "plain-bare": { "ending": "plain", "route": "bare" }, "plain-harbor": { "ending": "plain", "route": "harbor" },
+                  "writes-bare": { "ending": "writes", "route": "bare" }, "writes-harbor": { "ending": "writes", "route": "harbor" } }
+                """);
+        });
+        return repo;
+    }
+
+    /// <summary>Three scripted stages with no check of their own, in the order tests written before smoke had four expect: loops, plain, uses-bash.</summary>
+    public const string ThreeStages = """
+        [ { "id": "loops", "about": "The model repeats a bash command until nb nudges it out of the loop", "prompt": "MOCK:loop=bash echo x" },
+          { "id": "plain", "about": "The model answers in one turn with no tools", "prompt": "MOCK:response=hello world", "expect": { "answer_contains": "hello" } },
+          { "id": "uses-bash", "about": "The model runs one bash command and answers", "prompt": "MOCK:tool=bash echo hi" } ]
+        """;
 
     public Exam LoadExam(string examId)
     {

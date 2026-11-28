@@ -5,7 +5,7 @@ using Proctor;
 namespace Proctor.Tests;
 
 /// <summary>
-/// A staged exam by an agent variant: one Harbor task whose steps are the stages, one trial per try, each step ingested
+/// A try through Harbor: one Harbor task whose steps are the stages, one trial per try, each step ingested
 /// as its stage. A fake uv stands in for Harbor and writes what Harbor 0.24.0 writes for a multi-step trial (seen on a
 /// real run, 2026-11-23): step_results in result.json, and steps/&lt;name&gt;/{agent,verifier,artifacts}.
 /// </summary>
@@ -18,7 +18,6 @@ public class StagedHarborTests
     {
         var repo = new TestRepo();
         repo.CopyExam("harbor-unit");
-        repo.Stage("harbor-unit");
         repo.EditJson("harbor-unit/exam.json", e =>
         {
             if (chained) e["chained"] = true;
@@ -67,14 +66,11 @@ public class StagedHarborTests
         echo '1 of 6 tests failed' > "$t/steps/fix-null-deref/verifier/tests-pass.out"; echo 1 > "$t/steps/fix-null-deref/verifier/tests-pass.exit"
         """;
 
-    static (string? Id, string Log) Run(TestRepo repo)
-    {
-        var log = new StringWriter();
-        var id = Runner.Run(repo.Root, repo.LoadExam("harbor-unit"), Exam.LoadConfig(repo.Root, []), null, null, "test", log);
-        return (id, log.ToString());
-    }
+    const string K = "assistant=cc-haiku";
 
-    static string Stage(TestRepo repo, string stage) => Path.Combine(repo.Root, "bank", "harbor-unit", "cc-haiku", "1", "stages", stage);
+    static (string? Id, string Log) Run(TestRepo repo) => repo.Run("harbor-unit");
+
+    static string Stage(TestRepo repo, string stage) => Path.Combine(repo.TryDir("harbor-unit", K, 1), "stages", stage);
     static string Status(TestRepo repo, string stage) => File.ReadAllText(Path.Combine(Stage(repo, stage), "status")).Trim();
 
     [Fact]
@@ -82,7 +78,7 @@ public class StagedHarborTests
     {
         using var repo = Repo(TwoSteps + "\n" + Result(Step("look"), Step("fix-null-deref")));
         var (id, _) = Run(repo);
-        var task = Path.Combine(repo.Root, "log", id!, "harbor", "tasks", "cc-haiku", "harbor-unit");
+        var task = Path.Combine(repo.Root, "log", id!, "harbor", "tasks", K, "harbor-unit");
 
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
         Assert.Contains("name = \"proctor/harbor-unit\"", toml);
@@ -102,7 +98,7 @@ public class StagedHarborTests
         Assert.Contains("chown --reference=.git . && chmod --reference=.git . && git reset -q --hard HEAD && git clean -fdq", File.ReadAllText(Path.Combine(task, "steps", "fix-null-deref", "workdir", "setup.sh")));
         Assert.False(Directory.Exists(Path.Combine(task, "steps", "look", "workdir")));
         Assert.True(Directory.Exists(Path.Combine(task, "environment", "repo")));
-        Assert.EndsWith(Path.Combine("harbor", "tasks", "cc-haiku", "harbor-unit"), JsonNode.Parse(File.ReadAllText(Path.Combine(repo.Root, "job.seen.json")))!["tasks"]![0]!["path"]!.GetValue<string>());
+        Assert.EndsWith(Path.Combine("harbor", "tasks", K, "harbor-unit"), JsonNode.Parse(File.ReadAllText(Path.Combine(repo.Root, "job.seen.json")))!["tasks"]![0]!["path"]!.GetValue<string>());
     }
 
     [Fact]
@@ -110,7 +106,7 @@ public class StagedHarborTests
     {
         using var repo = Repo(TwoSteps + "\n" + Result(Step("look"), Step("fix-null-deref")));
         var (_, log) = Run(repo);
-        Assert.Contains("cc-haiku/1  whole", log);
+        Assert.Contains($"{K}/1  whole", log);
 
         foreach (var stage in new[] { "1-look", "2-fix-null-deref" })
         {
@@ -145,7 +141,7 @@ public class StagedHarborTests
         var (_, log) = Run(repo);
         Assert.Equal(("completed", after), (Status(repo, "1-look"), Status(repo, "2-fix-null-deref")));
         Assert.Equal("time_budget", JsonNode.Parse(File.ReadAllText(Path.Combine(Stage(repo, "1-look"), "core.json")))!["exit_reason"]!.GetValue<string>());
-        Assert.Contains(chained ? "cc-haiku/1  broke at look (time_budget)" : "cc-haiku/1  whole", log);
+        Assert.Contains(chained ? $"{K}/1  broke at look (time_budget)" : $"{K}/1  whole", log);
         // Harbor ran the step all the same; a chained exam's later stage is not read, so both runners grade the try alike.
         if (chained) Assert.False(File.Exists(Path.Combine(Stage(repo, "2-fix-null-deref"), "trajectory.json")));
         Assert.Contains("nothing to make", Run(repo).Log);
@@ -157,18 +153,18 @@ public class StagedHarborTests
         using var repo = Repo("step look \"\" '{\"ran\": 1}'\n" + Result(Step("look"), Step("fix-null-deref", "RuntimeError")));
         var (_, log) = Run(repo);
         Assert.Equal(("completed", "failed"), (Status(repo, "1-look"), Status(repo, "2-fix-null-deref")));
-        Assert.Contains("cc-haiku/1  lost at fix-null-deref: harbor: RuntimeError: it stopped", log);
+        Assert.Contains($"{K}/1  lost at fix-null-deref: harbor: RuntimeError: it stopped", log);
         var exam = repo.LoadExam("harbor-unit");
         Assert.Empty(Bank.Select(repo.Root, exam).Current);
     }
 
     [Fact]
-    public void AnAnswerSheet_OnATryOfSeveralStages_IsRefusedForAnAgentVariant()
+    public void AnAnswerSheet_OnATryOfSeveralStages_IsRefusedThroughHarbor()
     {
         // A try of one stage with an answer sheet is a plain task and is allowed (AxesHarborTests); one of several is not, since the simulated user answers a task.
         using var repo = Repo("");
         repo.Write("harbor-unit/sheet.md", "## a\nyes\n");
         repo.EditJson("harbor-unit/exam.json", e => e["stages"]![0]!["oracle"] = "sheet.md");
-        Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == "variants" && p.Message.Contains("Harbor's simulated user answers one task, not a step of several"));
+        Assert.Contains(repo.Problems("harbor-unit"), p => p.Field == "axes" && p.Message.Contains("Harbor's simulated user answers one task, not a step of several"));
     }
 }

@@ -1,14 +1,127 @@
 {
   "id": "conformance",
-  "description": "Does proctor drive each vendor agent through Harbor and read back what Harbor wrote? Every variant talks to the stub fixture's scripted model, so an attempt costs nothing.",
-  "harbor": { "version": "0.26.0" },
-  "limits": { "wall_ms": 120000 },
+  "description": "Does proctor drive each vendor agent through Harbor and read back what Harbor wrote? Every assistant talks to the stub fixture's scripted model, so a try costs nothing.",
+  "fixture": "stub",
+  "harbor": {
+    "version": "0.26.0"
+  },
+  "limits": {
+    "wall_ms": 120000
+  },
+  "axes": {
+    "script": {
+      "about": "what the stub model is scripted to do; each script is one stage, and a try is that stage alone, since an outage would lose the stages beside it",
+      "reference": "ok",
+      "values": {
+        "ok": {
+          "note": "the stub asks for one shell command, then lists the tools the agent offered"
+        },
+        "hang": {
+          "note": "the stub asks for one shell command, then never answers"
+        },
+        "fail": {
+          "note": "the stub answers every request with a 500"
+        }
+      }
+    },
+    "assistant": {
+      "about": "the vendor's agent at its pin, each on the stub's endpoint in its own wire shape",
+      "reference": "claude-code",
+      "values": {
+        "claude-code": {
+          "note": "Claude Code at code-change's pin, on the stub's Anthropic Messages endpoint",
+          "agent": "claude-code",
+          "agent_version": "2.1.301",
+          "model": "claude-haiku-5-5"
+        },
+        "codex": {
+          "note": "Codex at code-change's pin, on the stub's OpenAI Responses endpoint",
+          "agent": "codex",
+          "agent_version": "0.163.0",
+          "model": "gpt-5-mini"
+        },
+        "qwen-code": {
+          "note": "Qwen Code at code-change's pin, on the stub's OpenAI Chat Completions endpoint",
+          "agent": "qwen-code",
+          "agent_version": "0.25.2",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "claude-code.ok": {
+      "script": "ok",
+      "assistant": "claude-code"
+    },
+    "claude-code.hang": {
+      "script": "hang",
+      "assistant": "claude-code"
+    },
+    "claude-code.fail": {
+      "script": "fail",
+      "assistant": "claude-code"
+    },
+    "codex.ok": {
+      "script": "ok",
+      "assistant": "codex"
+    },
+    "codex.hang": {
+      "script": "hang",
+      "assistant": "codex"
+    },
+    "codex.fail": {
+      "script": "fail",
+      "assistant": "codex"
+    },
+    "qwen-code.ok": {
+      "script": "ok",
+      "assistant": "qwen-code"
+    },
+    "qwen-code.hang": {
+      "script": "hang",
+      "assistant": "qwen-code"
+    },
+    "qwen-code.fail": {
+      "script": "fail",
+      "assistant": "qwen-code"
+    }
+  },
+  "stages": [
+    {
+      "id": "ok",
+      "about": "The stub asks for one shell command, then lists the tools the agent offered",
+      "when": "script = ok",
+      "prompt": "Run the command the stub names. STUB:run=echo stub > made.txt"
+    },
+    {
+      "id": "hang",
+      "about": "The stub asks for one shell command, then never answers: the agent's time budget ends a completed run",
+      "when": "script = hang",
+      "prompt": "The second answer never comes. STUB:hang"
+    },
+    {
+      "id": "fail",
+      "about": "The stub answers every request with a 500: an outage, so the attempt is failed, never a run",
+      "when": "script = fail",
+      "prompt": "Nothing will answer. STUB:fail"
+    }
+  ],
   "grading": {
     "checks": {
-      "exit-ok": { "exit_reason": "ok" },
-      "one-shell-call": { "max_tool_calls": 1 },
-      "lists-tools": { "answer_contains": "tools: " }
+      "exit-ok": {
+        "exit_reason": "ok"
+      },
+      "one-shell-call": {
+        "max_tool_calls": 1
+      },
+      "lists-tools": {
+        "answer_contains": "tools: "
+      }
     },
-    "correctness": ["exit-ok", "made-file"]
+    "correctness": [
+      "exit-ok",
+      "made-file"
+    ]
   }
 }

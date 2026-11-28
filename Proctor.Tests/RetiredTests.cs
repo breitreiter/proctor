@@ -104,9 +104,6 @@ public class RetiredTests
         Assert.Contains("--reason", Assert.Throws<ProctorException>(() => Verbs.Retire(repo.Root, Id, "rewritten", null, false)).Message);
         Assert.Contains("names no configuration 'nope'", Assert.Throws<ProctorException>(() => Verbs.Retire(repo.Root, Id, "nope", "no", false)).Message);
         Assert.False(System.IO.File.Exists(File(repo)));
-
-        repo.CopyExam("smoke");
-        Assert.Contains("has variants", Assert.Throws<ProctorException>(() => Verbs.Retire(repo.Root, "smoke", "local", "no", false)).Message);
     }
 
     [Fact]

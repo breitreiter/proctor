@@ -3,7 +3,7 @@ using Proctor;
 
 namespace Proctor.Tests;
 
-/// <summary>The report of a staged exam: tries as the unit, a variant against live by Mann–Whitney, and what recurs in friction.</summary>
+/// <summary>What the report counts: tries as the unit, a value against the live one by Mann–Whitney, and what recurs in friction.</summary>
 public class TriesTests
 {
     [Fact]
@@ -25,66 +25,82 @@ public class TriesTests
         Assert.True(Tries.MinP(2, 5) >= 0.05);
     }
 
-    /// <summary>The smoke exam as two stages, variants a and b, four tries each, run, graded and read for friction.</summary>
-    static Exam Staged(TestRepo repo, int attempts = 4)
+    const string A = "assistant=a", B = "assistant=b";
+
+    /// <summary>The smoke exam as two stages and one axis whose two values are the same Mock under two names, a live: four tries each, run, graded and read for friction.</summary>
+    static Exam Made(TestRepo repo, int attempts = 4)
     {
         repo.CopyExam("smoke");
-        repo.Stage("smoke");
-        repo.EditVariant("smoke", "b", v => { v["provider"] = "Mock"; v.Remove("bundle"); v["note"] = "the same as a, under another name"; });
         repo.Write("smoke/program.nb", "provider {{provider}}\nharness {{harness}}\nloop 2\nbudget tool_calls 3\napproval bash *\nrun {{prompt}}\n");
         repo.EditJson("smoke/exam.json", e =>
         {
+            e.Remove("hooks");
             e["attempts"] = attempts;
             e["stages"] = new JsonArray(
                 JsonNode.Parse("""{"id": "ask-help", "about": "Ask a tool for its help", "prompt": "MOCK:tool=bash git --help"}"""),
                 JsonNode.Parse("""{"id": "say-hello", "about": "Answer in one turn", "prompt": "MOCK:response=hello world", "expect": {"answer_contains": "hello"}}"""));
+            e["axes"] = JsonNode.Parse("""
+                { "assistant": { "about": "who does the work", "live": "a", "values": {
+                    "a": { "note": "nb on Mock", "provider": "Mock", "model": "mock" },
+                    "b": { "note": "the same as a, under another name", "provider": "Mock", "model": "mock", "harness": "nb" } } } }
+                """);
+            e["configurations"] = JsonNode.Parse("""{ "a": { "assistant": "a" }, "b": { "assistant": "b" } }""");
         });
+        repo.Run("smoke");
         var exam = repo.LoadExam("smoke");
-        Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", TextWriter.Null);
         var current = Bank.Select(repo.Root, exam).Current;
         Grade.Attempts(repo.Root, exam, current, TextWriter.Null);
         Friction.Attempts(repo.Root, exam, current, TextWriter.Null);
         return exam;
     }
 
-    static (TriesFile Stats, FrictionRollup Friction) Report(TestRepo repo, Exam exam)
+    static (ConfigurationsFile Stats, FrictionRollup Friction) Report(TestRepo repo, Exam exam)
     {
         var selection = Bank.Select(repo.Root, exam);
-        return Tries.Compute(repo.Root, exam, selection.Current, Bank.Of(repo.Root, exam), Results.Collect(repo.Root, exam, selection.Current), Live.Load(exam),
-            Stats.Stamp(exam, selection, null, DateTime.UtcNow));
+        return Configurations.Compute(repo.Root, exam, selection.Current, Bank.Of(repo.Root, exam), Results.Collect(repo.Root, exam, selection.Current), null);
+    }
+
+    /// <summary>A configuration's tries in the bank, oldest first: each try's directory.</summary>
+    static List<string> TriesOf(TestRepo repo, Exam exam, string key) =>
+        Bank.Of(repo.Root, exam).Where(a => a.Variant == key).OrderBy(a => a.Attempt).Select(a => Path.GetDirectoryName(Path.GetDirectoryName(a.Dir(repo.Root)))!).Distinct().ToList();
+
+    static void EditChecks(string tryDir, string stage, Action<JsonObject> edit)
+    {
+        var file = Path.Combine(tryDir, "stages", stage, "checks.json");
+        var checks = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+        edit(checks);
+        File.WriteAllText(file, checks.ToJsonString());
+        // The grade kept under the standard carries the same verdicts; the report reads checks.json.
     }
 
     [Fact]
-    public void AVariantIsComparedWithLive_TryAgainstTry_AndTheSentenceIsProctors()
+    public void AValueIsComparedWithLive_TryAgainstTry_AndEachStageAndCheckIsTallied()
     {
         using var repo = new TestRepo();
-        var exam = Staged(repo);
-        new Live(new Ref("a", exam.Variants.First(v => v.Id == "a").Hash), "2026-11-23T00:00:00Z").Save(exam);
+        var exam = Made(repo);
 
-        // As run, the two variants are the same: every try holds every correctness check, with the same friction.
+        // As run, the two values are the same: every try holds every correctness check, with the same friction.
         var (same, friction) = Report(repo, exam);
-        Assert.Equal(("tries/1", 4, true), (same.Schema, same.CorrectnessChecks, same.Variants[0].Live));
+        Assert.Equal(("configurations/1", 4, true), (same.Schema, same.Configurations[0].CorrectnessChecks, same.Configurations[0].Live));
         Assert.Equal(["exit_ok", "says-expected"], same.Stages[0].CorrectnessChecks);
-        Assert.All(same.Variants, v => Assert.Equal((4, 4, 0, new Spread(4, 4, 4)), (v.Tries, v.Passed, v.Lost, v.Held)));
-        var against = same.Variants[1].AgainstLive!;
-        Assert.Equal(("a", true, "same", 16), (against.Vs, against.CanConfirm, against.Held.Direction, against.Held.Pairings));
-        Assert.Equal("No difference on either measure.", against.Sentence);
-        Assert.Null(same.Variants[0].AgainstLive);
+        Assert.All(same.Configurations, c => Assert.Equal((4, 4, 0, new Spread(4, 4, 4)), (c.Tries!.Tries, c.Tries.Passed, c.Tries.Lost, c.Tries.Held)));
+        var cell = Assert.Single(Assert.Single(same.Comparisons).Cells);
+        Assert.Equal(("compared", "same", 16), (cell.State, cell.Held!.Direction, cell.Held.Pairings));
 
         // What recurs: asking for help, in every try of both, one flagged step each time, on the stage that asked.
         var kind = Assert.Single(friction.Variants[0].Kinds);
-        Assert.Equal(("ran-help", 4, 4, new Spread(1, 1, 1), 1.0, "1/ask-help"), (kind.Label, kind.In, kind.Of, kind.When, kind.PerTry, kind.Example));
+        Assert.Equal(("ran-help", 4, 4, new Spread(1, 1, 1), 1.0), (kind.Label, kind.In, kind.Of, kind.When, kind.PerTry));
         Assert.Equal(["ask-help"], kind.Stages);
-        Assert.Equal(new Spread(1, 1, 1), same.Variants[0].Flagged);
+        Assert.Equal(new Spread(1, 1, 1), same.Configurations[0].Tries!.Flagged);
 
         // Now b's second stage answers wrong in every try: fewer correctness checks held, in all 16 pairings.
-        foreach (var n in new[] { 1, 2, 3, 4 })
-            EditChecks(repo, "b", n, "2-say-hello", c => c["says-expected"]!["result"] = "fail");
+        foreach (var dir in TriesOf(repo, exam, B))
+            EditChecks(dir, "2-say-hello", c => c["says-expected"]!["result"] = "fail");
         var (worse, _) = Report(repo, exam);
-        var b = worse.Variants[1];
+        var b = worse.Configurations[1].Tries!;
         Assert.Equal((0, new Spread(3, 3, 3)), (b.Passed, b.Held));
-        Assert.Equal(("worse", 0, 16, true), (b.AgainstLive!.Held.Direction, b.AgainstLive.Held.Higher, b.AgainstLive.Held.Lower, b.AgainstLive.Held.Confirmed));
-        Assert.Equal("Correctness checks held: worse. Flagged steps: same. Confirmed on correctness checks held: a try held fewer than a try of live in 16 of 16 pairings. Moved most: say-hello (right in 0 of 4, live 4 of 4).", b.AgainstLive.Sentence);
+        var held = worse.Comparisons[0].Cells[0].Held!;
+        Assert.Equal(("worse", 0, 16, true), (held.Direction, held.Higher, held.Lower, held.Confirmed));
         Assert.Equal(["right", "wrong"], b.Rows[0].Stages.Select(s => s.Result));
         // A stage across the tries: right in none, and each try held one of its two correctness checks, so the share is a half however many checks a stage has.
         var stage = b.Stages[1];
@@ -98,53 +114,45 @@ public class TriesTests
     }
 
     [Fact]
-    public void TooFewTries_AreSaidSo_AndALostTryIsInNoNumber()
+    public void TooFewTries_CannotConfirm_AndALostTryIsInNoNumber()
     {
         using var repo = new TestRepo();
-        var exam = Staged(repo, attempts: 2);
-        new Live(new Ref("a", exam.Variants.First(v => v.Id == "a").Hash), "2026-11-23T00:00:00Z").Save(exam);
-        EditChecks(repo, "b", 1, "2-say-hello", c => c["says-expected"]!["result"] = "fail");
+        var exam = Made(repo, attempts: 2);
+        var tries = TriesOf(repo, exam, B);
+        EditChecks(tries[0], "2-say-hello", c => c["says-expected"]!["result"] = "fail");
         // One of b's tries turns out to have been lost: its second stage did not run.
-        var lostStage = Path.Combine(repo.Root, "bank", "smoke", "b", "2", "stages", "2-say-hello");
+        var lostStage = Path.Combine(tries[1], "stages", "2-say-hello");
         File.WriteAllText(Path.Combine(lostStage, "status"), "failed\n");
         var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(lostStage, "manifest.json")))!.AsObject();
         manifest["status"] = "failed"; manifest["status_reason"] = "did not run: provider_error";
         File.WriteAllText(Path.Combine(lostStage, "manifest.json"), manifest.ToJsonString());
 
-        var (stats, _) = Report(repo, exam);
-        var b = stats.Variants[1];
-        Assert.Equal((1, 1), (b.Tries, b.Lost));
-        Assert.Equal(new LostTry("b", 2, "say-hello", "did not run: provider_error"), Assert.Single(stats.Lost));
-        Assert.False(b.AgainstLive!.CanConfirm);
-        Assert.Contains("1 try against live's 2, too few to confirm.", b.AgainstLive.Sentence);
-        Assert.False(b.AgainstLive.Held.Confirmed);
+        var (stats, friction) = Report(repo, exam);
+        var b = stats.Configurations[1];
+        Assert.Equal((1, 1, "partial"), (b.Made, b.Lost, b.State));
+        var lost = Assert.Single(stats.Lost);
+        Assert.Equal((B, "say-hello", "did not run: provider_error"), (lost.Variant, lost.At, lost.Why));
+        var cell = stats.Comparisons[0].Cells[0];
+        Assert.Equal((1, 2), (cell.Tries, cell.LiveTries));
+        Assert.False(cell.Held!.Confirmed);
 
-        var md = Tries.Markdown(stats, Report(repo, exam).Friction);
-        Assert.Contains("| Tries | 2 | 1, 1 lost |", md);
-        Assert.Contains("- b try 2, at `say-hello`: did not run: provider_error", md);
-        Assert.Contains("| 2. Answer in one turn `say-hello` | wrong | never right |", md);
+        var md = Configurations.Markdown(stats, friction);
+        Assert.Contains("| assistant=b | 1 of 2 |", md);
+        Assert.Contains("did not run: provider_error", md);
     }
 
     [Fact]
-    public void TheReportVerb_WritesTheTriesAndTheFrictionRollUp()
+    public void TheReportVerb_WritesTheNumbersAndTheFrictionRollUp()
     {
         using var repo = new TestRepo();
-        var exam = Staged(repo, attempts: 1);
+        Made(repo, attempts: 1);
         Assert.Equal(0, Verbs.Report(repo.Root, "smoke"));
         var dir = Path.Combine(repo.Root, "reports", "smoke", "explore");
         Assert.Equal(["friction.json", "results.jsonl", "stats.json", "summary.md"], Directory.GetFiles(dir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         var stats = JsonNode.Parse(File.ReadAllText(Path.Combine(dir, "stats.json")))!;
-        Assert.Equal("tries/1", stats["schema"]!.GetValue<string>());
-        Assert.Equal(2, stats["variants"]![0]!["rows"]![0]!["stages"]!.AsArray().Count);
+        Assert.Equal("configurations/1", stats["schema"]!.GetValue<string>());
+        Assert.Equal(2, stats["configurations"]![0]!["tries"]!["rows"]![0]!["stages"]!.AsArray().Count);
         Assert.Equal("friction-rollup/1", JsonNode.Parse(File.ReadAllText(Path.Combine(dir, "friction.json")))!["schema"]!.GetValue<string>());
         Assert.Equal(4, File.ReadAllLines(Path.Combine(dir, "results.jsonl")).Length);
-    }
-
-    static void EditChecks(TestRepo repo, string variant, int n, string stage, Action<JsonObject> edit)
-    {
-        var file = Path.Combine(repo.Root, "bank", "smoke", variant, n.ToString(), "stages", stage, "checks.json");
-        var checks = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
-        edit(checks);
-        File.WriteAllText(file, checks.ToJsonString());
     }
 }

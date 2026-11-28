@@ -1,7 +1,0 @@
-{
-  "id": "a",
-  "runner": "nb",
-  "harness": "nb",
-  "provider": "Mock",
-  "model": "mock"
-}

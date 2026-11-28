@@ -17,8 +17,6 @@ public class AxesRunTests
     {
         var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.Stage("smoke");
-        Directory.Delete(Path.Combine(repo.Root, "exams", "smoke", "variants"), recursive: true);
         repo.Write("smoke/values/docs/shipped/README.md", "shipped\n");
         repo.Write("smoke/values/docs/rewritten/README.md", "rewritten\n");
         repo.Write("smoke/program.nb", "provider {{provider}}\nharness {{harness}}\nloop 2\nbudget tool_calls 3\napproval bash *\n# tone {{param.TONE}}, docs {{axis.docs}}\nrun {{prompt}}\n");
