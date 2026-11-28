@@ -215,9 +215,6 @@ sealed class Axes
         void Add(string field, string message) { problems++; add(field, message); }
         var axes = def.Axes!;
 
-        var earlierDir = Layout.VariantsDirIn(dir);
-        if (Directory.Exists(earlierDir) && Directory.GetFiles(earlierDir, "*.json").Length > 0)
-            Add("axes", "this exam also has variants/*.json, the earlier shape; what is under test is declared here, so make each variant's fields a value and delete the files");
         if (axes.Count == 0) Add("axes", "at least one axis is required");
 
         // Each axis and value on its own.

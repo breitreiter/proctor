@@ -201,12 +201,13 @@ public class AxesTests
     }
 
     [Fact]
-    public void AnExamWithAxes_HasNoVariantFiles_AndNoBundle()
+    public void AnExamWithAxes_HasNoBundle_AndTheEarlierPlaceholdersAreNamedAnew()
     {
         using var repo = Smoke();
-        repo.Write("smoke/variants/c.json", """{ "id": "c", "runner": "nb", "harness": "nb", "provider": "Mock", "model": "mock" }""");
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "axes" && p.Message.Contains("also has variants"));
-        File.Delete(Path.Combine(repo.Root, "exams", "smoke", "variants", "c.json"));
+        repo.Write("smoke/program.nb", "# {{arm}} {{sample}} {{task}}\nprovider {{provider}}\nharness {{harness}}\nrun {{prompt}}\n");
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{arm}}" && p.Message.Contains("{{configuration}}"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{sample}}" && p.Message.Contains("{{attempt}}"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{task}}" && p.Message.Contains("{{stage}}"));
 
         repo.Write("smoke/program.nb", "# {{bundle}}\nprovider {{provider}}\nharness {{harness}}\nrun {{prompt}}\n");
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{bundle}}" && p.Message.Contains("{{work}}"));

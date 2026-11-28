@@ -53,6 +53,12 @@ report of variants side by side are gone; `Exam.Load` refuses the earlier
 shape and says what each part becomes, and `docs/porting-from-suites.md` is
 the map. "Variant" is an old word now, like suite, arm and batch before it.
 
+**A refusal is written for someone coming from `master`** (proctor 0.3:
+suites, arms, tasks as files, `hooks.arm` and `hooks.sample`, `grading.pass`,
+`{{arm}}`, `{{sample}}`, `{{task}}`, `--arm`, `baseline`, `resume`), who is
+everyone outside this branch. A form that only ever existed on this branch
+(`variants/`, `hooks.variant`, `--variant`, `proctor live`) gets none.
+
 **The names kept for the rename are gone** (2026-11-28, layer 1 of stage 2 in
 `project/plans/rename-to-auspex.md`). In `manifest.json`, `entry.json`,
 `results.jsonl`, `stats.json` and `friction.json` (`friction/3`) a
@@ -86,7 +92,7 @@ in the order the verbs run them. Every file is one concern:
 
 | file | holds |
 |---|---|
-| `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure; `--variant`, `--tasks` and `live` refused with what replaces each |
+| `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure; what proctor 0.3 had and this has not (`--arm`, `--tasks`, `--live`, `baseline`, `resume`) refused with what replaces each |
 | `Verbs.cs` | one method per verb: `list`, `run`, `build`, `grade`, `friction`, `report`, `compare`, `coverage`, `predict`, `retire`; which configurations a `--value` or `--configuration` selects (`Verbs.ForRun`); the earlier report moved aside |
 | `Exam/Layout.cs` | paths and file names, nothing else |
 | `Exam/Exam.cs` | `proctor.json` (the host binary and its config, `HarborConfig`), `exam.json` (attempts, stages, the `nb` block with the runner and mounts, hooks, grading), the program template: records, loading, validation (`Problem` = file, field, message); the earlier shape refused with what each part becomes; the merged check set and expect block per stage; the stages that apply in a configuration (`StagesOf`); the exam's hash and the job's (`JobHash`: what the agent meets) |
@@ -512,8 +518,7 @@ The directories are for reading, not for namespaces: everything is
   which proctor never uses), and `PROCTOR_WORK_MOUNT` (the path the model was told; the host path
   unless `nb.mounts` moved it). `hooks.configuration` runs once around a
   configuration's tries in a run (and in `build`), `hooks.try` once around
-  each try (`try.setup.log`, `try.teardown.log`); `hooks.variant` and
-  `hooks.attempt` are refused with the new names, and a `try` hook is refused
+  each try (`try.setup.log`, `try.teardown.log`); `hooks.arm` and `hooks.sample`, proctor 0.3's names for them, are refused with the new ones, and a `try` hook is refused
   where a value runs through Harbor. Hooks run in the exam
   directory; script checks run in the stage's attempt, an exam's resolved against the
   exam directory and a fixture's against the fixture directory. Scripts exit

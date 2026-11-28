@@ -24,9 +24,8 @@ static class Layout
     public const string ProctorConfigFile = "proctor.json";
     public const string ExamFile = "exam.json";
     public const string ProgramTemplateFile = "program.nb";
-    /// <summary>Beside exam.json in the earlier shape, and read only to say so: a task per file, a variant per file.</summary>
+    /// <summary>Beside the definition in the earlier shape, and read only to say so: a task per file.</summary>
     public const string TasksDir = "tasks";
-    public const string VariantsDir = "variants";
     /// <summary>In a try: a directory per stage, by its place and id.</summary>
     public const string StagesDir = "stages";
     /// <summary>Beside exam.json: one file per prediction: a named configuration and the changes expected of it (plans/axes-build.md, slice 6).</summary>
@@ -75,7 +74,6 @@ static class Layout
     public static string Exam(string root, string examId) => Path.Combine(Exams(root), examId);
     public static string ExamFileIn(string examDir) => Path.Combine(examDir, ExamFile);
     public static string TasksDirIn(string examDir) => Path.Combine(examDir, TasksDir);
-    public static string VariantsDirIn(string examDir) => Path.Combine(examDir, VariantsDir);
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
     /// <summary>The bank: every try of an exam, each under an id of its own. Its manifests say which configuration it ran as.</summary>
     public static string Bank(string root, string examId) => Path.Combine(root, BankDir, examId);

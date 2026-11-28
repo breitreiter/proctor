@@ -59,9 +59,10 @@ static class Program
         """;
 
     /// <summary>Flags and a verb of the earlier shape, each refused with what stands in its place.</summary>
-    const string NoVariants = "--variant went with variants: what is under test is an axis's values now. Narrow with --configuration <name> or --value <axis=value>",
+    const string NoArms = "--arm went with arms: what is under test is an axis's values now. Narrow with --configuration <name> or --value <axis=value>",
+        NoResume = "there is no resume: `proctor run <exam>` makes the tries each configuration lacks, and a try a run lost is made again whole",
         NoTasks = "--tasks went with tasks: an exam is one job of stages, and a stage is never run alone",
-        NoLive = "`proctor live` went with variants: what is live is declared on an axis in exam.json (\"live\": \"<value>\"), and `proctor list <exam>` says which configuration that makes live";
+        NoLive = "`baseline` and --live went with arms: what is live is declared on an axis in exam.json (\"live\": \"<value>\"), and `proctor list <exam>` says which configuration that makes live";
 
     static int Main(string[] args)
     {
@@ -83,7 +84,8 @@ static class Program
                 case "--nb" when i + 1 < args.Length: nbPath = args[++i]; break;
                 case "--config" when i + 1 < args.Length: configFile = args[++i]; break;
                 case "--runner" when i + 1 < args.Length: runner = args[++i]; break;
-                case "--variant": return Fail(NoVariants);
+                case "--arm": return Fail(NoArms);
+                case "--live": return Fail(NoLive);
                 case "--tasks": return Fail(NoTasks);
                 case "--value" when i + 1 < args.Length: (Verbs.ValueFilters ??= []).Add(args[++i]); break;
                 case "--configuration" when i + 1 < args.Length: Verbs.ConfigurationName = args[++i]; break;
@@ -123,7 +125,8 @@ static class Program
                 ("grade", [var exam]) => Verbs.Grade(root, exam, judges, rejudge, configFile),
                 ("friction", [var exam]) => Verbs.Friction(root, exam, reader, rejudge, configFile),
                 ("report", [var exam]) => Verbs.Report(root, exam),
-                ("live", _) => Fail(NoLive),
+                ("baseline", _) => Fail(NoLive),
+                ("resume", _) => Fail(NoResume),
                 ("retire", [var exam]) => Verbs.Retire(root, exam, null, reason, bringBack, json),
                 ("retire", [var exam, var configuration]) => Verbs.Retire(root, exam, configuration, reason, bringBack, json),
                 ("setup", []) => Verbs.Setup(root, check, probe),

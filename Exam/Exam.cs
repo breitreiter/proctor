@@ -89,10 +89,10 @@ record HookPair(string? Setup, string? Teardown);
 
 /// <summary>
 /// The exam's hooks, each a setup and a teardown script run on the host: around each configuration's tries, and around
-/// each try. `variant` and `attempt` are those two under their earlier names, read only to be refused; Run and Task were
+/// each try. `arm` and `sample` are those two as proctor 0.3 named them, read only to be refused; Run and Task were
 /// never built.
 /// </summary>
-record Hooks(HookPair? Run = null, HookPair? Configuration = null, HookPair? Task = null, HookPair? Try = null, JsonNode? Variant = null, JsonNode? Attempt = null);
+record Hooks(HookPair? Run = null, HookPair? Configuration = null, HookPair? Task = null, HookPair? Try = null, JsonNode? Arm = null, JsonNode? Sample = null);
 
 /// <summary>
 /// The checks, and the role of each by the list that names it (the user, 2026-11-26): correctness (was the stage
@@ -119,9 +119,9 @@ record OracleDef(string? Judge = null, int? Turns = null)
 
 /// <summary>
 /// exam.json. Attempts is how many tries every configuration the exam names should have. Tags is what labels replaced
-/// and `variants` what axes replaced; both are here so a leftover is a problem rather than silently ignored.
+/// and `arms` what axes replaced; both are here so a leftover is a problem rather than silently ignored.
 /// </summary>
-record ExamDef(string? Id, JsonNode? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null, string? Fixture = null, List<StageDef>? Stages = null, bool? Chained = null,
+record ExamDef(string? Id, JsonNode? Arms, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null, string? Fixture = null, List<StageDef>? Stages = null, bool? Chained = null,
     Dictionary<string, AxisDef>? Axes = null, Dictionary<string, Dictionary<string, string?>?>? Configurations = null, List<Dictionary<string, string?>?>? Exclude = null, Dictionary<string, ParamDef>? Params = null);
 
 /// <summary>
@@ -364,7 +364,7 @@ sealed class Exam
 
         if (!Directory.Exists(dir))
         {
-            problems.Add(new Problem(rel(dir), "", "no such exam directory"));
+            problems.Add(new Problem(rel(dir), "", "no such exam directory" + (Directory.Exists(Path.Combine(root, "suites")) ? "; this root has suites/, the layout of proctor 0.3, which docs/porting-from-suites.md maps to exams of stages and axes" : "")));
             return null;
         }
 
@@ -380,13 +380,7 @@ sealed class Exam
         // The earlier shape, said once and plainly: an exam is stages and axes in exam.json (plans/axes-build.md, slice 7).
         if (def.Stages is null || def.Axes is null)
         {
-            var has = (Directory.Exists(Layout.TasksDirIn(dir)) ? "tasks/" : null, Directory.Exists(Layout.VariantsDirIn(dir)) ? "variants/" : null) switch
-            {
-                ({ } t, { } v) => $" This one has {t} and {v}, the earlier shape: each task becomes a stage, each variant's fields a value of an axis.",
-                ({ } t, null) => $" This one has {t}, the earlier shape: each task becomes a stage.",
-                (null, { } v) => $" This one has {v}, the earlier shape: each variant's fields become a value of an axis.",
-                _ => "",
-            };
+            var has = Directory.Exists(Layout.TasksDirIn(dir)) ? " This one has tasks/, the earlier shape: each task becomes a stage." : "";
             if (def.Stages is null) problems.Add(new Problem(rel(examFile), "stages", "required: an exam is one job of stages, listed here in the order they run." + has + " docs/configuration.md shows the form"));
             if (def.Axes is null) problems.Add(new Problem(rel(examFile), "axes", "required: what is under test is declared as axes, each with its values, and the configurations to run are named under \"configurations\"." + (def.Stages is null ? "" : has) + " docs/configuration.md shows the form"));
             return null;
@@ -455,8 +449,10 @@ sealed class Exam
                 else if (name.StartsWith("param.") && (def.Params?.ContainsKey(name[6..]) == true || fixtures.Values.Any(f => f.Def.Params?.ContainsKey(name[6..]) == true))) continue;
                 else if (name == "task")
                     problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{stage}}, the stage's id"));
-                else if (name == "variant")
+                else if (name == "arm")
                     problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{configuration}}, the configuration's key; one axis's value is {{axis.<name>}}"));
+                else if (name is "sample")
+                    problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{attempt}}, the try's number"));
                 else if (name == "bundle")
                     problems.Add(new Problem(rel(templateFile), m.Value, "there is no bundle: a value's files are laid over the checkout, so read them from {{work}}; a tree a value sets is {{param.NAME}}"));
                 else if (!Placeholders.Contains(m.Groups[1].Value))
@@ -592,7 +588,7 @@ sealed class Exam
         if (def.Tags is not null) Add("tags", "removed: an exam's own metadata is labels, and whether it is judged follows from its checks");
         Labels.Validate(def.Labels, Add);
 
-        if (def.Variants is not null) Add("variants", "removed: what is under test is declared under \"axes\", each variant's fields a value of an axis, and the ones to run are named under \"configurations\"");
+        if (def.Arms is not null) Add("arms", "removed: what is under test is declared under \"axes\", each arm's fields a value of an axis, and the ones to run are named under \"configurations\"");
         if (def.Attempts is < 1) Add("attempts", "must be at least 1");
 
         ValidateHarbor(def, Add, dir, tasks, assistants, fixtures, root, problems);
@@ -601,8 +597,8 @@ sealed class Exam
 
         if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not built; use configuration or try");
         if (def.Hooks?.Task is not null) Add("hooks.task", "a hook around one stage is not built; use configuration or try");
-        if (def.Hooks?.Variant is not null) Add("hooks.variant", "renamed: hooks.configuration, which runs once around each configuration's tries");
-        if (def.Hooks?.Attempt is not null) Add("hooks.attempt", "renamed: hooks.try, which runs once around each try, its setup before the first stage and its teardown after the last");
+        if (def.Hooks?.Arm is not null) Add("hooks.arm", "renamed: hooks.configuration, which runs once around each configuration's tries");
+        if (def.Hooks?.Sample is not null) Add("hooks.sample", "renamed: hooks.try, which runs once around each try, its setup before the first stage and its teardown after the last");
         foreach (var (level, pair) in new[] { ("configuration", def.Hooks?.Configuration), ("try", def.Hooks?.Try) })
         {
             if (pair is null) continue;

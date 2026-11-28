@@ -15,7 +15,7 @@ static class Verbs
         var examIds = examId is not null ? [examId] : Directory.Exists(Layout.Exams(root))
             ? Directory.GetDirectories(Layout.Exams(root)).Where(d => File.Exists(Layout.ExamFileIn(d))).Select(d => Path.GetFileName(d)!).Order(StringComparer.Ordinal).ToArray()
             : [];
-        if (examIds.Length == 0) throw new ProctorException($"no exams under {Layout.Exams(root)}");
+        if (examIds.Length == 0) throw new ProctorException($"no exams under {Layout.Exams(root)}" + (Directory.Exists(Path.Combine(root, "suites")) ? "; this root has suites/, the layout of proctor 0.3, which docs/porting-from-suites.md maps to exams of stages and axes" : ""));
 
         var exit = 0;
         foreach (var id in examIds)

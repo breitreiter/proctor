@@ -135,6 +135,23 @@ One commit per layer, both suites passing after each.
 The changelog entry is written as the layers land; the version is the
 user's to cut.
 
+### Done
+
+- **Layer 1, 2026-11-28** (`74b8c58` and the commit after it). As planned,
+  with these differences. The type is `StageDef`, not `Stage`, since records
+  already hold a member of that name; `BankAttempt` keeps its name and its
+  members are renamed. A manifest already had `configuration` (the values)
+  and `stage` (a number), so those are `values` and `place` now; a log
+  entry's `tasks` is `stage_hashes`; `friction.json` is `friction/3`. The
+  refusals now name what `master` has (`--arm`, `baseline`, `resume`,
+  `hooks.arm`, `hooks.sample`, `arms`, `{{arm}}`, `{{sample}}`, and a root
+  with `suites/`), and those for forms only this branch had are gone.
+  The two exams that show an agent proctor at a pinned revision read either
+  field name in their trial scripts until layer 10 moves the pin. On this
+  machine every try made before is now an earlier attempt: `tern-docs` has
+  none current. Left: the field `attempt`, `PROCTOR_ATTEMPT` and
+  `{{attempt}}` hold a try's number, which the vocabulary calls a try.
+
 ### To decide
 
 1. ~~The paid tries~~: decided, no compatibility layer.
