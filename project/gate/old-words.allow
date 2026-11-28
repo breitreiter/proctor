@@ -60,3 +60,4 @@ View/**		# the viewer as it moved in on 2026-11-24 (plans/rename-to-auspex.md, s
 project/view/**		# the viewer's design notes, moved in with it; they record what was true when written
 bundles/smoke/README.md	smoke eval's bundle	# the bundle's only file: rewording it changes the bundle's identity and so the smoke variant b's hash
 project/plans/site.md	"Evals" in the general sense|"eval" was once|evals, measure, grade	# evaluation in general: the site plan says where the word may stand
+project/plans/site-copy.md	eval cases|53% baseline|baseline 53%|agent-evals|suit evals	# evaluation in general, and Vercel's own words and URL, quoted in the site copy

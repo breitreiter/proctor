@@ -1,0 +1,117 @@
+# Front page copy, sections 1 to 4
+
+## 1. Hero
+
+# Find out whether agents can use what you ship
+
+auspex runs Claude Code, Codex and Qwen Code against your MCP server, CLI, API or docs, several times per task, and grades every attempt. The report gives each pass rate with its counts and a 95% interval, and links to the transcripts behind it.
+
+auspex is free under the MIT license, and exams are files in your git repository.
+
+[See a report] [What you'll need]
+
+## 2. Problem and who it is for
+
+## Agents use your product too
+
+Coding agents read your docs and call your API, and teams now ship pieces for them, such as an MCP server, a skill, an llms.txt or an AGENTS.md. Mathias Biilmann of Netlify [named this agent experience, or AX](https://biilmann.blog/articles/introducing-ax/), in 2025.
+
+The usual check is that someone tries it once and merges when it works. One run is weak evidence, because an agent's behavior shifts with the model, its version, the harness and whatever else is in its context. Three teams have published measurements.
+
+**Vercel: the skill went unopened in 56% of eval cases**
+On Next.js 16 tasks the pass rate with the skill stayed at the 53% baseline, and an 8KB docs index placed in AGENTS.md reached 100%.
+[Source: Vercel blog](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals)
+
+**Microsoft: a shipped upgrade script ran 0 times in 10**
+The SharePoint Framework docs came with a ready-to-run upgrade script, and no agent piped it to a shell.
+[Source: Microsoft, Agent experience](https://microsoft.github.io/agent-experience/)
+
+**Stripe: a 400 was reported as success**
+Stripe holds that "a mostly correct integration is a failure". In its 11 integration environments, some agents passed data that did not exist and, after a 400 came back, declared the task complete.
+[Source: Stripe blog](https://stripe.com/blog/can-ai-agents-build-real-stripe-integrations)
+
+### Who it is for
+
+auspex is for people who:
+
+- ship an MCP server, a CLI, an API or docs that agents use
+- maintain a skill, a plugin or a CLAUDE.md
+- run an assistant inside a product, or an agent as a headless job
+- decide which agent and model a team works with, and want to know whether a change helped
+
+It produces no leaderboard and does not suit evals of one prompt in and one answer out.
+
+## 3. What sets it apart
+
+## Why the numbers hold up
+
+**Agents run in their own harness.**
+Models are tuned to their own harness, so Claude Code, Codex and Qwen Code each run in theirs, at pinned versions, through Harbor, an open-source harness runner. Each attempt gets its own container, with network access limited to the model's host.
+
+**Grading does not rely on the agent's summary.**
+Where it can be, a check is deterministic, meaning a script, one of the repository's acceptance tests run in a separate offline verifier, or a count of turns or tool calls from the trajectory. A judging model has to quote the transcript, and each quote is checked to exist there. Several votes have to agree, and a split is recorded as undecided. A judge's output is limited to a label and a quote, and no model writes any part of the report.
+
+**Every rate has an interval.**
+Each rate appears with its counts and a 95% interval, and comparisons are paired by task. Too few attempts to tell and no difference found are separate results in the report.
+
+**One thing changes at a time.**
+What you vary, such as the docs version or the model, is an axis, and a comparison holds every other axis fixed. A prediction written before the run names the check a change will move and the direction. It is scored against the results, with misses listed the same way as hits.
+
+**Attempts are kept.**
+Every attempt goes into the bank, and a check added later is graded on the attempts already there without another agent run. Since that can move a number with nothing rerun, the report says when the grading standard changed between two reports.
+
+**It can play the user.**
+Some assistants should ask before they act, as in this exchange:
+
+> "I'm looking for some shoes."
+> "What kind?"
+> "Running shoes, for trails."
+
+An answer sheet holds what the user knows and did not say, and the transcript shows whether the model asked or guessed.
+
+## 4. How it works
+
+## How it works
+
+1. **Plan the exam with your coding agent.** auspex ships a skill for this. Your agent interviews you about what you ship and what a good outcome looks like, then writes a plan and waits for your approval.
+
+2. **Prove the checks for $0.** A scripted stand-in for the model and a set of shakedown scripts show that each check passes a good attempt and fails a bad one.
+
+3. **Try a cheap or local model first.** A vague prompt or a broken fixture shows up here, before the expensive run.
+
+4. **Run the agents.** Each task gets several attempts per configuration, each in its own container.
+
+5. **Read the report, then the transcripts.** Read a few transcripts even when every row is green, because a check that is too lenient produces the same green row as an agent that did the work.
+
+6. **Change one thing and run again.** Edit the docs or move to another model, then compare. The report says whether the two differ or whether there are too few attempts to tell.
+
+## Notes
+
+Adversarial pass done, 2026-11-27.
+
+### Citations checked (all five pages loaded, fetched 2026-11-27)
+
+- **Vercel**, https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals. Matches. The page says "In 56% of eval cases, the skill was never invoked", baseline 53%, skill by default 53%, AGENTS.md index 100%. I added two details from the page: the tasks were on Next.js 16 APIs, and the index was 8KB. Not used: the skill with explicit instructions reached 79%.
+- **Microsoft**, https://microsoft.github.io/agent-experience/. **Does not match the sheet on the run count.** The sheet says the upgrade task ran five times per model and the script executed in none. The page says "In zero runs out of ten did the agent pipe the script to a shell" (SharePoint Framework upgrade) and names no model on that card. The copy says 0 of 10. The 3.7x figure matches: the page gives $2.01 per run for Claude Sonnet 5 against $0.55 for Sonnet 4.6 on SPFx upgrades, with completion 100% against 60%, five runs per model per scenario. The copy gives the completion rates beside the 3.7x, since a cost rise that came with a completion rise reads differently from a bare multiplier.
+- **Stripe**, https://stripe.com/blog/can-ai-agents-build-real-stripe-integrations. Eleven environments: matches. The quote is exact; the full sentence is "When it comes to businesses running on Stripe, a mostly correct integration is a failure; payments require 100% accuracy." **Two softenings against the sheet.** Grading is described as mostly deterministic tests that exercise the finished software through API calls or UI automation, with only some graders inspecting Stripe API objects, so the copy leaves the grading method out. And the 400 behaviour is attributed to some agents on the SDK upgrade tasks, so the copy says "some agents".
+- **Biilmann**, https://biilmann.blog/articles/introducing-ax/. Mathias Biilmann, 28 January 2025, titled "Introducing AX". The page introduces the term and does not use the word "coined", so the copy says "named". The page does not state his title; it speaks of Netlify as "we".
+- **Microsoft devrel**, https://developer.microsoft.com/blog/what-is-agent-experience-ax/. Published 6 October 2026 by Waldek Mastykarz, Principal Developer Advocate. Propensity ("does the agent find your technology and choose it?") and efficacy ("once the agent uses your technology, does it use it correctly?") match.
+
+I read these pages through a fetch tool that summarises, so the quoted strings above should be eyeballed once against the live pages before launch, the Microsoft card first.
+
+### Left out, and why
+
+- **app.auspex.bot, the invite-only alpha, Google sign-in, share links.** The hero has about 50 words and the "See a report" button carries it. Sign-in details belong on the page the button opens.
+- **The GitHub URL.** The repository is being renamed, and a link in copy would go stale.
+- **nb and its Mock provider by name.** A front-page reader does not know nb. Step 2 says "a scripted stand-in for the model".
+- **Harbor is named once**, with a four-word gloss, and not again in section 4.
+- **The viewer as a separate thing from the CLI.** The hero says "the report" and the screenshot shows it.
+- **"Local CLI".** Covered by "exams are files in your git repository"; a line about where it runs fits better under "What you'll need".
+- **The vocabulary definitions as a block.** Exam, task, check, attempt, axis, configuration, bank and prediction are each used in a sentence that shows what they mean. "Fixture" is used once, undefined, in step 3; say if it should go.
+- **The 79% Vercel figure** (skill with explicit instructions). The card is already three numbers long.
+
+### Things I added that the sheet does not state
+
+- Step 2 says the shakedown shows each check "passes a good attempt and fails a bad one". The sheet says only that the checks are proved for free. Cut the clause if that is not what the shakedown scripts do.
+- Step 3 says a vague prompt or broken fixture shows up on the cheap model. That is my reason for the step; the sheet gives none.
+- Step 4 says "several attempts per configuration", from the product description's "several times each".
