@@ -178,17 +178,11 @@ not a wall of text. The sections in order:
 - **Status**: can be written now. The rows follow setup's jobs, so that
   the two cannot drift.
 
-### 7. Where your data lives
+### 7. Where your data lives (dropped, 2026-11-28)
 
-- **Job**: replace "not a cloud service" with the true version, in two
-  lines.
-- **Elements**: two short columns. On your machine: exams, the bank,
-  transcripts, keys; the only traffic out is the agents' model calls and
-  the judge's. Hosted, only when you publish: reports, at app.auspex.bot,
-  invite-only alpha, plus public shares.
-- **Length**: about 80 words.
-- **Status**: can be written now. The hosted half's words follow
-  `report-hosting.md` once it is built.
+Not until hosting opens beyond the early invites (the user). Until then
+your data is wherever you put it, and the project holds none of it and
+wants none. The section comes back when auspex is offered as a service.
 
 ### 8. Remix, the license, the repository
 
@@ -231,9 +225,9 @@ one. No hat.
      example exams.
 - **Length**: short, about 800 words. The skill and the guides carry the
   rest, and this page points at them.
-- **Open**: whether this is a new document or `getting-started.md`
-  rewritten for an agent. One set is the goal (`site.md`), so if
-  `getting-started.md` can serve both readers, that is better.
+- **Decided (the user, 2026-11-28)**: it is `docs/getting-started.md`,
+  rewritten so one document serves both the person and their agent, and
+  served at `/agent.md` as well. There is no second document.
 
 ## Open
 
