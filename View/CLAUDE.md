@@ -1,7 +1,7 @@
 # auspex — developer notes
 
 A light viewer for agent trajectories (ATIF): what an agent did on a
-task, where it stumbled, and how one variant's attempts went. Split off
+stage, where it stumbled, and how one configuration's tries went. Split off
 from proctor (`/srv/aiwork/proctor`, the runner, grader and reporter of
 evals) on 2026-11-11. Proctor keeps checks, the report and the
 problem → change → rerun loop. auspex reads what proctor wrote.
@@ -43,15 +43,18 @@ holding `bank/` and `exams/`.
   embedded in the assembly and served by one handler. No development
   mode (`project/workbench.md`, "Packaging").
 - `Bank.cs`: reads what proctor wrote, and nothing more: the exams in
-  `bank/`, each attempt's files (`bank/<exam>/<variant>/<task>/<n>/`,
-  or a stage of a try, `bank/<exam>/<variant>/<n>/stages/<i>-<id>/`:
-  `manifest.json`, `status`, `trajectory.json`, `checks.json`,
-  `friction.json`, `core.json`), and from `exams/<exam>/` the
-  description and live mark. Proctor's file names live here only.
-- `Pages.cs`: an exam of variants, `/<exam>`: its tries as plain links
-  by variant and task, the live one marked, nothing counted (proctor's
-  numbers for such an exam are in its report, not behind
-  `Measured.cs`); the shared page helpers. `Open` is the one page head:
+  `bank/`, the files of each stage of a try
+  (`bank/<exam>/<try id>/stages/<i>-<id>/`: `manifest.json`, `status`,
+  `trajectory.json`, `checks.json`, `friction.json`, `core.json`), and
+  from `exams/<exam>/` the description. It also reads what was made
+  before stages and axes, by the earlier layout
+  (`bank/<exam>/<filed>/<task>/<n>/` and `bank/<exam>/<filed>/<n>/stages/…`),
+  kept apart as `Exam.Earlier`: proctor reads none of it, so nothing of
+  it is counted. Proctor's file names live here only.
+- `Pages.cs`: what a bank holds as plain links, nothing counted
+  (`Pages.Held`): at `/<exam>/earlier`, the attempts made before the
+  exam was stages and axes, which `ExamPage.EarlierLink` points at, and
+  at `/<exam>` an exam proctor cannot load; the shared page helpers. `Open` is the one page head:
   every page is in the designed style (since 2026-11-27) and none loads
   a script.
 - `ExamPage.cs`: the page of an exam with axes, `/<exam>`, the first of
@@ -82,12 +85,12 @@ holding `bank/` and `exams/`.
   chooses), and the every-setting comparison. Neither was drawn on the
   canvas; both use the designed pages' parts.
 - `TryStagePage.cs`: one stage of a try, the fourth designed page
-  (2026-11-27), at `/<exam>/try/<id>/<stage>` on an exam with axes and
-  at the bank's path on an exam of variants
-  (`/<exam>/<variant>/<try>/<stage>`, or `/<exam>/<variant>/<task>/<n>`
-  for a try of one task, which has no tabs). Stage tabs with proctor's
-  right or wrong (from `Measured.Report`, exams with axes only; without
-  it a stage that did not complete says its status), verdicts grouped
+  (2026-11-27), at `/<exam>/try/<id>/<stage>`, and at the bank's path
+  for an earlier attempt (`/<exam>/<filed>/<try>/<stage>`, or
+  `/<exam>/<filed>/<task>/<n>` for one of a single task, which has no
+  tabs). Stage tabs with proctor's right or wrong (from
+  `Measured.Report`; an earlier attempt has none, and a stage that did
+  not complete says its status), verdicts grouped
   by the role `checks.json` records ("role not recorded" for a grade
   from before roles), each with why it is checked and its script when
   the file has them, evidence and friction spans as pills that open the
@@ -108,9 +111,9 @@ holding `bank/` and `exams/`.
   id="retired">` with each one's name, date, tries and reason, which the
   index's "N retired" links to. Its own page says it is retired and why.
 - `IndexPage.cs`: the exams, `/`, the fifth designed page (2026-11-27):
-  a row an exam, most recently tried first. An exam with axes shows its
-  named configurations with the marks `ExamPage.Standing` gives them,
-  its predictions and its tries; an exam of variants is a plain row. It
+  a row an exam, most recently tried first, with its
+  named configurations and the marks `ExamPage.Standing` gives them,
+  its predictions and its tries; an exam proctor cannot load is a plain row. It
   lists exams that have a bank, as before.
 - **Type is six roles and nothing else** (the canvas's board "6 · Type",
   agreed 2026-11-27): Title, Heading, Lead, Body, Small and Code, each
@@ -214,7 +217,7 @@ https://claude.ai/artifact/XE4Baec27NiQMhLuXh5a6Q):
   (2026-11-16, corrected by the user; their notes are the quoted lines
   and settle the guesses). Journey 2, "it passed and I do not believe
   it", is the centre; the coding session acts and auspex shows; no
-  trajectory compared across several variants.
+  trajectory compared across several configurations.
 - `project/inventory.md`: superseded (2026-11-22), never revised; it
   predates the bank and speaks of batches. The page docs and the build
   plan cover its first pass. Read it only for the marks proposal (one
@@ -239,13 +242,10 @@ https://claude.ai/artifact/XE4Baec27NiQMhLuXh5a6Q):
 The model and the direction:
 
 - `project/model.md`: the data model from first principles (2026-11-15,
-  agreed). Exam, task, check, variant, attempt, claim; the two modes of
-  use (finding a first pass, changing something live); what becomes of
-  proctor's suite, arm, experiment and baseline. Built in proctor on
-  branch `exam-variant-attempt` except claims; since then proctor's
-  `project/plans/bank.md` replaced the batch with the bank and a log
-  entry per run. Proctor's `project/plans/exam-variant-attempt.md` is
-  the model as files and commands.
+  agreed), in the words of that day; the two modes of
+  use (finding a first pass, changing something live). Superseded by
+  proctor's `project/plans/axes.md`: an exam is stages and axes, and what
+  is under test is a configuration (2026-11-27).
 - `project/loop.md`: the current direction (2026-11-14). The loop from
   coded friction to a check to a treatment, the file contract with
   proctor (`friction.json` per attempt), and what auspex owns: the
@@ -315,28 +315,29 @@ Background that stays in proctor's repo, read it there:
 
 ## Vocabulary
 
-Proctor's, fixed in its `CLAUDE.md` on branch `exam-variant-attempt`
-(from `project/plans/exam-variant-attempt.md`, 2026-11-15), and used here
-the same way:
+Proctor's, fixed in its `CLAUDE.md` and `docs/configuration.md`, and
+used here the same way:
 
-- An **exam** is the question being answered, its tasks, and the checks
-  that grade them.
-- A **task** is one prompt against a **fixture**, the repository it runs
-  against.
+- An **exam** is one question, the stages that ask it and the checks
+  that grade them, with what is under test declared as axes.
+- A **stage** is one prompt and one desired outcome, in a **fixture**,
+  the repository the work is done in.
 - A **check** is one yes-or-no grading question asked of a finished
-  attempt; where it is listed sets its role (`correctness`, `integrity`,
+  stage; where it is listed sets its role (`correctness`, `integrity`,
   `quality`, or in no list an observation).
-- A **variant** is what is under test: an agent, a model and a bundle.
-- An **attempt** is one variant at one task, once, with its evidence.
-  Several per task, because the agent is stochastic.
-- The **bank** is every attempt of an exam
-  (`bank/<exam>/<variant>/<task>/<n>/`). What one `proctor run` did is a
-  **log entry**, a record, never a grouping a person reads results by.
-- **Live** marks the variant in use now, the reference a change is
-  compared with. A **claim** is what should change between two variants,
-  said before the attempts are made (designed, not built).
+- An **axis** is one thing that is varied, a **value** one choice on it,
+  and a **configuration** one value on every axis: what a try ran as.
+- A **try** is one configuration run once through every stage that
+  applies in it; an **attempt** is one stage of it. Several tries per
+  configuration, because the agent is stochastic.
+- The **bank** is every try of an exam (`bank/<exam>/<try id>/`). What
+  one `proctor run` did is a **log entry**, a record, never a grouping a
+  person reads results by.
+- **Live** marks the value of an axis in use now, which the other values
+  of that axis are compared with. A **prediction** is what should change
+  in a configuration, said before its tries are made.
 
-The old words (suite, arm, experiment, sample, cell, baseline, batch)
+The old words (suite, arm, experiment, sample, cell, baseline, batch, variant)
 name the old layout only: `datasets/`, the viewer's code and its pages
 until they move. Use them for those paths and nothing else, and write
 nothing new in them.
