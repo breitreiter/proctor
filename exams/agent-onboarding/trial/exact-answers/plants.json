@@ -1,10 +1,10 @@
 {
-  "about": "The tool library's five member questions, each with one right figure and its unit. A planted run answers the question the written task asks, recognised from its prompt; a task asking something else gets the whole handbook in one reply and is not counted. The bad replies are near misses: an extra digit, the right number with the wrong unit, a dodge.",
+  "about": "The tool library's five member questions, each with one right figure and its unit. A planted run answers the question the written stage asks, recognised from its prompt; a stage asking something else gets the whole handbook in one reply and is not counted. The bad replies are near misses: an extra digit, the right number with the wrong unit, a dodge.",
   "versions": {
     "bot": ["a volunteer-run lending library for tools", "Every tool carries a yellow tag with its number"]
   },
   "missing": {
-    "bot": "no variant's program gives the bot both its system prompt (bot/system.md) and its handbook (bot/knowledge.md), so the exam does not measure the bot"
+    "bot": "no configuration's program gives the bot both its system prompt (bot/system.md) and its handbook (bot/knowledge.md), so the exam does not measure the bot"
   },
   "dodge": "I'm not able to help with that. Please ask a volunteer at the counter.",
   "questions": [
@@ -15,7 +15,7 @@
     { "key": "loan", "match": "how long|keep|loan|borrow" }
   ],
   "fallback": "*",
-  "unrecognised": "none of the written tasks asks one of the questions in notes/member-questions.md",
+  "unrecognised": "none of the written stages asks one of the questions in notes/member-questions.md",
   "plants": {
     "good-terse": {
       "expect": "pass",

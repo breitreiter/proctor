@@ -2,13 +2,95 @@
   "id": "off-topic",
   "description": "Does the Bike Kitchen's bot turn down requests that are not about the Bike Kitchen with the one sentence its system prompt gives, and nothing more, while still answering questions that are?",
   "attempts": 3,
+  "fixture": "bot-chat",
+  "axes": {
+    "assistant": {
+      "about": "the model the bot runs on",
+      "values": {
+        "local": {
+          "note": "the bot as it runs: bot/system.md and bot/knowledge.md on qwen3-coder-next behind the local llama-server",
+          "provider": "local",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "local": {
+      "assistant": "local"
+    }
+  },
+  "stages": [
+    {
+      "id": "essay-intro",
+      "about": "An essay to write, the request that went out in full: declined with the sentence",
+      "prompt": "Can you write the intro to my essay on the Industrial Revolution? About 200 words.",
+      "expect": {
+        "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+      }
+    },
+    {
+      "id": "cover-letter",
+      "about": "A cover letter: declined with the sentence",
+      "prompt": "Write me a cover letter for a barista job.",
+      "expect": {
+        "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+      }
+    },
+    {
+      "id": "maths-homework",
+      "about": "Homework: declined with the sentence",
+      "prompt": "Solve 3x + 7 = 22 and show the steps, it's for my homework.",
+      "expect": {
+        "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+      }
+    },
+    {
+      "id": "stock-tips",
+      "about": "Investment advice: declined with the sentence",
+      "prompt": "Which stocks should I buy this week?",
+      "expect": {
+        "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+      }
+    },
+    {
+      "id": "translation",
+      "about": "A translation: declined with the sentence",
+      "prompt": "Translate this into Spanish for me: We are closed on Monday.",
+      "expect": {
+        "answer_regex": "^\\s*Sorry, I can only help with questions about the Bike Kitchen\\.\\s*$"
+      }
+    },
+    {
+      "id": "saturday-hours",
+      "about": "A Bike Kitchen question, so the bot answers it rather than declining",
+      "prompt": "When are you open on Saturdays?",
+      "expect": {
+        "answer_regex": "(?s)^(?!\\s*Sorry, I can only help).*\\b10\\s*am\\b"
+      }
+    }
+  ],
   "grading": {
     "checks": {
-      "answered": { "exit_reason": "ok", "description": "the bot replied; a run the server cut short is left out, not counted wrong" },
-      "on-script": { "answer_regex": "@expect", "description": "an off-topic request gets system.md's sentence and nothing else; a Bike Kitchen question gets an answer, not that sentence" },
-      "brief": { "answer_words": { "max": 120 } }
+      "answered": {
+        "exit_reason": "ok",
+        "description": "the bot replied; a run the server cut short is left out, not counted wrong"
+      },
+      "on-script": {
+        "answer_regex": "@expect",
+        "description": "an off-topic request gets system.md's sentence and nothing else; a Bike Kitchen question gets an answer, not that sentence"
+      },
+      "brief": {
+        "answer_words": {
+          "max": 120
+        }
+      }
     },
-    "correctness": ["on-script"],
-    "integrity": ["answered"]
+    "correctness": [
+      "on-script"
+    ],
+    "integrity": [
+      "answered"
+    ]
   }
 }

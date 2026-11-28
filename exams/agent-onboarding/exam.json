@@ -1,6 +1,6 @@
 {
   "id": "agent-onboarding",
-  "description": "Given only proctor's own onboarding surface (the proctor-exam skill, the docs and the CLI, at a pinned revision), can a shipped coding agent stage a working chat-only exam for a small chatbot project it has never seen? Each written exam is graded by running it against planted attempts at its own tasks on nb's Mock provider: it must pass the right answers and fail the wrong ones.",
+  "description": "Given only proctor's own onboarding surface (the proctor-exam skill, the docs and the CLI, at a pinned revision), can a shipped coding agent stage a working chat-only exam for a small chatbot project it has never seen? Each written exam is graded by running it against planted replies to its own stages on nb's Mock provider: it must pass the right answers and fail the wrong ones.",
   "attempts": 3,
   "labels": {
     "area": "onboarding/agents",
@@ -13,15 +13,96 @@
     "wall_ms": 2700000
   },
   "hooks": {
-    "variant": {
+    "configuration": {
       "setup": "../code-change/hooks/ensure-model.sh"
     }
   },
+  "axes": {
+    "project": {
+      "about": "the chatbot project the agent is handed, and the request that comes with it",
+      "reference": "toolshed",
+      "values": {
+        "toolshed": {
+          "note": "a tool library's help bot, its handbook and the five questions members ask",
+          "fixture": "onboarding-toolshed"
+        },
+        "allotment": {
+          "note": "an allotment society's bot with the system prompt it runs today and a draft rewrite",
+          "fixture": "onboarding-allotment"
+        },
+        "bikekitchen": {
+          "note": "a bike workshop's bot whose system prompt gives the one sentence that turns down an off-topic request",
+          "fixture": "onboarding-bikekitchen"
+        }
+      }
+    },
+    "assistant": {
+      "about": "the coding agent and the model that write the exam",
+      "values": {
+        "qwen": {
+          "note": "Qwen Code on the local model: the free shakedown",
+          "agent": "qwen-code",
+          "agent_version": "0.25.2",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "qwen.toolshed": {
+      "project": "toolshed",
+      "assistant": "qwen"
+    },
+    "qwen.allotment": {
+      "project": "allotment",
+      "assistant": "qwen"
+    },
+    "qwen.bikekitchen": {
+      "project": "bikekitchen",
+      "assistant": "qwen"
+    }
+  },
+  "stages": [
+    {
+      "id": "exact-answers",
+      "about": "Exact figures: an exam for a help bot whose answers have one right figure each, which must fail near misses (19 days for 9, $12 a month for $12 a year)",
+      "when": "project = toolshed",
+      "prompt": "This repo is the help bot for our tool library: bot/system.md is its system prompt and bot/knowledge.md is the handbook it answers from. Members ask it the same handful of things (notes/member-questions.md) and lately it's been getting the numbers wrong; someone at the counter was told the late fee is $7.50 a day. I'd like a proctor exam that asks the bot those questions and only passes an answer that gives the figure the handbook gives.\n\nI'll run it myself later against our local model (qwen3-coder-next on the llama-server at http://localhost:8080/v1, no key). For now, just get the exam built and make sure it would actually catch a wrong answer. proctor is installed, but I haven't set anything up yet."
+    },
+    {
+      "id": "revised-prompt",
+      "about": "Two prompts compared: an exam comparing two versions of a bot's system prompt, which must make the prompt the one thing its two configurations differ in and catch the version that answers wrong",
+      "when": "project = allotment",
+      "prompt": "I've rewritten the system prompt for our allotment society's help bot. bot/system.md is what's live, and bot/system-draft.md is my rewrite: shorter and friendlier. Before I swap it in I want to know whether it changes how the bot answers the questions people actually ask. The ones from the last couple of months are in docs/questions-log.md, and the right answers are in bot/knowledge.md.\n\nCan you set up a proctor exam for that? We run the bot on qwen3-coder-next through our llama-server at http://localhost:8080/v1 (no key), and I'll point it there and run it myself. Get it to the point where I can just run it. proctor's installed; nothing is set up yet."
+    },
+    {
+      "id": "stays-on-topic",
+      "about": "One stated refusal: an exam for a bot that must turn down off-topic requests with one stated sentence, which must fail a run that played along, even after declining",
+      "when": "project = bikekitchen",
+      "prompt": "People keep using our bike kitchen's chat bot as a free general assistant. Last week someone got it to write the intro to their history essay. bot/system.md already says exactly what it should reply when someone asks for something that isn't about the Bike Kitchen.\n\nI'd like a proctor exam that throws off-topic requests at it (a few real ones are in notes/off-topic-requests.md) and fails any attempt where it plays along. It runs on qwen3-coder-next via our llama-server at http://localhost:8080/v1, no key; I'll run the exam myself once it's built. proctor is installed, nothing configured."
+    }
+  ],
   "surface": {
     "description": "proctor's onboarding surface: the proctor and nb CLIs, their published docs, the proctor-exam skill, and the shipped example exams and fixtures",
-    "commands": ["proctor", "nb"],
-    "docs": ["/opt/proctor/docs/*", "/opt/proctor/README.md", "/opt/proctor/exams/*", "/opt/proctor/fixtures/*", "/opt/nb/docs/*", "/opt/nb/README.md", "tool:Skill"],
-    "internals": ["/opt/proctor/*", "/opt/nb/*", "/usr/local/bin/proctor", "/usr/local/bin/nb"]
+    "commands": [
+      "proctor",
+      "nb"
+    ],
+    "docs": [
+      "/opt/proctor/docs/*",
+      "/opt/proctor/README.md",
+      "/opt/proctor/exams/*",
+      "/opt/proctor/fixtures/*",
+      "/opt/nb/docs/*",
+      "/opt/nb/README.md",
+      "tool:Skill"
+    ],
+    "internals": [
+      "/opt/proctor/*",
+      "/opt/nb/*",
+      "/usr/local/bin/proctor",
+      "/usr/local/bin/nb"
+    ]
   },
   "grading": {
     "checks": {
@@ -46,7 +127,7 @@
       },
       "chat-only": {
         "script": "checks/chat-only.sh",
-        "description": "every variant of the written exam is bare nb and its program has no tools, so the bot only reads and answers"
+        "description": "every value of the written exam that names who does the work is bare nb and its program has no tools, so the bot only reads and answers"
       },
       "no-secrets": {
         "script": "checks/no-secrets.sh",
@@ -54,7 +135,7 @@
       },
       "describes-everything": {
         "script": "checks/describes-everything.sh",
-        "description": "the written exam and each of its tasks carry a description, and each of its variants a note, for the report's reader"
+        "description": "the written exam carries a description and each of its stages an about, for the report's reader"
       }
     },
     "correctness": [

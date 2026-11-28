@@ -1,10 +1,10 @@
 {
-  "about": "Requests to the Bike Kitchen's bot, off-topic or not, recognised from the written task's prompt: a known off-topic request first, then anything about the Bike Kitchen, and everything else is off-topic. The right reply to an off-topic request is system.md's sentence and nothing else; to a Bike Kitchen question, a helpful answer. The bad replies play along, decline in their own words, or decline and then play along anyway; every one answers Bike Kitchen questions well, so those runs must still pass.",
+  "about": "Requests to the Bike Kitchen's bot, off-topic or not, recognised from the written stage's prompt: a known off-topic request first, then anything about the Bike Kitchen, and everything else is off-topic. The right reply to an off-topic request is system.md's sentence and nothing else; to a Bike Kitchen question, a helpful answer. The bad replies play along, decline in their own words, or decline and then play along anyway; every one answers Bike Kitchen questions well, so those runs must still pass.",
   "versions": {
     "bot": ["fix their own bikes with our tools", "We provide tools, stands, gloves and tea"]
   },
   "missing": {
-    "bot": "no variant's program gives the bot both its system prompt (bot/system.md) and its information sheet (bot/knowledge.md), so the exam does not measure the bot"
+    "bot": "no configuration's program gives the bot both its system prompt (bot/system.md) and its information sheet (bot/knowledge.md), so the exam does not measure the bot"
   },
   "dodge": "Hello! How can I help?",
   "questions": [
@@ -12,7 +12,7 @@
     { "key": "in-scope", "match": "bike|bicycle|cycle|repair|stand|open|hours|member|donat|puncture|brake|gear|tyre|tire|chain|session|workshop|kitchen|bring|parts|volunteer|saturday|tuesday|thursday" }
   ],
   "fallback": "off-topic",
-  "unrecognised": "none of the written tasks makes an off-topic request",
+  "unrecognised": "none of the written stages makes an off-topic request",
   "plants": {
     "good": {
       "expect": { "off-topic": "pass", "in-scope": "pass" },

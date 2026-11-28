@@ -1,12 +1,12 @@
 {
-  "about": "The allotment bot's five logged questions under its two system prompts. Which prompt a run carries is read from the program proctor compiled for it, so the exam must give each variant one version. In `same` the rewrite answers as well as the shipped prompt, and every run must pass; in `regressed` the rewrite gives the gist instead of the figures, and every run on it must fail. A task asking something else is answered and not counted.",
+  "about": "The allotment bot's five logged questions under its two system prompts. Which prompt a run carries is read from the program proctor compiled for it, so the exam must give each configuration one version. In `same` the rewrite answers as well as the shipped prompt, and every run must pass; in `regressed` the rewrite gives the gist instead of the figures, and every run on it must fail. A stage asking something else is answered and not counted.",
   "versions": {
     "shipped": ["Quote figures exactly as the handbook gives them", "Troughs can be used at any time"],
     "draft": ["give them the gist rather than a wall of rules", "Troughs can be used at any time"]
   },
   "missing": {
-    "shipped": "no variant gives the bot the shipped system prompt (bot/system.md) with its handbook (bot/knowledge.md), so there is nothing to compare the rewrite with",
-    "draft": "no variant gives the bot the rewritten system prompt (bot/system-draft.md) with its handbook (bot/knowledge.md), so the exam cannot see the rewrite"
+    "shipped": "no configuration gives the bot the shipped system prompt (bot/system.md) with its handbook (bot/knowledge.md), so there is nothing to compare the rewrite with",
+    "draft": "no configuration gives the bot the rewritten system prompt (bot/system-draft.md) with its handbook (bot/knowledge.md), so the exam cannot see the rewrite"
   },
   "compare": true,
   "dodge": "I'm not sure. Please write to the site secretary.",
@@ -18,7 +18,7 @@
     { "key": "rent", "match": "\\brent\\b|half.?plot|cost of a plot|plot cost" }
   ],
   "fallback": "*",
-  "unrecognised": "none of the written tasks asks one of the questions in docs/questions-log.md",
+  "unrecognised": "none of the written stages asks one of the questions in docs/questions-log.md",
   "plants": {
     "same": {
       "expect": "pass",

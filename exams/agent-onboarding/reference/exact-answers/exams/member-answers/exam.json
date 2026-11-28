@@ -2,12 +2,82 @@
   "id": "member-answers",
   "description": "Does the tool library's help bot give members the figure the handbook gives? Five questions members ask, each passing only on the exact figure and its unit.",
   "attempts": 3,
+  "fixture": "bot-chat",
+  "axes": {
+    "assistant": {
+      "about": "the model the bot runs on",
+      "values": {
+        "local": {
+          "note": "the bot as it runs: bot/system.md and bot/knowledge.md on qwen3-coder-next behind the local llama-server",
+          "provider": "local",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "local": {
+      "assistant": "local"
+    }
+  },
+  "stages": [
+    {
+      "id": "loan-period",
+      "about": "How long a loan lasts: 9 days",
+      "prompt": "How long can I keep a tool once I've borrowed it?",
+      "expect": {
+        "answer_regex": "(?i)\\b9 days\\b"
+      }
+    },
+    {
+      "id": "late-fee",
+      "about": "The late fee: $0.75 a day per tool",
+      "prompt": "What's the late fee if I bring something back late?",
+      "expect": {
+        "answer_regex": "(?i)\\$0?\\.75\\s*(a|per|each|/)\\s*day\\b"
+      }
+    },
+    {
+      "id": "membership",
+      "about": "What membership costs: $12 a year",
+      "prompt": "How much does membership cost?",
+      "expect": {
+        "answer_regex": "(?i)\\$12(\\.00)?\\s*(a|per|each|/)\\s*year\\b"
+      }
+    },
+    {
+      "id": "reserve-ahead",
+      "about": "How far ahead a tool can be reserved: 3 weeks",
+      "prompt": "How far in advance can I reserve a tool?",
+      "expect": {
+        "answer_regex": "(?i)\\b3 weeks\\b"
+      }
+    },
+    {
+      "id": "deposit-refund",
+      "about": "When a deposit comes back: within 5 working days",
+      "prompt": "I returned the pressure washer on Saturday. When do I get my deposit back?",
+      "expect": {
+        "answer_regex": "(?i)\\b5 working days\\b"
+      }
+    }
+  ],
   "grading": {
     "checks": {
-      "answered": { "exit_reason": "ok", "description": "the bot replied; a run the server cut short is left out, not counted wrong" },
-      "correct": { "answer_regex": "@expect", "description": "the reply gives the handbook's figure with its unit, and no near miss" }
+      "answered": {
+        "exit_reason": "ok",
+        "description": "the bot replied; a run the server cut short is left out, not counted wrong"
+      },
+      "correct": {
+        "answer_regex": "@expect",
+        "description": "the reply gives the handbook's figure with its unit, and no near miss"
+      }
     },
-    "correctness": ["correct"],
-    "integrity": ["answered"]
+    "correctness": [
+      "correct"
+    ],
+    "integrity": [
+      "answered"
+    ]
   }
 }

@@ -1,9 +1,0 @@
-{
-  "id": "half-plot-rent",
-  "description": "The rent on a half plot: £38 a year",
-  "fixture": "bot-chat",
-  "prompt": "How much is the rent on a half plot?",
-  "expect": {
-    "answer_regex": "£38\\b"
-  }
-}

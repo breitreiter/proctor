@@ -2,12 +2,116 @@
   "id": "prompt-revision",
   "description": "Does the rewritten system prompt change how the allotment bot answers the questions people ask? The same five questions under the shipped prompt and the draft, every other setting equal, each passing only on the handbook's figure.",
   "attempts": 3,
+  "fixture": "bot-chat",
+  "params": {
+    "PROMPT": {
+      "tree": true,
+      "about": "the directory holding the system prompt under test, as system.md"
+    }
+  },
+  "axes": {
+    "prompt": {
+      "about": "the bot's system prompt",
+      "live": "shipped",
+      "values": {
+        "shipped": {
+          "note": "the system prompt that runs today (a copy of bot/system.md)",
+          "set": {
+            "PROMPT": {
+              "path": "values/prompt/shipped"
+            }
+          }
+        },
+        "draft": {
+          "note": "the rewrite, shorter and friendlier (a copy of bot/system-draft.md)",
+          "why": "it is to replace the shipped prompt if the bot answers as well under it",
+          "set": {
+            "PROMPT": {
+              "path": "values/prompt/draft"
+            }
+          }
+        }
+      }
+    },
+    "assistant": {
+      "about": "the model the bot runs on",
+      "values": {
+        "local": {
+          "note": "qwen3-coder-next behind the local llama-server, as the bot runs",
+          "provider": "local",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "shipped": {
+      "prompt": "shipped",
+      "assistant": "local"
+    },
+    "draft": {
+      "prompt": "draft",
+      "assistant": "local"
+    }
+  },
+  "stages": [
+    {
+      "id": "half-plot-rent",
+      "about": "The rent on a half plot: £38 a year",
+      "prompt": "How much is the rent on a half plot?",
+      "expect": {
+        "answer_regex": "£38\\b"
+      }
+    },
+    {
+      "id": "waiting-list",
+      "about": "How long the waiting list is: 14 months for a half plot",
+      "prompt": "How long is the waiting list at the moment?",
+      "expect": {
+        "answer_regex": "(?i)\\b14 months\\b"
+      }
+    },
+    {
+      "id": "bonfires",
+      "about": "When bonfires are allowed: only in November",
+      "prompt": "When am I allowed to have a bonfire?",
+      "expect": {
+        "answer_regex": "(?i)\\bNovember\\b"
+      }
+    },
+    {
+      "id": "gate-key",
+      "about": "What a replacement gate key costs: £15",
+      "prompt": "I've lost my gate key. How much is a new one?",
+      "expect": {
+        "answer_regex": "£15\\b"
+      }
+    },
+    {
+      "id": "shed-size",
+      "about": "The biggest shed allowed: 6 ft by 4 ft",
+      "prompt": "What's the biggest shed I can put up?",
+      "expect": {
+        "answer_regex": "(?i)\\b6\\s*(ft|feet|foot|')?\\s*(by|x|×)\\s*4\\s*(ft|feet|foot|')?"
+      }
+    }
+  ],
   "grading": {
     "checks": {
-      "answered": { "exit_reason": "ok", "description": "the bot replied; a run the server cut short is left out, not counted wrong" },
-      "correct": { "answer_regex": "@expect", "description": "the reply gives the handbook's figure, unrounded" }
+      "answered": {
+        "exit_reason": "ok",
+        "description": "the bot replied; a run the server cut short is left out, not counted wrong"
+      },
+      "correct": {
+        "answer_regex": "@expect",
+        "description": "the reply gives the handbook's figure, unrounded"
+      }
     },
-    "correctness": ["correct"],
-    "integrity": ["answered"]
+    "correctness": [
+      "correct"
+    ],
+    "integrity": [
+      "answered"
+    ]
   }
 }

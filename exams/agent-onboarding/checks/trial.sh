@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Not a check: accepts-correct.sh and rejects-wrong.sh both call it. Runs the trial (trial/run.sh) once per attempt
+# Not a check: accepts-correct.sh and rejects-wrong.sh both call it. Runs the trial (trial/run.sh) once per stage
 # and keeps it under trial/: in the attempt on the host, beside the reward in Harbor's verifier (whose working
 # directory is its log directory, and which has no attempt). The verifier is offline and is its own container,
 # so the scripts the agent wrote run there and nowhere else.

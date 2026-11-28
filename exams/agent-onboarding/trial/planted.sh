@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # The trial's runner, standing in for the bot: proctor hands it the program it compiled from the written exam
-# for this attempt, and it answers as the planted run would, through nb's Mock provider, so the transcript is nb's
-# own. It reads which prompt the program gives the bot from the markers in plants.json (versions), which
-# question the task asks from its prompt (questions, first match), and the variant's plant from the map
-# run.sh wrote; then it records what it planted and what the exam should make of it (expect: pass, fail, or
-# none when the task asks something the trial does not know or the program carries no bot).
-#   env: TRIAL_PLANTS (plants.json), TRIAL_VARIANTS (clone variant -> plant, written variant), TRIAL_RECORDS (a directory)
+# for this stage, and it answers as the planted reply would, through nb's Mock provider, so the transcript is
+# nb's own. It reads which prompt the program gives the bot from the markers in plants.json (versions), which
+# question the stage asks from its prompt (questions, first match), and the plant from the axis run.sh added;
+# then it records what it planted and what the exam should make of it (expect: pass, fail, or none when the
+# stage asks something the trial does not know or the program carries no bot).
+#   env: TRIAL_PLANTS (plants.json), TRIAL_CONFIGURATIONS (a written configuration's key -> its name), TRIAL_RECORDS (a directory)
 set -euo pipefail
 program=$(cat)
 plants=$TRIAL_PLANTS
-entry=$(jq -c --arg a "$PROCTOR_VARIANT" '.[$a]' "$TRIAL_VARIANTS")
-plant=$(jq -r .plant <<<"$entry")
+plant=$PROCTOR_AXIS_PLANTED
+written_key=${PROCTOR_CONFIGURATION%",planted=$plant"}
+written=$(jq -r --arg k "$written_key" '.[$k] // $k' "$TRIAL_CONFIGURATIONS")
 prompt=$(jq -r '.prompt // ""' <<<"$PROCTOR_TASK_JSON")
 
 version=none; found=0
@@ -33,10 +34,10 @@ planted=$(jq -c --arg v "$plant" --arg ver "$version" --arg k "$key" '
     else {answer: ($x.answers[$k] // $x.answers["*"]),
           expect: (if $k == "*" then "none" elif ($x.expect | type) == "object" then $x.expect[$k] else $x.expect end)}
     end' "$plants")
-jq -n --argjson e "$entry" --argjson p "$planted" --arg variant "$PROCTOR_VARIANT" --arg task "$PROCTOR_TASK" \
-  --arg attempt "$PROCTOR_ATTEMPT" --arg key "$key" --arg version "$version" \
-  '{variant: $variant, task: $task, attempt: $attempt, plant: $e.plant, written_variant: $e.variant, key: $key, version: $version, expect: $p.expect}' \
-  >"$TRIAL_RECORDS/$PROCTOR_VARIANT.$PROCTOR_TASK.$PROCTOR_ATTEMPT.json"
+jq -n --argjson p "$planted" --arg configuration "$PROCTOR_CONFIGURATION" --arg stage "$PROCTOR_TASK" \
+  --arg plant "$plant" --arg written "$written" --arg key "$key" --arg version "$version" \
+  '{configuration: $configuration, stage: $stage, plant: $plant, written: $written, key: $key, version: $version, expect: $p.expect}' \
+  >"$TRIAL_RECORDS/$PROCTOR_CONFIGURATION.$PROCTOR_TASK.json"
 
 config=$(mktemp)
 jq -n --arg answer "$(jq -r .answer <<<"$planted")" \

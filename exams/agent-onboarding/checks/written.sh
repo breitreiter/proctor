@@ -2,13 +2,13 @@
 # Not a check: every check sources it. Finds the exam the agent wrote in $PROCTOR_WORK, from what git says is
 # new or changed since the fixture commit, so it works in Harbor's offline verifier (the diff applied, no
 # transcript) and on the host alike. The prompt names no exam id and no layout, so the exam may sit under
-# any root: <root>/exams/<id>/exam.json. Proctor's own scratch (.proctor/, attempts/, reports/) is ignored, and
+# any root: <root>/exams/<id>/exam.json. Proctor's own scratch (.proctor/, bank/, log/, exams-seen/, reports/) is ignored, and
 # so is an exam whose id says it is a scratch copy when there is another. Sets WRITTEN_ROOT (absolute),
 # WRITTEN_ID and WRITTEN_DIR, or prints why there is nothing to grade and exits 1.
 found=$(git -C "$PROCTOR_WORK" status --porcelain --untracked-files=all 2>/dev/null \
   | sed -E 's/^.. //; s/^"(.*)"$/\1/' \
   | grep -E '(^|/)exams/[^/]+/exam\.json$' \
-  | grep -vE '(^|/)(\.proctor|attempts|reports)/' | sort -u)
+  | grep -vE '(^|/)(\.proctor|bank|log|exams-seen|reports)/' | sort -u)
 if [ "$(grep -c . <<<"$found")" -gt 1 ]; then
   kept=$(grep -vE '(^|/)exams/[^/]*(mock|shakedown|smoke|scratch|tmp|trial|test)[^/]*/exam\.json$' <<<"$found")
   [ -n "$kept" ] && found=$kept

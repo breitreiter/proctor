@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prove the checks without a model or an agent: for each task, check the fixture out the way proctor does, lay
+# Prove the checks without a model or an agent: for each stage, check the fixture out the way proctor does, lay
 # the reference exam over it as the agent would have written it, collect the diff, and run every check that
 # grades the written exam (the trial included, on nb's Mock provider). surface-present is left out: it reads
 # the image, and the Harbor reference pass proves it (README.md).
@@ -39,12 +39,15 @@ expected() {  # the outcome each mode should give a check
 }
 
 unexpected=0
-for task_file in "$here"/tasks/*.json; do
-  c=$(basename "$task_file" .json)
-  f=$(jq -r .fixture "$task_file")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
+def="$here/exam.json"
+for c in $(jq -r '.stages[].id' "$def"); do
+  stage=$(jq -c --arg c "$c" '.stages[] | select(.id == $c)' "$def")
+  project=$(jq -r '.when | sub("^project = "; "")' <<<"$stage")
+  f=$(jq -r --arg p "$project" '.axes.project.values[$p].fixture' "$def")
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
+  export PROCTOR_CONFIGURATION="project=$project,assistant=ref" PROCTOR_AXIS_PROJECT="$project" PROCTOR_AXIS_ASSISTANT=ref
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_TASK_JSON="$(cat "$task_file")" PROCTOR_EXPECT="$(jq -c '.expect // {}' "$task_file")" PROCTOR_TRANSCRIPT=""
+  export PROCTOR_TASK_JSON="$stage" PROCTOR_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" PROCTOR_TRANSCRIPT=""
   mkdir -p "$PROCTOR_ATTEMPT_DIR" "$PROCTOR_WORK"
   cp -r "$PROCTOR_FIXTURE/repo/." "$PROCTOR_WORK"
   (cd "$PROCTOR_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm "fixture $f")
@@ -55,17 +58,16 @@ for task_file in "$here"/tasks/*.json; do
     case "$c" in
       exact-answers)  # the bare number, so 19 days passes for 9 and $12 a month for $12 a year
         declare -A bare=([loan-period]=9 [late-fee]=75 [membership]=12 [reserve-ahead]=3 [deposit-refund]=5)
-        for t in "$s"/tasks/*.json; do edit "$t" ".expect.answer_regex = \"${bare[$(basename "$t" .json)]}\""; done ;;
-      revised-prompt)  # compares the variants but checks only that the bot answered
+        for t in "${!bare[@]}"; do edit "$s/exam.json" "(.stages[] | select(.id == \"$t\") | .expect.answer_regex) = \"${bare[$t]}\""; done ;;
+      revised-prompt)  # compares the two prompts but checks only that the bot answered
         edit "$s/exam.json" '.grading.correctness = ["answered"] | .grading.integrity = []' ;;
       stays-on-topic)  # looks for the sentence anywhere, so declining and then playing along passes
-        for t in "$s"/tasks/*.json; do edit "$t" 'if (.expect.answer_regex | startswith("^")) then .expect.answer_regex = "Sorry, I can only help with questions about the Bike Kitchen" else . end'; done ;;
+        edit "$s/exam.json" '.stages |= map(if (.expect.answer_regex | startswith("^")) then .expect.answer_regex = "Sorry, I can only help with questions about the Bike Kitchen" else . end)' ;;
     esac
   fi
   if [ "$mode" = --sloppy ]; then
     edit "$PROCTOR_WORK/exams/nb.json" '.ChatProviders[0].ApiKey = "sk-proj-shakedownFAKEkey000000000000"'
-    edit "$s/exam.json" 'del(.description)'
-    for v in "$s"/variants/*.json; do edit "$v" 'del(.note)'; done
+    edit "$s/exam.json" 'del(.description) | .stages |= map(del(.about))'
     sed -i '/^tools none$/d' "$s/program.nb"
   fi
   (cd "$PROCTOR_WORK" && git add -A -N . && git diff --no-color --binary >"$PROCTOR_DIFF")
