@@ -26,8 +26,8 @@ record FilesSource(string? Path = null, string? Git = null, string? Rev = null, 
 
 /// <summary>
 /// One choice on an axis. Set names parameters the base declares, which the base's own scripts act on. Files is laid
-/// over the checkout by proctor. Agent to Harness say who does the work, and Fixture names a whole base, for an axis of
-/// worlds; those are proctor's own. Note says what the value changes and Why says what it is there for (a customer's
+/// over the checkout by auspex. Agent to Harness say who does the work, and Fixture names a whole base, for an axis of
+/// worlds; those are auspex's own. Note says what the value changes and Why says what it is there for (a customer's
 /// report, an idea of our own); both are for a reader and no part of the value's identity.
 /// </summary>
 record ValueDef(string? Note = null, string? Why = null, Dictionary<string, JsonNode?>? Set = null, FilesSource? Files = null, string? Agent = null, string? AgentVersion = null,
@@ -35,7 +35,7 @@ record ValueDef(string? Note = null, string? Why = null, Dictionary<string, Json
 {
     public const string Bare = "bare", Harbor = "harbor";
 
-    /// <summary>The fields that are proctor's own, with what this value gives each.</summary>
+    /// <summary>The fields that are auspex's own, with what this value gives each.</summary>
     public IEnumerable<(string Key, string? Value)> Own() =>
         [("agent", Agent), ("agent_version", AgentVersion), ("route", Route), ("model", Model), ("provider", Provider), ("harness", Harness), ("fixture", Fixture)];
 }
@@ -234,7 +234,7 @@ sealed class Axes
                 if (!Regex.IsMatch(valueName, ValueName)) Add(v, "a value is named in lowercase letters, digits, dots, hyphens and underscores");
                 if (value is null) { Add(v, "a value is an object; one that sets nothing is {} or {\"note\": …}"); continue; }
                 if (value.Why is not null && string.IsNullOrWhiteSpace(value.Why)) Add($"{v}.why", "a sentence saying what this value is there for, not an empty string");
-                if (string.IsNullOrWhiteSpace(value.Note)) Add($"{v}.note", "required: a sentence saying what this value changes for the agent. It is what the value's change is held against when it is built alone (`proctor build`)");
+                if (string.IsNullOrWhiteSpace(value.Note)) Add($"{v}.note", "required: a sentence saying what this value changes for the agent. It is what the value's change is held against when it is built alone (`auspex build`)");
                 if (value.Route is not null and not ValueDef.Bare and not ValueDef.Harbor) Add($"{v}.route", $"'{value.Route}' is not a route; known: {ValueDef.Bare}, {ValueDef.Harbor}");
                 if (value.Fixture is not null && !Regex.IsMatch(value.Fixture, "^[a-z0-9][a-z0-9-]*$")) Add($"{v}.fixture", "a fixture is named by its directory under fixtures/: lowercase letters, digits and hyphens");
                 ValidateFiles(value.Files, dir, $"{v}.files", Add);
@@ -252,7 +252,7 @@ sealed class Axes
                 if (value is not null && value.Fixture is null) Add($"axes.{world}.values.{valueName}.fixture", $"required: every value of '{world}' names a fixture, since some do");
         }
 
-        // Refusal 2: values of different axes cannot set the same thing. A parameter, one of proctor's own fields, or a path.
+        // Refusal 2: values of different axes cannot set the same thing. A parameter, one of auspex's own fields, or a path.
         var setBy = new Dictionary<string, string>();
         var paths = new Dictionary<string, string>();
         foreach (var (axisName, axis) in axes)
@@ -396,7 +396,7 @@ sealed class Axes
         return given is JsonValue ? null : "declared as text: expects a string, a number or true/false";
     }
 
-    /// <summary>A value's identity: what it sets, proctor's own fields, and its files by content. Not its note.</summary>
+    /// <summary>A value's identity: what it sets, auspex's own fields, and its files by content. Not its note.</summary>
     static string ValueHash(string root, string dir, ValueDef value)
     {
         string Identity(FilesSource f) => (f.Git is not null ? f.GitIdentity() : Tree.Hash(Path.GetFullPath(Path.Combine(dir, f.Path!)), new HashSet<string> { ".git" })) + (f.To is null ? "" : "@" + f.To.Trim('/'));
@@ -410,7 +410,7 @@ sealed class Axes
     }
 
     /// <summary>
-    /// Who does the work in a configuration, as the runner knows it: proctor's own fields from each value, merged. The
+    /// Who does the work in a configuration, as the runner knows it: auspex's own fields from each value, merged. The
     /// route says bare or through Harbor; without one, a vendor agent goes through Harbor and nb runs bare.
     /// </summary>
     public Assistant AssistantOf(Configuration c)

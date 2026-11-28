@@ -11,11 +11,11 @@ reminder with enough context to start from, not a design.
 
 ## Decide the process boundary with nb
 
-Proctor can drive nb two ways: spawn `nb` as a subprocess and parse stdout, or
+Auspex can drive nb two ways: spawn `nb` as a subprocess and parse stdout, or
 reference `nb.Core` and call `Nb.RunAsync` in-process. The subprocess path keeps
 the boundary at the program file and the JSONL stream, which is the seam every
 existing consumer already uses. The in-process path gives a typed `RunResult`
-and no quoting or stream-deadlock problems, but couples proctor's build to nb's.
+and no quoting or stream-deadlock problems, but couples auspex's build to nb's.
 Pick one before the experiment manager grows a second code path.
 
 ## Define the JSON the site reads before the report skeleton hardens
@@ -23,7 +23,7 @@ Pick one before the experiment manager grows a second code path.
 Resolved the generation question: the site is a prebuilt bundle plus `data/`
 JSON (brief, "The site is a prebuilt app plus data files"). What remains is
 the data contract: the index file, the per-experiment files, and where the
-derived statistics live (computed by proctor in .NET and written as JSON, so
+derived statistics live (computed by auspex in .NET and written as JSON, so
 the browser never does statistics and the markdown summary reads the same
 numbers). Settle that schema before implementing the report skeleton in
 `learnings/prior-art.md` §5, since both renderers depend on it.
@@ -34,7 +34,7 @@ Built, then removed on 2026-11-22: auspex is the viewer, and `report.html`
 would have had to be refactored for stages. The site below links frozen
 copies of it in `docs/reports/`.
 
-Before the site, `proctor report` emits `reports/data/<id>/report.html`, a
+Before the site, `auspex report` emits `reports/data/<id>/report.html`, a
 single file with inline CSS and script, plus `summary.md`. Both render from
 `stats.json` and `results.jsonl`. Keep the template plain: a .NET string
 template or a small templating package, no front-end toolchain. Its sections
@@ -47,7 +47,7 @@ starts.
 
 The brief wants an opinionated library with complete components and
 micro-interactions, and no design system of our own. The bundle is built once
-in proctor's repo, so a React app costs a consumer nothing, and MUI is a real
+in auspex's repo, so a React app costs a consumer nothing, and MUI is a real
 candidate: its DataGrid does client-side sort, filter and virtualised
 rendering of large tables, which is the client-side load the brief now
 expects. Alternatives with the same completeness: Mantine (less "Firebase
@@ -56,28 +56,28 @@ Awesome remain an option if the bundle should stay framework-free. Tables are
 the whole product, so judge candidates on their data table first, then tabs,
 tooltip and details.
 
-## CI for proctor
+## CI for auspex
 
 `.github/workflows/test.yml`: build, then `dotnet test`. The runner tests
 spawn nb, so the workflow has to get an nb binary from somewhere: check out
-`breitreiter/nb` beside proctor and build it (what `TestRepo.NbPath` assumes
+`breitreiter/nb` beside auspex and build it (what `TestRepo.NbPath` assumes
 today), or, once nb is on nuget.org as a tool, `dotnet tool install` it and
 point `NB_PATH` at the shim. The second is the one to keep; the first is
 fine until the nb package exists. The Mock provider is all the tests need,
-so no keys. `first-slice.md` "Steps 1 through 7 run in proctor's own CI" is
+so no keys. `first-slice.md` "Steps 1 through 7 run in auspex's own CI" is
 the promise this pays.
 
-## Publish proctor as a dotnet tool
+## Publish auspex as a dotnet tool
 
 `PackAsTool` on `Auspex.csproj` (`first-slice.md` says "later"; this is the
 reminder), a tag-triggered release workflow that packs and pushes, mirroring
 nb's `Feature_Release_Workflow_Publishes_To_Nuget.md`. Package id is
-`Dreamlands.Proctor`: bare `Proctor` is taken on nuget.org
-(`learnings/name-collisions.md`). Command name stays `proctor`. Do nb first,
-so a consumer's CI can install both with two lines and proctor's own CI can
+`Dreamlands.Auspex`: bare `Auspex` is taken on nuget.org
+(`learnings/name-collisions.md`). Command name stays `auspex`. Do nb first,
+so a consumer's CI can install both with two lines and auspex's own CI can
 drop the sibling-checkout build.
 
-## Candidates for nb, not proctor
+## Candidates for nb, not auspex
 
 All six are filed in nb's own tracker as of 2026-09-17, untracked there until
 reviewed. Each is additive; none changes behaviour for a program that does
@@ -103,7 +103,7 @@ not name the new thing or for anyone building from source.
 ## `resume` does not notice a changed agent route
 
 `resume` refuses a changed suite and a changed compiled task (`harbor/tasks`
-hashed), but reads `proctor.json`'s `agents.<agent>.base_url` fresh. The
+hashed), but reads `auspex.json`'s `agents.<agent>.base_url` fresh. The
 task's `allowed_hosts` was compiled from the old host, so a changed route
 gives a cell whose base URL the allowlist does not admit: Harbor's egress
 sidecar (gost, transparent, sniffing `Host`/SNI) accepts the TCP connection
@@ -119,7 +119,7 @@ Docker writes `search lan` with `options ndots:0` into the task container's
 list for `library`; musl applies it only to names with fewer dots than
 `ndots`, so Codex (a static musl binary) asks for bare `library` and gets
 `failed to lookup address information: Try again` until the agent timeout.
-Worked around in the machine's `proctor.json` by spelling Codex's route
+Worked around in the machine's `auspex.json` by spelling Codex's route
 `library.lan`. Options: validation warns on a dotless agent host, or compile
 pins the host's address in the task (an `extra_hosts`-style entry, if Harbor
 allows one) so the spelling does not matter.
@@ -167,7 +167,7 @@ Stage 2's grade (`runs/20261102-1143-code-change-jy0n`) had `change-fits` on glm
 quotes span several added lines and drop the diff's `+` markers
 (`codex/add-retry-flag/1/verdicts/change-fits.glm.*.json` against its `diff.patch`), and a
 single-line quote from the same answer passes; since the check strips only whitespace, the
-markers alone would explain it, which would make it proctor's bug, not glm's. Unconfirmed:
+markers alone would explain it, which would make it auspex's bug, not glm's. Unconfirmed:
 reproduce it in `JudgeTests` with that window and quote before deciding. If it holds, the
 likely fix is one more candidate form for a diff part (each side's lines with the marker cut,
 old and new kept apart so a quote cannot stitch them), and then it is an issue. The
@@ -257,7 +257,7 @@ the README. Known to be ahead of the code on 2026-11-28:
 - section 8's "named, versioned formats", "commands can answer in JSON" and "what's
   promised is written down" (remix steps 1–4: today only `compare` and `coverage`
   answer in JSON, and `docs/remix/` doesn't exist);
-- the guide's commands, which say `proctor` until the rename.
+- the guide's commands, which say `auspex` until the rename.
 
 Check each citation's quoted strings against its live page too (Microsoft first). The
 drafts were read through a fetch tool that summarises, so the quotes may not be exact.
@@ -309,28 +309,28 @@ only. Any Volume a run created would keep billing after the cap.
 
 As of Harbor 0.24.0 nothing creates one. `environments/modal.py` mounts only
 volumes the user named (`Volume.from_name`, no `create_if_missing`), and
-proctor passes none. So today this is a guard, not a leak:
+auspex passes none. So today this is a guard, not a leak:
 
-- If proctor or a Harbor bump starts creating Volumes (the `runs/` on a
-  Volume idea under "Proctor as a hosted service", or a per-trial cache), name
+- If auspex or a Harbor bump starts creating Volumes (the `runs/` on a
+  Volume idea under "Auspex as a hosted service", or a per-trial cache), name
   or tag them by run so they can be found afterward. Then make `resume` and
   the kill path delete the ones a dead run left behind.
-- Confirm how a spend-limit stop shows up to proctor: a sandbox error, a hung
+- Confirm how a spend-limit stop shows up to auspex: a sandbox error, a hung
   `exec`, or something else. The attempt's failure should say "Modal spend
   limit," not something generic.
 - Check whether the Apps and built images that `App.lookup(create_if_missing)`
   and `Image.from_dockerfile` leave behind are billed. If they are, they
   belong in the same cleanup.
 
-## Proctor as a hosted service, if anyone asks
+## Auspex as a hosted service, if anyone asks
 
 Not planned, and of no use to us. This is the answer to "what would it take to
-make proctor a product you could sell", written down on 2026-11-12. The
+make auspex a product you could sell", written down on 2026-11-12. The
 assumption: the user brings their own Modal account and their own model keys,
 so we pay for neither inference nor containers, but we still orchestrate.
 
 **What the host does today.** Even on `harbor.engine: modal`, the machine that
-starts proctor runs these:
+starts auspex runs these:
 
 - bare nb arms, with tools, in the work directory;
 - hooks, runner scripts and the script checks of bare cells;
@@ -344,8 +344,8 @@ back by path) and `report --against` all need that tree to outlive the
 process. Cells run one at a time. On a shared host, the suite's code runs
 with our privileges.
 
-**The cheap shape: run proctor on the user's Modal too.** Make the orchestrator
-one long-running Modal function per experiment, its image holding the proctor
+**The cheap shape: run auspex on the user's Modal too.** Make the orchestrator
+one long-running Modal function per experiment, its image holding the auspex
 CLI, nb's publish and Harbor's pin. Harbor should be able to start sandboxes
 from inside Modal with the user's token; that is the first thing to prove.
 Then the following holds:
@@ -353,7 +353,7 @@ Then the following holds:
 - hooks, bare arms, script checks and the oracle run in the user's account,
   not ours;
 - we pay for no compute;
-- keys can be Modal Secrets in the user's workspace, reaching proctor as the
+- keys can be Modal Secrets in the user's workspace, reaching auspex as the
   environment its `${VAR}` resolution already reads, so we never hold a model
   key;
 - the host-nb-equals-image-nb check cannot fail, since we ship both.
@@ -418,11 +418,11 @@ every tenant. That service needs:
   attached LLM;
 - pricing that covers a suite whose cost nobody estimated.
 
-Proctor's own records help: `core.json` counts every call, and the sandbox
+Auspex's own records help: `core.json` counts every call, and the sandbox
 lifetimes already end on their own. Estimating an experiment's cost before
-it runs, though, is a problem proctor has never had to solve.
+it runs, though, is a problem auspex has never had to solve.
 
-**Size.** The minimal version takes weeks: a "proctor in a box" Modal app the
+**Size.** The minimal version takes weeks: a "auspex in a box" Modal app the
 user deploys to their own workspace, started from the CLI or a webhook, with
 results on a Volume and no accounts or hosted UI. It proves the orchestrator
 can run on Modal, and "run it on your Modal, no Docker" is an adoption story
@@ -463,7 +463,7 @@ the field; what is missing is committed suites and reports that show it.
 
 ## Pass rate has no headroom on frontier agents
 
-Field use so far (2026-11-09): every fix proctor has driven was a large
+Field use so far (2026-11-09): every fix auspex has driven was a large
 stumble (missing data, a broken or mislabelled tool, a known issue absent
 from the docs), found by reading failures on a small local model. Once
 that model usually completes the task, changes stop being detectable: the
@@ -512,7 +512,7 @@ A use that has grown up beside the written one (2026-11-09): tasks with
 many correct work products, some of which a domain expert prefers. Some
 of the preference can go in the prompt, but without seeing a spread of
 outputs there is no telling when the prompt over-specifies and narrows
-them. Proctor fits because the agent sees the prompt and the bundle and
+them. Auspex fits because the agent sees the prompt and the bundle and
 nothing of the author's own agent configuration, the prompt variants are
 bundles (so arms), and the samples, which for a pass rate only reduce
 noise, are here the thing being looked at.
@@ -594,7 +594,7 @@ are: long reasoning with no action or the same call repeated; `read` and
 `search` calls the task never needed, and a long stretch before the first
 edit; a tool result that errored followed by the same tool with other
 arguments, or an edit later undone; `--help`, a docs read, a `skill` or
-`web` call. Proctor holds the material (a kind per call, `IsError` per
+`web` call. Auspex holds the material (a kind per call, `IsError` per
 result) and uses it only as tallies and maxima, which lose the order.
 Order matters: help opened first is propensity, help opened after a
 failure is a stumble.
@@ -612,7 +612,7 @@ the guess was right.
 
 Observations, as a second thing beside checks:
 
-- Proctor's, not the suite's: every run of every suite, nothing to author.
+- Auspex's, not the suite's: every run of every suite, nothing to author.
   A check is a question someone knew to ask.
 - Events, not verdicts: each has a step and a quote, and none touches the
   pass rate.
@@ -632,7 +632,7 @@ Observations, as a second thing beside checks:
   is that model's habit.
 
 How to know it is any good, at no cost: replay the cells behind fixes
-proctor has already driven and see whether it surfaces what reading
+auspex has already driven and see whether it surfaces what reading
 found; and planted defects (`jotcli` has one), with a clean control that
 should stay quiet. Start with the replay, if those cells still exist.
 
@@ -687,7 +687,7 @@ Three readers, three layers (2026-11-09): the raw capture, which stays
 the ground truth; the report, which in practice is a person's quick look
 at whether the treatment moved the needle; and between them something for
 the user's own coding agent, told "this looks off in the report, go and
-find out why". Proctor already writes for an agent elsewhere
+find out why". Auspex already writes for an agent elsewhere
 (`setup --check`, `skills/proctor-suite`).
 
 Two observations behind it:
@@ -700,7 +700,7 @@ Two observations behind it:
   with the model's name hidden, as a judge window hides it.
 - The strongest model a user has is the one in their working session,
   which is ahead of anything they would run as an arm day to day. So the
-  review need not be a proctor feature or a paid judge: it is the session
+  review need not be an auspex feature or a paid judge: it is the session
   the user is already in, and it may reach the frontier arms' traces too.
   Untested.
 
@@ -866,7 +866,7 @@ docs site.
 - **An arm hook that serves the bundle on the host is not reachable from a
   vendor agent's container**: the allowlist names the model's host only.
   A suite that needs a host-served corpus (as #11's describes) should serve
-  it as a fixture service instead, or proctor needs a way for a suite to
+  it as a fixture service instead, or auspex needs a way for a suite to
   add a host to the allowlist.
 
 ## Beats
@@ -956,11 +956,11 @@ problems, tests and changes):
 
 2026-11-11. Sonnet `dd5u` and Qwen Code `1u5l`, as above.
 
-- **Every Sonnet run met the same dead end**: `proctor setup --check` says to
-  ask the user to run `proctor setup` at a terminal (15 of 15, while
+- **Every Sonnet run met the same dead end**: `auspex setup --check` says to
+  ask the user to run `auspex setup` at a terminal (15 of 15, while
   orienting). All carried on.
 - **Six of nine Qwen Code runs never loaded the skill** and built something
-  that is not proctor (shell scripts, `.qwen/workflows/*.js`). Only
+  that is not auspex (shell scripts, `.qwen/workflows/*.js`). Only
   `revised-prompt` triggered it, 3 of 3. Why that prompt and not the other
   two is unexamined.
 - **The docs fall short**: 6 Sonnet runs read
@@ -1093,16 +1093,16 @@ calls for the same pass. Strips: `o11 A! R A A! R! R! R! .`,
 `o13 A A! R! r .`, `o15 A A! R! R! R!`, `o12 A! R A A! R! R! R! .`. Not yet
 read against the cut.
 
-## A cookbook: proctor output for human expert review (after the rewrite)
+## A cookbook: auspex output for human expert review (after the rewrite)
 
 Queued 2026-11-15, to do once the move to exam, variant and attempt has
 landed (`project/plans/exam-variant-attempt.md`), so the recipe is
 written against the commands that will exist.
 
 Write a cookbook page in `docs/` for the rare, high-touch case where
-proctor makes the material and a professional judges it: "you work in
+auspex makes the material and a professional judges it: "you work in
 this field, which of these versions makes the most sense to you?"
-Proctor's part is generating, not grading. A person cleans up the
+Auspex's part is generating, not grading. A person cleans up the
 output, picks the few comparisons that matter, and stages them into a
 session, usually run on a call.
 
@@ -1144,7 +1144,7 @@ the second pass makes no judge calls.
 Unconfirmed. The rubric in `docs/configuration.md` ("When an exam gets a
 copy") rests on an agent at a pinned `agent_version` behaving the same
 from week to week. If Claude Code (or Codex, or Qwen Code) fetches remote
-feature flags or config at startup, it may not. Proctor turns off only
+feature flags or config at startup, it may not. Auspex turns off only
 Harbor's telemetry (`HARBOR_TELEMETRY=off`, `Run/Harbor.cs`) and sets
 nothing for the agents. To investigate: what each agent at its pin fetches
 on start (a conformance attempt with the egress sidecar logging, at $0),
@@ -1152,19 +1152,19 @@ and whether a setting such as `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`
 in the agent's environment stops it without changing what is under test.
 An issue only once it is seen.
 
-## Grade the proctor-on-proctor exams with the proctor they were shown
+## Grade the auspex-on-proctor exams with the auspex they were shown
 
 Wait until the exam-variant-attempt refactor settles; nothing is pinned
-before then. `exam-authoring`'s variants pin proctor's docs at a revision
+before then. `exam-authoring`'s variants pin auspex's docs at a revision
 (the bundle, `b3250b6` today), but `checks/validates.sh` and
 `checks/trial.sh` grade with the host's build
 (`$PROCTOR_EXAM_DIR/../../bin/Debug/net10.0/proctor.dll`), whatever the
 checkout last built. So every commit that changes what `list` accepts, or
 how a trial runs, changes the verdicts on attempts already made, with no
 hash moving: by the rubric in `docs/configuration.md` ("When an exam gets
-a copy"), the world changes on every commit. The fix: build proctor at the
-variant's bundle rev (the variant-setup hook already builds proctor) and
-hand that build's path to the checks, so a proctor change reaches the exam
+a copy"), the world changes on every commit. The fix: build auspex at the
+variant's bundle rev (the variant-setup hook already builds auspex) and
+hand that build's path to the checks, so an auspex change reaches the exam
 only as a new variant at a new rev, with a claim. Check `agent-onboarding`
 for the same shape when doing it; its scripts do not name the host build,
 but may reach it another way. Then decide the cadence: a new bundle rev
@@ -1207,15 +1207,15 @@ forget.
 - Decide what counts as worth retrying: `rate_limited` and
   `provider_error`, not a crash of nb or a failed hook.
 
-## Something above an exam that `proctor run` can target (2026-11-23)
+## Something above an exam that `auspex run` can target (2026-11-23)
 
 Stages replace tasks, so an exam is one job in one environment, and a
 set of related jobs is a set of exams: `code-change` becomes three, the
 scripted controls a handful. The user: "we're generating a lot of exams,
-do we need something above them that proctor run targets? or some sort
+do we need something above them that auspex run targets? or some sort
 of metadata/tagging system so you can say 'run all the oracle exams'".
 
-- Exams already carry `labels`, and `proctor list --label` filters by
+- Exams already carry `labels`, and `auspex list --label` filters by
   them. The smallest step is `run`, `grade` and `report` taking the same
   filter.
 - A named group of exams is the other shape. The word for it is on the
@@ -1233,7 +1233,7 @@ Written 2026-11-27 (`plans/container-network-finish.md`, stage 4):
 `docs/network.md` (the page each engine guide points at),
 `docs/service-fixtures.md`, `docs/docker.md`; `docs/podman.md` and
 `docs/modal.md` brought up to Harbor 0.26.0; setup's sandbox plan, the
-`proctor-exam` skill and the README point at them. Left:
+`auspex-exam` skill and the README point at them. Left:
 
 - **Nothing was run on macOS**, Docker Desktop or rootful Docker; the
   Docker guide says so, section by section. There is no Mac. The
@@ -1248,13 +1248,13 @@ Written 2026-11-27 (`plans/container-network-finish.md`, stage 4):
 ## One host and one port for an agent's model, on any machine
 
 Asked for by the user 2026-11-26. **Built for the machine that runs
-proctor** (2026-11-27): a loopback base URL is relayed, one port, and
+auspex** (2026-11-27): a loopback base URL is relayed, one port, and
 the agent's phase is `no-network` (`docs/network.md`). **Not built for
 a host elsewhere**: Harbor's allowlist is by host, never by port, so an
 agent allowed a gateway on another machine reaches every web service
 on it. That is Harbor's to give (`harbor-issue-drafts.md`, draft 1);
 the relay could carry a remote host's port too, from the machine that
-runs proctor, and nobody has asked.
+runs auspex, and nobody has asked.
 
 ## A fixture's services are in no hash
 
@@ -1302,7 +1302,7 @@ above; C3 of the plan is the same question as advice.
 
 ## An agent told to get out: adversarial runs against the isolation
 
-Pinned by the user 2026-11-26, for later: after the core of proctor
+Pinned by the user 2026-11-26, for later: after the core of auspex
 works, and probably after the viewer does. Everything measured so far
 (`plans/container-network.md`, `learnings/harbor.md`) is what a probe
 script can reach, and `container-network.md` leaves out "an agent that
@@ -1335,29 +1335,29 @@ for a way and not by a list we thought of.
 ## What an interrupted Harbor trial leaves in the engine
 
 Seen on rootless Docker (golem, 2026-11-27, `learnings/harbor.md`):
-proctor sent SIGINT during an agent attempt left that trial's compose
+auspex sent SIGINT during an agent attempt left that trial's compose
 project behind, Harbor's sidecar running, the other containers exited,
 and its network. The continued run was not hindered. Not known: whether
 a Ctrl-C at a terminal, which signals Harbor too, leaves the same;
-whether podman does; and whose it is to remove (proctor on continuing,
+whether podman does; and whose it is to remove (auspex on continuing,
 by the project's name, or Harbor on the signal). To reproduce both ways
 before anything is filed.
 
 ## A prediction's date is the author's, and required
 
-**Built 2026-11-27**: `written` is required and the author's, proctor pins only the standard, "late" is "post hoc" and "Not pinned" is gone.
+**Built 2026-11-27**: `written` is required and the author's, auspex pins only the standard, "late" is "post hoc" and "Not pinned" is gone.
 
 Decided with the user on 2026-11-27, during the viewer's design day. Not built.
 
 - **`written` is a required field of a prediction file**, set by the person who
   writes it. A prediction without one is a validation problem, refused like any
-  other missing field. Today `proctor predict` and `run` set it
+  other missing field. Today `auspex predict` and `run` set it
   (`Predictions.Stamp`), and a file without it is reported as "Not pinned".
 - **`predict` and `run` stop setting `written`** and keep stamping `standard`,
   each stage's checks at that moment, which nobody can type by hand. A prediction
   with a date and no standard yet needs no mark of its own.
 - **"Not pinned" goes away** as a label in `PredictionOutcomes` and everywhere
-  it is printed. What is left: the date is the author's claim, and proctor
+  it is printed. What is left: the date is the author's claim, and auspex
   compares it with when the tries were made.
 - **"Late" becomes "post hoc"** on the screens, and should in the report and
   `list` too, so the three say one word.
@@ -1398,7 +1398,7 @@ Proposed and not yet answered by the user:
 
 - **The names in the exam's files too** (`grading.correctness`,
   `grading.integrity`, `grading.quality`), not only on the screens, so the user,
-  the agent and proctor say one word. "Headline" goes from the report, `list`
+  the agent and auspex say one word. "Headline" goes from the report, `list`
   and the docs with it.
 - **Correctness is deterministic by rule:** a judged check (`judge`, `decide`)
   named as correctness is refused, and can only be quality.
@@ -1426,7 +1426,7 @@ going. It stops being one after six months of configurations nobody is
 interested in any more. So a named configuration needs a way out of the list
 that deletes nothing.
 
-**Built 2026-11-27** as proposed below (`Exam/Retired.cs`, `proctor retire`,
+**Built 2026-11-27** as proposed below (`Exam/Retired.cs`, `auspex retire`,
 `--bring-back`; the viewer's exam, index and configuration pages). Not built:
 the same through MCP: `remix.md` puts an MCP server in a separate repository, not here. Owed under that plan's rules: `retire` answers in text only (no JSON yet), and its exit codes are not written down. `list`, the report's
 `summary.md` and `coverage` keep a retired configuration among the rest,
@@ -1435,11 +1435,11 @@ marked: they are the full record, and only the viewer's main lists leave it out.
 Settled by the user the same day: the word is **retired**, a reason is
 recorded, and a retired configuration can be brought back. The rest was proposed.
 
-- **A verb beside `live`** (`proctor retire <exam> <configuration> --reason
+- **A verb beside `live`** (`auspex retire <exam> <configuration> --reason
   "..."`, and one to bring it back; the same through MCP), since the viewer has
   no write actions in v1. Recorded with the exam with the reason and the date,
   committed, in no hash. "Rejected" was passed over because it is a judgement
-  proctor does not make, "expired" because it suggests a clock.
+  auspex does not make, "expired" because it suggests a clock.
 - **Nothing is deleted.** A retired configuration keeps its tries in the bank,
   its page, its predictions and their outcomes, and can still be compared by
   name.
@@ -1464,7 +1464,7 @@ questions:
 - **Can an agent break out of our sandbox?** Qwen Code or opencode as the
   agent, on whatever model OpenRouter offers that will try. A measurement of
   our own containment (`docs/network.md` says what it claims). Spend agreed
-  before any run; opencode is not an agent proctor drives yet.
+  before any run; opencode is not an agent auspex drives yet.
 
 ## A link to compare any two configurations
 
@@ -1489,13 +1489,13 @@ Retired ones are a question (probably listed last, or under their count).
 From the user, 2026-11-27. Not for this weekend. Somebody will want to turn
 several axes at once and read what comes out: which value matters, where two
 of them interact, whether a finding holds on another model. That is not who
-proctor is for, it brings real complexity and a real risk of the reader
+auspex is for, it brings real complexity and a real risk of the reader
 confusing themselves, and it may not be worth a screen at all.
 
 What is wanted first is evidence, not a page: an exam in which an agent (Opus)
 is asked questions of that kind about a bank with several varying axes and has
-only proctor's tools to answer with (`compare`, `coverage`, `--within`,
-`--against`, the skill `proctor-answers`). The bank's answers are known, as
+only auspex's tools to answer with (`compare`, `coverage`, `--within`,
+`--against`, the skill `auspex-answers`). The bank's answers are known, as
 `Auspex.Tests/exams/axes-answers` is built to have, so each answer can be
 graded. What it finds decides whether the tools need more, and only then
 whether a screen is worth drawing.
@@ -1510,8 +1510,8 @@ them, and their 36 tries stay in the bank, listed as stale. What follows is
 how it was found. `continue-the-batch` is still open.
 
 Found 2026-11-27 while moving the pins. `exams/exam-authoring`'s four variants
-pin proctor's docs at `b3250b6`, which teach `grading.pass` and
-`grading.validity`. The exam an agent writes is graded by the host's proctor,
+pin auspex's docs at `b3250b6`, which teach `grading.pass` and
+`grading.validity`. The exam an agent writes is graded by the host's auspex,
 which refuses those names since the same day, so a try made now would fail for
 the docs it was shown. The graders are ported (`trial/run.sh`,
 `reference/shakedown.sh` read `correctness` and `integrity`; the shakedown
@@ -1528,7 +1528,7 @@ Separately, and from before: `continue-the-batch` and `hooks/interrupt.sh` are
 written for the layout before the bank, and that task fails its own shakedown.
 
 `exams/agent-onboarding` had no tries and its pin is moved (`e1706b4`); its
-shakedown passes, and nb and proctor build at the pins in the fixture's base
+shakedown passes, and nb and auspex build at the pins in the fixture's base
 image.
 
 ## An exam's README is part of what a script verdict was made under

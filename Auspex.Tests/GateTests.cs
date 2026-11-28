@@ -46,7 +46,7 @@ public class GateTests
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(repo.Root, problems);
         Assert.Empty(problems);
-        // The configurations the exam names, as `proctor run` makes them.
+        // The configurations the exam names, as `auspex run` makes them.
         var (exam, keys) = Verbs.ForRun(repo.Root, repo.LoadExam(examId), null, null, null);
         var id = Runner.Run(repo.Root, exam, config, null, null, "gate", TextWriter.Null, keys)!;
         Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);

@@ -1,14 +1,14 @@
 ---
-name: proctor-exam
-description: Plan and build a proctor exam for the user's project — what an agent should be able to do with what they built, how to tell whether it did, and the exam, fixture and stages that measure it. Use when the user wants to evaluate how coding agents or models cope with their SDK, CLI, docs, MCP server, skill, prompt or assistant, or asks for help writing a proctor exam.
+name: auspex-exam
+description: Plan and build an auspex exam for the user's project — what an agent should be able to do with what they built, how to tell whether it did, and the exam, fixture and stages that measure it. Use when the user wants to evaluate how coding agents or models cope with their SDK, CLI, docs, MCP server, skill, prompt or assistant, or asks for help writing an auspex exam.
 ---
 
-# Planning and building a proctor exam
+# Planning and building an auspex exam
 
-Proctor runs an exam's stages against agents and models, grades each stage
+Auspex runs an exam's stages against agents and models, grades each stage
 with checks, and compares what is under test try against try. You are helping a user measure
 something they built. This skill assumes you can read their repository and
-proctor's; it covers what you would not guess and the places proctor
+auspex's; it covers what you would not guess and the places auspex
 differs from other eval tools.
 
 Work in two parts, with the user's approval between them: **plan**
@@ -17,20 +17,20 @@ free shakedown, then the paid run they agree to).
 
 ## Before anything
 
-- **Find proctor's checkout.** Ask, or resolve the user's `proctor` command
-  (`type proctor`; `Get-Command proctor` in PowerShell). Read its
+- **Find auspex's checkout.** Ask, or resolve the user's `auspex` command
+  (`type auspex`; `Get-Command auspex` in PowerShell). Read its
   `README.md`, then `docs/configuration.md`, the reference for every file
   below. Its `exams/` are worked examples; read the one closest to the
   user's case before writing anything: `exams/readme-answers` (a model
   answering from a document), `exams/tern-docs` (a coding agent, with
   docs served beside it), `exams/code-change` (one question in three
   repositories).
-- **Run `proctor setup --check`** in the user's repository. It says which
+- **Run `auspex setup --check`** in the user's repository. It says which
   providers exist, which jobs are set up and what is missing; the model ids
   each key could reach are in `exams/setup.json`. Neither holds a key.
 - **Never handle a key.** Not in a command, a file or a message. When an
   exam needs a provider or a job that is not set up, ask the user to run
-  `proctor setup` themselves; it refuses to run without a terminal, on
+  `auspex setup` themselves; it refuses to run without a terminal, on
   purpose. Config files hold `${VAR}` only.
 
 ## Part 1: plan
@@ -87,7 +87,7 @@ sentence, the stages with their checks, the axes and the configurations to run, 
 and what result would change the user's mind. Get approval before Part 2.
 
 **On numbers.** The `n` of a comparison is tries, never stages: stages
-share an environment, so they share causes, and proctor compares one
+share an environment, so they share causes, and auspex compares one
 configuration's tries with another's. Each try gives two numbers, how
 many of its correctness checks held and how many of its steps were flagged
 as friction. Plan at least 4 tries of each configuration (`tries`), or 3
@@ -100,8 +100,8 @@ try is a shakedown, for setup problems and plain failures.
 ### Where the files go
 
 In the user's repository, `exams/` at the root holds their exams and
-`fixtures/` their fixtures; proctor runs from that root (or `--root`).
-`proctor setup` already wrote `exams/auspex.json`, `exams/nb.json` and
+`fixtures/` their fixtures; auspex runs from that root (or `--root`).
+`auspex setup` already wrote `exams/auspex.json`, `exams/nb.json` and
 `exams/setup.json` there, all gitignored. Edit only the entries an exam
 needs; setup tracks its own and leaves the rest alone.
 
@@ -115,11 +115,11 @@ fixtures/<id>/fixture.json  source, params, checks that hold for every stage on 
 fixtures/<id>/repo/         what is copied into the work directory, and nothing else
 ```
 
-Use proctor's vocabulary in every file and in what you tell the user:
+Use auspex's vocabulary in every file and in what you tell the user:
 exam, stage, check, fixture, axis, value, configuration, try (every stage
 once; an attempt is one stage of it), bank, live, prediction.
 
-### Proctor's gotchas
+### Auspex's gotchas
 
 - **The fixture is what the agent sees; keep the answers out of it.**
   Only the source tree is copied into the work directory. A fixture whose
@@ -128,7 +128,7 @@ once; an attempt is one stage of it), bank, live, prediction.
   local secrets. Point it at a pinned `{"git": ..., "rev": ...}`, a
   snapshot under `fixtures/<id>/repo/`, or exclude those directories with
   `source.exclude`. An exam that needs no repository uses a fixture with an
-  almost empty `repo/` (proctor's `fixtures/empty`).
+  almost empty `repo/` (auspex's `fixtures/empty`).
 - **What is under test belongs to a value, the stages' world to the
   fixture.** The README version, the tool description, the skill: a
   value's `files`, laid over the checkout, or a parameter it sets, which
@@ -137,7 +137,7 @@ once; an attempt is one stage of it), bank, live, prediction.
   parameters the fixture (or, for the program template, the exam)
   declares under `params`.
 - **A value says what it changes.** Its `note` is one sentence on what it
-  changes for the agent; `proctor build <id>` shows what it really
+  changes for the agent; `auspex build <id>` shows what it really
   changes in the starting workspace, with nothing run, to read against
   the note. Run it before any paid run.
 - **Program templates name the model before the provider:**
@@ -178,7 +178,7 @@ once; an attempt is one stage of it), bank, live, prediction.
   the fixture (`image.services`), reached at `localhost`, which the
   agent can call and cannot read; the checks get no services and start
   their own. A model or a dev server on the user's own machine is named
-  as `localhost` and proctor relays the one port. Never propose opening
+  as `localhost` and auspex relays the one port. Never propose opening
   the host's loopback to containers. `docs/network.md` and
   `docs/service-fixtures.md` have the rules; plan for them before
   writing a fixture, since they decide where things listen.
@@ -192,15 +192,15 @@ once; an attempt is one stage of it), bank, live, prediction.
   every axis an `about`, every value a `note`, and every check a `why`.** The report puts the description beside
   every number. The `why` says what the check protects ("secrets in .env
   stay out of git"), where the description says what it does (".env is in
-  .gitignore"); a person reads it beside a failure. `proctor list` names
-  checks without one; four common checks have proctor's. A note says what
+  .gitignore"); a person reads it beside a failure. `auspex list` names
+  checks without one; four common checks have auspex's. A note says what
   the value changes, never what it is expected to do: an expectation is a
   prediction, a file of its own, written before the tries.
 - **A value is declared data, and its identity is its content.** Editing a
   value or its files makes a new value; once the old one has made tries,
   `run` refuses the edit under the same name, so give it a new name and
   keep the old one. Hooks are the exam's: one that branches on an axis to
-  change what the agent sees hides that difference from proctor; put it
+  change what the agent sees hides that difference from auspex; put it
   in the value (a value's `files` from git can pick `paths` of a revision).
 - **A changed stage makes every try stale.** The exam has one hash
   over what the agent meets: every stage's id and prompt in order, the
@@ -223,30 +223,30 @@ once; an attempt is one stage of it), bank, live, prediction.
   new id, try what is live again there, and leave the old exam
   closed. `docs/configuration.md`, "When an exam gets a copy", has the
   rubric.
-- **After a crash, `proctor run <id>` again.** A try that was lost or never
+- **After a crash, `auspex run <id>` again.** A try that was lost or never
   finished is made again, whole.
 
 ### Prove it before anyone pays
 
-1. `proctor list <id>` until it validates.
+1. `auspex list <id>` until it validates.
 2. Prove every check both ways, with no model: that it passes a correct
-   result and fails a wrong one. Proctor's examples show two ways. A
+   result and fails a wrong one. Auspex's examples show two ways. A
    `reference/` script applies a known-good change and runs the checks on
    it (`exams/tern-docs/reference/shakedown.sh`, with `--unsolved`
    for the failing side). Or nb's Mock provider gives a scripted answer:
    a prompt of `MOCK:response=<text>` makes Mock reply `<text>`
    (`exams/readme-answers/reference/shakedown.sh`, with `--wrong`).
-3. `proctor build <id>`: what each value changes, read against its note.
+3. `auspex build <id>`: what each value changes, read against its note.
 4. One try of one configuration on a free or local model (`"tries": 1`
-   for now, and `proctor run <id> --configuration <name>`), read the
+   for now, and `auspex run <id> --configuration <name>`), read the
    transcripts and the report, and fix what looks wrong.
-5. Then the agreed run: `proctor run <id>`, then `proctor grade <id>` and
-   `proctor report <id>` (they read every current try of the exam,
+5. Then the agreed run: `auspex run <id>`, then `auspex grade <id>` and
+   `auspex report <id>` (they read every current try of the exam,
    whenever it was made). Walk the user through
    `reports/<id>/explore/summary.md`: each value against the live one,
-   the stages that failed and their quoted reasons. `proctor compare <id>
+   the stages that failed and their quoted reasons. `auspex compare <id>
    <axis>=<value>` answers one comparison as JSON, with what it could not
-   have shown; the skill for reading those is `proctor-answers`.
+   have shown; the skill for reading those is `auspex-answers`.
 
 If a check fails a stage that looks right to you, the check is the suspect
 before the agent is.

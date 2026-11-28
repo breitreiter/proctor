@@ -9,7 +9,7 @@ what to change. The reference for every field is
 `exams/tern-docs` (a coding agent in a container) and
 `exams/code-change` (one question in three repositories).
 
-`proctor list <exam>` on an exam of the earlier shape says what it found
+`auspex list <exam>` on an exam of the earlier shape says what it found
 and what each part becomes.
 
 ## The words
@@ -41,7 +41,7 @@ and what each part becomes.
 | `bundle: {path}` or `{git, rev, paths}` | `files: {…}` (laid over the checkout), or `set: {NAME: {…}}` for a tree a service or the program reads |
 | `attempts` | `tries`: how many tries every named configuration should have |
 | `hooks.variant`, `hooks.attempt` | `hooks.configuration`, `hooks.try` |
-| `live.json`, `proctor live` | `"live": "<value>"` on the axis |
+| `live.json`, `auspex live` | `"live": "<value>"` on the axis |
 | `--variant`, `--tasks` | `--configuration <name>`, `--value axis=value`; a stage is never run alone |
 
 In `program.nb`, `{{variant}}` is `{{configuration}}`, and `{{bundle}}`
@@ -78,7 +78,7 @@ and you name the ones you ran.
   axes, and the four configurations named.
 - **They differed by a hook** (a setup script branching on the variant's
   id): move the difference into a value, as files or as a parameter the
-  hook reads (`AUSPEX_PARAM_<NAME>`), where proctor can see and hash it.
+  hook reads (`AUSPEX_PARAM_<NAME>`), where auspex can see and hash it.
 
 Mark the value in use as `"live"` on its axis. An axis nobody chooses
 gets a `"reference"` instead, or nothing if it has one value.
@@ -121,21 +121,21 @@ Then two questions:
 - **`run` makes what is named.** It no longer continues an interrupted
   run: a try that was lost is made again, whole.
 - **The report is by configuration**, each value against its axis's live
-  one. `proctor compare` and `proctor coverage` answer the same as JSON.
+  one. `auspex compare` and `auspex coverage` answer the same as JSON.
 
 ## The tries already made
 
 Attempts made under tasks and variants stay in `bank/<exam>/` and are
 read by nothing: what was under test is named and hashed another way,
-so they are no configuration's tries. `proctor list` says how many are
+so they are no configuration's tries. `auspex list` says how many are
 there, and the viewer lists them from the exam's page, so their
 transcripts can still be opened. Make the tries again to have numbers.
 
 ## Check the port
 
 ```bash
-proctor list <exam>     # validates, and names what is wrong and where
-proctor build <exam>    # what each value changes, with nothing run
+auspex list <exam>     # validates, and names what is wrong and where
+auspex build <exam>    # what each value changes, with nothing run
 ```
 
 Then prove the checks without a model, as the examples do in

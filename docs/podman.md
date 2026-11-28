@@ -32,7 +32,7 @@ sudo loginctl enable-linger "$USER"
   Harbor** (0.24.0 and 0.26.0). `podman-compose` has no `compose ls`, which Harbor's preflight
   runs, and refuses `exec --no-TTY`, which the allowlist phase runs. With
   both installed, set `PODMAN_COMPOSE_PROVIDER` to docker-compose's path
-  (`/usr/libexec/docker/cli-plugins/docker-compose` on Ubuntu); proctor
+  (`/usr/libexec/docker/cli-plugins/docker-compose` on Ubuntu); auspex
   passes its environment through to Harbor.
 - [uv](https://docs.astral.sh/uv/) runs the pinned Harbor. It needs no root.
 
@@ -71,7 +71,7 @@ compose_warning_logs = false
 on stderr before every call. Harbor reads `compose exec` output with stderr
 included, so the banner becomes part of every version an agent's setup
 asks the image for: Harbor's Codex agent decides its pin is missing and
-fails reinstalling it, and proctor's Qwen Code agent refuses the image.
+fails reinstalling it, and auspex's Qwen Code agent refuses the image.
 Claude Code and the oracle happen not to notice, which is why a check with
 only those passes.
 
@@ -89,7 +89,7 @@ gateway; a service that speaks first, such as ssh, is not. The agent
 also holds the gateway's key, so it can call every route that key
 serves. Give it a key for the one route if your gateway can.
 
-**On the same machine, listening on loopback: proctor relays it.** Leave
+**On the same machine, listening on loopback: auspex relays it.** Leave
 `base_url` as you would use it yourself, `http://localhost:8086` say. A
 base URL whose host is `localhost` or a `127.` address means this
 machine's, and `run` carries that one port to the agent's own
@@ -169,17 +169,17 @@ new image afterwards).
 Two things skip that `down`:
 
 - **A killed Harbor.** When an attempt outruns its wall limit plus the overhead
-  allowed for image builds, proctor kills the Harbor process tree, and no
+  allowed for image builds, auspex kills the Harbor process tree, and no
   `compose down` runs: the agent's container may still be running, with its
-  sidecar, network and images. Proctor then removes them itself, by the
+  sidecar, network and images. Auspex then removes them itself, by the
   trial's compose project labels (`com.docker.compose.project`:
   `<trial>__env` and `<trial>__verifier__trial`, lower-cased), so an attempt
   running beside it is untouched. The attempt's failure says what was removed.
-  A Harbor killed by anything other than proctor (an interrupted hand run,
+  A Harbor killed by anything other than auspex (an interrupted hand run,
   `kill -9` on the host) leaves the same set; the lines above clear it.
 - **A failed `down`**, which is what the pasta denial above causes: one
   exited sidecar, one network and one image per environment, two per attempt.
-  That is the machine's fault, not proctor's, so proctor does not sweep for
+  That is the machine's fault, not auspex's, so auspex does not sweep for
   it; fix the rule, then run the lines above once.
 
 Networks matter more than their size suggests: each holds a subnet from a
@@ -202,7 +202,7 @@ for the oracle pass), no model, $0.
 
 Harbor pins its own version but not its dependencies', and one of them
 (litellm 1.107.0, 2026-10-21) shipped a credential stealer that ran at
-every Python startup. Proctor resolves Harbor's dependencies under a
+every Python startup. Auspex resolves Harbor's dependencies under a
 seven-day cooldown, which keeps out a poisoned release pulled within the
 week. If the account that runs the agents also holds keys worth stealing
 (`~/.ssh`, a GitHub token, an AI client's credentials), `harbor.uv` can
@@ -212,7 +212,7 @@ directory hidden:
 ```bash
 #!/bin/bash
 # harbor.uv: uv with $HOME, the runtime directory's other sockets, /srv and
-# the rest of /tmp hidden, and the environment cleared but for what proctor
+# the rest of /tmp hidden, and the environment cleared but for what auspex
 # hands Harbor. Bind in your repository's bank/ and log/ if they are under a
 # hidden path.
 set -euo pipefail

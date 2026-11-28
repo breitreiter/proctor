@@ -78,7 +78,7 @@ static class Friction
 {
     /// <summary>friction/3 (2026-11-28): the attempt block names its `configuration` and `stage`, and the stage's `place` in the try, where it said `variant`, `task` and `stage`. friction/2 (2026-11-23, check-evidence.md C5.1): labels as objects with their sentence, `rule` and `because` on each evidence item, `flagged_steps`.</summary>
     public const string Schema = "friction/3";
-    /// <summary>The rules' own version, apart from proctor's: a file says which rules made it. 0.10 renamed every label so each reads bare.</summary>
+    /// <summary>The rules' own version, apart from auspex's: a file says which rules made it. 0.10 renamed every label so each reads bare.</summary>
     public const string RulesVersion = "0.10";
 
     /// <summary>
@@ -195,7 +195,7 @@ static class Friction
             ["atif"] = trajectory["schema_version"]?.DeepClone(),
             ["detector"] = new JsonObject
             {
-                ["name"] = "proctor friction", ["version"] = RulesVersion,
+                ["name"] = "auspex friction", ["version"] = RulesVersion,
                 ["labels"] = LabelObjects(LabelDefs), ["surface"] = surface.Hash,
             },
             ["summary"] = Summary(steps, points, surface),

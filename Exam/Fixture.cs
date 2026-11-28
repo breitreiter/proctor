@@ -16,7 +16,7 @@ record FixtureSource(string? Path, string? Git, string? Rev, List<string>? Exclu
 /// so neither the agent nor the checks need any. Services is a directory beside repo/ holding a docker-compose.yaml of
 /// extra services (and whatever it mounts), copied into the task's environment/: Harbor runs them beside the agent, in
 /// its network namespace. Serves is the ports those services answer on at the agent's localhost, which is how a model
-/// endpoint there (the stub's) is told from one on the machine that runs proctor. HostPorts is ports of that machine the
+/// endpoint there (the stub's) is told from one on the machine that runs auspex. HostPorts is ports of that machine the
 /// agent is to reach at its own localhost (a dev server started by hand beside the run): each is relayed, and the try
 /// then depends on something the exam does not hold. AllowedHosts is hosts the agent may reach beside its model's, for a
 /// service that cannot sensibly be simulated: by name, as Harbor's allowlist matches them, never a port or a path.

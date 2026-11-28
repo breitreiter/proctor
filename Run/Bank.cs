@@ -44,7 +44,7 @@ static class Bank
     public static List<LogEntry> Entries(string root, string examId) => AllEntries(root, examId).Where(e => !e.Earlier).ToList();
 
     /// <summary>
-    /// How many attempts the exam's runs made that this proctor does not read: under tasks and variants, or before a log
+    /// How many attempts the exam's runs made that this auspex does not read: under tasks and variants, or before a log
     /// entry named its configurations and stages (2026-11-28). They stay in the
     /// bank where they were made (bank/&lt;exam&gt;/&lt;variant&gt;/…) and are read by nothing: what was under test and
     /// what it met are named and hashed another way now, so they are no configuration's tries.

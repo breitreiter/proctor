@@ -6,10 +6,10 @@ using static Auspex.View.ExamPage;
 namespace Auspex.View;
 
 /// <summary>
-/// The pages of an exam with axes (proctor's plans/axes-build.md, slice 3d; project/view/exam-page-axes.md): the exam
+/// The pages of an exam with axes (auspex's plans/axes-build.md, slice 3d; project/view/exam-page-axes.md): the exam
 /// as the configurations somebody named or ran, one configuration, and one comparison. They are the addresses
-/// `proctor compare` and `proctor coverage` put in their answers, so a claim an agent makes can be opened and checked.
-/// Every number is proctor's (Measured.cs). The pages hold no prose from an agent and recommend nothing: a judgement is
+/// `auspex compare` and `auspex coverage` put in their answers, so a claim an agent makes can be opened and checked.
+/// Every number is auspex's (Measured.cs). The pages hold no prose from an agent and recommend nothing: a judgement is
 /// asked of the agent the person works with, and each page says how.
 /// </summary>
 static class AxesPages
@@ -31,8 +31,8 @@ static class AxesPages
         page.Append($"<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">coverage</span><h1 class=\"title\">{E(e.Id)}</h1>");
         if (exam is null || coverage is null)
         {
-            // Proctor could not read the exam as it is now: say so in its words, and still list what the bank holds.
-            page.Append($"</header><div class=\"said\"><b>Proctor cannot read this exam as it stands</b>, so nothing is counted here.</div><pre class=\"mono small soft\">{E(problem ?? coverageProblem ?? "")}</pre>");
+            // Auspex could not read the exam as it is now: say so in its words, and still list what the bank holds.
+            page.Append($"</header><div class=\"said\"><b>Auspex cannot read this exam as it stands</b>, so nothing is counted here.</div><pre class=\"mono small soft\">{E(problem ?? coverageProblem ?? "")}</pre>");
             Tries(page, e, e.Attempts.Select(a => a.Configuration).Distinct().ToList());
             return Close(page);
         }
@@ -114,14 +114,14 @@ static class AxesPages
                 .Append(configurations.Count > 1 ? $"<span class=\"small dim\">{E(t.First().Configuration)}</span>" : "").Append("</div>");
     }
 
-    /// <summary>One comparison, at the address proctor's answer gave: the numbers as they stood then, and as they are now when tries have been added since.</summary>
+    /// <summary>One comparison, at the address auspex's answer gave: the numbers as they stood then, and as they are now when tries have been added since.</summary>
     public static string Compare(string root, Exam e, Func<string, string?> query)
     {
         var (exam, problem) = Measured.Load(root, e.Id);
         var (answer, why) = exam is null ? (null, problem) : Measured.Compare(root, exam, query);
         if (answer is null)
             return Close(Open($"comparison · {e.Id}", [("exams", "/"), (e.Id, e.Path), ("comparison", null)])
-                .Append($"<header><span class=\"kind\">comparison</span><h1 class=\"title\">{E(e.Id)}</h1></header><div class=\"said\"><b>Proctor did not answer this.</b></div><pre class=\"mono small soft\">{E(why ?? "")}</pre>"));
+                .Append($"<header><span class=\"kind\">comparison</span><h1 class=\"title\">{E(e.Id)}</h1></header><div class=\"said\"><b>Auspex did not answer this.</b></div><pre class=\"mono small soft\">{E(why ?? "")}</pre>"));
 
         // One setting compared is the page designed on the canvas; every setting of a change is drawn here.
         if (query("settings") != "all" && ComparePage.Render(root, e, exam!, answer, query) is { } designed) return designed;
@@ -139,7 +139,7 @@ static class AxesPages
         if (answer.TriesSince > 0 && Measured.Compare(root, exam!, query, now: true).Answer is { } now)
             page.Append($"<div class=\"said soft\">{answer.TriesSince} {(answer.TriesSince == 1 ? "try has" : "tries have")} been made in these configurations since. <a href=\"{E(now.Address)}\">As it is now</a>: {E(now.Sentence)}</div>");
         page.Append($"<div class=\"said\">{E(answer.Sentence)}</div>");
-        // Proctor's sentence already ends with the cautions about its configurations; the rest are listed under it.
+        // Auspex's sentence already ends with the cautions about its configurations; the rest are listed under it.
         foreach (var caution in answer.Cautions.Where(c => !answer.Sentence.Contains(c)))
             page.Append($"<div class=\"said soft\">{E(caution)}</div>");
 
@@ -176,14 +176,14 @@ static class AxesPages
 
     /// <summary>
     /// What to ask the agent you work with. The page measures and stops there: a judgement (is it better, is there
-    /// enough evidence, what to ship) is the agent's to make from proctor's answers, with links back here.
+    /// enough evidence, what to ship) is the agent's to make from auspex's answers, with links back here.
     /// </summary>
     static void Ask(StringBuilder page, string exam, string? value, string? configuration = null)
     {
         var about = configuration is not null ? $"the {configuration} configuration" : value ?? "a value";
-        var command = configuration is not null ? $"proctor compare {exam} --configuration {configuration}" : $"proctor compare {exam} {value ?? "<axis>=<value>"}";
+        var command = configuration is not null ? $"auspex compare {exam} --configuration {configuration}" : $"auspex compare {exam} {value ?? "<axis>=<value>"}";
         page.Append("<div>This page shows what was measured, and no more. For a judgement, ask the agent you work with, for example: ")
             .Append($"<q>What does {E(about)} change, and how much evidence is there for it?</q> or <q>Where has nothing been tried?</q> ")
-            .Append($"It answers from <span class=\"mono\">{E(command)}</span> and <span class=\"mono\">proctor coverage {E(exam)}</span>, and can link each claim to a page here. The skill for it is <span class=\"mono\">skills/proctor-answers</span>.</div>");
+            .Append($"It answers from <span class=\"mono\">{E(command)}</span> and <span class=\"mono\">auspex coverage {E(exam)}</span>, and can link each claim to a page here. The skill for it is <span class=\"mono\">skills/auspex-answers</span>.</div>");
     }
 }

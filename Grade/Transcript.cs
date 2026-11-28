@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace Auspex;
 
 // An attempt's record read into the fixed windows the checks look at: nb's JSONL, or an agent attempt's ATIF trajectory with
-// proctor's counted core. Nothing here judges anything.
+// auspex's counted core. Nothing here judges anything.
 
 record Trailer(
     string ExitReason,
@@ -97,7 +97,7 @@ sealed class Transcript
 
     /// <summary>
     /// An ATIF trajectory: the main agent's conversation as the windows (a subagent's calls are counted in the core, not
-    /// listed), and the core as the trailer, so a check reads proctor's count and never the agent's. The answer is the
+    /// listed), and the core as the trailer, so a check reads auspex's count and never the agent's. The answer is the
     /// last agent step with text; a tool result is an error when the agent marked it so (Claude Code's is_error). What
     /// nb's conversion keeps under extra (a turn's source, a call's approval, a result's structured result, the parsed
     /// answer, nb's own trailer) is read back, so an nb attempt reads the same through Harbor as bare.

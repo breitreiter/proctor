@@ -1,8 +1,8 @@
-"""Qwen Code as a Harbor agent, for proctor. Compiled into each run's harbor/agents/ (under its log entry) and imported as
+"""Qwen Code as a Harbor agent, for auspex. Compiled into each run's harbor/agents/ (under its log entry) and imported as
 qwen_code_agent:QwenCodeAgent.
 
 Harbor's own Qwen Code agent installs nvm, Node and the CLI from the network on every trial, whatever the image holds.
-Proctor's image already has the pinned CLI, and the agent phase reaches only the model's host, so this one installs
+Auspex's image already has the pinned CLI, and the agent phase reaches only the model's host, so this one installs
 nothing: it checks that the image's `qwen --version` is the pin and fails setup when it is not. Everything else (the
 invocation, the session log, its conversion to ATIF) is Harbor's.
 """

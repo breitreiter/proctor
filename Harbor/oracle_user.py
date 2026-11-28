@@ -1,4 +1,4 @@
-"""The oracle as Harbor's simulated user, for proctor. Compiled into each run's harbor/agents/ (under its log entry) and imported as
+"""The oracle as Harbor's simulated user, for auspex. Compiled into each run's harbor/agents/ (under its log entry) and imported as
 oracle_user:OracleUser, with nb as the bridged target (nb_agent:NbAgent, nb --acp).
 
 It runs in the Harbor process on the host, so the answer sheet never enters the container. It makes no model call of
@@ -27,14 +27,14 @@ from harbor.models.agent.context import AgentContext
 
 # The compiled user prompt template puts this between the task and Harbor's bridge instructions, which are for a model
 # playing the user and say nothing this user needs.
-SENTINEL = "<<<PROCTOR-BRIDGE>>>"
+SENTINEL = "<<<AUSPEX-BRIDGE>>>"
 LOG = "oracle-user.json"
 
 
 def task_text(instruction: str) -> str:
     """The task from the rendered user prompt: everything before the last sentinel."""
     if SENTINEL not in instruction:
-        raise ValueError(f"the user prompt has no {SENTINEL} line: it was not rendered from proctor's template")
+        raise ValueError(f"the user prompt has no {SENTINEL} line: it was not rendered from auspex's template")
     return instruction.rpartition(SENTINEL)[0].rstrip()
 
 
@@ -85,7 +85,7 @@ def next_step(verdict: dict, used: int, turns: int) -> str:
             return "oracle_miss"
         case "hit":
             return "oracle_budget" if used >= turns else "answer"
-    raise ValueError(f"nb --judge gave no verdict proctor knows: {verdict.get('verdict')!r}")
+    raise ValueError(f"nb --judge gave no verdict auspex knows: {verdict.get('verdict')!r}")
 
 
 class OracleUser(BaseAgent):

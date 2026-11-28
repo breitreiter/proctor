@@ -12,10 +12,10 @@ rootful Docker, Docker Desktop, and any engine on macOS or Windows.**
 What this page says of those is from Docker's and Harbor's own
 documentation and issues, and says so.
 
-**Docker is not maintained.** Proctor is run every day on rootless
+**Docker is not maintained.** Auspex is run every day on rootless
 podman, and that is where a break is found and fixed. This page is what
 was known to work on the date above; nobody re-checks it when Harbor's
-pin or proctor moves. If Docker is your engine, it is yours to keep
+pin or auspex moves. If Docker is your engine, it is yours to keep
 working, and this page is where to start.
 
 What an agent's container can reach, on any engine, is
@@ -49,10 +49,10 @@ DOCKER_HOST=unix:///run/user/<uid>/docker.sock
 ```
 
 Harbor runs under uv, and a Docker client there may not read the CLI
-context your shell uses. Proctor loads its env file into every process
+context your shell uses. Auspex loads its env file into every process
 it starts. `id -u` prints the number.
 
-The env file reaches proctor's processes, not your shell. The `docker`
+The env file reaches auspex's processes, not your shell. The `docker`
 commands on this page need the same daemon: either export `DOCKER_HOST`
 in the shell too, or use the `rootless` context the setup tool makes.
 With both, the CLI says the variable overrides the context, which is
@@ -106,8 +106,8 @@ of its own.
 
 Two things skip that:
 
-- **A Harbor that proctor kills**, when an attempt outruns its wall limit
-  and the overhead allowed for building. Proctor then removes the trial's
+- **A Harbor that auspex kills**, when an attempt outruns its wall limit
+  and the overhead allowed for building. Auspex then removes the trial's
   containers, networks and images itself, by the compose project's
   labels, and the attempt's failure says what was removed.
 - **An interrupted run.** A `run` that was sent an interrupt in the
@@ -143,7 +143,7 @@ from `exams/auspex.json`, or from a file you name in place of `1`.
 
 ## 7. macOS and Windows (not run)
 
-Nobody has run coding agents under proctor on Docker Desktop, OrbStack,
+Nobody has run coding agents under auspex on Docker Desktop, OrbStack,
 Colima or podman machine. What is known from outside:
 
 - Each runs containers in a Linux virtual machine. Harbor's allowlist

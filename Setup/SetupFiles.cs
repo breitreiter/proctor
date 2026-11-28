@@ -28,7 +28,7 @@ static class SetupFiles
     };
 
     /// <summary>A fresh auspex.json: nb on PATH and its config beside this file. The examples are not copied, since they route through a gateway a new user does not have.</summary>
-    static JsonObject FreshProctor() => new() { ["nb"] = new JsonObject { ["config"] = NbFile } };
+    static JsonObject FreshAuspex() => new() { ["nb"] = new JsonObject { ["config"] = NbFile } };
 
     /// <summary>The entry nb.json gets for a provider: the kind's fixed fields, the form's values, the key as <c>${ENV}</c>. No Model: the model is the exam's.</summary>
     public static JsonObject NbEntry(SetupProvider provider, ProviderKind kind, IReadOnlyDictionary<string, string> values)
@@ -79,7 +79,7 @@ static class SetupFiles
     public static string PutAgent(string examsDir, string agent, string baseUrl, string env)
     {
         var path = Path.Combine(examsDir, Layout.AuspexConfigFile);
-        var root = ReadObject(path) ?? FreshProctor();
+        var root = ReadObject(path) ?? FreshAuspex();
         var agents = root["agents"] as JsonObject ?? (JsonObject)(root["agents"] = new JsonObject());
         agents[agent] = new JsonObject { ["base_url"] = baseUrl, ["api_key"] = $"${{{env}}}" };
         Save(path, root);
@@ -96,7 +96,7 @@ static class SetupFiles
     public static string PutEngine(string examsDir, string engine)
     {
         var path = Path.Combine(examsDir, Layout.AuspexConfigFile);
-        var root = ReadObject(path) ?? FreshProctor();
+        var root = ReadObject(path) ?? FreshAuspex();
         var harbor = root["harbor"] as JsonObject ?? (JsonObject)(root["harbor"] = new JsonObject());
         harbor["engine"] = engine;
         Save(path, root);
@@ -104,10 +104,10 @@ static class SetupFiles
     }
 
     /// <summary>auspex.json exists, so a verb that needs it finds it; created fresh when missing.</summary>
-    public static string EnsureProctor(string examsDir)
+    public static string EnsureAuspex(string examsDir)
     {
         var path = Path.Combine(examsDir, Layout.AuspexConfigFile);
-        if (!File.Exists(path)) Save(path, FreshProctor());
+        if (!File.Exists(path)) Save(path, FreshAuspex());
         return path;
     }
 
@@ -126,7 +126,7 @@ static class SetupFiles
         var lines = File.Exists(path) ? File.ReadAllLines(path).ToList() : [];
         var missing = Ignored.Where(f => !lines.Any(l => l.Trim() == f || l.Trim() == "/" + f)).ToList();
         if (missing.Count == 0) return false;
-        if (lines.Count == 0) lines.Add("# Written by proctor setup: this machine's config and choices; keys live in your profile, never here.");
+        if (lines.Count == 0) lines.Add("# Written by auspex setup: this machine's config and choices; keys live in your profile, never here.");
         lines.AddRange(missing);
         Directory.CreateDirectory(examsDir);
         File.WriteAllText(path, string.Join('\n', lines) + "\n");

@@ -7,7 +7,7 @@ namespace Auspex;
 // Predictions (plans/axes-build.md, slice 6; the word is the user's, 2026-11-25). A prediction is one statement, written
 // before the tries are made: "if this configuration is run, this is what will change." It names one full configuration,
 // what it is compared with, and the changes expected: each a check or a metric, and a direction. After the tries,
-// proctor says how each change came out, a miss as plainly as a hit. Nothing is refused for having no prediction, and
+// auspex says how each change came out, a miss as plainly as a hit. Nothing is refused for having no prediction, and
 // a prediction gates nothing. exams/<exam>/predictions/<name>.json, committed with the exam and in no hash.
 // There is no word for "a configuration that might replace live": that construct is not needed yet (the user).
 
@@ -18,7 +18,7 @@ record ChangeDef(string? Check = null, string? Metric = null, string? Direction 
 /// A prediction as its file holds it. Configuration and Against name configurations the exam names; without Against it
 /// is what is live for the same user (the live value on every axis that has one, the rest as the prediction has them).
 /// Changes are what it expects. Written is its author's and required: when the prediction was made, a date or a time in UTC.
-/// Standard is proctor's pin, set once: each stage's standard when proctor first saw the prediction.
+/// Standard is auspex's pin, set once: each stage's standard when auspex first saw the prediction.
 /// </summary>
 record PredictionDef(string? Configuration = null, string? Against = null, List<ChangeDef>? Changes = null, string? Note = null,
     string? Written = null, Dictionary<string, string>? Standard = null);

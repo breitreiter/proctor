@@ -3,7 +3,7 @@
 A tiny TypeScript to-do CLI (`repo/`): `add`, `list`, `done <n>`, `clear`,
 tasks in a JSON file, one devDependency (`typescript`), tests on Node's own
 runner. `npm ci && npm test` is the whole build. Small enough to read in two
-minutes, which is what it is for: the first repository a new proctor user
+minutes, which is what it is for: the first repository a new auspex user
 meets, and a fixture for exams about how agents cope with a CLI.
 
 ## The planted behaviour

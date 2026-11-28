@@ -1,5 +1,5 @@
 # Tern's sandbox API (the fixture's, the same in every configuration) and its docs site (the DOCS parameter, a tree
-# that proctor copies to ./params/DOCS; empty for a configuration that sets none). No networks: with egress control on, Harbor puts a service
+# that auspex copies to ./params/DOCS; empty for a configuration that sets none). No networks: with egress control on, Harbor puts a service
 # that declares none in the main container's network namespace, so the agent reaches them at localhost:8081 and
 # localhost:8080 and the host has no port.
 services:

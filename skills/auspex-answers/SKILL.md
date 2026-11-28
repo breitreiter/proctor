@@ -1,14 +1,14 @@
 ---
-name: proctor-answers
-description: Answer a person's questions about a proctor exam with axes from what proctor measured — is a change better, where is there no evidence, what could be shipped — quoting proctor's numbers with their scope and a link to the evidence, and never working out a number of your own.
+name: auspex-answers
+description: Answer a person's questions about an auspex exam with axes from what auspex measured — is a change better, where is there no evidence, what could be shipped — quoting auspex's numbers with their scope and a link to the evidence, and never working out a number of your own.
 ---
 
-# Answering from a proctor exam
+# Answering from an auspex exam
 
-A proctor exam with axes varies something (a prompt, the docs, the
+An auspex exam with axes varies something (a prompt, the docs, the
 agent) one value at a time and keeps every try. The person asking is
 usually a product manager or someone building alone, looking at an exam
-they did not write or wrote months ago. They want a judgement. Proctor
+they did not write or wrote months ago. They want a judgement. Auspex
 does not make judgements: it measures, and you make the recommendation.
 This skill is how to do that without saying more than was measured.
 
@@ -19,12 +19,12 @@ or pass `--root <dir>` for a repository somewhere else. Each answer ends
 with `methods`, which says what its fields mean.
 
 ```bash
-proctor coverage <exam>                     # where there are tries, and where there are none
-proctor compare <exam> <axis>=<value>       # that value against its axis's live value
-proctor compare <exam> <axis>=<value> --against <value> --within <axis>=<value>
-proctor compare <exam> --configuration <name>               # everything it changes, together, against what is live
-proctor compare <exam> --configuration <name> --against <name>
-proctor list <exam>                         # the axes, their values and what each is for
+auspex coverage <exam>                     # where there are tries, and where there are none
+auspex compare <exam> <axis>=<value>       # that value against its axis's live value
+auspex compare <exam> <axis>=<value> --against <value> --within <axis>=<value>
+auspex compare <exam> --configuration <name>               # everything it changes, together, against what is live
+auspex compare <exam> --configuration <name> --against <name>
+auspex list <exam>                         # the axes, their values and what each is for
 ```
 
 Start with `list` and `coverage`. Ask `compare` once for each thing the
@@ -38,10 +38,10 @@ made the difference; ask about each value alone for that.
 
 ## Rules
 
-1. **Every number you give is one proctor gave you.** Do not average,
+1. **Every number you give is one auspex gave you.** Do not average,
    pool, subtract or re-test anything yourself, and do not read the
    bank's files to compute a rate. If the number you want is not in an
-   answer, say that proctor has not measured it.
+   answer, say that auspex has not measured it.
 2. **A comparison is true only inside its scope.** Each `compare` answer
    says which settings of the other axes it covered (`cells`,
    `sentence`). Say the scope whenever you say the result. "Better" in
@@ -62,20 +62,20 @@ made the difference; ask about each value alone for that.
    an `address` and a `path`. Put the address beside the claim it
    supports, so the person can check it. The address includes `as_of`:
    the numbers are as they stood then.
-8. **Ask for what proctor cannot know.** How many users are on each
+8. **Ask for what auspex cannot know.** How many users are on each
    setting, how far a bad release reaches, how easily it is undone, what
    a bad outcome costs. A recommendation to ship, to ship behind a flag
    or to run more tries rests on those, and they are the person's.
-9. **Say what is yours.** Proctor's findings and your recommendation
+9. **Say what is yours.** Auspex's findings and your recommendation
    are different things. Mark which is which.
 
 ## How many tries a question needs
 
-Proctor does not work this out yet. You carry it. A person who has just
+Auspex does not work this out yet. You carry it. A person who has just
 seen one good run wants to ship; your job is to say what that run can
 and cannot show.
 
-What a number of tries can show is fixed by the test proctor uses, and
+What a number of tries can show is fixed by the test auspex uses, and
 needs no data. With the same number on each side:
 
 | Tries a side | What it takes to confirm a difference |
@@ -102,7 +102,7 @@ Use it like this:
   then stopping, finds a difference that is not there. If more tries
   are added after looking, say so when you report them.
 - **A size is not asked for.** Nobody can say beforehand how much a
-  change will move a check, and proctor's predictions carry a direction
+  change will move a check, and auspex's predictions carry a direction
   only. Do not invent one.
 
 ## Predictions
@@ -116,7 +116,7 @@ exam names and the changes expected: each a check or a metric (`held`,
 time in UTC: required, and its author's to set.
 
 ```bash
-proctor predict <exam>          # pin the checks each prediction was made under, and say how each stands
+auspex predict <exam>          # pin the checks each prediction was made under, and say how each stands
 ```
 
 - **Write the prediction before the run,** and suggest one when a person

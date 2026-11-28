@@ -62,8 +62,8 @@ exams/tern-docs/reference/shakedown.sh               # every check passes on the
 exams/tern-docs/reference/shakedown.sh --unsolved    # acceptance fails everywhere
 exams/tern-docs/reference/shakedown.sh --v1          # current-endpoint fails; acceptance passes
 exams/tern-docs/reference/shakedown.sh --kilograms   # acceptance fails on the two quote stages
-proctor build tern-docs                                # what each docs value hands the image build; nothing run
-proctor run tern-docs                                  # the three named configurations: 6 tries of 6 stages on Sonnet, real API spend
+auspex build tern-docs                                # what each docs value hands the image build; nothing run
+auspex run tern-docs                                  # the three named configurations: 6 tries of 6 stages on Sonnet, real API spend
 ```
 
 The shakedown needs python3 with pytest, git, curl and jq, and costs nothing. Services need podman (or Docker). The

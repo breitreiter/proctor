@@ -9,7 +9,7 @@ namespace Auspex.View;
 /// <summary>
 /// The page of one named configuration, as designed on the canvas (2026-11-26 and 27): against what is live on five
 /// measures, what was predicted of it, each stage as outcomes and plain statistics, each check's rate, what recurs as
-/// friction, and every try with the shape of its stages. Every number is proctor's (Measured.cs). A try's squares open
+/// friction, and every try with the shape of its stages. Every number is auspex's (Measured.cs). A try's squares open
 /// that stage of that try, which is how a person gets from here to what happened.
 /// </summary>
 static class ConfigurationPage
@@ -24,7 +24,7 @@ static class ConfigurationPage
         if (exam is null || c is null || report is null || row is null)
         {
             page.Append($"<header><span class=\"kind\">configuration</span><h1 class=\"title\">{E(key)}</h1></header><div class=\"said\"><b>")
-                .Append(exam is null || report is null ? "Proctor cannot read this exam as it stands." : "Not a configuration this exam names or has tries of now.")
+                .Append(exam is null || report is null ? "Auspex cannot read this exam as it stands." : "Not a configuration this exam names or has tries of now.")
                 .Append($"</b></div><pre class=\"mono small soft\">{E(problem ?? reportProblem ?? "")}</pre>");
             return Close(page);
         }
@@ -50,7 +50,7 @@ static class ConfigurationPage
             .Append(made.Count == 0 ? "" : Fact("Made", E(made.Count == 1 ? made[0] : $"{made[0]} to {made[^1]}")))
             .Append("</dl></header>");
         if (row.Retired is { } retired)
-            page.Append($"<div class=\"said\"><b>Retired {E(retired.Since)}.</b> <span class=\"soft\">{E(retired.Reason)} Its tries, predictions and comparisons are kept, and proctor makes no new tries of it until it is brought back.</span></div>");
+            page.Append($"<div class=\"said\"><b>Retired {E(retired.Since)}.</b> <span class=\"soft\">{E(retired.Reason)} Its tries, predictions and comparisons are kept, and auspex makes no new tries of it until it is brought back.</span></div>");
         foreach (var move in (stats.StandardMoved ?? []).Where(m => m.Configurations.Contains(c.Key)))
             page.Append($"<div class=\"said\"><b>The standard moved.</b> <span class=\"soft\">{E(move.Sentence)}</span></div>");
 
@@ -181,7 +181,7 @@ static class ConfigurationPage
     static void Values(StringBuilder page, P.Exam exam, P.Configuration c)
     {
         var axes = exam.Axes!;
-        Section(page, "Axes", "The value this configuration has on each axis. What a value changes is its author's account, not proctor's finding.");
+        Section(page, "Axes", "The value this configuration has on each axis. What a value changes is its author's account, not auspex's finding.");
         page.Append("<div style=\"min-width:760px\"><div class=\"row row-head values\"><span>Axis</span><span>Value</span><span>What its author says it changes</span><span>What it carries</span></div>");
         foreach (var (axis, value) in c.Values)
         {

@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Auspex;
 
 /// <summary>
-/// One entry of exams/auspex.json's judges block: an endpoint proctor's own checks call at grade time. The question is
+/// One entry of exams/auspex.json's judges block: an endpoint auspex's own checks call at grade time. The question is
 /// the exam's (a decide or judge check); the endpoint is the machine's, like nb.path. Kind is the wire shape, never a
 /// vendor: systemone (the System One request, typed questions with probabilities: TypeSafe's /v1/systemone, OpenRouter's
 /// /alpha/decisions, a local server) or chat (OpenAI-dialect chat completions). A systemone model is sent in the request

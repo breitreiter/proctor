@@ -313,7 +313,7 @@ static class Configurations
         if (stats.Excluded.Count > 0)
             md.AppendLine().AppendLine($"Declared impossible, and never made: {string.Join("; ", stats.Excluded.Select(Holding))}.");
         if (stats.Configurations.Any(c => c.NotGraded > 0))
-            md.AppendLine().AppendLine($"A try is not yet graded when it holds no grade under the checks as they are now. It is in no number here; `proctor grade {stats.Exam}` reads it.");
+            md.AppendLine().AppendLine($"A try is not yet graded when it holds no grade under the checks as they are now. It is in no number here; `auspex grade {stats.Exam}` reads it.");
         if (stats.StandardMoved is { Count: > 0 } moved)
         {
             md.AppendLine().AppendLine("## The standard moved").AppendLine();

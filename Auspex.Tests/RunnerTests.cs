@@ -16,7 +16,7 @@ public class RunnerTests
         return RunAgain(repo, runnerOverride).Id!;
     }
 
-    /// <summary>`proctor run smoke` again, as it is on disk now: the log entry it wrote, and what it said.</summary>
+    /// <summary>`auspex run smoke` again, as it is on disk now: the log entry it wrote, and what it said.</summary>
     static (string? Id, string Log) RunAgain(TestRepo repo, string? runnerOverride = null)
     {
         var log = new StringWriter();
@@ -32,7 +32,7 @@ public class RunnerTests
         e["configurations"]!.AsObject().Remove("b");
     };
 
-    /// <summary>The runner contract's bare equivalent: nb itself, started as proctor would start it, with the program on stdin.</summary>
+    /// <summary>The runner contract's bare equivalent: nb itself, started as auspex would start it, with the program on stdin.</summary>
     const string Passthrough = "#!/usr/bin/env bash\nexec \"$AUSPEX_NB\" --output jsonl --config \"$AUSPEX_NB_CONFIG\" -\n";
 
     static string Stage(TestRepo repo, string key, string stage, int n = 1) => repo.StageDir("smoke", key, stage, n);
@@ -477,7 +477,7 @@ public class RunnerTests
     }
 
     [Fact]
-    public void RunnerAndMounts_LeftInProctorJson_AreAProblem_NotIgnored()
+    public void RunnerAndMounts_LeftInAuspexJson_AreAProblem_NotIgnored()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");

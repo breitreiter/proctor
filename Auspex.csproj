@@ -17,7 +17,7 @@
     <None Remove="Auspex.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;bank\**;log\**;exams-seen\**;reports\**" />
   </ItemGroup>
 
-  <!-- The report's logo, inlined as a data URI; proctor's own Harbor agents (nb, Qwen Code), compiled into each run with a configuration that uses one; setup's provider catalogue. -->
+  <!-- The report's logo, inlined as a data URI; auspex's own Harbor agents (nb, Qwen Code), compiled into each run with a configuration that uses one; setup's provider catalogue. -->
   <ItemGroup>
     <EmbeddedResource Include="Harbor\nb_agent.py" LogicalName="nb_agent.py" />
     <EmbeddedResource Include="Harbor\oracle_user.py" LogicalName="oracle_user.py" />
@@ -28,7 +28,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Auspex.Tests" />
-    <!-- The viewer (View/) shows proctor's own numbers by calling the code that works them out. -->
+    <!-- The viewer (View/) shows auspex's own numbers by calling the code that works them out. -->
     <InternalsVisibleTo Include="auspex-view" />
   </ItemGroup>
 

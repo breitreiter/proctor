@@ -25,7 +25,7 @@ public class CrawlTests
     }
 
     [Fact]
-    public async Task AnExamProctorCannotRead_IsListedByWhatItsBankHolds_AndCountsNothing()
+    public async Task AnExamAuspexCannotRead_IsListedByWhatItsBankHolds_AndCountsNothing()
     {
         using var bank = new SampleBank();
         var (app, url) = await Server.Start(bank.Root, 0);
@@ -35,7 +35,7 @@ public class CrawlTests
             await client.GetAsync(url);
             var page = await client.GetStringAsync(new Uri(new Uri(url), "/sample"));
             Assert.Contains("A made-up exam about the docs site", page);
-            Assert.Contains("Proctor cannot read this exam as it stands, so nothing is counted.", page);
+            Assert.Contains("Auspex cannot read this exam as it stands, so nothing is counted.", page);
             Assert.True(page.IndexOf("live-setup", StringComparison.Ordinal) < page.IndexOf("other-setup", StringComparison.Ordinal));
             Assert.Contains("<span class=\"name\">live-setup</span></span>", page);
             Assert.DoesNotContain("light-live", page);
@@ -87,7 +87,7 @@ public class CrawlTests
         Assert.Contains("appearance=\"outlined\" href=\"#s3\"", page);
         Assert.Contains("<span class=\"small dim mono\">README.md</span>", page);
         Assert.Contains("1 flagged step", page);
-        // Graded before proctor recorded roles: the page says so, and guesses none.
+        // Graded before auspex recorded roles: the page says so, and guesses none.
         Assert.Contains("role not recorded", page);
     }
 
@@ -134,7 +134,7 @@ public class CrawlTests
     }
 
     [Fact]
-    public async Task AStageNotReached_SaysProctorsReason_AndAsksForNothingThatCannotExist()
+    public async Task AStageNotReached_SaysAuspexsReason_AndAsksForNothingThatCannotExist()
     {
         var page = await Page(SampleBank.StageNotReached);
         Assert.Contains("<b>skipped</b> <span class=\"soft\">not reached: stage write-note was stopped (max_tool_calls)", page);
@@ -153,7 +153,7 @@ public class CrawlTests
     {
         var page = await Page("/staged/earlier");
         Assert.Contains("<span class=\"kind\">earlier attempts</span>", page);
-        Assert.Contains("Made by an earlier proctor, whose files this one does not read.", page);
+        Assert.Contains("Made by an earlier version, whose files this one does not read.", page);
         Assert.Contains("href=\"/staged/live-setup/1/write-note\"", page);
     }
 
@@ -197,9 +197,9 @@ public class CrawlTests
         finally { served.Kill(); }
     }
 
-    /// <summary>Opt in with AUSPEX_VIEW_TEST_ROOT=dir: every page over a real proctor root's bank renders.</summary>
+    /// <summary>Opt in with AUSPEX_VIEW_TEST_ROOT=dir: every page over a real auspex root's bank renders.</summary>
     [Fact]
-    public async Task ARealProctorRoot_RendersEveryPage()
+    public async Task ARealAuspexRoot_RendersEveryPage()
     {
         if (Environment.GetEnvironmentVariable("AUSPEX_VIEW_TEST_ROOT") is not { Length: > 0 } root) return;
         var (app, url) = await Server.Start(root, 0);

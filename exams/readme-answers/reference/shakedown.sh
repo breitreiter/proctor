@@ -6,7 +6,7 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 root="$(cd "$here/../.." && pwd)"
 nb="${NB_PATH:-$root/../nb/bin/Debug/net10.0/nb}"
-proctor=(dotnet "$root/bin/Debug/net10.0/auspex.dll")
+auspex=(dotnet "$root/bin/Debug/net10.0/auspex.dll")
 mode=right; [ "${1:-}" = "--wrong" ] && mode=wrong
 
 declare -A right=([add-a-task]='jot add "buy milk"' [not-found-exit]=1 [store-location]=JOT_FILE [clear-exit-code]=0 [piped-yes]=No [clear-wait]=30)
@@ -23,5 +23,5 @@ for id in "${!answer[@]}"; do
   jq --arg id "$id" --arg a "${answer[$id]}" '(.stages[] | select(.id == $id) | .prompt) = "MOCK:response=ANSWER: \($a)\nWHY: scripted."' "$exam" > "$exam.new" && mv "$exam.new" "$exam"
 done
 cd "$tmp" && git init -q
-"${proctor[@]}" run readme-answers > run.log
-"${proctor[@]}" grade readme-answers | grep "^graded"
+"${auspex[@]}" run readme-answers > run.log
+"${auspex[@]}" grade readme-answers | grep "^graded"

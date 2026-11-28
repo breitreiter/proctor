@@ -5,7 +5,7 @@ namespace Auspex;
 
 /// <summary>
 /// <c>exams/sandbox-plan.md</c>: a brief for the user's coding agent, written when the sandbox is to run on this machine.
-/// It holds what setup could see and what proctor needs, never a fixed list of commands: the route depends on the OS,
+/// It holds what setup could see and what auspex needs, never a fixed list of commands: the route depends on the OS,
 /// the distro, licences and what a work laptop allows, which takes a strong model talking to the user to resolve. The
 /// mockup and its reasoning are <c>project/plans/setup/sandbox-plan.md</c>.
 /// </summary>
@@ -44,16 +44,16 @@ static class SandboxPlan
     {
         var wanted = wantedAgents.ToList();
         var b = new StringBuilder();
-        b.AppendLine("# Setting up a sandbox for proctor on this machine").AppendLine();
-        b.AppendLine("You are helping the user make this machine able to run coding agents under proctor (Claude Code, Codex, Qwen Code, "
+        b.AppendLine("# Setting up a sandbox for auspex on this machine").AppendLine();
+        b.AppendLine("You are helping the user make this machine able to run coding agents under auspex (Claude Code, Codex, Qwen Code, "
             + "nb with tools). Those run through Harbor, in containers, so the agent under test cannot touch the user's files, keys "
-            + $"or settings. `proctor setup` wrote this file on {today:yyyy-MM-dd} from what it could see; it does not know this "
+            + $"or settings. `auspex setup` wrote this file on {today:yyyy-MM-dd} from what it could see; it does not know this "
             + "user's constraints. Find them out before acting.").AppendLine();
 
         b.AppendLine("## What the user said").AppendLine();
-        b.AppendLine("- Sandbox: on this machine (step 2 of `proctor setup`).");
+        b.AppendLine("- Sandbox: on this machine (step 2 of `auspex setup`).");
         b.AppendLine(wanted.Count == 0
-            ? "- Agents wanted: none chosen yet (steps 3 and 4 come after this one; `proctor setup --check` has the latest)."
+            ? "- Agents wanted: none chosen yet (steps 3 and 4 come after this one; `auspex setup --check` has the latest)."
             : $"- Agents wanted: {string.Join(", ", wanted)}.");
         b.AppendLine();
 
@@ -63,7 +63,7 @@ static class SandboxPlan
         foreach (var o in seen) b.AppendLine($"| {o.What} | {o.Found.Replace("|", "\\|")} |");
         b.AppendLine();
 
-        b.AppendLine("## What proctor needs").AppendLine();
+        b.AppendLine("## What auspex needs").AppendLine();
         b.AppendLine("The requirement, not the route. Any route that ends here is fine.").AppendLine();
         b.AppendLine("- A container engine Harbor drives: Docker with the Compose v2 and buildx plugins, or rootless podman with its "
             + "API socket running and docker-compose v2 behind `podman compose`.");
@@ -77,9 +77,9 @@ static class SandboxPlan
         b.AppendLine("Why each of these exists, and the known traps (Ubuntu's pasta AppArmor profile among them), are in "
             + "`docs/podman.md` for podman and `docs/docker.md` for Docker (rootless Docker's socket, its bridge's address range, "
             + "what was not run on macOS). What an agent's container may reach, and that the host's loopback is never to be opened to "
-            + "containers to reach a model on this machine (proctor relays that port itself), is `docs/network.md`.");
+            + "containers to reach a model on this machine (auspex relays that port itself), is `docs/network.md`.");
         if (OperatingSystem.IsWindows())
-            b.AppendLine().AppendLine("This is Windows. Harbor on a Windows host has not been tried with proctor; Docker Desktop on WSL2 is the "
+            b.AppendLine().AppendLine("This is Windows. Harbor on a Windows host has not been tried with auspex; Docker Desktop on WSL2 is the "
                 + "likely route, and `docs/podman.md` and `docs/docker.md` were checked on Linux only. Say so to the user before they spend effort on it.");
         b.AppendLine();
 
@@ -90,13 +90,13 @@ static class SandboxPlan
             + "and a route that needs a ticket the user cannot get is not a route.");
         b.AppendLine("- Prefer what is already installed" + (engine is null ? "." : $". Here {engine} is present, so finishing it is likely cheaper than adding another engine, unless the user says otherwise."));
         b.AppendLine("- Propose the steps as a short plan and let the user approve it. Run nothing that needs root without saying so "
-            + "first. Do not put any API key on a command line or in a file other than the user's proctor env file.");
+            + "first. Do not put any API key on a command line or in a file other than the user's auspex env file.");
         b.AppendLine("- If this machine cannot be made to work within the user's constraints, say so plainly. Exams with no agent "
             + "(the built-in harness) need no sandbox.");
         b.AppendLine();
 
         b.AppendLine("## Done means").AppendLine();
-        b.AppendLine("`proctor setup --check` reports the engine and uv found. The full proof, which runs every vendor agent against "
+        b.AppendLine("`auspex setup --check` reports the engine and uv found. The full proof, which runs every vendor agent against "
             + "a scripted stub model at no cost, is:").AppendLine();
         b.AppendLine("    AUSPEX_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests").AppendLine();
         b.AppendLine("It takes about half an hour; offer it, do not run it unasked.");

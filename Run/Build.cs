@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 
 namespace Auspex;
 
-// `proctor build` (plans/axes-build.md, slice 3b; plans/axes.md, decisions 15 and 16). A value's files and parameters
+// `auspex build` (plans/axes-build.md, slice 3b; plans/axes.md, decisions 15 and 16). A value's files and parameters
 // are as flexible as the base's scripts make them, so what a value does is found by building it: the checkout, the
 // values' files, the setup hooks, and nothing run. Each value is built with every other axis at its reference and held
 // against the reference build; what differs is what the value changes, for a person or an agent to hold against the
@@ -33,7 +33,7 @@ record ValueChange(string Axis, string Value, string? Note, string Hash, string 
 /// </summary>
 record CombinationResult(string Configuration, string Label, string? Name, string Hash, List<string> Differs, List<string> Unclear, string? NotBuilt);
 
-/// <summary>One `proctor build`: the base it was built on, the reference, the paths two builds of the reference disagree on, each value's change and each combination's check.</summary>
+/// <summary>One `auspex build`: the base it was built on, the reference, the paths two builds of the reference disagree on, each value's change and each combination's check.</summary>
 record BuildResult(string Base, string Reference, List<string> Noise, List<ValueChange> Values, List<CombinationResult> Combinations);
 
 static class Build

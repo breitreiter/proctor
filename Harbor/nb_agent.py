@@ -1,7 +1,7 @@
-"""nb as a Harbor agent, for proctor. Compiled into each run's harbor/agents/ (under its log entry) and imported as nb_agent:NbAgent.
+"""nb as a Harbor agent, for auspex. Compiled into each run's harbor/agents/ (under its log entry) and imported as nb_agent:NbAgent.
 
-The image already holds the binary (/opt/nb, copied from proctor's nb layer), so setup installs nothing: it uploads the
-config the host's nb runs with and the program proctor compiled on the host for this attempt, and asks the binary its
+The image already holds the binary (/opt/nb, copied from auspex's nb layer), so setup installs nothing: it uploads the
+config the host's nb runs with and the program auspex compiled on the host for this attempt, and asks the binary its
 version. The run is nb's own invocation, the program on stdin; nb writes its own ATIF trajectory (--trajectory) where
 Harbor keeps an agent's, beside its JSONL, stderr and exit code. A non-zero exit is nb's to report, not a Harbor failure.
 
@@ -66,7 +66,7 @@ class NbAgent(BaseAgent, ACPAgentMixin):
 
     def _env(self) -> dict[str, str]:
         # The configured env (the provider's endpoint variables) plus the key, by name, from Harbor's own environment,
-        # which is the only place proctor puts it.
+        # which is the only place auspex puts it.
         env = {"NO_COLOR": "1", **self.extra_env}
         if self._secret and self._secret in os.environ:
             env[self._secret] = os.environ[self._secret]

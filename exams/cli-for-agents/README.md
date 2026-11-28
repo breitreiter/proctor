@@ -6,10 +6,10 @@ model in it. Its fixture is the same tiny TypeScript CLI as `playground`;
 its one stage is the change that CLI is asking for.
 
 ```bash
-proctor list cli-for-agents
-proctor run cli-for-agents      # 3 tries on the local model
-proctor grade cli-for-agents
-proctor report cli-for-agents
+auspex list cli-for-agents
+auspex run cli-for-agents      # 3 tries on the local model
+auspex grade cli-for-agents
+auspex report cli-for-agents
 ```
 
 | | |

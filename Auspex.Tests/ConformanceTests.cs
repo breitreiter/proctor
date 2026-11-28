@@ -63,7 +63,7 @@ public class ConformanceTests
     }
 
     /// <summary>
-    /// Row 10: each code-change stage, compiled as proctor compiles it, with its reference solution (reference/<stage>.*) as its
+    /// Row 10: each code-change stage, compiled as auspex compiles it, with its reference solution (reference/<stage>.*) as its
     /// step's solution/ and Harbor's oracle agent in place of a model, passes every script check in the verifier.
     /// That proves the image and the offline verifier for the exam's own stages; no model, no network in the agent phase.
     /// </summary>

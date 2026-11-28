@@ -4,14 +4,14 @@ using System.Text.Json.Nodes;
 namespace Auspex.View;
 
 /// <summary>
-/// What proctor wrote under its root, read from disk and nothing more: the exams in bank/, each try's files, and from
+/// What auspex wrote under its root, read from disk and nothing more: the exams in bank/, each try's files, and from
 /// exams/&lt;exam&gt;/ the exam's description. A try sits under an id of its own
 /// (bank/&lt;exam&gt;/&lt;try id&gt;/stages/&lt;i&gt;-&lt;id&gt;/), its manifests saying which configuration it ran as.
 /// Attempts made before an exam was stages and axes are still on disk, and still read here so that their transcripts
 /// stay reachable: a task's (bank/&lt;exam&gt;/&lt;variant&gt;/&lt;task&gt;/&lt;n&gt;/) or a stage of a try filed by
-/// variant and number (bank/&lt;exam&gt;/&lt;variant&gt;/&lt;n&gt;/stages/…). Proctor itself reads none of those, so
-/// nothing about them is counted. Proctor's file names are kept here, in one place.
-/// Nothing is computed: whether a try is current (its hashes) is proctor's to say, and this does not guess it.
+/// variant and number (bank/&lt;exam&gt;/&lt;variant&gt;/&lt;n&gt;/stages/…). Auspex itself reads none of those, so
+/// nothing about them is counted. Auspex's file names are kept here, in one place.
+/// Nothing is computed: whether a try is current (its hashes) is auspex's to say, and this does not guess it.
 /// </summary>
 public static class Bank
 {
@@ -77,13 +77,13 @@ public static class Bank
     public static IReadOnlyList<Attempt> FindTryById(string root, string exam, string id) =>
         SafeName(exam) && SafeName(id) && Path.Combine(root, BankDir, exam, id) is var tryDir && Directory.Exists(Path.Combine(tryDir, StagesDir)) ? TryById(exam, tryDir) : [];
 
-    // The configuration is the key proctor wrote in each stage's manifest; a try whose manifests cannot be read is listed under its id alone.
+    // The configuration is the key auspex wrote in each stage's manifest; a try whose manifests cannot be read is listed under its id alone.
     static List<Attempt> TryById(string exam, string tryDir)
     {
         var id = Path.GetFileName(tryDir)!;
         var stages = Stages(exam, "", id, tryDir);
         var configuration = stages.Select(s => Text(s.Manifest?["configuration"]?["id"])).FirstOrDefault(k => k is not null);
-        // Before 2026-11-28 a manifest filed the key as "variant". Proctor reads no such try; it is listed with the earlier attempts, under that name.
+        // Before 2026-11-28 a manifest filed the key as "variant". Auspex reads no such try; it is listed with the earlier attempts, under that name.
         var before = configuration is null ? stages.Select(s => Text(s.Manifest?["variant"]?["id"])).FirstOrDefault(k => k is not null) : null;
         return [.. stages.Select(s => s with { Configuration = configuration ?? before ?? "", ById = true, Before = before is not null })];
     }
@@ -126,12 +126,12 @@ public static class Bank
 /// <summary>An exam with a bank: its description from exams/&lt;exam&gt;/, and everything in bank/&lt;exam&gt;/.</summary>
 public sealed record Exam(string Id, string? Description, IReadOnlyList<Attempt> Attempts)
 {
-    /// <summary>Whether exams/&lt;exam&gt;/exam.json declares axes, as every exam proctor can read does: then its page is ExamPage. One that does not is listed by what its bank holds.</summary>
+    /// <summary>Whether exams/&lt;exam&gt;/exam.json declares axes, as every exam auspex can read does: then its page is ExamPage. One that does not is listed by what its bank holds.</summary>
     public bool Axes { get; init; }
 
     public string Path => $"/{Id}";
 
-    /// <summary>What proctor no longer reads: filed before the exam was stages and axes (by variant and task, or by variant and try number), or written before the files named a configuration and a stage.</summary>
+    /// <summary>What auspex no longer reads: filed before the exam was stages and axes (by variant and task, or by variant and try number), or written before the files named a configuration and a stage.</summary>
     public IReadOnlyList<Attempt> Earlier => [.. Attempts.Where(a => !a.ById || a.Before)];
 
     /// <summary>The names the bank's contents are filed under: a configuration's key for a try, a variant's id for an earlier attempt.</summary>
@@ -139,7 +139,7 @@ public sealed record Exam(string Id, string? Description, IReadOnlyList<Attempt>
 }
 
 /// <summary>
-/// One stage of a try in the bank, and its files as proctor wrote them: Task is the stage's id, N the try's id, Configuration
+/// One stage of a try in the bank, and its files as auspex wrote them: Task is the stage's id, N the try's id, Configuration
 /// the configuration's key, and Place where the stage comes in the try. Of the earlier shape (not <see cref="ById"/>),
 /// Configuration is the name it was filed under then (a variant's id) and N a number, and without a Place it is a task's attempt.
 /// </summary>
@@ -149,11 +149,11 @@ public sealed record Attempt(string Exam, string Configuration, string Stage, st
     public bool Staged => Place is not null;
     /// <summary>A stage of a try that sits under its own id, as every try made now does.</summary>
     public bool ById { get; init; }
-    /// <summary>Under its own id, but written before the bank's files named a configuration and a stage: proctor reads it no more than an attempt of the earlier shape.</summary>
+    /// <summary>Under its own id, but written before the bank's files named a configuration and a stage: auspex reads it no more than an attempt of the earlier shape.</summary>
     public bool Before { get; init; }
     public string Path => ById ? $"/{Exam}/try/{N}/{Stage}" : Staged ? $"/{Exam}/{Configuration}/{N}/{Stage}" : $"/{Exam}/{Configuration}/{Stage}/{N}";
 
-    /// <summary>Proctor's status file; an attempt without one has not started (proctor's own reading).</summary>
+    /// <summary>Auspex's status file; an attempt without one has not started (auspex's own reading).</summary>
     public string Status => Bank.Read(Bank.StatusPath(Dir))?.Trim() is { Length: > 0 } s ? s : "pending";
     public JsonObject? Manifest => Bank.Json(Bank.ManifestPath(Dir));
     public JsonObject? Trajectory => Bank.Json(Bank.TrajectoryPath(Dir));

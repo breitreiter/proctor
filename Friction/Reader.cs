@@ -9,7 +9,7 @@ using Microsoft.Extensions.AI;
 namespace Auspex;
 
 /// <summary>
-/// The reader stage of `proctor friction`: a chat model reads one attempt and names the friction rules cannot see (a
+/// The reader stage of `auspex friction`: a chat model reads one attempt and names the friction rules cannot see (a
 /// repair, a lost search, a re-read, a dead end, a work-around). It chooses from a fixed list and must quote the call;
 /// nothing it says is written until the call exists, the label is in the list and the quote is in that call. Its
 /// one-line reason is kept as a note and is prose, never counted. What was sent and what came back is kept in the
@@ -36,7 +36,7 @@ static class FrictionReader
 
     static string AsWritten(string asked) => LabelDefs.First(l => l.Asked == asked).Name;
 
-    // The wording the first measurements were made with (auspex, project/friction-contract.md). A change is a new prompt hash.
+    // The wording the first measurements were made with (project/view/friction-contract.md). A change is a new prompt hash.
     public const string Instructions = """
         You are reading a record of an AI agent working on a task with tools. Find the tool calls that were FRICTION:
         cost the task did not ask for. Most calls are ordinary work and get no label. Label only what fits one of these:

@@ -1,29 +1,35 @@
-# auspex — developer notes
+# The viewer — developer notes
 
 A light viewer for agent trajectories (ATIF): what an agent did on a
-stage, where it stumbled, and how one configuration's tries went. Split off
-from proctor (`/srv/aiwork/proctor`, the runner, grader and reporter of
-evals) on 2026-11-11. Proctor keeps checks, the report and the
-problem → change → rerun loop. auspex reads what proctor wrote.
+stage, where it stumbled, and how one configuration's tries went. It is
+part of auspex, the runner, grader and reporter of evals, which keeps
+checks, the report and the problem → change → rerun loop. The viewer
+reads what auspex wrote.
 
-**The line (2026-11-14):** auspex renders, proctor codes. Anything that
+**On the names.** Until 2026-11-28 this viewer alone was called auspex
+and the rest was proctor; it was split off from proctor on 2026-11-11
+and moved back in on 2026-11-24. The whole is auspex now, and this is
+the viewer (`auspex-view`). The notes under `project/view/` were written
+before that: there "auspex" is this viewer and "proctor" is the rest.
+
+**The line (2026-11-14):** the viewer renders, auspex codes. Anything that
 needs a model, analytic or generative, and so an API key or serious local
-compute, belongs in proctor, along with the deterministic tools that feed
-it (event table, normalisers, operators). auspex makes no model calls.
+compute, belongs in auspex, along with the deterministic tools that feed
+it (event table, normalisers, operators). The viewer makes no model calls.
 
-**auspex lives in proctor's repository since 2026-11-24**, as `View/`
-(stage 1 of proctor's `project/plans/rename-to-auspex.md`): its own
+**The viewer lives in auspex's repository since 2026-11-24**, as `View/`
+(stage 1 of auspex's `project/plans/rename-to-auspex.md`): its own
 project in the same solution, its own namespace and binary, started on
-proctor's root as before. Its design notes are `project/view/` at the
+auspex's root as before. Its design notes are `project/view/` at the
 repository's root, and every `project/…` path below means that
 directory. Two things did not come along and are still in the old
 checkout (`/srv/aiwork/auspex`): `project/trials/`, the throwaway
 scripts and their outputs, which quote transcripts; and `datasets/`.
 
-**It may call proctor's code for what only proctor may work out**
+**It may call auspex's code for what only auspex may work out**
 (`Measured.cs`): which configurations an exam carries, where it has
-tries, one change against another. The rule is unchanged, auspex
-renders and proctor codes: the viewer computes no rate, no test and no
+tries, one change against another. The rule is unchanged, the viewer
+renders and auspex codes: the viewer computes no rate, no test and no
 count of its own, and makes no model call. A hosted viewer has no model
 key, so anything a model does is done on a person's own machine by the
 agent they work with, and reaches a page only as a link to it.
@@ -33,28 +39,28 @@ The viewer's first pass exists (2026-11-15).
 ## The program
 
 .NET 10, one project at the root, pages rendered on the server, no
-JavaScript build. **It reads proctor's bank** (since 2026-11-23, build
-step 1 of `project/build-plan.md`): give it proctor's root, the directory
+JavaScript build. **It reads auspex's bank** (since 2026-11-23, build
+step 1 of `project/build-plan.md`): give it auspex's root, the directory
 holding `bank/` and `exams/`.
 
-- `Program.cs`: `auspex <proctor root> [--port N]`. Prints the URL to
+- `Program.cs`: `auspex-view <root> [--port N]`. Prints the URL to
   open, which carries that start's token.
 - `Server.cs`: loopback only, token cookie on every route, every asset
   embedded in the assembly and served by one handler. No development
   mode (`project/workbench.md`, "Packaging").
-- `Bank.cs`: reads what proctor wrote, and nothing more: the exams in
+- `Bank.cs`: reads what auspex wrote, and nothing more: the exams in
   `bank/`, the files of each stage of a try
   (`bank/<exam>/<try id>/stages/<i>-<id>/`: `manifest.json`, `status`,
   `trajectory.json`, `checks.json`, `friction.json`, `core.json`), and
   from `exams/<exam>/` the description. It also reads what was made
   before stages and axes, by the earlier layout
   (`bank/<exam>/<filed>/<task>/<n>/` and `bank/<exam>/<filed>/<n>/stages/…`),
-  kept apart as `Exam.Earlier`: proctor reads none of it, so nothing of
-  it is counted. Proctor's file names live here only.
+  kept apart as `Exam.Earlier`: auspex reads none of it, so nothing of
+  it is counted. Auspex's file names live here only.
 - `Pages.cs`: what a bank holds as plain links, nothing counted
   (`Pages.Held`): at `/<exam>/earlier`, the attempts made before the
   exam was stages and axes, which `ExamPage.EarlierLink` points at, and
-  at `/<exam>` an exam proctor cannot load; the shared page helpers. `Open` is the one page head:
+  at `/<exam>` an exam auspex cannot load; the shared page helpers. `Open` is the one page head:
   every page is in the designed style (since 2026-11-27) and none loads
   a script.
 - `ExamPage.cs`: the page of an exam with axes, `/<exam>`, the first of
@@ -79,7 +85,7 @@ holding `bank/` and `exams/`.
   statistics, friction by label. `AxesPages.Compare` hands over to it
   when one setting is the subject, and draws every setting of a change
   itself (`&settings=all`): a row a setting, both sides' tries, what
-  was found, and proctor's reading of them as one.
+  was found, and auspex's reading of them as one.
 - `AxesPages.cs`: coverage, `/<exam>/coverage` (each value's tries, the
   configurations named or run, what is live across an axis nobody
   chooses), and the every-setting comparison. Neither was drawn on the
@@ -88,7 +94,7 @@ holding `bank/` and `exams/`.
   (2026-11-27), at `/<exam>/try/<id>/<stage>`, and at the bank's path
   for an earlier attempt (`/<exam>/<filed>/<try>/<stage>`, or
   `/<exam>/<filed>/<task>/<n>` for one of a single task, which has no
-  tabs). Stage tabs with proctor's right or wrong (from
+  tabs). Stage tabs with auspex's right or wrong (from
   `Measured.Report`; an earlier attempt has none, and a stage that did
   not complete says its status), verdicts grouped
   by the role `checks.json` records ("role not recorded" for a grade
@@ -98,14 +104,14 @@ holding `bank/` and `exams/`.
   and `?show=prompt|files`. It replaced the first pass's `StagePage.cs`
   and `stage.js`; search and selecting a check went with the script.
 - **A mark beside a configuration's name is about its own tries** (the user,
-  2026-11-27; `ExamPage.Own`, `ExamPage.Light`). Proctor's answer about a
+  2026-11-27; `ExamPage.Own`, `ExamPage.Light`). Auspex's answer about a
   configuration compares the change in every setting that has it and pools
   them; the mark on the index, the exam page and the configuration page reads
   only the cell that is the configuration itself, on correctness checks held,
   as the comparison page does. A model is an axis, so tries on another model
   are another configuration's. The pooled verdict is on the comparison page's
   "Every setting".
-- **A retired configuration** (`ConfigurationRow.Retired`, from proctor's
+- **A retired configuration** (`ConfigurationRow.Retired`, from auspex's
   `retired.json`) is left out of the exam page's Configurations rows and the
   index's list, and counted beneath them: on the exam page a `<details
   id="retired">` with each one's name, date, tries and reason, which the
@@ -113,7 +119,7 @@ holding `bank/` and `exams/`.
 - `IndexPage.cs`: the exams, `/`, the fifth designed page (2026-11-27):
   a row an exam, most recently tried first, with its
   named configurations and the marks `ExamPage.Standing` gives them,
-  its predictions and its tries; an exam proctor cannot load is a plain row. It
+  its predictions and its tries; an exam auspex cannot load is a plain row. It
   lists exams that have a bank, as before.
 - **Type is six roles and nothing else** (the canvas's board "6 · Type",
   agreed 2026-11-27): Title, Heading, Lead, Body, Small and Code, each
@@ -128,7 +134,7 @@ holding `bank/` and `exams/`.
   ground, Geist, Space Grotesk heads, lime rules), copied from the
   canvas's `auspex.css`, and its three fonts, vendored (SIL OFL) so a
   page asks nothing of the network.
-- `Quote.cs`: finds a quote by proctor's judge rule.
+- `Quote.cs`: finds a quote by auspex's judge rule.
 - **The built pages are the design now** (the user, 2026-11-27): the
   canvas is left to age, so a change is made here and looked at here,
   and the boards are not kept in step. A script is added where it earns
@@ -170,38 +176,38 @@ holding `bank/` and `exams/`.
   without `library=`: the default library fetches from Font Awesome's
   CDN. Dark mode is the `wa-dark` class, set from the system setting by
   an inline script in each page's head.
-- `Measured.cs`: the one doorway to proctor's code (`Auspex.Exam.Load`,
+- `Measured.cs`: the one doorway to auspex's code (`Auspex.Exam.Load`,
   `Auspex.Answers.Compare` and `Coverage`, and `Stats`, an exam's
-  report as `proctor report` computes it). What it gives is rendered
-  as given; what proctor refuses is shown in proctor's words.
-- `AxesPages.cs`: an exam with axes (proctor's `axes-build.md`, slice
+  report as `auspex report` computes it). What it gives is rendered
+  as given; what auspex refuses is shown in auspex's words.
+- `AxesPages.cs`: an exam with axes (auspex's `axes-build.md`, slice
   3d; `project/exam-page-axes.md`). The exam as the configurations it
   names or has tries of, `/<exam>`, and as of a time,
   `/<exam>/coverage?as_of=`; one configuration,
   `/<exam>/configuration/<key>`; one comparison,
   `/<exam>/compare?change=…&against=…&within=…&as_of=…` or
-  `?configuration=<name>`. These are the addresses `proctor compare`
-  and `proctor coverage` put in their answers. A try of such an exam is
+  `?configuration=<name>`. These are the addresses `auspex compare`
+  and `auspex coverage` put in their answers. A try of such an exam is
   `/<exam>/try/<id>/<stage>`. A comparison pinned to a time shows the
   numbers as they stood then, and as they are now when tries were made
   since. No page holds an agent's prose; each says what to ask one.
 - The stage page takes `?check=<name>` (and, with script, `?point=<id>`),
   so a link can point at one verdict or one friction point.
 - `Auspex.View.Tests/`: starts the real server on a free port and crawls it.
-  `AxesBank` is a proctor root with an exam of axes whose bank the
-  proctor built beside the tests made; `AxesPagesTests` holds each page
-  against what `proctor compare` and `proctor coverage` answer.
+  `AxesBank` is an auspex root with an exam of axes whose bank the
+  auspex built beside the tests made; `AxesPagesTests` holds each page
+  against what `auspex compare` and `auspex coverage` answer.
 
 ```
-dotnet build                                   # at the repository's root: proctor and the viewer
-dotnet test View/Auspex.View.Tests --no-build       # AxesPagesTests makes a bank with the proctor just built, so nb must be built too
-AUSPEX_VIEW_TEST_PUBLISH=1 AUSPEX_VIEW_TEST_ROOT=<proctor root> dotnet test View/Auspex.View.Tests --no-build
-dotnet View/bin/Debug/net10.0/auspex-view.dll <proctor root>
+dotnet build                                   # at the repository's root: auspex and the viewer
+dotnet test View/Auspex.View.Tests --no-build       # AxesPagesTests makes a bank with the auspex just built, so nb must be built too
+AUSPEX_VIEW_TEST_PUBLISH=1 AUSPEX_VIEW_TEST_ROOT=<auspex root> dotnet test View/Auspex.View.Tests --no-build
+dotnet View/bin/Debug/net10.0/auspex-view.dll <auspex root>
 # no bank on hand: Auspex.Tests/exams/axes-answers/make.sh <empty dir> makes one, with axes, on Mock
 ```
 
 Not built: the person's disposition on a point and the treatment record
-(`project/loop.md`). auspex writes nothing yet.
+(`project/loop.md`). The viewer writes nothing yet.
 
 ## Read first
 
@@ -213,10 +219,10 @@ The design work in progress, in order (journeys, then the inventory,
 then pages, whose mocks are a design canvas,
 https://claude.ai/artifact/XE4Baec27NiQMhLuXh5a6Q):
 
-- `project/journeys.md`: where the person is when they open auspex
+- `project/journeys.md`: where the person is when they open the viewer
   (2026-11-16, corrected by the user; their notes are the quoted lines
   and settle the guesses). Journey 2, "it passed and I do not believe
-  it", is the centre; the coding session acts and auspex shows; no
+  it", is the centre; the coding session acts and the viewer shows; no
   trajectory compared across several configurations.
 - `project/inventory.md`: superseded (2026-11-22), never revised; it
   predates the bank and speaks of batches. The page docs and the build
@@ -227,7 +233,7 @@ https://claude.ai/artifact/XE4Baec27NiQMhLuXh5a6Q):
 - `project/build-plan.md`: the order of work from the designs to
   running pages (2026-11-22, proposed): onto the bank, the Web Awesome
   skeleton, the stage page on today's attempts, then stages and the
-  exam page as proctor delivers them.
+  exam page as auspex delivers them.
 - `project/exam-page.md`: the page for one exam (2026-11-22, written
   from artboard 1 as reviewed, for the user to confirm). Setups against
   live on correctness checks held and flagged steps per try, setup tabs,
@@ -236,25 +242,25 @@ https://claude.ai/artifact/XE4Baec27NiQMhLuXh5a6Q):
 - `project/stage-page.md`: the page for one stage of a try (2026-11-22,
   agreed apart from typography and colour). Stage tabs, a checks pane
   beside the transcript, failure first whenever a check failed. Asks
-  proctor for `why`, `describes` and evidence on each verdict
-  (proctor's `project/plans/check-evidence.md`).
+  auspex for `why`, `describes` and evidence on each verdict
+  (auspex's `project/plans/check-evidence.md`).
 
 The model and the direction:
 
 - `project/model.md`: the data model from first principles (2026-11-15,
   agreed), in the words of that day; the two modes of
   use (finding a first pass, changing something live). Superseded by
-  proctor's `project/plans/axes.md`: an exam is stages and axes, and what
+  auspex's `project/plans/axes.md`: an exam is stages and axes, and what
   is under test is a configuration (2026-11-27).
 - `project/loop.md`: the current direction (2026-11-14). The loop from
   coded friction to a check to a treatment, the file contract with
-  proctor (`friction.json` per attempt), and what auspex owns: the
+  auspex (`friction.json` per attempt), and what the viewer owns: the
   review view, the person's dispositions, the treatment record.
 - `project/direction.md`: superseded in part by `loop.md` (2026-11-12).
   Keep it for the reasoning: the model writes the account of a run, and
   every number is a query and every quote checked. Its toolset (event
   table, operators, normalisers, citation checks, kept queries) now
-  belongs in proctor.
+  belongs in auspex.
 - `project/regimes.md`: what a person needs after a run of attempts
   (2026-11-12, quiet regime revised 2026-11-14). Six arrival states,
   three regimes (loud, rare, quiet), and the price to chase a rare
@@ -267,27 +273,27 @@ The model and the direction:
   below.
 - `project/surface.md`: proposed (2026-11-14). An exam-level
   declaration of the surface under test and its substitutes, owned by
-  proctor and read by auspex, so an attempt's steps sort by rule into
+  auspex and read by the viewer, so an attempt's steps sort by rule into
   on, about and around the surface, and background.
 - `project/friction-contract.md`: built and measured (2026-11-14). The
-  `friction.json` file per attempt that the viewer and proctor depend
+  `friction.json` file per attempt that the viewer and auspex depend
   on, and how good the detector behind it is: rules
   (`project/trials/friction.py`) plus a reader stage, which is Haiku
   (decided; three local models fell short). Tested on real runs with a
-  way round the surface (`tern-docs`). The rules are ported to proctor
-  (`proctor friction`), which is where a rule changes from now on.
+  way round the surface (`tern-docs`). The rules are ported to auspex
+  (`auspex friction`), which is where a rule changes from now on.
 - `project/off-path.md`: hypothesis (2026-11-13). Frontier agents pass
   given bash, so the case that needs analysis and a UI is a pass that
   left the surface under test (raw SQL in place of the CLI). Drill-in
   from a failed check is kept there as a minor case.
 - `project/demo.md`: nice to have (2026-11-13). A static read-only demo
-  for people trying auspex and for employers; writes to local storage, no
+  for people trying the viewer and for employers; writes to local storage, no
   runtime model. Lists the choices that keep it cheap (one built file,
   the local reader behind a read-only flag, writes as plain documents).
-- `project/workbench.md`: the earlier plan, moved from proctor
+- `project/workbench.md`: the earlier plan, moved from auspex
   uncommitted. Its step 4 ("the reading tool waits on beats") is
   superseded by `direction.md`. Paths in it like `todo.md`, `lab.md` and
-  `project/lab/` are proctor's.
+  `project/lab/` are auspex's.
 - `project/learnings/`: notes on prior art, one per source, each with the
   user's take in the frontmatter and what the source actually says
   checked against it. ET², InconLens, Docent, HoneyHive, ATO timelines,
@@ -298,10 +304,10 @@ The model and the direction:
   `off-family-friction-reader.md` (Haiku kept as the friction reader;
   no sign it favours Claude's runs, and the task may be less like
   judging than assumed).
-- `datasets/README.md` and `datasets/INDEX.md`: 31 proctor experiments
+- `datasets/README.md` and `datasets/INDEX.md`: 31 auspex experiments
   in the old layout, copied on 2026-11-12, frozen.
 
-Background that stays in proctor's repo, read it there:
+Background that stays in auspex's repo, read it there:
 
 - `project/todo.md`, the sections "Beats", "Beats, second cut", "Three
   things a reader does with trajectories" and "An analyst over the
@@ -309,13 +315,13 @@ Background that stays in proctor's repo, read it there:
 - `project/lab/observe.py` and `project/lab/trials/`: the throwaway
   beat-cutting trials, the seed for the code.
 - `project/plans/on-disk-layout.md` and `project/plans/bank.md`: the
-  layout proctor writes now (the bank and the log).
-- `Run/Ingest.cs`, `Ingest.Kinds`: proctor's agent-neutral tool kinds per
+  layout auspex writes now (the bank and the log).
+- `Run/Ingest.cs`, `Ingest.Kinds`: auspex's agent-neutral tool kinds per
   agent, and how a Qwen Code `tool_call` wrapper is unwrapped.
 
 ## Vocabulary
 
-Proctor's, fixed in its `CLAUDE.md` and `docs/configuration.md`, and
+Auspex's, fixed in its `CLAUDE.md` and `docs/configuration.md`, and
 used here the same way:
 
 - An **exam** is one question, the stages that ask it and the checks
@@ -331,7 +337,7 @@ used here the same way:
   applies in it; an **attempt** is one stage of it. Several tries per
   configuration, because the agent is stochastic.
 - The **bank** is every try of an exam (`bank/<exam>/<try id>/`). What
-  one `proctor run` did is a **log entry**, a record, never a grouping a
+  one `auspex run` did is a **log entry**, a record, never a grouping a
   person reads results by.
 - **Live** marks the value of an axis in use now, which the other values
   of that axis are compared with. A **prediction** is what should change
@@ -342,7 +348,7 @@ name the old layout only: `datasets/`, the viewer's code and its pages
 until they move. Use them for those paths and nothing else, and write
 nothing new in them.
 
-auspex's own words:
+The viewer's own words:
 
 - A **step** is an ATIF step, by its original id. Anything a person or a
   model says points back at one.
@@ -350,12 +356,12 @@ auspex's own words:
   then wrap. It is a derived column now, not the unit a reader reads,
   and it is never used for measurement.
 
-## Rules carried over from proctor
+## Rules carried over from auspex
 
 - **No count from a model.** Every number in an analysis comes from a
   query that can be rerun. Every quote a model gives is checked against
   the step it cites: a substring match with all whitespace removed, the
-  same rule as proctor's judge. Prose is fine; an unchecked count or
+  same rule as auspex's judge. Prose is fine; an unchecked count or
   quote is not.
 - **Plumbing costs $0.** Building and testing tools runs on the copied
   datasets, the scripted runs, or local models on `imp`, never a hosted

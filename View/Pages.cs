@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 namespace Auspex.View;
 
 /// <summary>What a bank holds, listed and not counted: the attempts made before an exam was stages and axes, or
-/// everything in the bank of an exam proctor cannot read as it stands. Plain links, by the name each is filed under;
+/// everything in the bank of an exam auspex cannot read as it stands. Plain links, by the name each is filed under;
 /// each opens the stage page (TryStagePage.cs). The helpers every page shares are here too.</summary>
 public static class Pages
 {
@@ -25,8 +25,8 @@ public static class Pages
         if (held.Count == 0) return Close(page.Append("<div class=\"said soft\">Nothing here.</div>"));
 
         ExamPage.Section(page, earlier ? "Earlier attempts" : "In the bank", earlier
-            ? "Made by an earlier proctor, whose files this one does not read. They are still in the bank, are no configuration's tries and are in no number. Each is listed as the bank holds it."
-            : "Proctor cannot read this exam as it stands, so nothing is counted. Each try is listed as the bank holds it, under the name it is filed by.");
+            ? "Made by an earlier version, whose files this one does not read. They are still in the bank, are no configuration's tries and are in no number. Each is listed as the bank holds it."
+            : "Auspex cannot read this exam as it stands, so nothing is counted. Each try is listed as the bank holds it, under the name it is filed by.");
         string Unfinished(Attempt a) => a.Status is var status && status == "completed" ? "" : $" <wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(status)}</wa-badge>";
         var first = true;
         foreach (var key in e.Filed(held))

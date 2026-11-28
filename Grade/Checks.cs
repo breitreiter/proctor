@@ -11,11 +11,11 @@ namespace Auspex;
 /// </summary>
 record Verdict(string Result, string Reason)
 {
-    /// <summary>What the check does, as it was when it graded this attempt (<see cref="Checks.Describe"/>), so a viewer copies none of proctor's logic and an exam edited later doesn't re-explain an old verdict.</summary>
+    /// <summary>What the check does, as it was when it graded this attempt (<see cref="Checks.Describe"/>), so a viewer copies none of auspex's logic and an exam edited later doesn't re-explain an old verdict.</summary>
     public string? Describes { get; init; }
-    /// <summary>Why the check exists, as it was when it graded: its author's sentence, or proctor's default for a guardrail (<see cref="Checks.WhyOf"/>).</summary>
+    /// <summary>Why the check exists, as it was when it graded: its author's sentence, or auspex's default for a guardrail (<see cref="Checks.WhyOf"/>).</summary>
     public string? Why { get; init; }
-    /// <summary>A script check's script, relative to proctor's root, so a person can open what decided.</summary>
+    /// <summary>A script check's script, relative to auspex's root, so a person can open what decided.</summary>
     public string? Script { get; init; }
     /// <summary>The check's role when it graded (<see cref="Exam.RoleOf"/>): correctness, integrity, quality or observation. What the answer was used for.</summary>
     public string? Role { get; init; }
@@ -70,7 +70,7 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
 
     /// <summary>
     /// A container name for the try, the same for every stage of it, since the hooks that would make a container run once
-    /// around the try. Proctor never uses it; hooks and runners that own a container agree on it through this. A try's
+    /// around the try. Auspex never uses it; hooks and runners that own a container agree on it through this. A try's
     /// id is letters, digits and hyphens, which every engine takes as a name.
     /// </summary>
     public string Container => $"auspex-{ExamId}-{Try ?? TryNumber.ToString()}";
@@ -177,7 +177,7 @@ static class Checks
         return string.Join(" and ", spec.Where(f => !IsNote(f.Key)).Select(f => DescribeField(f.Key, f.Value)));
     }
 
-    /// <summary>Why a check exists: its author's sentence, else proctor's default for a guardrail, else null (no stated reason).</summary>
+    /// <summary>Why a check exists: its author's sentence, else auspex's default for a guardrail, else null (no stated reason).</summary>
     public static string? WhyOf(JsonObject spec) =>
         spec[Why] is JsonValue w && w.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text) ? text : DefaultWhy(spec);
 

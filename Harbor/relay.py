@@ -1,6 +1,6 @@
-# Compiled by proctor into a task whose agent reaches a port of the machine that runs proctor. It runs as a service in
+# Compiled by auspex into a task whose agent reaches a port of the machine that runs auspex. It runs as a service in
 # the agent's network namespace and serves each port at 127.0.0.1, passing every connection to the unix socket of that
-# name in the mounted directory, whose other end proctor holds on the host. Bytes only: it reads nothing it carries.
+# name in the mounted directory, whose other end auspex holds on the host. Bytes only: it reads nothing it carries.
 import socket, sys, threading
 
 def pump(a, b):

@@ -56,7 +56,7 @@ record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker
     public static readonly string[] Engines = ["docker", "podman"];
     /// <summary>An engine that was here once, with where its code went.</summary>
     public const string Gone = "modal";
-    public const string GoneWhere = "the modal engine was moved out of proctor on 2026-11-27; its code is at the git tag modal-in-core, with its plan and guide in project/archive/. Supported: podman";
+    public const string GoneWhere = "the modal engine was moved out of auspex on 2026-11-27; its code is at the git tag modal-in-core, with its plan and guide in project/archive/. Supported: podman";
 }
 
 /// <summary>
@@ -127,7 +127,7 @@ record ExamDef(string? Id, JsonNode? Arms, Hooks? Hooks, Grading? Grading, ExamN
 /// <summary>
 /// What the exam is testing, inside a fixture that holds much else: the tools, commands, docs and hosts that are the
 /// surface under test, the surface's own internals (source, private notes), the ordinary ways round it, and patterns
-/// that mark a call to it as failed. `proctor friction` sorts each attempt's actions by it; nothing else reads it.
+/// that mark a call to it as failed. `auspex friction` sorts each attempt's actions by it; nothing else reads it.
 /// Paths are the container's; a path or a tool name is a glob in which `*` crosses directories.
 /// </summary>
 record SurfaceDef(string? Description = null, List<string>? Tools = null, List<string>? Commands = null, List<string>? Docs = null, List<string>? Internals = null,
@@ -151,7 +151,7 @@ record StageDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect,
 }
 
 /// <summary>
-/// Consumer metadata: a key with one or more string values, on an exam or a fixture. Proctor never
+/// Consumer metadata: a key with one or more string values, on an exam or a fixture. Auspex never
 /// interprets a key; it stores them, prints them, filters on them and records them on every result row.
 /// A tree is a value with slashes in it, matched by a glob.
 /// </summary>
@@ -334,7 +334,7 @@ sealed class Exam
         if (configFile is not null && !File.Exists(file)) throw new AuspexException($"--config {configFile}: no such file");
         if (!File.Exists(file))
         {
-            // The machine's file as proctor named it, left where it was: read as nothing, it would silently drop the judges and the agents' endpoints.
+            // The machine's file as auspex named it, left where it was: read as nothing, it would silently drop the judges and the agents' endpoints.
             if (File.Exists(Path.Combine(Layout.Exams(root), "proctor.json"))) throw new AuspexException($"{Layout.ExamsDir}/proctor.json is {Layout.ExamsDir}/{Layout.AuspexConfigFile} now: rename it");
             return new AuspexConfig(null);
         }
@@ -486,7 +486,7 @@ sealed class Exam
 
     /// <summary>
     /// What an oracle stage needs of the program template. The exam's oracle block owns the oracle's directives, which
-    /// proctor prepends, so the template may not state its own. Where nb runs through Harbor the prompt is sent by the
+    /// auspex prepends, so the template may not state its own. Where nb runs through Harbor the prompt is sent by the
     /// simulated user rather than run by the program, so the template's one run must be the last directive and run the
     /// stage's prompt as it is, or the bridge would run something other than what the bare path does.
     /// </summary>

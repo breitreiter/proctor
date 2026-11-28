@@ -10,8 +10,8 @@ namespace Auspex.View;
 /// The exams, as designed on the canvas (2026-11-27): one row an exam, the one tried most recently first. An exam with
 /// axes shows its named configurations with the mark each carries on the exam's own page, which is the headline read:
 /// what is live, what might replace it, how that is going; then its predictions as "X vs Y" with their count, its tries
-/// and when the last was made. An exam proctor cannot read is a plain row. Every mark and count
-/// is proctor's (Measured.cs).
+/// and when the last was made. An exam auspex cannot read is a plain row. Every mark and count
+/// is auspex's (Measured.cs).
 /// </summary>
 static class IndexPage
 {
@@ -27,7 +27,7 @@ static class IndexPage
             .Append(Fact("Exams", exams.Count.ToString())).Append(Fact("Tries", rows.Sum(r => r.Tries).ToString()))
             .Append(Fact("As of", DateTime.UtcNow.ToString("d MMM yyyy, HH:mm 'UTC'", CultureInfo.InvariantCulture))).Append("</dl></header>");
         if (exams.Count == 0)
-            return Close(page.Append($"<div class=\"said soft\">No exam has a bank under <span class=\"mono\">{E(root)}</span>. auspex reads proctor's root: the directory holding <span class=\"mono\">bank/</span> and <span class=\"mono\">exams/</span>.</div>"));
+            return Close(page.Append($"<div class=\"said soft\">No exam has a bank under <span class=\"mono\">{E(root)}</span>. The viewer reads auspex's root: the directory holding <span class=\"mono\">bank/</span> and <span class=\"mono\">exams/</span>.</div>"));
 
         Section(page, "Exams", "An exam is a question, the stages that ask it and the checks that grade them. The one tried most recently is first.");
         page.Append("<div style=\"min-width:1040px\"><div class=\"row row-head ex\"><span>Exam</span><span>Configurations</span><span>Predictions</span><span class=\"r\">Tries</span><span class=\"r\">Last try</span></div>")
@@ -39,7 +39,7 @@ static class IndexPage
     static string Head(Exam e, string shape) =>
         $"<span class=\"stack\" style=\"gap:6px\"><a class=\"name\" href=\"{U(e.Path)}\">{E(e.Id)}</a>{(e.Description is { } d ? $"<span class=\"soft\" style=\"line-height:1.45\">{E(d)}</span>" : "")}<span class=\"small dim\">{E(shape)}</span></span>";
 
-    /// <summary>An exam as proctor reads it: its named configurations and their marks, its predictions, its tries.</summary>
+    /// <summary>An exam as auspex reads it: its named configurations and their marks, its predictions, its tries.</summary>
     static Row WithAxes(string root, Exam e)
     {
         var (exam, problem) = Measured.Load(root, e.Id);
@@ -74,12 +74,12 @@ static class IndexPage
         return new Row(e, row.ToString(), last, tries);
     }
 
-    /// <summary>An exam proctor cannot read as it stands (one still written as tasks and variants, say): what the bank holds, nothing counted.</summary>
+    /// <summary>An exam auspex cannot read as it stands (one still written as tasks and variants, say): what the bank holds, nothing counted.</summary>
     static Row Plain(Exam e, string? problem)
     {
         var tries = e.Attempts.Select(a => (a.Configuration, a.Staged ? "" : a.Stage, a.N)).Distinct().Count();
         var row = new StringBuilder("<div class=\"row ex\" style=\"padding:18px 0\">").Append(Head(e, "not read")).Append("<span class=\"list\">");
-        row.Append($"<span class=\"small soft\" title=\"{E(problem ?? "")}\">Proctor cannot read this exam as it stands, so nothing is counted.</span>");
+        row.Append($"<span class=\"small soft\" title=\"{E(problem ?? "")}\">Auspex cannot read this exam as it stands, so nothing is counted.</span>");
         row.Append("</span><span class=\"small dim\">None</span>")
             .Append($"<span class=\"stack r\"><span class=\"num strong\">{tries}</span></span><span class=\"r small dim\"></span></div>");
         return new Row(e, row.ToString(), null, tries);

@@ -7,10 +7,10 @@ cheap model and the documentation is one README. There is no code to write
 and no tool to call, so it needs no sandbox: only a provider and a key.
 
 ```bash
-proctor setup                     # add Gemini for the built-in harness; name it gemini
-proctor run readme-answers        # run it again after an interruption: it continues
-proctor grade readme-answers
-proctor report readme-answers     # then open reports/readme-answers/explore/summary.md
+auspex setup                     # add Gemini for the built-in harness; name it gemini
+auspex run readme-answers        # run it again after an interruption: it continues
+auspex grade readme-answers
+auspex report readme-answers     # then open reports/readme-answers/explore/summary.md
 ```
 
 | | |
@@ -34,10 +34,10 @@ models. A free tier allows only a few requests a minute, and nb waits and
 retries when it is throttled, so a run can take a few minutes.
 
 **A different provider.** The `assistant` axis's one value names the provider
-`gemini`, the name `proctor setup` suggests. If you named it something else, or
+`gemini`, the name `auspex setup` suggests. If you named it something else, or
 want another model, change `provider` and `model` there in `exam.json` before
 the first run; after it, a changed value needs a new name.
-`proctor setup --check` lists the models your key can reach.
+`auspex setup --check` lists the models your key can reach.
 
 **How it is built.** The `docs` value sets the exam's `README` parameter, a
 directory under `values/docs/`. `program.nb` gives that README to the model as

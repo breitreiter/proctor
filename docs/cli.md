@@ -2,39 +2,39 @@
 
 Every command reads and writes files under the repository that holds your
 exams: `exams/` and `fixtures/` (yours, in git), `bank/` (every try made,
-gitignored), `log/` and `exams-seen/` (what each `proctor run` did and the
+gitignored), `log/` and `exams-seen/` (what each `auspex run` did and the
 exam as it stood, gitignored) and `reports/` (derived, written by
-`proctor report`). The words are in
+`auspex report`). The words are in
 [`configuration.md`](configuration.md#layout-and-vocabulary).
 
 ## Every command
 
 ```bash
-proctor setup                 # providers and keys, one job at a time (interactive)
-proctor setup --check         # what is set up, in plain lines for you or your coding agent; --probe repeats each key check
-proctor list [exam]           # validate; the exam's axes, and per configuration it names or has tries of, its current tries against those wanted
-proctor list --label kind=bugfix   # only the exams carrying that label
-proctor run <exam>            # make the tries the exam lacks, of the configurations it names
-proctor run <exam> --configuration <name>   # only that named configuration
-proctor run <exam> --value docs=rewritten   # that value, with every other axis at its live value or reference
-proctor run <exam> --config exams/auspex.other.json   # another machine file in place of exams/auspex.json; also list, grade
-proctor build <exam>          # nothing run, no model: what each value changes in the starting workspace, and each configuration against its values alone
-proctor build <exam> --value docs=rewritten   # one value's change, with its text
-proctor grade <exam>          # the checks over every stage of every current try -> checks.json; model verdicts cached in verdicts/
-proctor grade <exam> --rejudge   # call the judges again instead of reusing the verdict files
-proctor grade <exam> --judge glm=k2   # compare k2 against glm on the checks glm grades; checks.json is untouched
-proctor grade <exam> --configuration <name>   # only those tries (also --value); the rest keep their grades, so a paid judge pass can be staged
-proctor friction <exam>       # friction.json beside each stage's trajectory: where it paid a cost the stage did not ask for; rules only, no model, no key
-proctor friction <exam> --reader haiku   # a chat judge from auspex.json reads each stage too; one model call per stage, kept beside it and reused (--rejudge asks again)
-proctor report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json,friction.json,summary.md}, stamped with what they were built from
-proctor compare <exam> docs=rewritten   # JSON: that value against its axis's live value (--against <value>), every other axis held
-proctor compare <exam> --configuration <name>   # JSON: everything that configuration changes, together, against what is live (--against <name>)
-proctor coverage <exam>       # JSON: the tries of each value and configuration, and where there are none
-proctor predict <exam> [name] # pin a prediction: record the checks it was made under
-proctor retire <exam> <configuration> --reason "..."   # retire a named configuration (exams/<exam>/retired.json; commit it). Nothing is deleted; run makes no new tries of it
-proctor retire <exam> <configuration> --bring-back     # undo that
-proctor retire <exam>         # which configurations are retired, since when and why; --json on any form answers as JSON (retire/1)
-proctor --version
+auspex setup                 # providers and keys, one job at a time (interactive)
+auspex setup --check         # what is set up, in plain lines for you or your coding agent; --probe repeats each key check
+auspex list [exam]           # validate; the exam's axes, and per configuration it names or has tries of, its current tries against those wanted
+auspex list --label kind=bugfix   # only the exams carrying that label
+auspex run <exam>            # make the tries the exam lacks, of the configurations it names
+auspex run <exam> --configuration <name>   # only that named configuration
+auspex run <exam> --value docs=rewritten   # that value, with every other axis at its live value or reference
+auspex run <exam> --config exams/auspex.other.json   # another machine file in place of exams/auspex.json; also list, grade
+auspex build <exam>          # nothing run, no model: what each value changes in the starting workspace, and each configuration against its values alone
+auspex build <exam> --value docs=rewritten   # one value's change, with its text
+auspex grade <exam>          # the checks over every stage of every current try -> checks.json; model verdicts cached in verdicts/
+auspex grade <exam> --rejudge   # call the judges again instead of reusing the verdict files
+auspex grade <exam> --judge glm=k2   # compare k2 against glm on the checks glm grades; checks.json is untouched
+auspex grade <exam> --configuration <name>   # only those tries (also --value); the rest keep their grades, so a paid judge pass can be staged
+auspex friction <exam>       # friction.json beside each stage's trajectory: where it paid a cost the stage did not ask for; rules only, no model, no key
+auspex friction <exam> --reader haiku   # a chat judge from auspex.json reads each stage too; one model call per stage, kept beside it and reused (--rejudge asks again)
+auspex report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json,friction.json,summary.md}, stamped with what they were built from
+auspex compare <exam> docs=rewritten   # JSON: that value against its axis's live value (--against <value>), every other axis held
+auspex compare <exam> --configuration <name>   # JSON: everything that configuration changes, together, against what is live (--against <name>)
+auspex coverage <exam>       # JSON: the tries of each value and configuration, and where there are none
+auspex predict <exam> [name] # pin a prediction: record the checks it was made under
+auspex retire <exam> <configuration> --reason "..."   # retire a named configuration (exams/<exam>/retired.json; commit it). Nothing is deleted; run makes no new tries of it
+auspex retire <exam> <configuration> --bring-back     # undo that
+auspex retire <exam>         # which configurations are retired, since when and why; --json on any form answers as JSON (retire/1)
+auspex --version
 ```
 
 `--value` and `--configuration` narrow `grade`, `friction` and `report`
@@ -54,7 +54,7 @@ are what they were when it was made; one made before either changed is
 is about to make:
 
 ```
-$ proctor run tern-docs
+$ auspex run tern-docs
 tern-docs: one job of 6 stages, 4 attempts wanted
   docs=as-shipped,assistant=sonnet   4 of 4 attempts
   docs=restructure,assistant=sonnet  2 of 4 attempts   making 2
@@ -101,7 +101,7 @@ script, a file beside it, its expected values, or add a script check,
 and `grade` marks those verdicts `outdated`: out of every number, never
 a fail, named in a line after the grade summary. They stay outdated
 until the tries are made again: move their directories out of
-`bank/<exam>/` (`grade` names them) and `proctor run` the exam.
+`bank/<exam>/` (`grade` names them) and `auspex run` the exam.
 
 After the stages, `grade` says per check how many of them it has a pass
 or fail for, of those the check applies to:
@@ -150,7 +150,7 @@ which settings, what was not run, when the tries were made, what so few
 tries could have shown, and any caution that goes with the answer;
 `coverage` says where the exam has tries and where it has none. Neither
 recommends anything. The skill for an agent that uses them is
-[`skills/proctor-answers/`](../skills/proctor-answers/SKILL.md).
+[`skills/auspex-answers/`](../skills/auspex-answers/SKILL.md).
 
 A comparison that would read a try not yet graded under the checks as
 they are now is refused, so both sides are always under one standard.
@@ -162,8 +162,8 @@ shipping, what might replace it, how that is going. One nobody is
 looking at any more can be retired, with the reason:
 
 ```
-$ proctor retire tern-docs restructure --reason "we kept the docs as shipped"
-exams/tern-docs/retired.json: restructure is retired. Its tries, predictions and comparisons stay; `run` makes no new tries of it. `proctor retire tern-docs restructure --bring-back` undoes this
+$ auspex retire tern-docs restructure --reason "we kept the docs as shipped"
+exams/tern-docs/retired.json: restructure is retired. Its tries, predictions and comparisons stay; `run` makes no new tries of it. `auspex retire tern-docs restructure --bring-back` undoes this
 ```
 
 ```json
@@ -177,7 +177,7 @@ exams/tern-docs/retired.json: restructure is retired. Its tries, predictions and
 
 Commit the file with the exam. Retiring deletes nothing: the tries stay in
 the bank, the predictions keep their outcomes, and `compare` still answers
-about the configuration. What changes is that `proctor run` makes no new
+about the configuration. What changes is that `auspex run` makes no new
 tries of it (and refuses one asked for with `--configuration` or
 `--value`), `list` and the report mark it, and the viewer lists it under
 "retired" with its reason, out of the main lists.
@@ -193,7 +193,7 @@ configuration retired now, `named` saying whether `exam.json` still names
 it.
 
 ```
-$ proctor retire tern-docs restructure --reason "we kept the docs as shipped" --json
+$ auspex retire tern-docs restructure --reason "we kept the docs as shipped" --json
 {
   "schema": "retire/1",
   "exam": "tern-docs",
@@ -211,7 +211,7 @@ nothing changed when it is refused.
 
 ## The report
 
-`proctor report <exam>` writes `reports/<exam>/explore/`. A report there
+`auspex report <exam>` writes `reports/<exam>/explore/`. A report there
 from before is moved into a directory of its own beside it, named by when
 it was built (`reports/<exam>/explore/20261115-183450/`), so a report is
 never overwritten.
@@ -228,7 +228,7 @@ never overwritten.
 - `summary.md`: the same as plain markdown, for a person or an agent.
 
 When one configuration's tries came from runs made under different
-conditions (proctor's, nb's or Harbor's version, the runner, the
+conditions (auspex's, nb's or Harbor's version, the runner, the
 engine), `report` says so.
 
 Each try gives two numbers: the correctness checks it held, of all that

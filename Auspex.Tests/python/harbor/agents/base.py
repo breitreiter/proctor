@@ -1,4 +1,4 @@
-"""A stand-in for Harbor's BaseAgent: only what proctor's agents use of it."""
+"""A stand-in for Harbor's BaseAgent: only what auspex's agents use of it."""
 from pathlib import Path
 
 

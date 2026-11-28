@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 namespace Auspex;
 
 /// <summary>
-/// log/&lt;id&gt;/entry.json: what one `proctor run` did, and the conditions it ran under. The exam's hash (its definition
+/// log/&lt;id&gt;/entry.json: what one `auspex run` did, and the conditions it ran under. The exam's hash (its definition
 /// is kept once per hash under exams-seen/), each configuration it made tries of (its key, its hash and each axis's
 /// value by name and hash), the stages' hash, and every stage of every try it set out to make. The tries themselves
 /// are in the bank; nothing a person reads is grouped by log entry. Stages is the stage ids in the order they ran,
@@ -22,7 +22,7 @@ record LogEntry(
 {
     /// <summary>The id a try's directory is named by.</summary>
     public string? IdOf(string key, int attempt) => Attempts.FirstOrDefault(a => a.Configuration == key && a.TryNumber == attempt)?.Id;
-    /// <summary>Written by an earlier proctor: by a run of an exam of tasks and variants, laid out by variant and number where a try is now kept under an id of its own, or before an entry named its configurations and stages.</summary>
+    /// <summary>Written by an earlier version: by a run of an exam of tasks and variants, laid out by variant and number where a try is now kept under an id of its own, or before an entry named its configurations and stages.</summary>
     public bool Earlier => Configurations is null || StageHashes is null || Stages is null || Attempts.Any(a => a.Id is null || a.Configuration is null || a.TryNumber == 0);
 }
 
@@ -121,7 +121,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
     readonly string examsDir = Layout.Exams(root);
 
     /// <summary>
-    /// `proctor run`: whatever the exam still lacks, within the configurations given, is made by a new run. A try that
+    /// `auspex run`: whatever the exam still lacks, within the configurations given, is made by a new run. A try that
     /// was lost or never finished is not taken up again part way, since its workspace is half way through: it is made
     /// again, whole, under the next number. Returns the id of the log entry written, or null when there was nothing to make.
     /// </summary>
@@ -770,7 +770,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         var nb = config.NbOrDefault;
         var examsDir = Layout.Exams(root);
         if (!File.Exists(Path.Combine(root, config.Source)) && File.Exists(Path.Combine(examsDir, "auspex.example.json")))
-            throw new AuspexException("no exams/auspex.json: run `proctor setup` at a terminal, which writes it (skip every job for a config the playground runs on); or copy exams/auspex.example.json and nb.example.json beside themselves and point them at your gateway");
+            throw new AuspexException("no exams/auspex.json: run `auspex setup` at a terminal, which writes it (skip every job for a config the playground runs on); or copy exams/auspex.example.json and nb.example.json beside themselves and point them at your gateway");
         var path = nbOverride ?? nb.Path;
         if (path.Contains(Path.DirectorySeparatorChar)) path = Path.GetFullPath(Path.Combine(nbOverride is null ? examsDir : Directory.GetCurrentDirectory(), path));
         else if (FindOnPath(path) is { } found) path = found;
@@ -804,16 +804,16 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
             .SelectMany(d => names.Select(n => Path.Combine(d, n))).FirstOrDefault(File.Exists);
     }
 
-    /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every log entry records.</summary>
+    /// <summary>Auspex's own version, from the csproj, without the +commit suffix; what --version prints and every log entry records.</summary>
     public static string AuspexVersion =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0";
 
     static Dictionary<string, string> Versions(string nbPath)
     {
-        var proctor = AuspexVersion;
+        var auspex = AuspexVersion;
         var result = Subprocess.Run(nbPath, ["--version"], Path.GetDirectoryName(nbPath)!, new Dictionary<string, string> { ["NO_COLOR"] = "1" });
         var nb = result.Started && result.ExitCode == 0 ? result.Stdout.Trim().Split('+')[0] : "";
-        return new() { ["auspex"] = proctor, ["nb"] = nb.Length > 0 ? nb : "unknown" };
+        return new() { ["auspex"] = auspex, ["nb"] = nb.Length > 0 ? nb : "unknown" };
     }
 
     static GitInfo? GitInfo(string root)

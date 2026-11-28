@@ -1,6 +1,6 @@
 {
   "id": "smoke",
-  "description": "Proctor's own shakedown: four scripted stages against nb's Mock provider, so the pipeline and the report can be tested without a model.",
+  "description": "Auspex's own shakedown: four scripted stages against nb's Mock provider, so the pipeline and the report can be tested without a model.",
   "tries": 2,
   "fixture": "note",
   "hooks": {

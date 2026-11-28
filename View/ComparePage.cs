@@ -10,14 +10,14 @@ namespace Auspex.View;
 /// One configuration against another, as designed on the canvas (2026-11-26 and 27): "X vs Y", where the name before vs
 /// is the subject and every number and direction describes it. What was predicted of the pair, the five measures of a
 /// try on both sides, each check's rate, each stage as plain statistics, and friction by label. Every number is
-/// proctor's answer to `proctor compare` (Measured.cs). Drawn for a comparison in one setting; one that spans several
+/// auspex's answer to `auspex compare` (Measured.cs). Drawn for a comparison in one setting; one that spans several
 /// settings of the other axes is still the first pass's page (AxesPages.Compare).
 /// </summary>
 static class ComparePage
 {
     /// <summary>
     /// The designed page for the one setting that is the comparison asked for: the only one compared, or, when a named
-    /// configuration was asked about, the setting that is that configuration itself. Proctor compares the change between two
+    /// configuration was asked about, the setting that is that configuration itself. Auspex compares the change between two
     /// configurations wherever the exam has it, so other settings may be in the answer: they are said, with a link to all
     /// of them. Null when no one setting is the subject: the caller draws every setting.
     /// </summary>
@@ -30,7 +30,7 @@ static class ComparePage
         var (mine, other) = (cell.Value.Name ?? cell.Value.Configuration, cell.Against.Name ?? cell.Against.Configuration);
         var page = Open($"{mine} vs {other} · {e.Id}", [("exams", "/"), (e.Id, e.Path), ($"{mine} vs {other}", null)], style: "one");
 
-        // The reading is this setting's own, on checks held: with other settings in the answer, proctor's pooled verdict is about more than X and Y.
+        // The reading is this setting's own, on checks held: with other settings in the answer, auspex's pooled verdict is about more than X and Y.
         var light = held.Direction switch
         {
             "better" or "worse" => $"<wa-badge class=\"light {(held.Confirmed ? $"light-{held.Direction}" : "light-same")}\" appearance=\"accent\">{E(mine)} is {held.Direction} · {(held.Confirmed ? "confirmed" : cell.CouldConfirm ? "not confirmed" : "cannot confirm")}</wa-badge>",
@@ -78,7 +78,7 @@ static class ComparePage
             .Append("<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;max-width:900px\">")
             .Append($"<div>Every number and direction describes {E(mine)}, the name before vs. The reading at the top is on checks held.</div>")
             .Append(answer.Power is { } power ? $"<div>{E(power.Note)}</div>" : "")
-            .Append($"<div>{E(answer.Methods)}</div><div>Every number here is proctor's. Nothing on this page recommends anything.</div></div></section>");
+            .Append($"<div>{E(answer.Methods)}</div><div>Every number here is auspex's. Nothing on this page recommends anything.</div></div></section>");
         return Close(page);
     }
 

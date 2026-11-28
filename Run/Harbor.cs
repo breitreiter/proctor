@@ -11,11 +11,11 @@ record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, 
 /// <summary>
 /// One attempt's trial: Harbor's job file in the attempt, then `uv tool run harbor@&lt;pin&gt; run` on it with telemetry off and
 /// the model key in that one process's environment, never on disk. Harbor's job directory stays in the attempt as the full
-/// record; ingest lifts what proctor reads out of it.
+/// record; ingest lifts what auspex reads out of it.
 /// </summary>
 static class HarborRun
 {
-    /// <summary>What the image build, the verifier and Harbor's own start may add to the agent's wall limit before proctor stops waiting.</summary>
+    /// <summary>What the image build, the verifier and Harbor's own start may add to the agent's wall limit before auspex stops waiting.</summary>
     static readonly TimeSpan Overhead = TimeSpan.FromSeconds(1800 + 900 + 600);
 
     /// <summary>
@@ -103,7 +103,7 @@ static class HarborRun
     {
         var problems = new List<string>();
         // Harbor reads `compose exec` output with stderr in it, so this banner becomes part of every version an agent's
-        // setup asks the image for: Codex reinstalls (and fails), proctor's Qwen Code agent refuses the image.
+        // setup asks the image for: Codex reinstalls (and fails), auspex's Qwen Code agent refuses the image.
         if (composeStderr?.Contains("Executing external compose provider") == true)
             problems.Add("harbor.engine is podman, but `podman compose` announces its provider on every call, which Harbor reads as agent output: add compose_warning_logs = false under [engine] in ~/.config/containers/containers.conf");
         if (composeVersion is null)
@@ -128,7 +128,7 @@ static class HarborRun
 
         var env = new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" };
         if (route is { KeyEnv: { } name, ApiKey: { } key }) env[name] = key;
-        // nb's and Qwen Code's agents, and the oracle's simulated user, are proctor's own, imported from the log entry's harbor/agents/.
+        // nb's and Qwen Code's agents, and the oracle's simulated user, are auspex's own, imported from the log entry's harbor/agents/.
         if (HarborCompile.IsOwnAgent(assistant) || oracle is not null) env["PYTHONPATH"] = agentsDir;
         var result = Subprocess.Run(uv, UvArgs(version), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);

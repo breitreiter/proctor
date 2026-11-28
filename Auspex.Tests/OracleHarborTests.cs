@@ -20,7 +20,7 @@ public class OracleHarborTests
 
         Assert.Equal(["nb_agent.py", "oracle_user.j2", "oracle_user.py"], Directory.GetFiles(agents).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Contains("class OracleUser(BaseAgent)", File.ReadAllText(Path.Combine(agents, "oracle_user.py")));
-        Assert.Equal("{{ instruction }}\n<<<PROCTOR-BRIDGE>>>\n{{ bridge_instructions }}\n", File.ReadAllText(Path.Combine(agents, HarborCompile.OracleTemplateFile)));
+        Assert.Equal("{{ instruction }}\n<<<AUSPEX-BRIDGE>>>\n{{ bridge_instructions }}\n", File.ReadAllText(Path.Combine(agents, HarborCompile.OracleTemplateFile)));
         File.AppendAllText(Path.Combine(agents, "oracle_user.py"), "# edited\n");
         Assert.NotEqual(hash, HarborCompile.TreeHash(entryDir));
 

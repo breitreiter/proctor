@@ -2,7 +2,7 @@
 type: plan
 title: Axes, values and configurations — every change to the fixture named and declared
 created: 2026-11-23
-status: proposed 2026-11-23, from a conversation with the user. The model's shape is theirs (marked "the user"); the refusals, the outcomes and the mapping from today are recommendations to confirm. Decisions recorded 2026-11-23 and 24 (see "Decided since"), the words among them. Built since, per `axes-build.md`: slices 1 and 2 and proctor's half of slice 3 (declared, run bare, reported); the declaration as built is in `axes-ports.md`, and where it differs from this file it is the later word. Revised 2026-11-24 for who reads an exam and through what ("Who asks, and through what"), which is not built and partly not settled. Would revise `exam-variant-attempt.md` (variant, live, claim, D5, D16) and the vocabulary table in `CLAUDE.md`. Written first as `buckets.md` in working words (bucket, family); renamed when the words were fixed
+status: proposed 2026-11-23, from a conversation with the user. The model's shape is theirs (marked "the user"); the refusals, the outcomes and the mapping from today are recommendations to confirm. Decisions recorded 2026-11-23 and 24 (see "Decided since"), the words among them. Built since, per `axes-build.md`: slices 1 and 2 and auspex's half of slice 3 (declared, run bare, reported); the declaration as built is in `axes-ports.md`, and where it differs from this file it is the later word. Revised 2026-11-24 for who reads an exam and through what ("Who asks, and through what"), which is not built and partly not settled. Would revise `exam-variant-attempt.md` (variant, live, claim, D5, D16) and the vocabulary table in `CLAUDE.md`. Written first as `buckets.md` in working words (bucket, family); renamed when the words were fixed
 ---
 
 # Axes, values and configurations
@@ -25,26 +25,26 @@ retired word it can ban outright, so every leftover is a hit. With no
 outside users yet, the only constraint is our own: fewer loose
 references for a coding agent to misread.
 
-In this plan, **variant** appears only for what proctor has today.
+In this plan, **variant** appears only for what auspex has today.
 
 Why these over the alternatives, briefly (the comparison was made in
 conversation, 2026-11-24): axis, value and configuration are the words
 of Jenkins matrix jobs and of combinatorial testing, so a practitioner
 of either expects them; a statistician says factor, level and
 treatment combination, and follows. "Setup" (the viewer's word for the
-same idea) is taken by `proctor setup`, the install wizard, and goes.
+same idea) is taken by `auspex setup`, the install wizard, and goes.
 
 **What the words cost:**
 
 - `docs/configuration.md` is renamed (say `exam-files.md`); most of
-  proctor's 70 or so mentions of "configuration" point at it.
+  auspex's 70 or so mentions of "configuration" point at it.
 - **"Config" is not a configuration.** Agents will abbreviate, and
-  "config" already means `proctor.json`, nb's settings and appsettings.
+  "config" already means `auspex.json`, nb's settings and appsettings.
   The gate cannot catch that, so `CLAUDE.md` says it: a configuration is
   one value per axis; settings are settings, never "config" for a
   configuration.
 - **Across into nb**, "configuration" means nb's own settings (45 files
-  of nb's C#). Proctor's prose does not write "an nb configuration"; it
+  of nb's C#). Auspex's prose does not write "an nb configuration"; it
   writes "the agent axis at nb".
 - **"Value" against expected values.** A check's answer key is the
   `expect` block, whose entries are also values. Prose says "expected"
@@ -90,7 +90,7 @@ parts legible, so a run makes a precise claim about the part it covered
   nameable variations of one well-understood thing. `go: 1.20 | 1.23`,
   `docs: as-shipped | restructured`, `plan: demo | paid`,
   `agent: claude-code | codex`.
-- **It is incumbent on the author not to make a mess of this.** Proctor
+- **It is incumbent on the author not to make a mess of this.** Auspex
   enforces what it can mechanically (below) and makes the rest visible.
 
 From that:
@@ -182,7 +182,7 @@ and standard-changed labels below are deviations from one. Worth
 borrowing in the docs, if not the report.
 
 It is the user's job to decide what the gaps mean and which warrant runs
-(the user). Proctor's job is to make that cheap; see "Where next".
+(the user). Auspex's job is to make that cheap; see "Where next".
 
 ## Grades over time
 
@@ -190,7 +190,7 @@ Not new with axes, but axes make it routine, so it is written down
 here.
 
 **A check added later is graded over every earlier attempt** (the user,
-2026-11-23). Proctor already does this: a task's hash leaves out the
+2026-11-23). Auspex already does this: a task's hash leaves out the
 checks, which are the standard, so a change to them is a regrade, not
 new attempts (D16). The user's framing: once we decide a thing is
 wrong, we decide it was always wrong, and we reread prior attempts to
@@ -223,7 +223,7 @@ What follows:
   standard moved, not that the configuration improved.
 - **A claim records the standard it was made under** (the exam hash).
   Narrowing a check after seeing a claim's results can be right, and
-  looks exactly like moving the goalposts. Proctor does not forbid it;
+  looks exactly like moving the goalposts. Auspex does not forbid it;
   the report labels it **standard changed after the claim**, beside the
   existing late-claim label, and gives the verdict under both standards.
 - **Regrades cost money where a model judges** (the user: easy for
@@ -259,9 +259,9 @@ Step 3 comes before step 4, or the claim has no measured before.
 
 Not every change is files. **A value sets parameters the base declares;
 it never adds steps** ("Decided since", 10). The table is what a value
-can reach, not a set of kinds proctor knows: as declared and built
+can reach, not a set of kinds auspex knows: as declared and built
 (`axes-ports.md`, "The declaration") a value is named parameters the
-base's own scripts act on, plus three things proctor does itself (files
+base's own scripts act on, plus three things auspex does itself (files
 laid over the checkout, who does the work, a whole fixture for an axis
 of worlds).
 
@@ -279,12 +279,12 @@ the program, `PROCTOR_PARAM_<NAME>` for hooks and checks. The value's
 name on each axis is `PROCTOR_AXIS_<NAME>`.
 
 **The setup reads only declared axes, and every value is in the
-hash.** Proctor already warns of the trap: a hook that branches on
+hash.** Auspex already warns of the trap: a hook that branches on
 `PROCTOR_VARIANT` to change what the agent sees hides the change from
 the hash. A script that reads something undeclared cannot be detected,
 so this stays a documented rule.
 
-## What proctor enforces
+## What auspex enforces
 
 The part of "not making a mess" that a machine can check. Each is a
 refusal at load or before a run, saying what to change:
@@ -334,7 +334,7 @@ whole repository, which nobody reads as a diff):
 
 A run makes a precise claim about one configuration and not much else.
 Deciding which configurations warrant more runs, or any, is the user's
-(the user). What proctor and the viewer can put next to each empty or
+(the user). What auspex and the viewer can put next to each empty or
 thin configuration:
 
 - **The coverage grid**: which configurations have attempts, which are
@@ -348,7 +348,7 @@ thin configuration:
   knowing most users run Claude Code. Weighting is a fact only the user
   has: declared once per exam, shown beside each configuration.
 - **Where a change can reach.** A claim names checks and checks name the
-  values they apply to, so proctor can list the configurations a
+  values they apply to, so auspex can list the configurations a
   treatment could affect.
 - **Where the evidence is thin.** Few attempts, a wide interval, a
   result near the line.
@@ -363,7 +363,7 @@ not exist; sequential allocation, putting attempts where the evidence
 is thin.
 
 The coding session reads these and proposes ("run these four, about
-$N"); the user decides. Proctor never picks what to run and never
+$N"); the user decides. Auspex never picks what to run and never
 reports more than it measured.
 
 ## Who asks, and through what (2026-11-24)
@@ -393,11 +393,11 @@ axes or more. So nobody fills the cross product or looks at it: twelve
 axes of two values are 4,096 configurations. The configurations that
 exist are the ones somebody named or ran.
 
-### Settled: proctor does not do decision support (the user, 2026-11-24)
+### Settled: auspex does not do decision support (the user, 2026-11-24)
 
 The leaning below is now the decision ("Decided since", 17). Decision
-support is too big for proctor: one person builds it, and it is
-MIT-licensed. Proctor is three things:
+support is too big for auspex: one person builds it, and it is
+MIT-licensed. Auspex is three things:
 
 - **an excellent source of truth**;
 - **a solid layer for inspecting and navigating the evidence** (the
@@ -414,21 +414,21 @@ analysis a recommendation to a person needs.
 What that moves (mine):
 
 - The release table under "The three questions" is not something
-  proctor outputs or holds. At most it is guidance in the skill for
+  auspex outputs or holds. At most it is guidance in the skill for
   the agent that makes the recommendation.
-- Proctor's own verdicts stay, since they are measurements: better,
+- Auspex's own verdicts stay, since they are measurements: better,
   worse or no detectable difference against live, with the interval.
 - `summary.md` stays as it is and is not built up for this reader.
 - The facts under "What the exam would declare" are judged as source
   of truth: each earns its place if Claude cannot answer the reader
   without it.
 
-### Claude carries it; proctor holds the evidence (the user)
+### Claude carries it; auspex holds the evidence (the user)
 
-First said as a leaning, because where this reader meets proctor is
+First said as a leaning, because where this reader meets auspex is
 hard to say: the experience is Claude's, in conversation and in the
-dashboards it builds. Proctor is a good citizen: its docs and tools
-steer Claude toward right conclusions for that reader. Proctor owns
+dashboards it builds. Auspex is a good citizen: its docs and tools
+steer Claude toward right conclusions for that reader. Auspex owns
 the evidence store, and the debugging and analysis views that let
 Claude defend what it said. "Users on Codex are more likely to run
 into this" links to the attempts where Codex stumbled.
@@ -442,7 +442,7 @@ into this" links to the attempts where Codex stumbled.
 
 ### What follows (mine, to confirm)
 
-1. **Claude says; proctor counts.** A rate or an interval worked out in
+1. **Claude says; auspex counts.** A rate or an interval worked out in
    a conversation cannot be checked, and two people asking one question
    get two numbers. "Every number is computed once" reaches the tools:
    a query ("along `agent`, holding these, read as one across those")
@@ -455,12 +455,12 @@ into this" links to the attempts where Codex stumbled.
    were asked for beside it.
 3. **Everything has an address, and the address shows the number.** A
    try, a stage, one tool call, a verdict, a comparison. If Claude says
-   40% against 15%, the link opens a view where proctor shows 40%
+   40% against 15%, the link opens a view where auspex shows 40%
    against 15%. A friction point already has its call and a checked
    quote; this is the same rule the judges' quotes are held to.
 4. **Two axes that only ever moved together are said to be so.** If
    tone and examples changed in the same configurations, nothing
-   separates them. Proctor can see that from the attempts in scope and
+   separates them. Auspex can see that from the attempts in scope and
    answer "cannot be told apart from: `examples`". It is the mistake
    Claude would otherwise make fluently, and telling the two apart
    takes configurations made for the purpose, which Claude proposes
@@ -500,10 +500,10 @@ there. Then flag or not reads off it:
 | good where run, a large share of users not run | a flag or a staged release: customers test the rest, so keep the way back |
 | no difference seen, but only a large one could have been | more attempts, or a flag; this reads as "the same" and is not |
 
-Proctor cannot supply how far a bad release reaches, how easily it is
+Auspex cannot supply how far a bad release reaches, how easily it is
 undone, or what a bad outcome costs. Those are the user's, and Claude
 asks for them. The recommendation is Claude's, from stated facts;
-proctor still never picks what to run and never reports more than it
+auspex still never picks what to run and never reports more than it
 measured.
 
 ### What the exam would declare for this (mine, to confirm)
@@ -620,7 +620,7 @@ for the Go version the code declares.
   (Harbor or bare), comes from a value instead of the variant.
   Implementation, not model, but not small.
 - **The word change.** "Variant" is in about 1,900 lines of 171 tracked
-  files in proctor (970 lines of C#, 230 of docs, README and the skill,
+  files in auspex (970 lines of C#, 230 of docs, README and the skill,
   110 of names on disk and in the environment, 29 variant files) and
   about 220 lines of the viewer (2026-11-24 counts). Most of it is owed
   to the model change anyway, since every line that loads, hashes,
@@ -678,7 +678,7 @@ for the Go version the code declares.
   combine, so there is no order to decide, and refusal 2 covers
   parameters as it covers paths and variables. The file overlay is
   unchanged (paths of different axes are disjoint). The agent axis is
-  proctor's own: the runner installs the agent, through Harbor or bare,
+  auspex's own: the runner installs the agent, through Harbor or bare,
   as today. Two cases remain, neither an order problem:
   - **A configuration that cannot build** (auditor v2 does not support
     Go 1.20) is `failed`, with the build's error as its reason, like any
@@ -695,9 +695,9 @@ for the Go version the code declares.
   configuration's image a stack of steps from several authors that
   nobody can read.
 - **11. No migration of attempts; exams port when next run** (the user,
-  2026-11-24: there is no bank anywhere). Proctor's bank, log and
+  2026-11-24: there is no bank anywhere). Auspex's bank, log and
   `exams-seen/` do not exist on any machine. The paid evidence that
-  exists is the viewer's frozen `datasets/` (28 old proctor runs and
+  exists is the viewer's frozen `datasets/` (28 old auspex runs and
   one private one, about 300 MB, in the layout before the bank), already
   left behind by the bank's own change, and relevant only for trying new
   analyses for friction detection (the user). So:
@@ -723,24 +723,24 @@ for the Go version the code declares.
   is a dozen axes or more; the picture of an axis as one commit is
   given up.
 - **15. A value is built alone and reviewed against its sentence** (the
-  user, 2026-11-24). "What proctor enforces", 6. Values stay as
-  flexible as they are (files proctor lays, parameters the base's
+  user, 2026-11-24). "What auspex enforces", 6. Values stay as
+  flexible as they are (files auspex lays, parameters the base's
   scripts act on); the risk is taken out by looking at what each one
   did by itself, and by discouraging scripts that read several axes.
-  The looking is done by whoever asks `proctor build`; proctor keeps
+  The looking is done by whoever asks `auspex build`; auspex keeps
   no record that it was done (the user, 2026-11-24: any way of showing
   one reads as an approval or means nothing).
 - **16. A script that reads several axes is unsafe code** (the user,
   2026-11-24), as `unsafe` is in C#, without a marker in the syntax
   for now. It is allowed and never refused. Whoever does it is on
   their own: the review of each value built alone says nothing about
-  the configurations where the script acts, and proctor's checks do
+  the configurations where the script acts, and auspex's checks do
   not reach there. With several collaborators, or changes made without
   review, keeping axes isolated is the safe route; where that is not
   possible, care is the only guard. So there is no declared dependence
-  between axes yet, and what proctor may do is say where the safe
+  between axes yet, and what auspex may do is say where the safe
   ground ends ("OPEN", 5).
-- **17. Proctor does not do decision support** (the user, 2026-11-24).
+- **17. Auspex does not do decision support** (the user, 2026-11-24).
   A source of truth, a layer for inspecting the evidence, and a data
   access layer for Claude and what Claude builds. No reports for
   product managers, no dashboards, no "ship this one". See "Who asks,
@@ -791,7 +791,7 @@ for the Go version the code declares.
      named as the one others are built against, for this purpose only.
    - **The combination can be checked too, for nothing.** If no script
      reads two axes, what a configuration changed from the reference build is
-     the changes of its values put together. Proctor can build the
+     the changes of its values put together. Auspex can build the
      configuration, compare, and say where it is not: that is a script
      reading several axes, found without reading the script. Under
      decision 16 this is a report and never a refusal: it says which
@@ -799,7 +799,7 @@ for the Go version the code declares.
      comparison that reads one of them carries that in its answer. It
      stands in for the marker the syntax does not have.
    - **Where the review is kept.** Nowhere (decision 15). What is
-     kept is the combination check, which proctor measures.
+     kept is the combination check, which auspex measures.
    - **What the comparison reaches.** The checkout as committed before
      the first stage, fully. An image only by digest (different, not
      how). A running service or a database inside one, not at all,

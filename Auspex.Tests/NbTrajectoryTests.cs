@@ -16,7 +16,7 @@ public class NbTrajectoryTests
 
     static JsonObject Trajectory(string name) => JsonNode.Parse(File.ReadAllText(Path.Combine(Dir, name + ".trajectory.json")))!.AsObject();
 
-    /// <summary>The ATIF reading, as an nb attempt in Harbor is graded: the trajectory with proctor's counted core.</summary>
+    /// <summary>The ATIF reading, as an nb attempt in Harbor is graded: the trajectory with auspex's counted core.</summary>
     static Transcript ThroughAtif(JsonObject trajectory)
     {
         var exit = trajectory["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";

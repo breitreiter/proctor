@@ -32,7 +32,7 @@ sealed class TestRepo : IDisposable
 
     public static string NbMockConfig => Path.Combine(SourceRoot, "exams", "nb.example.json");
 
-    /// <summary>Copy an exam from this repository's exams/ into the temp root, with a auspex.json pointing at nb.</summary>
+    /// <summary>Copy an exam from this repository's exams/ into the temp root, with an auspex.json pointing at nb.</summary>
     public string CopyExam(string examId)
     {
         var source = Path.Combine(SourceRoot, "exams", examId);
@@ -107,7 +107,7 @@ sealed class TestRepo : IDisposable
             foreach (var name in named.Select(c => c.Key).Where(n => n != keep).ToList()) named.Remove(name);
         });
 
-    /// <summary>`proctor run` as the verb does it: the configurations the exam names (or those asked for), made. Returns the log entry's id and what was printed.</summary>
+    /// <summary>`auspex run` as the verb does it: the configurations the exam names (or those asked for), made. Returns the log entry's id and what was printed.</summary>
     public (string? Id, string Log) Run(string examId, List<string>? values = null, string? configuration = null, AuspexConfig? config = null)
     {
         var log = new StringWriter();

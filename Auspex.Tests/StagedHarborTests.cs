@@ -81,7 +81,7 @@ public class StagedHarborTests
         var task = Path.Combine(repo.Root, "log", id!, "harbor", "tasks", K, "harbor-unit");
 
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
-        Assert.Contains("name = \"proctor/harbor-unit\"", toml);
+        Assert.Contains("name = \"auspex/harbor-unit\"", toml);
         Assert.EndsWith("\n[[steps]]\nname = \"look\"\n\n[[steps]]\nname = \"fix-null-deref\"\n", toml);
         Assert.Equal("Which test fails? Say its name.\n", File.ReadAllText(Path.Combine(task, "steps", "look", "instruction.md")));
         Assert.False(File.Exists(Path.Combine(task, "instruction.md")));

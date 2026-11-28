@@ -73,8 +73,8 @@ in. A text parameter is a build argument for these steps to act on.
   checks and the expectations are in the verifier only, by construction,
   so a check that the agent stayed out of them has nothing to guard.
 - **Built-in and model checks are unchanged**: `grade` reads the ATIF
-  trajectory and proctor's own count (`core.json`) into the same
-  windows. A budget check reads proctor's count, never the agent's.
+  trajectory and auspex's own count (`core.json`) into the same
+  windows. A budget check reads auspex's count, never the agent's.
 - **What only nb does** has nothing to read on a vendor agent's stage:
   `loop_nudged` is `error` there, and `denied_calls` is 0 by
   construction, since Harbor runs every vendor agent with approvals

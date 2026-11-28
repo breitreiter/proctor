@@ -96,7 +96,7 @@ public class SetupFilesTests : IDisposable
     // ── auspex.json and .gitignore ──
 
     [Fact]
-    public void PutAgent_WritesTheRoute_AndKeepsTheRestOfProctorJson()
+    public void PutAgent_WritesTheRoute_AndKeepsTheRestOfAuspexJson()
     {
         Directory.CreateDirectory(exams);
         File.WriteAllText(Path.Combine(exams, "auspex.json"), """{ "nb": { "path": "/opt/nb" }, "judges": { "glm": { "kind": "chat" } } }""");
@@ -114,9 +114,9 @@ public class SetupFilesTests : IDisposable
     }
 
     [Fact]
-    public void EnsureProctor_CreatesOneWithoutTheExamplesGateway()
+    public void EnsureAuspex_CreatesOneWithoutTheExamplesGateway()
     {
-        SetupFiles.EnsureProctor(exams);
+        SetupFiles.EnsureAuspex(exams);
         Assert.Equal("""{"nb":{"config":"nb.json"}}""", Read("auspex.json").ToJsonString());
     }
 
@@ -203,7 +203,7 @@ public class SetupFilesTests : IDisposable
     {
         var (exit, output) = await Check();
         Assert.Equal(1, exit);
-        Assert.Contains("problem: proctor setup has not been run here", output);
+        Assert.Contains("problem: auspex setup has not been run here", output);
     }
 
     [Fact]

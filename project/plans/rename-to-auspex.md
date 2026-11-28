@@ -2,7 +2,7 @@
 type: plan
 title: Proctor becomes auspex — the viewer moves in, then the rename
 created: 2026-11-23
-status: reviewed against the code on 2026-11-28, after slice 7 of `axes-build.md` (see "Review, 2026-11-28", which replaces the stage 2 table, the schedule and step 7 of stage 1 where they differ). Stage 1 is done but for the old checkout. Stage 2 is done through layer 4 (see "Done"). Counts in the older sections are from 2026-11-23
+status: reviewed against the code on 2026-11-28, after slice 7 of `axes-build.md` (see "Review, 2026-11-28", which replaces the stage 2 table, the schedule and step 7 of stage 1 where they differ). Stage 1 is done but for the old checkout. Stage 2 is done through layer 7 but for the site's URL (see "Done"). Counts in the older sections are from 2026-11-23
 ---
 
 # Proctor becomes auspex
@@ -176,6 +176,22 @@ user's to cut.
   `auspex-dotnet`; the user's own `~/.config/proctor/env` is theirs to move.
   `agent-onboarding`'s reference solutions carry `auspex.json`, ahead of the
   pin: a real try of it, or of `exam-authoring`, waits for layer 10.
+- **Layers 5 and 7, 2026-11-28.** The skills are `skills/auspex-exam` and
+  `skills/auspex-answers`. Prose: the command, every message the program
+  prints, `CLAUDE.md`, the README, `docs/*.md`, the skills, every exam and
+  fixture but the pinned two, the code's comments and test names,
+  `project/brief.md`, `project/todo.md`, `plans/remix.md` and `plans/axes.md`.
+  The viewer is "the viewer" (`auspex-view`) wherever it was called auspex,
+  and `View/CLAUDE.md` says how the names moved. Two things went with it that
+  the plan had not listed: a compiled Harbor task is named `auspex/<exam>`,
+  and the bridge sentinel is `<<<AUSPEX-BRIDGE>>>`. Left as records, saying
+  proctor: `project/archive/`, `learnings/`, `project/view/`, every other
+  plan, past CHANGELOG entries, `bench/`, captured fixtures, the published
+  reports. Left for their own layers: `docs/index.html` and
+  `docs/providers.html` with the site's base URL (6), the repository's URL
+  and this directory (9), and `agent-onboarding` and `exam-authoring` with
+  their fixtures (10). `project/where-we-are.md` holds another session's
+  uncommitted edit and was not touched.
 
 ### To decide
 

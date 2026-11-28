@@ -49,15 +49,15 @@ def run_user(outputs, turns=8, judge=None):
         environment = FakeEnvironment(outputs)
         context = SimpleNamespace(metadata=None)
         asyncio.run(user.setup(environment))
-        asyncio.run(user.run("Deploy the service.\n<<<PROCTOR-BRIDGE>>>\nHow to talk to the agent.\n", environment, context))
+        asyncio.run(user.run("Deploy the service.\n<<<AUSPEX-BRIDGE>>>\nHow to talk to the agent.\n", environment, context))
         record = json.loads(Path(d, oracle_user.LOG).read_text())
         return record, environment, context
 
 
 class Parsing(unittest.TestCase):
     def test_the_task_is_everything_before_the_last_sentinel(self):
-        self.assertEqual("Fix it.\n\nCarefully.", task_text("Fix it.\n\nCarefully.\n\n<<<PROCTOR-BRIDGE>>>\nacpx prompt …\n"))
-        self.assertEqual("a <<<PROCTOR-BRIDGE>>> b", task_text("a <<<PROCTOR-BRIDGE>>> b\n<<<PROCTOR-BRIDGE>>>\nbridge"))
+        self.assertEqual("Fix it.\n\nCarefully.", task_text("Fix it.\n\nCarefully.\n\n<<<AUSPEX-BRIDGE>>>\nacpx prompt …\n"))
+        self.assertEqual("a <<<AUSPEX-BRIDGE>>> b", task_text("a <<<AUSPEX-BRIDGE>>> b\n<<<AUSPEX-BRIDGE>>>\nbridge"))
         with self.assertRaises(ValueError):
             task_text("no sentinel")
 
@@ -145,7 +145,7 @@ class Loop(unittest.TestCase):
                     raise asyncio.CancelledError()
 
             with self.assertRaises(asyncio.CancelledError):
-                asyncio.run(user.run("Deploy the service.\n<<<PROCTOR-BRIDGE>>>\n", Killed(), SimpleNamespace(metadata=None)))
+                asyncio.run(user.run("Deploy the service.\n<<<AUSPEX-BRIDGE>>>\n", Killed(), SimpleNamespace(metadata=None)))
             record = json.loads(Path(d, oracle_user.LOG).read_text())
         self.assertEqual({"ending": None, "prompts": [{"text": "Deploy the service."}], "judgements": []}, record)
 

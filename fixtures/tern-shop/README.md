@@ -3,7 +3,7 @@
 Larkspur Tea's shop backend (`repo/`, invented) beside two services (`services/`): Tern's sandbox API on
 `localhost:8081` and Tern's documentation site on `localhost:8080`. Tern is an invented parcel carrier.
 
-The API is the fixture's and the same in every variant. The docs site serves the variant's bundle, which proctor copies
+The API is the fixture's and the same in every variant. The docs site serves the variant's bundle, which auspex copies
 beside the services as `bundle/` (empty for a variant with none, so every page is a 404). The exam that uses this
 fixture, `exams/tern-docs`, compares versions of those docs.
 

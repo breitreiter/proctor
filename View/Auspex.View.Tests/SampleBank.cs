@@ -1,6 +1,6 @@
 namespace Auspex.View.View.Tests;
 
-/// <summary>A proctor root made for a test, its bank filed the way it was before an exam was stages and axes (by variant
+/// <summary>An auspex root made for a test, its bank filed the way it was before an exam was stages and axes (by variant
 /// and task, or by variant and try number), which the viewer still serves: one exam with its definition, two setups, one try with checks,
 /// a friction.json and a trajectory, and one failed try with a trajectory only.</summary>
 public sealed class SampleBank : IDisposable
@@ -18,7 +18,7 @@ public sealed class SampleBank : IDisposable
 
     public SampleBank()
     {
-        Root = Path.Combine(_temp, "proctor");
+        Root = Path.Combine(_temp, "auspex");
         Write(Path.Combine(Root, "exams", Exam, "exam.json"), """{"id": "sample", "description": "A made-up exam about the docs site on :8080."}""");
 
         var coded = Path.Combine(Root, "bank", Exam, "live-setup", "task-one", "1");
@@ -73,7 +73,7 @@ public sealed class SampleBank : IDisposable
         Write(Path.Combine(bare, "status"), "failed\n");
         Write(Path.Combine(bare, "trajectory.json"), """{"steps": [{"step_id": 1, "source": "user", "message": "Do it."}]}""");
 
-        // An exam of stages, as proctor lays one out: bank/<exam>/<variant>/<n>/stages/<i>-<id>/.
+        // An exam of stages, as auspex lays one out: bank/<exam>/<variant>/<n>/stages/<i>-<id>/.
         Write(Path.Combine(Root, "exams", "staged", "exam.json"), """{"id": "staged", "description": "One job of two stages.", "chained": true}""");
         var tryDir = Path.Combine(Root, "bank", "staged", "live-setup", "1");
         var first = Path.Combine(tryDir, "stages", "1-write-note");

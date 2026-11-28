@@ -3,7 +3,7 @@ using Auspex;
 namespace Auspex.Tests;
 
 /// <summary>
-/// What proctor answers when asked (plans/axes-build.md, slice 3c), on the scripted exam with known answers
+/// What auspex answers when asked (plans/axes-build.md, slice 3c), on the scripted exam with known answers
 /// (Auspex.Tests/exams/axes-answers): the rewritten guide is better on one assistant and worse on the other, tone and
 /// examples only ever moved together, and one named configuration was never run.
 /// </summary>

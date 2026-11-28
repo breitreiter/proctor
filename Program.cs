@@ -3,7 +3,7 @@ namespace Auspex;
 static class Program
 {
     const string Usage = """
-        usage: proctor <verb> [args] [--root <dir>]
+        usage: auspex <verb> [args] [--root <dir>]
 
           list [exam]            validate; the exam's axes, and per configuration it names or has tries of, its current
                                  tries against those wanted
@@ -53,16 +53,16 @@ static class Program
         --reason <text>       retire: why, kept with the mark
         --bring-back          retire: undo it
         --json                retire: answer as JSON (retire/1): what was done and what is retired now
-        --version             print proctor's version (see CHANGELOG.md for what changed between versions)
+        --version             print auspex's version (see CHANGELOG.md for what changed between versions)
         --check               setup: print what is set up and what is missing, plain lines for an agent; exit 1 on a problem
         --probe               setup --check: repeat each provider's key check (lists models; no tokens)
         """;
 
     /// <summary>Flags and a verb of the earlier shape, each refused with what stands in its place.</summary>
     const string NoArms = "--arm went with arms: what is under test is an axis's values now. Narrow with --configuration <name> or --value <axis=value>",
-        NoResume = "there is no resume: `proctor run <exam>` makes the tries each configuration lacks, and a try a run lost is made again whole",
+        NoResume = "there is no resume: `auspex run <exam>` makes the tries each configuration lacks, and a try a run lost is made again whole",
         NoTasks = "--tasks went with tasks: an exam is one job of stages, and a stage is never run alone",
-        NoLive = "`baseline` and --live went with arms: what is live is declared on an axis in exam.json (\"live\": \"<value>\"), and `proctor list <exam>` says which configuration that makes live";
+        NoLive = "`baseline` and --live went with arms: what is live is declared on an axis in exam.json (\"live\": \"<value>\"), and `auspex list <exam>` says which configuration that makes live";
 
     static int Main(string[] args)
     {
@@ -102,7 +102,7 @@ static class Program
                 case "--check": check = true; break;
                 case "--probe": probe = true; break;
                 case "-h" or "--help": Console.WriteLine(Usage); return 0;
-                case "--version": Console.WriteLine($"proctor {Runner.AuspexVersion}"); return 0;
+                case "--version": Console.WriteLine($"auspex {Runner.AuspexVersion}"); return 0;
                 case var flag when flag.StartsWith("--"): Console.Error.WriteLine($"unknown flag {flag}"); Console.Error.WriteLine(Usage); return 1;
                 default: positional.Add(args[i]); break;
             }

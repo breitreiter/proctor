@@ -14,11 +14,11 @@ static class Layout
     public const string WorkDir = ".auspex/work";
     /// <summary>Where a value's files from a git revision are cloned, and the paths it names copied out.</summary>
     public const string GitFilesDir = ".auspex/files";
-    /// <summary>What `proctor build` leaves: each value's change from the reference build, and its scratch checkouts while it runs.</summary>
+    /// <summary>What `auspex build` leaves: each value's change from the reference build, and its scratch checkouts while it runs.</summary>
     public const string BuildsDir = ".auspex/builds";
     /// <summary>In a try: what its setup hook did to the checkout, as a patch.</summary>
     public const string SetupPatchFile = "setup.patch";
-    /// <summary>Beside exam.json: which configurations of several values `proctor build` found to be their values put together, and which not.</summary>
+    /// <summary>Beside exam.json: which configurations of several values `auspex build` found to be their values put together, and which not.</summary>
     public const string CombinationsFile = "combinations.json";
 
     public const string AuspexConfigFile = "auspex.json";
@@ -30,7 +30,7 @@ static class Layout
     public const string StagesDir = "stages";
     /// <summary>Beside exam.json: one file per prediction: a named configuration and the changes expected of it (plans/axes-build.md, slice 6).</summary>
     public const string PredictionsDir = "predictions";
-    /// <summary>Beside exam.json: the named configurations retired, each with its reason and date (`proctor retire`).</summary>
+    /// <summary>Beside exam.json: the named configurations retired, each with its reason and date (`auspex retire`).</summary>
     public const string RetiredFile = "retired.json";
     public const string FixtureFile = "fixture.json";
 
@@ -86,7 +86,7 @@ static class Layout
     public static string Work(string root, string examId, string id) => Path.Combine(root, WorkDir, examId, id);
     /// <summary>A stage's workspace rebuilt for grading: the fixture with the stage's diff on it, since the try's own checkout only holds what the last stage left.</summary>
     public static string WorkAsStageLeftIt(string root, string examId, string stageDir, string id) => Path.Combine(root, WorkDir, examId, $"{id}.stages", stageDir);
-    /// <summary>What one `proctor run` did: entry.json, its status counts, its configuration hooks' output, and the Harbor tasks it compiled.</summary>
+    /// <summary>What one `auspex run` did: entry.json, its status counts, its configuration hooks' output, and the Harbor tasks it compiled.</summary>
     public static string LogEntry(string root, string entryId) => Path.Combine(root, LogDir, entryId);
     public static string LogEntryFileIn(string root, string entryId) => Path.Combine(LogEntry(root, entryId), LogEntryFile);
     /// <summary>The exam's own definition as it stood at a hash, kept once per hash.</summary>

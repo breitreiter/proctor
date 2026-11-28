@@ -39,7 +39,7 @@ static class Verbs
             if (unexplained.Count > 0) Console.WriteLine($"  {Count(unexplained.Count, "check")} with no why: {string.Join(", ", unexplained)}");
             ListAxes(root, exam);
             if (Bank.Earlier(root, exam.Id) is > 0 and var earlier)
-                Console.WriteLine($"  {Count(earlier, "attempt")} made by an earlier proctor {(earlier == 1 ? "is" : "are")} still in {Layout.BankDir}/{exam.Id}/, and read by nothing: its files name what was under test another way");
+                Console.WriteLine($"  {Count(earlier, "attempt")} made by an earlier version {(earlier == 1 ? "is" : "are")} still in {Layout.BankDir}/{exam.Id}/, and read by nothing: its files name what was under test another way");
         }
         foreach (var p in problems) Console.Error.WriteLine(p);
         return exit;
@@ -106,7 +106,7 @@ static class Verbs
             if (c.NotBuilt is null) changed |= combinations.Add(new CombinationCheck(c.Configuration, c.Hash, result.Base, c.Differs, DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), c.Unclear.Count > 0 ? c.Unclear : null));
         }
         if (changed) combinations.Save(exam);
-        if (only is null) Console.WriteLine($"`proctor build {exam.Id} --value <axis=value>` shows one value's change with its text, to read against what the value says");
+        if (only is null) Console.WriteLine($"`auspex build {exam.Id} --value <axis=value>` shows one value's change with its text, to read against what the value says");
         return 0;
     }
 
@@ -119,7 +119,7 @@ static class Verbs
         var exam = LoadExam(root, examId);
         var axes = exam.Axes;
         if ((what is null) == (ConfigurationName is null))
-            throw new AuspexException($"compare takes one thing to ask about: `proctor compare {exam.Id} <axis>=<value>` for a value, or `proctor compare {exam.Id} --configuration <name>` for a configuration");
+            throw new AuspexException($"compare takes one thing to ask about: `auspex compare {exam.Id} <axis>=<value>` for a value, or `auspex compare {exam.Id} --configuration <name>` for a configuration");
         var (holding, at) = (within is null ? null : ValuesGiven(exam, within), asOf is null ? (DateTime?)null : Answers.ParseAsOf(asOf));
         ComparisonAnswer answer;
         if (what is not null)
@@ -210,9 +210,9 @@ static class Verbs
             marks.OrderBy(m => m.Key, StringComparer.Ordinal).ToDictionary(m => m.Key, m => new RetiredNow(m.Value.Reason, m.Value.Since, Named(m.Key))));
         if (name is null)
         {
-            if (reason is not null || bringBack) throw new AuspexException("say which configuration: proctor retire <exam> <configuration> --reason \"...\", or --bring-back");
+            if (reason is not null || bringBack) throw new AuspexException("say which configuration: auspex retire <exam> <configuration> --reason \"...\", or --bring-back");
             var lines = marks.Select(m => $"{m.Key}: retired {m.Value.Since}: {m.Value.Reason}{(Named(m.Key) ? "" : "  (exam.json names no such configuration now)")}").ToList();
-            if (marks.Count == 0) lines.Add($"{exam.Id}: nothing is retired; `proctor retire {exam.Id} <configuration> --reason \"...\"` retires one");
+            if (marks.Count == 0) lines.Add($"{exam.Id}: nothing is retired; `auspex retire {exam.Id} <configuration> --reason \"...\"` retires one");
             return (Answer("listed"), lines);
         }
         if (bringBack)
@@ -221,7 +221,7 @@ static class Verbs
             if (!marks.Remove(name, out var was))
                 throw new AuspexException($"{name} is not retired ({string.Join(", ", marks.Keys.DefaultIfEmpty("nothing is"))})");
             Retired.Save(exam, marks);
-            return (Answer("brought_back", was), [$"{file}: {name} is back (it was retired {was.Since}: {was.Reason}); `proctor run {exam.Id}` makes what it lacks again"]);
+            return (Answer("brought_back", was), [$"{file}: {name} is back (it was retired {was.Since}: {was.Reason}); `auspex run {exam.Id}` makes what it lacks again"]);
         }
         var configuration = axes.Named.FirstOrDefault(c => c.Name == name)
             ?? throw new AuspexException($"exam '{exam.Id}' names no configuration '{name}' ({string.Join(", ", axes.Named.Select(c => c.Name!).DefaultIfEmpty("none"))})");
@@ -231,7 +231,7 @@ static class Verbs
         marks[name] = new RetiredMark(reason.Trim(), before?.Since ?? DateTime.UtcNow.ToString("yyyy-MM-dd"));
         Retired.Save(exam, marks);
         return before is null
-            ? (Answer("retired"), [$"{file}: {name} is retired. Its tries, predictions and comparisons stay; `run` makes no new tries of it. `proctor retire {exam.Id} {name} --bring-back` undoes this"])
+            ? (Answer("retired"), [$"{file}: {name} is retired. Its tries, predictions and comparisons stay; `run` makes no new tries of it. `auspex retire {exam.Id} {name} --bring-back` undoes this"])
             : (Answer("reason_replaced", before), [$"{file}: {name} was already retired, since {before.Since}; its reason is replaced"]);
     }
 
@@ -336,12 +336,12 @@ static class Verbs
         if (values is not null || name is not null)
         {
             if (RetiredName(asked[0]) is { } n)
-                throw new AuspexException($"{n} is retired ({retired[n].Since}: {retired[n].Reason}), so no new tries are made of it; `proctor retire {exam.Id} {n} --bring-back` first");
+                throw new AuspexException($"{n} is retired ({retired[n].Since}: {retired[n].Reason}), so no new tries are made of it; `auspex retire {exam.Id} {n} --bring-back` first");
         }
         else
         {
             asked = asked.Where(k => RetiredName(k) is null).ToList();
-            if (asked.Count == 0) throw new AuspexException($"every configuration exam '{exam.Id}' names is retired, so there is nothing to run; `proctor retire {exam.Id}` lists them");
+            if (asked.Count == 0) throw new AuspexException($"every configuration exam '{exam.Id}' names is retired, so there is nothing to run; `auspex retire {exam.Id}` lists them");
         }
         // One asked for by its values may be one the exam does not carry yet: load again, carrying it, so it is validated as the others were.
         if (exam.Axes!.Configurations.All(c => c.Key != asked[0]))
@@ -430,7 +430,7 @@ static class Verbs
         bool Live(Configuration c) => axes.IsLive(c);
         var retired = Retired.Load(exam);
         if (axes.Configurations.Count == 0)
-            Console.WriteLine($"  `proctor run {exam.Id}` makes what is named: name one under \"configurations\" in exam.json, or say --value axis=value for that value with the rest at their reference");
+            Console.WriteLine($"  `auspex run {exam.Id}` makes what is named: name one under \"configurations\" in exam.json, or say --value axis=value for that value with the rest at their reference");
         else
         {
             var width = Math.Max("configuration".Length, axes.Configurations.Max(c => c.Label.Length));
@@ -455,7 +455,7 @@ static class Verbs
             Console.WriteLine($"  cannot be told from its values alone: {c.Name ?? c.Label}; several of them change the same lines");
         var unchecked_ = axes.Configurations.Where(c => standing.GetValueOrDefault(c.Key).State == Combinations.NotChecked).Select(c => c.Name ?? c.Label).ToList();
         // Where an axis has no reference nothing can be built alone, which the line above already says; listing every configuration adds nothing.
-        if (unchecked_.Count > 0 && unheld.Count == 0) Console.WriteLine($"  not checked against its values alone: {string.Join("; ", unchecked_)}  (`proctor build {exam.Id}`)");
+        if (unchecked_.Count > 0 && unheld.Count == 0) Console.WriteLine($"  not checked against its values alone: {string.Join("; ", unchecked_)}  (`auspex build {exam.Id}`)");
         var stale = bank.Select(a => Bank.Stale(exam, a)).OfType<string>().ToList();
         if (stale.Count > 0) Console.WriteLine($"  {Count(stale.Count, "stale stage")}, not counted: {string.Join("; ", stale.GroupBy(w => w).Select(g => $"{g.Key} ({g.Count()})"))}");
     }
@@ -481,7 +481,7 @@ static class Verbs
         var keys = Narrowed(exam);
         var selection = Bank.Select(root, exam, keys);
         if (selection.Current.Count == 0)
-            throw new AuspexException($"exam '{exam.Id}' has no current tries{(keys is null ? "" : " within --value and --configuration")} to report; `proctor run {exam.Id}` makes them");
+            throw new AuspexException($"exam '{exam.Id}' has no current tries{(keys is null ? "" : " within --value and --configuration")} to report; `auspex run {exam.Id}` makes them");
         var rows = Results.Collect(root, exam, selection.Current);
         var narrowed = string.Join(" ", (ValueFilters ?? []).Select(v => $"--value {v}").Append(ConfigurationName is null ? null : $"--configuration {ConfigurationName}").OfType<string>());
         var built = Stamp.Of(exam, selection, narrowed.Length > 0 ? narrowed : null, DateTime.UtcNow);
@@ -498,7 +498,7 @@ static class Verbs
         var notRun = stats.Configurations.Where(c => c.State == "not_run").ToList();
         var notGraded = stats.Configurations.Sum(c => c.NotGraded);
         Console.WriteLine($"  {stats.Configurations.Count(c => c.State is "made" or "partial")} of {stats.Configurations.Count} configurations have graded tries{(notRun.Count > 0 ? $"; not run: {string.Join(", ", notRun.Select(c => c.Label))}" : "")}"
-            + (notGraded > 0 ? $"; {notGraded} {(notGraded == 1 ? "try is" : "tries are")} not yet graded under the checks as they are now and in no number: `proctor grade {exam.Id}`" : ""));
+            + (notGraded > 0 ? $"; {notGraded} {(notGraded == 1 ? "try is" : "tries are")} not yet graded under the checks as they are now and in no number: `auspex grade {exam.Id}`" : ""));
         foreach (var c in stats.Comparisons) Console.WriteLine($"  {c.Sentence}");
         foreach (var c in stats.Predictions ?? [])
         {

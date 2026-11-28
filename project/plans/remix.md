@@ -1,6 +1,6 @@
 ---
 type: plan
-title: Remix — proctor and auspex as something to build on
+title: Remix — auspex and auspex as something to build on
 created: 2026-11-27
 status: draft; nothing built; six decisions open (end of file)
 ---
@@ -10,29 +10,29 @@ status: draft; nothing built; six decisions open (end of file)
 ## The change of stance
 
 Until now the README, the site and the onboarding work have presented
-proctor as a product a person adopts whole. People with a coding agent
+auspex as a product a person adopts whole. People with a coding agent
 increasingly build their own tools instead, and a tool that one person
 maintains cannot be everything to each of them. So:
 
-1. **Proctor and auspex are built solidly enough for one person's daily
+1. **Auspex and auspex are built solidly enough for one person's daily
    work.** That is the bar for the core, and the only thing with a
    schedule.
 2. **A requested feature is built when it is cheap or when daily work
    wants it too.** Otherwise the answer is a recipe (below), and the
    request stays an open issue.
 3. **A documentation set, written for a coding agent to read, says how
-   to make proctor do something it does not do.** Where the seams are,
+   to make auspex do something it does not do.** Where the seams are,
    what is promised about them, and worked recipes.
 
-This fits what was already decided: proctor is a source of truth and a
+This fits what was already decided: auspex is a source of truth and a
 data access layer for an agent and what the agent builds (`axes.md`,
 decision 17). Remix is that decision applied to the whole tool and not
 only to the report.
 
 ## Two ways to remix, and only one is promised
 
-**Beside.** Your code reads proctor's files and calls its commands.
-Proctor is unchanged, and an upgrade is a version bump. Every promise
+**Beside.** Your code reads auspex's files and calls its commands.
+Auspex is unchanged, and an upgrade is a version bump. Every promise
 below is about this.
 
 **Inside.** You fork and change the C#. Nothing is promised: internals
@@ -72,11 +72,11 @@ worth and not about an engine. That plan is under way in another
 session and is edited there, not here; this is the scope it should be
 cut to.
 
-**An engine becomes a seam, not a list.** What proctor asks of an
+**An engine becomes a seam, not a list.** What auspex asks of an
 engine is short (`harbor.engine`, the checks in `HarborRun.Preflight`
 and `CheckPodman`, how nb's layer gets into an image, what the network
 policy compiles to). Written down once in `docs/remix/`, it is the
-recipe "run on an engine proctor does not support", and Docker and
+recipe "run on an engine auspex does not support", and Docker and
 macOS are its dated examples. Someone who needs one of them owns it,
 with their agent, which is the stance in one case.
 
@@ -98,7 +98,7 @@ Three steps, the third much later than the first two:
    code that sits in the tree and is never built reads as current to an
    agent, and it is not.
 3. **Back, as an example** (a loose end in `todo.md`, written when step
-   1 lands). Once the engine seam is written down and proctor has
+   1 lands). Once the engine seam is written down and auspex has
    whatever its extension point turns out to be, Modal is rewritten
    against it from the tagged code, outside the core, as the first
    worked example of an engine someone else owns. It is the test of the
@@ -106,7 +106,7 @@ Three steps, the third much later than the first two:
    core, the seam is wrong.
 
 **What the code allows** (read 2026-11-27, nothing run; a gauge, not a
-decision). Proctor is one executable of about 13,000 lines and 188
+decision). Auspex is one executable of about 13,000 lines and 188
 types, every one internal, with no interface anywhere. Four ways out
 were weighed:
 
@@ -118,9 +118,9 @@ were weighed:
 | An API on the viewer | ten GET routes, loopback and a token; the compare and coverage routes already hold the answer objects | reading: serialise what the page was given, hours. Driving a run: jobs, keys and a container engine behind a server, against "the viewer has no key" and "v1 reads only" | nothing to install only where someone hosts it |
 
 **The fourth is decided: nothing ships** (the user, 2026-11-27). The
-viewer gets no API and proctor no server. If running proctor for other
+viewer gets no API and auspex no server. If running auspex for other
 people is ever worth building, it is a separate repository that stands
-beside proctor like any other remix: it calls the commands, reads the
+beside auspex like any other remix: it calls the commands, reads the
 bank and the report's files, and starts attempts on an engine off the
 machine. An API, an MCP server and anything a person installs nothing
 to use belong to that repository and not to this one. Two things follow
@@ -129,8 +129,8 @@ out are the contract such a service would stand on, so they are worth
 doing well for their own sake; and it would be the second thing that
 needs the engine seam, after Modal's rewrite.
 
-None of the four is how proctor is extended *inward* today. That is a
-fifth way, already the dominant one: **proctor runs your script under a
+None of the four is how auspex is extended *inward* today. That is a
+fifth way, already the dominant one: **auspex runs your script under a
 contract** (hooks, the runner, script checks: an environment and an exit
 code). The engine fits it better than any of the four. What is
 Modal-specific in the core is five places (the `harbor[modal]` extra,
@@ -161,9 +161,9 @@ a schema name and number.
 
 | seam | what it is | where it is described | state |
 |---|---|---|---|
-| The definition | `exams/`, `fixtures/`, `proctor.json` | `docs/configuration.md` | documented; two shapes until slice 7 of `axes-build.md` (variants, and axes with stages) |
+| The definition | `exams/`, `fixtures/`, `auspex.json` | `docs/configuration.md` | documented; two shapes until slice 7 of `axes-build.md` (variants, and axes with stages) |
 | The commands | every verb, its flags and exit codes | `docs/cli.md` | documented; exit codes not written down in one place |
-| The answers | `compare` and `coverage` as JSON | `answer/1`, `skills/proctor-answers/` | named |
+| The answers | `compare` and `coverage` as JSON | `answer/1`, `skills/auspex-answers/` | named |
 | The script check | exit 0, 1 or 2, the `PROCTOR_*` environment | `docs/configuration.md` | documented, unchanged since September; its variables are renamed once by `rename-to-auspex.md`, stage 2 |
 | Hooks and the runner script | setup and teardown, how nb is started | `docs/configuration.md` | documented |
 | The bank | an attempt's directory: `manifest.json`, `status`, `trajectory.json` (ATIF), `core.json`, `diff.patch`, `checks.json`, `grades/`, `verdicts/`, `friction.json` | `on-disk-layout.md`, a plan and not a guide | `friction/2` and `tries/1` named; the rest unnamed |
@@ -171,8 +171,8 @@ a schema name and number.
 | The report's files | `results.jsonl`, `stats.json`, `summary.md` | `docs/cli.md` | `configurations/1` on an exam with axes; the earlier shape unnamed |
 | The judge | an endpoint by wire shape (`systemone`, `chat`) | `docs/configuration.md` | documented |
 | The engine | `harbor.engine` and `--config` | `docs/podman.md`, `docker.md` | documented as guides; what an engine must provide is not written, and there is no extension point |
-| The skills | `proctor-exam`, `proctor-answers` | themselves | the agent's way in |
-| The viewer | reads the bank; calls proctor's code through `View/Measured.cs` | `View/CLAUDE.md` | internal: the same seam a remixer's own page would use for the files, and no promise for the code |
+| The skills | `auspex-exam`, `auspex-answers` | themselves | the agent's way in |
+| The viewer | reads the bank; calls auspex's code through `View/Measured.cs` | `View/CLAUDE.md` | internal: the same seam a remixer's own page would use for the files, and no promise for the code |
 
 Two things this table shows. The bank is the seam most recipes stand
 on and the least documented for a user. And nothing can be promised
@@ -199,7 +199,7 @@ captured example under `Auspex.Tests/fixtures/contract/` that a test
 reads, so that breaking a promise fails the build and is not found by a
 remixer. This is the only code the plan asks for.
 
-What is never promised: that proctor will recommend anything, that it
+What is never promised: that auspex will recommend anything, that it
 will write prose, that a hosted model is called without being asked for.
 Those are the tool's character and a recipe may not work around them
 silently; a recipe that has a model write a report says the report is
@@ -208,17 +208,17 @@ the agent's.
 ## The cookbook
 
 `docs/remix/`, one page per recipe, and `skills/proctor-remix/` as the
-way in: a short skill that says what proctor is and is not, lists the
+way in: a short skill that says what auspex is and is not, lists the
 recipes with one line each, and points at the seams and the promises.
-The skill carries only what an agent would not guess, as `proctor-exam`
+The skill carries only what an agent would not guess, as `auspex-exam`
 does.
 
 Every recipe has the same parts, in this order:
 
 1. **What you want**, in the words a person would use to ask for it.
-2. **What proctor already does toward it**, with the commands.
+2. **What auspex already does toward it**, with the commands.
 3. **What you build**, and where it lives (your repository, never
-   proctor's roots other than `exams/` and `fixtures/`).
+   auspex's roots other than `exams/` and `fixtures/`).
 4. **The seams it stands on**, each with its level.
 5. **What is not there**: the gap, said plainly, and the issue number
    if there is one.
@@ -230,13 +230,13 @@ The first recipes, with what looking at each turned up:
 
 | recipe | beside or inside | what is there | the gap |
 |---|---|---|---|
-| Run on an engine proctor does not support (Docker, macOS, Modal) | inside today; beside once an engine has an extension point | Docker built and dated (`docs/docker.md`); Modal's code at a tag, with its plan and guide in `project/archive/` | what an engine must provide is written nowhere in one place, and there is no extension point yet. Modal is to be its first example |
+| Run on an engine auspex does not support (Docker, macOS, Modal) | inside today; beside once an engine has an extension point | Docker built and dated (`docs/docker.md`); Modal's code at a tag, with its plan and guide in `project/archive/` | what an engine must provide is written nowhere in one place, and there is no extension point yet. Modal is to be its first example |
 | Gate a pull request on an exam | beside | `run`, `compare` as JSON, the live mark | exit codes for "worse, confirmed"; the bank is not in git, so CI needs it from somewhere |
 | Watch for surprises from a vendor's agent | beside | pinned `agent_version`; an agent or a version as a value of an axis; `compare` against live | **an unchanged exam makes no new attempts**: an attempt made last month counts as one made today, by design (`bank.md`). A new pin is a new value and works. A model that changed behind the same name is invisible to the bank and needs its own answer (a date as a value of an axis, or a way to ask for fresh attempts) |
 | Build a set for people to grade | beside | the windows a judge sees (`Grade/Window.cs`), verdict files as a record, exit 2 as "needs a judge" | no command writes the windows out, and nothing reads a person's verdict back in. Out is a script over the bank; back in wants a decision (a judge whose endpoint is a file of labels would do it with no new concept) |
-| Audit a company's API, MCP server or docs | beside | `proctor-exam` to plan and build, friction, `compare` and `coverage`, `proctor-answers` | the deliverable is a document the agent writes from proctor's numbers, each number linked to its evidence. Proctor writes no such report and will not. The recipe is mostly how to keep that document honest |
+| Audit a company's API, MCP server or docs | beside | `auspex-exam` to plan and build, friction, `compare` and `coverage`, `auspex-answers` | the deliverable is a document the agent writes from auspex's numbers, each number linked to its evidence. Auspex writes no such report and will not. The recipe is mostly how to keep that document honest |
 | Compare your product with a competitor's | beside | an axis whose values set what the fixture serves, as `tern-docs` does with its docs | writing tasks and checks that favour neither product is the whole difficulty, and it is advice, not code |
-| Add an agent proctor does not run | inside | `Ingest.Kinds`, the stub model, conformance at no cost | a fork today; the recipe names the files and the tests. If asked for twice, it becomes a seam |
+| Add an agent auspex does not run | inside | `Ingest.Kinds`, the stub model, conformance at no cost | a fork today; the recipe names the files and the tests. If asked for twice, it becomes a seam |
 | Put a page or a chart of your own over the results | beside | `stats.json`, `results.jsonl`, the answers | the earlier shape of `stats.json` is unnamed until slice 7 |
 | Hand the attempts to another tool | beside | trajectories are ATIF already | nothing but a mapping; cheap, and a good check that the bank's description is enough |
 
@@ -299,7 +299,7 @@ they are written twice.
 
 - Slice 7 of `axes-build.md`, which deletes the earlier shape.
 - Stage 2 of `rename-to-auspex.md`, which renames every surface a
-  promise is about: the binary, the `PROCTOR_*` variables, `proctor.json`,
+  promise is about: the binary, the `PROCTOR_*` variables, `auspex.json`,
   the skills. It breaks the script check's contract once, on purpose,
   and nothing is promised until it has.
 
@@ -325,10 +325,10 @@ request reaches it.
 **No date:** the engine seam written down, an extension point chosen,
 and Modal rewritten against it (step 3).
 
-**Measuring the docs with proctor itself** is the obvious check and is
+**Measuring the docs with auspex itself** is the obvious check and is
 not in the order above: `agent-onboarding` already hands an agent the
 skill and the docs at a pinned revision. A task there per recipe ("make
-proctor do X", graded by whether what the agent built works against a
+auspex do X", graded by whether what the agent built works against a
 planted bank) would say whether the cookbook does its job. It costs
 real money on vendor agents, so it waits for a decision.
 

@@ -8,10 +8,10 @@ to read a report about a real repository before writing an exam of your
 own.
 
 ```bash
-proctor list playground
-proctor run playground          # makes its tries; run it again and it has nothing to do
-proctor grade playground
-proctor report playground       # then open reports/playground/explore/summary.md
+auspex list playground
+auspex run playground          # makes its tries; run it again and it has nothing to do
+auspex grade playground
+auspex report playground       # then open reports/playground/explore/summary.md
 ```
 
 | | |
@@ -29,4 +29,4 @@ and `9 of 9 tests pass` even though no model touched anything.
 
 When the report reads, the next exam is `readme-answers`: a real model,
 on a free tier, answering questions about this same CLI from two versions
-of its README. It needs a key (`proctor setup`) and no sandbox.
+of its README. It needs a key (`auspex setup`) and no sandbox.

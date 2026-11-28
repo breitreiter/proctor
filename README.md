@@ -1,13 +1,13 @@
-# proctor
+# auspex
 
 **See how AI agents behave with what you built.**
 
 Agents are reading your docs and your website. They're using your API, CLI
-or MCP server. Proctor measures whether what you built helped an agent
+or MCP server. Auspex measures whether what you built helped an agent
 reach a goal or a correct answer, and whether your last change made it
 better or worse.
 
-You describe the work and what "done" looks like. Proctor runs real agents
+You describe the work and what "done" looks like. Auspex runs real agents
 at it in sandboxed environments, several times each, grades every try with
 checks you can read, and says what changed and whether so few tries can
 confirm it.
@@ -20,7 +20,7 @@ not what it did. A fix that works for one model and harness may not hold
 for the next version. Models are non-deterministic, so one good attempt in
 your own setup says little about what your users' agents will do.
 
-Proctor measures outcomes, efficiency and unwanted side effects across
+Auspex measures outcomes, efficiency and unwanted side effects across
 the agents your users actually have, and keeps the comparison honest:
 one good attempt doesn't mean the problem is gone.
 
@@ -35,10 +35,10 @@ one good attempt doesn't mean the problem is gone.
   value on each, so two configurations that differ only in the docs
   measure the docs.
 - **Assistants and conversations.** For an in-product assistant, a
-  chatbot or a headless job, proctor bundles a lightweight harness: you
+  chatbot or a headless job, auspex bundles a lightweight harness: you
   supply the system prompt, the tools and the model, from any local or
   hosted provider. A stage can carry an *oracle*, what the user knows but
-  did not say, and proctor plays the user when the model stops to ask.
+  did not say, and auspex plays the user when the model stops to ask.
 
 ## How it grades
 
@@ -55,7 +55,7 @@ Three kinds mix as an exam needs:
 - **Classifier**: a typed classifier reads the window and returns a label
   with a probability, against a threshold.
 
-Proctor counts turns, tool calls and how a stage ended from the trajectory
+Auspex counts turns, tool calls and how a stage ended from the trajectory
 itself, never from the agent's own report.
 
 ## The report
@@ -69,7 +69,7 @@ tries made can confirm it. A comparison says what it could not have
 shown, so "no difference" can't stand in for "couldn't tell". No model
 writes any of it; a judge's role ends at a label and a quote.
 
-`proctor compare` and `proctor coverage` give the same answers as JSON,
+`auspex compare` and `auspex coverage` give the same answers as JSON,
 for a coding agent answering a person.
 
 Two example reports are in [`docs/reports/`](docs/reports/), HTML only.
@@ -79,18 +79,18 @@ shape, and are kept as they were.
 ## Install
 
 You need the .NET 10 SDK and git. Running coding agents also needs
-rootless podman (Docker works and is not maintained) and uv. Proctor is built from source for now, together with
+rootless podman (Docker works and is not maintained) and uv. Auspex is built from source for now, together with
 its bundled harness, which lives in a repository of its own:
 
 ```bash
 git clone https://github.com/breitreiter/nb && (cd nb && dotnet build)
 git clone https://github.com/breitreiter/proctor && cd proctor && dotnet build
 export PATH="$PWD/../nb/bin/Debug/net10.0:$PATH"
-alias proctor="dotnet $PWD/bin/Debug/net10.0/auspex.dll"
-proctor setup
+alias auspex="dotnet $PWD/bin/Debug/net10.0/auspex.dll"
+auspex setup
 ```
 
-`proctor setup` is a short wizard for providers and keys. Run it in a
+`auspex setup` is a short wizard for providers and keys. Run it in a
 terminal yourself, not through a coding agent: keys go to a file in your
 user profile, never to the repository. Windows commands and the full walk
 through are in [`docs/getting-started.md`](docs/getting-started.md).
@@ -106,14 +106,14 @@ a first report in three steps:
    two versions of a README compared on a free hosted model. A
    documentation change, measured.
 3. **Your own exam**, planned with your coding agent using the skill in
-   [`skills/proctor-exam/`](skills/proctor-exam/).
+   [`skills/auspex-exam/`](skills/auspex-exam/).
 
 The loop is always the same:
 
 ```bash
-proctor run <exam>      # makes the tries the exam lacks; after a crash, the same command makes what was lost
-proctor grade <exam>
-proctor report <exam>   # reports/<exam>/explore/summary.md
+auspex run <exam>      # makes the tries the exam lacks; after a crash, the same command makes what was lost
+auspex grade <exam>
+auspex report <exam>   # reports/<exam>/explore/summary.md
 ```
 
 ## Documentation

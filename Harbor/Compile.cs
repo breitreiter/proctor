@@ -38,8 +38,8 @@ static class HarborCompile
     /// <summary>What Harbor's verifier collect step writes and the verifier applies: the attempt's change against the fixture commit.</summary>
     const string DiffInContainer = "/logs/artifacts/diff.patch";
     /// <summary>
-    /// The agents proctor brings itself, as Harbor imports them from the log entry's harbor/agents/ on PYTHONPATH: nb,
-    /// and Qwen Code, whose Harbor agent reinstalls from the network on every trial (proctor's checks the image's pin
+    /// The agents auspex brings itself, as Harbor imports them from the log entry's harbor/agents/ on PYTHONPATH: nb,
+    /// and Qwen Code, whose Harbor agent reinstalls from the network on every trial (auspex's checks the image's pin
     /// instead). Claude Code and Codex are Harbor's own, which skip the install when the image has the pin.
     /// </summary>
     static readonly Dictionary<string, (string Import, string File)> OwnAgents = new()
@@ -56,16 +56,16 @@ static class HarborCompile
     /// back out, since the bridge's instructions are for a model playing the user, and this user is a script.
     /// </summary>
     public const string OracleTemplateFile = "oracle_user.j2";
-    const string OracleTemplate = "{{ instruction }}\n<<<PROCTOR-BRIDGE>>>\n{{ bridge_instructions }}\n";
+    const string OracleTemplate = "{{ instruction }}\n<<<AUSPEX-BRIDGE>>>\n{{ bridge_instructions }}\n";
 
     /// <summary>Whether Harbor imports this agent from the log entry rather than naming one of its own.</summary>
     public static bool IsOwnAgent(Assistant assistant) => OwnAgents.ContainsKey(assistant.Agent!);
 
     /// <summary>
     /// The Harbor tasks a run's tries go through, one per configuration that runs through Harbor among those it makes
-    /// (every such configuration the exam carries when <paramref name="pairs"/> is not given), and proctor's own Harbor
+    /// (every such configuration the exam carries when <paramref name="pairs"/> is not given), and auspex's own Harbor
     /// agents beside them for the ones that use one. Returns the tree's hash, which the log entry records. The nb image
-    /// is the tag of proctor's nb layer.
+    /// is the tag of auspex's nb layer.
     /// </summary>
     public static string Tasks(string entryDir, Exam exam, Func<Assistant, AgentRoute> route, string? nbImage = null,
         IReadOnlyCollection<(Assistant Assistant, StageDef Stage)>? pairs = null, string? relayDir = null)
@@ -97,7 +97,7 @@ static class HarborCompile
     /// </summary>
     public static bool Plain(Exam exam, string key) => exam.StagesOf(key) is [{ Oracle: not null }];
 
-    /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
+    /// <summary>Where auspex's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
     public static string AgentsDir(string entryDir) => Path.Combine(entryDir, Layout.HarborDir, "agents");
 
     /// <summary>The compiled tasks, plus the agents directory when there is one (a run of Harbor's own agents only hashes as before).</summary>
@@ -189,7 +189,7 @@ static class HarborCompile
             // and git then refuses the repository as not its user's, for this script and for the agent after it. .git is not
             // uploaded over, so it still says whose the repository is.
             Directory.CreateDirectory(Path.Combine(step, "workdir"));
-            File.WriteAllText(Path.Combine(step, "workdir", "setup.sh"), $"#!/bin/bash\n# Compiled by proctor: this stage starts fresh.\ncd {Workdir} && chown --reference=.git . && chmod --reference=.git . && git reset -q --hard HEAD && git clean -fdq\n");
+            File.WriteAllText(Path.Combine(step, "workdir", "setup.sh"), $"#!/bin/bash\n# Compiled by auspex: this stage starts fresh.\ncd {Workdir} && chown --reference=.git . && chmod --reference=.git . && git reset -q --hard HEAD && git clean -fdq\n");
         }
     }
 
@@ -198,7 +198,7 @@ static class HarborCompile
     public const string RelayService = "auspex-relay";
 
     /// <summary>
-    /// The ports of the machine that runs proctor a task's agent reaches at its own localhost: the model's, when its base
+    /// The ports of the machine that runs auspex a task's agent reaches at its own localhost: the model's, when its base
     /// URL is loopback and no service of the fixture answers there (image.serves), and the fixture's image.host_ports.
     /// </summary>
     public static List<int> RelayPorts(Fixture fixture, AgentRoute route)
@@ -278,8 +278,8 @@ static class HarborCompile
     /// <summary>
     /// Harbor's job for one attempt: one trial of one task by one agent. Every setting Harbor would otherwise default is
     /// stated: the container engine, the pinned version, the permission mode, each model alias (Harbor maps them all to one model on a custom
-    /// base URL; proctor says so rather than inherits it), no retries (a retry is proctor's attempt), one trial at a time.
-    /// The key is not here: it goes in the environment of the one Harbor process. proctor's own agents (nb, Qwen
+    /// base URL; auspex says so rather than inherits it), no retries (a retry is auspex's attempt), one trial at a time.
+    /// The key is not here: it goes in the environment of the one Harbor process. auspex's own agents (nb, Qwen
     /// Code) are named by import path; nb's kwargs carry the attempt's host-compiled program and nb's config.
     /// </summary>
     public static JsonObject Job(Assistant assistant, string taskDir, string jobsDir, AgentRoute route, NbAttempt? nb = null, string engine = "docker", OracleAttempt? oracle = null)
@@ -404,7 +404,7 @@ static class HarborCompile
         version = "1.0"
 
         [task]
-        name = {Toml($"proctor/{name ?? c.Id}")}
+        name = {Toml($"auspex/{name ?? c.Id}")}
         description = {Toml(description ?? Exam.Describe(c))}
 
         [agent]
@@ -433,7 +433,7 @@ static class HarborCompile
     {
         var image = fixture.Def.Image!;
         var sb = new StringBuilder();
-        sb.Append($"# Compiled by proctor from fixture {fixture.Id} ({fixture.Hash}) for agent {assistant.Agent} {(assistant.IsVendor ? assistant.AgentVersion : nbImage)}.\n");
+        sb.Append($"# Compiled by auspex from fixture {fixture.Id} ({fixture.Hash}) for agent {assistant.Agent} {(assistant.IsVendor ? assistant.AgentVersion : nbImage)}.\n");
         sb.Append($"FROM {image.From}\n");
         // A configuration's parameters, for the image's own steps to act on. Build arguments, so they are not in the agent's environment:
         // a parameter can say what is planted.
@@ -443,14 +443,14 @@ static class HarborCompile
         sb.Append('\n');
         sb.Append($"COPY repo {Workdir}\n");
         sb.Append($"WORKDIR {Workdir}\n");
-        sb.Append($"RUN git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm {Shell($"fixture {fixture.Id} {fixture.Hash}")}\n");
+        sb.Append($"RUN git init -q && git add -A && git -c user.name=auspex -c user.email=auspex@localhost commit -qm {Shell($"fixture {fixture.Id} {fixture.Hash}")}\n");
         foreach (var command in image.Run ?? []) sb.Append($"RUN {command}\n");
         sb.Append(AgentInstall(assistant, $"--from={nbImage} /opt/nb"));
         return sb.ToString();
     }
 
     /// <summary>
-    /// The agent at its pin. nb comes from proctor's nb layer (the publish auspex.json names, tagged by its hash), so the
+    /// The agent at its pin. nb comes from auspex's nb layer (the publish auspex.json names, tagged by its hash), so the
     /// image holds that binary and nothing it was built from.
     /// </summary>
     static string AgentInstall(Assistant assistant, string nbSource) => assistant.Agent switch
@@ -519,7 +519,7 @@ static class HarborCompile
             foreach (var (name, declared) in (exam.Def.Params ?? []).Concat(fixture?.Def.Params ?? []))
                 if (declared.Tree != true && declared.Secret != true) values["AUSPEX_PARAM_" + name] = given.GetValueOrDefault(name) ?? "";
         }
-        return "# The script check contract, as the verifier sees it. Compiled by proctor.\n"
+        return "# The script check contract, as the verifier sees it. Compiled by auspex.\n"
             + string.Concat(values.Select(kv => $"export {kv.Key}={Shell(kv.Value)}\n"));
     }
 
@@ -532,7 +532,7 @@ static class HarborCompile
     {
         var sb = new StringBuilder("""
             #!/bin/bash
-            # Compiled by proctor: the run's diff on the fixture commit, then one reward key per script check.
+            # Compiled by auspex: the run's diff on the fixture commit, then one reward key per script check.
             set -uo pipefail
             out=/logs/verifier
             . /tests/env.sh
@@ -568,7 +568,7 @@ static class HarborCompile
     /// be the check's as it stands, keyed by check; a check missing from the result is current. The verifier ran what the run
     /// compiled into <paramref name="taskDir"/>/tests/, so that copy is compared with what compile would write today: the
     /// check's line in test.sh (which script, from which level), every file the scripts could read (the exam directory and
-    /// the fixture beside its source, less the definition files proctor reads itself and hands over through the environment and
+    /// the fixture beside its source, less the definition files auspex reads itself and hands over through the environment and
     /// each one's own README.md),
     /// and the expected values env.sh exported. Any file counts, since a script reads what it likes (acceptance tests, a
     /// service), except another check's script. With no compiled copy, every script check is reported, since nothing shows
@@ -624,12 +624,12 @@ static class HarborCompile
     /// </summary>
     const string Readme = "README.md";
 
-    /// <summary>What proctor reads from an exam directory itself; a script sees its checks and expected values through the environment, and the rest is in the task's hash.</summary>
+    /// <summary>What auspex reads from an exam directory itself; a script sees its checks and expected values through the environment, and the rest is in the task's hash.</summary>
     static bool ExamDefinition(string relative) =>
         relative is Layout.ExamFile or Layout.CombinationsFile or Layout.RetiredFile or Readme
         || relative.StartsWith(Layout.PredictionsDir + "/", StringComparison.Ordinal) && relative.EndsWith(".json", StringComparison.Ordinal);
 
-    /// <summary>What proctor reads from a fixture directory itself, and its source, which reaches the verifier as the image's commit and not as a file under tests/.</summary>
+    /// <summary>What auspex reads from a fixture directory itself, and its source, which reaches the verifier as the image's commit and not as a file under tests/.</summary>
     static Func<string, bool> FixtureDefinition(Fixture fixture)
     {
         var source = Path.GetRelativePath(fixture.Dir, fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo")).Replace('\\', '/') + "/";

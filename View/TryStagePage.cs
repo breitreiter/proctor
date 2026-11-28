@@ -11,9 +11,9 @@ namespace Auspex.View;
 /// One stage of a try, as designed on the canvas (2026-11-26 and 27): the stages of the try as
 /// tabs, each right or wrong on an exam with axes; its checks by role, each with the steps its evidence points at as pills; its friction
 /// points likewise; and the transcript, a step a row that opens. It shows what the stage's files hold (checks.json,
-/// friction.json, trajectory.json, the diff) and what proctor says of the stage (right or wrong). A pill opens its
+/// friction.json, trajectory.json, the diff) and what auspex says of the stage (right or wrong). A pill opens its
 /// step, which the browser marks as the target, so nothing here needs script. An attempt made before the exam
-/// was stages and axes is the same page with no word from proctor on right or wrong, since proctor reads none of those;
+/// was stages and axes is the same page with no word from auspex on right or wrong, since auspex reads none of those;
 /// one that was a task's has one stage, and so no tabs.
 /// </summary>
 static class TryStagePage
@@ -25,7 +25,7 @@ static class TryStagePage
         var report = exam?.Axes is null ? null : Measured.Report(root, exam).Report;
         var configuration = exam?.Axes?.Of(a.Configuration);
         var name = configuration?.Name ?? a.Configuration;
-        // Proctor's word for each stage of this try: right, wrong, or why it is neither.
+        // Auspex's word for each stage of this try: right, wrong, or why it is neither.
         var number = report?.TryIds.FirstOrDefault(t => t.Key.Configuration == a.Configuration && t.Value == a.N).Key.Try;
         var row = report?.Stats.Configurations.FirstOrDefault(c => c.Key == a.Configuration)?.Tries?.Rows.FirstOrDefault(r => r.N == number);
         string? Result(string stage) => row?.Stages.FirstOrDefault(s => s.Id == stage)?.Result;
@@ -61,7 +61,7 @@ static class TryStagePage
             .Append((Number(core?["duration_ms"]) ?? Number(a.Manifest?["duration_ms"])) is { } ms ? Fact("Time", E(Time(ms))) : "")
             .Append(Number(core?["cost_usd"]) is { } cost ? Fact("Cost", E(Usd(cost))) : "")
             .Append(Fact("Address", $"<span class=\"mono\">{E(a.Path.TrimStart('/'))}</span>")).Append("</dl></header>");
-        // A stage that did not complete: proctor's status and its own sentence for why, as written.
+        // A stage that did not complete: auspex's status and its own sentence for why, as written.
         if (a.Status != "completed" && Bank.Text(a.Manifest?["status_reason"]) is { } reason)
             page.Append($"<div class=\"said\"><b>{E(a.Status)}</b> <span class=\"soft\">{E(reason)}</span></div>");
 
@@ -69,7 +69,7 @@ static class TryStagePage
         foreach (var s in stages)
         {
             var result = Result(s.Stage);
-            // Without proctor's word on a stage, one that did not complete still says its status.
+            // Without auspex's word on a stage, one that did not complete still says its status.
             var tag = result switch { "right" => "<wa-badge class=\"tag tag-right\" appearance=\"outlined\">right</wa-badge>", "wrong" => "<wa-badge class=\"tag tag-wrong\" appearance=\"outlined\">wrong</wa-badge>", null => s.Status is var status && status != "completed" ? $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(status)}</wa-badge>" : "", _ => $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(result.Replace('_', ' '))}</wa-badge>" };
             page.Append($"<a class=\"tab stab{(s.Stage == a.Stage ? " tab-on" : "")}\" role=\"tab\" aria-selected=\"{(s.Stage == a.Stage ? "true" : "false")}\" href=\"{U(s.Path)}\"><span class=\"dim num\">{s.Place}</span><span>{E(s.Stage)}</span>{tag}</a>");
         }
@@ -119,7 +119,7 @@ static class TryStagePage
         {
             var mine = checks.Where(c => (c.Role ?? "") == role || (role == "" && !RoleOrder.Contains(c.Role ?? ""))).ToList();
             if (mine.Count == 0) continue;
-            var (tag, says) = RoleTag.GetValueOrDefault(role, ("tag tag-none", "Graded before proctor recorded a check's role: grade the exam again to see it."));
+            var (tag, says) = RoleTag.GetValueOrDefault(role, ("tag tag-none", "Graded before auspex recorded a check's role: grade the exam again to see it."));
             page.Append($"<div class=\"group\">{Tagged(tag, role.Length > 0 ? role : "role not recorded", says)}</div>");
             foreach (var c in mine)
             {
@@ -251,7 +251,7 @@ static class TryStagePage
     static string When(string made) =>
         DateTime.TryParse(made, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var at) ? at.ToString("d MMM yyyy, HH:mm 'UTC'", CultureInfo.InvariantCulture) : made;
 
-    /// <summary>A verdict from checks.json, as proctor wrote it.</summary>
+    /// <summary>A verdict from checks.json, as auspex wrote it.</summary>
     sealed record Check(string Name, JsonObject V)
     {
         public string Result => Bank.Str(V["result"]);
@@ -259,7 +259,7 @@ static class TryStagePage
         public string? Role => Bank.Text(V["role"]);
         public string? Describes => Bank.Text(V["describes"]);
         public string? Why => Bank.Text(V["why"]);
-        /// <summary>A script check's script, relative to proctor's root, so a person can open what decided.</summary>
+        /// <summary>A script check's script, relative to auspex's root, so a person can open what decided.</summary>
         public string? Script => Bank.Text(V["script"]);
         public List<string> Steps => [.. (V["evidence"] as JsonArray ?? []).OfType<JsonObject>().Select(e => Bank.Str(e["step"])).Where(s => s.Length > 0).Distinct()];
         public List<string> Files => [.. (V["evidence"] as JsonArray ?? []).OfType<JsonObject>().Select(e => Bank.Str(e["file"])).Where(s => s.Length > 0).Distinct()];

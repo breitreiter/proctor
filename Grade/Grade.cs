@@ -130,7 +130,7 @@ static class Grade
 
     /// <summary>
     /// A verdict with the check as it was when it graded (check-evidence.md, C2): what it does, why it exists, and a script
-    /// check's script relative to proctor's root; the caller adds its role. A viewer shows these as written and derives none of them.
+    /// check's script relative to auspex's root; the caller adds its role. A viewer shows these as written and derives none of them.
     /// </summary>
     static Verdict Explained(Verdict verdict, CheckDef check, Exam exam)
     {
@@ -177,7 +177,7 @@ static class Grade
         var tries = holding.Select(g => g.Try ?? $"{g.Configuration}/{g.TryNumber}").Distinct().ToList();
         return $"{tries.Count} {(tries.Count == 1 ? "try holds" : "tries hold")} outdated verdicts for {string.Join(", ", checks)}: "
             + $"through Harbor a script check runs when the try is made, and {(checks.Count == 1 ? "this check has" : "these checks have")} changed or been added since, so those verdicts are left out of every number. "
-            + $"Make the {(tries.Count == 1 ? "try" : "tries")} again: move {(tries.Count == 1 ? "its directory" : "their directories")} out of {Layout.BankDir}/{examId}/ ({string.Join(" ", tries)}) and run `proctor run {examId}`, which makes what is missing with the checks as they are now.";
+            + $"Make the {(tries.Count == 1 ? "try" : "tries")} again: move {(tries.Count == 1 ? "its directory" : "their directories")} out of {Layout.BankDir}/{examId}/ ({string.Join(" ", tries)}) and run `auspex run {examId}`, which makes what is missing with the checks as they are now.";
     }
 
     /// <summary>

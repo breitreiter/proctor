@@ -4,7 +4,7 @@ using Spectre.Console;
 namespace Auspex;
 
 /// <summary>
-/// <c>proctor setup</c>, the interactive wizard: a list of jobs, each answered with a provider already set up, a new
+/// <c>auspex setup</c>, the interactive wizard: a list of jobs, each answered with a provider already set up, a new
 /// provider, or "skip for now". Keys are typed at a secret prompt and go straight to the env file; every config entry
 /// holds <c>${VAR}</c>. The screens are <c>project/plans/setup/</c>. Spectre is used here and nowhere else.
 /// </summary>
@@ -26,8 +26,8 @@ static partial class SetupWizard
     {
         if (Console.IsInputRedirected || Console.IsOutputRedirected || !AnsiConsole.Profile.Capabilities.Interactive)
         {
-            Console.Error.WriteLine("proctor setup asks for API keys, so it needs a person at a terminal.");
-            Console.Error.WriteLine("Ask the user to run `proctor setup` themselves. To see what is already set up, run `proctor setup --check`.");
+            Console.Error.WriteLine("auspex setup asks for API keys, so it needs a person at a terminal.");
+            Console.Error.WriteLine("Ask the user to run `auspex setup` themselves. To see what is already set up, run `auspex setup --check`.");
             return 2;
         }
         var w = new Session(Path.Combine(root, Layout.ExamsDir), EnvFile.DefaultPath());
@@ -96,19 +96,19 @@ static partial class SetupWizard
     static void Banner()
     {
         var mark = AnsiConsole.Profile.Capabilities.Unicode ? "🧙 " : "";
-        AnsiConsole.MarkupLine($"\n{mark}[bold]Proctor {Esc(Runner.AuspexVersion)}[/]\n");
+        AnsiConsole.MarkupLine($"\n{mark}[bold]Auspex {Esc(Runner.AuspexVersion)}[/]\n");
     }
 
     static void Welcome(Session w)
     {
-        AnsiConsole.WriteLine("Proctor is highly configurable. This wizard will walk you through initial setup. You can run it again later to fill in any sections you skip.");
+        AnsiConsole.WriteLine("Auspex is highly configurable. This wizard will walk you through initial setup. You can run it again later to fill in any sections you skip.");
         AnsiConsole.WriteLine();
         AnsiConsole.WriteLine("Setup will write files, some of which contain sensitive information:");
         var rows = new (string Path, string What)[]
         {
             (w.EnvPath, "your API keys (only you can read it)"),
-            (SetupCheck.Shown(Path.Combine(w.ExamsDir, Layout.AuspexConfigFile)), "proctor's config for this machine"),
-            (SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.NbFile)), "AI providers for nb, proctor's built-in harness"),
+            (SetupCheck.Shown(Path.Combine(w.ExamsDir, Layout.AuspexConfigFile)), "auspex's config for this machine"),
+            (SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.NbFile)), "AI providers for nb, auspex's built-in harness"),
             (SetupCheck.Shown(SetupState.PathIn(w.ExamsDir)), "your choices from this wizard, minus keys"),
         };
         Columns(rows.Select(r => new[] { r.Path, r.What }));
@@ -122,8 +122,8 @@ static partial class SetupWizard
     static void Prepare(Session w)
     {
         if (SetupFiles.EnsureGitIgnore(w.ExamsDir)) w.Wrote(Path.Combine(w.ExamsDir, SetupFiles.GitIgnore), "setup's files excluded");
-        var proctor = Path.Combine(w.ExamsDir, Layout.AuspexConfigFile);
-        if (!File.Exists(proctor)) w.Wrote(SetupFiles.EnsureProctor(w.ExamsDir), "created: nb from PATH, nb.json beside it");
+        var auspex = Path.Combine(w.ExamsDir, Layout.AuspexConfigFile);
+        if (!File.Exists(auspex)) w.Wrote(SetupFiles.EnsureAuspex(w.ExamsDir), "created: nb from PATH, nb.json beside it");
         var nb = Path.Combine(w.ExamsDir, SetupFiles.NbFile);
         if (!File.Exists(nb)) w.Wrote(SetupFiles.EnsureNb(w.ExamsDir), "created: nb's Mock provider, for the playground");
     }
@@ -144,7 +144,7 @@ static partial class SetupWizard
 
     static async Task Harness(Session w)
     {
-        AnsiConsole.WriteLine("Proctor includes a built-in, highly-configurable agent harness. This is how proctor tests agents that don't run in a standard coding harness, like chatbots or headless analysis jobs.");
+        AnsiConsole.WriteLine("Auspex includes a built-in, highly-configurable agent harness. This is how auspex tests agents that don't run in a standard coding harness, like chatbots or headless analysis jobs.");
         AnsiConsole.WriteLine();
         var job = w.State.Job("nb");
         var chosen = job?.Providers ?? [];
@@ -173,7 +173,7 @@ static partial class SetupWizard
         AnsiConsole.WriteLine("  - Agents under your account have access to the same files as you, including test descriptions and answer keys.");
         AnsiConsole.WriteLine("  - They also have access to your memories and preferences, which may skew how they behave.");
         AnsiConsole.WriteLine();
-        AnsiConsole.WriteLine("Proctor uses Harbor for sandboxing. Running Harbor on your local machine requires installing several packages and performing extra configuration. Setup will create a plan for your coding agent to wire everything up.");
+        AnsiConsole.WriteLine("Auspex uses Harbor for sandboxing. Running Harbor on your local machine requires installing several packages and performing extra configuration. Setup will create a plan for your coding agent to wire everything up.");
         AnsiConsole.WriteLine();
 
         var pick = AnsiConsole.Prompt(new SelectionPrompt<string>()
@@ -209,7 +209,7 @@ static partial class SetupWizard
 
         AnsiConsole.WriteLine("\nSetup looked at what is installed and wrote a plan for your coding agent:");
         AnsiConsole.MarkupLine($"  [bold]{Esc(SetupCheck.Shown(plan))}[/]\n");
-        AnsiConsole.WriteLine("Ask your agent to read it and help you finish the sandbox. Every machine (and every employer's rules about what you may install) is different, so the plan says what proctor needs and leaves the route to you and your agent.");
+        AnsiConsole.WriteLine("Ask your agent to read it and help you finish the sandbox. Every machine (and every employer's rules about what you may install) is different, so the plan says what auspex needs and leaves the route to you and your agent.");
     }
 
     static async Task Agent(Session w, string id)
@@ -221,13 +221,13 @@ static partial class SetupWizard
         }
         if (id == "claude-code")
         {
-            AnsiConsole.WriteLine("Proctor can drive Claude Code instances. This means you can evaluate how your tools and documentation behave under Anthropic's preferred harness.");
+            AnsiConsole.WriteLine("Auspex can drive Claude Code instances. This means you can evaluate how your tools and documentation behave under Anthropic's preferred harness.");
             AnsiConsole.WriteLine();
-            AnsiConsole.WriteLine("For a number of reasons (Anthropic ToS, technical complexity) proctor does not use your Claude Code login. It instead requires an API key.");
+            AnsiConsole.WriteLine("For a number of reasons (Anthropic ToS, technical complexity) auspex does not use your Claude Code login. It instead requires an API key.");
         }
         else
         {
-            AnsiConsole.WriteLine("Proctor can also drive OpenAI Codex instances.");
+            AnsiConsole.WriteLine("Auspex can also drive OpenAI Codex instances.");
             AnsiConsole.WriteLine();
             AnsiConsole.WriteLine("As with Claude Code, you'll need to supply an API key to use Codex.");
         }
@@ -256,13 +256,13 @@ static partial class SetupWizard
     {
         if (id == "classifier")
         {
-            AnsiConsole.WriteLine("Proctor supports classifier checks. These checks use a lightweight AI judge to answer questions about an attempt (\"does the answer claim the work is finished?\").");
+            AnsiConsole.WriteLine("Auspex supports classifier checks. These checks use a lightweight AI judge to answer questions about an attempt (\"does the answer claim the work is finished?\").");
             AnsiConsole.WriteLine();
             AnsiConsole.WriteLine("These checks are usually significantly faster and cheaper than asking a full chat AI. However, they require specialized models, like Jev or Clef.");
         }
         else
         {
-            AnsiConsole.WriteLine("Proctor supports LLM-as-judge checks. These checks use a chat model judge to review part of an attempt and answer a question with evidence from the transcript.");
+            AnsiConsole.WriteLine("Auspex supports LLM-as-judge checks. These checks use a chat model judge to review part of an attempt and answer a question with evidence from the transcript.");
             AnsiConsole.WriteLine();
             AnsiConsole.WriteLine("For best results, we recommend:");
             AnsiConsole.WriteLine("  - Selecting a provider that offers a model you're not already measuring. For example, if you're only measuring Claude, use an OpenAI model as a judge.");
@@ -275,7 +275,7 @@ static partial class SetupWizard
         var name = await ChooseProvider(w, id, exclude: [], current is { State: not SetupJob.Later } ? (Keep, $"Keep {string.Join(", ", current.Providers ?? [])}") : (Skip, $"Skip for now      [grey]You won't be able to create {noun}[/]"));
         if (name is null) { if (current is null) w.State.Jobs[id] = new SetupJob(SetupJob.Later); return; }
         w.State.Jobs[id] = new SetupJob(SetupJob.Set, [name]);
-        AnsiConsole.WriteLine($"\nRecorded: {noun} on {name}. A judge entry names its model, which is the exam's choice, so setup writes none: your coding agent adds it to exams/auspex.json \"judges\" with a model from the list `proctor setup --check` reports.");
+        AnsiConsole.WriteLine($"\nRecorded: {noun} on {name}. A judge entry names its model, which is the exam's choice, so setup writes none: your coding agent adds it to exams/auspex.json \"judges\" with a model from the list `auspex setup --check` reports.");
     }
 
     /// <summary>Runs the key check again, changes a key, or removes a provider no job uses.</summary>
@@ -568,10 +568,10 @@ static partial class SetupWizard
             Columns(w.Written.Select(kv => new[] { kv.Key, string.Join(", ", kv.Value) }));
         }
         AnsiConsole.MarkupLine("\n[bold]Next[/]");
-        Columns([["proctor run playground", "no model, no key: your first report"], ["then see docs/getting-started.md", ""]]);
+        Columns([["auspex run playground", "no model, no key: your first report"], ["then see docs/getting-started.md", ""]]);
         AnsiConsole.WriteLine();
-        AnsiConsole.WriteLine("Your coding agent can read all of this with `proctor setup --check`.");
-        AnsiConsole.WriteLine("Run `proctor setup` again to change anything.");
+        AnsiConsole.WriteLine("Your coding agent can read all of this with `auspex setup --check`.");
+        AnsiConsole.WriteLine("Run `auspex setup` again to change anything.");
     }
 
     /// <summary>Rows as aligned columns, indented, the last column grey; a long entry wraps within its column.</summary>

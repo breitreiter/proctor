@@ -50,7 +50,7 @@ public class AxesRunTests
         return repo;
     }
 
-    /// <summary>`proctor run smoke`, with --value and --configuration as given: what the verb would make, made.</summary>
+    /// <summary>`auspex run smoke`, with --value and --configuration as given: what the verb would make, made.</summary>
     static string Run(TestRepo repo, List<string>? values = null, string? configuration = null)
     {
         var log = new StringWriter();

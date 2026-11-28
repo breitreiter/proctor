@@ -33,7 +33,7 @@ for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   export AUSPEX_ATTEMPT_DIR="$tmp/$c/attempt" AUSPEX_WORK="$tmp/$c/work" AUSPEX_DIFF="$tmp/$c/attempt/diff.patch"
   export AUSPEX_STAGE_JSON="$(jq -c --arg id "$c" '.stages[] | select(.id == $id)' "$here/exam.json")" AUSPEX_EXPECT="{}" AUSPEX_TRANSCRIPT=""
   mkdir -p "$AUSPEX_ATTEMPT_DIR"; cp -r "$fixture/repo" "$AUSPEX_WORK"
-  (cd "$AUSPEX_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm fixture) || exit 1
+  (cd "$AUSPEX_WORK" && git init -q && git add -A && git -c user.name=auspex -c user.email=auspex@localhost commit -qm fixture) || exit 1
   case "$mode" in
     --unsolved) ;;
     --v1) "$here/reference/solve.sh" "$AUSPEX_WORK" --v1 ;;

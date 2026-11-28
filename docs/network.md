@@ -1,7 +1,7 @@
 # What an agent can reach
 
 A coding agent runs in a container, through
-[Harbor](https://github.com/harbor-framework/harbor), and proctor
+[Harbor](https://github.com/harbor-framework/harbor), and auspex
 compiles what that container may reach on the network. This page says
 what that is, what it is not, and how to see it for yourself. The engine
 guides ([`docker.md`](docker.md), [`podman.md`](podman.md)) say how to set a machine up; they point here for
@@ -22,7 +22,7 @@ An agent reaches its model, what its fixture provides, and nothing else.
 | Where the model is | What the agent's container reaches |
 |---|---|
 | A vendor's API, or any other machine | that host, by the name in the base URL |
-| The machine that runs proctor (`localhost`, a `127.` address) | that one port, relayed to its own `localhost`; no network at all |
+| The machine that runs auspex (`localhost`, a `127.` address) | that one port, relayed to its own `localhost`; no network at all |
 | A service of the fixture (the stub model) | the fixture's services at its own `localhost`; no network at all |
 | Nowhere (nb on its Mock provider) | no network at all |
 
@@ -43,7 +43,7 @@ afterwards in a separate one, with no network.
 
 ## The policy holds for the container's whole life
 
-Harbor applies an agent's policy only while the agent is working. Proctor
+Harbor applies an agent's policy only while the agent is working. Auspex
 therefore gives the task's environment the same policy as the agent, so
 a process the agent leaves running has no more network after the agent
 has finished than it had before, nor between the stages of a try.
@@ -77,7 +77,7 @@ same:
   every port and to every protocol. Prefer a name.
 - **Names still resolve, and a ping may still leave.** Nothing can be
   fetched that way, but "the agent can touch nothing else" is not true
-  as a sentence. Ping is gone on Docker wherever proctor drops the
+  as a sentence. Ping is gone on Docker wherever auspex drops the
   `NET_RAW` capability from the agent's container, which is every task
   with a fixture's services or a relayed port
   ([`service-fixtures.md`](service-fixtures.md) says why). A fixture
@@ -85,7 +85,7 @@ same:
 
 So a gateway on another machine of your network works, and opens that
 machine's other web services to the agent. If that matters, run the
-gateway where proctor runs and let the relay carry the one port (below).
+gateway where auspex runs and let the relay carry the one port (below).
 
 One thing can stop a host on your network from answering at all: an
 address inside the range the engine gives its own container networks
@@ -97,7 +97,7 @@ the range, or move the engine's range.
 
 ## A port on this machine
 
-A base URL at `localhost` means the machine that runs proctor. `run`
+A base URL at `localhost` means the machine that runs auspex. `run`
 carries that port, and only that port, to the agent's own `localhost`:
 it listens on a unix socket in your runtime directory and mounts the
 directory into a small service beside the agent. Nothing is bound to

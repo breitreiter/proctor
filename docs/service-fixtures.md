@@ -30,7 +30,7 @@ fixtures/<id>/
 "image": { "from": "python:3.13", "services": "services" }
 ```
 
-`image.services` names the directory. Proctor copies it into each
+`image.services` names the directory. Auspex copies it into each
 task's build context beside the image, never into `repo/`, and Harbor
 starts its services with the agent's container.
 
@@ -63,8 +63,8 @@ services:
   them; a short name needs podman's search registry
   ([`podman.md`](podman.md), section 3).
 - Leave `main` out. It is the agent's container and Harbor's to define.
-  Proctor adds one line for it (below); if you declare `main` yourself,
-  yours is kept and proctor's is not added.
+  Auspex adds one line for it (below); if you declare `main` yourself,
+  yours is kept and auspex's is not added.
 
 One directory appears beside the compose file for a service to mount:
 
@@ -83,12 +83,12 @@ Measured from inside a trial, the agent running as root:
 | Which ports are listening | seen | seen |
 | Its process | not visible | not visible |
 | Its files, source and environment | not reachable | not reachable |
-| Its traffic on the shared loopback | not readable | not readable, because proctor drops `NET_RAW` |
+| Its traffic on the shared loopback | not readable | not readable, because auspex drops `NET_RAW` |
 
 On Docker a container holds the `NET_RAW` capability by default, and
 with it an agent could capture everything a service says on the loopback
 they share: one service calling another, a header with a secret in it.
-Proctor writes `main: { cap_drop: [NET_RAW] }` into the task's compose
+Auspex writes `main: { cap_drop: [NET_RAW] }` into the task's compose
 file, and the capture is then refused. The cost is `ping` for the agent
 on Docker. (A task has a compose file when its fixture has services or
 a port of your machine is relayed to it, so those are the tasks with no
@@ -124,7 +124,7 @@ checks ask is one the agent never touched.
 
 `fixtures/stub` runs a scripted model as a service, and the agents' base
 URLs point at `http://localhost:8765`. Since a base URL at `localhost`
-otherwise means the machine that runs proctor, the fixture says the port
+otherwise means the machine that runs auspex, the fixture says the port
 is its own:
 
 ```json
@@ -169,4 +169,4 @@ will move between an Apple laptop and a Linux server; the `python:*-alpine` imag
 do. Harbor is changing how services are placed on Docker (its pull
 request 4427, open on 2026-11-26, gives each service its own namespace,
 reached by name). The exam's `harbor.version` pin is what keeps a
-fixture working as written until proctor follows.
+fixture working as written until auspex follows.

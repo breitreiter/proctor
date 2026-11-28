@@ -4,9 +4,9 @@ using System.Text.Json.Nodes;
 namespace Auspex.View.View.Tests;
 
 /// <summary>
-/// A proctor root with an exam of axes and a real bank, made once for the tests that share it: proctor's own scripted
+/// An auspex root with an exam of axes and a real bank, made once for the tests that share it: auspex's own scripted
 /// exam with known answers (Auspex.Tests/exams/axes-answers), one try each of four configurations, run and graded by
-/// the proctor built beside these tests. No model: nb's Mock provider, as proctor's own tests use it.
+/// the auspex built beside these tests. No model: nb's Mock provider, as auspex's own tests use it.
 /// </summary>
 public sealed class AxesBank : IDisposable
 {
@@ -19,7 +19,7 @@ public sealed class AxesBank : IDisposable
 
     public AxesBank()
     {
-        Root = Path.Combine(_temp, "proctor");
+        Root = Path.Combine(_temp, "auspex");
         var repo = RepoRoot();
         Copy(Path.Combine(repo, "Auspex.Tests", "exams", Exam), Path.Combine(Root, "exams", Exam));
         Copy(Path.Combine(repo, "fixtures", "note"), Path.Combine(Root, "fixtures", "note"));
@@ -34,23 +34,23 @@ public sealed class AxesBank : IDisposable
         foreach (var name in new[] { "shipped", "shipped-b", "rewritten", "rewritten-b" })
         {
             var before = Made();
-            Proctor("run", Exam, "--configuration", name);
+            Cli("run", Exam, "--configuration", name);
             Tries[name] = Made().Except(before).Single();
         }
-        Proctor("grade", Exam);
+        Cli("grade", Exam);
     }
 
     HashSet<string> Made() => Directory.Exists(Path.Combine(Root, "bank", Exam)) ? [.. Directory.GetDirectories(Path.Combine(Root, "bank", Exam)).Select(d => Path.GetFileName(d)!)] : [];
 
-    /// <summary>Run the proctor built in this repository over the root, and give what it printed.</summary>
-    public string Proctor(params string[] args)
+    /// <summary>Run the auspex built in this repository over the root, and give what it printed.</summary>
+    public string Cli(params string[] args)
     {
         var start = new ProcessStartInfo("dotnet", [Path.Combine(RepoRoot(), "bin", "Debug", "net10.0", "auspex.dll"), "--root", Root, .. args]) { RedirectStandardOutput = true, RedirectStandardError = true };
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
-        Assert.True(process.ExitCode == 0, $"proctor {string.Join(' ', args)} exited {process.ExitCode}: {error.Result}");
+        Assert.True(process.ExitCode == 0, $"auspex {string.Join(' ', args)} exited {process.ExitCode}: {error.Result}");
         return output.Result;
     }
 

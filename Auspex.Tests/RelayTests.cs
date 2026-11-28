@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Auspex.Tests;
 
-/// <summary>The relay: a port of the machine that runs proctor at the agent's localhost (Run/Relay.cs, Harbor/relay.py), and what compile writes for it.</summary>
+/// <summary>The relay: a port of the machine that runs auspex at the agent's localhost (Run/Relay.cs, Harbor/relay.py), and what compile writes for it.</summary>
 public class RelayTests
 {
     /// <summary>The host end passes a connection on its unix socket to the port on the loopback and back, and ends each direction when its sender does.</summary>

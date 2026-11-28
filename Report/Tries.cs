@@ -12,7 +12,7 @@ record TryStage(string Id, string Result, int? Held = null, int? Of = null);
 
 /// <summary>
 /// One try, as two numbers: the correctness checks it held, of every correctness check the job has (a stage not reached holds
-/// nothing), and its flagged steps, null until `proctor friction` has read every stage it ran. <c>Invalid</c> is the
+/// nothing), and its flagged steps, null until `auspex friction` has read every stage it ran. <c>Invalid</c> is the
 /// first validity check a stage of it failed: the exam's author said such a try says nothing, so it is listed and not counted.
 /// </summary>
 record TryRow(int N, string? Made, int Held, int Of, bool Passed, int? Flagged, string? BrokeAt, string? Invalid, int Undecided,

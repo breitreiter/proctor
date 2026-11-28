@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace Auspex;
 
 /// <summary>
-/// <c>proctor setup --check</c>: what is set up, read by a coding agent, so plain lines and no Spectre. One line per
+/// <c>auspex setup --check</c>: what is set up, read by a coding agent, so plain lines and no Spectre. One line per
 /// provider and per job; anything the agent should fix is a line starting <c>problem:</c> and makes the exit 1. It
 /// never prints a value, and calls no provider unless <c>--probe</c>, which repeats each key check and records the
 /// result in setup.json.
@@ -19,20 +19,20 @@ static class SetupCheck
         if (state is null)
         {
             output.WriteLine($"setup: not run ({Shown(SetupState.PathIn(examsDir))} does not exist)");
-            output.WriteLine("problem: proctor setup has not been run here; ask the user to run `proctor setup` at a terminal");
+            output.WriteLine("problem: auspex setup has not been run here; ask the user to run `auspex setup` at a terminal");
             return 1;
         }
 
-        var proctorPath = Path.Combine(examsDir, Layout.AuspexConfigFile);
+        var configPath = Path.Combine(examsDir, Layout.AuspexConfigFile);
         var nbPath = Path.Combine(examsDir, SetupFiles.NbFile);
         output.WriteLine($"setup: {Shown(SetupState.PathIn(examsDir))} ({state.Updated.ToLocalTime():yyyy-MM-dd HH:mm}), "
-            + string.Join(", ", new[] { proctorPath, nbPath }.Select(p => File.Exists(p) ? Shown(p) : $"{Shown(p)} missing")));
+            + string.Join(", ", new[] { configPath, nbPath }.Select(p => File.Exists(p) ? Shown(p) : $"{Shown(p)} missing")));
 
         var inFile = EnvFile.Names(envPath);
         var envs = state.Providers.Select(p => p.Env).OfType<string>().Distinct().ToList();
         output.WriteLine($"env: {envPath}{EnvMode(envPath)}{(envs.Count == 0 ? "" : "; " + string.Join(", ", envs.Select(e => $"{e} {KeySource(e, inFile) ?? "not set"}")))}");
         foreach (var env in envs.Where(e => KeySource(e, inFile) is null))
-            problems.Add($"{env} is not set (not in the environment or {envPath}); ask the user to run `proctor setup` and enter the key again");
+            problems.Add($"{env} is not set (not in the environment or {envPath}); ask the user to run `auspex setup` and enter the key again");
 
         output.WriteLine(NbLine(root, examsDir, problems));
 
@@ -51,11 +51,11 @@ static class SetupCheck
             if (kind.CompletedByAgent && NbEntryValue(nbPath, p.Name, "Endpoint") is null && state.JobsUsing(p.Name).Count > 0)
                 problems.Add($"provider {p.Name} is incomplete: its entry in {Shown(nbPath)} has no Endpoint (and nb's LocalLlm needs a Model); write them from the server's own docs");
             if (p.Check == SetupProvider.CheckFailed && state.JobsUsing(p.Name).Count > 0)
-                problems.Add($"provider {p.Name}: the last key check failed ({p.Words}); ask the user to run `proctor setup` and change the key");
+                problems.Add($"provider {p.Name}: the last key check failed ({p.Words}); ask the user to run `auspex setup` and change the key");
         }
         if (probe) state.Save(examsDir);
 
-        var config = ReadConfig(proctorPath);
+        var config = ReadConfig(configPath);
         foreach (var (id, _) in SetupState.JobOrder)
             output.WriteLine($"job {id}: {JobLine(id, state, examsDir, config, problems)}");
         if (state.Job("sandbox") is { Where: "hosted" } hosted)
@@ -112,13 +112,13 @@ static class SetupCheck
             case "nb":
                 foreach (var name in job.Providers ?? [])
                     if (SetupFiles.NbEntryFields(examsDir, name) is null)
-                        problems.Add($"job nb names provider {name}, but {Shown(Path.Combine(examsDir, SetupFiles.NbFile))} has no entry for it; ask the user to rerun `proctor setup`");
+                        problems.Add($"job nb names provider {name}, but {Shown(Path.Combine(examsDir, SetupFiles.NbFile))} has no entry for it; ask the user to rerun `auspex setup`");
                 return $"ready ({providers})";
             case "claude-code" or "codex":
                 var written = config?["agents"]?[id] is JsonObject;
                 if (job.State == SetupJob.ByHand)
                     return written ? $"by hand ({providers}), agents.{id} written" : $"by hand ({providers}): agents.{id} in exams/auspex.json is yours to write; the key is in the env file";
-                if (!written) problems.Add($"job {id} names provider {providers}, but exams/auspex.json has no agents.{id}; ask the user to rerun `proctor setup`");
+                if (!written) problems.Add($"job {id} names provider {providers}, but exams/auspex.json has no agents.{id}; ask the user to rerun `auspex setup`");
                 var untested = job.Providers?.Any(p => state.Provider(p) is { } sp && Catalogue.Get(sp.Kind).Fit(id) == JobFit.Untested) == true;
                 return $"ready ({providers}{(untested ? ", untested pairing" : "")}){(state.HasSandbox ? "" : "; no sandbox chosen")}";
             default:   // judge, classifier: the entry needs a model, which is the exam's choice, so setup writes none

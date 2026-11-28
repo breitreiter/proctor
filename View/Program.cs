@@ -1,6 +1,6 @@
 using Auspex.View;
 
-// auspex <proctor root> [--port N]: serve the exams in a proctor root's bank.
+// auspex-view <root> [--port N]: serve the exams in the bank of an auspex root.
 var port = 0;
 string? root = null;
 for (var i = 0; i < args.Length; i++)
@@ -9,7 +9,7 @@ for (var i = 0; i < args.Length; i++)
     else if (!args[i].StartsWith("--", StringComparison.Ordinal) && root is null) root = args[i];
     else return Usage($"unexpected argument: {args[i]}");
 }
-if (root is null) return Usage("no proctor root given");
+if (root is null) return Usage("no auspex root given");
 root = Path.GetFullPath(root);
 if (!Directory.Exists(root)) return Usage($"not a directory: {root}");
 
@@ -20,8 +20,8 @@ return 0;
 
 static int Usage(string problem)
 {
-    Console.Error.WriteLine($"auspex: {problem}");
-    Console.Error.WriteLine("usage: auspex <proctor root> [--port N]");
-    Console.Error.WriteLine("  <proctor root> is the directory holding proctor's bank/ and exams/.");
+    Console.Error.WriteLine($"auspex-view: {problem}");
+    Console.Error.WriteLine("usage: auspex-view <auspex root> [--port N]");
+    Console.Error.WriteLine("  <auspex root> is the directory holding auspex's bank/ and exams/.");
     return 2;
 }

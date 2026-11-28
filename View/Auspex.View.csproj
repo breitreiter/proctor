@@ -18,7 +18,7 @@
     <InternalsVisibleTo Include="Auspex.View.Tests" />
   </ItemGroup>
 
-  <!-- Proctor's own code, for what only it may work out: a comparison, coverage, which configurations an exam carries. -->
+  <!-- Auspex's own code, for what only it may work out: a comparison, coverage, which configurations an exam carries. -->
   <ItemGroup>
     <ProjectReference Include="..\Auspex.csproj" />
   </ItemGroup>

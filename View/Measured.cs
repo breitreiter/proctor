@@ -5,14 +5,14 @@ using P = Auspex;
 namespace Auspex.View;
 
 /// <summary>
-/// What only proctor may work out, asked of proctor's own code: an exam's axes and the configurations it carries, where
+/// What only auspex may work out, asked of auspex's own code: an exam's axes and the configurations it carries, where
 /// it has tries (coverage), and one change against another (a comparison). The viewer renders these and computes none
-/// of them, so a number on a page is the number `proctor compare` gives (proctor's plans/axes-build.md, slices 3c and
+/// of them, so a number on a page is the number `auspex compare` gives (auspex's plans/axes-build.md, slices 3c and
 /// 3d). Nothing here calls a model: a hosted viewer has no key, and needs none.
 /// </summary>
 static class Measured
 {
-    /// <summary>The exam as proctor loads it, when it declares axes; otherwise why not, in proctor's words.</summary>
+    /// <summary>The exam as auspex loads it, when it declares axes; otherwise why not, in auspex's words.</summary>
     public static (P.Exam? Exam, string? Problem) Load(string root, string id)
     {
         var problems = new List<P.Problem>();
@@ -29,7 +29,7 @@ static class Measured
 
     /// <summary>
     /// A comparison by its address: `change` and `against` as axis=value lists, `within` likewise, `as_of`; or
-    /// `configuration` (a name or a key) with an optional `against` configuration, as `proctor compare --configuration` takes it.
+    /// `configuration` (a name or a key) with an optional `against` configuration, as `auspex compare --configuration` takes it.
     /// </summary>
     public static (P.ComparisonAnswer? Answer, string? Problem) Compare(string root, P.Exam exam, Func<string, string?> query, bool now = false)
     {
@@ -52,7 +52,7 @@ static class Measured
     }
 
     /// <summary>
-    /// An exam's report as `proctor report` computes it, from the bank as it is now: its named configurations with their
+    /// An exam's report as `auspex report` computes it, from the bank as it is now: its named configurations with their
     /// tries, its stages and each check's role, its predictions and how each change came out, what is lost.
     /// </summary>
     public static (P.ConfigurationsFile? Stats, string? Problem) Stats(string root, P.Exam exam) => Report(root, exam) is var (report, problem) ? (report?.Stats, problem) : default;

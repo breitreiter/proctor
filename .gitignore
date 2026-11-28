@@ -28,16 +28,16 @@ exams/nb.*.json
 !exams/*.example.json
 exams/codex.toml
 
-# Fixture checkouts, builds and git files, made by proctor
+# Fixture checkouts, builds and git files, made by auspex
 .auspex/
 # The frozen bench was made by proctor 0.3, which kept its work here
 bench/**/.proctor/
 
-# Reports are derived data written by `proctor report`; the smoke exam's are not worth committing
+# Reports are derived data written by `auspex report`; the smoke exam's are not worth committing
 /reports/
 
 
-# the bench's raw tier (bench is its own proctor root at an earlier version, which wrote runs/)
+# the bench's raw tier (bench is its own auspex root at an earlier version, which wrote runs/)
 bench/systemone/root/runs/
 
 # Python

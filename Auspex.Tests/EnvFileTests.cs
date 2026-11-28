@@ -29,7 +29,7 @@ public class EnvFileTests : IDisposable
     public void Parse_TakesCommentsExportAndQuotes()
     {
         var path = Write("""
-            # keys for proctor
+            # keys for auspex
 
             GEMINI_API_KEY=abc123
             export OPENROUTER_API_KEY = "sk-or-v1 with space"

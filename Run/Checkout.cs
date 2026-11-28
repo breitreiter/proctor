@@ -22,7 +22,7 @@ static class Checkout
                 File.Copy(full, dest, overwrite: true);
             }
         return Git(workDir, "add", "-A")
-            ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", "values");
+            ?? Git(workDir, "-c", "user.name=auspex", "-c", "user.email=auspex@localhost", "commit", "-q", "--allow-empty", "-m", "values");
     }
 
     /// <summary>
@@ -37,7 +37,7 @@ static class Checkout
         if (Git(workDir, "add", "-A") is { } addError) return addError;
         var patch = Subprocess.Run("git", ["diff", "--cached", "--binary", "--no-color", "HEAD"], workDir, stdoutFile: patchFile);
         if (!patch.Started || patch.ExitCode != 0) return $"git diff: {patch.FirstStderrLine}";
-        if (Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", "setup") is { } commitError) return commitError;
+        if (Git(workDir, "-c", "user.name=auspex", "-c", "user.email=auspex@localhost", "commit", "-q", "--allow-empty", "-m", "setup") is { } commitError) return commitError;
         var parsed = Subprocess.Run("git", ["rev-parse", "HEAD^{tree}"], workDir);
         if (!parsed.Started || parsed.ExitCode != 0) return $"git rev-parse: {parsed.FirstStderrLine}";
         tree = "git:" + parsed.Stdout.Trim();
@@ -62,7 +62,7 @@ static class Checkout
         }
         return Git(workDir, "init", "-q")
             ?? Git(workDir, "add", "-A")
-            ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", $"fixture {fixture.Id} {fixture.Hash}");
+            ?? Git(workDir, "-c", "user.name=auspex", "-c", "user.email=auspex@localhost", "commit", "-q", "--allow-empty", "-m", $"fixture {fixture.Id} {fixture.Hash}");
     }
 
     /// <summary>
@@ -103,7 +103,7 @@ static class Checkout
         if (Materialise(fixture, workDir, overlays) is { } error) return error;
         // What the setup hook did is not in the stage's diff (CommitSetup), so it is put back first, from the patch the try kept.
         if (setupPatch is not null && File.Exists(setupPatch) && new FileInfo(setupPatch).Length > 0)
-            if ((Git(workDir, "apply", "--index", "--binary", setupPatch) ?? Git(workDir, "-c", "user.name=proctor", "-c", "user.email=proctor@localhost", "commit", "-q", "--allow-empty", "-m", "setup")) is { } setupError)
+            if ((Git(workDir, "apply", "--index", "--binary", setupPatch) ?? Git(workDir, "-c", "user.name=auspex", "-c", "user.email=auspex@localhost", "commit", "-q", "--allow-empty", "-m", "setup")) is { } setupError)
                 return $"git apply {Path.GetFileName(setupPatch)}: {setupError}";
         var diff = Path.Combine(attemptDir, Layout.DiffFile);
         if (!File.Exists(diff) || new FileInfo(diff).Length == 0) return null;

@@ -8,7 +8,7 @@ namespace Auspex.View;
 /// <summary>
 /// The page of an exam with axes, as designed on the canvas (2026-11-26 and 27): the configurations the exam names, each
 /// against what is live on five measures; its predictions and how each change came out; its axes, stages and checks.
-/// Every number is proctor's (Measured.cs): this page places and words them, and where a dot sits on a strip is layout,
+/// Every number is auspex's (Measured.cs): this page places and words them, and where a dot sits on a strip is layout,
 /// not a count. Nothing here changes anything: a write is asked of the CLI or of the agent the person works with.
 /// </summary>
 static class ExamPage
@@ -42,9 +42,9 @@ static class ExamPage
         var (stats, statsProblem) = exam is null ? (null, problem) : Measured.Stats(root, exam);
         if (exam is null || stats is null)
         {
-            // Proctor could not read the exam as it is now: say so in its words.
+            // Auspex could not read the exam as it is now: say so in its words.
             page.Append($"<header><span class=\"kind\">exam</span><h1 class=\"title\">{E(e.Id)}</h1></header>")
-                .Append($"<div class=\"said\"><b>Proctor cannot read this exam as it stands</b>, so nothing is counted here.</div><pre class=\"mono small soft\">{E(problem ?? statsProblem ?? "")}</pre>")
+                .Append($"<div class=\"said\"><b>Auspex cannot read this exam as it stands</b>, so nothing is counted here.</div><pre class=\"mono small soft\">{E(problem ?? statsProblem ?? "")}</pre>")
                 .Append(EarlierLink(e));
             return Close(page);
         }
@@ -74,7 +74,7 @@ static class ExamPage
             .Append($"<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;max-width:900px\"><div>{E(stats.Methods)}</div>");
         foreach (var l in stats.Lost)
             page.Append($"<div>Try {l.N} of {E(named.FirstOrDefault(c => c.Key == l.Configuration)?.Name ?? l.Configuration)} is lost and counted nowhere, at {E(l.At)}: {E(l.Why)}</div>");
-        page.Append("<div>Every number here is proctor's. Nothing on this page recommends anything.</div></div></section>");
+        page.Append("<div>Every number here is auspex's. Nothing on this page recommends anything.</div></div></section>");
         return Close(page);
     }
 
@@ -109,7 +109,7 @@ static class ExamPage
         if (named.Where(c => c.Retired is not null).ToList() is { Count: > 0 } retired)
         {
             page.Append($"<div class=\"row\" style=\"display:block\"><wa-details id=\"retired\" class=\"quiet\" appearance=\"plain\" summary=\"{retired.Count} retired\">")
-                .Append("<div class=\"note\" style=\"padding:10px 0 4px\">A retired configuration keeps its tries, its predictions and its comparisons. Proctor makes no new tries of it until it is brought back.</div>");
+                .Append("<div class=\"note\" style=\"padding:10px 0 4px\">A retired configuration keeps its tries, its predictions and its comparisons. Auspex makes no new tries of it until it is brought back.</div>");
             foreach (var c in retired)
                 page.Append($"<div style=\"display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;padding:6px 0\"><a class=\"name\" href=\"{U($"/{e.Id}/configuration/{c.Key}")}\">{E(c.Name!)}</a>")
                     .Append($"<span class=\"small dim\">retired {E(c.Retired!.Since)} · {c.Made} {(c.Made == 1 ? "try" : "tries")}</span><span class=\"soft\">{E(c.Retired.Reason)}</span></div>");
@@ -123,11 +123,11 @@ static class ExamPage
     static string EarlierLink(Exam e)
     {
         var tries = e.Earlier.Select(a => (a.Configuration, a.Staged ? "" : a.Stage, a.N)).Distinct().Count();
-        return tries == 0 ? "" : $"<a id=\"earlier\" href=\"{U($"/{e.Id}/earlier")}\">{tries} earlier {(tries == 1 ? "attempt" : "attempts")}</a> <span class=\"dim\">made by an earlier proctor. In the bank, and in no number here.</span>";
+        return tries == 0 ? "" : $"<a id=\"earlier\" href=\"{U($"/{e.Id}/earlier")}\">{tries} earlier {(tries == 1 ? "attempt" : "attempts")}</a> <span class=\"dim\">made by an earlier version. In the bank, and in no number here.</span>";
     }
 
     /// <summary>
-    /// Of proctor's answer about a configuration, the one setting that is that configuration itself. Proctor compares
+    /// Of auspex's answer about a configuration, the one setting that is that configuration itself. Auspex compares
     /// the change wherever the exam has it, so its pooled verdict may rest on tries of other settings (another model,
     /// say); a mark beside a configuration's name is about its own tries and nothing else (the user, 2026-11-27).
     /// </summary>
@@ -141,13 +141,13 @@ static class ExamPage
     };
 
     /// <summary>
-    /// A named configuration's standing against what is live, as proctor compares them: the mark (live, better or worse
-    /// and whether confirmed, no difference, or why it is not compared), proctor's answer, the one setting compared, and live's name.
+    /// A named configuration's standing against what is live, as auspex compares them: the mark (live, better or worse
+    /// and whether confirmed, no difference, or why it is not compared), auspex's answer, the one setting compared, and live's name.
     /// </summary>
     internal static (string Mark, P.ComparisonAnswer? Answer, P.CellAnswer? Cell, string Against) Standing(string root, P.Exam exam, P.ConfigurationRow c, P.ConfigurationRow? live)
     {
         var counted = c.Tries?.Rows.Where(t => t.Invalid is null).ToList() ?? [];
-        // Proctor's own comparison of this configuration with what is live: the verdict, and each measure.
+        // Auspex's own comparison of this configuration with what is live: the verdict, and each measure.
         var (answer, refused) = c.Live || live is null || counted.Count == 0 ? (null, null) : Measured.Compare(root, exam, key => key == "configuration" ? c.Name : null, now: true);
         var cell = Own(answer, c.Key);
         var against = cell?.Against.Name ?? live?.Name ?? "live";

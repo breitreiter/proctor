@@ -3,7 +3,7 @@ using Auspex;
 
 namespace Auspex.Tests;
 
-// The oracle on the bare path (plans/oracle-in-proctor.md, work item 2): proctor prepends nb's own directives and nb's
+// The oracle on the bare path (plans/oracle-in-proctor.md, work item 2): auspex prepends nb's own directives and nb's
 // in-process oracle answers. One try per ending, on nb's Mock provider, whose verdict rides on the scripted reply.
 public class OracleBareTests
 {

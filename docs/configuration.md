@@ -1,15 +1,15 @@
-# Configuring proctor
+# Configuring auspex
 
 The reference for what goes in an exam, a fixture and the machine's
-config. To install proctor and run a first exam, start from the
+config. To install auspex and run a first exam, start from the
 [README](../README.md).
 
 ## Layout and vocabulary
 
-A repository that uses proctor has `exams/` and `fixtures/` (yours, in
+A repository that uses auspex has `exams/` and `fixtures/` (yours, in
 git), `bank/` (every try made, gitignored), `log/` and `exams-seen/`
-(what each `proctor run` did and the exam as it stood, gitignored) and
-`reports/` (derived, written by `proctor report`).
+(what each `auspex run` did and the exam as it stood, gitignored) and
+`reports/` (derived, written by `auspex report`).
 
 The words, which the report and every file use the same way:
 
@@ -24,7 +24,7 @@ The words, which the report and every file use the same way:
 | **configuration** | One value on every axis: what a try ran as. The exam names the ones it wants run. |
 | **try** | One configuration, run once through every stage that applies in it, with the evidence. Several per configuration, because the agent is stochastic. |
 | **attempt** | One stage of one try. |
-| **bank** | Every try of an exam, whenever it was made: `bank/<exam>/<try id>/`. One is current while its configuration's values and the exam's stages are as they were when it was made, and stale after; a stale one stays where it is and is left out. What each `proctor run` did (when, on what machine, at what versions) is an entry under `log/`, a record and not a grouping. |
+| **bank** | Every try of an exam, whenever it was made: `bank/<exam>/<try id>/`. One is current while its configuration's values and the exam's stages are as they were when it was made, and stale after; a stale one stays where it is and is left out. What each `auspex run` did (when, on what machine, at what versions) is an entry under `log/`, a record and not a grouping. |
 | **live** | A mark on one value of an axis: the one in use now, and what the other values of that axis are compared with. |
 | **prediction** | A statement written before the tries are made: run this configuration, and this will change. |
 
@@ -32,7 +32,7 @@ An exam is one question. Every stage in it is graded by the same lists
 of checks. If you find yourself wanting a different correctness list for
 one stage, you have two exams. If you want to ask a second question of
 the same transcripts, you have a new check, not a new exam. The prompt
-is what the user wants, in the user's words; the checks are how proctor
+is what the user wants, in the user's words; the checks are how auspex
 measures whether they got it.
 
 ### When an exam gets a copy
@@ -62,7 +62,7 @@ are still evidence after it.
   gone, and no regrade fixes that. Copy the exam to a new id (`cp -r
   exams/tern-docs exams/tern-docs-2`), try what is live again there as
   the reference, and close the old one: its kept report is the record.
-  Proctor sees a change to a fixture (every try on it goes stale) but
+  Auspex sees a change to a fixture (every try on it goes stale) but
   not a machine or a service outside the repository. When the change is
   in a fixture, copy the fixture too, since fixtures are shared and
   editing one in place makes every exam on it stale.
@@ -99,7 +99,7 @@ Without it, `nb` is taken from `PATH` and nb resolves its own config.
 machine file in place of `exams/auspex.json`, with the same fields and
 its relative paths still resolved against `exams/`. An exam is the
 question and this file is the machine, so the same exam runs somewhere
-else by naming a different file: `proctor run code-change --config
+else by naming a different file: `auspex run code-change --config
 exams/auspex.other.json`. Files named `exams/auspex.*.json` and `exams/nb.*.json`
 are gitignored, apart from the `*.example.json` ones.
 
@@ -132,7 +132,7 @@ if that is set; `%LOCALAPPDATA%\auspex\env` on Windows; `AUSPEX_ENV_FILE` names
 another), one `NAME=value` per line, `#` comments allowed. Every verb loads it at
 startup, so a `${VAR}` in `auspex.json` or nb's config resolves without an
 export, in nb, the judges, Harbor and your hooks alike; a variable already in the
-environment wins. Keep it readable only by you (`chmod 600`; proctor warns
+environment wins. Keep it readable only by you (`chmod 600`; auspex warns
 otherwise). It lives outside every repository on purpose: a key in it can be
 neither committed nor copied into a work directory.
 
@@ -166,8 +166,8 @@ checks/*.sh         script checks (exit 0/1/2 = pass/fail/needs-judge; first std
 hooks/*.sh          setup and teardown around each configuration's tries and around each try
 oracle/*.md         answer sheets, for a stage a scripted user answers
 predictions/*.json  what is expected of a configuration, written before its tries
-retired.json        the named configurations retired (`proctor retire`)
-combinations.json   written by `proctor build`
+retired.json        the named configurations retired (`auspex retire`)
+combinations.json   written by `auspex build`
 ```
 
 `exams/readme-answers` (nb, bare, no tools) and `exams/tern-docs` (a
@@ -234,14 +234,14 @@ if absent).
   are the exam's.
 - The `id` is the stage's label on screen. Keep it to two or three
   words, about 20 characters, naming what the stage asks (`clear-wait`,
-  not `stage-12`); `about` is the one-sentence version. `proctor list`
+  not `stage-12`); `about` is the one-sentence version. `auspex list`
   names the ids that will not read as a label.
 - `"when": "<axis> = <value>"` says where a stage applies (`!=`, and
   several terms joined by `and`). A try is the stages that apply in its
   configuration. A stage with no condition applies everywhere.
 - A stage that did not run (a provider error, a rate limit, a cancelled
   or crashed nb) loses the try: nothing more of it is launched, none of
-  it counts, and `proctor run` makes another, whole.
+  it counts, and `auspex run` makes another, whole.
 - A stage that was stopped by a limit or a denial is a result, and the
   next stage runs, unless the exam is chained.
 - The stages are one job with one hash: changing, adding, moving or
@@ -260,9 +260,9 @@ holds any of:
 | key | what it is | who acts on it |
 |---|---|---|
 | `set` | parameters the base declares, by name | the base's own scripts: the fixture's image and services, the program template, the hooks |
-| `files` | a tree laid over the checkout before the first stage: `{"path": "values/docs/x"}` in the exam, or `{"git": url, "rev": sha, "paths": [...]}`; `to` puts it in a subdirectory | proctor |
-| `agent`, `agent_version`, `route`, `model`, `provider`, `harness` | who does the work | proctor |
-| `fixture` | a whole fixture, for an axis of worlds (below) | proctor |
+| `files` | a tree laid over the checkout before the first stage: `{"path": "values/docs/x"}` in the exam, or `{"git": url, "rev": sha, "paths": [...]}`; `to` puts it in a subdirectory | auspex |
+| `agent`, `agent_version`, `route`, `model`, `provider`, `harness` | who does the work | auspex |
+| `fixture` | a whole fixture, for an axis of worlds (below) | auspex |
 
 A value with only a note sets nothing: the base as it is.
 
@@ -321,7 +321,7 @@ names a `provider` (an entry in nb's config) and a `model`. See
 
 **A value's name stands for its content.** Its identity is a hash of
 what it sets and carries, its files by content. Edit a value that has
-made tries and `proctor run` refuses:
+made tries and `auspex run` refuses:
 
 ```
 exams/tern-docs/exam.json: axes.docs.values.restructure: this is not the docs=restructure that made attempts (docs=restructure,assistant=sonnet).
@@ -339,7 +339,7 @@ needs neither.
 
 **Configurations.** Nobody spans the cross product. The exam carries the
 configurations it names under `configurations` (one value on every
-axis), and `proctor run` makes those. `--value axis=value` asks for that
+axis), and `auspex run` makes those. `--value axis=value` asks for that
 value with every other axis at its live value or reference, named or
 not; a configuration with tries in the bank is carried from then on.
 `exclude` lists values that cannot go together
@@ -366,7 +366,7 @@ only against tries in the same one. `exams/code-change` is written this
 way.
 
 **What a value changes** can be seen without running anything:
-`proctor build <exam>` builds the starting workspace of the reference
+`auspex build <exam>` builds the starting workspace of the reference
 and of each value alone and says what differs, to be read against the
 value's note, and checks each configuration of several values against
 its values put together. A script that reads two axes shows up there
@@ -392,7 +392,7 @@ before the tries it is about:
 `configuration` is one the exam names; `against` names another to
 compare with (absent, what is live). A change is a `check` or a `metric`
 (`held`, `flagged_steps`, `tool_calls`, `tokens`, `duration`) with
-`more` or `less`. `written` is yours to state and required. `proctor
+`more` or `less`. `written` is yours to state and required. `auspex
 predict` (or `run`, before it makes the configuration's tries) pins the
 checks the prediction was made under. The report says how each change
 came out, a miss as plainly as a hit, and says so when tries had already
@@ -412,7 +412,7 @@ the host in the exam directory:
 ```
 
 `configuration` runs once around each configuration's tries in a
-`proctor run`. `try` runs once around each try: its setup after the
+`auspex run`. `try` runs once around each try: its setup after the
 checkout and the values' files and before the first stage, its teardown
 after the last. What the setup leaves is committed as the try's starting
 state, so a stage's diff is the agent's alone. Teardown runs whenever
@@ -422,7 +422,7 @@ value runs through Harbor: there the agent is in a container the host
 cannot prepare, so that setup belongs in the fixture's image.
 
 A hook that branches on an axis to change what the agent sees is hiding
-part of a value from proctor, which cannot hash it; put that difference
+part of a value from auspex, which cannot hash it; put that difference
 in the value.
 
 ### The program template
@@ -445,9 +445,9 @@ harness {{harness}}
 Then the value's `model` is the model nb asks for, and what the report
 records is what ran. Without the line, nb uses the `Model` in the
 provider's nb.json entry and the value's `model` is only a label.
-`proctor setup` writes entries with no `Model`, so they need the line.
+`auspex setup` writes entries with no `Model`, so they need the line.
 The order matters, because nb builds a provider's client as soon as it
-reads `provider`. `proctor setup --check` lists the ids each key can
+reads `provider`. `auspex setup --check` lists the ids each key can
 reach.
 
 ## Fixtures
@@ -462,7 +462,7 @@ checks/*.sh      the fixture's own checks (builds, tests pass); joined to every 
 repo/            the checkout source; the only thing copied into the work directory
 ```
 
-Proctor checks the fixture out before each try, lays the values' files
+Auspex checks the fixture out before each try, lays the values' files
 over it, runs the try's setup hook, and commits. In order, per stage: nb
 compiles the program on the host (a program it refuses loses the try),
 the workspace is restored (unless chained), the agent runs, and the diff
@@ -504,7 +504,7 @@ Two more fields of `image` are about ports at the agent's `localhost`:
   as with `fixtures/stub`: a base URL at `localhost` on a served port is
   the fixture's service, and on any other port it is the machine's own
   (below).
-- `host_ports` lists ports of the machine that runs proctor which the
+- `host_ports` lists ports of the machine that runs auspex which the
   agent is to reach at its own `localhost` (`"host_ports": [5173]`): a
   dev server you started by hand beside the run, say. Each is relayed
   like a model on the machine's loopback, and only those ports. A try
@@ -588,8 +588,8 @@ protecting, not only what tripped:
 { "no-secrets": { "script": "checks/no-secrets.sh", "description": "no key or secret value is in a written file", "why": "an exam that leaks a key would publish it with the try" } }
 ```
 
-`proctor list` names the checks that have none. Four common checks get
-proctor's own reason when they have none: an exit reason of `ok`, no
+`auspex list` names the checks that have none. Four common checks get
+auspex's own reason when they have none: an exit reason of `ok`, no
 denied calls, no loop nudge, and a budget of calls, tokens or time.
 `grade` writes each check's description, why and (for a script) its path
 into every verdict in `checks.json`, as they were when it graded. A
@@ -623,7 +623,7 @@ is `error`, never a fail.
 An exam usually tests one thing inside a fixture that holds many: a CLI, an
 MCP server, a docs site. An attempt can pass without ever using it, by going
 round. `surface` in `exam.json` says what the thing is, so
-`proctor friction <exam>` can sort each attempt's actions by it. It is optional,
+`auspex friction <exam>` can sort each attempt's actions by it. It is optional,
 and no check, report or other verb reads it.
 
 ```json
@@ -686,7 +686,7 @@ label: friction's one measure. The rules use no model, so the same trajectory an
 give the same file.
 
 Rules see what a call was and what came back, not what it was for.
-`proctor friction <exam> --reader <judge>` adds a reader: a chat judge from
+`auspex friction <exam> --reader <judge>` adds a reader: a chat judge from
 `auspex.json` reads each attempt once and names five more kinds of point,
 `fixed-own-work` (fixing its own work after something it ran failed),
 `wasted-read` (a search or read that led to nothing used later), `reread`,
@@ -743,7 +743,7 @@ leaves a bridged vendor agent no trajectory to grade.
 ## Labels
 
 Labels are yours: a key with a string or a list of strings, on the exam
-or a fixture, and proctor never interprets a key. An exam carries its
+or a fixture, and auspex never interprets a key. An exam carries its
 fixtures' labels with its own laid over them, key by key. They print
 with `list`, filter it (`--label kind`, `--label area=coding/*`,
 repeatable; `*` matches within a slash segment and `**` across), and sit
@@ -822,7 +822,7 @@ The agent is a vendor's own CLI at a pinned version (`claude-code`,
 ```
 
 and the fixture describes its image: `"image": {"from": …, "run": […],
-"env": {…}}`, in which proctor commits `repo/` (with the values' files
+"env": {…}}`, in which auspex commits `repo/` (with the values' files
 laid over it) and installs the agent at its pin, so a trial installs
 nothing and needs no network to start.
 
@@ -836,7 +836,7 @@ Harbor, and a container engine, set by `harbor.engine` in
   building its egress sidecar with `unknown flag: --file`, the bare
   attempts untouched. Rootless Docker works (the gates and conformance
   pass on it): set
-  `DOCKER_HOST=unix:///run/user/<uid>/docker.sock` in proctor's env file,
+  `DOCKER_HOST=unix:///run/user/<uid>/docker.sock` in auspex's env file,
   since Harbor runs under uv and a client there may not read CLI contexts.
   The rest is [`docker.md`](docker.md).
 - **Podman**, rootless, with its API socket running, docker-compose v2
@@ -845,8 +845,8 @@ Harbor, and a container engine, set by `harbor.engine` in
   `run` checks what it can before it starts.
 
 Rootless podman on Linux (Arch and Ubuntu) is the engine that is
-supported: it is where proctor's own gates are run. Docker is not
-maintained. An engine off the machine (Modal) was in proctor until
+supported: it is where auspex's own gates are run. Docker is not
+maintained. An engine off the machine (Modal) was in auspex until
 2026-11-27 and is not now: `harbor.engine: modal` is refused, and its
 code is at the git tag `modal-in-core`.
 
@@ -874,7 +874,7 @@ trial starts.
 A try through Harbor is one Harbor task whose steps are the stages:
 the environment is built once, the agent starts a fresh conversation
 per stage, and `limits.wall_ms` is each stage's, not the try's. On a
-chained exam Harbor still runs the stages after a stopped one; proctor
+chained exam Harbor still runs the stages after a stopped one; auspex
 does not read them.
 
 Through Harbor a script check runs in Harbor's verifier, a separate
@@ -887,7 +887,7 @@ stage's expected values, or add a script check, and `grade` marks those
 verdicts `outdated`: out of the check's numbers and, for a correctness
 check, the stage undecided, never counted as a fail. They stay outdated
 until the try is made again (move its directory out of `bank/<exam>/`,
-which `grade` names, and `proctor run` the exam). An exam's or a
+which `grade` names, and `auspex run` the exam). An exam's or a
 fixture's own `README.md`, `exam.json`, `fixture.json`, the predictions
 and another check's script outdate nothing. Built-in and judged checks
 on the same tries are graded afresh as anywhere.
@@ -899,7 +899,7 @@ What a fixture's image needs is
 [`porting-to-agent-neutral.md`](porting-to-agent-neutral.md);
 `exams/code-change/` runs the same three changes on four agents.
 
-Harbor pins its own version but not its dependencies' versions, so proctor
+Harbor pins its own version but not its dependencies' versions, so auspex
 resolves them with uv's `--exclude-newer` seven days back. A poisoned
 release that is pulled within a week never reaches you. If the account
 that runs agents holds credentials worth stealing, `harbor.uv` can
@@ -915,7 +915,7 @@ AUSPEX_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
 This runs every vendor agent at its pin against a scripted stub model,
 then each `code-change` stage's reference solution through Harbor's
 verifier. It takes about twenty minutes. `AUSPEX_CONFORMANCE` may
-instead name a `auspex.json` whose `harbor` block to use.
+instead name an `auspex.json` whose `harbor` block to use.
 
 ## Running bare nb in a container
 
@@ -926,10 +926,10 @@ hooks make the container themselves. For a new exam with tools, prefer
 An exam that runs nb inside a container names the script that runs it in
 its `exam.json`, beside the hooks that make the container;
 `--runner <script>` (a path from the current directory) overrides it for
-one `proctor run` and `--runner none` runs bare. The contract is the
+one `auspex run` and `--runner none` runs bare. The contract is the
 whole interface:
 
-| proctor gives the runner | the runner must |
+| auspex gives the runner | the runner must |
 |---|---|
 | stdin: the resolved program, compiled on the host by `nb --compile` so every `@file` include is inlined | pass it to nb's stdin unchanged |
 | cwd: the work directory on the host | start nb with the checkout as its working directory, wherever that is inside |
@@ -938,16 +938,16 @@ whole interface:
 | stdout and stderr captured to the stage's directory | put only nb's stdout on stdout |
 | | exit with nb's exit code |
 
-`AUSPEX_CONTAINER` is a name for the try, `proctor-<exam>-<try id>`,
-that proctor never uses, so hooks and the runner can agree on one
+`AUSPEX_CONTAINER` is a name for the try, `auspex-<exam>-<try id>`,
+that auspex never uses, so hooks and the runner can agree on one
 container: the try's setup hook creates it, the runner execs into it for
 each stage, the try's teardown hook removes it. Hooks see which is in
 effect in `AUSPEX_RUNNER`, empty on a bare run, and skip the container.
 The manifest records the script and its hash.
 
 ```bash
-proctor run <exam>                 # each try in its own container, as exam.json says
-proctor run <exam> --runner none   # bare: the shakedown, on this machine
+auspex run <exam>                 # each try in its own container, as exam.json says
+auspex run <exam> --runner none   # bare: the shakedown, on this machine
 ```
 
 A bare run is for shaking down an exam: nb and the model's tools run on
@@ -989,7 +989,7 @@ Mock provider, no model and no key. `exams/smoke/` with `fixtures/note/`
 uses most of what is described here, also on Mock. `exams/readme-answers/`
 and `exams/tern-docs/` are the two real ones to read: a tree parameter
 the program reads, and one a service serves. `exams/code-change/` has an
-axis of worlds. `exams/gate/` and `exams/conformance/` are proctor's own
+axis of worlds. `exams/gate/` and `exams/conformance/` are auspex's own
 checks of its Harbor path: nb on Mock, bare and through Harbor, must
 agree, and each vendor agent on the stub must come back as scripted. The
 check vocabulary and the shape of every file are in

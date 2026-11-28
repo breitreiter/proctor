@@ -1,5 +1,5 @@
 {
-  "//": "proctor setup's provider catalogue: one entry per kind. plans/setup/README.md, 'The provider catalogue'. agents: the base_url setup writes into auspex.json agents.<agent> when this kind serves that agent. A help anchor, once released, is never removed or renamed.",
+  "//": "auspex setup's provider catalogue: one entry per kind. plans/setup/README.md, 'The provider catalogue'. agents: the base_url setup writes into auspex.json agents.<agent> when this kind serves that agent. A help anchor, once released, is never removed or renamed.",
   "kinds": [
     {
       "kind": "gemini",

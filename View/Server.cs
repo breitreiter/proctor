@@ -43,7 +43,7 @@ public static class Server
             if (context.Request.Cookies[cookie] != token)
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                await context.Response.WriteAsync("Open the URL auspex printed when it started; it carries this start's token.");
+                await context.Response.WriteAsync("Open the URL the viewer printed when it started; it carries this start's token.");
                 return;
             }
             await next();
@@ -52,13 +52,13 @@ public static class Server
         app.MapGet("/", () => Html(IndexPage.Render(root)));
         app.MapGet("/assets/{**name}", (string name) =>
             typeof(Server).Assembly.GetManifestResourceStream(AssetPrefix + name) is { } stream ? Results.Stream(stream, ContentType(name)) : Results.NotFound());
-        // An exam, then a configuration or a try of it. One proctor cannot read is listed by what its bank holds.
+        // An exam, then a configuration or a try of it. One auspex cannot read is listed by what its bank holds.
         app.MapGet("/{exam}", (string exam) =>
             Bank.FindExam(root, exam) is { } e ? Html(e.Axes ? ExamPage.Render(root, e) : Pages.Held(e, earlier: false)) : Results.NotFound());
         // What was made before the exam was stages and axes: still in the bank, read by nothing but this page and the stage page.
         app.MapGet("/{exam}/earlier", (string exam) =>
             Bank.FindExam(root, exam) is { Earlier.Count: > 0 } e ? Html(Pages.Held(e, earlier: true)) : Results.NotFound());
-        // The addresses `proctor compare` and `proctor coverage` give in their answers (proctor's plans/axes-build.md, 3d).
+        // The addresses `auspex compare` and `auspex coverage` give in their answers (auspex's plans/axes-build.md, 3d).
         // A try sits under its own id; a comparison and coverage carry the time they were answered (as_of).
         app.MapGet("/{exam}/coverage", (string exam, HttpRequest request) =>
             Bank.FindExam(root, exam) is { Axes: true } e ? Html(AxesPages.Exam(root, e, request.Query["as_of"])) : Results.NotFound());

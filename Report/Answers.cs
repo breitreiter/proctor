@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Auspex;
 
-// What proctor answers when asked (plans/axes-build.md, slice 3c; plans/axes.md, decision 17). Proctor does no decision
+// What auspex answers when asked (plans/axes-build.md, slice 3c; plans/axes.md, decision 17). Auspex does no decision
 // support: an agent makes the recommendation, and these two queries are what it is given. So an answer is only what
 // was measured, worked out by the report's own code (Configurations.Compare) and nowhere else, and it carries what a
 // reader needs to not say more than that: its scope, what was not run, when the tries were made, what so few tries
@@ -163,7 +163,7 @@ static class Answers
         // the rest of the exam may stay that way, and this comparison may not.
         var keys = comparison.Cells.SelectMany(c => new[] { c.Key, c.LiveKey }).ToHashSet();
         var ungraded = current.Count(a => keys.Contains(a.Configuration) && a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.StageOf(a.Stage), a.Dir(root)));
-        if (ungraded > 0) throw new AuspexException($"{ungraded} stage{(ungraded == 1 ? "" : "s")} of the tries in this comparison {(ungraded == 1 ? "is" : "are")} not yet graded under the checks as they are now, and an ungraded try would read as one that held nothing: run `proctor grade {exam.Id}` first");
+        if (ungraded > 0) throw new AuspexException($"{ungraded} stage{(ungraded == 1 ? "" : "s")} of the tries in this comparison {(ungraded == 1 ? "is" : "are")} not yet graded under the checks as they are now, and an ungraded try would read as one that held nothing: run `auspex grade {exam.Id}` first");
 
         var ids = then.GroupBy(x => (x.Attempt.Configuration, x.Attempt.TryNumber)).ToDictionary(g => g.Key, g => g.First().Id);
         SideAnswer Side(string key)
@@ -261,12 +261,12 @@ static class Answers
         var predicted = PredictionOutcomes.Compute(exam, Predictions.Load(root, exam, problems).Where(c => comparison.Cells.Any(k => k.Key == c.Configuration.Key)).ToList(), byKey, rows, current);
         return new ComparisonAnswer(Schema, exam.Id, Iso(at), address, asked, change, against, within is { Count: > 0 } ? new Dictionary<string, string>(within) : null,
             verdict, decided?.Confirmed, comparison.Sentence, cells, comparison.Pooled, comparison.NotRun, power, timing, moved, cautions, others, since,
-            "Every number here is proctor's, worked out as its report works it out. A try is one configuration run once through the exam's stages; held is the correctness checks it held, of how many. "
+            "Every number here is auspex's, worked out as its report works it out. A try is one configuration run once through the exam's stages; held is the correctness checks it held, of how many. "
             + "change is compared with against (one value of an axis, or several values changed together when a configuration was asked about) in each setting of the other axes where the exam names or has tries of the change, try against try (Mann-Whitney, exact two-sided p), "
             + "and the settings compared are read as one when they do not point different ways (van Elteren). confirmed means p < 0.05; at the top it is of the one reading there is, "
             + "and absent when there is none (nothing compared, or better here and worse there: then each cell has its own). "
             + "flagged is a try's steps inside any friction point, when friction was run. checks in a cell counts, per correctness check, the tries of each side that held it; it tests nothing. "
-            + "together on a configuration more than one value off the reference says whether `proctor build` found it to be its values put together (sum), more than that (more), not to be told (unclear), or never checked (not_checked). "
+            + "together on a configuration more than one value off the reference says whether `auspex build` found it to be its values put together (sum), more than that (more), not to be told (unclear), or never checked (not_checked). "
             + "A setting not run is not run, never no difference. tries_since counts tries made after as_of in these configurations: the numbers are as they stood at as_of. "
             + "by_check and by_stage give each check and each stage on both sides, compared the same way (a check on the stages of a try in which it held, a stage on the share of its correctness checks a try held); friction is flagged steps a try by label. tool_calls, tokens and duration are compared as held and flagged are, try against try, and of each fewer is better; one is null when a try on either side does not carry the number. predictions are those written about a configuration in this comparison: each change one expects, with how it came out against the configuration it named; post hoc means tries of its configuration were made before the prediction was written. "
             + "An address opens the same thing in the viewer; path is its directory under the repository root. Nothing here recommends anything.",
@@ -324,13 +324,13 @@ static class Answers
         }
         return new CoverageAnswer(Schema, exam.Id, Iso(at), $"/{exam.Id}/coverage?as_of={Encoded(Iso(at))}", values, rows, span,
             axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), bank.Where(a => Bank.Stale(exam, a) is not null).Select(a => (a.Configuration, a.TryNumber)).Distinct().Count(),
-            "Every number here is proctor's. tries counts whole, current tries as of as_of; wanted is how many the exam asks for of each configuration it makes; a stale try was made before a value or a stage changed and counts nowhere. "
+            "Every number here is auspex's. tries counts whole, current tries as of as_of; wanted is how many the exam asks for of each configuration it makes; a stale try was made before a value or a stage changed and counts nowhere. "
             + "configurations are the ones the exam names or has tries of: any other was never asked for, and nobody spans the rest. "
             + "live on a configuration means it has the live value on every axis that has one; an axis with no live value (one that is not ours to choose) has a reference instead, which is only the value held while others are looked at. "
             + "live_span is every configuration with the live value on each axis that has one, across every value of the axes that have none; a row there with no tries is a setting in use that nothing here has tried. "
             + "It is listed in full unless it is over 200 configurations (listed false), and then only those with tries are given. "
-            + "together on a configuration says whether `proctor build` found it to be its values put together (sum), more (more), not to be told (unclear) or never checked (not_checked); absent when it is at most one value off the reference. "
-            + "not_graded counts a configuration's tries with no grade under the checks as they are now: they are made, and in no comparison until `proctor grade` reads them. "
+            + "together on a configuration says whether `auspex build` found it to be its values put together (sum), more (more), not to be told (unclear) or never checked (not_checked); absent when it is at most one value off the reference. "
+            + "not_graded counts a configuration's tries with no grade under the checks as they are now: they are made, and in no comparison until `auspex grade` reads them. "
             + "A value's note says what it changes and its why says what it is there for (a customer's report, an idea of the author's), both in the author's words. "
             + "A value nobody declared cannot show here at all. retired on a configuration says it was retired, since when and why: its tries are still counted and it can still be compared, and `run` makes no new tries of it. days_since_last is the age of the newest try at as_of: an old try was made on the agent and model as they were then. Nothing here recommends anything.");
     }

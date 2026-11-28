@@ -43,7 +43,7 @@ for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   (
     cd "$AUSPEX_WORK" && git checkout -q "$(jq -r .source.rev "$AUSPEX_FIXTURE/fixture.json")" && rm -rf .git
     [ ! -f "$AUSPEX_FIXTURE/plant.patch" ] || git apply "$AUSPEX_FIXTURE/plant.patch"
-    git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm nb
+    git init -q && git add -A && git -c user.name=auspex -c user.email=auspex@localhost commit -qm nb
   ) || exit 1
   case "$mode:$c" in
     --unsolved:*) ;;

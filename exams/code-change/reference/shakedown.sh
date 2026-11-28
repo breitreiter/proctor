@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prove the fixtures and checks without a model: for each stage, check the fixture out the way
-# proctor does, apply the reference solution (or nothing, with --unsolved), diff, run the checks.
+# auspex does, apply the reference solution (or nothing, with --unsolved), diff, run the checks.
 # Expected: every check passes solved; builds passes and tests-pass or acceptance fails unsolved.
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
@@ -17,7 +17,7 @@ for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   export AUSPEX_TRANSCRIPT="$AUSPEX_ATTEMPT_DIR/transcript.jsonl" AUSPEX_DIFF="$AUSPEX_ATTEMPT_DIR/diff.patch"
   mkdir -p "$AUSPEX_ATTEMPT_DIR" "$AUSPEX_WORK"
   (cd "$AUSPEX_FIXTURE/repo" && find . -type d \( -name bin -o -name obj -o -name .git \) -prune -o -type f -print | cpio -pdm --quiet "$AUSPEX_WORK")
-  (cd "$AUSPEX_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm "fixture $f")
+  (cd "$AUSPEX_WORK" && git init -q && git add -A && git -c user.name=auspex -c user.email=auspex@localhost commit -qm "fixture $f")
   [ $solve = 1 ] && "$here/reference/$c.sh" "$AUSPEX_WORK"
   (cd "$AUSPEX_WORK" && git add -A -N . && git diff --no-color > "$AUSPEX_DIFF")
   for check in "$AUSPEX_FIXTURE/checks/builds.sh" "$AUSPEX_FIXTURE/checks/tests-pass.sh" "$here/checks/acceptance.sh"; do

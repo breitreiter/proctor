@@ -14,9 +14,9 @@ record AgentTrial(string Name, string? Version, string Model, Dictionary<string,
 record OracleOutcome(string? Ending, int Answers, long? JudgeInputTokens, long? JudgeOutputTokens);
 
 /// <summary>
-/// core.json: proctor's own count of an attempt, by its own definitions, from the ATIF steps, never the agent's own count.
+/// core.json: auspex's own count of an attempt, by its own definitions, from the ATIF steps, never the agent's own count.
 /// A turn is one agent step (one model response); a tool call is one entry of a step's tool_calls, subagents' included;
-/// kinds tally the calls by proctor's normalised tool kind; the duration is the agent's phase alone.
+/// kinds tally the calls by auspex's normalised tool kind; the duration is the agent's phase alone.
 /// </summary>
 record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dictionary<string, int> Kinds, long? InputTokens, long? CachedTokens, long? OutputTokens, double? CostUsd, long? DurationMs = null);
 
@@ -28,7 +28,7 @@ record CountedCore(string ExitReason, int Turns, int ToolCalls, int Denied, Dict
 /// </summary>
 static class Ingest
 {
-    /// <summary>Each agent's tools by proctor's kind, as the trajectory names them. A tool missing here is adapter_unmapped.</summary>
+    /// <summary>Each agent's tools by auspex's kind, as the trajectory names them. A tool missing here is adapter_unmapped.</summary>
     internal static readonly Dictionary<string, Dictionary<string, string>> Kinds = new()
     {
         [Assistant.ClaudeCode] = new()

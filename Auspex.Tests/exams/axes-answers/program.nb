@@ -1,4 +1,4 @@
-# A scripted exam for proctor's own queries: every stage scripts nb's Mock provider, so it runs without a model.
+# A scripted exam for auspex's own queries: every stage scripts nb's Mock provider, so it runs without a model.
 provider {{provider}}
 harness {{harness}}
 loop 2

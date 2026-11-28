@@ -5,8 +5,8 @@ using System.Text.RegularExpressions;
 namespace Auspex.View.View.Tests;
 
 /// <summary>
-/// The pages of an exam with axes, over a bank proctor made: the exam, a configuration, a comparison and a try under
-/// its own id. What a page says is held against what `proctor compare` and `proctor coverage` answer, since the pages
+/// The pages of an exam with axes, over a bank auspex made: the exam, a configuration, a comparison and a try under
+/// its own id. What a page says is held against what `auspex compare` and `auspex coverage` answer, since the pages
 /// exist so that a number an agent quoted can be opened and found to be the same.
 /// </summary>
 public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
@@ -37,9 +37,9 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         foreach (var heading in new[] { "Configurations", "Predictions", "Axes", "Stages", "Checks", "How this is counted" }) Assert.Contains(heading, page);
         foreach (var name in new[] { "shipped", "rewritten", "rewritten-b", "long-b" }) Assert.Contains($">{name}</a>", html);
         Assert.Contains("no tries yet", page);
-        // The mark on a configuration is about its own tries against what is live: of proctor's answer, the one setting
+        // The mark on a configuration is about its own tries against what is live: of auspex's answer, the one setting
         // that is this configuration, never the verdict pooled with other settings (another assistant's tries, here).
-        var answer = JsonNode.Parse(bank.Proctor("compare", AxesBank.Exam, "--configuration", "rewritten"))!;
+        var answer = JsonNode.Parse(bank.Cli("compare", AxesBank.Exam, "--configuration", "rewritten"))!;
         Assert.True(answer["cells"]!.AsArray().Count(c => (string)c!["state"]! == "compared") > 1, "the bank compares this change in several settings");
         var own = answer["cells"]!.AsArray().Single(c => (string?)c!["value"]!["name"] == "rewritten")!;
         var held = own["held"]!;
@@ -64,8 +64,8 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
     public async Task TheCoveragePage_IsTheConfigurationsSomebodyNamedOrRan_AndSaysWhatToAskAnAgent()
     {
         var page = Text(await Get($"/{AxesBank.Exam}/coverage"));
-        // Proctor's counts: named and run, named and never run, and what is live across the assistant nobody chooses.
-        var coverage = JsonNode.Parse(bank.Proctor("coverage", AxesBank.Exam))!;
+        // Auspex's counts: named and run, named and never run, and what is live across the assistant nobody chooses.
+        var coverage = JsonNode.Parse(bank.Cli("coverage", AxesBank.Exam))!;
         Assert.Equal(8, coverage["configurations"]!.AsArray().Count);
         Assert.Matches(@"rewritten-b prompt=rewritten .*?1 of 1", page);
         Assert.Matches(@"long-b length=long .*?not run 0 of 1", page);
@@ -74,13 +74,13 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         Assert.Contains("nobody runs every combination", page);
         // No finding of an agent's is on the page; it says what to ask one, and of what.
         Assert.Contains("This page shows what was measured, and no more.", page);
-        Assert.Contains("proctor compare axes-answers prompt=rewritten", page);
+        Assert.Contains("auspex compare axes-answers prompt=rewritten", page);
     }
 
     [Fact]
-    public async Task AComparisonsPage_ShowsTheNumbersProctorAnswers_AtTheAddressItGave()
+    public async Task AComparisonsPage_ShowsTheNumbersAuspexAnswers_AtTheAddressItGave()
     {
-        var answer = JsonNode.Parse(bank.Proctor("compare", AxesBank.Exam, "prompt=rewritten"))!;
+        var answer = JsonNode.Parse(bank.Cli("compare", AxesBank.Exam, "prompt=rewritten"))!;
         var address = answer["address"]!.GetValue<string>();
         var html = await Get(address);
         var page = Text(html);
@@ -100,17 +100,17 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         Assert.Contains("4 tries have been made in these configurations since", earlier);
         Assert.Contains("nothing to compare yet", earlier);
 
-        // A configuration is asked about by name, as `proctor compare --configuration` takes it.
+        // A configuration is asked about by name, as `auspex compare --configuration` takes it.
         Assert.Contains("rewritten-b vs shipped-b", Text(await Get($"/{AxesBank.Exam}/compare?configuration=rewritten-b")));
         Assert.Contains("Asked of the configuration rewritten-b", Text(await Get($"/{AxesBank.Exam}/compare?configuration=rewritten-b&settings=all")));
-        // What proctor refuses, the page says in proctor's words.
+        // What auspex refuses, the page says in auspex's words.
         Assert.Contains("is not a value this exam declares", Text(await Get($"/{AxesBank.Exam}/compare?change=prompt%3Dnope&against=prompt%3Dshipped")));
     }
 
     [Fact]
     public async Task ARetiredConfiguration_LeavesTheMainLists_AndKeepsItsPageAndItsReason()
     {
-        bank.Proctor("retire", AxesBank.Exam, "long-b", "--reason", "nobody ships the long prompt on b");
+        bank.Cli("retire", AxesBank.Exam, "long-b", "--reason", "nobody ships the long prompt on b");
         try
         {
             var exam = await Get($"/{AxesBank.Exam}");
@@ -130,7 +130,7 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
             Assert.Contains("Retired", own);
             Assert.Contains("nobody ships the long prompt on b", own);
         }
-        finally { bank.Proctor("retire", AxesBank.Exam, "long-b", "--bring-back"); }
+        finally { bank.Cli("retire", AxesBank.Exam, "long-b", "--bring-back"); }
         Assert.DoesNotContain("retired", await Get("/"));
     }
 
@@ -140,7 +140,7 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         var html = await Get("/");
         var page = Text(html);
         Assert.Contains($"href=\"/{AxesBank.Exam}\"", html);
-        // The same mark a configuration carries on its exam's page, which is proctor's verdict on it against what is live.
+        // The same mark a configuration carries on its exam's page, which is auspex's verdict on it against what is live.
         foreach (var name in new[] { "shipped", "rewritten", "rewritten-b" }) Assert.Contains($">{name}</a>", html);
         var exam = await Get($"/{AxesBank.Exam}");
         var mark = Regex.Match(exam, "<wa-badge class=\"light [^\"]*\" appearance=\"accent\">[^<]*vs shipped[^<]*</wa-badge>");
@@ -151,14 +151,14 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
     }
 
     [Fact]
-    public async Task AComparisonInOneSetting_IsXVsY_TheSubjectFirst_WithProctorsNumbers()
+    public async Task AComparisonInOneSetting_IsXVsY_TheSubjectFirst_WithAuspexsNumbers()
     {
         var designed = 0;
         foreach (var (name, against) in new[] { ("rewritten", "shipped"), ("rewritten-b", "shipped-b") })
         {
-            var answer = JsonNode.Parse(bank.Proctor("compare", AxesBank.Exam, "--configuration", name, "--against", against))!;
+            var answer = JsonNode.Parse(bank.Cli("compare", AxesBank.Exam, "--configuration", name, "--against", against))!;
             var cells = answer["cells"]!.AsArray();
-            // Proctor compares the change wherever the exam has it; the page is the setting that is these two configurations.
+            // Auspex compares the change wherever the exam has it; the page is the setting that is these two configurations.
             var compared = cells.Where(c => c!["state"]!.GetValue<string>() == "compared" && c["value"]!["name"]?.GetValue<string>() == name).ToList();
             if (compared.Count != 1) continue;
             designed++;
@@ -168,11 +168,11 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
             Assert.Contains($"{name} vs {other}", page);
             foreach (var heading in new[] { "Tries", "Checks", "Stages", "Friction", "How this is counted" }) Assert.Contains(heading, page);
             Assert.Contains($"Every number and direction describes {name}, the name before vs.", page);
-            // Each check proctor compared is a row, with the rate proctor gives.
+            // Each check auspex compared is a row, with the rate auspex gives.
             foreach (var check in compared[0]!["by_check"]!.AsArray())
                 Assert.Contains($"title=\"{check!["held"]} of {check["asked"]}\"", html);
             Assert.DoesNotContain("<form", html);
-            // Every setting of the same change is one link away, with proctor's reading of them as one.
+            // Every setting of the same change is one link away, with auspex's reading of them as one.
             if (cells.Count(c => c!["state"]!.GetValue<string>() == "compared") > 1)
                 Assert.Contains("comparison · every setting", Text(await Get($"/{AxesBank.Exam}/compare?configuration={name}&against={against}&settings=all")));
         }
@@ -187,7 +187,7 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         Assert.Contains("rewritten-b", page);
         Assert.Contains("the guide rewritten: read note.txt first", page);
         Assert.Contains("files from values/prompt/rewritten", page);
-        Assert.Contains("What a value changes is its author's account, not proctor's finding.", page);
+        Assert.Contains("What a value changes is its author's account, not auspex's finding.", page);
         // The sections the canvas drew, each a word of the vocabulary, and each try's stages as squares that open a stage.
         foreach (var heading in new[] { "Predictions", "Stages", "Checks", "Friction", "Tries", "Axes" }) Assert.Contains(heading, page);
         var html = await Get($"/{AxesBank.Exam}/configuration/{Uri.EscapeDataString(key)}");
@@ -207,7 +207,7 @@ public class AxesPagesTests(AxesBank bank) : IClassFixture<AxesBank>
         var stage = await Get($"/{AxesBank.Exam}/try/{id}");   // the try alone goes to its first stage
         Assert.Contains($"href=\"/{AxesBank.Exam}/configuration/", stage);
 
-        // Every verdict of the stage is a row with its own address, under the role proctor graded it in, in proctor's words for the outcome.
+        // Every verdict of the stage is a row with its own address, under the role auspex graded it in, in auspex's words for the outcome.
         var page = Text(stage);
         Assert.Contains("correctness", page);
         Assert.Matches("id=\"check-[^\"]+\"", stage);

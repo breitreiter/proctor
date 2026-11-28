@@ -5,7 +5,7 @@ using Auspex;
 namespace Auspex.Tests;
 
 /// <summary>A configuration through Harbor: validation, compiling its task, ingesting a trial, and the runner with a stand-in for Harbor.</summary>
-/// <summary>Runs only on a machine whose podman passes proctor's own preflight, which `run` makes for real before the fake uv is reached.</summary>
+/// <summary>Runs only on a machine whose podman passes auspex's own preflight, which `run` makes for real before the fake uv is reached.</summary>
 sealed class PodmanFactAttribute : FactAttribute
 {
     public PodmanFactAttribute()
@@ -166,7 +166,7 @@ public class HarborTests
         Assert.Equal(exam.Stages[0].Prompt!.TrimEnd() + "\n", File.ReadAllText(Path.Combine(step, "instruction.md")));
 
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
-        Assert.Contains("name = \"proctor/harbor-unit\"", toml);
+        Assert.Contains("name = \"auspex/harbor-unit\"", toml);
         Assert.EndsWith("\n[[steps]]\nname = \"fix-null-deref\"\n", toml);
         Assert.Contains("timeout_sec = 900.0\nnetwork_mode = \"allowlist\"\nallowed_hosts = [\"library\"]", toml);
         // The environment carries the agent's policy, so a process left running never outlives it into a public network.
@@ -254,7 +254,7 @@ public class HarborTests
         Directory.CreateDirectory(Path.Combine(dir, "verifier"));
         File.WriteAllText(Path.Combine(dir, "result.json"), new JsonObject
         {
-            ["task_name"] = "proctor/fix-null-deref",
+            ["task_name"] = "auspex/fix-null-deref",
             ["agent_info"] = new JsonObject { ["name"] = "claude-code", ["version"] = version },
             ["agent_result"] = new JsonObject { ["n_input_tokens"] = 1200, ["n_cache_tokens"] = 800, ["n_output_tokens"] = 300, ["cost_usd"] = 0.004 },
             ["agent_execution"] = new JsonObject { ["started_at"] = "2026-10-16T21:59:40.250000Z", ["finished_at"] = "2026-10-16T22:00:21.750000Z" },
@@ -275,7 +275,7 @@ public class HarborTests
     };
 
     [Fact]
-    public void Ingest_LiftsTheTrialIntoTheAttempt_AndCountsByProctorsDefinitions()
+    public void Ingest_LiftsTheTrialIntoTheAttempt_AndCountsByAuspexsDefinitions()
     {
         using var repo = new TestRepo();
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
@@ -359,7 +359,7 @@ public class HarborTests
     }
 
     /// <summary>
-    /// A stand-in for `uv tool run harbor@… run --config job.json`: it records its argv and the two variables proctor
+    /// A stand-in for `uv tool run harbor@… run --config job.json`: it records its argv and the two variables auspex
     /// sets, then writes one trial where the job file says: a trial of steps, as Harbor writes one for a task of steps, the one step being harbor-unit's stage.
     /// </summary>
     static string FakeUv(TestRepo repo, string trialScript) => repo.WriteScript("fake-uv.sh", $$"""
@@ -454,7 +454,7 @@ public class HarborTests
         Assert.All(grades, g => Assert.Equal(Verdict.Pass, g.Checks!["builds"].Result));
         var firstTry = repo.TryDir("harbor-unit", K, 1);
         Assert.Equal("1 try holds outdated verdicts for tests-pass: through Harbor a script check runs when the try is made, and this check has changed or been added since, so those verdicts are left out of every number. "
-            + $"Make the try again: move its directory out of bank/harbor-unit/ ({Path.GetFileName(firstTry)}) and run `proctor run harbor-unit`, which makes what is missing with the checks as they are now.", Grade.OutdatedSummary(exam.Id, grades));
+            + $"Make the try again: move its directory out of bank/harbor-unit/ ({Path.GetFileName(firstTry)}) and run `auspex run harbor-unit`, which makes what is missing with the checks as they are now.", Grade.OutdatedSummary(exam.Id, grades));
         var rows = Results.Collect(repo.Root, exam, Bank.Select(repo.Root, exam).Current);
         Assert.Equal(["tests-pass: changed since the attempt was made: fixtures/ledger/checks/tests-pass.sh, so the verdict on file may not be this check's as it is now; make the attempt again", null],
             rows.Select(r => r.Outdated));
@@ -531,7 +531,7 @@ public class HarborTests
     [InlineData("combinations.json")]
     [InlineData("retired.json")]
     [InlineData("README.md")]                 // for people: a reworded sentence is not a changed check
-    public void Grade_AFileOnlyProctorReads_OutdatesNothing(string file)
+    public void Grade_AFileOnlyAuspexReads_OutdatesNothing(string file)
     {
         var checks = GradeAgentAttempt(_ => { }, afterwards: repo => repo.Write("harbor-unit/" + file, "{}\n"));
         Assert.Equal(Verdict.Pass, checks["builds"].Result);
@@ -765,7 +765,7 @@ public class HarborTests
         Assert.Equal("tool run --exclude-newer 7 days harbor@0.24.0 run --config job.json", string.Join(" ", HarborRun.UvArgs("0.24.0")));
     }
 
-    // Codex and Qwen Code: Harbor's agents on an OpenAI-dialect route, Qwen Code's install replaced by proctor's pin check.
+    // Codex and Qwen Code: Harbor's agents on an OpenAI-dialect route, Qwen Code's install replaced by auspex's pin check.
 
     const string OpenAiUrl = "http://library:8086/x/openai/v1";
     static readonly Assistant Codex = new("codex-mini", null, null, null, "gpt-5-mini", Agent: "codex", AgentVersion: "0.163.0");
@@ -876,7 +876,7 @@ public class HarborTests
     }
 
     [Fact]
-    public void Job_QwenCode_ImportsProctorsAgent()
+    public void Job_QwenCode_ImportsAuspexsAgent()
     {
         var agent = HarborCompile.Job(QwenCode, "/t", "/j", new AgentRoute(OpenAiUrl, "sk-secret", HarborCompile.KeyEnv("qwen-code")))["agents"]![0]!;
         Assert.Null(agent["name"]);
@@ -1023,7 +1023,7 @@ public class HarborTests
     }
 
     [Fact]
-    public void Job_NbThroughHarbor_ImportsProctorsAgent_WithTheAttemptsProgram_AndTheKeyByNameOnly()
+    public void Job_NbThroughHarbor_ImportsAuspexsAgent_WithTheAttemptsProgram_AndTheKeyByNameOnly()
     {
         var route = new AgentRoute("http://library:8086/x/qcoder/v1", "sk-secret", "LLM_GATEWAY_KEY", new() { ["LLM_GATEWAY"] = "http://library:8086/x" });
         var job = HarborCompile.Job(NbThroughHarbor, "/t", "/j", route, new NbAttempt("/attempt/program.jsonl", "/exams/nb.json"));

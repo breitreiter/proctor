@@ -1,12 +1,18 @@
 # Changelog
 
-Proctor's version is `<Version>` in `Proctor.csproj`; `proctor --version`
-prints it and every log entry (`log/<id>/entry.json`) records it under `versions.proctor`.
+Auspex's version is `<Version>` in `Auspex.csproj`; `auspex --version`
+prints it and every log entry (`log/<id>/entry.json`) records it under `versions.auspex`.
+The project was called proctor until 2026-11-28, and entries from before then say so.
 Before 1.0 a minor bump means a breaking change to the layout, the file
 formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: proctor is auspex.** The command is `auspex` (`auspex.dll`),
+  and its messages, the docs and the skills (`skills/auspex-exam`,
+  `skills/auspex-answers`; copy them into your agent again) say so. The
+  viewer, which alone was called auspex before, is `auspex-view`. A Harbor
+  task it compiles is named `auspex/<exam>`.
 - **Breaking: the machine's files take the new name.** `exams/proctor.json`
   is `exams/auspex.json` (and `auspex.example.json`), `.proctor/` is
   `.auspex/`, and the env file is `~/.config/auspex/env`
