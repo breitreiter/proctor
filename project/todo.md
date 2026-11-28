@@ -236,6 +236,18 @@ of its own, for the site (`plans/site.md`), the viewer and the console.
 The augur who watched birds is the obvious starting point. When it is
 made, `assets/` and its credit line in `CLAUDE.md` go too.
 
+## Try more open models as the judge (not this weekend)
+
+The judge sits off-distribution from the agents under test (`plans/site-ia.md`,
+"What you'll need"), so with Claude and GPT being measured, it is an open model.
+Last time (the user, 2026-11-27): Gemini judged badly, and Kimi fell into thinking
+loops that burned money. The landscape may have moved since. Try the current open
+models (GLM, Kimi, Qwen, DeepSeek, …) through OpenRouter on a captured set of windows
+with known verdicts, and count usable votes, agreement, tokens and cost per verdict.
+Agree a spend cap first, and set a token cap per call,
+so a thinking loop costs a capped call and not the wallet. The site's example judge
+follows the result.
+
 ## The wrap-up list for 2026-11-01
 
 Cross-repo checklist for tying up the agent-neutral and oracle arc:
