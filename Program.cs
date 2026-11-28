@@ -52,6 +52,7 @@ static class Program
         --reader <judge>      friction: a chat judge reads each stage too and adds what rules cannot see (repair, lost, reread, dead-end, workaround), each with a checked quote; a model call per stage, kept beside it and reused
         --reason <text>       retire: why, kept with the mark
         --bring-back          retire: undo it
+        --json                retire: answer as JSON (retire/1): what was done and what is retired now
         --version             print proctor's version (see CHANGELOG.md for what changed between versions)
         --check               setup: print what is set up and what is missing, plain lines for an agent; exit 1 on a problem
         --probe               setup --check: repeat each provider's key check (lists models; no tokens)
@@ -67,6 +68,7 @@ static class Program
         var root = Directory.GetCurrentDirectory();
         string? nbPath = null, runner = null, configFile = null, reader = null, against = null, asOf = null, reason = null;
         var bringBack = false;
+        var json = false;
         List<string>? within = null;
         List<string>? labels = null, judges = null;
         var rejudge = false;
@@ -92,6 +94,7 @@ static class Program
                 case "--judge" when i + 1 < args.Length: (judges ??= []).Add(args[++i]); break;
                 case "--reason" when i + 1 < args.Length: reason = args[++i]; break;
                 case "--bring-back": bringBack = true; break;
+                case "--json": json = true; break;
                 case "--rejudge": rejudge = true; break;
                 case "--reader" when i + 1 < args.Length: reader = args[++i]; break;
                 case "--check": check = true; break;
@@ -121,8 +124,8 @@ static class Program
                 ("friction", [var exam]) => Verbs.Friction(root, exam, reader, rejudge, configFile),
                 ("report", [var exam]) => Verbs.Report(root, exam),
                 ("live", _) => Fail(NoLive),
-                ("retire", [var exam]) => Verbs.Retire(root, exam, null, reason, bringBack),
-                ("retire", [var exam, var configuration]) => Verbs.Retire(root, exam, configuration, reason, bringBack),
+                ("retire", [var exam]) => Verbs.Retire(root, exam, null, reason, bringBack, json),
+                ("retire", [var exam, var configuration]) => Verbs.Retire(root, exam, configuration, reason, bringBack, json),
                 ("setup", []) => Verbs.Setup(root, check, probe),
                 _ => Fail(Usage),
             };

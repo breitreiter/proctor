@@ -33,7 +33,7 @@ proctor coverage <exam>       # JSON: the tries of each value and configuration,
 proctor predict <exam> [name] # pin a prediction: record the checks it was made under
 proctor retire <exam> <configuration> --reason "..."   # retire a named configuration (exams/<exam>/retired.json; commit it). Nothing is deleted; run makes no new tries of it
 proctor retire <exam> <configuration> --bring-back     # undo that
-proctor retire <exam>         # which configurations are retired, since when and why
+proctor retire <exam>         # which configurations are retired, since when and why; --json on any form answers as JSON (retire/1)
 proctor --version
 ```
 
@@ -185,6 +185,29 @@ tries of it (and refuses one asked for with `--configuration` or
 The live configuration cannot be retired: make another value live first.
 `--bring-back` removes the mark, and the next `run` makes whatever tries
 it lacks.
+
+With `--json`, each form answers in JSON in place of the sentence: what it
+did (`listed`, `retired`, `reason_replaced` or `brought_back`), the mark
+that was there before as `was` (when there was one), and every
+configuration retired now, `named` saying whether `exam.json` still names
+it.
+
+```
+$ proctor retire tern-docs restructure --reason "we kept the docs as shipped" --json
+{
+  "schema": "retire/1",
+  "exam": "tern-docs",
+  "file": "exams/tern-docs/retired.json",
+  "did": "retired",
+  "configuration": "restructure",
+  "retired": {
+    "restructure": { "reason": "we kept the docs as shipped", "since": "2026-11-27", "named": true }
+  }
+}
+```
+
+It exits 0 when it did what was asked, and 1 with the reason on stderr and
+nothing changed when it is refused.
 
 ## The report
 

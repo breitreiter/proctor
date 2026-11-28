@@ -7,6 +7,8 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **`proctor retire --json`** answers as JSON (`retire/1`): what it did,
+  the mark that was there before, and every configuration retired now.
 - **Breaking: an exam is stages and axes, and nothing else.** The
   earlier shape is gone: `tasks/*.json`, `variants/*.json`, a variant's
   `bundle`, `live.json` and `proctor live`, `--variant` and `--tasks`,

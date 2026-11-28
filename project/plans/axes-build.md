@@ -1206,11 +1206,16 @@ same files: commit `0364ac0`, tag `modal-in-core`). In stages, each a commit tha
   (the stub tries and the oracle pass with a `solution/` per step, 20 minutes).
 - Attempts made under the earlier shape are not migrated: kept, listed by the viewer, in no number.
 - A stage has no labels, so `kind` on `code-change` and `nb-changes` is in a README, not in `results.jsonl`.
-- `proctor retire` has no JSON output yet (`remix.md`'s second rule).
-- The version is still 0.3.6 and everything since is under "Unreleased" in the changelog: cutting 0.4.0 is a
-  release, and tries made before and after a bump read as made under mixed conditions.
+- `proctor retire --json` answers as `retire/1` since 2026-11-28 (`remix.md`'s second rule).
+- The version is still 0.3.6 and everything since is under "Unreleased" in the changelog. The user, 2026-11-28:
+  no bump now; one major revision once the work in flight is done, tentatively 0.9, to say this is the project's
+  final form short of more runs to shake out problems.
 - The old-words gate still fails on words other than variant, most of them `cell` in the comparison's own
-  schema (`answer/1`, `Configurations.cs`), which were there before this slice.
+  schema (`answer/1`, `Configurations.cs`), which were there before this slice. The user, 2026-11-28: it has done
+  its work of keeping the two models apart and now bends the writing. Owed: one review of the code for what is
+  left of the earlier words, then the gate is cut down or removed.
+- The two authoring exams are run on a model only once the core is finished (the user, 2026-11-28).
+- `docs/configuration.md` keeps its name until the site is settled (the user, 2026-11-28).
 
 Found while porting, and fixed: the container name handed to hooks (`PROCTOR_CONTAINER`) changed with the stage and
 held `=` and `,` on an exam with axes, so no hook could have made a container by it (it is the try's now); the

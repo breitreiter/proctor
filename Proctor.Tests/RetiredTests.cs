@@ -85,6 +85,35 @@ public class RetiredTests
     }
 
     [Fact]
+    public void TheJsonAnswerSaysWhatWasDoneAndWhatIsRetiredNow()
+    {
+        using var repo = Repo();
+        repo.Write($"{Id}/retired.json", """{ "schema": "retired/1", "configurations": { "gone": { "reason": "renamed away", "since": "2026-01-02" } } }""");
+
+        var retired = Verbs.Retiring(repo.Root, Id, "rewritten", "dropped", false).Answer;
+        Assert.Equal(("retire/1", Id, $"exams/{Id}/retired.json", "retired", "rewritten"), (retired.Schema, retired.Exam, retired.File, retired.Did, retired.Configuration));
+        Assert.Null(retired.Was);
+        Assert.Equal(["gone", "rewritten"], retired.Retired.Keys);
+        Assert.False(retired.Retired["gone"].Named);
+        Assert.True(retired.Retired["rewritten"].Named);
+
+        var again = Verbs.Retiring(repo.Root, Id, "rewritten", "dropped for good", false).Answer;
+        Assert.Equal(("reason_replaced", "dropped"), (again.Did, again.Was!.Reason));
+
+        var back = Verbs.Retiring(repo.Root, Id, "rewritten", null, true).Answer;
+        Assert.Equal(("brought_back", "dropped for good"), (back.Did, back.Was!.Reason));
+        Assert.Equal(["gone"], back.Retired.Keys);
+
+        var listed = Verbs.Retiring(repo.Root, Id, null, null, false).Answer;
+        Assert.Equal(("listed", null), (listed.Did, listed.Configuration));
+
+        var json = System.Text.Json.JsonSerializer.SerializeToNode(listed, Exam.JsonOptions)!;
+        Assert.Equal("retire/1", (string)json["schema"]!);
+        Assert.Equal("renamed away", (string)json["retired"]!["gone"]!["reason"]!);
+        Assert.False((bool)json["retired"]!["gone"]!["named"]!);
+    }
+
+    [Fact]
     public void RetiredAgainTheReasonIsReplacedAndTheDateKept()
     {
         using var repo = Repo();

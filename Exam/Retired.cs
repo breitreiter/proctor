@@ -8,6 +8,18 @@ record RetiredMark(string Reason, string Since);
 /// <summary>The file: its schema name and number, and the retired configurations by name.</summary>
 record RetiredFile(string Schema, Dictionary<string, RetiredMark> Configurations);
 
+/// <summary>A retired configuration as `retire --json` gives it: the mark, and whether exam.json still names it.</summary>
+record RetiredNow(string Reason, string Since, bool Named);
+
+/// <summary>
+/// What `proctor retire --json` answers (`retire/1`): what it did (`listed`, `retired`, `reason_replaced`, `brought_back`), to which
+/// configuration, the mark that was there before, and every configuration retired now.
+/// </summary>
+record RetireAnswer(string Schema, string Exam, string File, string Did, string? Configuration, RetiredMark? Was, Dictionary<string, RetiredNow> Retired)
+{
+    public const string SchemaName = "retire/1";
+}
+
 /// <summary>
 /// exams/&lt;exam&gt;/retired.json on an exam with axes: the named configurations nobody is looking at any more, each with
 /// its reason and the date (the user, 2026-11-27), as schema `retired/1`. Written by `proctor retire`, committed with the exam and in no hash.

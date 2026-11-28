@@ -188,20 +188,32 @@ static class Verbs
     /// <summary>
     /// Retire a named configuration, with a reason, or bring one back; with no configuration, say
     /// which are retired. Nothing is deleted: `run` makes no new tries of a retired configuration and the main lists leave it out.
+    /// With `--json` the answer is what was done and what is retired now (`retire/1`), in place of the sentence.
     /// </summary>
-    public static int Retire(string root, string examId, string? name, string? reason, bool bringBack)
+    public static int Retire(string root, string examId, string? name, string? reason, bool bringBack, bool json = false)
+    {
+        var (answer, said) = Retiring(root, examId, name, reason, bringBack);
+        if (json) Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(answer, AnswerJson));
+        else foreach (var line in said) Console.WriteLine(line);
+        return 0;
+    }
+
+    /// <summary>What `retire` did, and what it says of it to a person.</summary>
+    internal static (RetireAnswer Answer, List<string> Said) Retiring(string root, string examId, string? name, string? reason, bool bringBack)
     {
         var exam = LoadExam(root, examId);
         var axes = exam.Axes;
         var file = Path.GetRelativePath(root, Retired.FileOf(exam));
         var marks = Retired.Load(exam);
+        bool Named(string n) => axes.Named.Any(c => c.Name == n);
+        RetireAnswer Answer(string did, RetiredMark? was = null) => new(RetireAnswer.SchemaName, exam.Id, file.Replace('\\', '/'), did, name, was,
+            marks.OrderBy(m => m.Key, StringComparer.Ordinal).ToDictionary(m => m.Key, m => new RetiredNow(m.Value.Reason, m.Value.Since, Named(m.Key))));
         if (name is null)
         {
             if (reason is not null || bringBack) throw new ProctorException("say which configuration: proctor retire <exam> <configuration> --reason \"...\", or --bring-back");
-            if (marks.Count == 0) Console.WriteLine($"{exam.Id}: nothing is retired; `proctor retire {exam.Id} <configuration> --reason \"...\"` retires one");
-            foreach (var (retired, mark) in marks)
-                Console.WriteLine($"{retired}: retired {mark.Since}: {mark.Reason}{(axes.Named.Any(c => c.Name == retired) ? "" : "  (exam.json names no such configuration now)")}");
-            return 0;
+            var lines = marks.Select(m => $"{m.Key}: retired {m.Value.Since}: {m.Value.Reason}{(Named(m.Key) ? "" : "  (exam.json names no such configuration now)")}").ToList();
+            if (marks.Count == 0) lines.Add($"{exam.Id}: nothing is retired; `proctor retire {exam.Id} <configuration> --reason \"...\"` retires one");
+            return (Answer("listed"), lines);
         }
         if (bringBack)
         {
@@ -209,8 +221,7 @@ static class Verbs
             if (!marks.Remove(name, out var was))
                 throw new ProctorException($"{name} is not retired ({string.Join(", ", marks.Keys.DefaultIfEmpty("nothing is"))})");
             Retired.Save(exam, marks);
-            Console.WriteLine($"{file}: {name} is back (it was retired {was.Since}: {was.Reason}); `proctor run {exam.Id}` makes what it lacks again");
-            return 0;
+            return (Answer("brought_back", was), [$"{file}: {name} is back (it was retired {was.Since}: {was.Reason}); `proctor run {exam.Id}` makes what it lacks again"]);
         }
         var configuration = axes.Named.FirstOrDefault(c => c.Name == name)
             ?? throw new ProctorException($"exam '{exam.Id}' names no configuration '{name}' ({string.Join(", ", axes.Named.Select(c => c.Name!).DefaultIfEmpty("none"))})");
@@ -219,10 +230,9 @@ static class Verbs
         var before = marks.GetValueOrDefault(name);
         marks[name] = new RetiredMark(reason.Trim(), before?.Since ?? DateTime.UtcNow.ToString("yyyy-MM-dd"));
         Retired.Save(exam, marks);
-        Console.WriteLine(before is null
-            ? $"{file}: {name} is retired. Its tries, predictions and comparisons stay; `run` makes no new tries of it. `proctor retire {exam.Id} {name} --bring-back` undoes this"
-            : $"{file}: {name} was already retired, since {before.Since}; its reason is replaced");
-        return 0;
+        return before is null
+            ? (Answer("retired"), [$"{file}: {name} is retired. Its tries, predictions and comparisons stay; `run` makes no new tries of it. `proctor retire {exam.Id} {name} --bring-back` undoes this"])
+            : (Answer("reason_replaced", before), [$"{file}: {name} was already retired, since {before.Since}; its reason is replaced"]);
     }
 
     public static int Grade(string root, string examId, List<string>? judgeRemaps = null, bool rejudge = false, string? configFile = null)
