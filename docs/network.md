@@ -105,11 +105,11 @@ the network, nothing else on the machine can be reached that way, and
 the agent's phase has no network at all. `run` refuses to start when
 nothing answers on the port. It is the same on Docker and podman.
 
-The sockets are under `$XDG_RUNTIME_DIR/proctor-relay/`, one directory
+The sockets are under `$XDG_RUNTIME_DIR/auspex-relay/`, one directory
 per run, removed when the run ends. A session with no runtime directory
 (`su` with no login session, say) gets them under the system's temporary
 directory instead. The service
-beside the agent is named `proctor-relay`, and runs on
+beside the agent is named `auspex-relay`, and runs on
 `python:3.13-alpine`, which the engine pulls once.
 
 **Never open the host's loopback to containers** to get the same effect

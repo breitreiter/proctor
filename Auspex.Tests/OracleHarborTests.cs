@@ -15,7 +15,7 @@ public class OracleHarborTests
     {
         using var repo = GateWithOracle();
         var entryDir = Path.Combine(repo.Root, "log", "exp");
-        var hash = HarborCompile.Tasks(entryDir, repo.LoadExam("gate"), _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        var hash = HarborCompile.Tasks(entryDir, repo.LoadExam("gate"), _ => new AgentRoute(null, null), "auspex-nb:0123456789abcdef");
         var agents = HarborCompile.AgentsDir(entryDir);
 
         Assert.Equal(["nb_agent.py", "oracle_user.j2", "oracle_user.py"], Directory.GetFiles(agents).Select(Path.GetFileName).Order(StringComparer.Ordinal));
@@ -35,7 +35,7 @@ public class OracleHarborTests
         using var repo = new TestRepo();
         repo.CopyExam("gate");
         var entryDir = Path.Combine(repo.Root, "log", "exp");
-        HarborCompile.Tasks(entryDir, repo.LoadExam("gate"), _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        HarborCompile.Tasks(entryDir, repo.LoadExam("gate"), _ => new AgentRoute(null, null), "auspex-nb:0123456789abcdef");
         Assert.Equal(["nb_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(entryDir)).Select(Path.GetFileName));
     }
 

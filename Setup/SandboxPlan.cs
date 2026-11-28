@@ -14,7 +14,7 @@ static class SandboxPlan
     /// <summary>One observed fact: what was asked, what came back. Nothing here is a diagnosis.</summary>
     public record Observation(string What, string Found);
 
-    /// <summary>The engine to name in proctor.json from what is installed: docker when it is there, else podman when it is, else none.</summary>
+    /// <summary>The engine to name in auspex.json from what is installed: docker when it is there, else podman when it is, else none.</summary>
     public static string? EngineFrom(IReadOnlyList<Observation> seen) =>
         Found(seen, "docker") ? "docker" : Found(seen, "podman") ? "podman" : null;
 
@@ -71,8 +71,8 @@ static class SandboxPlan
             + "`compose_warning_logs = false` (Harbor reads the compose banner as agent output).");
         b.AppendLine("- uv on PATH; it runs the pinned Harbor.");
         b.AppendLine(engine is null
-            ? "- `harbor.engine` in `exams/proctor.json` naming the engine (`docker` is the default; setup found neither, so wrote nothing)."
-            : $"- `harbor.engine` in `exams/proctor.json` naming the engine (`docker` is the default; setup wrote `{engine}` here, from what it found).");
+            ? "- `harbor.engine` in `exams/auspex.json` naming the engine (`docker` is the default; setup found neither, so wrote nothing)."
+            : $"- `harbor.engine` in `exams/auspex.json` naming the engine (`docker` is the default; setup wrote `{engine}` here, from what it found).");
         b.AppendLine();
         b.AppendLine("Why each of these exists, and the known traps (Ubuntu's pasta AppArmor profile among them), are in "
             + "`docs/podman.md` for podman and `docs/docker.md` for Docker (rootless Docker's socket, its bridge's address range, "

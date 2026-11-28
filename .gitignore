@@ -20,16 +20,18 @@ obj/
 # Local config with keys
 appsettings.json
 !appsettings.example.json
-exams/proctor.json
+exams/auspex.json
 exams/nb.json
-# A second machine's config, such as exams/proctor.other.json
-exams/proctor.*.json
+# A second machine's config, such as exams/auspex.other.json
+exams/auspex.*.json
 exams/nb.*.json
 !exams/*.example.json
 exams/codex.toml
 
 # Fixture checkouts, builds and git files, made by proctor
-.proctor/
+.auspex/
+# The frozen bench was made by proctor 0.3, which kept its work here
+bench/**/.proctor/
 
 # Reports are derived data written by `proctor report`; the smoke exam's are not worth committing
 /reports/

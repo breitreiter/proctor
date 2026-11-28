@@ -17,7 +17,7 @@ proctor list --label kind=bugfix   # only the exams carrying that label
 proctor run <exam>            # make the tries the exam lacks, of the configurations it names
 proctor run <exam> --configuration <name>   # only that named configuration
 proctor run <exam> --value docs=rewritten   # that value, with every other axis at its live value or reference
-proctor run <exam> --config exams/proctor.other.json   # another machine file in place of exams/proctor.json; also list, grade
+proctor run <exam> --config exams/auspex.other.json   # another machine file in place of exams/auspex.json; also list, grade
 proctor build <exam>          # nothing run, no model: what each value changes in the starting workspace, and each configuration against its values alone
 proctor build <exam> --value docs=rewritten   # one value's change, with its text
 proctor grade <exam>          # the checks over every stage of every current try -> checks.json; model verdicts cached in verdicts/
@@ -25,7 +25,7 @@ proctor grade <exam> --rejudge   # call the judges again instead of reusing the 
 proctor grade <exam> --judge glm=k2   # compare k2 against glm on the checks glm grades; checks.json is untouched
 proctor grade <exam> --configuration <name>   # only those tries (also --value); the rest keep their grades, so a paid judge pass can be staged
 proctor friction <exam>       # friction.json beside each stage's trajectory: where it paid a cost the stage did not ask for; rules only, no model, no key
-proctor friction <exam> --reader haiku   # a chat judge from proctor.json reads each stage too; one model call per stage, kept beside it and reused (--rejudge asks again)
+proctor friction <exam> --reader haiku   # a chat judge from auspex.json reads each stage too; one model call per stage, kept beside it and reused (--rejudge asks again)
 proctor report <exam>         # reports/<exam>/explore/{results.jsonl,stats.json,friction.json,summary.md}, stamped with what they were built from
 proctor compare <exam> docs=rewritten   # JSON: that value against its axis's live value (--against <value>), every other axis held
 proctor compare <exam> --configuration <name>   # JSON: everything that configuration changes, together, against what is live (--against <name>)

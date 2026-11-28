@@ -100,7 +100,7 @@ class OracleUser(BaseAgent):
 
     @staticmethod
     def name() -> str:
-        return "proctor-oracle"
+        return "auspex-oracle"
 
     def version(self) -> str | None:
         return None

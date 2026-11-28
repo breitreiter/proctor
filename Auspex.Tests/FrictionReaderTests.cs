@@ -22,7 +22,7 @@ public class FrictionReaderTests : IDisposable
         public void Dispose() { }
     }
 
-    readonly string attempt = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "proctor-tests", $"attempt-{Guid.NewGuid():N}")).FullName;
+    readonly string attempt = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "auspex-tests", $"attempt-{Guid.NewGuid():N}")).FullName;
     public void Dispose() => Directory.Delete(attempt, recursive: true);
 
     static JudgeClient Client(ScriptedChat chat, bool again = false) => new()

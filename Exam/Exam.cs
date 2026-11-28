@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace Auspex;
 
-// The definition tier: proctor.json, exam.json with its stages, and the program template,
+// The definition tier: auspex.json, exam.json with its stages, and the program template,
 // loaded into records and validated with a file and field on every problem.
 
 /// <summary>nb.path is the host binary and nb.config the config it runs with: the machine's side of running nb. How an exam runs it is the exam's (ExamNb).</summary>
@@ -24,7 +24,7 @@ record ExamNb(string? Runner = null, NbMounts? Mounts = null);
 record NbMounts(string? Work = null, string? Bundle = null);
 
 /// <summary>
-/// exams/proctor.json. Everything optional; the defaults are the layout's defaults. The judges are the endpoints the
+/// exams/auspex.json. Everything optional; the defaults are the layout's defaults. The judges are the endpoints the
 /// grade-time checks call; agents are where each vendor agent's model calls go (the machine's, like nb.path); harbor is
 /// how Harbor is started on this machine.
 /// </summary>
@@ -33,12 +33,12 @@ record AuspexConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, D
     public NbConfig NbOrDefault => Nb ?? new NbConfig();
     public HarborConfig HarborOrDefault => Harbor ?? new HarborConfig();
 
-    /// <summary>The file this was read from, as messages name it: exams/proctor.json, or what --config named.</summary>
-    [JsonIgnore] public string Source { get; init; } = "exams/proctor.json";
+    /// <summary>The file this was read from, as messages name it: exams/auspex.json, or what --config named.</summary>
+    [JsonIgnore] public string Source { get; init; } = "exams/auspex.json";
 }
 
 /// <summary>
-/// One entry of proctor.json's agents block: the base URL an agent's model calls go to and its key, ${VAR} resolved at
+/// One entry of auspex.json's agents block: the base URL an agent's model calls go to and its key, ${VAR} resolved at
 /// run time. The base URL's host is the one name the agent's container may reach. Config is a native config file for
 /// the agent, relative to exams/ (Codex's config.toml, which Harbor's own settings merge over): what the endpoint
 /// needs of the agent, such as tools a local server cannot take.
@@ -46,7 +46,7 @@ record AuspexConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, D
 record AgentEndpoint(string? BaseUrl, string? ApiKey, string? Config = null);
 
 /// <summary>
-/// proctor.json's harbor block: the uv that runs the exam's pinned Harbor (default: uv on PATH), nb's self-contained
+/// auspex.json's harbor block: the uv that runs the exam's pinned Harbor (default: uv on PATH), nb's self-contained
 /// linux-x64 publish directory, which the image carries where nb runs through Harbor (relative to exams/, like nb.path), and the container
 /// engine Harbor drives, its environment type: docker (the default) or podman, on this machine. An engine off the machine (Modal) was
 /// taken out of the core on 2026-11-27 and is kept at the tag modal-in-core (project/archive/modal-runs.md).
@@ -63,7 +63,7 @@ record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker
 /// Who does the work in one configuration, as its values say (<see cref="Axes.Assistant"/>); Id is the configuration's
 /// key. Without an agent it is nb, run bare: runner, harness and provider say how. With an agent it runs through Harbor
 /// in the fixture's image: a vendor agent is that agent's real CLI at a pinned version; agent nb is nb itself, the binary
-/// proctor.json's harbor.nb names, on the provider named.
+/// auspex.json's harbor.nb names, on the provider named.
 /// </summary>
 record Assistant(string? Id, string? Runner, string? Harness, string? Provider, string? Model, string? Agent = null, string? AgentVersion = null)
 {
@@ -325,14 +325,19 @@ sealed class Exam
     };
 
     /// <summary>
-    /// The machine's config: exams/proctor.json, or the file --config names (resolved against the working directory),
+    /// The machine's config: exams/auspex.json, or the file --config names (resolved against the working directory),
     /// which must exist. Relative paths inside either resolve against exams/, wherever the file is.
     /// </summary>
     public static AuspexConfig LoadConfig(string root, List<Problem> problems, string? configFile = null)
     {
         var file = configFile is null ? Path.Combine(Layout.Exams(root), Layout.AuspexConfigFile) : Path.GetFullPath(configFile);
         if (configFile is not null && !File.Exists(file)) throw new AuspexException($"--config {configFile}: no such file");
-        if (!File.Exists(file)) return new AuspexConfig(null);
+        if (!File.Exists(file))
+        {
+            // The machine's file as proctor named it, left where it was: read as nothing, it would silently drop the judges and the agents' endpoints.
+            if (File.Exists(Path.Combine(Layout.Exams(root), "proctor.json"))) throw new AuspexException($"{Layout.ExamsDir}/proctor.json is {Layout.ExamsDir}/{Layout.AuspexConfigFile} now: rename it");
+            return new AuspexConfig(null);
+        }
         var config = ReadJson<AuspexConfig>(file, problems);
         // The runner and its mounts moved to exam.json (they are the exam's, with its hooks); a leftover here would be silently ignored.
         var raw = config is null ? null : JsonNode.Parse(File.ReadAllText(file), documentOptions: new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })?["nb"];
@@ -724,7 +729,7 @@ sealed class Exam
     /// </summary>
     static void ValidateNbThroughHarbor(Assistant assistant, Action<string, string> add)
     {
-        if (assistant.AgentVersion is not null) add("agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
+        if (assistant.AgentVersion is not null) add("agent_version", "nb's version is the binary's (auspex.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
         if (string.IsNullOrWhiteSpace(assistant.Provider)) add("provider", "required for nb (a provider entry name in nb's config)");
     }
 

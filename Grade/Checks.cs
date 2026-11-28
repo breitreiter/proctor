@@ -73,7 +73,7 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     /// around the try. Proctor never uses it; hooks and runners that own a container agree on it through this. A try's
     /// id is letters, digits and hyphens, which every engine takes as a name.
     /// </summary>
-    public string Container => $"proctor-{ExamId}-{Try ?? TryNumber.ToString()}";
+    public string Container => $"auspex-{ExamId}-{Try ?? TryNumber.ToString()}";
 
     public IDictionary<string, string> Environment()
     {
@@ -143,7 +143,7 @@ static class Checks
 
     public static bool AsksAModel(JsonObject spec) => spec.Any(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck);
 
-    /// <summary>The model checks of a spec, for validating their judges against proctor.json.</summary>
+    /// <summary>The model checks of a spec, for validating their judges against auspex.json.</summary>
     public static IEnumerable<(string Name, JsonObject Spec)> ModelChecks(JsonObject? spec) =>
         (spec ?? []).Where(f => Split(f.Key).Name is Judge.Decide or Judge.JudgeCheck && f.Value is JsonObject).Select(f => (Split(f.Key).Name, (JsonObject)f.Value!));
 

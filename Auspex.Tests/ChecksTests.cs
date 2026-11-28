@@ -23,7 +23,7 @@ public class ChecksTests
     [InlineData(null, 1L, "error")]
     public void MaxDurationUsesTheManifestWallTime(long? wallTime, long spec, string expected)
     {
-        var dir = Directory.CreateTempSubdirectory("proctor-attempt").FullName;
+        var dir = Directory.CreateTempSubdirectory("auspex-attempt").FullName;
         if (wallTime is not null) File.WriteAllText(Path.Combine(dir, Layout.ManifestFile), $"{{\"duration_ms\": {wallTime}}}");
         var v = Checks.Evaluate(JsonNode.Parse($"{{\"max_duration_ms\": {spec}}}")!.AsObject(), Attempt(attemptDir: dir), Fixture("plain"));
         Assert.True(expected == v.Result, $"{v.Result} ({v.Reason})");

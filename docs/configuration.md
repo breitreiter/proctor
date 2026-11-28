@@ -85,7 +85,7 @@ can judge whether that is close enough.
 
 ## The machine's config and the judges
 
-`exams/proctor.json` says where nb is and which config it runs with; paths are
+`exams/auspex.json` says where nb is and which config it runs with; paths are
 relative to `exams/`:
 
 ```json
@@ -96,11 +96,11 @@ Without it, `nb` is taken from `PATH` and nb resolves its own config.
 `--nb <path>` overrides either.
 
 `--config <file>` on `list`, `run` and `grade` reads another
-machine file in place of `exams/proctor.json`, with the same fields and
+machine file in place of `exams/auspex.json`, with the same fields and
 its relative paths still resolved against `exams/`. An exam is the
 question and this file is the machine, so the same exam runs somewhere
 else by naming a different file: `proctor run code-change --config
-exams/proctor.other.json`. Files named `exams/proctor.*.json` and `exams/nb.*.json`
+exams/auspex.other.json`. Files named `exams/auspex.*.json` and `exams/nb.*.json`
 are gitignored, apart from the `*.example.json` ones.
 
 The same file names the judges that the model checks call at grade time,
@@ -111,9 +111,9 @@ speaks it), with a `model` sent in the request when the endpoint serves
 several; a `chat` judge is an OpenAI-dialect chat completions endpoint with
 a model name. Endpoints and keys may be `${VAR}`
 references, resolved only when `grade` runs. This repository commits only
-`exams/proctor.example.json`, which expects `LLM_GATEWAY`, the base URL of
+`exams/auspex.example.json`, which expects `LLM_GATEWAY`, the base URL of
 an OpenAI-dialect gateway that serves the routes it names, and
-`LLM_GATEWAY_KEY`, its key; your `exams/proctor.json` is gitignored, so the
+`LLM_GATEWAY_KEY`, its key; your `exams/auspex.json` is gitignored, so the
 routes you point it at stay on your machine. nb resolves the same references
 in its own config, which is how `exams/nb.json` reaches the same gateway.
 
@@ -127,10 +127,10 @@ in its own config, which is how `exams/nb.json` reaches the same gateway.
 }
 ```
 
-Keys belong in your env file, `~/.config/proctor/env` (`$XDG_CONFIG_HOME/proctor/env`
-if that is set; `%LOCALAPPDATA%\proctor\env` on Windows; `AUSPEX_ENV_FILE` names
+Keys belong in your env file, `~/.config/auspex/env` (`$XDG_CONFIG_HOME/auspex/env`
+if that is set; `%LOCALAPPDATA%\auspex\env` on Windows; `AUSPEX_ENV_FILE` names
 another), one `NAME=value` per line, `#` comments allowed. Every verb loads it at
-startup, so a `${VAR}` in `proctor.json` or nb's config resolves without an
+startup, so a `${VAR}` in `auspex.json` or nb's config resolves without an
 export, in nb, the judges, Harbor and your hooks alike; a variable already in the
 environment wins. Keep it readable only by you (`chmod 600`; proctor warns
 otherwise). It lives outside every repository on purpose: a key in it can be
@@ -294,7 +294,7 @@ Where each reaches:
   directory beside the fixture's services, `./params/<NAME>/` (empty when
   nothing sets it), for a compose service to mount and serve.
 
-**Files from git** are cloned once under `.proctor/files/`, and with
+**Files from git** are cloned once under `.auspex/files/`, and with
 `paths` only those files and directories are handed over. A path the
 revision does not have stops the run.
 
@@ -687,7 +687,7 @@ give the same file.
 
 Rules see what a call was and what came back, not what it was for.
 `proctor friction <exam> --reader <judge>` adds a reader: a chat judge from
-`proctor.json` reads each attempt once and names five more kinds of point,
+`auspex.json` reads each attempt once and names five more kinds of point,
 `fixed-own-work` (fixing its own work after something it ran failed),
 `wasted-read` (a search or read that led to nothing used later), `reread`,
 `bad-instruction` (following an instruction that could not work as given)
@@ -797,7 +797,7 @@ them asks again, and an `error` is always asked again.
 so may `ask`, read from `expect.<check name>.ask`, so one `correct` check
 can carry a rubric per stage. A built-in field set to `"@expect"` reads
 `expect.<check name>.<field>` first and `expect.<field>` second.
-`with` names a judge from `proctor.json`; without it the only judge of the
+`with` names a judge from `auspex.json`; without it the only judge of the
 needed kind is used, and several of that kind with no `with` is a problem
 `list` and `run` report. Whether an exam is judged is not declared; it follows
 from a check that asks a model, and `list` says so.
@@ -828,7 +828,7 @@ nothing and needs no network to start.
 
 The machine needs [uv](https://docs.astral.sh/uv/), which runs the pinned
 Harbor, and a container engine, set by `harbor.engine` in
-`exams/proctor.json`:
+`exams/auspex.json`:
 
 - **Docker** (the default), with the Compose and buildx CLI plugins.
   Ubuntu's `docker.io` package brings neither: install `docker-compose-v2`
@@ -915,7 +915,7 @@ AUSPEX_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
 This runs every vendor agent at its pin against a scripted stub model,
 then each `code-change` stage's reference solution through Harbor's
 verifier. It takes about twenty minutes. `AUSPEX_CONFORMANCE` may
-instead name a `proctor.json` whose `harbor` block to use.
+instead name a `auspex.json` whose `harbor` block to use.
 
 ## Running bare nb in a container
 
@@ -978,7 +978,7 @@ answer key) included, so it must never forward its environment into the
 container wholesale: pass the variables nb needs by name
 (`-e LLM_GATEWAY`). Bare nb gets only `NO_COLOR`. A mount is an absolute
 path inside the container, and `runner` or `mounts` left in
-`proctor.json` is a problem, not ignored. Script checks run on the host
+`auspex.json` is a problem, not ignored. Script checks run on the host
 after the stage, so a check that needs a toolchain only the image has
 starts a container of that image itself.
 

@@ -21,7 +21,7 @@ public class AxesHarborTests
     static string Compile(TestRepo repo, Exam exam, string key)
     {
         var dir = Path.Combine(repo.Root, "compiled", key);
-        HarborCompile.Job(dir, exam, exam.Assistants.Single(v => v.Id == key), new AgentRoute(null, null), nbImage: "proctor-nb:test");
+        HarborCompile.Job(dir, exam, exam.Assistants.Single(v => v.Id == key), new AgentRoute(null, null), nbImage: "auspex-nb:test");
         return dir;
     }
 
@@ -107,7 +107,7 @@ public class AxesHarborTests
 
         // The simulated user answers a task, never a step: the try is a task, with its instruction and its verifier at the top.
         var entry = Path.Combine(repo.Root, "entry");
-        HarborCompile.Tasks(entry, exam, _ => new AgentRoute(null, null), nbImage: "proctor-nb:test", pairs: harbor.Select(v => (v, exam.StagesOf(v.Id!)[0])).ToList());
+        HarborCompile.Tasks(entry, exam, _ => new AgentRoute(null, null), nbImage: "auspex-nb:test", pairs: harbor.Select(v => (v, exam.StagesOf(v.Id!)[0])).ToList());
         var task = Layout.HarborJobTask(entry, "ending=ok,route=harbor", exam.Id);
         Assert.Contains("MOCK:oracle=deploy-target", File.ReadAllText(Path.Combine(task, "instruction.md")));
         Assert.True(File.Exists(Path.Combine(task, "tests", "test.sh")));

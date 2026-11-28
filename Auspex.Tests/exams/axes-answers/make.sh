@@ -12,7 +12,7 @@ cp -r "$here" "$root/exams/axes-answers"
 rm "$root/exams/axes-answers/make.sh"
 cp -r "$repo/fixtures/note" "$root/fixtures/note"
 cp "$repo/exams/nb.example.json" "$root/exams/nb.json"
-printf '{ "nb": { "path": "%s", "config": "nb.json" } }\n' "$(realpath "$nb")" > "$root/exams/proctor.json"
+printf '{ "nb": { "path": "%s", "config": "nb.json" } }\n' "$(realpath "$nb")" > "$root/exams/auspex.json"
 proctor() { dotnet "$repo/bin/Debug/net10.0/auspex.dll" --root "$root" "$@"; }
 proctor build axes-answers > "$root/build.txt"
 # Every named configuration but long-b, which is left as a hole.

@@ -15,7 +15,7 @@ declare -A wrong=([add-a-task]='jot new buy milk' [not-found-exit]=2 [store-loca
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/exams" "$tmp/fixtures"
 cp -r "$here" "$tmp/exams/" && cp -r "$root/fixtures/empty" "$tmp/fixtures/"
-printf '{ "nb": { "path": "%s", "config": "nb.json" } }\n' "$nb" > "$tmp/exams/proctor.json"
+printf '{ "nb": { "path": "%s", "config": "nb.json" } }\n' "$nb" > "$tmp/exams/auspex.json"
 echo '{ "Harness": "nb", "ActiveProvider": "Mock", "ChatProviders": [ { "Name": "Mock", "Response": "OK" }, { "Name": "gemini", "Provider": "Mock" } ] }' > "$tmp/exams/nb.json"
 declare -n answer=$mode
 exam="$tmp/exams/readme-answers/exam.json"

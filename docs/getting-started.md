@@ -16,7 +16,7 @@ Follow these rules through every step of this page.
 
 - **Never handle an API key.** Do not ask for, read, echo or write one, in
   a command, a file or a message. Keys are kept in the user's env
-  file (`~/.config/proctor/env`, or `%LOCALAPPDATA%\proctor\env` on
+  file (`~/.config/auspex/env`, or `%LOCALAPPDATA%\auspex\env` on
   Windows), outside the repository. Do not open that file. Config files
   under `exams/` refer to keys as `${VAR}` and must stay that way.
 - **`proctor setup` belongs to the user.** It is interactive, asks for keys
@@ -35,7 +35,7 @@ Follow these rules through every step of this page.
   covers planning with the user, building the files, and proving the checks
   for free before a paid run.
 - **Leave the machine's files out of git.** Setup writes
-  `exams/proctor.json`, `exams/nb.json`, `exams/setup.json` and
+  `exams/auspex.json`, `exams/nb.json`, `exams/setup.json` and
   `exams/sandbox-plan.md`, and lists them in `exams/.gitignore`. Edit only
   the entries an exam needs.
 - **Never open the host's loopback interface to containers**, and never

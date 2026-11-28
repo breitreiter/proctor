@@ -77,7 +77,7 @@ only those passes.
 
 ## 5. Where the model gateway can be
 
-An agent's container may reach one host, the one in `proctor.json`'s
+An agent's container may reach one host, the one in `auspex.json`'s
 `agents.<agent>.base_url`, and what its fixture provides
 ([`network.md`](network.md) has the whole rule). Where that host is
 decides whether this works.
@@ -188,11 +188,11 @@ finite pool.
 ## 7. Checking a machine: conformance
 
 ```bash
-AUSPEX_CONFORMANCE=<proctor.json> dotnet test --no-build --filter ConformanceTests
+AUSPEX_CONFORMANCE=<auspex.json> dotnet test --no-build --filter ConformanceTests
 ```
 
 `AUSPEX_CONFORMANCE=1` takes `harbor.uv` and `harbor.engine` from the
-repository's `exams/proctor.json`; a path takes them from that file
+repository's `exams/auspex.json`; a path takes them from that file
 instead, so a machine can be checked on podman without changing its
 config. A file holding only `{"harbor": {"engine": "podman"}}` is enough.
 About twenty minutes (seventeen for the vendor agents, three and a half
@@ -234,7 +234,7 @@ exec bwrap \
   --bind "$R/containers" "$R/containers" \
   --bind "$R/libpod" "$R/libpod" \
   --bind "$R/podman" "$R/podman" \
-  --tmpfs /tmp --bind-try /tmp/proctor-tests /tmp/proctor-tests \
+  --tmpfs /tmp --bind-try /tmp/auspex-tests /tmp/auspex-tests \
   --chdir "$PWD" \
   --clearenv \
   --setenv HOME "$H" --setenv USER "$USER" --setenv XDG_RUNTIME_DIR "$R" \

@@ -336,7 +336,7 @@ public class RunnerTests
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
         var fixture = repo.LoadExam("smoke").Fixtures["note"];
-        var work = Path.Combine(repo.Root, ".proctor/work/x");
+        var work = Path.Combine(repo.Root, ".auspex/work/x");
         var attempt = Path.Combine(repo.Root, "attempts/x");
         Directory.CreateDirectory(attempt);
 
@@ -404,7 +404,7 @@ public class RunnerTests
         Assert.Contains($"cwd={work}\n", stderr);
         Assert.Contains($"work={work}\n", stderr);
         // The container's name is the try's: the exam and the id the try is kept under.
-        var container = $"proctor-smoke-{Path.GetFileName(repo.TryDir("smoke", A, 1))}";
+        var container = $"auspex-smoke-{Path.GetFileName(repo.TryDir("smoke", A, 1))}";
         Assert.Contains($"container={container}\n", stderr);
         Assert.Contains("runner=runners/spy.sh\n", stderr);
         Assert.Contains("nocolor=1\n", stderr);
@@ -481,7 +481,7 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"),
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "auspex.json"),
             $$"""{ "nb": { "path": "{{TestRepo.NbPath}}", "runner": "runners/x.sh", "mounts": { "work": "/work" } } }""");
         var problems = new List<Problem>();
         Exam.LoadConfig(repo.Root, problems);

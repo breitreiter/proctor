@@ -20,7 +20,7 @@ mkdir -p "$out/records"
 root="$(mktemp -d)/root"
 cp -r "$WRITTEN_ROOT" "$root" || fail "could not copy the written exam"
 id=$WRITTEN_ID; dir="$root/exams/$id"; def="$dir/exam.json"
-rm -rf "$root/bank" "$root/log" "$root/exams-seen" "$root/reports" "$root/.proctor" "$dir/predictions" "$dir/retired.json" "$dir/combinations.json"
+rm -rf "$root/bank" "$root/log" "$root/exams-seen" "$root/reports" "$root/.auspex" "$root/.proctor" "$dir/predictions" "$dir/retired.json" "$dir/combinations.json"
 jq -e . "$def" >/dev/null 2>&1 || fail "exams/$id/exam.json is not JSON"
 cp "$def" "$out/written-exam.json"
 jq -e '(.axes | type == "object") and (.configurations | type == "object" and length > 0)' "$def" >/dev/null 2>&1 \
@@ -59,7 +59,7 @@ jq --argjson plants "$names" '
 providers=$( { jq -r '.axes[] | (.values // {})[] | .provider // empty' "$def"; sed -nE 's/^[[:space:]]*provider[[:space:]]+([^[:space:]{]+)[[:space:]]*$/\1/p' "$dir/program.nb" 2>/dev/null; } | sort -u | grep -vx Mock)
 jq -n --arg p "$providers" '{Harness: "nb", ActiveProvider: "Mock", Trust: false,
   ChatProviders: ([{Name: "Mock"}] + [$p | split("\n")[] | select(. != "") | {Name: ., Provider: "Mock"}])}' >"$root/exams/trial-nb.json"
-jq -n --arg nb "$(command -v nb)" '{nb: {path: $nb, config: "trial-nb.json"}}' >"$root/exams/proctor.json"
+jq -n --arg nb "$(command -v nb)" '{nb: {path: $nb, config: "trial-nb.json"}}' >"$root/exams/auspex.json"
 
 export TRIAL_PLANTS="$plants" TRIAL_CONFIGURATIONS="$out/configurations.json" TRIAL_RECORDS="$out/records"
 cd "$root"

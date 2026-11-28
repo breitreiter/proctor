@@ -1,7 +1,7 @@
 namespace Auspex;
 
 /// <summary>
-/// A value's files from a git revision: the repository cloned once per revision under .proctor/files/, and, when the
+/// A value's files from a git revision: the repository cloned once per revision under .auspex/files/, and, when the
 /// value names paths, only those files and directories copied out into a directory of their own, named by the source's
 /// identity so two subsets of one revision sit apart. Fetched when a configuration that carries them is built or run,
 /// never by `list`: a value's identity is its revision and paths, which need no clone to know.

@@ -88,7 +88,7 @@ key, so `docs-and-examples` shows the other exams but not this one.
 ## Run it
 
 ```bash
-export LLM_GATEWAY=... LLM_GATEWAY_KEY=...     # the gateway exams/nb.json and exams/proctor.json name (copied from *.example.json)
+export LLM_GATEWAY=... LLM_GATEWAY_KEY=...     # the gateway exams/nb.json and exams/auspex.json name (copied from *.example.json)
 dotnet build                                   # the trial grades with this build
 exams/exam-authoring/reference/shakedown.sh    # optional: the trial against the references, ~2 min
 proctor run exam-authoring

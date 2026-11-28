@@ -6,7 +6,7 @@ namespace Auspex.Tests;
 
 /// <summary>
 /// Runs only when AUSPEX_CONFORMANCE is set; it needs Docker or podman, uv and Harbor, and network to build the images.
-/// `1` takes harbor.uv and harbor.engine from this repository's exams/proctor.json; a path takes them from that file.
+/// `1` takes harbor.uv and harbor.engine from this repository's exams/auspex.json; a path takes them from that file.
 /// </summary>
 sealed class ConformanceFactAttribute : FactAttribute
 {
@@ -27,11 +27,11 @@ public class ConformanceTests
 {
     const string Stub = "http://localhost:8765";
 
-    /// <summary>The Harbor conformance runs on: harbor.uv and harbor.engine of the proctor.json AUSPEX_CONFORMANCE names.</summary>
+    /// <summary>The Harbor conformance runs on: harbor.uv and harbor.engine of the auspex.json AUSPEX_CONFORMANCE names.</summary>
     static (string Uv, string Engine) MachineHarbor()
     {
         var named = Environment.GetEnvironmentVariable("AUSPEX_CONFORMANCE");
-        var file = named is null or "1" ? Path.Combine(TestRepo.SourceRoot, "exams", "proctor.json") : Path.GetFullPath(named);
+        var file = named is null or "1" ? Path.Combine(TestRepo.SourceRoot, "exams", "auspex.json") : Path.GetFullPath(named);
         var harbor = File.Exists(file) ? JsonNode.Parse(File.ReadAllText(file))?["harbor"] : null;
         return (harbor?["uv"]?.GetValue<string>() ?? "uv", harbor?["engine"]?.GetValue<string>() ?? "docker");
     }
@@ -42,7 +42,7 @@ public class ConformanceTests
         using var repo = new TestRepo();
         repo.CopyExam("conformance");
         var (uv, engine) = MachineHarbor();
-        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), JsonSerializer.Serialize(new
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "auspex.json"), JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
             agents = new Dictionary<string, object>

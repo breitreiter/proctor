@@ -68,15 +68,15 @@ public class RelayTests
         using var repo = new TestRepo();
         repo.CopyExam("conformance");
         var entryDir = Path.Combine(repo.Root, "log", "exp");
-        HarborCompile.Tasks(entryDir, repo.LoadExam("conformance"), _ => new AgentRoute("http://localhost:8086/v1", "key"), relayDir: "/run/user/1000/proctor-relay/abc");
+        HarborCompile.Tasks(entryDir, repo.LoadExam("conformance"), _ => new AgentRoute("http://localhost:8086/v1", "key"), relayDir: "/run/user/1000/auspex-relay/abc");
         var task = Layout.HarborJobTask(entryDir, "script=ok,assistant=codex", "conformance");
 
         var compose = File.ReadAllText(Path.Combine(task, "environment", "docker-compose.yaml")).Split('\n');
         var services = Array.IndexOf(compose, "services:");
         Assert.Equal("  main: { cap_drop: [NET_RAW] }", compose[services + 1]);
-        Assert.Equal("  proctor-relay: { image: \"python:3.13-alpine\", command: [\"python\", \"-u\", \"/proctor-relay.py\", \"/run/proctor-relay\", \"8086\"], volumes: [\"./proctor-relay.py:/proctor-relay.py:ro\", \"/run/user/1000/proctor-relay/abc:/run/proctor-relay\"] }", compose[services + 2]);
+        Assert.Equal("  auspex-relay: { image: \"python:3.13-alpine\", command: [\"python\", \"-u\", \"/auspex-relay.py\", \"/run/auspex-relay\", \"8086\"], volumes: [\"./auspex-relay.py:/auspex-relay.py:ro\", \"/run/user/1000/auspex-relay/abc:/run/auspex-relay\"] }", compose[services + 2]);
         Assert.Contains("  stub:", compose);
-        Assert.True(File.Exists(Path.Combine(task, "environment", "proctor-relay.py")));
+        Assert.True(File.Exists(Path.Combine(task, "environment", "auspex-relay.py")));
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
         Assert.DoesNotContain("allowed_hosts", toml);
         Assert.Equal(2, toml.Split("network_mode = \"no-network\"").Length - 1 - 1);   // the agent's and the environment's; the verifier's is the third
@@ -97,8 +97,8 @@ public class RelayTests
         foreach (var entryDir in new[] { served, none })
         {
             var task = Layout.HarborJobTask(entryDir, "script=ok,assistant=codex", "conformance");
-            Assert.DoesNotContain("proctor-relay", File.ReadAllText(Path.Combine(task, "environment", "docker-compose.yaml")));
-            Assert.False(File.Exists(Path.Combine(task, "environment", "proctor-relay.py")));
+            Assert.DoesNotContain("auspex-relay", File.ReadAllText(Path.Combine(task, "environment", "docker-compose.yaml")));
+            Assert.False(File.Exists(Path.Combine(task, "environment", "auspex-relay.py")));
             Assert.Contains("allowed_hosts = [\"localhost\"]", File.ReadAllText(Path.Combine(task, "task.toml")));
         }
     }
@@ -115,7 +115,7 @@ public class RelayTests
         var task = Layout.HarborJobTask(entryDir, "assistant=cc-haiku", "harbor-unit");
 
         Assert.Equal(
-            "services:\n  main: { cap_drop: [NET_RAW] }\n  proctor-relay: { image: \"python:3.13-alpine\", command: [\"python\", \"-u\", \"/proctor-relay.py\", \"/run/proctor-relay\", \"8086\"], volumes: [\"./proctor-relay.py:/proctor-relay.py:ro\", \"/run/x:/run/proctor-relay\"] }\n",
+            "services:\n  main: { cap_drop: [NET_RAW] }\n  auspex-relay: { image: \"python:3.13-alpine\", command: [\"python\", \"-u\", \"/auspex-relay.py\", \"/run/auspex-relay\", \"8086\"], volumes: [\"./auspex-relay.py:/auspex-relay.py:ro\", \"/run/x:/run/auspex-relay\"] }\n",
             File.ReadAllText(Path.Combine(task, "environment", "docker-compose.yaml")));
         Assert.Contains("[agent]\ntimeout_sec", File.ReadAllText(Path.Combine(task, "task.toml")));
         Assert.DoesNotContain("allowed_hosts", File.ReadAllText(Path.Combine(task, "task.toml")));

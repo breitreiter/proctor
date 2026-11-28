@@ -12,7 +12,7 @@ set -uo pipefail
 id=$1
 fail() { jq -n --arg e "$1" '{error: $e}' >/out/trial.json; echo "$1"; exit 0; }
 root=/tmp/root
-cp -r /authored "$root" && rm -rf "$root/bank" "$root/log" "$root/exams-seen" "$root/reports" "$root/.proctor" "$root/.bundle" \
+cp -r /authored "$root" && rm -rf "$root/bank" "$root/log" "$root/exams-seen" "$root/reports" "$root/.auspex" "$root/.bundle" \
   "$root/exams/$id/predictions" "$root/exams/$id/retired.json" "$root/exams/$id/combinations.json"
 e="$root/exams/$id/exam.json"; defs="$root/exams"
 [ -f "$e" ] || fail "no exams/$id/exam.json"
@@ -37,7 +37,7 @@ jq --argjson m "$asks_model" --argjson plants "$plants" '
    "$e" >"$e.trial" || fail "exams/$id/exam.json could not be read as an exam of stages and axes"
 mv "$e.trial" "$e"
 providers=$(jq -c '[.axes[] | (.values // {})[] | .provider // empty] | unique | map(select(. != "Mock"))' "$e")
-jq -n '{nb: {path: "/opt/nb/nb", config: "trial-nb.json"}}' >"$defs/proctor.json"
+jq -n '{nb: {path: "/opt/nb/nb", config: "trial-nb.json"}}' >"$defs/auspex.json"
 jq -n --argjson p "$providers" '{Harness: "nb", ActiveProvider: "Mock", Trust: false, ChatProviders: ([{Name: "Mock"}] + [$p[] | {Name: ., Provider: "Mock"}])}' >"$defs/trial-nb.json"
 
 cd "$root"

@@ -7,7 +7,7 @@
 set -euo pipefail
 root=$(cd "$AUSPEX_EXAM_DIR/../.." && pwd)
 rev=$(jq -r --arg v "$AUSPEX_AXIS_DOCS" '.axes.docs.values[$v].files.rev' "$AUSPEX_EXAM_DIR/exam.json")
-build="$root/.proctor/proctor-builds/$rev"
+build="$root/.auspex/auspex-builds/$rev"
 [ -f "$build/proctor.dll" ] || { echo "no proctor build at $build: the configuration's setup did not run"; exit 1; }
 mkdir -p "$AUSPEX_WORK/.bundle"
 if [ -z "$AUSPEX_RUNNER" ]; then
@@ -22,7 +22,7 @@ args=(-d --name "$AUSPEX_CONTAINER"
       -v "$AUSPEX_WORK:$AUSPEX_WORK_MOUNT"
       -v "$build:$AUSPEX_WORK_MOUNT/.bundle/proctor:ro"
       -v "$AUSPEX_NB_CONFIG:/nb/config.json:ro"
-      -v proctor-nuget:/home/agent/.nuget/packages
+      -v auspex-nuget:/home/agent/.nuget/packages
       -e LLM_GATEWAY -e LLM_GATEWAY_KEY)
 # nb's config names the variables it reads (${VAR}) and the hosts it calls: the container gets both, whatever this machine calls them.
 for var in $(grep -oE '\$\{[A-Za-z_][A-Za-z0-9_]*\}' "$AUSPEX_NB_CONFIG" | tr -d '${}' | sort -u); do args+=(-e "$var"); done
@@ -30,5 +30,5 @@ for host in $( { printf '%s\n' "${LLM_GATEWAY:-}"; grep -oE 'https?://[^/:"$ ]+'
   if ip=$(getent hosts "$host" | cut -d' ' -f1 | head -1) && [ -n "$ip" ]; then args+=(--add-host "$host:$ip"); fi
 done
 [ "$engine" = podman ] && args+=(--userns=keep-id)
-"$engine" run "${args[@]}" proctor-dotnet sleep infinity >/dev/null
+"$engine" run "${args[@]}" auspex-dotnet sleep infinity >/dev/null
 echo "$engine container $AUSPEX_CONTAINER: $AUSPEX_WORK at $AUSPEX_WORK_MOUNT, $build at $AUSPEX_WORK_MOUNT/.bundle/proctor"

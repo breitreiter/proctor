@@ -573,7 +573,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
 
     /// <summary>
     /// Where an agent's model calls go, ${VAR} resolved now: the key never reaches a file. A vendor agent's is
-    /// proctor.json's agents block; nb's is its own config's provider entry, whose endpoint variables go to the agent's
+    /// auspex.json's agents block; nb's is its own config's provider entry, whose endpoint variables go to the agent's
     /// process by value and whose key goes by name, as on the bare path, where nb resolves them itself. A provider
     /// with no endpoint (Mock) reaches nothing.
     /// </summary>
@@ -581,7 +581,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
     {
         if (!assistant.IsVendor) return NbRoute(nb, assistant);
         var endpoint = config.Agents?.GetValueOrDefault(assistant.Agent!)
-            ?? throw new AuspexException($"{config.Source} has no agents.{assistant.Agent} ({assistant.Id}): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
+            ?? throw new AuspexException($"{config.Source} has no agents.{assistant.Agent} ({assistant.Id}): add {{\"base_url\", \"api_key\"}} for it, as in auspex.example.json");
         var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"{config.Source} agents.{assistant.Agent}.base_url").TrimEnd('/');
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new AuspexException($"{config.Source} agents.{assistant.Agent}.base_url: '{baseUrl}' is not a URL");
         var agentConfig = endpoint.Config is null ? null : Path.GetFullPath(Path.Combine(Layout.Exams(root), endpoint.Config));
@@ -628,7 +628,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         return new AgentRoute(baseUrl, key is null ? null : ResolveEnv($"${{{key}}}", $"{where} {assistant.Provider}.ApiKey"), key, env);
     }
 
-    /// <summary>nb's layer from proctor.json harbor.nb, which must be the same nb as the host binary that compiles the programs and runs nb bare.</summary>
+    /// <summary>nb's layer from auspex.json harbor.nb, which must be the same nb as the host binary that compiles the programs and runs nb bare.</summary>
     static string NbImage(string root, AuspexConfig config, string hostVersion)
     {
         var publish = config.Harbor?.Nb ?? throw new AuspexException($"nb runs through Harbor on its self-contained linux-x64 publish: set harbor.nb in {config.Source} to its directory");
@@ -638,7 +638,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         return tag;
     }
 
-    /// <summary>The directory of nb's publish, proctor.json harbor.nb resolved against exams/.</summary>
+    /// <summary>The directory of nb's publish, auspex.json harbor.nb resolved against exams/.</summary>
     static string NbPublish(string root, AuspexConfig config) => Path.GetFullPath(Path.Combine(Layout.Exams(root), config.Harbor!.Nb!));
 
     static string ResolveEnv(string value, string field) =>
@@ -769,8 +769,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
     {
         var nb = config.NbOrDefault;
         var examsDir = Layout.Exams(root);
-        if (!File.Exists(Path.Combine(root, config.Source)) && File.Exists(Path.Combine(examsDir, "proctor.example.json")))
-            throw new AuspexException("no exams/proctor.json: run `proctor setup` at a terminal, which writes it (skip every job for a config the playground runs on); or copy exams/proctor.example.json and nb.example.json beside themselves and point them at your gateway");
+        if (!File.Exists(Path.Combine(root, config.Source)) && File.Exists(Path.Combine(examsDir, "auspex.example.json")))
+            throw new AuspexException("no exams/auspex.json: run `proctor setup` at a terminal, which writes it (skip every job for a config the playground runs on); or copy exams/auspex.example.json and nb.example.json beside themselves and point them at your gateway");
         var path = nbOverride ?? nb.Path;
         if (path.Contains(Path.DirectorySeparatorChar)) path = Path.GetFullPath(Path.Combine(nbOverride is null ? examsDir : Directory.GetCurrentDirectory(), path));
         else if (FindOnPath(path) is { } found) path = found;
@@ -813,7 +813,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         var proctor = AuspexVersion;
         var result = Subprocess.Run(nbPath, ["--version"], Path.GetDirectoryName(nbPath)!, new Dictionary<string, string> { ["NO_COLOR"] = "1" });
         var nb = result.Started && result.ExitCode == 0 ? result.Stdout.Trim().Split('+')[0] : "";
-        return new() { ["proctor"] = proctor, ["nb"] = nb.Length > 0 ? nb : "unknown" };
+        return new() { ["auspex"] = proctor, ["nb"] = nb.Length > 0 ? nb : "unknown" };
     }
 
     static GitInfo? GitInfo(string root)

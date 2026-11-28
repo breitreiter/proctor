@@ -14,7 +14,7 @@ namespace Auspex;
 // `judge` asks a chat model a criterion over a window and reads a label with verbatim evidence, reasoning discarded.
 // Both write everything they sent and received to verdicts/ beside the evidence; checks.json gets a Verdict like any other.
 
-/// <summary>The judges of exams/proctor.json with the transports the checks call through. Tests hand in fakes; the verbs hand in the real ones.</summary>
+/// <summary>The judges of exams/auspex.json with the transports the checks call through. Tests hand in fakes; the verbs hand in the real ones.</summary>
 sealed class JudgeClient
 {
     public required Dictionary<string, JudgeDef> Defs { get; init; }
@@ -81,7 +81,7 @@ sealed class JudgeClient
             var parts = r.Split('=', 2);
             if (parts.Length != 2 || parts.Any(string.IsNullOrWhiteSpace)) throw new AuspexException($"--judge expects from=to, got '{r}'");
             foreach (var name in parts)
-                if (config.Judges?.ContainsKey(name) != true) throw new AuspexException($"--judge {r}: no judge '{name}' in exams/proctor.json");
+                if (config.Judges?.ContainsKey(name) != true) throw new AuspexException($"--judge {r}: no judge '{name}' in exams/auspex.json");
             remap[parts[0]] = parts[1];
         }
         return new JudgeClient { Defs = config.Judges ?? [], Remap = remap, Rejudge = rejudge, Note = note ?? (_ => { }) };
@@ -203,7 +203,7 @@ static class Judge
         if (spec.FirstOrDefault(f => !known.Contains(f.Key)) is { Key: { } extra }) return $"unknown field '{extra}'; known: {string.Join(", ", known)}";
         if (spec["ask"] is not JsonValue a || !a.TryGetValue<string>(out var ask) || string.IsNullOrWhiteSpace(ask)) return "ask is required: the question, in a sentence, or @expect";
         if (Window.Validate((spec["window"] as JsonValue)?.GetValue<string>()) is { } w) return $"window: {w}";
-        if (spec["with"] is { } with && (with is not JsonValue wv || !wv.TryGetValue<string>(out _))) return "with is a judge name from exams/proctor.json";
+        if (spec["with"] is { } with && (with is not JsonValue wv || !wv.TryGetValue<string>(out _))) return "with is a judge name from exams/auspex.json";
         var expect = spec["expect"];
         var fromTask = IsFromExpect(expect);
         if (name == Decide)
@@ -224,7 +224,7 @@ static class Judge
         return null;
     }
 
-    /// <summary>The check's judge exists in proctor.json; null when it does. Called when the exam is loaded with the config in hand.</summary>
+    /// <summary>The check's judge exists in auspex.json; null when it does. Called when the exam is loaded with the config in hand.</summary>
     public static string? ValidateUse(string name, JsonObject spec, Dictionary<string, JudgeDef>? judges)
     {
         Judges.Resolve(judges, KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), out var problem);
@@ -244,7 +244,7 @@ static class Judge
 
     public static Verdict Evaluate(string name, JsonObject spec, string check, AttemptContext attempt, Transcript t)
     {
-        var client = attempt.Judges ?? throw new AuspexException($"check '{check}': grading a {name} check needs the judges of exams/proctor.json");
+        var client = attempt.Judges ?? throw new AuspexException($"check '{check}': grading a {name} check needs the judges of exams/auspex.json");
         var (judge, def) = client.Resolve(KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), check);
 
         // What the stage supplies under the check's name: the expectation itself, or {ask, expect} when the question is the stage's too.

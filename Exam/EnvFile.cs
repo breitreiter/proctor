@@ -1,7 +1,7 @@
 namespace Auspex;
 
 /// <summary>
-/// The user's env file, <c>~/.config/proctor/env</c>: <c>NAME=value</c> lines that every verb loads into
+/// The user's env file, <c>~/.config/auspex/env</c>: <c>NAME=value</c> lines that every verb loads into
 /// its environment at startup, so a <c>${VAR}</c> in nb's config, a judge or an agent route resolves without an
 /// export. A variable already in the environment wins. The file is the user's, never the repository's, so a
 /// key in it can be neither committed nor copied into a work directory.
@@ -10,16 +10,25 @@ static class EnvFile
 {
     public const string OverrideVariable = "AUSPEX_ENV_FILE";
 
-    /// <summary><c>$AUSPEX_ENV_FILE</c>, else <c>$XDG_CONFIG_HOME/proctor/env</c>, else <c>~/.config/proctor/env</c> (on Windows, <c>%LOCALAPPDATA%\proctor\env</c>: local, not roaming, so a key never syncs to a domain profile server).</summary>
+    /// <summary><c>$AUSPEX_ENV_FILE</c>, else <c>$XDG_CONFIG_HOME/auspex/env</c>, else <c>~/.config/auspex/env</c> (on Windows, <c>%LOCALAPPDATA%\auspex\env</c>: local, not roaming, so a key never syncs to a domain profile server).</summary>
     public static string DefaultPath()
     {
         if (Environment.GetEnvironmentVariable(OverrideVariable) is { Length: > 0 } explicitPath) return explicitPath;
         if (OperatingSystem.IsWindows())
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "proctor", "env");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "auspex", "env");
         var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") is { Length: > 0 } xdg
             ? xdg
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        return Path.Combine(config, "proctor", "env");
+        return Path.Combine(config, "auspex", "env");
+    }
+
+    /// <summary>The env file where proctor kept it, when it is still there and the new one is not: its keys would silently not load.</summary>
+    public static string? LeftBehind()
+    {
+        if (Environment.GetEnvironmentVariable(OverrideVariable) is { Length: > 0 }) return null;
+        var now = DefaultPath();
+        var before = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(now)!)!, "proctor", "env");
+        return File.Exists(before) && !File.Exists(now) ? before : null;
     }
 
     /// <summary>

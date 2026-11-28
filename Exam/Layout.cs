@@ -11,17 +11,17 @@ static class Layout
     public const string LogDir = "log";
     public const string ExamsSeenDir = "exams-seen";
     public const string ReportsDir = "reports";
-    public const string WorkDir = ".proctor/work";
+    public const string WorkDir = ".auspex/work";
     /// <summary>Where a value's files from a git revision are cloned, and the paths it names copied out.</summary>
-    public const string GitFilesDir = ".proctor/files";
+    public const string GitFilesDir = ".auspex/files";
     /// <summary>What `proctor build` leaves: each value's change from the reference build, and its scratch checkouts while it runs.</summary>
-    public const string BuildsDir = ".proctor/builds";
+    public const string BuildsDir = ".auspex/builds";
     /// <summary>In a try: what its setup hook did to the checkout, as a patch.</summary>
     public const string SetupPatchFile = "setup.patch";
     /// <summary>Beside exam.json: which configurations of several values `proctor build` found to be their values put together, and which not.</summary>
     public const string CombinationsFile = "combinations.json";
 
-    public const string AuspexConfigFile = "proctor.json";
+    public const string AuspexConfigFile = "auspex.json";
     public const string ExamFile = "exam.json";
     public const string ProgramTemplateFile = "program.nb";
     /// <summary>Beside the definition in the earlier shape, and read only to say so: a task per file.</summary>

@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Auspex;
 
 /// <summary>
-/// One entry of exams/proctor.json's judges block: an endpoint proctor's own checks call at grade time. The question is
+/// One entry of exams/auspex.json's judges block: an endpoint proctor's own checks call at grade time. The question is
 /// the exam's (a decide or judge check); the endpoint is the machine's, like nb.path. Kind is the wire shape, never a
 /// vendor: systemone (the System One request, typed questions with probabilities: TypeSafe's /v1/systemone, OpenRouter's
 /// /alpha/decisions, a local server) or chat (OpenAI-dialect chat completions). A systemone model is sent in the request
@@ -30,7 +30,7 @@ record JudgeDef(string? Kind, string? Endpoint, string? Model, string? ApiKey, s
 
     static string Resolve(string value, string judge, string field) =>
         EnvRef.Replace(value, m => Environment.GetEnvironmentVariable(m.Groups[1].Value)
-            ?? throw new AuspexException($"judge '{judge}': {m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} (exams/proctor.json judges.{judge}.{field})"));
+            ?? throw new AuspexException($"judge '{judge}': {m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} (exams/auspex.json judges.{judge}.{field})"));
 
     /// <summary>The endpoint with every ${VAR} stood in for by a URL, so its shape can be checked before any is set.</summary>
     public string EndpointShape => EnvRef.Replace(Endpoint ?? "", "http://x");
@@ -76,16 +76,16 @@ static class Judges
         problem = null;
         if (with is not null)
         {
-            if (judges is null || !judges.TryGetValue(with, out var named)) { problem = $"no judge '{with}' in exams/proctor.json judges"; return null; }
+            if (judges is null || !judges.TryGetValue(with, out var named)) { problem = $"no judge '{with}' in exams/auspex.json judges"; return null; }
             if (named.Kind != kind) { problem = $"judge '{with}' is {named.Kind}; this check needs {kind}"; return null; }
             return (with, named);
         }
         var ofKind = (judges ?? []).Where(j => j.Value.Kind == kind).ToList();
         problem = ofKind.Count switch
         {
-            0 => $"no {kind} judge in exams/proctor.json judges",
+            0 => $"no {kind} judge in exams/auspex.json judges",
             1 => null,
-            _ => $"several {kind} judges in exams/proctor.json ({string.Join(", ", ofKind.Select(j => j.Key))}); say which with `with`",
+            _ => $"several {kind} judges in exams/auspex.json ({string.Join(", ", ofKind.Select(j => j.Key))}); say which with `with`",
         };
         return ofKind.Count == 1 ? (ofKind[0].Key, ofKind[0].Value) : null;
     }

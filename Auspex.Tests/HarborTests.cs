@@ -38,14 +38,14 @@ public class HarborTests
         return Runner.Run(repo.Root, exam, Exam.LoadConfig(repo.Root, []), null, null, "test", log ?? TextWriter.Null, keys);
     }
 
-    /// <summary>harbor-unit, with proctor.json naming the agent's endpoint, a key from a variable only this test sets, and uv as given.</summary>
+    /// <summary>harbor-unit, with auspex.json naming the agent's endpoint, a key from a variable only this test sets, and uv as given.</summary>
     static (TestRepo Repo, string KeyVar) AgentRepo(string? uv = null)
     {
         var repo = new TestRepo();
         repo.CopyExam("harbor-unit");
         var keyVar = "AUSPEX_TEST_KEY_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
         Environment.SetEnvironmentVariable(keyVar, "sk-test-" + keyVar);
-        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), JsonSerializer.Serialize(new
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "auspex.json"), JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
             agents = new Dictionary<string, object> { ["claude-code"] = new { base_url = BaseUrl, api_key = "${" + keyVar + "}" } },
@@ -715,7 +715,7 @@ public class HarborTests
         using var scratch = new TestRepo();
         var (repo, _) = AgentRepo(FakeUv(scratch, "exit 1"));
         using var _r = repo;
-        var config = Path.Combine(repo.Root, "exams", "proctor.json");
+        var config = Path.Combine(repo.Root, "exams", "auspex.json");
         var c = ReadJson(config); c["harbor"]!["engine"] = "podman"; File.WriteAllText(config, c.ToJsonString());
         var id = Run(repo)!;
         Assert.Equal("podman", ReadJson(Path.Combine(Layout.LogEntry(repo.Root, id), "entry.json"))["harbor"]!["engine"]!.GetValue<string>());
@@ -734,7 +734,7 @@ public class HarborTests
         Assert.False(Directory.Exists(Path.Combine(repo.Root, "log")));
     }
 
-    // A second machine file (--config) in place of exams/proctor.json.
+    // A second machine file (--config) in place of exams/auspex.json.
 
     const string PublicUrl = "https://api.anthropic.com";
 
@@ -743,7 +743,7 @@ public class HarborTests
     {
         var (repo, keyVar) = AgentRepo();
         using var _r = repo;
-        var file = Path.Combine(repo.Root, "exams", "proctor.other.json");
+        var file = Path.Combine(repo.Root, "exams", "auspex.other.json");
         File.WriteAllText(file, JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
@@ -752,9 +752,9 @@ public class HarborTests
         }));
         var config = Exam.LoadConfig(repo.Root, [], file);
         Assert.Equal("podman", config.HarborOrDefault.Engine);
-        Assert.Equal(Path.Combine("exams", "proctor.other.json"), config.Source);
+        Assert.Equal(Path.Combine("exams", "auspex.other.json"), config.Source);
         Assert.Equal("docker", Exam.LoadConfig(repo.Root, []).HarborOrDefault.Engine);
-        Assert.Equal(Path.Combine("exams", "proctor.json"), Exam.LoadConfig(repo.Root, []).Source);
+        Assert.Equal(Path.Combine("exams", "auspex.json"), Exam.LoadConfig(repo.Root, []).Source);
         Assert.Contains("--config nowhere.json: no such file", Assert.Throws<AuspexException>(() => Exam.LoadConfig(repo.Root, [], "nowhere.json")).Message);
     }
 
@@ -793,7 +793,7 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), """{"agents": {"codex": {"base_url": "http://x/v1"}, "qwen-code": {"base_url": "http://x/v1"}, "cursor": {"base_url": "http://x"}}}""");
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "auspex.json"), """{"agents": {"codex": {"base_url": "http://x/v1"}, "qwen-code": {"base_url": "http://x/v1"}, "cursor": {"base_url": "http://x"}}}""");
         var problems = new List<Problem>();
         Exam.LoadConfig(repo.Root, problems);
         Assert.Equal(["agents.cursor"], problems.Select(p => p.Field));
@@ -808,7 +808,7 @@ public class HarborTests
     {
         var (repo, _) = AgentRepo();
         using var _r = repo;
-        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), $$$"""{"harbor": {"engine": "{{{engine}}}"}}""");
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "auspex.json"), $$$"""{"harbor": {"engine": "{{{engine}}}"}}""");
         var problems = new List<Problem>();
         Exam.LoadConfig(repo.Root, problems);
         Assert.Equal(message is null ? [] : [("harbor.engine", message)], problems.Select(p => (p.Field, p.Message)));
@@ -999,7 +999,7 @@ public class HarborTests
         repo.CopyExam("gate");
         var exam = repo.LoadExam("gate");
         var entryDir = Path.Combine(repo.Root, "log", "exp");
-        var hash = HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(null, null), "proctor-nb:0123456789abcdef");
+        var hash = HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(null, null), "auspex-nb:0123456789abcdef");
         var task = TaskDir(entryDir, "route=harbor", "gate");
         Assert.False(Directory.Exists(TaskDir(entryDir, "route=bare", "gate")));
 
@@ -1007,7 +1007,7 @@ public class HarborTests
         Assert.Contains("timeout_sec = 120.0\nnetwork_mode = \"no-network\"\n\n[environment]", toml);
         Assert.Contains("build_timeout_sec = 1800.0\nnetwork_mode = \"no-network\"", toml);
         var dockerfile = File.ReadAllText(Path.Combine(task, "environment", "Dockerfile"));
-        Assert.Contains("COPY --from=proctor-nb:0123456789abcdef /opt/nb /opt/nb\nENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1\nRUN /opt/nb/nb --version\n", dockerfile);
+        Assert.Contains("COPY --from=auspex-nb:0123456789abcdef /opt/nb /opt/nb\nENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1\nRUN /opt/nb/nb --version\n", dockerfile);
         Assert.DoesNotContain("claude", dockerfile);
         Assert.Contains("check 'new-file' '/tests/exam/checks/new-file.sh'\n", File.ReadAllText(Path.Combine(task, "steps", "writes", "tests", "test.sh")));
         // A stage after the first starts from the workspace as the try began: its step puts it back before the agent runs.

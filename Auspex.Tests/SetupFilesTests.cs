@@ -6,7 +6,7 @@ namespace Auspex.Tests;
 /// <summary>What setup writes into exams/ and what <c>setup --check</c> reads back. The wizard's prompts are driven by hand (a pty); these cover everything under them.</summary>
 public class SetupFilesTests : IDisposable
 {
-    readonly string root = Directory.CreateTempSubdirectory("proctor-setup-").FullName;
+    readonly string root = Directory.CreateTempSubdirectory("auspex-setup-").FullName;
     readonly string env;
     readonly string exams;
     // Process-wide: a key name of this test's own, so parallel tests cannot collide.
@@ -93,31 +93,31 @@ public class SetupFilesTests : IDisposable
         Assert.Equal("{ not json", File.ReadAllText(Path.Combine(exams, "nb.json")));
     }
 
-    // ── proctor.json and .gitignore ──
+    // ── auspex.json and .gitignore ──
 
     [Fact]
     public void PutAgent_WritesTheRoute_AndKeepsTheRestOfProctorJson()
     {
         Directory.CreateDirectory(exams);
-        File.WriteAllText(Path.Combine(exams, "proctor.json"), """{ "nb": { "path": "/opt/nb" }, "judges": { "glm": { "kind": "chat" } } }""");
+        File.WriteAllText(Path.Combine(exams, "auspex.json"), """{ "nb": { "path": "/opt/nb" }, "judges": { "glm": { "kind": "chat" } } }""");
         SetupFiles.PutAgent(exams, "claude-code", "https://api.anthropic.com", "ANTHROPIC_API_KEY");
         SetupFiles.PutEngine(exams, "podman");
 
-        var config = Read("proctor.json");
+        var config = Read("auspex.json");
         Assert.Equal("/opt/nb", (string?)config["nb"]!["path"]);
         Assert.NotNull(config["judges"]!["glm"]);
         Assert.Equal("""{"base_url":"https://api.anthropic.com","api_key":"${ANTHROPIC_API_KEY}"}""", config["agents"]!["claude-code"]!.ToJsonString());
         Assert.Equal("podman", (string?)config["harbor"]!["engine"]);
 
         SetupFiles.RemoveAgent(exams, "claude-code");
-        Assert.Null(Read("proctor.json")["agents"]!["claude-code"]);
+        Assert.Null(Read("auspex.json")["agents"]!["claude-code"]);
     }
 
     [Fact]
     public void EnsureProctor_CreatesOneWithoutTheExamplesGateway()
     {
         SetupFiles.EnsureProctor(exams);
-        Assert.Equal("""{"nb":{"config":"nb.json"}}""", Read("proctor.json").ToJsonString());
+        Assert.Equal("""{"nb":{"config":"nb.json"}}""", Read("auspex.json").ToJsonString());
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class SetupFilesTests : IDisposable
         File.WriteAllText(Path.Combine(exams, ".gitignore"), "/nb.json\n*.log\n");
         Assert.True(SetupFiles.EnsureGitIgnore(exams));
         Assert.False(SetupFiles.EnsureGitIgnore(exams));
-        Assert.Equal(["/nb.json", "*.log", "proctor.json", "setup.json", "sandbox-plan.md"], File.ReadAllLines(Path.Combine(exams, ".gitignore")));
+        Assert.Equal(["/nb.json", "*.log", "auspex.json", "setup.json", "sandbox-plan.md"], File.ReadAllLines(Path.Combine(exams, ".gitignore")));
     }
 
     [Theory]
@@ -188,7 +188,7 @@ public class SetupFilesTests : IDisposable
     {
         var nbPath = typeof(SetupFilesTests).Assembly.Location;   // any file that exists stands in for nb
         Directory.CreateDirectory(exams);
-        File.WriteAllText(Path.Combine(exams, "proctor.json"), new JsonObject { ["nb"] = new JsonObject { ["path"] = nbPath } }.ToJsonString());
+        File.WriteAllText(Path.Combine(exams, "auspex.json"), new JsonObject { ["nb"] = new JsonObject { ["path"] = nbPath } }.ToJsonString());
         var state = SetupState.Empty() with { Providers = [.. providers] };
         foreach (var p in providers)
             SetupFiles.PutNbEntry(exams, SetupFiles.NbEntry(p, Catalogue.Get(p.Kind), p.Values ?? []));

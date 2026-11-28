@@ -194,8 +194,8 @@ static class HarborCompile
     }
 
     /// <summary>The relay's container end (Harbor/relay.py) as a task's environment holds it, its service's name, and where that service finds the sockets.</summary>
-    const string RelayFile = "relay.py", RelayScript = "proctor-relay.py", RelayMount = "/run/proctor-relay";
-    public const string RelayService = "proctor-relay";
+    const string RelayFile = "relay.py", RelayScript = "auspex-relay.py", RelayMount = "/run/auspex-relay";
+    public const string RelayService = "auspex-relay";
 
     /// <summary>
     /// The ports of the machine that runs proctor a task's agent reaches at its own localhost: the model's, when its base
@@ -450,7 +450,7 @@ static class HarborCompile
     }
 
     /// <summary>
-    /// The agent at its pin. nb comes from proctor's nb layer (the publish proctor.json names, tagged by its hash), so the
+    /// The agent at its pin. nb comes from proctor's nb layer (the publish auspex.json names, tagged by its hash), so the
     /// image holds that binary and nothing it was built from.
     /// </summary>
     static string AgentInstall(Assistant assistant, string nbSource) => assistant.Agent switch

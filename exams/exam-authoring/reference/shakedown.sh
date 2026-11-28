@@ -4,7 +4,7 @@
 # passes. With --naive, each reference loses the check that makes it discriminate (the scope guard,
 # the anchored answer and the read-only guard, the no-legacy script), and rejects-wrong must fail,
 # naming the wrong runs that got through. With --unsolved, nothing is written and every check fails.
-# Needs proctor built (dotnet build at the repository root) and the proctor-dotnet image
+# Needs proctor built (dotnet build at the repository root) and the auspex-dotnet image
 # (exams/runners/Containerfile, which a run's configuration setup builds).
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"

@@ -117,8 +117,8 @@ static class SetupCheck
             case "claude-code" or "codex":
                 var written = config?["agents"]?[id] is JsonObject;
                 if (job.State == SetupJob.ByHand)
-                    return written ? $"by hand ({providers}), agents.{id} written" : $"by hand ({providers}): agents.{id} in exams/proctor.json is yours to write; the key is in the env file";
-                if (!written) problems.Add($"job {id} names provider {providers}, but exams/proctor.json has no agents.{id}; ask the user to rerun `proctor setup`");
+                    return written ? $"by hand ({providers}), agents.{id} written" : $"by hand ({providers}): agents.{id} in exams/auspex.json is yours to write; the key is in the env file";
+                if (!written) problems.Add($"job {id} names provider {providers}, but exams/auspex.json has no agents.{id}; ask the user to rerun `proctor setup`");
                 var untested = job.Providers?.Any(p => state.Provider(p) is { } sp && Catalogue.Get(sp.Kind).Fit(id) == JobFit.Untested) == true;
                 return $"ready ({providers}{(untested ? ", untested pairing" : "")}){(state.HasSandbox ? "" : "; no sandbox chosen")}";
             default:   // judge, classifier: the entry needs a model, which is the exam's choice, so setup writes none
@@ -126,7 +126,7 @@ static class SetupCheck
                 var judges = (config?["judges"] as JsonObject ?? []).Where(j => (string?)j.Value?["kind"] == kind).Select(j => j.Key).ToList();
                 return judges.Count > 0
                     ? $"ready ({providers}; judges: {string.Join(", ", judges)})"
-                    : $"provider chosen ({providers}); no {kind} entry in exams/proctor.json judges yet: write one with a model from the provider's list";
+                    : $"provider chosen ({providers}); no {kind} entry in exams/auspex.json judges yet: write one with a model from the provider's list";
         }
     }
 
@@ -137,7 +137,7 @@ static class SetupCheck
         var found = path.Contains('/') || path.Contains('\\')
             ? (File.Exists(Path.GetFullPath(Path.Combine(examsDir, path))) ? Path.GetFullPath(Path.Combine(examsDir, path)) : null)
             : Runner.FindOnPath(path);
-        if (found is null) problems.Add($"nb not found ('{path}', exams/proctor.json nb.path, else PATH); every exam needs it");
+        if (found is null) problems.Add($"nb not found ('{path}', exams/auspex.json nb.path, else PATH); every exam needs it");
         return $"nb: {found ?? "not found"}";
     }
 

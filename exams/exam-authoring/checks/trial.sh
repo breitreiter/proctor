@@ -13,5 +13,5 @@ keepid=(); [ "$engine" = podman ] && keepid=(--userns=keep-id)
 grader=$(cd "$AUSPEX_EXAM_DIR/../../bin/Debug/net10.0" && pwd)
 "$engine" run --rm --network none "${keepid[@]}" -e TRIAL_TASK="$AUSPEX_STAGE" \
   -v "$AUSPEX_WORK:/authored:ro" -v "$AUSPEX_EXAM_DIR/trial:/trial:ro" -v "$grader:/opt/proctor:ro" \
-  -v proctor-nuget:/home/agent/.nuget/packages -v "$out:/out" \
-  proctor-dotnet bash /trial/run.sh "$(jq -r .exam <<<"$AUSPEX_EXPECT")" >"$out/trial.log" 2>&1
+  -v auspex-nuget:/home/agent/.nuget/packages -v "$out:/out" \
+  auspex-dotnet bash /trial/run.sh "$(jq -r .exam <<<"$AUSPEX_EXPECT")" >"$out/trial.log" 2>&1

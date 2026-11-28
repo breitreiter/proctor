@@ -81,7 +81,7 @@ static class Build
 
     /// <summary>
     /// Build the reference twice, then each value alone (or only the one named), then each configuration the exam carries
-    /// that is more than one value off the reference. What each left is under .proctor/builds/&lt;exam&gt;/.
+    /// that is more than one value off the reference. What each left is under .auspex/builds/&lt;exam&gt;/.
     /// </summary>
     public static BuildResult Run(string root, Exam exam, AuspexConfig config, string? nbOverride, string? runnerOverride, (string Axis, string Value)? only, TextWriter log)
     {
@@ -173,7 +173,7 @@ static class Build
             // Through Harbor: the task as `run` would compile it, with no route and a fixed name for nb's layer, since neither is the value's.
             if (fixture?.Def.Image is null) return (null, "runs through Harbor, and its fixture declares no image");
             var task = Path.Combine(scratch, label);
-            HarborCompile.Job(task, exam, agent, new AgentRoute(null, null), nbImage: "proctor-nb");
+            HarborCompile.Job(task, exam, agent, new AgentRoute(null, null), nbImage: "auspex-nb");
             var handed = Path.Combine(task, "environment");
             return (new Built(Directory.EnumerateFiles(handed, "*", SearchOption.AllDirectories)
                 .ToDictionary(f => Path.GetRelativePath(handed, f), f => (new FileInfo(f).Length, Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(f))))), null, handed, Harbor: true), null);

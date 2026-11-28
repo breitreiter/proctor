@@ -7,7 +7,7 @@ namespace Auspex.Tests;
 /// <summary>A throwaway repository root with an exams/ directory, built per test.</summary>
 sealed class TestRepo : IDisposable
 {
-    public string Root { get; } = Path.Combine(Path.GetTempPath(), "proctor-tests", Guid.NewGuid().ToString("N")[..8]);
+    public string Root { get; } = Path.Combine(Path.GetTempPath(), "auspex-tests", Guid.NewGuid().ToString("N")[..8]);
 
     public TestRepo()
     {
@@ -25,14 +25,14 @@ sealed class TestRepo : IDisposable
         }
     }
 
-    /// <summary>nb's built binary: $NB_PATH, else the sibling checkout, as exams/proctor.json in this repo assumes.</summary>
+    /// <summary>nb's built binary: $NB_PATH, else the sibling checkout, as exams/auspex.json in this repo assumes.</summary>
     public static string NbPath =>
         Environment.GetEnvironmentVariable("NB_PATH")
         ?? Path.GetFullPath(Path.Combine(SourceRoot, "..", "nb", "bin", "Debug", "net10.0", "nb"));
 
     public static string NbMockConfig => Path.Combine(SourceRoot, "exams", "nb.example.json");
 
-    /// <summary>Copy an exam from this repository's exams/ into the temp root, with a proctor.json pointing at nb.</summary>
+    /// <summary>Copy an exam from this repository's exams/ into the temp root, with a auspex.json pointing at nb.</summary>
     public string CopyExam(string examId)
     {
         var source = Path.Combine(SourceRoot, "exams", examId);
@@ -55,7 +55,7 @@ sealed class TestRepo : IDisposable
     }
 
     public void WriteAuspexConfig(object? judges = null) =>
-        File.WriteAllText(Path.Combine(Root, "exams", "proctor.json"),
+        File.WriteAllText(Path.Combine(Root, "exams", "auspex.json"),
             JsonSerializer.Serialize(new { nb = new { path = NbPath, config = NbMockConfig }, judges }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }));
 
     /// <summary>The exam's nb block: a runner named relative to exams/ (where the tests write them), rewritten relative to the exam directory as exam.json wants it.</summary>

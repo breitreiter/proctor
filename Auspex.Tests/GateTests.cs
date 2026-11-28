@@ -34,7 +34,7 @@ public class GateTests
     internal static (Exam Exam, string Id) RunGraded(TestRepo repo, string examId)
     {
         repo.CopyExam(examId);
-        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), JsonSerializer.Serialize(new
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "auspex.json"), JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
             harbor = new

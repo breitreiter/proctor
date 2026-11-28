@@ -3,8 +3,8 @@ using System.Text.Json.Nodes;
 namespace Auspex;
 
 /// <summary>
-/// A run's Harbor, as its log entry keeps it: the pinned release and the hash of the tasks compiled for it; with nb, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
-/// engine every attempt runs on (proctor.json harbor.engine), which holds that layer.
+/// A run's Harbor, as its log entry keeps it: the pinned release and the hash of the tasks compiled for it; with nb, the nb layer its images copy (auspex.json harbor.nb, tagged by content); the container
+/// engine every attempt runs on (auspex.json harbor.engine), which holds that layer.
 /// </summary>
 record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, string Engine = "docker", ResolvedRelay? Relay = null);
 
@@ -31,7 +31,7 @@ static class HarborRun
         ["tool", "run", "--exclude-newer", Cooldown, $"harbor@{version}", "run", "--config", Layout.HarborJobFile];
 
     /// <summary>
-    /// nb's layer: the self-contained publish proctor.json harbor.nb names, as a local image holding only /opt/nb,
+    /// nb's layer: the self-contained publish auspex.json harbor.nb names, as a local image holding only /opt/nb,
     /// tagged by the publish's content hash and built once in the engine's store. An nb image copies it, so the
     /// binary that runs is the one hashed, and its version is asked of it here. Podman keeps a local image under
     /// localhost/, so the tag says so rather than leave a build to resolve a short name.
@@ -40,10 +40,10 @@ static class HarborRun
     {
         var engine = harbor.Engine;
         var binary = Path.Combine(publishDir, "nb");
-        if (!File.Exists(binary)) throw new AuspexException($"no nb binary in {publishDir} (exams/proctor.json harbor.nb): publish one with `dotnet publish nb.csproj -c Release -r linux-x64 --self-contained -o <dir>` in nb's repository");
+        if (!File.Exists(binary)) throw new AuspexException($"no nb binary in {publishDir} (exams/auspex.json harbor.nb): publish one with `dotnet publish nb.csproj -c Release -r linux-x64 --self-contained -o <dir>` in nb's repository");
         var asked = Subprocess.Run(binary, ["--version"], publishDir, new Dictionary<string, string> { ["NO_COLOR"] = "1" });
         if (!asked.Started || asked.ExitCode != 0) throw new AuspexException($"{binary} --version failed: {(asked.Started ? asked.FirstStderrLine : asked.Stderr)}");
-        var tag = (engine == "podman" ? "localhost/" : "") + "proctor-nb:" + Tree.Hash(publishDir, new HashSet<string>()).Split(':')[1][..16];
+        var tag = (engine == "podman" ? "localhost/" : "") + "auspex-nb:" + Tree.Hash(publishDir, new HashSet<string>()).Split(':')[1][..16];
         if (Subprocess.Run(engine, ["image", "inspect", tag], publishDir) is not { Started: true, ExitCode: 0 })
         {
             var built = Subprocess.Run(engine, ["build", "-q", "-t", tag, "-f", "-", "."], publishDir, stdin: "FROM scratch\nCOPY . /opt/nb\n");
@@ -132,7 +132,7 @@ static class HarborRun
         if (HarborCompile.IsOwnAgent(assistant) || oracle is not null) env["PYTHONPATH"] = agentsDir;
         var result = Subprocess.Run(uv, UvArgs(version), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);
-        if (!result.Started) return (null, $"could not start Harbor: {result.Stderr} (exams/proctor.json harbor.uv)");
+        if (!result.Started) return (null, $"could not start Harbor: {result.Stderr} (exams/auspex.json harbor.uv)");
         if (result.TimedOut) return (null, $"Harbor did not finish within {timeout.TotalMinutes:0} minutes; killed. {TearDown(engine, jobsDir)}");
 
         var trial = Directory.Exists(Path.Combine(jobsDir, "job"))

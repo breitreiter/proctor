@@ -7,6 +7,16 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: the machine's files take the new name.** `exams/proctor.json`
+  is `exams/auspex.json` (and `auspex.example.json`), `.proctor/` is
+  `.auspex/`, and the env file is `~/.config/auspex/env`
+  (`%LOCALAPPDATA%\auspex\env` on Windows). The old config or env file
+  left in place is refused with one line that says to rename it; move
+  `.proctor/` or let it be made again. A log entry records
+  `versions.auspex`. Containers, images and volumes are `auspex-…`
+  (`auspex-nb:<hash>`, `auspex-relay`, `auspex-<exam>-<try id>`,
+  `auspex-dotnet`): an image built under the old name is built again or
+  tagged.
 - **Breaking: every `PROCTOR_` variable is `AUSPEX_`.** What a hook or a
   script check is handed (`AUSPEX_WORK`, `AUSPEX_EXAM_DIR`, `AUSPEX_STAGE`,
   `AUSPEX_EXPECT`, …), and what a person sets (`AUSPEX_ENV_FILE`,

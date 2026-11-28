@@ -34,9 +34,9 @@ static class Program
         ("live": "<value>").
 
         --root <dir>          the repository root holding exams/ (default: current directory)
-        --config <file>       list, run, grade: this machine's config in place of exams/proctor.json
+        --config <file>       list, run, grade: this machine's config in place of exams/auspex.json
         --label <k[=glob]>    list: only exams carrying the label, or the label with a matching value (repeatable)
-        --nb <path>           the nb binary (default: exams/proctor.json nb.path, else PATH)
+        --nb <path>           the nb binary (default: exams/auspex.json nb.path, else PATH)
         --runner <script>     the script that runs nb (default: the exam's nb.runner); none runs nb bare
         --value <axis=value>  run: make this value with every other axis at its reference (its live value, or the
                               one it names). build: this value only. grade, friction, report: only the configurations
@@ -111,6 +111,7 @@ static class Program
 
         try
         {
+            if (EnvFile.LeftBehind() is { } left) throw new AuspexException($"{left} is {EnvFile.DefaultPath()} now: move it");
             EnvFile.Load(EnvFile.DefaultPath());
             // Every variable took the new prefix at once and no old name is read, so one still set would be silently ignored.
             if (Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith("PROCTOR_", StringComparison.Ordinal)).Order().FirstOrDefault() is { } old)

@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 namespace Auspex;
 
 /// <summary>
-/// What setup writes into <c>exams/</c>: nb.json's provider entries, proctor.json's <c>agents</c> and <c>harbor.engine</c>,
+/// What setup writes into <c>exams/</c>: nb.json's provider entries, auspex.json's <c>agents</c> and <c>harbor.engine</c>,
 /// and <c>exams/.gitignore</c>. Each file is read as a JSON tree and written back whole, so entries setup did not
 /// write (named nowhere in setup.json) are kept as they were; setup replaces or removes only its own.
 /// </summary>
@@ -27,7 +27,7 @@ static class SetupFiles
         ["ChatProviders"] = new JsonArray(new JsonObject { ["Name"] = "Mock", ["Response"] = "OK" }),
     };
 
-    /// <summary>A fresh proctor.json: nb on PATH and its config beside this file. The examples are not copied, since they route through a gateway a new user does not have.</summary>
+    /// <summary>A fresh auspex.json: nb on PATH and its config beside this file. The examples are not copied, since they route through a gateway a new user does not have.</summary>
     static JsonObject FreshProctor() => new() { ["nb"] = new JsonObject { ["config"] = NbFile } };
 
     /// <summary>The entry nb.json gets for a provider: the kind's fixed fields, the form's values, the key as <c>${ENV}</c>. No Model: the model is the exam's.</summary>
@@ -75,7 +75,7 @@ static class SetupFiles
         NbProviders(ReadObject(Path.Combine(examsDir, NbFile)) ?? new JsonObject())
             .FirstOrDefault(e => (string?)e["Name"] == name) is { } entry ? entry.Select(p => p.Key).ToHashSet() : null;
 
-    /// <summary>proctor.json <c>agents.&lt;agent&gt;</c>: the kind's base URL for that agent and the provider's key as <c>${ENV}</c>.</summary>
+    /// <summary>auspex.json <c>agents.&lt;agent&gt;</c>: the kind's base URL for that agent and the provider's key as <c>${ENV}</c>.</summary>
     public static string PutAgent(string examsDir, string agent, string baseUrl, string env)
     {
         var path = Path.Combine(examsDir, Layout.AuspexConfigFile);
@@ -103,7 +103,7 @@ static class SetupFiles
         return path;
     }
 
-    /// <summary>proctor.json exists, so a verb that needs it finds it; created fresh when missing.</summary>
+    /// <summary>auspex.json exists, so a verb that needs it finds it; created fresh when missing.</summary>
     public static string EnsureProctor(string examsDir)
     {
         var path = Path.Combine(examsDir, Layout.AuspexConfigFile);

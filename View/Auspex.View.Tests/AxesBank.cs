@@ -25,7 +25,7 @@ public sealed class AxesBank : IDisposable
         Copy(Path.Combine(repo, "fixtures", "note"), Path.Combine(Root, "fixtures", "note"));
         File.Copy(Path.Combine(repo, "exams", "nb.example.json"), Path.Combine(Root, "exams", "nb.json"));
         var nb = Environment.GetEnvironmentVariable("NB_PATH") ?? Path.GetFullPath(Path.Combine(repo, "..", "nb", "bin", "Debug", "net10.0", "nb"));
-        File.WriteAllText(Path.Combine(Root, "exams", "proctor.json"), new JsonObject { ["nb"] = new JsonObject { ["path"] = nb, ["config"] = "nb.json" } }.ToJsonString());
+        File.WriteAllText(Path.Combine(Root, "exams", "auspex.json"), new JsonObject { ["nb"] = new JsonObject { ["path"] = nb, ["config"] = "nb.json" } }.ToJsonString());
         var examFile = Path.Combine(Root, "exams", Exam, "exam.json");
         var exam = JsonNode.Parse(File.ReadAllText(examFile))!;
         exam["tries"] = 1;

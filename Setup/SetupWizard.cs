@@ -244,12 +244,12 @@ static partial class SetupWizard
         {
             w.Wrote(SetupFiles.PutAgent(w.ExamsDir, id, baseUrl, provider.Env), $"agents.{id}");
             w.State.Jobs[id] = new SetupJob(SetupJob.Set, [name]);
-            AnsiConsole.MarkupLine($"\n  Written: exams/proctor.json  agents.{id} → {Esc(baseUrl)}{(fit == JobFit.Untested ? " [yellow](untested pairing: the first shakedown run is the check)[/]" : "")}");
+            AnsiConsole.MarkupLine($"\n  Written: exams/auspex.json  agents.{id} → {Esc(baseUrl)}{(fit == JobFit.Untested ? " [yellow](untested pairing: the first shakedown run is the check)[/]" : "")}");
             return;
         }
         SetupFiles.RemoveAgent(w.ExamsDir, id);
         w.State.Jobs[id] = new SetupJob(SetupJob.ByHand, [name]);
-        AnsiConsole.WriteLine($"\nRecorded: {Title(id)} on {name}, by hand. Setup has the key; ask your coding agent to write agents.{id} in exams/proctor.json (base_url, and api_key as ${{{provider.Env ?? "VAR"}}}). See docs/configuration.md, \"Coding agents\".");
+        AnsiConsole.WriteLine($"\nRecorded: {Title(id)} on {name}, by hand. Setup has the key; ask your coding agent to write agents.{id} in exams/auspex.json (base_url, and api_key as ${{{provider.Env ?? "VAR"}}}). See docs/configuration.md, \"Coding agents\".");
     }
 
     static async Task Judge(Session w, string id)
@@ -275,7 +275,7 @@ static partial class SetupWizard
         var name = await ChooseProvider(w, id, exclude: [], current is { State: not SetupJob.Later } ? (Keep, $"Keep {string.Join(", ", current.Providers ?? [])}") : (Skip, $"Skip for now      [grey]You won't be able to create {noun}[/]"));
         if (name is null) { if (current is null) w.State.Jobs[id] = new SetupJob(SetupJob.Later); return; }
         w.State.Jobs[id] = new SetupJob(SetupJob.Set, [name]);
-        AnsiConsole.WriteLine($"\nRecorded: {noun} on {name}. A judge entry names its model, which is the exam's choice, so setup writes none: your coding agent adds it to exams/proctor.json \"judges\" with a model from the list `proctor setup --check` reports.");
+        AnsiConsole.WriteLine($"\nRecorded: {noun} on {name}. A judge entry names its model, which is the exam's choice, so setup writes none: your coding agent adds it to exams/auspex.json \"judges\" with a model from the list `proctor setup --check` reports.");
     }
 
     /// <summary>Runs the key check again, changes a key, or removes a provider no job uses.</summary>

@@ -30,7 +30,7 @@ sealed class HostRelay : IDisposable
     /// </summary>
     public static string Dir(string entryId) => Path.Combine(
         Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") is { Length: > 0 } run ? run : Path.GetTempPath(),
-        "proctor-relay", Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(entryId)))[..12]);
+        "auspex-relay", Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(entryId)))[..12]);
 
     public static string SocketName(int port) => $"{port}.sock";
 

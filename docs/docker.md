@@ -44,7 +44,7 @@ engine.
 Then say where the socket is:
 
 ```
-# ~/.config/proctor/env
+# ~/.config/auspex/env
 DOCKER_HOST=unix:///run/user/<uid>/docker.sock
 ```
 
@@ -126,7 +126,7 @@ docker images --format '{{.Repository}}' | grep -E '__env-main$|__verifier__tria
 ```
 
 The lines leave `harbor-prebuilt:…` (Harbor's sidecar) and
-`proctor-nb:…` (nb's layer) alone. Both are caches the next run reuses.
+`auspex-nb:…` (nb's layer) alone. Both are caches the next run reuses.
 Networks matter more than their size suggests: each holds a subnet from
 a finite pool.
 
@@ -139,7 +139,7 @@ AUSPEX_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
 Every vendor agent at its pin against a scripted model, and each
 `code-change` stage's reference solution through Harbor's checks. About
 twenty minutes, no model, $0. It takes `harbor.uv` and `harbor.engine`
-from `exams/proctor.json`, or from a file you name in place of `1`.
+from `exams/auspex.json`, or from a file you name in place of `1`.
 
 ## 7. macOS and Windows (not run)
 
@@ -156,7 +156,7 @@ Colima or podman machine. What is known from outside:
 - Docker Desktop's licence may matter to your employer.
 
 An exam and its fixtures do not change between machines: the engine is
-the machine's (`exams/proctor.json`), never the exam's. If the laptop
+the machine's (`exams/auspex.json`), never the exam's. If the laptop
 cannot run coding agents, the exam can still be written and its checks
 proved there (bare nb, the reference scripts), and its agents
 run on a Linux machine.

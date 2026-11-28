@@ -88,7 +88,7 @@ public class JudgeTests
         Transcript.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name + ".jsonl")), diff);
 
     static AttemptContext Attempt(JudgeClient judges, JsonObject? expect = null, string? attemptDir = null) =>
-        new("/nonexistent", attemptDir ?? Directory.CreateTempSubdirectory("proctor-judge").FullName, "/work", "exp", "a", new StageDef("c", null, "Say the answer.", expect), 1) { Judges = judges };
+        new("/nonexistent", attemptDir ?? Directory.CreateTempSubdirectory("auspex-judge").FullName, "/work", "exp", "a", new StageDef("c", null, "Say the answer.", expect), 1) { Judges = judges };
 
     static Verdict Exam(string spec, Transcript t, JudgeClient judges, JsonObject? expect = null, string? attemptDir = null, string name = "the-check") =>
         Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), Attempt(judges, expect, attemptDir), t, name);
@@ -185,7 +185,7 @@ public class JudgeTests
         var captured = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "openrouter-decisions.json")))!;
         var http = new ScriptedHttp(HttpStatusCode.OK, captured["response"]!.ToJsonString());
         var client = new JudgeClient { Defs = new() { ["jev"] = Jev with { Model = "typesafe/jev-1.14" } }, Http = new HttpClient(http) };
-        var dir = Directory.CreateTempSubdirectory("proctor-judge").FullName;
+        var dir = Directory.CreateTempSubdirectory("auspex-judge").FullName;
 
         var v = Exam("{\"decide\": {\"ask\": \"Is it done?\", \"window\": \"answer\"}}", Fixture("plain"), client, attemptDir: dir, name: "done");
         Assert.Equal(("pass", "yes p=0.99"), v.Deconstruct());
@@ -352,7 +352,7 @@ public class JudgeTests
     [Fact]
     public void VerdictFile_IsWrittenBesideTheEvidence_AndReusedUntilRejudge()
     {
-        var dir = Directory.CreateTempSubdirectory("proctor-judge").FullName;
+        var dir = Directory.CreateTempSubdirectory("auspex-judge").FullName;
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.98"));
         const string spec = "{\"decide\": {\"ask\": \"Is it done?\", \"window\": \"answer\"}}";
 
@@ -387,7 +387,7 @@ public class JudgeTests
     [Fact]
     public void Remap_GradesWithTheOtherJudge_AndKeepsItsOwnFile()
     {
-        var dir = Directory.CreateTempSubdirectory("proctor-judge").FullName;
+        var dir = Directory.CreateTempSubdirectory("auspex-judge").FullName;
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.98"));
         var client = new JudgeClient
         {
@@ -401,7 +401,7 @@ public class JudgeTests
     [Fact]
     public void Endpoint_ResolvesEnvironmentReferencesOnTheWire_AndRecordsTheTemplate()
     {
-        var dir = Directory.CreateTempSubdirectory("proctor-judge").FullName;
+        var dir = Directory.CreateTempSubdirectory("auspex-judge").FullName;
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.98"));
         Environment.SetEnvironmentVariable("AUSPEX_TEST_GATEWAY", "http://resolved.test/x");
         try
@@ -492,8 +492,8 @@ public class JudgeTests
         var config = Auspex.Exam.LoadConfig(repo.Root, problems);
         Assert.Empty(problems);
         Assert.Null(Auspex.Exam.Load(repo.Root, "smoke", problems, config.Judges));
-        Assert.Contains(problems, p => p.Field == "grading.checks.stance.decide.with" && p.Message == "no systemone judge in exams/proctor.json judges");
-        Assert.Contains(problems, p => p.Field == "grading.checks.scope.judge.with" && p.Message == "no judge 'k2' in exams/proctor.json judges");
+        Assert.Contains(problems, p => p.Field == "grading.checks.stance.decide.with" && p.Message == "no systemone judge in exams/auspex.json judges");
+        Assert.Contains(problems, p => p.Field == "grading.checks.scope.judge.with" && p.Message == "no judge 'k2' in exams/auspex.json judges");
         Assert.NotNull(repo.LoadExam("smoke"));   // without the config in hand, the exam loads; grade resolves
         Assert.True(repo.LoadExam("smoke").Judged);
     }

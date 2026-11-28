@@ -101,7 +101,7 @@ try is a shakedown, for setup problems and plain failures.
 
 In the user's repository, `exams/` at the root holds their exams and
 `fixtures/` their fixtures; proctor runs from that root (or `--root`).
-`proctor setup` already wrote `exams/proctor.json`, `exams/nb.json` and
+`proctor setup` already wrote `exams/auspex.json`, `exams/nb.json` and
 `exams/setup.json` there, all gitignored. Edit only the entries an exam
 needs; setup tracks its own and leaves the rest alone.
 
@@ -185,7 +185,7 @@ once; an attempt is one stage of it), bank, live, prediction.
 - **Deterministic first.** A regex, an exit code, the user's own tests run
   against the result: free, repeatable, and they never drift. Use a model
   judge only for what cannot be checked otherwise, from a provider other
-  than the one under test, with its entry in `exams/proctor.json`
+  than the one under test, with its entry in `exams/auspex.json`
   `judges` naming a model; setup writes none, since the model is the
   exam's choice.
 - **Every check gets a one-sentence `description`, every stage an `about`,

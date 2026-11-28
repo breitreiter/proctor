@@ -12,11 +12,11 @@ provider and a model is nb run bare on the host. Written from moving
 Nothing here applies, and validation refuses `harbor` and `limits` on
 it.
 
-## 2. The machine: an engine, uv, and proctor.json
+## 2. The machine: an engine, uv, and auspex.json
 
 A container engine and uv on the machine that runs it; the bare path
 needs neither. The engine that is supported is rootless podman, whose
-setup is [`podman.md`](podman.md). In `exams/proctor.json`:
+setup is [`podman.md`](podman.md). In `exams/auspex.json`:
 
 - `harbor.engine`: `podman`, or `docker` (the default, not maintained).
 - `agents.<agent>`: `base_url` and `api_key` for each vendor agent the

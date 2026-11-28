@@ -4,7 +4,7 @@ namespace Auspex.Tests;
 
 public class EnvFileTests : IDisposable
 {
-    readonly string dir = Directory.CreateTempSubdirectory("proctor-env-").FullName;
+    readonly string dir = Directory.CreateTempSubdirectory("auspex-env-").FullName;
     // Process-wide state: every test uses names of its own so parallel tests cannot collide.
     readonly string prefix = "AUSPEX_TEST_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() + "_";
     readonly List<string> touched = [];
@@ -89,7 +89,7 @@ public class EnvFileTests : IDisposable
             Environment.SetEnvironmentVariable(EnvFile.OverrideVariable, "/somewhere/env");
             Assert.Equal("/somewhere/env", EnvFile.DefaultPath());
             Environment.SetEnvironmentVariable(EnvFile.OverrideVariable, null);
-            Assert.EndsWith(Path.Combine("proctor", "env"), EnvFile.DefaultPath());
+            Assert.EndsWith(Path.Combine("auspex", "env"), EnvFile.DefaultPath());
         }
         finally { Environment.SetEnvironmentVariable(EnvFile.OverrideVariable, before); }
     }

@@ -83,7 +83,7 @@
               "exams/smoke",
               "exams/tern-docs",
               "exams/nb.example.json",
-              "exams/proctor.example.json",
+              "exams/auspex.example.json",
               "fixtures/empty",
               "fixtures/fetchcli",
               "fixtures/jotcli",

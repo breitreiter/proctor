@@ -39,7 +39,7 @@ public class StagedHarborTests
             }
             {{{trialScript}}}
             """);
-        File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), JsonSerializer.Serialize(new
+        File.WriteAllText(Path.Combine(repo.Root, "exams", "auspex.json"), JsonSerializer.Serialize(new
         {
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
             agents = new Dictionary<string, object> { ["claude-code"] = new { base_url = BaseUrl, api_key = "sk-test" } },

@@ -10,7 +10,7 @@ record ProviderField(string Name, string Prompt, bool Secret = false, bool Requi
 /// A provider kind from setup's catalogue (<c>Setup/providers.json</c>). <see cref="Serves"/> names the jobs it
 /// can do, a trailing <c>?</c> marking a pairing never tried; <see cref="ByHand"/> the jobs it can do only with
 /// config setup does not write. <see cref="Base"/> is where the key check lists models; a kind without one has no
-/// key check. <see cref="Agents"/> is the base URL written into proctor.json's <c>agents</c> block for each vendor
+/// key check. <see cref="Agents"/> is the base URL written into auspex.json's <c>agents</c> block for each vendor
 /// agent the kind serves.
 /// </summary>
 record ProviderKind(
