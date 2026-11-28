@@ -63,14 +63,14 @@ public class OracleExamTests
     }
 
     [Fact]
-    public void TheOracleBlock_NeedsATaskToServe_AndAtLeastOneTurn()
+    public void TheOracleBlock_NeedsAStageToServe_AndAtLeastOneTurn()
     {
         using var repo = new TestRepo();
         repo.CopyExam("gate");
         repo.EditJson("gate/exam.json", s => s["oracle"] = JsonNode.Parse("""{"turns": 0, "judge": ""}"""));
         var problems = repo.Problems("gate");
 
-        Assert.Contains(problems, p => p.Field == "oracle" && p.Message.Contains("no task names an answer sheet"));
+        Assert.Contains(problems, p => p.Field == "oracle" && p.Message.Contains("no stage names an answer sheet"));
         Assert.Contains(problems, p => p.Field == "oracle.turns");
         Assert.Contains(problems, p => p.Field == "oracle.judge");
     }

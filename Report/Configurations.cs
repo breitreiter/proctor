@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Proctor;
 
-// The report of an exam with axes (plans/axes-build.md, slice 3; the model is plans/axes.md). Three things a person
+// The report of an exam (plans/axes-build.md, slice 3; the model is plans/axes.md). Three things a person
 // needs from it: which configurations have evidence and which do not, how each value on an axis with a live value
 // compares with the live one, and exactly which configurations each comparison covered.
 
@@ -38,9 +38,12 @@ record Pooled(List<string> Across, int Covered, int Of, bool CanConfirm, Measure
 /// <summary>One value of an axis against that axis's live value: cell by cell, pooled when more than one cell was compared, and in a sentence.</summary>
 record AxisComparison(string Axis, string Value, string Live, List<ComparedCell> Cells, Pooled? Pooled, List<string> NotRun, string Sentence, List<string>? Cautions = null, string? Verdict = null);
 
-/// <summary>stats.json of an exam with axes. Configurations are the ones the exam names or has tries of; Excluded the values it declares impossible together.</summary>
+/// <summary>
+/// stats.json. Configurations are the ones the exam names or has tries of; Excluded the values it declares impossible
+/// together. Judges are the endpoints whose verdicts the tries hold, each with the checks it graded, when any check asks a model.
+/// </summary>
 record ConfigurationsFile(string Schema, string Exam, bool Chained, List<AxisInfo> Axes, List<StageInfo> Stages, List<ConfigurationRow> Configurations, List<Dictionary<string, string>> Excluded,
-    List<AxisComparison> Comparisons, List<LostTry> Lost, string Methods, BuiltFrom? BuiltFrom, List<StandardMove>? StandardMoved = null, List<PredictionReport>? Predictions = null);
+    List<AxisComparison> Comparisons, List<LostTry> Lost, string Methods, BuiltFrom? BuiltFrom, List<StandardMove>? StandardMoved = null, List<PredictionReport>? Predictions = null, List<JudgeUse>? Judges = null);
 
 static class Configurations
 {
@@ -49,13 +52,14 @@ static class Configurations
 
     public static (ConfigurationsFile Stats, FrictionRollup Friction) Compute(string root, Exam exam, List<BankAttempt> current, List<BankAttempt> bank, List<ResultRow> rows, BuiltFrom? built, List<Prediction>? predictions = null)
     {
-        var axes = exam.Axes!;
+        var axes = exam.Axes;
+        var judges = Judge.Uses(root, current);
         // Comparisons use the standard as it is now, both sides alike: a try graded only under earlier checks is not yet graded, and in no number.
         var ungraded = NotGraded(root, exam, current);
         current = current.Where(a => !ungraded.Contains((a.Variant, a.Attempt))).ToList();
         rows = rows.Where(r => !ungraded.Contains((r.Variant, r.Attempt))).ToList();
         var moves = Standard.Moves(root, exam, current);
-        var (tries, friction) = Tries.Compute(root, exam, current, bank, rows, null, built);
+        var (tries, friction) = Tries.Compute(root, exam, current, bank, rows, built);
         var byKey = tries.Variants.ToDictionary(v => v.Id);
         bool Live(Configuration c) => axes.Def.Any(a => a.Value.Live is not null) && axes.Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
         var standing = Combinations.Load(exam).Stand(exam);
@@ -92,7 +96,7 @@ static class Configurations
         return (new ConfigurationsFile(Schema, exam.Id, exam.Chained,
                 axes.Def.Select(a => new AxisInfo(a.Key, a.Value.About, a.Value.Live, a.Value.Values!.Select(v => new ValueInfo(v.Key, v.Value!.Note, axes.ValueHashes[(a.Key, v.Key)], axes.ReferenceOf(a.Key) == v.Key, v.Value.Why)).ToList())).ToList(),
                 tries.Stages, configurations, axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), comparisons, tries.Lost, methods, built, moves.Count > 0 ? moves : null,
-                predictions is { Count: > 0 } ? PredictionOutcomes.Compute(exam, predictions, byKey, rows, current) : null), friction);
+                predictions is { Count: > 0 } ? PredictionOutcomes.Compute(exam, predictions, byKey, rows, current) : null, judges.Count > 0 ? judges : null), friction);
     }
 
     /// <summary>
@@ -348,6 +352,12 @@ static class Configurations
         {
             md.AppendLine("## Lost tries").AppendLine();
             foreach (var l in stats.Lost) md.AppendLine($"- {l.Variant}, try {l.N}, at {l.At}: {l.Why}");
+            md.AppendLine();
+        }
+        if (stats.Judges is { Count: > 0 } judges)
+        {
+            md.AppendLine("## Judges").AppendLine();
+            foreach (var j in judges) md.AppendLine($"- {j.Judge}: {j.Kind}{(j.Model is null ? "" : $" {j.Model}")} at `{j.Endpoint}`; graded {string.Join(", ", j.Checks)}");
             md.AppendLine();
         }
         md.AppendLine("## How this was counted").AppendLine().AppendLine(stats.Methods);

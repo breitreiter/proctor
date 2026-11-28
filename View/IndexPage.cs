@@ -21,7 +21,7 @@ static class IndexPage
     {
         var page = Open("auspex", [("exams", null)], style: "one");
         var exams = Bank.Exams(root).Select(id => Bank.FindExam(root, id)!).ToList();
-        var rows = exams.Select(e => e.Axes ? WithAxes(root, e) : Plain(e, null)).OrderByDescending(r => r.Last ?? "", StringComparer.Ordinal).ThenBy(r => r.Exam.Id, StringComparer.Ordinal).ToList();
+        var rows = exams.Select(e => e.Axes ? WithAxes(root, e) : Plain(e, "exams/" + e.Id + "/exam.json declares no axes")).OrderByDescending(r => r.Last ?? "", StringComparer.Ordinal).ThenBy(r => r.Exam.Id, StringComparer.Ordinal).ToList();
 
         page.Append("<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">bank</span><h1 class=\"title\">Exams</h1><dl class=\"facts\">")
             .Append(Fact("Exams", exams.Count.ToString())).Append(Fact("Tries", rows.Sum(r => r.Tries).ToString()))
@@ -39,7 +39,7 @@ static class IndexPage
     static string Head(Exam e, string shape) =>
         $"<span class=\"stack\" style=\"gap:6px\"><a class=\"name\" href=\"{U(e.Path)}\">{E(e.Id)}</a>{(e.Description is { } d ? $"<span class=\"soft\" style=\"line-height:1.45\">{E(d)}</span>" : "")}<span class=\"small dim\">{E(shape)}</span></span>";
 
-    /// <summary>An exam with axes: its named configurations and their marks, its predictions, its tries.</summary>
+    /// <summary>An exam as proctor reads it: its named configurations and their marks, its predictions, its tries.</summary>
     static Row WithAxes(string root, Exam e)
     {
         var (exam, problem) = Measured.Load(root, e.Id);
@@ -74,14 +74,12 @@ static class IndexPage
         return new Row(e, row.ToString(), last, tries);
     }
 
-    /// <summary>An exam of variants, or one proctor cannot read as it stands: what the bank holds, nothing counted.</summary>
+    /// <summary>An exam proctor cannot read as it stands (one still written as tasks and variants, say): what the bank holds, nothing counted.</summary>
     static Row Plain(Exam e, string? problem)
     {
-        var variants = e.Variants.ToList();
-        var tries = e.Attempts.Select(a => (a.Variant, a.Task, a.N)).Distinct().Count();
-        var row = new StringBuilder("<div class=\"row ex\" style=\"padding:18px 0\">").Append(Head(e, problem is null ? "an exam of variants" : "an exam with axes")).Append("<span class=\"list\">");
-        if (problem is not null) row.Append($"<span class=\"small soft\" title=\"{E(problem)}\">Proctor cannot read this exam as it stands, so nothing is counted.</span>");
-        else foreach (var v in variants) row.Append($"<span class=\"cfg\"><span>{E(v)}</span>{(v == e.Live ? "<wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>" : "")}</span>");
+        var tries = e.Attempts.Select(a => (a.Variant, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
+        var row = new StringBuilder("<div class=\"row ex\" style=\"padding:18px 0\">").Append(Head(e, "not read")).Append("<span class=\"list\">");
+        row.Append($"<span class=\"small soft\" title=\"{E(problem ?? "")}\">Proctor cannot read this exam as it stands, so nothing is counted.</span>");
         row.Append("</span><span class=\"small dim\">None</span>")
             .Append($"<span class=\"stack r\"><span class=\"num strong\">{tries}</span></span><span class=\"r small dim\"></span></div>");
         return new Row(e, row.ToString(), null, tries);

@@ -7,6 +7,33 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: an exam is stages and axes, and nothing else.** The
+  earlier shape is gone: `tasks/*.json`, `variants/*.json`, a variant's
+  `bundle`, `live.json` and `proctor live`, `--variant` and `--tasks`,
+  and the report that set variants side by side. An exam still written
+  that way is refused with what each part becomes: a task is a stage of
+  `exam.json`, a variant's fields are a value of an axis, a bundle is a
+  value's `files` or a tree parameter it sets, and what is live is
+  `"live"` on an axis. Every exam in the repository is ported but
+  `agent-onboarding` and `exam-authoring`, which follow.
+- **Breaking: attempts made under tasks and variants are no longer
+  read.** They stay in `bank/<exam>/` where they were made; `list` says
+  how many, and the viewer lists them on an exam's page ("earlier
+  attempts") so their transcripts can still be opened. They are in no
+  number: what was under test is named and hashed another way now.
+- **`run` no longer continues an interrupted run.** A try is never taken
+  up part way, since its workspace is half way through: one that was
+  lost or never finished is made again, whole, under the next number.
+- **`PROCTOR_CONTAINER` is the try's**, `proctor-<exam>-<try id>`, the
+  same for every stage. On an exam with axes it changed with the stage
+  and held `=` and `,`, which no engine takes as a name.
+- **The outdated summary names the try to move**, by the id it is kept
+  under; it named a directory that is not where a try is.
+- **`summary.md` and `stats.json` name the judges** whose verdicts the
+  tries hold, each with the checks it graded (`judges`).
+- `PROCTOR_BUNDLE`, `PROCTOR_BUNDLE_MOUNT`, `{{bundle}}` and
+  `nb.mounts.bundle` went with the bundle. A value's files are laid over
+  the checkout, so they are under `PROCTOR_WORK`.
 - **Breaking: the modal engine is gone from proctor.** `harbor.engine:
   modal` is refused with a sentence saying where it went: the code is
   at the git tag `modal-in-core`, and its guide and example machine

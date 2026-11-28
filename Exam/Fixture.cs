@@ -94,8 +94,8 @@ sealed record Fixture
             {
                 var servicesDir = System.IO.Path.Combine(dir, services);
                 if (!File.Exists(System.IO.Path.Combine(servicesDir, "docker-compose.yaml"))) Add("image.services", $"no docker-compose.yaml in {services}");
-                else if (File.Exists(System.IO.Path.Combine(servicesDir, "Dockerfile")) || new[] { "repo", HarborCompile.ServiceBundleDir, HarborCompile.ServiceParamsDir }.Any(d => System.IO.Path.Exists(System.IO.Path.Combine(servicesDir, d))))
-                    Add("image.services", $"Dockerfile, repo, {HarborCompile.ServiceBundleDir} and {HarborCompile.ServiceParamsDir} are the task's own names in environment/");
+                else if (File.Exists(System.IO.Path.Combine(servicesDir, "Dockerfile")) || new[] { "repo", HarborCompile.ServiceParamsDir }.Any(d => System.IO.Path.Exists(System.IO.Path.Combine(servicesDir, d))))
+                    Add("image.services", $"Dockerfile, repo and {HarborCompile.ServiceParamsDir} are the task's own names in environment/");
             }
         }
         // The parameters a value may set (plans/axes-ports.md): the only names an exam's axes can reach in this base.

@@ -89,12 +89,12 @@ public class OracleBareTests
     }
 
     [Fact]
-    public void AnOracleCheck_WithNoOracleTask_IsAProblem()
+    public void AnOracleCheck_WithNoSheetOnAnyStage_IsAProblem()
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
         repo.EditJson("smoke/exam.json", s => s["grading"]!["checks"]!["answered"] = JsonNode.Parse("""{"oracle_turns": {"max": 1}}"""));
-        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("exam.json") && p.Field == "grading.checks.answered" && p.Message.Contains("no task names an answer sheet"));
+        Assert.Contains(repo.Problems("smoke"), p => p.File.EndsWith("exam.json") && p.Field == "grading.checks.answered" && p.Message.Contains("no stage names an answer sheet"));
     }
 
     [Fact]

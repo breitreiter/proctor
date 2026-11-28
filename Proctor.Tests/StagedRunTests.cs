@@ -222,12 +222,4 @@ public class StagedRunTests
         Assert.DoesNotContain(JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-loops", "friction.json")))!["points"]!.AsArray(), p => p!["label"]!.GetValue<string>() == "ran-help");
         Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "stages", "3-after", "friction.json")));
     }
-
-    [Fact]
-    public void Run_RefusesWhatAJobOfStagesCannotDoYet()
-    {
-        using var repo = new TestRepo();
-        Stage(repo, 1, false, ("say", "MOCK:response=one"));
-        Assert.Contains("never run alone", Assert.Throws<ProctorException>(() => Verbs.Run(repo.Root, "smoke", null, null, taskIds: ["say"])).Message);
-    }
 }

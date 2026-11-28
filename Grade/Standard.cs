@@ -48,9 +48,9 @@ static class Standard
     public static When? WhenOf(JsonObject spec) =>
         spec[Checks.When] is JsonValue v && v.TryGetValue<string>(out var text) ? When.Parse(text, out _) : null;
 
-    /// <summary>Whether a check applies in a configuration. On an exam without axes, and for a check without a condition, always.</summary>
+    /// <summary>Whether a check applies in a configuration. For a check without a condition, always.</summary>
     public static bool Applies(Exam exam, CheckDef check, string configuration) =>
-        WhenOf(check.Spec) is not { } when || exam.Axes?.Of(configuration) is not { } c || when.Holds(c);
+        WhenOf(check.Spec) is not { } when || exam.Axes.Of(configuration) is not { } c || when.Holds(c);
 
     /// <summary>The correctness checks of a stage that apply in a configuration: what a try of it can hold.</summary>
     public static List<string> PassIn(Exam exam, TaskDef stage, string configuration)
@@ -113,7 +113,7 @@ static class Standard
         {
             var (n, passed, failed) = (g.Count(), g.Count(f => f.Passed), g.Count(f => !f.Passed));
             var configurations = g.Select(f => f.Configuration).Distinct().ToList();
-            var where = exam.Axes is null ? "" : $" in {string.Join("; ", configurations.Select(key => exam.Axes.Of(key) is { } c ? c.Name ?? c.Label : key))}";
+            var where = $" in {string.Join("; ", configurations.Select(key => exam.Axes.Of(key) is { } c ? c.Name ?? c.Label : key))}";
             var stages = $"{n} stage{(n == 1 ? "" : "s")}";
             var sentence = g.Key.Kind switch
             {

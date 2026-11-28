@@ -25,7 +25,7 @@ public class CrawlTests
     }
 
     [Fact]
-    public async Task TheExamPage_ListsTriesByLiveSetupFirst_AndCountsNothing()
+    public async Task AnExamProctorCannotRead_IsListedByWhatItsBankHolds_AndCountsNothing()
     {
         using var bank = new SampleBank();
         var (app, url) = await Server.Start(bank.Root, 0);
@@ -35,8 +35,10 @@ public class CrawlTests
             await client.GetAsync(url);
             var page = await client.GetStringAsync(new Uri(new Uri(url), "/sample"));
             Assert.Contains("A made-up exam about the docs site", page);
+            Assert.Contains("Proctor cannot read this exam as it stands, so nothing is counted.", page);
             Assert.True(page.IndexOf("live-setup", StringComparison.Ordinal) < page.IndexOf("other-setup", StringComparison.Ordinal));
-            Assert.Contains("<span class=\"name\">live-setup</span><wa-badge class=\"light light-live\" appearance=\"outlined\">live</wa-badge>", page);
+            Assert.Contains("<span class=\"name\">live-setup</span></span>", page);
+            Assert.DoesNotContain("light-live", page);
             Assert.Contains("try 1</a> <wa-badge class=\"tag tag-none\" appearance=\"outlined\">failed</wa-badge>", page);
         }
         finally { await app.StopAsync(); }
@@ -140,10 +142,19 @@ public class CrawlTests
     }
 
     [Fact]
-    public async Task TheExamPage_ListsAStagedTryWithItsStages()
+    public async Task WhatTheBankHolds_ListsAStagedTryWithItsStages()
     {
         var page = await Page("/staged");
         Assert.Contains("<a href=\"/staged/live-setup/1\">try 1</a><span class=\"small\"><a class=\"mono\" href=\"/staged/live-setup/1/write-note\">write-note</a></span><span class=\"small\"><a class=\"mono\" href=\"/staged/live-setup/1/read-note\">read-note</a> <wa-badge class=\"tag tag-none\" appearance=\"outlined\">skipped</wa-badge></span>", page);
+    }
+
+    [Fact]
+    public async Task EarlierAttempts_StayReachable_AndAreSaidToBeInNoNumber()
+    {
+        var page = await Page("/staged/earlier");
+        Assert.Contains("<span class=\"kind\">earlier attempts</span>", page);
+        Assert.Contains("Made while this exam was tasks and variants.", page);
+        Assert.Contains("href=\"/staged/live-setup/1/write-note\"", page);
     }
 
     static async Task<string> Page(string path)

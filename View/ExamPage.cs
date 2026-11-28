@@ -44,7 +44,8 @@ static class ExamPage
         {
             // Proctor could not read the exam as it is now: say so in its words.
             page.Append($"<header><span class=\"kind\">exam</span><h1 class=\"title\">{E(e.Id)}</h1></header>")
-                .Append($"<div class=\"said\"><b>Proctor cannot read this exam as it stands</b>, so nothing is counted here.</div><pre class=\"mono small soft\">{E(problem ?? statsProblem ?? "")}</pre>");
+                .Append($"<div class=\"said\"><b>Proctor cannot read this exam as it stands</b>, so nothing is counted here.</div><pre class=\"mono small soft\">{E(problem ?? statsProblem ?? "")}</pre>")
+                .Append(EarlierLink(e));
             return Close(page);
         }
         var named = stats.Configurations.Where(c => c.Name is not null).ToList();
@@ -114,7 +115,15 @@ static class ExamPage
                     .Append($"<span class=\"small dim\">retired {E(c.Retired!.Since)} · {c.Made} {(c.Made == 1 ? "try" : "tries")}</span><span class=\"soft\">{E(c.Retired.Reason)}</span></div>");
             page.Append("</wa-details></div>");
         }
+        if (EarlierLink(e) is { Length: > 0 } earlier) page.Append($"<div class=\"row note\" style=\"display:block\">{earlier}</div>");
         page.Append("</div></div></section>");
+    }
+
+    /// <summary>A line to what the bank still holds from before the exam was stages and axes; empty when there is nothing.</summary>
+    static string EarlierLink(Exam e)
+    {
+        var tries = e.Earlier.Select(a => (a.Variant, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
+        return tries == 0 ? "" : $"<a id=\"earlier\" href=\"{U($"/{e.Id}/earlier")}\">{tries} earlier {(tries == 1 ? "attempt" : "attempts")}</a> <span class=\"dim\">made while this exam was tasks and variants. In the bank, and in no number here.</span>";
     }
 
     /// <summary>

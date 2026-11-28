@@ -131,13 +131,13 @@ public class RunnerTests
         // `loops` exhausts the tool-call budget: a transcript with exit_reason max_tool_calls, still `completed`.
         Assert.Equal("max_tool_calls", Transcript.Read(Stage(repo, B, "loops", 2)).Trailer!.ExitReason);
         // b's value lays its files over the checkout before the first stage; a's lays nothing.
-        Assert.True(File.Exists(Path.Combine(Layout.Work(repo.Root, "smoke", B, "plain", 1, entry.Stages, entry.IdOf(B, 1)), "extra", "README.md")));
-        Assert.False(Directory.Exists(Path.Combine(Layout.Work(repo.Root, "smoke", A, "plain", 1, entry.Stages, entry.IdOf(A, 1)), "extra")));
+        Assert.True(File.Exists(Path.Combine(Layout.Work(repo.Root, "smoke", entry.IdOf(B, 1)!), "extra", "README.md")));
+        Assert.False(Directory.Exists(Path.Combine(Layout.Work(repo.Root, "smoke", entry.IdOf(A, 1)!), "extra")));
 
         // Nothing is missing, so the same command makes nothing.
         var (again, log) = RunAgain(repo);
         Assert.Null(again);
-        Assert.Equal($"smoke: one job of 4 stages, 2 attempts wanted\n  note: 2 attempts a variant can show a difference between variants and never confirm one; 4 a variant can\n  {A}     2 of 2 attempts\n  {B}  2 of 2 attempts\nnothing to make\n", log);
+        Assert.Equal($"smoke: one job of 4 stages, 2 attempts wanted\n  note: 2 attempts a configuration can show a difference between two and never confirm one; 4 a configuration can\n  {A}     2 of 2 attempts\n  {B}  2 of 2 attempts\nnothing to make\n", log);
         Assert.Single(Directory.GetDirectories(Path.Combine(repo.Root, "log")));
     }
 
@@ -161,7 +161,7 @@ public class RunnerTests
         var selection = Bank.Select(repo.Root, exam);
         Assert.Equal([$"{A}/2/loops", $"{A}/2/plain", $"{A}/2/uses-bash", $"{A}/2/writes-a-file"], selection.Current.Select(a => a.Label).Order(StringComparer.Ordinal));
         Assert.Equal(4, selection.Stale.Count);
-        Assert.Contains(selection.Stale, s => s.Attempt == $"{A}/1/plain" && s.Why == $"task plain changed ({before[7..15]} then, {exam.TaskHashes["plain"][7..15]} now)");
+        Assert.Contains(selection.Stale, s => s.Attempt == $"{A}/1/plain" && s.Why == $"the stages changed ({before[7..15]} then, {exam.TaskHashes["plain"][7..15]} now)");
     }
 
     [Fact]
@@ -302,7 +302,7 @@ public class RunnerTests
     [Fact]
     public void ResolveProgram_EscapesNewlinesAsContinuations()
     {
-        var variant = new Variant("floor", "nb", "nb", "Mock", "m", null);
+        var variant = new Variant("floor", "nb", "nb", "Mock", "m");
         var c = new TaskDef("x", null, "Add a flag.\nKeep tests green.\n  Indented line.", null);
         var program = Runner.ResolveProgram("run {{prompt}}\n# {{task}} on {{variant}} attempt {{attempt}} in {{work}}\n", variant, c, 2, "/w");
         Assert.Equal("run Add a flag. \\\nKeep tests green. \\\n  Indented line.\n# x on floor attempt 2 in /w\n", program);
@@ -315,7 +315,7 @@ public class RunnerTests
         var id = StartSmoke(repo, One);
         var entry = Runner.LoadEntry(repo.Root, id);
         var stage = Stage(repo, A, "writes-a-file");
-        var work = Layout.Work(repo.Root, "smoke", A, "writes-a-file", 1, entry.Stages, entry.IdOf(A, 1));
+        var work = Layout.Work(repo.Root, "smoke", entry.IdOf(A, 1)!);
 
         var manifest = ReadJson(Path.Combine(stage, "manifest.json"));
         Assert.Equal("note", manifest["fixture"]!["id"]!.GetValue<string>());
@@ -362,7 +362,7 @@ public class RunnerTests
         repo.WriteScript("runners/passthrough.sh", Passthrough);
         var id = StartSmoke(repo, One, runner: "runners/passthrough.sh");
         // Each ran in its own checkout, which a tool's output may name.
-        string Placed(TestRepo r, string entryId, string text) => Runner.LoadEntry(r.Root, entryId) is var e ? text.Replace(Layout.Work(r.Root, "smoke", A, "plain", 1, e.Stages, e.IdOf(A, 1)), "/work") : text;
+        string Placed(TestRepo r, string entryId, string text) => Runner.LoadEntry(r.Root, entryId) is var e ? text.Replace(Layout.Work(r.Root, "smoke", e.IdOf(A, 1)!), "/work") : text;
 
         foreach (var c in new[] { "loops", "plain", "uses-bash", "writes-a-file" })
         {
@@ -399,7 +399,7 @@ public class RunnerTests
         var stage = Stage(repo, A, "plain");
         Assert.Equal("completed", Runner.ReadStatus(stage));
         var stderr = File.ReadAllText(Path.Combine(stage, "stderr.txt"));
-        var work = Layout.Work(repo.Root, "smoke", A, "plain", 1, entry.Stages, entry.IdOf(A, 1));
+        var work = Layout.Work(repo.Root, "smoke", entry.IdOf(A, 1)!);
         Assert.Contains("argv=0\n", stderr);
         Assert.Contains($"cwd={work}\n", stderr);
         Assert.Contains($"work={work}\n", stderr);
@@ -432,7 +432,7 @@ public class RunnerTests
 
         var stage = Stage(repo, A, "plain");
         Assert.Equal("completed", Runner.ReadStatus(stage));
-        var work = Layout.Work(repo.Root, "smoke", A, "plain", 1, entry.Stages, entry.IdOf(A, 1));
+        var work = Layout.Work(repo.Root, "smoke", entry.IdOf(A, 1)!);
         // The program tells the model the path inside the container.
         Assert.Contains("# work: /work\n", File.ReadAllText(Path.Combine(stage, "program.nb")));
         // The runner and the hooks, on the host, get both.
@@ -453,7 +453,7 @@ public class RunnerTests
 
         var stage = Stage(repo, A, "plain");
         Assert.Equal("completed", Runner.ReadStatus(stage));
-        var work = Layout.Work(repo.Root, "smoke", A, "plain", 1, entry.Stages, entry.IdOf(A, 1));
+        var work = Layout.Work(repo.Root, "smoke", entry.IdOf(A, 1)!);
         Assert.Contains($"# work: {work}\n", File.ReadAllText(Path.Combine(stage, "program.nb")));
         Assert.Contains($"work_mount={work}", File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "attempt.setup.log")));
         Assert.Null(ReadJson(Path.Combine(stage, "manifest.json"))["nb"]!["mounts"]);

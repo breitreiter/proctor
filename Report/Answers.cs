@@ -153,7 +153,7 @@ static class Answers
         var then = all.Where(x => x.Made <= at).ToList();
         var current = then.Select(x => x.Attempt).ToList();
         var rows = Results.Collect(root, exam, current);
-        var (tries, rollup) = Tries.Compute(root, exam, current, Bank.Of(root, exam), rows, null, null);
+        var (tries, rollup) = Tries.Compute(root, exam, current, Bank.Of(root, exam), rows, null);
         var byKey = tries.Variants.ToDictionary(v => v.Id);
         var standing = Combinations.Load(exam).Stand(exam);
         var moves = Standard.Moves(root, exam, current);

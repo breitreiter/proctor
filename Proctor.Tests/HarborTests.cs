@@ -93,7 +93,7 @@ public class HarborTests
         repo.EditJson("harbor-unit/exam.json", e => { e.Remove("harbor"); e["limits"] = JsonNode.Parse("{\"tool_calls\": 60}"); });
         repo.EditJson("../fixtures/ledger/fixture.json", f => f.Remove("image"));
         var problems = repo.Problems("harbor-unit");
-        Assert.Contains(problems, p => p.Field == "harbor.version" && p.Message.Contains("required with an agent variant"));
+        Assert.Contains(problems, p => p.Field == "harbor.version" && p.Message.Contains("required where a value runs through Harbor"));
         Assert.Contains(problems, p => p.Field == "limits.wall_ms" && p.Message.Contains("required"));
         Assert.Contains(problems, p => p.Field == "limits.tool_calls" && p.Message.Contains("not yet"));
         Assert.Contains(problems, p => p.File.EndsWith("fixture.json") && p.Field == "image");
@@ -211,7 +211,7 @@ public class HarborTests
     [Fact]
     public void Job_StatesEverySettingHarborWouldDefault_AndCarriesNoKey()
     {
-        var variant = new Variant("cc-haiku", null, null, null, "claude-haiku-5-5", null, Agent: "claude-code", AgentVersion: "2.1.301");
+        var variant = new Variant("cc-haiku", null, null, null, "claude-haiku-5-5", Agent: "claude-code", AgentVersion: "2.1.301");
         var job = HarborCompile.Job(variant, "/t", "/j", new AgentRoute(BaseUrl, "sk-secret"));
         Assert.Equal(1, job["n_attempts"]!.GetValue<int>());
         Assert.Equal(0, job["retry"]!["max_retries"]!.GetValue<int>());
@@ -230,7 +230,7 @@ public class HarborTests
 
     // A trial as Harbor 0.24.0 writes one: result.json, the agent's logs with the ATIF trajectory, the artifacts, the verifier.
 
-    static readonly Variant CcVariant = new("cc-haiku", null, null, null, "claude-haiku-5-5", null, Agent: "claude-code", AgentVersion: "2.1.301");
+    static readonly Variant CcVariant = new("cc-haiku", null, null, null, "claude-haiku-5-5", Agent: "claude-code", AgentVersion: "2.1.301");
 
     static string Trajectory(params string[] tools) => new JsonObject
     {
@@ -768,8 +768,8 @@ public class HarborTests
     // Codex and Qwen Code: Harbor's agents on an OpenAI-dialect route, Qwen Code's install replaced by proctor's pin check.
 
     const string OpenAiUrl = "http://library:8086/x/openai/v1";
-    static readonly Variant CodexVariant = new("codex-mini", null, null, null, "gpt-5-mini", null, Agent: "codex", AgentVersion: "0.163.0");
-    static readonly Variant QwenVariant = new("qwen", null, null, null, "qwen3-coder-next", null, Agent: "qwen-code", AgentVersion: "0.25.2");
+    static readonly Variant CodexVariant = new("codex-mini", null, null, null, "gpt-5-mini", Agent: "codex", AgentVersion: "0.163.0");
+    static readonly Variant QwenVariant = new("qwen", null, null, null, "qwen3-coder-next", Agent: "qwen-code", AgentVersion: "0.25.2");
 
     [Theory]
     [InlineData("codex", "gpt-5-mini", null)]
@@ -862,7 +862,7 @@ public class HarborTests
 
     [Theory]
     [InlineData("nowhere", "no docker-compose.yaml in nowhere")]
-    [InlineData("clash", "Dockerfile, repo, bundle and params are the task's own names in environment/")]
+    [InlineData("clash", "Dockerfile, repo and params are the task's own names in environment/")]
     public void FixtureServices_AreValidated(string services, string message)
     {
         using var repo = new TestRepo();
@@ -966,7 +966,7 @@ public class HarborTests
 
     // nb as a Harbor agent: the gate exam's harbor route.
 
-    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", null, Agent: "nb");
+    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", Agent: "nb");
 
     [Fact]
     public void NbThroughHarbor_IsAnAgent_ButNotAVendors()

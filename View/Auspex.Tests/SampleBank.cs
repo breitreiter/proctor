@@ -1,6 +1,7 @@
 namespace Auspex.Tests;
 
-/// <summary>A proctor root made for a test: one exam with its definition and live mark, two setups, one try with checks,
+/// <summary>A proctor root made for a test, its bank filed the way it was before an exam was stages and axes (by variant
+/// and task, or by variant and try number), which the viewer still serves: one exam with its definition, two setups, one try with checks,
 /// a friction.json and a trajectory, and one failed try with a trajectory only.</summary>
 public sealed class SampleBank : IDisposable
 {
@@ -19,7 +20,6 @@ public sealed class SampleBank : IDisposable
     {
         Root = Path.Combine(_temp, "proctor");
         Write(Path.Combine(Root, "exams", Exam, "exam.json"), """{"id": "sample", "description": "A made-up exam about the docs site on :8080."}""");
-        Write(Path.Combine(Root, "exams", Exam, "live.json"), """{"variant": "live-setup", "hash": "aaaa", "since": "2026-01-01T00:00:00Z"}""");
 
         var coded = Path.Combine(Root, "bank", Exam, "live-setup", "task-one", "1");
         Write(Path.Combine(coded, "manifest.json"), """{"id": "x1", "exam": "sample", "log": "20260101-0000-sample-aaaa", "variant": {"id": "live-setup", "hash": "aaaa"}, "task": {"id": "task-one", "hash": "bbbb"}, "attempt": 1, "model": "a-model", "status": "completed"}""");

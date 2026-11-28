@@ -277,6 +277,13 @@ Before switching Pages on, read the page against the repository once more,
 line by line: every capability it names should be one a stranger can run
 from the README.
 
+## A new logo
+
+The wizard hat is retired (the user, 2026-11-27), so auspex needs a mark
+of its own, for the site (`plans/site.md`), the viewer and the console.
+The augur who watched birds is the obvious starting point. When it is
+made, `assets/` and its credit line in `CLAUDE.md` go too.
+
 ## The wrap-up list for 2026-11-01
 
 Cross-repo checklist for tying up the agent-neutral and oracle arc:

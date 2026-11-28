@@ -123,14 +123,14 @@ sealed class TestRepo : IDisposable
     public string StageDir(string examId, string key, string stage, int n = 1)
     {
         var entry = Bank.Entries(Root, examId).Last(e => e.Attempts.Any(a => a.Variant == key && a.Attempt == n));
-        return Layout.Attempt(Root, examId, key, stage, n, entry.Stages, entry.IdOf(key, n));
+        return Layout.Attempt(Root, examId, stage, entry.Stages!, entry.IdOf(key, n)!);
     }
 
     /// <summary>The directory of a configuration's n-th try, by its number, whatever id it is kept under.</summary>
     public string TryDir(string examId, string key, int n)
     {
         var entry = Bank.Entries(Root, examId).Last(e => e.Attempts.Any(a => a.Variant == key && a.Attempt == n));
-        return Layout.Try(Root, examId, key, n, entry.IdOf(key, n));
+        return Layout.Try(Root, examId, entry.IdOf(key, n)!);
     }
 
     /// <summary>
@@ -198,12 +198,4 @@ sealed class TestRepo : IDisposable
         foreach (var dir in Directory.GetDirectories(from))
             CopyDirectory(dir, Path.Combine(to, Path.GetFileName(dir)));
     }
-
-    /// <summary>An attempt's directory in the bank, from the log entry of the run that made it, which names the exam.</summary>
-    public static string Attempt(string root, string entryId, string variant, string task, int n) =>
-        Layout.Attempt(root, Runner.LoadEntry(root, entryId).Exam, variant, task, n, Runner.LoadEntry(root, entryId).Stages);
-
-    /// <summary>An attempt's checkout, likewise.</summary>
-    public static string Work(string root, string entryId, string variant, string task, int n) =>
-        Layout.Work(root, Runner.LoadEntry(root, entryId).Exam, variant, task, n, Runner.LoadEntry(root, entryId).Stages);
 }

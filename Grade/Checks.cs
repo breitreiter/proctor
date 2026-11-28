@@ -42,14 +42,12 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     /// <summary>What the task expects, its fixture's defaults included; the task's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Task.Expect;
     public Fixture? Fixture { get; init; }
-    /// <summary>The variant's resolved bundle directory, when the variant has one.</summary>
-    public string? BundleDir { get; init; }
     /// <summary>The runner script in effect, relative to exams/; empty on a bare run.</summary>
     public string NbRunner { get; init; } = "";
     /// <summary>The host nb binary and its config, resolved: what a bare run starts, and what a hook mounts for a runner.</summary>
     public string NbPath { get; init; } = "";
     public string? NbConfig { get; init; }
-    /// <summary>Where the runner shows nb the checkout and the bundle; null when it shows them at the host paths.</summary>
+    /// <summary>Where the runner shows nb the checkout; null when it shows it at the host path.</summary>
     public NbMounts? Mounts { get; init; }
     /// <summary>The judges a decide or judge check calls; set by grade, absent while running.</summary>
     public JudgeClient? Judges { get; init; }
@@ -66,8 +64,6 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
 
     /// <summary>The path the model is told the checkout is at: the mount when a runner has one, else the host path.</summary>
     public string WorkMount => Mounts?.Work ?? WorkDir;
-    /// <summary>The path the model is told the bundle is at, when the variant has one.</summary>
-    public string? BundleMount => BundleDir is null ? null : Mounts?.Bundle ?? BundleDir;
 
     /// <summary>The id the try is kept under in the bank.</summary>
     public string? Try { get; init; }
@@ -92,7 +88,6 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     {
         ["PROCTOR_EXAM_DIR"] = ExamDir,
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
-        ["PROCTOR_BUNDLE"] = BundleDir ?? "",
         ["PROCTOR_EXAM"] = ExamId,
         ["PROCTOR_VARIANT"] = Variant,
         ["PROCTOR_TASK"] = Task.Id ?? "",
@@ -100,7 +95,6 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
         ["PROCTOR_ATTEMPT_DIR"] = AttemptDir,
         ["PROCTOR_WORK"] = WorkDir,
         ["PROCTOR_WORK_MOUNT"] = WorkMount,
-        ["PROCTOR_BUNDLE_MOUNT"] = BundleMount ?? "",
         ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(Task, Exam.JsonOptions),
         ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(AttemptDir, Layout.TranscriptFile),

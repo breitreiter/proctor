@@ -12,7 +12,8 @@ static class Layout
     public const string ExamsSeenDir = "exams-seen";
     public const string ReportsDir = "reports";
     public const string WorkDir = ".proctor/work";
-    public const string BundlesDir = ".proctor/bundles";
+    /// <summary>Where a value's files from a git revision are cloned, and the paths it names copied out.</summary>
+    public const string GitFilesDir = ".proctor/files";
     /// <summary>What `proctor build` leaves: each value's change from the reference build, and its scratch checkouts while it runs.</summary>
     public const string BuildsDir = ".proctor/builds";
     /// <summary>In a try: what its setup hook did to the checkout, as a patch.</summary>
@@ -23,10 +24,11 @@ static class Layout
     public const string ProctorConfigFile = "proctor.json";
     public const string ExamFile = "exam.json";
     public const string ProgramTemplateFile = "program.nb";
+    /// <summary>Beside exam.json in the earlier shape, and read only to say so: a task per file, a variant per file.</summary>
     public const string TasksDir = "tasks";
-    public const string StagesDir = "stages";
     public const string VariantsDir = "variants";
-    public const string LiveFile = "live.json";
+    /// <summary>In a try: a directory per stage, by its place and id.</summary>
+    public const string StagesDir = "stages";
     /// <summary>Beside exam.json: one file per prediction: a named configuration and the changes expected of it (plans/axes-build.md, slice 6).</summary>
     public const string PredictionsDir = "predictions";
     /// <summary>Beside exam.json: the named configurations retired, each with its reason and date (`proctor retire`).</summary>
@@ -52,7 +54,7 @@ static class Layout
     /// <summary>What a reader was sent and answered about an attempt: friction-reading.&lt;judge&gt;.&lt;hash&gt;.json, the cache and the record.</summary>
     public const string ReadingPrefix = "friction-reading";
 
-    /// <summary>An agent variant's attempts: the compiled Harbor tasks per log entry, Harbor's own job per attempt, and what ingest lifts out of the trial.</summary>
+    /// <summary>Through Harbor: the compiled tasks per log entry, Harbor's own job per try, and what ingest lifts out of the trial.</summary>
     public const string HarborDir = "harbor";
     public const string HarborJobFile = "job.json";
     public const string HarborLogFile = "harbor.log";
@@ -75,43 +77,27 @@ static class Layout
     public static string TasksDirIn(string examDir) => Path.Combine(examDir, TasksDir);
     public static string VariantsDirIn(string examDir) => Path.Combine(examDir, VariantsDir);
     public static string Fixture(string root, string fixtureId) => Path.Combine(root, FixturesDir, fixtureId);
-    /// <summary>The bank: every attempt of an exam, by variant, task and number. Numbers run on, so the path names one attempt for good.</summary>
+    /// <summary>The bank: every try of an exam, each under an id of its own. Its manifests say which configuration it ran as.</summary>
     public static string Bank(string root, string examId) => Path.Combine(root, BankDir, examId);
-    /// <summary>
-    /// An attempt's directory. Of a task exam, by variant, task and number. Of a staged exam (its stage ids given, in
-    /// order), the attempt is one stage of a try: the try is the variant's nth, and the stage sits under it by its place
-    /// and id, so the directory lists in the order the stages ran.
-    /// </summary>
-    public static string Attempt(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null, string? id = null) =>
-        stages is null ? Path.Combine(Bank(root, examId), variant, task, n.ToString())
-        : Path.Combine(Try(root, examId, variant, n, id), StagesDir, $"{stages.ToList().IndexOf(task) + 1}-{task}");
-    /// <summary>One try of a staged exam: every stage once, in one workspace. Holds the stages, the try's hooks' output and its diff.</summary>
-    /// <summary>With an id (an exam with axes, plans/axes-build.md), the try sits under that id alone: bank/&lt;exam&gt;/&lt;id&gt;/, its manifests saying which configuration it ran as.</summary>
-    public static string Try(string root, string examId, string variant, int n, string? id = null) =>
-        id is not null ? Path.Combine(Bank(root, examId), id) : Path.Combine(Bank(root, examId), variant, n.ToString());
-    /// <summary>The checkout an attempt runs in. A staged exam's stages share their try's.</summary>
-    public static string Work(string root, string examId, string variant, string task, int n, IReadOnlyList<string>? stages = null, string? id = null) =>
-        stages is null ? Path.Combine(root, WorkDir, examId, variant, task, n.ToString())
-        : id is not null ? Path.Combine(root, WorkDir, examId, id)
-        : Path.Combine(root, WorkDir, examId, variant, n.ToString());
+    /// <summary>One try: every stage that applies in its configuration, once, in one workspace. Holds the stages, the try's hooks' output and what setup left.</summary>
+    public static string Try(string root, string examId, string id) => Path.Combine(Bank(root, examId), id);
+    /// <summary>One stage of a try: under the try by its place among the exam's stages and its id, so the directory lists in the order the stages ran.</summary>
+    public static string Attempt(string root, string examId, string stage, IReadOnlyList<string> stages, string id) =>
+        Path.Combine(Try(root, examId, id), StagesDir, $"{stages.ToList().IndexOf(stage) + 1}-{stage}");
+    /// <summary>The checkout a try runs in, which its stages share.</summary>
+    public static string Work(string root, string examId, string id) => Path.Combine(root, WorkDir, examId, id);
     /// <summary>A stage's workspace rebuilt for grading: the fixture with the stage's diff on it, since the try's own checkout only holds what the last stage left.</summary>
-    public static string WorkAsStageLeftIt(string root, string examId, string variant, int n, string stageDir, string? id = null) =>
-        id is not null ? Path.Combine(root, WorkDir, examId, $"{id}.stages", stageDir) : Path.Combine(root, WorkDir, examId, variant, $"{n}.stages", stageDir);
-    /// <summary>What one `proctor run` did: entry.json, its status counts, its variant hooks' output, and the Harbor tasks it compiled.</summary>
+    public static string WorkAsStageLeftIt(string root, string examId, string stageDir, string id) => Path.Combine(root, WorkDir, examId, $"{id}.stages", stageDir);
+    /// <summary>What one `proctor run` did: entry.json, its status counts, its configuration hooks' output, and the Harbor tasks it compiled.</summary>
     public static string LogEntry(string root, string entryId) => Path.Combine(root, LogDir, entryId);
     public static string LogEntryFileIn(string root, string entryId) => Path.Combine(LogEntry(root, entryId), LogEntryFile);
     /// <summary>The exam's own definition as it stood at a hash, kept once per hash.</summary>
     public static string ExamSeen(string root, string examHash) =>
         Path.Combine(root, ExamsSeenDir, $"sha256-{(examHash.StartsWith("sha256:") ? examHash[7..] : examHash)[..12]}.json");
-    /// <summary>The Harbor task a variant runs a task as, compiled once per log entry.</summary>
-    public static string HarborTask(string entryDir, string variant, string task) => Path.Combine(entryDir, HarborDir, "tasks", variant, task);
-    /// <summary>The one Harbor task a variant runs a staged exam as: every stage a step of it. Named for the exam, which no stage of it can be.</summary>
-    public static string HarborJobTask(string entryDir, string variant, string examId) => Path.Combine(entryDir, HarborDir, "tasks", variant, examId);
-    /// <summary>An nb agent variant's programs for one try, one per stage by its place, which nb's Harbor agent uploads and runs in order.</summary>
+    /// <summary>The one Harbor task a configuration's tries run as, compiled once per log entry: every stage that applies a step of it. Named for the exam, which no stage of it can be.</summary>
+    public static string HarborJobTask(string entryDir, string key, string examId) => Path.Combine(entryDir, HarborDir, "tasks", key, examId);
+    /// <summary>nb's programs for one try through Harbor, one per stage by its place, which nb's Harbor agent uploads and runs in order.</summary>
     public const string StageProgramsDir = "programs";
-    public static string GitBundle(string root, string rev) => Path.Combine(root, BundlesDir, rev);
-    /// <summary>The files a bundle's paths name, copied out of its revision's clone; named by the bundle's identity so two subsets of one revision sit apart.</summary>
-    public static string GitBundleSubset(string root, string rev, string identityHash) => Path.Combine(root, BundlesDir, $"{rev}-{identityHash[..12]}");
     /// <summary>The exploration report of an exam: the latest here, each earlier one moved into a directory of its own beside it, named by when it was built.</summary>
     public static string ReportExplore(string root, string examId) => Path.Combine(root, ReportsDir, examId, "explore");
 
@@ -121,7 +107,7 @@ static class Layout
 
     public static string NewAttemptId() => RandomSuffix(16);
 
-    /// <summary>A try's id on an exam with axes: when it was made and four random characters, so it sorts by time, is made offline and never changes.</summary>
+    /// <summary>A try's id: when it was made and four random characters, so it sorts by time, is made offline and never changes.</summary>
     public static string NewTryId(DateTime utcNow) => $"{utcNow:yyyyMMdd-HHmm}-{RandomSuffix(4)}";
 
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";

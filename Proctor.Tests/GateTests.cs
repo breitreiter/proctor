@@ -75,7 +75,7 @@ public class GateTests
 
                 // The checkout is at a host path bare and at /app in the image; a tool's output naming it is the one other expected difference.
                 var entry = Of(bare).Entry;
-                var work = Layout.Work(root, exam.Id, bare.Id!, c.Id!, n, entry.Stages, entry.IdOf(bare.Id!, n));
+                var work = Layout.Work(root, exam.Id, entry.IdOf(bare.Id!, n)!);
                 var bareJsonl = Untimed(File.ReadAllText(Path.Combine(b, Layout.TranscriptFile)).Replace(work, HarborCompile.Workdir));
                 var harborJsonl = Untimed(File.ReadAllText(Path.Combine(h, Layout.AgentLogsDir, Layout.NbLogFile)));
                 if (bareJsonl != harborJsonl) differences.Add($"{at}: nb's transcript differs\n--- bare\n{bareJsonl}\n--- harbor\n{harborJsonl}");

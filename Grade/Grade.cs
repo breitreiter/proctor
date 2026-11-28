@@ -28,14 +28,14 @@ static class Grade
             }
             var attempt = Runner.Context(root, a.Entry, exam, variant, c, n) with { Judges = judges };
             // A stage's script checks run on the workspace as that stage left it, which the try's own checkout no longer is once a later stage has run: the fixture with the stage's diff, rebuilt beside it.
-            if (a.Staged && !variant.IsAgent) attempt = attempt with { WorkDir = Layout.WorkAsStageLeftIt(root, exam.Id, variant.Id!, n, Path.GetFileName(attemptDir), a.Entry.IdOf(a.Variant, n)) };
+            if (!variant.IsAgent) attempt = attempt with { WorkDir = Layout.WorkAsStageLeftIt(root, exam.Id, Path.GetFileName(attemptDir), a.Try) };
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree. An agent attempt's scripts ran in the verifier.
-            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir, attempt.Overlays, a.Staged ? Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(attemptDir))!, Layout.SetupPatchFile) : null) is { } error)
+            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir, attempt.Overlays, Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(attemptDir))!, Layout.SetupPatchFile)) is { } error)
                 log.WriteLine($"  {a.Label}  could not restore the checkout: {error}");
             var checks = Attempt(attempt, exam, Transcript.Read(attemptDir, Before(root, exam, a)));
             var pass = Pass(checks, exam.CorrectnessFor(c));
             var invalid = Invalid(checks, exam.IntegrityFor(c));
-            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid, a.Entry.IdOf(a.Variant, n)));
+            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid, a.Try));
             log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.CorrectnessFor(c)) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}{Because(k.Value)}"))}");
         }
         return grades;
@@ -71,7 +71,7 @@ static class Grade
 
     /// <summary>On a chained exam, the stage before this one in the same try: its diff is in this one's, and is taken out to see what this stage changed. Null otherwise.</summary>
     static string? Before(string root, Exam exam, BankAttempt a) =>
-        a.Staged && exam.Chained && a.Entry.Stages!.IndexOf(a.Task) is > 0 and var i ? Layout.Attempt(root, exam.Id, a.Variant, a.Entry.Stages[i - 1], a.Attempt, a.Entry.Stages, a.Entry.IdOf(a.Variant, a.Attempt)) : null;
+        exam.Chained && a.Entry.Stages!.IndexOf(a.Task) is > 0 and var i ? Layout.Attempt(root, exam.Id, a.Entry.Stages[i - 1], a.Entry.Stages, a.Try) : null;
 
     /// <summary>
     /// A `--judge a=b` pass: only the checks whose declared judge is remapped are evaluated, by b, into b's verdict files

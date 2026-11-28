@@ -28,9 +28,6 @@ record Spread(double Min, double Median, double Max);
 /// </summary>
 record Measure(string Direction, int Higher, int Lower, int Tied, int Pairings, double P, bool Confirmed, double? Median = null, double? OtherMedian = null, double? Change = null);
 
-/// <summary><c>CanConfirm</c> is whether these two counts of tries could confirm anything at 95%: 4 a side can, or 3 against 5.</summary>
-record AgainstLive(string Vs, int Tries, int LiveTries, bool CanConfirm, Measure Held, Measure? Flagged, List<string> Moved, string Sentence);
-
 /// <summary>A correctness check that did not hold in a stage: in how many counted tries, and the reason the first of them gave.</summary>
 record NotHeld(string Check, int Tries, string? Reason);
 
@@ -45,8 +42,9 @@ record StageTally(string Id, int Right, int Of, int Checks = 0, int Graded = 0, 
 /// <summary>One check across a configuration's counted tries: how often it held, of the times it was asked and answered pass or fail, whatever the stage.</summary>
 record CheckRate(string Check, string Role, int Held, int Asked);
 
-record TryVariant(string Id, bool Live, int Tries, int Lost, int Invalid, int Passed, Spread? Held, Spread? Flagged,
-    List<StageTally> Stages, List<TryRow> Rows, AgainstLive? AgainstLive, Spread? ToolCalls = null, Spread? Tokens = null, Spread? Duration = null, List<CheckRate>? Checks = null);
+/// <summary>One configuration's tries, by its key: how many counted, were lost or were invalid, and the two numbers of each as spreads.</summary>
+record TryVariant(string Id, int Tries, int Lost, int Invalid, int Passed, Spread? Held, Spread? Flagged,
+    List<StageTally> Stages, List<TryRow> Rows, Spread? ToolCalls = null, Spread? Tokens = null, Spread? Duration = null, List<CheckRate>? Checks = null);
 
 /// <summary>A try in which a stage did not run: left out of every number.</summary>
 record LostTry(string Variant, int N, string At, string Why);
@@ -54,9 +52,8 @@ record LostTry(string Variant, int N, string At, string Why);
 /// <summary>A stage as the report names it. Checks is every check it carries with its role (correctness, integrity, quality, observation).</summary>
 record StageInfo(string Id, int Place, string About, List<string> CorrectnessChecks, Dictionary<string, string>? Checks = null);
 
-/// <summary>stats.json of a staged exam: each variant's tries, and each variant but live against live.</summary>
-record TriesFile(string Schema, string Exam, bool Chained, List<StageInfo> Stages, int CorrectnessChecks, LiveStats? Live,
-    List<TryVariant> Variants, List<LostTry> Lost, string Methods, BuiltFrom? BuiltFrom);
+/// <summary>What <see cref="Tries.Compute"/> reads out of the bank: the stages, each configuration's tries, and the tries that were lost.</summary>
+record TriesRead(List<StageInfo> Stages, List<TryVariant> Variants, List<LostTry> Lost);
 
 /// <summary>
 /// One kind of friction in a variant's tries: a label and what the rule fired on (a reader's points have no detail and
@@ -74,17 +71,18 @@ record FrictionVariant(string Id, int Tries, double PerTry, List<FrictionKind> K
 record FrictionRollup(string Schema, string Exam, List<FrictionVariant> Variants, BuiltFrom? BuiltFrom);
 
 /// <summary>
-/// The report of a staged exam. A try is the unit: every stage once, in one workspace. Stages share that workspace and
-/// so share causes, which makes a stage never a unit of comparison (plans/bank.md). A variant is compared with live try
-/// against try, on correctness checks held and on flagged steps, by Mann–Whitney; stages and kinds of friction explain a
-/// verdict ("moved most") and never make it.
+/// The tries of an exam, read out of its bank. A try is the unit: every stage that applies in its configuration once,
+/// in one workspace. Stages share that workspace and so share causes, which makes a stage never a unit of comparison
+/// (plans/bank.md). Two sets of tries are compared try against try, on correctness checks held and on flagged steps, by
+/// Mann–Whitney (<see cref="Compare"/>); which sets, and what is held still between them, is the report's
+/// (<see cref="Configurations"/>).
 /// </summary>
 static class Tries
 {
-    public const string Schema = "tries/1", FrictionSchema = "friction-rollup/1";
+    public const string FrictionSchema = "friction-rollup/1";
     const double Alpha = 0.05;
 
-    public static (TriesFile Stats, FrictionRollup Friction) Compute(string root, Exam exam, List<BankAttempt> current, List<BankAttempt> bank, List<ResultRow> rows, Live? live, BuiltFrom? built)
+    public static (TriesRead Stats, FrictionRollup Friction) Compute(string root, Exam exam, List<BankAttempt> current, List<BankAttempt> bank, List<ResultRow> rows, BuiltFrom? built)
     {
         var surface = new Surface(exam.Def.Surface);
         var kinds = new Dictionary<string, List<(int Try, string Stage, string Label, string? Detail, int Steps)>>();
@@ -93,7 +91,7 @@ static class Tries
 
         foreach (var variant in ids)
         {
-            // On an exam with axes a try is the stages that apply in its configuration, and holds of those stages' correctness checks.
+            // A try is the stages that apply in its configuration, and holds of those stages' correctness checks.
             var stages = exam.StagesOf(variant);
             // Of the correctness checks that apply in this configuration: one that does not apply is no part of what a try can hold.
             var of = stages.Sum(s => Standard.PassIn(exam, s, variant).Count);
@@ -129,7 +127,7 @@ static class Tries
             }
             var counted = tryRows.Where(t => t.Invalid is null).ToList();
             var lost = bank.Where(a => a.Lost && a.Variant == variant && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count();
-            variants.Add(new TryVariant(variant, false, counted.Count, lost, tryRows.Count - counted.Count, counted.Count(t => t.Passed),
+            variants.Add(new TryVariant(variant, counted.Count, lost, tryRows.Count - counted.Count, counted.Count(t => t.Passed),
                 SpreadOf(counted.Select(t => (double)t.Held)), counted.Count > 0 && counted.All(t => t.Flagged is not null) ? SpreadOf(counted.Select(t => (double)t.Flagged!.Value)) : null,
                 stages.Select(s =>
                 {
@@ -140,14 +138,14 @@ static class Tries
                         .Where(x => x.Failed.Count > 0).Select(x => new NotHeld(x.Check, x.Failed.Count, x.Failed[0].Reasons?.GetValueOrDefault(x.Check))).ToList();
                     return new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count, Standard.PassIn(exam, s, variant).Count, graded.Count,
                         SpreadOf(shares), shares.Count > 0 ? Math.Round(shares.Average(), 4) : null, notHeld.Count > 0 ? notHeld : null);
-                }).ToList(), tryRows, null,
+                }).ToList(), tryRows,
                 Whole(counted, t => t.ToolCalls), Whole(counted, t => t.TokensIn), Whole(counted, t => t.DurationMs),
                 // An integrity check's rate is over every graded try, since it says how many were counted; any other check's is over the counted ones.
                 exam.CheckNames.Select(c => (Check: c, Verdicts: rows.Where(r => r.Variant == variant && (exam.RoleOf(c) == Roles.Integrity ? tryRows : counted).Any(t => t.N == r.Attempt)).Select(r => r.Checks?.GetValueOrDefault(c)).Where(v => v is Verdict.Pass or Verdict.Fail).ToList()))
                     .Where(x => x.Verdicts.Count > 0).Select(x => new CheckRate(x.Check, exam.RoleOf(x.Check), x.Verdicts.Count(v => v == Verdict.Pass), x.Verdicts.Count)).ToList()));
         }
 
-        // A variant never in `current` can still have lost every try it made: it is not a column, but its lost tries are said.
+        // A configuration never in `current` can still have lost every try it made: it has no numbers, but its lost tries are said.
         var lostTries = bank.Where(a => a.Lost && Bank.Stale(exam, a) is null).GroupBy(a => (a.Variant, a.Attempt)).OrderBy(g => exam.Variants.FindIndex(v => v.Id == g.Key.Variant)).ThenBy(g => g.Key.Attempt)
             .Select(g =>
             {
@@ -157,20 +155,8 @@ static class Tries
             }).ToList();
 
         var rollup = variants.Select(v => Rollup(v, kinds[v.Id])).ToList();
-        var broken = live?.Broken(exam);
-        var reference = live is not null && broken is null ? variants.FirstOrDefault(v => v.Id == live.Variant.Id && v.Tries > 0) : null;
-        var liveStats = live is null ? null : new LiveStats(live.Variant.Id, live.Since, broken ?? (reference is null ? "it has no counted try in this report" : null));
-        variants = variants.Select(v => v == reference ? v with { Live = true }
-            : reference is null || v.Tries == 0 ? v
-            : v with { AgainstLive = Against(v, reference, rollup.First(r => r.Id == v.Id), rollup.First(r => r.Id == reference.Id)) }).ToList();
-
-        var methods = "A try is every stage of the exam once, in one workspace. Each try gives two numbers: the correctness checks it held, of all the exam has across its stages "
-            + "(a stage a chained try did not reach holds nothing), and its flagged steps, the steps inside any friction point. "
-            + "A variant is compared with the live one try against try, by the Mann–Whitney test with an exact two-sided p; a difference is confirmed at p < 0.05, "
-            + "which needs at least 4 tries a side, or 3 against 5. A stage is never compared on its own: stages share a workspace, so they share causes. "
-            + "A try in which a stage did not run is lost and is in no number; a try with a stage that failed a validity check is listed and not counted.";
-        return (new TriesFile(Schema, exam.Id, exam.Chained,
-                exam.Tasks.Select((s, i) => new StageInfo(s.Id!, i + 1, Exam.Describe(s), exam.CorrectnessFor(s), exam.ChecksFor(s).Keys.ToDictionary(k => k, exam.RoleOf))).ToList(), exam.Tasks.Sum(s => exam.CorrectnessFor(s).Count), liveStats, variants, lostTries, methods, built),
+        return (new TriesRead(
+                exam.Tasks.Select((s, i) => new StageInfo(s.Id!, i + 1, Exam.Describe(s), exam.CorrectnessFor(s), exam.ChecksFor(s).Keys.ToDictionary(k => k, exam.RoleOf))).ToList(), variants, lostTries),
             new FrictionRollup(FrictionSchema, exam.Id, rollup, built));
     }
 
@@ -212,43 +198,6 @@ static class Tries
             .OrderByDescending(l => l.PerTry).ThenBy(l => l.Label, StringComparer.Ordinal).ToList();
         return new FrictionVariant(v.Id, n, flagged.Count == 0 ? 0 : Math.Round(flagged.Average(), 2), kinds, labels);
     }
-
-    static AgainstLive Against(TryVariant v, TryVariant live, FrictionVariant vFriction, FrictionVariant liveFriction)
-    {
-        var (mine, theirs) = (v.Rows.Where(t => t.Invalid is null).ToList(), live.Rows.Where(t => t.Invalid is null).ToList());
-        var can = MinP(mine.Count, theirs.Count) < Alpha;
-        var held = Compare(mine.Select(t => (double)t.Held).ToList(), theirs.Select(t => (double)t.Held).ToList(), higherIsBetter: true);
-        var flagged = v.Flagged is not null && live.Flagged is not null
-            ? Compare(mine.Select(t => (double)t.Flagged!.Value).ToList(), theirs.Select(t => (double)t.Flagged!.Value).ToList(), higherIsBetter: false) : null;
-
-        // What moved: the stages whose share of tries right changed most, then the kinds of friction whose steps a try changed most.
-        var moved = v.Stages.Select(s => (s, Live: live.Stages.First(l => l.Id == s.Id)))
-            .Select(x => (Text: $"{x.s.Id} (right in {x.s.Right} of {x.s.Of}, live {x.Live.Right} of {x.Live.Of})", Size: Math.Abs((double)x.s.Right / x.s.Of - (double)x.Live.Right / x.Live.Of)))
-            .Where(x => x.Size > 0).OrderByDescending(x => x.Size).Take(2).Select(x => x.Text).ToList();
-        if (flagged is not null)
-            moved.AddRange(vFriction.Kinds.Select(k => (k.Label, k.Detail)).Union(liveFriction.Kinds.Select(k => (k.Label, k.Detail)))
-                .Select(k => (k, Diff: (vFriction.Kinds.FirstOrDefault(x => (x.Label, x.Detail) == k)?.PerTry ?? 0) - (liveFriction.Kinds.FirstOrDefault(x => (x.Label, x.Detail) == k)?.PerTry ?? 0)))
-                .Where(x => Math.Abs(x.Diff) >= 0.5).OrderByDescending(x => Math.Abs(x.Diff)).Take(2)
-                .Select(x => $"{x.k.Label}{(x.k.Detail is null ? "" : $" ({x.k.Detail})")}, {x.Diff.ToString("+0.#;-0.#", CultureInfo.InvariantCulture)} flagged steps a try"));
-
-        var sentence = new StringBuilder();
-        if (flagged is null) sentence.Append($"Correctness checks held: {held.Direction}. Flagged steps not read; `proctor friction` reads them.");
-        else if (held.Direction == flagged.Direction) sentence.Append(held.Direction == "same" ? "No difference on either measure." : $"{char.ToUpperInvariant(held.Direction[0])}{held.Direction[1..]} on both.");
-        else sentence.Append($"Correctness checks held: {held.Direction}. Flagged steps: {flagged.Direction}.");
-        if (!can) sentence.Append($" {Count(mine.Count)} against live's {theirs.Count}, too few to confirm.");
-        else
-        {
-            if (held.Direction != "same") sentence.Append(Confirmation(held, "correctness checks held", held.Direction == "better" ? "held more" : "held fewer", held.Direction == "better" ? held.Higher : held.Lower));
-            if (flagged is not null && flagged.Direction != "same") sentence.Append(Confirmation(flagged, "flagged steps", flagged.Direction == "better" ? "had fewer flagged steps" : "had more flagged steps", flagged.Direction == "better" ? flagged.Lower : flagged.Higher));
-        }
-        if (moved.Count > 0) sentence.Append($" Moved most: {string.Join("; ", moved)}.");
-        return new AgainstLive(live.Id, mine.Count, theirs.Count, can, held, flagged, moved, sentence.ToString());
-
-        static string Confirmation(Measure m, string name, string verb, int k) =>
-            $" {(m.Confirmed ? "Confirmed" : "Not confirmed")} on {name}: a try {verb} than a try of live in {k} of {m.Pairings} pairings.";
-    }
-
-    static string Count(int n) => $"{n} {(n == 1 ? "try" : "tries")}";
 
     public static Measure Compare(List<double> mine, List<double> theirs, bool higherIsBetter)
     {
@@ -317,55 +266,5 @@ static class Tries
     {
         var v = values.Order().ToArray();
         return v.Length == 0 ? null : new Spread(v[0], v.Length % 2 == 1 ? v[v.Length / 2] : (v[v.Length / 2 - 1] + v[v.Length / 2]) / 2, v[^1]);
-    }
-
-    /// <summary>summary.md: the comparison, each variant's stages by try, what recurs, the tries left out, and how it was counted.</summary>
-    public static string Markdown(TriesFile stats, FrictionRollup friction)
-    {
-        var md = new StringBuilder($"# {stats.Exam}\n\nOne job of {stats.Stages.Count} stage{(stats.Stages.Count == 1 ? "" : "s")}{(stats.Chained ? ", chained" : "")}; {stats.CorrectnessChecks} correctness check{(stats.CorrectnessChecks == 1 ? "" : "s")} a try. Built {stats.BuiltFrom?.At}.\n\n");
-        if (stats.Live is { NotReference: { } why }) md.Append($"> {stats.Live.Variant} is marked live, but nothing is compared with it: {why}.\n\n");
-        else if (stats.Live is null && stats.Variants.Count > 1) md.Append("> Nothing is live, so no variant is compared with another; `proctor live` marks one.\n\n");
-
-        md.Append("## Did the change help?\n\n| | " + string.Join(" | ", stats.Variants.Select(v => $"{v.Id}{(v.Live ? " (live)" : "")}")) + " |\n|---|" + string.Concat(stats.Variants.Select(_ => "---|")) + "\n");
-        md.Append("| Tries | " + string.Join(" | ", stats.Variants.Select(v => $"{v.Tries}{(v.Lost > 0 ? $", {v.Lost} lost" : "")}{(v.Invalid > 0 ? $", {v.Invalid} invalid" : "")}")) + " |\n");
-        md.Append("| Correctness checks held per try | " + string.Join(" | ", stats.Variants.Select(v => v.Held is null ? "—" : $"{Range(v.Held)} of {stats.CorrectnessChecks}; passed in {v.Passed} of {v.Tries}")) + " |\n");
-        md.Append("| Flagged steps per try | " + string.Join(" | ", stats.Variants.Select(v => v.Flagged is null ? "not read" : $"{Range(v.Flagged)}, median {Num(v.Flagged.Median)}")) + " |\n");
-        md.Append("| Against live | " + string.Join(" | ", stats.Variants.Select(v => v.Live ? "this is live" : v.AgainstLive?.Sentence ?? "—")) + " |\n\n");
-
-        foreach (var v in stats.Variants)
-        {
-            md.Append($"## {v.Id}{(v.Live ? " (live)" : "")}\n\n| Stage | " + string.Join(" | ", v.Rows.Select(t => $"try {t.N}")) + " | |\n|---|" + string.Concat(v.Rows.Select(_ => "---|")) + "---|\n");
-            foreach (var s in stats.Stages)
-            {
-                var tally = v.Stages.First(x => x.Id == s.Id);
-                md.Append($"| {s.Place}. {s.About} `{s.Id}` | " + string.Join(" | ", v.Rows.Select(t => t.Stages.First(x => x.Id == s.Id).Result.Replace('_', ' ')))
-                    + $" | {(tally.Of == 0 ? "" : tally.Right == tally.Of ? "right every time" : v.Rows.All(t => t.Stages.First(x => x.Id == s.Id).Result == "not_reached") ? "never reached" : tally.Right == 0 ? "never right" : $"right in {tally.Right} of {tally.Of}")} |\n");
-            }
-            md.Append("| Correctness checks held | " + string.Join(" | ", v.Rows.Select(t => $"{t.Held} of {t.Of}{(t.Invalid is not null ? " (invalid)" : "")}")) + " | |\n\n");
-            foreach (var t in v.Rows.Where(t => t.Invalid is not null)) md.Append($"- Try {t.N} is not counted: {t.Invalid}.\n");
-            foreach (var t in v.Rows.Where(t => t.BrokeAt is not null)) md.Append($"- Try {t.N} broke at `{t.BrokeAt}`; the stages after it were not reached and hold nothing.\n");
-            var kinds = friction.Variants.First(f => f.Id == v.Id);
-            if (v.Flagged is null) md.Append("\nFriction not read for every stage; `proctor friction` reads it.\n\n");
-            else if (kinds.Kinds.Count == 0) md.Append("\nNo friction found.\n\n");
-            else
-            {
-                md.Append("\n| Kind of friction | In | min | median | max | Per try overall |\n|---|---|---|---|---|---|\n");
-                foreach (var k in kinds.Kinds)
-                    md.Append($"| {(k.Detail is null ? "" : k.Detail.Replace("|", "\\|") + " ")}`{k.Label}` · {string.Join(", ", k.Stages)} | {k.In} of {k.Of} | {Num(k.When.Min)} | {Num(k.When.Median)} | {Num(k.When.Max)} | {Num(k.PerTry)} |\n");
-                md.Append($"| All friction | | | | | {Num(kinds.PerTry)} |\n\n");
-            }
-        }
-
-        if (stats.Lost.Count > 0)
-        {
-            md.Append("## Lost tries\n\nA stage did not run, so the try is in no number above.\n\n");
-            foreach (var l in stats.Lost) md.Append($"- {l.Variant} try {l.N}, at `{l.At}`: {l.Why}\n");
-            md.Append('\n');
-        }
-        if (stats.BuiltFrom is { Stale: > 0 } b) md.Append($"{b.Stale} stale stage attempt{(b.Stale == 1 ? "" : "s")} left out: made before the exam or a variant changed.\n\n");
-        return md.Append($"## How this was counted\n\n{stats.Methods}\n").ToString();
-
-        static string Range(Spread s) => s.Min == s.Max ? Num(s.Min) : $"{Num(s.Min)} to {Num(s.Max)}";
-        static string Num(double x) => x.ToString("0.##", CultureInfo.InvariantCulture);
     }
 }

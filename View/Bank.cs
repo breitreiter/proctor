@@ -4,17 +4,19 @@ using System.Text.Json.Nodes;
 namespace Auspex;
 
 /// <summary>
-/// What proctor wrote under its root, read from disk and nothing more: the exams in bank/, each attempt's files, and
-/// from exams/&lt;exam&gt;/ the exam's description and its live mark. An attempt is a task's
-/// (bank/&lt;exam&gt;/&lt;variant&gt;/&lt;task&gt;/&lt;n&gt;/) or, on an exam of stages, one stage of a try
-/// (bank/&lt;exam&gt;/&lt;variant&gt;/&lt;n&gt;/stages/&lt;i&gt;-&lt;id&gt;/); which it is shows on disk, by the stages directory.
-/// Proctor's file names are kept here, in one place, so they are easy to find when auspex folds into proctor.
-/// Nothing is computed: whether an attempt is current (its hashes) is proctor's to say, and this does not guess it.
+/// What proctor wrote under its root, read from disk and nothing more: the exams in bank/, each try's files, and from
+/// exams/&lt;exam&gt;/ the exam's description. A try sits under an id of its own
+/// (bank/&lt;exam&gt;/&lt;try id&gt;/stages/&lt;i&gt;-&lt;id&gt;/), its manifests saying which configuration it ran as.
+/// Attempts made before an exam was stages and axes are still on disk, and still read here so that their transcripts
+/// stay reachable: a task's (bank/&lt;exam&gt;/&lt;variant&gt;/&lt;task&gt;/&lt;n&gt;/) or a stage of a try filed by
+/// variant and number (bank/&lt;exam&gt;/&lt;variant&gt;/&lt;n&gt;/stages/…). Proctor itself reads none of those, so
+/// nothing about them is counted. Proctor's file names are kept here, in one place.
+/// Nothing is computed: whether a try is current (its hashes) is proctor's to say, and this does not guess it.
 /// </summary>
 public static class Bank
 {
     const string BankDir = "bank", ExamsDir = "exams";
-    const string ExamFile = "exam.json", LiveFile = "live.json";
+    const string ExamFile = "exam.json";
     const string ManifestFile = "manifest.json", StatusFile = "status", TrajectoryFile = "trajectory.json";
     const string ChecksFile = "checks.json", FrictionFile = "friction.json", CoreFile = "core.json";
     const string StagesDir = "stages";
@@ -31,12 +33,11 @@ public static class Bank
         var bank = Path.Combine(root, BankDir, id);
         if (!Directory.Exists(bank)) return null;
         var def = Json(Path.Combine(root, ExamsDir, id, ExamFile));
-        var live = Json(Path.Combine(root, ExamsDir, id, LiveFile));
 
         var attempts = new List<Attempt>();
         foreach (var variantDir in Directory.GetDirectories(bank).Order(StringComparer.Ordinal))
         {
-            // On an exam with axes a try sits under its own id, bank/<exam>/<try id>/stages/…, and its manifests say which configuration it ran as.
+            // A try sits under its own id, bank/<exam>/<try id>/stages/…, and its manifests say which configuration it ran as. Anything else is of the earlier shape.
             if (Directory.Exists(Path.Combine(variantDir, StagesDir))) { attempts.AddRange(TryById(id, variantDir)); continue; }
             foreach (var taskDir in Directory.GetDirectories(variantDir).OrderBy(d => Path.GetFileName(d), Natural))
             {
@@ -51,12 +52,12 @@ public static class Bank
             }
         }
 
-        return new Exam(id, Text(def?["description"]), Text(live?["variant"]), attempts) { Axes = def?["axes"] is JsonObject };
+        return new Exam(id, Text(def?["description"]), attempts) { Axes = def?["axes"] is JsonObject };
     }
 
     /// <summary>
-    /// An attempt by the last two segments of its address. On an exam of stages they are the try and the stage's id; on
-    /// an exam of tasks, the task and the attempt's number. The stages directory on disk says which.
+    /// An attempt of the earlier shape, by the last two segments of its address: the try and the stage's id, or the task
+    /// and the attempt's number. The stages directory on disk says which.
     /// </summary>
     public static Attempt? FindAttempt(string root, string exam, string variant, string first, string second)
     {
@@ -67,12 +68,12 @@ public static class Bank
         return File.Exists(Path.Combine(dir, ManifestFile)) ? new Attempt(exam, variant, first, second, dir) : null;
     }
 
-    /// <summary>The stages of one try, in the order they ran, or none when it is not a try of stages.</summary>
+    /// <summary>The stages of one try of the earlier shape, filed by variant and number, in the order they ran; none when it is not one.</summary>
     public static IReadOnlyList<Attempt> FindTry(string root, string exam, string variant, string n) =>
         SafeName(exam) && SafeName(variant) && SafeName(n) && Path.Combine(root, BankDir, exam, variant, n) is var tryDir && Directory.Exists(Path.Combine(tryDir, StagesDir))
             ? Stages(exam, variant, n, tryDir) : [];
 
-    /// <summary>The stages of a try that sits under its own id (an exam with axes), in the order they ran; none when there is no such try.</summary>
+    /// <summary>The stages of a try, by its id, in the order they ran; none when there is no such try.</summary>
     public static IReadOnlyList<Attempt> FindTryById(string root, string exam, string id) =>
         SafeName(exam) && SafeName(id) && Path.Combine(root, BankDir, exam, id) is var tryDir && Directory.Exists(Path.Combine(tryDir, StagesDir)) ? TryById(exam, tryDir) : [];
 
@@ -120,28 +121,31 @@ public static class Bank
     internal static string CorePath(string dir) => Path.Combine(dir, CoreFile);
 }
 
-/// <summary>An exam with a bank: its description and live variant from exams/&lt;exam&gt;/, and every attempt in bank/&lt;exam&gt;/.</summary>
-public sealed record Exam(string Id, string? Description, string? Live, IReadOnlyList<Attempt> Attempts)
+/// <summary>An exam with a bank: its description from exams/&lt;exam&gt;/, and everything in bank/&lt;exam&gt;/.</summary>
+public sealed record Exam(string Id, string? Description, IReadOnlyList<Attempt> Attempts)
 {
-    /// <summary>Whether the exam declares axes (proctor's plans/axes.md): then what is under test is a configuration, and its page is ExamAxesPage.</summary>
+    /// <summary>Whether exams/&lt;exam&gt;/exam.json declares axes, as every exam proctor can read does: then its page is ExamPage. One that does not is listed by what its bank holds.</summary>
     public bool Axes { get; init; }
 
     public string Path => $"/{Id}";
 
-    /// <summary>The variants that have attempts, the live one first.</summary>
-    public IReadOnlyList<string> Variants =>
-        [.. Attempts.Select(a => a.Variant).Distinct().OrderBy(v => v == Live ? 0 : 1).ThenBy(v => v, StringComparer.Ordinal)];
+    /// <summary>What was filed before the exam was stages and axes: by variant and task, or by variant and try number.</summary>
+    public IReadOnlyList<Attempt> Earlier => [.. Attempts.Where(a => !a.ById)];
+
+    /// <summary>The names the bank's contents are filed under: a configuration's key for a try, a variant's id for an earlier attempt.</summary>
+    public IReadOnlyList<string> Filed(IEnumerable<Attempt> of) => [.. of.Select(a => a.Variant).Distinct().Order(StringComparer.Ordinal)];
 }
 
 /// <summary>
-/// One attempt in the bank, and its files as proctor wrote them. On an exam of stages it is one stage of a try: Task is
-/// then the stage's id, N the try, and Place where the stage comes in it.
+/// One stage of a try in the bank, and its files as proctor wrote them: Task is the stage's id, N the try's id, Variant
+/// the configuration's key, and Place where the stage comes in the try. Of the earlier shape (not <see cref="ById"/>),
+/// Variant is a variant's id and N a number, and without a Place it is a task's attempt.
 /// </summary>
 public sealed record Attempt(string Exam, string Variant, string Task, string N, string Dir)
 {
     public int? Place { get; init; }
     public bool Staged => Place is not null;
-    /// <summary>A stage of a try that sits under its own id: N is that id, and Variant the configuration's key.</summary>
+    /// <summary>A stage of a try that sits under its own id, as every try made now does.</summary>
     public bool ById { get; init; }
     public string Path => ById ? $"/{Exam}/try/{N}/{Task}" : Staged ? $"/{Exam}/{Variant}/{N}/{Task}" : $"/{Exam}/{Variant}/{Task}/{N}";
 

@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 namespace Proctor;
 
 // Axes, values and configurations (project/plans/axes.md; the declaration is project/plans/axes-ports.md).
-// An exam of stages may declare axes in place of variants/: each axis a named thing with several values, a
+// An exam declares what is under test as axes: each axis a named thing with several values, a
 // configuration one value from each. Nobody spans the cross product (axes.md, decision 14): the configurations an exam
 // carries are the ones it names, the ones a command asked for and the ones with tries in its bank (axes-build.md, 3a).
 
@@ -20,7 +20,8 @@ record ParamDef(JsonNode? Default = null, bool? Tree = null, bool? Secret = null
 /// <summary>A tree of files a value carries: a directory under the exam, or a git revision and optionally paths in it. To is where an overlay lands in the checkout.</summary>
 record FilesSource(string? Path = null, string? Git = null, string? Rev = null, List<string>? Paths = null, string? To = null)
 {
-    public BundleSource AsBundle() => new(Path, Git, Rev, Paths);
+    /// <summary>A git source's identity, which its revision and paths fix: git:&lt;rev&gt;, then :&lt;paths, sorted, comma-separated&gt; for a subset. A directory's is its content hash.</summary>
+    public string GitIdentity() => $"git:{Rev}{(Paths is null ? "" : ":" + string.Join(",", Paths.Order(StringComparer.Ordinal)))}";
 }
 
 /// <summary>
@@ -214,10 +215,9 @@ sealed class Axes
         void Add(string field, string message) { problems++; add(field, message); }
         var axes = def.Axes!;
 
-        if (def.Stages is null) Add("axes", "goes with stages: an exam with axes is one job of stages; move tasks/*.json into stages first");
         var variantsDir = Layout.VariantsDirIn(dir);
         if (Directory.Exists(variantsDir) && Directory.GetFiles(variantsDir, "*.json").Length > 0)
-            Add("axes", "this exam also has variants/*.json; with axes, what is under test is declared here: make each variant's fields a value and delete the files");
+            Add("axes", "this exam also has variants/*.json, the earlier shape; what is under test is declared here, so make each variant's fields a value and delete the files");
         if (axes.Count == 0) Add("axes", "at least one axis is required");
 
         // Each axis and value on its own.
@@ -402,7 +402,7 @@ sealed class Axes
     /// <summary>A value's identity: what it sets, proctor's own fields, and its files by content. Not its note.</summary>
     static string ValueHash(string root, string dir, ValueDef value)
     {
-        string Identity(FilesSource f) => (f.Git is not null ? f.AsBundle().GitIdentity() : Tree.Hash(Path.GetFullPath(Path.Combine(dir, f.Path!)), new HashSet<string> { ".git" })) + (f.To is null ? "" : "@" + f.To.Trim('/'));
+        string Identity(FilesSource f) => (f.Git is not null ? f.GitIdentity() : Tree.Hash(Path.GetFullPath(Path.Combine(dir, f.Path!)), new HashSet<string> { ".git" })) + (f.To is null ? "" : "@" + f.To.Trim('/'));
         var parts = new List<string>();
         foreach (var (name, given) in (value.Set ?? []).OrderBy(k => k.Key, StringComparer.Ordinal))
             parts.Add($"set {name}=" + (given is JsonObject ? Identity(given.Deserialize<FilesSource>(Exam.JsonOptions)!) : given?.ToJsonString() ?? "null"));
@@ -422,7 +422,7 @@ sealed class Axes
         var (agent, route) = (Pick(v => v.Agent), Pick(v => v.Route));
         var vendor = agent is not null && agent != Variant.Nb;
         var bare = !vendor && route != ValueDef.Harbor;
-        return new Variant(c.Key, bare ? Variant.Nb : null, vendor ? null : Pick(v => v.Harness) ?? Variant.Nb, Pick(v => v.Provider), Pick(v => v.Model), null,
+        return new Variant(c.Key, bare ? Variant.Nb : null, vendor ? null : Pick(v => v.Harness) ?? Variant.Nb, Pick(v => v.Provider), Pick(v => v.Model),
             Agent: bare ? null : agent ?? Variant.Nb, AgentVersion: Pick(v => v.AgentVersion)) { Hash = c.Hash };
     }
 

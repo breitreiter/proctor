@@ -48,7 +48,7 @@ static class Predictions
             void Add(string field, string message) => problems.Add(new Problem(rel, field, message));
             var before = problems.Count;
             var name = Path.GetFileNameWithoutExtension(file);
-            if (exam.Axes is not { } axes) { Add("", "goes with axes: a prediction names a configuration"); continue; }
+            var axes = exam.Axes;
             if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9._-]*$")) Add("", "a prediction is named in lowercase letters, digits, dots, hyphens and underscores");
             PredictionDef? def;
             try { def = JsonSerializer.Deserialize<PredictionDef>(File.ReadAllText(file), Exam.JsonOptions); }

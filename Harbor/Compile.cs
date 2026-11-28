@@ -62,23 +62,18 @@ static class HarborCompile
     public static bool IsOwnAgent(Variant variant) => OwnAgents.ContainsKey(variant.Agent!);
 
     /// <summary>
-    /// The tasks a run's agent attempts run as, one per agent variant and task it makes attempts of (every agent variant's
-    /// every task when <paramref name="pairs"/> is not given), and proctor's own Harbor agents beside them for the variants
-    /// that use one. Returns the tree's hash, which the log entry records and `run` checks before it continues the run. The nb
-    /// image is the tag of proctor's nb layer. The bundles are the run's resolved ones, which reach a task only through
-    /// its fixture's services.
+    /// The Harbor tasks a run's tries go through, one per configuration that runs through Harbor among those it makes
+    /// (every such configuration the exam carries when <paramref name="pairs"/> is not given), and proctor's own Harbor
+    /// agents beside them for the ones that use one. Returns the tree's hash, which the log entry records. The nb image
+    /// is the tag of proctor's nb layer.
     /// </summary>
     public static string Tasks(string entryDir, Exam exam, Func<Variant, AgentRoute> route, string? nbImage = null,
-        IReadOnlyDictionary<string, ResolvedBundle>? bundles = null, IReadOnlyCollection<(Variant Variant, TaskDef Task)>? pairs = null, string? relayDir = null)
+        IReadOnlyCollection<(Variant Variant, TaskDef Task)>? pairs = null, string? relayDir = null)
     {
-        pairs ??= (from variant in exam.Variants.Where(a => a.IsAgent) from c in exam.Tasks select (variant, c)).ToList();
-        if (exam.Staged)
-            foreach (var variant in pairs.Select(p => p.Variant).Distinct())
-                if (Plain(exam, variant.Id!)) Task(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, exam.StagesOf(variant.Id!)[0], route(variant), nbImage, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
-                else Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
-        else
-            foreach (var (variant, c) in pairs)
-                Task(Layout.HarborTask(entryDir, variant.Id!, c.Id!), exam, variant, c, route(variant), nbImage, bundles?.GetValueOrDefault(variant.Id!)?.Path, relayDir);
+        pairs ??= (from variant in exam.Variants.Where(a => a.IsAgent) from c in exam.StagesOf(variant.Id!) select (variant, c)).ToList();
+        foreach (var variant in pairs.Select(p => p.Variant).Distinct())
+            if (Plain(exam, variant.Id!)) Task(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, exam.StagesOf(variant.Id!)[0], route(variant), nbImage, relayDir);
+            else Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, relayDir);
         var files = pairs.Select(p => p.Variant).Where(IsOwnAgent).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
         var oracle = pairs.Any(p => p.Task.Oracle is not null);
         if (oracle) files.Add(OracleUserFile);
@@ -95,12 +90,12 @@ static class HarborCompile
     }
 
     /// <summary>
-    /// Whether a try of a staged exam is compiled as a plain Harbor task and not as a task of steps: when it is one stage
+    /// Whether a try is compiled as a plain Harbor task and not as a task of steps: when it is one stage
     /// and that stage has an answer sheet. Harbor's simulated user, which answers from the sheet over the bridge, runs a
     /// task and not a step, so a one-stage try with an oracle is a task (plans/axes-build.md, slice 4; bank.md, step 4).
-    /// On an exam with axes a try is the stages that apply in its configuration, so each configuration is asked for itself.
+    /// A try is the stages that apply in its configuration, so each configuration is asked for itself.
     /// </summary>
-    public static bool Plain(Exam exam, string variant) => exam.Staged && exam.StagesOf(variant) is [{ Oracle: not null }];
+    public static bool Plain(Exam exam, string variant) => exam.StagesOf(variant) is [{ Oracle: not null }];
 
     /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
     public static string AgentsDir(string entryDir) => Path.Combine(entryDir, Layout.HarborDir, "agents");
@@ -113,41 +108,28 @@ static class HarborCompile
         return Directory.Exists(agents) ? $"{tasks}+{Tree.Hash(agents, new HashSet<string>())}" : tasks;
     }
 
-    /// <summary>Where a variant's bundle sits beside the fixture's services in a task's environment/, for a compose file to mount as ./bundle.</summary>
-    public const string ServiceBundleDir = "bundle";
-
     /// <summary>
-    /// One Harbor task directory: instruction.md, task.toml, environment/ (the image) and tests/ (the verifier). When the
-    /// fixture has services, the variant's bundle is copied beside them as environment/bundle/ (empty without one), so a
-    /// service can serve it, a docs site say, while the agent's own container never holds it.
+    /// One Harbor task directory: instruction.md, task.toml, environment/ (the image) and tests/ (the verifier). The
+    /// configuration is compiled into it (plans/axes-build.md, slice 4): its values' files are in the repository the image
+    /// is built from, its text parameters are the image's build arguments, and each tree parameter sits beside the
+    /// fixture's services as environment/params/NAME/ (empty when nothing sets it), so a service can serve it, a docs site
+    /// say, while the agent's own container never holds it.
     /// </summary>
-    public static void Task(string dir, Exam exam, Variant variant, TaskDef task, AgentRoute route, string? nbImage = null,
-        string? bundleDir = null, string? relayDir = null)
+    public static void Task(string dir, Exam exam, Variant variant, TaskDef task, AgentRoute route, string? nbImage = null, string? relayDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         var fixture = exam.FixtureOf(task)!;
-        // On an exam with axes the variant stands for a configuration (plans/axes-build.md, slice 4): its values' files are in the
-        // repository the image is built from, its text parameters are the image's build arguments, and a tree parameter sits beside
-        // the fixture's services for one of them to serve.
-        var configuration = exam.Axes?.Of(variant.Id!);
+        var configuration = exam.Axes.Of(variant.Id!)!;
         Directory.CreateDirectory(Path.Combine(dir, "environment"));
         File.WriteAllText(Path.Combine(dir, "instruction.md"), task.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
         // The ports of this machine the task's agent reaches at its own localhost, when the run holds a relay (a local engine).
         var relayed = relayDir is null ? [] : RelayPorts(fixture, route);
         File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, task, Reached(fixture, route, relayDir), bridged: task.Oracle is not null));
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
-        foreach (var (from, to) in configuration is null ? [] : exam.Axes!.Overlays(configuration, exam.Dir))
+        foreach (var (from, to) in exam.Axes.Overlays(configuration, exam.Dir))
             CopyTree(from, Path.Combine(dir, "environment", "repo", to ?? ""), [Path.Combine(from, ".git")]);
         File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, variant, nbImage, BuildArgs(exam, fixture, configuration)));
-        if (fixture.Def.Image!.Services is { } services)
-        {
-            CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
-            if (configuration is null)
-            {
-                var bundle = Directory.CreateDirectory(Path.Combine(dir, "environment", ServiceBundleDir)).FullName;
-                if (bundleDir is not null) CopyTree(bundleDir, bundle, []);
-            }
-        }
+        if (fixture.Def.Image!.Services is { } services) CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
         var compose = Path.Combine(dir, "environment", "docker-compose.yaml");
         if (relayed.Count > 0)
         {
@@ -158,7 +140,7 @@ static class HarborCompile
         }
         if (File.Exists(compose)) File.WriteAllText(compose, Confined(File.ReadAllText(compose)));
         // Every tree parameter the base declares, by name, empty when the configuration gives it nothing: a compose file mounts ./params/<NAME>.
-        foreach (var (name, tree) in configuration is null ? [] : TreeParams(exam, fixture, configuration))
+        foreach (var (name, tree) in TreeParams(exam, fixture, configuration))
         {
             var target = Directory.CreateDirectory(Path.Combine(dir, "environment", ServiceParamsDir, name)).FullName;
             if (tree.Length > 0) CopyTree(tree, target, [Path.Combine(tree, ".git")]);
@@ -174,7 +156,7 @@ static class HarborCompile
     }
 
     /// <summary>
-    /// A staged exam as one Harbor task of steps (Harbor 0.24.0's `[[steps]]`, run here on 2026-11-23): the environment is
+    /// A configuration's try as one Harbor task of steps (Harbor 0.24.0's `[[steps]]`, run here on 2026-11-23): the environment is
     /// built once, the agent starts a fresh conversation per step with that step's instruction.md, and Harbor keeps each
     /// step's agent logs, verifier output and collected diff under steps/&lt;id&gt;/. Harbor runs a verifier after every
     /// step, on the diff collected then, so a stage's script checks see the workspace as that stage left it; and it ends
@@ -182,12 +164,12 @@ static class HarborCompile
     /// that timed out does not end the try. A stage starts fresh unless the exam is chained: its step's setup.sh puts the
     /// workspace back first.
     /// </summary>
-    public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? bundleDir = null, string? relayDir = null)
+    public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? relayDir = null)
     {
-        // A try is the stages that apply in its configuration (every stage, on an exam without axes).
+        // A try is the stages that apply in its configuration.
         var stages = exam.StagesOf(variant.Id!);
         // The environment, and the exam and fixture the script checks read, are a task's; any stage stands for the job there.
-        Task(dir, exam, variant, stages[0], route, nbImage, bundleDir, relayDir);
+        Task(dir, exam, variant, stages[0], route, nbImage, relayDir);
         foreach (var file in new[] { "instruction.md", Path.Combine("tests", "test.sh"), Path.Combine("tests", "env.sh") }) File.Delete(Path.Combine(dir, file));
         File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, stages[0], Reached(exam.FixtureOf(stages[0])!, route, relayDir), bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
             + string.Concat(stages.Select(s => $"\n[[steps]]\nname = {Toml(s.Id!)}\n")));
@@ -275,10 +257,9 @@ static class HarborCompile
     /// The text parameters an image is built with, as a configuration has them: those the image lists (image.params), or
     /// every one when it lists none. Never a tree, which is files, nor a secret, which would be kept in the image.
     /// </summary>
-    static List<(string Name, string Value)> BuildArgs(Exam exam, Fixture fixture, Configuration? configuration)
+    static List<(string Name, string Value)> BuildArgs(Exam exam, Fixture fixture, Configuration configuration)
     {
-        if (configuration is null) return [];
-        var values = exam.Axes!.Params(configuration, exam.Def, fixture, exam.Dir);
+        var values = exam.Axes.Params(configuration, exam.Def, fixture, exam.Dir);
         return (fixture.Def.Params ?? []).Where(p => p.Value.Tree != true && p.Value.Secret != true && (fixture.Def.Image?.Params is not { } listed || listed.Contains(p.Key)))
             .Select(p => (p.Key, values.GetValueOrDefault(p.Key) ?? "")).ToList();
     }
@@ -286,13 +267,13 @@ static class HarborCompile
     /// <summary>Each tree parameter the fixture declares, with the directory a configuration gives it on the host, or empty for none.</summary>
     static List<(string Name, string Dir)> TreeParams(Exam exam, Fixture fixture, Configuration configuration)
     {
-        var values = exam.Axes!.Params(configuration, exam.Def, fixture, exam.Dir);
+        var values = exam.Axes.Params(configuration, exam.Def, fixture, exam.Dir);
         return (fixture.Def.Params ?? []).Where(p => p.Value.Tree == true).Select(p => (p.Key, values.GetValueOrDefault(p.Key) ?? "")).ToList();
     }
 
-    /// <summary>Where a compiled task keeps a verifier's script and contract: a stage's are its step's, a task's the task's own.</summary>
+    /// <summary>Where a compiled task keeps a verifier's script and contract: a stage's are its step's, a plain task's the task's own.</summary>
     static string VerifierFile(string taskDir, Exam exam, TaskDef task, string file) =>
-        exam.Staged && Directory.Exists(Path.Combine(taskDir, "steps")) ? Path.Combine(taskDir, "steps", task.Id!, "tests", file) : Path.Combine(taskDir, "tests", file);
+        Directory.Exists(Path.Combine(taskDir, "steps")) ? Path.Combine(taskDir, "steps", task.Id!, "tests", file) : Path.Combine(taskDir, "tests", file);
 
     /// <summary>
     /// Harbor's job for one attempt: one trial of one task by one agent. Every setting Harbor would otherwise default is
@@ -532,7 +513,7 @@ static class HarborCompile
             ["PROCTOR_CONTAINER"] = "",
         };
         // Declared axes and text parameters, as a hook or a check has them on the bare path. A tree is files and a secret is kept out of files.
-        if (exam.Axes?.Of(variant) is { } configuration)
+        if (exam.Axes.Of(variant) is { } configuration)
         {
             foreach (var (axis, value) in configuration.Values) values["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
             var fixture = exam.FixtureOf(task);
@@ -647,8 +628,8 @@ static class HarborCompile
 
     /// <summary>What proctor reads from an exam directory itself; a script sees its checks and expected values through the environment, and the rest is in the task's hash.</summary>
     static bool ExamDefinition(string relative) =>
-        relative is Layout.ExamFile or Layout.LiveFile or Layout.CombinationsFile or Layout.RetiredFile or Readme
-        || new[] { Layout.TasksDir, Layout.VariantsDir, Layout.PredictionsDir }.Any(d => relative.StartsWith(d + "/", StringComparison.Ordinal)) && relative.EndsWith(".json", StringComparison.Ordinal);
+        relative is Layout.ExamFile or Layout.CombinationsFile or Layout.RetiredFile or Readme
+        || relative.StartsWith(Layout.PredictionsDir + "/", StringComparison.Ordinal) && relative.EndsWith(".json", StringComparison.Ordinal);
 
     /// <summary>What proctor reads from a fixture directory itself, and its source, which reaches the verifier as the image's commit and not as a file under tests/.</summary>
     static Func<string, bool> FixtureDefinition(Fixture fixture)

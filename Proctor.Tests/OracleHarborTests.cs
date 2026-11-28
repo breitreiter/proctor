@@ -39,7 +39,7 @@ public class OracleHarborTests
         Assert.Equal(["nb_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(entryDir)).Select(Path.GetFileName));
     }
 
-    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", null, Agent: "nb");
+    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", Agent: "nb");
 
     [Fact]
     public void Job_AnOracleAttempt_IsBridged_ToOracleUserOnTheHost()

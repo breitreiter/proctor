@@ -128,6 +128,6 @@ public class AxesHarborTests
         repo.EditJson("axes-harbor/exam.json", e => e.Remove("configurations"));
         Assert.Empty(repo.Problems("axes-harbor"));
         repo.EditJson("axes-harbor/exam.json", e => e.Remove("harbor"));
-        Assert.Contains(repo.Problems("axes-harbor"), p => p.Field == "harbor.version" && p.Message.Contains("required with an agent variant"));
+        Assert.Contains(repo.Problems("axes-harbor"), p => p.Field == "harbor.version" && p.Message.Contains("required where a value runs through Harbor"));
     }
 }

@@ -49,12 +49,14 @@ public static class Server
         app.MapGet("/", () => Html(IndexPage.Render(root)));
         app.MapGet("/assets/{**name}", (string name) =>
             typeof(Server).Assembly.GetManifestResourceStream(AssetPrefix + name) is { } stream ? Results.Stream(stream, ContentType(name)) : Results.NotFound());
-        // An exam, then a try of it. On an exam of stages: setup, try, stage; a try alone goes to its first stage. On an
-        // exam of tasks, the bank's own path: setup, task, number.
+        // An exam, then a configuration or a try of it. One proctor cannot read is listed by what its bank holds.
         app.MapGet("/{exam}", (string exam) =>
-            Bank.FindExam(root, exam) is { } e ? Html(e.Axes ? ExamPage.Render(root, e) : Pages.Exam(e)) : Results.NotFound());
-        // An exam with axes (proctor's plans/axes-build.md, 3d): the addresses `proctor compare` and `proctor coverage` give in their
-        // answers. A try sits under its own id; a comparison and coverage carry the time they were answered (as_of).
+            Bank.FindExam(root, exam) is { } e ? Html(e.Axes ? ExamPage.Render(root, e) : Pages.Held(e, earlier: false)) : Results.NotFound());
+        // What was made before the exam was stages and axes: still in the bank, read by nothing but this page and the stage page.
+        app.MapGet("/{exam}/earlier", (string exam) =>
+            Bank.FindExam(root, exam) is { Earlier.Count: > 0 } e ? Html(Pages.Held(e, earlier: true)) : Results.NotFound());
+        // The addresses `proctor compare` and `proctor coverage` give in their answers (proctor's plans/axes-build.md, 3d).
+        // A try sits under its own id; a comparison and coverage carry the time they were answered (as_of).
         app.MapGet("/{exam}/coverage", (string exam, HttpRequest request) =>
             Bank.FindExam(root, exam) is { Axes: true } e ? Html(AxesPages.Exam(root, e, request.Query["as_of"])) : Results.NotFound());
         app.MapGet("/{exam}/compare", (string exam, HttpRequest request) =>
@@ -66,6 +68,7 @@ public static class Server
         app.MapGet("/{exam}/try/{id}/{stage}", (string exam, string id, string stage, HttpRequest request) =>
             Bank.FindTryById(root, exam, id) is { Count: > 0 } stages && stages.FirstOrDefault(s => s.Task == stage) is { } a
                 ? Html(TryStagePage.Render(root, a, stages, request.Query["show"])) : Results.NotFound());
+        // An attempt of the earlier shape, by the path the bank keeps it at.
         app.MapGet("/{exam}/{variant}/{n}", (string exam, string variant, string n) =>
             Bank.FindTry(root, exam, variant, n) is { Count: > 0 } stages ? Results.Redirect(Pages.U(stages[0].Path)) : Results.NotFound());
         app.MapGet("/{exam}/{variant}/{first}/{second}", (string exam, string variant, string first, string second, HttpRequest request) =>

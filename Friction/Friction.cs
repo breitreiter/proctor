@@ -159,7 +159,7 @@ static class Friction
             var trajectory = Path.Combine(attemptDir, Layout.TrajectoryFile);
             // A stage a chained try never reached has nothing to read, which is not the same as an attempt that did not finish.
             var status = Runner.ReadStatus(attemptDir);
-            var skipped = a.Staged && status == AttemptStatus.Skipped ? "not reached" : status != AttemptStatus.Completed ? "not completed" : !File.Exists(trajectory) ? "no trajectory" : null;
+            var skipped = status == AttemptStatus.Skipped ? "not reached" : status != AttemptStatus.Completed ? "not completed" : !File.Exists(trajectory) ? "no trajectory" : null;
             if (skipped is not null)
             {
                 done.Add(new AttemptFriction(variant, task, n, null, skipped));
