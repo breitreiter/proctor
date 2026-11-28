@@ -131,9 +131,8 @@ points at the fix. Rules:
 
 `docs/providers.html` is built with setup: spartan is fine, one section per
 kind (where to get a key, what the free tier allows, what the provider may
-do with the data), styled like `index.html`. It depends on Pages being on,
-which is gated by `project/todo.md` "Do not enable Pages until the site's
-promises are kept".
+do with the data), styled like `index.html`. It depends on the site being
+live, which `project/plans/site.md` gates ("Fixed before launch").
 
 ## The capability table the jobs filter on
 

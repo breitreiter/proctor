@@ -35,7 +35,7 @@ they need to start, and sees finished reports as evidence.
 | What it is | the brief, the README's opening | the hero's sub-line: real agents, sandboxed, graded, reported | nothing |
 | What sets it apart | `CLAUDE.md` conventions: the real harness through Harbor, checks with verified quotes, paired intervals, counts taken from the trajectory, no model-written report, axes and predictions | "How it grades", "The report", the as-of-November comparison, "What it is not" (reworded for hosting) | nothing |
 | Who it's for, and the problem | the brief | "The problem" with its citations (Vercel, Microsoft, Stripe) and the agent-experience naming. Check every citation again before reuse | nothing |
-| Evidence: shared reports | hosted auspex pages on `app.auspex.bot` | the report-card pattern (kicker, question, facts, open) | `report-hosting.md`, and pages a stranger can open without an invite (below); runs of `tern-docs` and the self-eval, scrubbed of host, gateway and machine names |
+| Evidence: shared reports | hosted auspex pages on `app.auspex.bot` | the report-card pattern (kicker, question, facts, open) | `report-hosting.md`, and pages a stranger can open without an invite (below); runs of `tern-docs` and the exam on our own docs, scrubbed of host, gateway and machine names |
 | Remix, license, repo | `remix.md`, `docs/remix/` | the license line | `docs/remix/seams.md` and `promises.md`, which do not exist yet |
 | What you'll need | setup's jobs (`SetupState.JobOrder`, `Setup/providers.json`): a coding agent to drive it, podman, keys for the harnesses under test, a frontier judge, a decider | "Get started" | nothing; the remix pointer for "if you can't meet these" waits on remix |
 | Agent setup and steering | `skills/proctor-exam/`, `docs/getting-started.md`, `setup --check`, `sandbox-plan.md` | nothing | the rename, for names; measured with `agent-onboarding` before launch |
@@ -49,8 +49,10 @@ they need to start, and sees finished reports as evidence.
   `SetupTests` before setup is released, and keep every anchor.
 - **Every claim is runnable from the README** (the old todo's rule): read
   the page against the repository, line by line, before it goes up.
-- **Public words**: evals, measure, grade, and never an "AI testing
-  product". Name no employer, and anonymise the precedent the brief
+- **Public words**: measure and grade, and never an "AI testing
+  product". The gate refuses "eval" and "evals". If the site's copy
+  wants them (people search for them), allow `docs/index.html` in
+  `old-words.allow` with that reason. Name no employer, and anonymise the precedent the brief
   leans on.
 - A weekly link check (lychee) over the vendor links, once it is live.
 - The old `docs/reports/*/report.html` pages are from the HTML report
@@ -84,7 +86,7 @@ they need to start, and sees finished reports as evidence.
 
 - **`tern-docs`**: clean, on axes, and the exam to plant failure modes
   in, so the report has something to show.
-- **The self-eval**: can a coding agent build a working exam for an app,
+- **The exam on our own docs**: can a coding agent build a working exam for an app,
   given only auspex's docs and skill? That is `agent-onboarding` (and
   `exam-authoring` before it). It faces inward first. On the site it
   answers the obvious sceptic's question: do your own docs work?

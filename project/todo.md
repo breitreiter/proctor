@@ -229,54 +229,6 @@ OpenRouter, and the candidate decision models are in `project/learnings/jev-judg
   reserves its top rate until the call settles. Sequential grading fits the $5 wallet; give
   minrouter a row for decision models (minrouter's repository) before grading in parallel.
 
-## A GitHub Pages site to show off the reports
-
-Proctor has no public place where someone can see what a report looks like
-without running it. Build a GitHub Pages site for the repository: what
-proctor is for (the README's opening), how a suite, task, arm and check fit
-together, and a handful of real `report.html` pages from `reports/data/`
-linked from it, so the first thing a sceptical reader meets is a finished
-report rather than a config file. The bar is the brief's: it reads as done
-properly at a glance and holds up to an expert who opens the intervals.
-Pick the showcased experiments deliberately (a `code-change` run across
-agent arms, an `oracle-change` run, a baseline comparison), and read each
-before it goes up: no machine names, no employer, endpoints as written.
-The wizard hat is CC BY 3.0, so its credit goes on the site
-(`assets/`). Decide whether it is a plain static page beside copied
-reports or the first cut of the report site the entries above describe;
-the cheap one first is fine if it does not paint the data contract into a
-corner. The review is done (`plans/report-structure.md`, *Review, 2026-11-02*); before a
-report goes up, scrub the host and gateway names it records there.
-
-## Do not enable Pages until the site's promises are kept
-
-`docs/index.html` is committed as a draft, and Pages stays off until every
-claim on it is true of the repository. Today two are not:
-
-- **"Proctor ships with agent-friendly documentation, examples and skills"**
-  ("How you use it", step 1). Since 2026-11-08 there is a skill
-  (`skills/proctor-suite/`) and a guide (`docs/getting-started.md`); read
-  the sentence against them before Pages, and measure the docs with the
-  onboarding suite (`plans/onboarding.md`) when it exists.
-- **The README no longer links to the site** (`breitreiter.github.io/proctor`):
-  the 2026-11-09 rewrite dropped the link rather than carry a dead one.
-  Put it back in the opening when Pages is on, and point the README's
-  example reports (`docs/reports/`) at their rendered pages there.
-
-(The "Get started" links to `suites/playground` and `suites/cli-for-agents`
-were the third; both suites are committed now.)
-
-`proctor setup` prints links to `docs/providers.html#<kind>` on the site
-(`plans/setup/README.md`, "The provider catalogue"). The page exists
-(2026-11-08; `SetupTests` holds it to an anchor per catalogue kind), but
-until Pages is on, every link setup prints is dead, so a public release
-of setup waits for Pages. Once released, those anchors are permanent. Add
-the weekly lychee check over its vendor links when Pages goes on.
-
-Before switching Pages on, read the page against the repository once more,
-line by line: every capability it names should be one a stranger can run
-from the README.
-
 ## A new logo
 
 The wizard hat is retired (the user, 2026-11-27), so auspex needs a mark
