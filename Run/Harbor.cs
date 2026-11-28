@@ -3,8 +3,7 @@ using System.Text.Json.Nodes;
 namespace Proctor;
 
 /// <summary>
-/// A run's Harbor, as its log entry keeps it: the pinned release and the hash of the tasks compiled for it, which `run` must find
-/// unchanged to continue the run; with nb, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
+/// A run's Harbor, as its log entry keeps it: the pinned release and the hash of the tasks compiled for it; with nb, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
 /// engine every attempt runs on (proctor.json harbor.engine), which holds that layer.
 /// </summary>
 record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, string Engine = "docker", ResolvedRelay? Relay = null);

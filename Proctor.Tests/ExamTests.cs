@@ -31,7 +31,7 @@ public class ExamTests
         Assert.Equal("the attempt ends with 'ok'", described["exit_ok"]);
         Assert.Equal("no denied tool calls", described["no_denials"]);
         Assert.Equal("at most 3 tool calls and at most 100,000 tokens", described["under_budget"]);
-        Assert.Equal("the answer contains what the task expects", described["says-expected"]);
+        Assert.Equal("the answer contains what the stage expects", described["says-expected"]);
         Assert.Equal("changes touch exactly made.txt", described["made-a-file"]);
     }
 
@@ -87,7 +87,7 @@ public class ExamTests
             repo.EditStage("smoke", stage, c => c["checks"] = JsonNode.Parse("{\"own\": {\"exit_reason\": \"ok\"}}"));
         var exam = repo.LoadExam("smoke");
         Assert.Equal("the attempt ends with 'ok'", exam.CheckDescriptions()["own"]);
-        Assert.Equal("task", exam.ChecksFor(exam.TaskOf("loops"))["own"].Level);
+        Assert.Equal("stage", exam.ChecksFor(exam.TaskOf("loops"))["own"].Level);
         // A correctness check must reach every stage: one that a stage lacks is named with the stage.
         repo.EditJson("smoke/exam.json", e => e["grading"]!["correctness"]!.AsArray().Add("own"));
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.correctness" && p.Message.Contains("'writes-a-file'"));

@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-// The definition tier: proctor.json, exam.json, the task files and the program template,
+// The definition tier: proctor.json, exam.json with its stages, and the program template,
 // loaded into records and validated with a file and field on every problem.
 
 /// <summary>nb.path is the host binary and nb.config the config it runs with: the machine's side of running nb. How an exam runs it is the exam's (ExamNb).</summary>
@@ -95,7 +95,7 @@ record HookPair(string? Setup, string? Teardown);
 record Hooks(HookPair? Run = null, HookPair? Configuration = null, HookPair? Task = null, HookPair? Try = null, JsonNode? Variant = null, JsonNode? Attempt = null);
 
 /// <summary>
-/// The checks, and the role of each by the list that names it (the user, 2026-11-26): correctness (was the task
+/// The checks, and the role of each by the list that names it (the user, 2026-11-26): correctness (was the stage
 /// completed as intended; together they decide right or wrong, and none may ask a model), integrity (can the result be
 /// trusted; a failure takes the try out of every number), quality (preferred, not required; reported, decides nothing).
 /// A check in no list is an observation: counted, with no preferred answer. Pass and Validity are the lists' earlier names, refused.
@@ -151,7 +151,7 @@ record TaskDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, 
 }
 
 /// <summary>
-/// Consumer metadata: a key with one or more string values, on an exam, a fixture or a task. Proctor never
+/// Consumer metadata: a key with one or more string values, on an exam or a fixture. Proctor never
 /// interprets a key; it stores them, prints them, filters on them and records them on every result row.
 /// A tree is a value with slashes in it, matched by a glob.
 /// </summary>
@@ -193,7 +193,7 @@ static class Labels
         string.Join(" ", labels.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => $"{k.Key}={string.Join(",", k.Value)}"));
 }
 
-/// <summary>A check as a task carries it: its spec, the directory its script resolves against, and the level that declared it (exam, fixture or task).</summary>
+/// <summary>A check as a stage carries it: its spec, the directory its script resolves against, and the level that declared it (exam, fixture or stage).</summary>
 record CheckDef(JsonObject Spec, string Dir, string Level);
 
 record Problem(string File, string Field, string Message)
@@ -211,7 +211,7 @@ sealed class Exam
     public required string Dir { get; init; }
     public required ExamDef Def { get; init; }
     public required List<TaskDef> Tasks { get; init; }
-    /// <summary>The fixtures the tasks name, by id.</summary>
+    /// <summary>The fixtures the stages name, by id.</summary>
     public required Dictionary<string, Fixture> Fixtures { get; init; }
     public required string ProgramTemplate { get; init; }
     /// <summary>sha256 over every definition file, so a changed exam is a different exam in a log entry and under exams-seen/.</summary>
@@ -262,18 +262,18 @@ sealed class Exam
 
     public Fixture? FixtureOf(TaskDef task) => task.Fixture is null ? null : Fixtures[task.Fixture];
 
-    /// <summary>The task's answer sheet on the host, or null when it has none.</summary>
+    /// <summary>The stage's answer sheet on the host, or null when it has none.</summary>
     public string? OracleOf(TaskDef task) => task.Oracle is null ? null : Path.GetFullPath(Path.Combine(Dir, task.Oracle));
 
-    /// <summary>How many answers an attempt at an oracle task may get.</summary>
+    /// <summary>How many answers an attempt at an oracle stage may get.</summary>
     public int OracleTurns => Def.Oracle?.Turns ?? OracleDef.DefaultTurns;
 
-    /// <summary>The checks that apply to a task, the union of three levels: the exam's, its fixture's, then its own. A task's scripts resolve against the exam directory, as the exam's do.</summary>
+    /// <summary>The checks that apply to a stage, the union of three levels: the exam's, its fixture's, then its own. A stage's scripts resolve against the exam directory, as the exam's do.</summary>
     public Dictionary<string, CheckDef> ChecksFor(TaskDef c)
     {
         var checks = Grading.Checks!.ToDictionary(k => k.Key, k => new CheckDef(k.Value, Dir, "exam"));
         foreach (var (name, spec) in FixtureOf(c)?.Checks ?? []) checks[name] = new CheckDef(spec, FixtureOf(c)!.Dir, "fixture");
-        foreach (var (name, spec) in c.Checks ?? []) checks[name] = new CheckDef(spec, Dir, "task");
+        foreach (var (name, spec) in c.Checks ?? []) checks[name] = new CheckDef(spec, Dir, "stage");
         return checks;
     }
 
@@ -286,25 +286,25 @@ sealed class Exam
     public List<string>? IntegrityFor(TaskDef c) => Grading.Integrity?.Where(ChecksFor(c).ContainsKey).ToList();
     public TaskDef TaskOf(string id) => Tasks.First(t => t.Id == id);
 
-    /// <summary>Every check name any attempt can carry, exam checks first, then each task's fixture's and its own, in declared order.</summary>
+    /// <summary>Every check name any attempt can carry, exam checks first, then each stage's fixture's and its own, in declared order.</summary>
     public List<string> CheckNames => AllChecks().Select(c => c.Name).Distinct().ToList();
 
     /// <summary>What a check tests, in plain words, when it says one thing everywhere: the declared description, or the one derived from a built-in spec.
-    /// A check that tasks describe differently (a correctness check every task declares with its own criterion) is left out; the sentence is each task's, in <see cref="ChecksFor"/>.</summary>
+    /// A check that stages describe differently (a correctness check every stage declares with its own criterion) is left out; the sentence is each stage's, in <see cref="ChecksFor"/>.</summary>
     public Dictionary<string, string> CheckDescriptions() =>
         AllChecks().GroupBy(c => c.Name, c => Checks.Describe(c.Spec))
             .Where(g => g.Distinct().Count() == 1)
             .ToDictionary(g => g.Key, g => g.First());
 
-    /// <summary>Every declared check in report order: the exam's, then per task its fixture's and its own. A name shared across tasks appears once per task.</summary>
+    /// <summary>Every declared check in report order: the exam's, then per stage its fixture's and its own. A name shared across stages appears once per stage.</summary>
     IEnumerable<(string Name, JsonObject Spec)> AllChecks() =>
         Grading.Checks!.Select(k => (k.Key, k.Value))
             .Concat(Tasks.SelectMany(c => (FixtureOf(c)?.Checks ?? []).Concat(c.Checks ?? []).Select(k => (k.Key, k.Value))));
 
-    /// <summary>What the task is about, for a reader: its description, else the first line of its prompt.</summary>
+    /// <summary>What the stage is about, for a reader: its description, else the first line of its prompt.</summary>
     public static string Describe(TaskDef task) => task.Description ?? task.Prompt!.Split('\n')[0].Trim();
 
-    /// <summary>What the task expects: its fixture's defaults with the task's own block laid over them, key by key.</summary>
+    /// <summary>What the stage expects: its fixture's defaults with the stage's own block laid over them, key by key.</summary>
     public JsonObject? ExpectFor(TaskDef task)
     {
         var fixture = FixtureOf(task)?.Def.Expect;
@@ -482,19 +482,19 @@ sealed class Exam
     }
 
     /// <summary>
-    /// What an oracle task needs of the program template. The exam's oracle block owns the oracle's directives, which
+    /// What an oracle stage needs of the program template. The exam's oracle block owns the oracle's directives, which
     /// proctor prepends, so the template may not state its own. Where nb runs through Harbor the prompt is sent by the
     /// simulated user rather than run by the program, so the template's one run must be the last directive and run the
-    /// task's prompt as it is, or the bridge would run something other than what the bare path does.
+    /// stage's prompt as it is, or the bridge would run something other than what the bare path does.
     /// </summary>
     static List<string> OracleTemplateProblems(string template, bool bridged)
     {
         var problems = new List<string>();
         var directives = Directives(template);
         if (directives.Any(d => Verb(d) == "oracle"))
-            problems.Add("an oracle directive with a task naming an answer sheet: the exam's oracle block sets the oracle; remove the directive");
+            problems.Add("an oracle directive with a stage naming an answer sheet: the exam's oracle block sets the oracle; remove the directive");
         if (directives.Any(d => Regex.IsMatch(d, @"^budget\s+oracle_turns\b")))
-            problems.Add("budget oracle_turns with a task naming an answer sheet: set oracle.turns in exam.json instead");
+            problems.Add("budget oracle_turns with a stage naming an answer sheet: set oracle.turns in exam.json instead");
         if (bridged && (directives.Count(d => Verb(d) == "run") != 1 || directives.LastOrDefault() != "run {{prompt}}"))
             problems.Add("a stage with an answer sheet, where nb runs through Harbor, needs the template to end in its one run, exactly `run {{prompt}}`: the simulated user sends the prompt over the bridge");
         return problems;
@@ -633,18 +633,18 @@ sealed class Exam
         }
         foreach (var fixture in fixtures.Values)
             foreach (var name in fixture.Checks.Keys.Where(def.Grading.Checks.ContainsKey))
-                Add($"grading.checks.{name}", $"also declared by fixture '{fixture.Id}'; a check is declared at one level: the exam's, a fixture's or a task's");
+                Add($"grading.checks.{name}", $"also declared by fixture '{fixture.Id}'; a check is declared at one level: the exam's, a fixture's or a stage's");
         foreach (var c in tasks)
         {
             var fixture = c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture);
             foreach (var name in (c.Checks ?? []).Keys)
             {
-                if (def.Grading.Checks.ContainsKey(name)) problems.Add(new Problem(Path.GetRelativePath(root, c.File!), $"{c.At}checks.{name}", "also declared by the exam; a check is declared at one level: the exam's, a fixture's or a task's"));
-                else if (fixture?.Checks.ContainsKey(name) == true) problems.Add(new Problem(Path.GetRelativePath(root, c.File!), $"{c.At}checks.{name}", $"also declared by fixture '{fixture.Id}'; a check is declared at one level: the exam's, a fixture's or a task's"));
+                if (def.Grading.Checks.ContainsKey(name)) problems.Add(new Problem(Path.GetRelativePath(root, c.File!), $"{c.At}checks.{name}", "also declared by the exam; a check is declared at one level: the exam's, a fixture's or a stage's"));
+                else if (fixture?.Checks.ContainsKey(name) == true) problems.Add(new Problem(Path.GetRelativePath(root, c.File!), $"{c.At}checks.{name}", $"also declared by fixture '{fixture.Id}'; a check is declared at one level: the exam's, a fixture's or a stage's"));
             }
         }
 
-        // A pass or validity check the exam does not declare must reach every task: from its fixture or its own block.
+        // A correctness or integrity check the exam does not declare must reach every stage: from its fixture or its own block.
         string? Undeclared(string name)
         {
             if (def.Grading.Checks.ContainsKey(name)) return null;
@@ -652,14 +652,14 @@ sealed class Exam
             {
                 if (c.Checks?.ContainsKey(name) == true) continue;
                 var fixture = c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture);
-                if (fixture is null) return $"'{name}' is not a declared check, and task '{c.Id}' neither declares it nor names a fixture that could";
-                if (!fixture.Checks.ContainsKey(name)) return $"'{name}' is not a declared check, and neither fixture '{fixture.Id}' nor task '{c.Id}' declares it";
+                if (fixture is null) return $"'{name}' is not a declared check, and stage '{c.Id}' neither declares it nor names a fixture that could";
+                if (!fixture.Checks.ContainsKey(name)) return $"'{name}' is not a declared check, and neither fixture '{fixture.Id}' nor stage '{c.Id}' declares it";
             }
             return tasks.Count == 0 ? $"'{name}' is not a declared check" : null;
         }
         if (def.Grading.Pass is not null) Add("grading.pass", "renamed: these are \"correctness\", the checks that together decide right or wrong");
         if (def.Grading.Validity is not null) Add("grading.validity", "renamed: these are \"integrity\", the checks that decide whether a try counts at all");
-        if (def.Grading.Correctness is null or { Count: 0 }) Add("grading.correctness", "required: the checks that together decide whether the task was completed as intended");
+        if (def.Grading.Correctness is null or { Count: 0 }) Add("grading.correctness", "required: the checks that together decide whether the stage was completed as intended");
         foreach (var name in def.Grading.Correctness ?? [])
             if (name is null) Add("grading.correctness", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.correctness", why);
@@ -732,7 +732,7 @@ sealed class Exam
 
     /// <summary>
     /// What running through Harbor needs from the rest of the exam: a pinned Harbor, a wall limit (Harbor's agent timeout) and an
-    /// image on every task's fixture. An attempt hook runs on the host, which an agent's container never sees; the setup it
+    /// image on every stage's fixture. An attempt hook runs on the host, which an agent's container never sees; the setup it
     /// did belongs in the fixture's image.
     /// </summary>
     static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)

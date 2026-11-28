@@ -100,7 +100,7 @@ public class ChecksTests
     [InlineData("{\"max_duration_ms\": 1800000}", "finishes within 30 min")]
     [InlineData("{\"max_duration_ms\": 1500}", "finishes within 1500 ms")]
     [InlineData("{\"not_exit_reason\": \"ok\"}", "not: the attempt ends with 'ok'")]
-    [InlineData("{\"files_touched\": \"@expect\"}", "the files changed are the ones the task expects")]
+    [InlineData("{\"files_touched\": \"@expect\"}", "the files changed are the ones the stage expects")]
     [InlineData("{\"files_touched\": {\"paths\": [\"src/**\", \"README.md\"], \"mode\": \"at_most\"}}", "changes stay within src/**, README.md")]
     [InlineData("{\"tool_sequence\": {\"names\": [\"read\", \"bash\"], \"mode\": \"exact\"}}", "calls read, bash and nothing else")]
     [InlineData("{\"answer_words\": {\"min\": 10, \"max\": 50}}", "the answer is 10 to 50 words")]
@@ -239,7 +239,7 @@ public class ChecksTests
         Assert.Equal("fail", Checks.Evaluate(spec, Attempt(expect), t, "greets").Result);
         Assert.Equal("pass", Checks.Evaluate(spec, Attempt(expect), t, "other").Result);
         var v = Checks.Evaluate(JsonNode.Parse("{\"tools_used\": \"@expect\"}")!.AsObject(), Attempt(expect), t, "uses");
-        Assert.Equal(("error", "tools_used: task has no expect.uses.tools_used or expect.tools_used"), (v.Result, v.Reason));
+        Assert.Equal(("error", "tools_used: stage has no expect.uses.tools_used or expect.tools_used"), (v.Result, v.Reason));
     }
 
     [Fact]

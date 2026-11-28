@@ -225,7 +225,7 @@ static class Answers
         var verdict = comparison.Verdict ?? "nothing_to_compare";
         var decided = comparison.Pooled?.Held ?? (compared.Count == 1 ? compared[0].Held : null);
 
-        // When: a claim's two sides are often made at different times, and a hosted model or the machine may have changed between.
+        // When: a comparison's two sides are often made at different times, and a hosted model or the machine may have changed between.
         var (mine, theirs) = (compared.SelectMany(c => c.Value.Tries).Select(t => MadeAt(t.Id)!.Value).Order().ToList(), compared.SelectMany(c => c.Against.Tries).Select(t => MadeAt(t.Id)!.Value).Order().ToList());
         double? apart = mine.Count > 0 && theirs.Count > 0 ? Math.Round(Math.Abs((mine[mine.Count / 2] - theirs[theirs.Count / 2]).TotalDays), 1) : null;
         var timing = new Timing(mine.Count > 0 ? Iso(mine[0]) : null, mine.Count > 0 ? Iso(mine[^1]) : null, theirs.Count > 0 ? Iso(theirs[0]) : null, theirs.Count > 0 ? Iso(theirs[^1]) : null, apart,

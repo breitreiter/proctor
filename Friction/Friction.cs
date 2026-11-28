@@ -68,7 +68,7 @@ sealed class Surface
 }
 
 /// <summary>
-/// The friction rules: a finished attempt's trajectory into friction.json, the points where the attempt paid a cost the task
+/// The friction rules: a finished attempt's trajectory into friction.json, the points where the attempt paid a cost the stage
 /// did not ask for. Rules only, no model: the same trajectory and declaration give the same file. Each call is split
 /// into actions; with a surface declared each action is on, about or around the surface, a substitute for it, or
 /// background. A point is a stretch of adjacent steps with one label, and it is written only with a quote that is in
@@ -146,7 +146,7 @@ static class Friction
 
     public record AttemptFriction(string Configuration, string Task, int Attempt, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
 
-    /// <summary>friction.json beside each given attempt's trajectory, each a current one from the bank: a task's attempt, or one stage of a try, whose steps are that stage's own. An attempt not completed, a stage not reached, or one with no trajectory is skipped and said so.</summary>
+    /// <summary>friction.json beside each given attempt's trajectory, each a current one from the bank: one stage of a try, whose steps are that stage's own. An attempt not completed, a stage not reached, or one with no trajectory is skipped and said so.</summary>
     /// <param name="reader">A chat judge of the machine's config that reads each attempt for what rules cannot see; its points are added with a model source. Null for rules only.</param>
     public static List<AttemptFriction> Attempts(string root, Exam exam, List<BankAttempt> attempts, TextWriter log, JudgeClient? judges = null, string? reader = null)
     {

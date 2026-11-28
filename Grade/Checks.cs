@@ -39,7 +39,7 @@ record Evidence(string? Step = null, string? File = null);
 /// <summary>Everything the runner and the grader need to know about one attempt, without the transcript.</summary>
 record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string ExamId, string Configuration, TaskDef Task, int Attempt)
 {
-    /// <summary>What the task expects, its fixture's defaults included; the task's own block when there is no fixture.</summary>
+    /// <summary>What the stage expects, its fixture's defaults included; the stage's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Task.Expect;
     public Fixture? Fixture { get; init; }
     /// <summary>The runner script in effect, relative to exams/; empty on a bare run.</summary>
@@ -194,13 +194,13 @@ static class Checks
         static bool Is(JsonNode? v, string s) => v is JsonValue jv && jv.TryGetValue<string>(out var t) && t == s;
         static bool IsFalse(JsonNode? v) => v is JsonValue jv && jv.TryGetValue<bool>(out var b) && !b;
         if (fields is [("exit_reason", var exit)] && Is(exit, "ok"))
-            return "An attempt that ended on a limit or an error, not by finishing, says nothing yet about the task.";
+            return "An attempt that ended on a limit or an error, not by finishing, says nothing yet about the stage.";
         if (fields is [("denied_calls", _)])
             return "A denied call means the agent tried something the setup forbids, which a user would see as a stuck session.";
         if (fields is [("loop_nudged", var nudged)] && IsFalse(nudged))
             return "A nudge means the agent stopped making progress and the harness had to push it on.";
         if (fields.All(f => f.Key is "max_tool_calls" or "max_tokens" or "max_duration_ms"))
-            return "An attempt over its budget costs a user more time or money than this task should.";
+            return "An attempt over its budget costs a user more time or money than this stage should.";
         return null;
     }
 
@@ -212,14 +212,14 @@ static class Checks
         string Max(string what) => v!["max"]!.GetValue<long>() == 0 ? $"no {what}" : $"at most {v["max"]} {what}";
         var phrase = name switch
         {
-            _ when fromTask && name == "files_touched" => "the files changed are the ones the task expects",
+            _ when fromTask && name == "files_touched" => "the files changed are the ones the stage expects",
             _ when fromTask => name switch
             {
-                "answer_contains" => "the answer contains what the task expects",
-                "answer_equals" => "the answer is exactly what the task expects",
-                "answer_regex" => "the answer matches the pattern the task expects",
-                "exit_reason" => "the attempt ends the way the task expects",
-                _ => $"{name.Replace('_', ' ')} is what the task expects",
+                "answer_contains" => "the answer contains what the stage expects",
+                "answer_equals" => "the answer is exactly what the stage expects",
+                "answer_regex" => "the answer matches the pattern the stage expects",
+                "exit_reason" => "the attempt ends the way the stage expects",
+                _ => $"{name.Replace('_', ' ')} is what the stage expects",
             },
             "exit_reason" => $"the attempt ends with '{v}'",
             "max_tool_calls" => $"at most {v} tool calls",
@@ -275,7 +275,7 @@ static class Checks
         if (negated && name == "script") return "a script cannot be negated; make the script return the verdict you mean";
         if (name is Judge.Decide or Judge.JudgeCheck) return negated ? "a model check cannot be negated; say what you expect with expect" : Judge.ValidateSpec(name, value);
         if (value is JsonValue v && v.TryGetValue<string>(out var s) && s == FromExpect)
-            return name == "script" ? "a script path cannot come from the task" : null;
+            return name == "script" ? "a script path cannot come from the stage" : null;
         return name switch
         {
             "script" when value is not JsonValue => "a script is a path string",
@@ -328,9 +328,9 @@ static class Checks
         if (name is Judge.Decide or Judge.JudgeCheck) return Judge.Evaluate(name, (JsonObject)value!, check, attempt, t);
         if (value is JsonValue jv && jv.TryGetValue<string>(out var s) && s == FromExpect)
         {
-            // Keyed by the check's name first, so two checks over one field can differ per task; by the field for the common single task.
+            // Keyed by the check's name first, so two checks over one field can differ per stage; by the field for the common single stage.
             value = (attempt.Expect?[check] as JsonObject)?[name] ?? attempt.Expect?[name];
-            if (value is null) return Verdict.Err($"{name}: task has no expect.{check}.{name} or expect.{name}");
+            if (value is null) return Verdict.Err($"{name}: stage has no expect.{check}.{name} or expect.{name}");
         }
         var verdict = name == "script"
             ? attempt.ScriptsInVerifier ? VerifierScript(check, attempt) : RunScript(value!.GetValue<string>(), scriptDir, attempt)
@@ -379,7 +379,7 @@ static class Checks
                 return Verdict.Of(t.LoopNudged == v.GetValue<bool>(), t.LoopNudged ? "loop nudge fired" : "no loop nudge");
             case "oracle_hit":
             {
-                if (attempt.Task.Oracle is null) return Verdict.Err($"task {attempt.Task.Id} names no answer sheet, so the oracle could not answer");
+                if (attempt.Task.Oracle is null) return Verdict.Err($"stage {attempt.Task.Id} names no answer sheet, so the oracle could not answer");
                 var keys = t.UserTurns.Where(u => u.IsOracle).SelectMany(u => u.Keys ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 var missing = v.AsArray().Select(n => n!.GetValue<string>()).Where(k => !keys.Contains(k, StringComparer.OrdinalIgnoreCase)).ToList();
                 var answered = keys.Count == 0 ? "the oracle never answered" : $"the oracle answered with {string.Join(", ", keys)}";
@@ -451,7 +451,7 @@ static class Checks
                 if (calls.Count == 0) return new Verdict(Verdict.Fail, $"no call to {toolName}");
                 bool matched;
                 try { matched = calls.Any(c => ArgsMatch(expected, c.Arguments ?? new JsonObject(), exact, regex, ignore)); }
-                catch (ArgumentException e) { return Verdict.Err($"tool_args: {e.Message}"); } // a pattern from the task's expect is unchecked until now
+                catch (ArgumentException e) { return Verdict.Err($"tool_args: {e.Message}"); } // a pattern from the stage's expect is unchecked until now
                 return Verdict.Of(matched, matched ? $"{toolName} called with the expected args" : $"{calls.Count} call{(calls.Count == 1 ? "" : "s")} to {toolName}, none with the expected args");
             }
             case "tool_sequence":

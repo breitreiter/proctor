@@ -291,7 +291,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// <summary>Make the given tries of this run, configuration by configuration, the configuration hooks around each one's tries; then say how they came out.</summary>
     void Make(List<(Assistant Assistant, TaskDef Task, int Attempt)> attempts)
     {
-        // The relay's host end lives as long as the attempts are being made, a continued run's at the directory its tasks were compiled with.
+        // The relay's host end lives as long as the tries are being made, at the directory the log entry recorded.
         using var relay = entry.Harbor?.Relay is { } r && attempts.Any(a => a.Assistant.IsAgent) ? HostRelay.Start(r.Dir, r.Ports) : null;
         WriteStatusCounts();
         foreach (var group in attempts.GroupBy(a => a.Assistant))
@@ -743,7 +743,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// <summary>
     /// A bare attempt's oracle, as nb's own directives ahead of the template: they apply to every run after them, so the
     /// template needs no placeholder. The sheet is the host path, which --compile inlines, so a runner's container never
-    /// needs the file. Empty for a task without a sheet.
+    /// needs the file. Empty for a stage without a sheet.
     /// </summary>
     public static string OraclePrefix(Exam exam, TaskDef task)
     {

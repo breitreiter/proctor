@@ -26,7 +26,7 @@ static class Standard
     /// <summary>
     /// The standard a stage is graded under: every check it carries (its fields, the condition it applies under, a
     /// script's content), which of them decide correctness and which integrity, and the expected values. Not the
-    /// prompt, the fixture or anything else the agent meets, which are the task's hash.
+    /// prompt, the fixture or anything else the agent meets, which are the job's hash.
     /// </summary>
     public static string Hash(Exam exam, TaskDef stage)
     {

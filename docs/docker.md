@@ -113,7 +113,7 @@ Two things skip that:
 - **An interrupted run.** A `run` that was sent an interrupt in the
   middle of an attempt left that trial's compose project behind: the
   sidecar still running, the other containers exited, the network, and
-  the trial's two images. The relay left nothing. The continued run was
+  the trial's two images. The relay left nothing. The next run was
   not hindered. Whether a Ctrl-C at the terminal
   leaves the same is not yet known.
 
@@ -137,7 +137,7 @@ PROCTOR_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
 ```
 
 Every vendor agent at its pin against a scripted model, and each
-`code-change` task's reference solution through Harbor's checks. About
+`code-change` stage's reference solution through Harbor's checks. About
 twenty minutes, no model, $0. It takes `harbor.uv` and `harbor.engine`
 from `exams/proctor.json`, or from a file you name in place of `1`.
 

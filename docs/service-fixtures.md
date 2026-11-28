@@ -1,6 +1,6 @@
 # A fixture with services
 
-Some tasks need something to talk to: an API the code under change
+Some stages need something to talk to: an API the code under change
 calls, a documentation site, a scripted model. A fixture can bring such
 services with it. They run beside the agent, the agent reaches them on
 the network, and it cannot read their source or their configuration.
@@ -146,8 +146,8 @@ Only a port a model endpoint uses needs listing. `tern-shop` lists none.
 
 ## Changing a service
 
-A task's hash covers the fixture's `repo/` and its `image` block, not
-the files under `services/`. Edit a service and the attempts already
+The job's hash covers the fixture's `repo/` and its `image` block, not
+the files under `services/`. Edit a service and the tries already
 made stay current, though they met a different service. Treat it as
 [`configuration.md`](configuration.md), "When an exam gets a copy",
 says of any change to the world: copy the fixture and the exam to new

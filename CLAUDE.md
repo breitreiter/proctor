@@ -51,7 +51,7 @@ stages and axes. Tasks as files, variants, bundles, `live.json`, `--variant`,
 `--tasks`, `proctor live`, the continuation of an interrupted run, and the
 report of variants side by side are gone; `Exam.Load` refuses the earlier
 shape and says what each part becomes, and `docs/porting-from-suites.md` is
-the map. "Variant" is an old word now, gated like the others.
+the map. "Variant" is an old word now, like suite, arm and batch before it.
 
 **Three names are kept as first written** until the binary is renamed
 (`project/plans/rename-to-auspex.md`, stage 2), so that every try already
@@ -152,7 +152,6 @@ in the order the verbs run them. Every file is one concern:
 | `skills/proctor-exam/` | the onboarding skill a user copies into their agent's skills directory: plan an exam with the user (inventory, stages, checks, axes and the configurations to run, cost; a `PLAN.md` approved), then build it and prove its checks for free; only what a frontier model would not guess and proctor's gotchas, pointing at `docs/configuration.md` and the example exams for the rest |
 | `View/` | the viewer, auspex, moved in on 2026-11-24 (stage 1 of `project/plans/rename-to-auspex.md`): its own project (`View/Auspex.csproj`, ASP.NET, pages rendered on the server) and tests (`View/Auspex.Tests/`) in the same solution, not compiled into proctor. It reads the bank's files itself and calls proctor's code for what only proctor may work out (`View/Measured.cs`: an exam's configurations, `Answers.Compare`, `Answers.Coverage`), so proctor's internals are visible to it. It makes no model call. Its own notes are `View/CLAUDE.md`; its design notes are `project/view/` |
 | `project/` | the brief, the plans, the learnings and the loose ends (`todo.md`); `archive/` holds built and dropped plans and the old bug notes, in the earlier words |
-| `project/gate/` | `old-words.sh`, the grep gate for the old words, and `old-words.allow`, where each exception is listed with a reason |
 
 The directories are for reading, not for namespaces: everything is
 `namespace Proctor`. The data directories `exams/`, `fixtures/`, `bench/`,
@@ -606,11 +605,12 @@ The directories are for reading, not for namespaces: everything is
   provider; the agent writes the `judges` entry from the models
   `setup --check` lists. Keys go to the env file at a secret prompt and
   never through an agent; Spectre is for interactive verbs only.
-- **The old words are gated.** `project/gate/old-words.sh` searches every
-  tracked file for the earlier model's words, listed at its top (any case,
-  plurals, inside identifiers too) and exits non-zero on a hit
-  that `project/gate/old-words.allow` does not list. An exception is an
-  edit to the allow-list with a reason; prefer rewording.
+- **The earlier words are no longer gated** (the user, 2026-11-28). `project/gate/old-words.sh` searched every
+  tracked file for them until then, and kept the two models from being mixed while both were in the code. After
+  slice 7 a review found none left as a concept, and the gate was bending ordinary sentences, so it was removed
+  (it is in git history). The vocabulary table above is the rule: for the things it names, use its words. Sample,
+  batch, suite and the like are plain English wherever they mean something else, and a comparison's `cell` (one
+  setting of the other axes, `answer/1`) is its own word.
 - **Built to be built on** (`project/plans/remix.md`, 2026-11-27). Other people's code stands beside proctor: it reads
   the files and calls the commands. Four rules keep what is built ready for that, before anything is promised: a new
   file a person or a program may read carries a schema name and number (`answer/1`, `configurations/1`); a new verb can give

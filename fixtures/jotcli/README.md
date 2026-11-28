@@ -34,12 +34,12 @@ deliberately do not exercise `clear` with tasks present. A fix that adds
 `--yes`, honours a non-TTY stdin, or exits non-zero on abort breaks no
 test, so `tests-pass` is a regression guard, not the acceptance check.
 
-## What a task on this fixture looks like
+## What a stage on this fixture looks like
 
-The natural task is the one the planted behaviour invites: *make `clear`
+The natural stage is the one the planted behaviour invites: *make `clear`
 usable from a script or an agent.* A good solution adds a `--yes` (or
 `-y`) flag, and, better, exits non-zero when it aborts. The acceptance
-check belongs to the exam, beside the task, and is a script that:
+check belongs to the exam, beside the stage, and is a script that:
 
 1. seeds a store with tasks, runs `node dist/src/cli.js clear --yes` with
    stdin closed and no TTY, and expects exit 0 and an empty store, within
@@ -50,8 +50,8 @@ check belongs to the exam, beside the task, and is a script that:
 A `files_touched` expectation of `src/**`, `tests/**`, `README.md` at
 most keeps the change where it belongs.
 
-For a Tier 0 playground, a scripted Mock task against this fixture can
-run `node dist/src/cli.js list` and check the answer contains `Nothing to
+In `playground`, a scripted Mock stage on this fixture
+runs `node dist/src/cli.js list` and checks the answer contains `Nothing to
 do.`, so the first report a new user sees is about this repository.
 
 ## Why TypeScript, and why these choices

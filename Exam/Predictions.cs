@@ -8,7 +8,7 @@ namespace Proctor;
 // before the tries are made: "if this configuration is run, this is what will change." It names one full configuration,
 // what it is compared with, and the changes expected: each a check or a metric, and a direction. After the tries,
 // proctor says how each change came out, a miss as plainly as a hit. Nothing is refused for having no prediction, and
-// a prediction gates nothing. exams/<exam>/predictions/<name>.json, committed with the exam and in no hash, as live.json is.
+// a prediction gates nothing. exams/<exam>/predictions/<name>.json, committed with the exam and in no hash.
 // There is no word for "a configuration that might replace live": that construct is not needed yet (the user).
 
 /// <summary>One change a prediction expects: a check (it will hold in more or fewer stages of a try) or a metric (there will be more or less of it), and optionally why.</summary>

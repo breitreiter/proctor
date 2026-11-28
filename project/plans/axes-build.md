@@ -1210,10 +1210,18 @@ same files: commit `0364ac0`, tag `modal-in-core`). In stages, each a commit tha
 - The version is still 0.3.6 and everything since is under "Unreleased" in the changelog. The user, 2026-11-28:
   no bump now; one major revision once the work in flight is done, tentatively 0.9, to say this is the project's
   final form short of more runs to shake out problems.
-- The old-words gate still fails on words other than variant, most of them `cell` in the comparison's own
-  schema (`answer/1`, `Configurations.cs`), which were there before this slice. The user, 2026-11-28: it has done
-  its work of keeping the two models apart and now bends the writing. Owed: one review of the code for what is
-  left of the earlier words, then the gate is cut down or removed.
+- The old-words gate is removed (the user, 2026-11-28: it had done its work of keeping the two models apart and
+  was bending the writing). The review before it went: every tracked file outside `project/`, `bench/` and the
+  published reports was searched for the gated words and for bundle, claim, candidate, treatment, tags and task,
+  the allow-list ignored. No identifier, field or message of the earlier model was left except the ones kept on
+  purpose (the refusals, the on-disk names, `TaskDef`). What was reworded: comments and error messages that
+  still said "task" for a stage (`Exam.cs`, `Checks.cs`, `Judge.cs`; a derived check sentence now reads "what the
+  stage expects"), the level a stage's own check is listed under (`stage`), four comments about `live.json` and a
+  continued run, and stale sentences in `docs/network.md`, `docs/service-fixtures.md`, `docs/docker.md` and
+  `fixtures/jotcli/README.md`. Left as they are: `cell` in the comparison (`answer/1`, `configurations/1`), which
+  is that schema's own word; the windows' descriptions and the friction reader's instructions, which say "task"
+  to a judge and are part of what a verdict was made with; and "task" inside prompts and fixtures' repositories,
+  which the job's hash covers.
 - The two authoring exams are run on a model only once the core is finished (the user, 2026-11-28).
 - `docs/configuration.md` keeps its name until the site is settled (the user, 2026-11-28).
 

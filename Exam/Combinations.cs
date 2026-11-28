@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Proctor;
 
 // exams/<exam>/combinations.json (plans/axes-build.md, slice 3b; plans/axes.md, decision 16). Committed with the exam
-// and in no hash, as live.json is. What `proctor build` found when it held each configuration of several values
+// and in no hash. What `proctor build` found when it held each configuration of several values
 // against those values built alone. It is a measurement, written by build and by nothing else. Whether anyone read
 // what a value changes is not recorded anywhere: a record of that would either pass for an approval or mean nothing.
 

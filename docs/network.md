@@ -35,7 +35,7 @@ Beside the model:
 - **Ports of your machine a fixture names** in `image.host_ports` are
   relayed like a model on it: a dev server you started by hand, say.
 
-[`configuration.md`](configuration.md), "Exams, fixtures and tasks", is the reference for the three
+[`configuration.md`](configuration.md), "Fixtures", is the reference for the three
 fields.
 
 The checks do not run in the agent's container. Harbor runs them
@@ -50,7 +50,7 @@ has finished than it had before, nor between the stages of a try.
 
 Two exceptions:
 
-- **A task with an answer sheet** (an oracle) is compiled with the
+- **A stage with an answer sheet** (an oracle) is compiled with the
   environment open, because Harbor installs its bridge to the simulated
   user from npm inside the container on every trial. The agent's own
   phase is still held to the policy.

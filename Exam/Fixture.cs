@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-// A fixture: the repository a task is run against and what "done" looks like in it. Repo-level,
+// A fixture: the repository a stage is run against and what "done" looks like in it. Repo-level,
 // under fixtures/<id>/, reused across exams. Its checker lives beside the checkout source, never
 // inside it: only source.path (or the clone) is ever copied into a work directory.
 

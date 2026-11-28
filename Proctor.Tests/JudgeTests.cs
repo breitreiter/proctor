@@ -157,7 +157,7 @@ public class JudgeTests
         var fromTask = Exam(spec.Replace("\"EXPECT\"", "\"@expect\""), Fixture("plain"), Client(http), new JsonObject { ["stance"] = "complete" }, name: "stance");
         Assert.Equal("pass", fromTask.Result);
         var missing = Exam(spec.Replace("\"EXPECT\"", "\"@expect\""), Fixture("plain"), Client(http), new JsonObject(), name: "stance");
-        Assert.Equal(("error", "decide: task has no expect.stance"), missing.Deconstruct());
+        Assert.Equal(("error", "decide: stage has no expect.stance"), missing.Deconstruct());
     }
 
     [Fact]
@@ -170,13 +170,13 @@ public class JudgeTests
         Assert.Equal("Is it forty-two?", JsonNode.Parse(http.LastBody!)!["questions"]!["q"]!["instructions"]!.GetValue<string>());
 
         var missing = Exam(spec, Fixture("plain"), Client(http), new JsonObject { ["correct"] = "yes" }, name: "correct");
-        Assert.Equal(("error", "decide: task has no expect.correct.ask"), missing.Deconstruct());
+        Assert.Equal(("error", "decide: stage has no expect.correct.ask"), missing.Deconstruct());
 
         // both from the task: the expectation sits beside the ask under the check's name
         var both = "{\"decide\": {\"ask\": \"@expect\", \"window\": \"answer\", \"expect\": \"@expect\"}}";
         var no = Exam(both, Fixture("plain"), Client(http), new JsonObject { ["correct"] = new JsonObject { ["ask"] = "Is it wrong?", ["expect"] = false } }, name: "correct");
         Assert.Equal("fail", no.Result);
-        Assert.Equal("a decider answers 'what the task expects' to: the question the task asks", Checks.Describe(JsonNode.Parse(both)!.AsObject()));
+        Assert.Equal("a decider answers 'what the stage expects' to: the question the stage asks", Checks.Describe(JsonNode.Parse(both)!.AsObject()));
     }
 
     [Fact]

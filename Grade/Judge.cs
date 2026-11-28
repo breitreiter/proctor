@@ -233,8 +233,8 @@ static class Judge
 
     public static string Describe(string name, JsonNode? v)
     {
-        var ask = IsFromExpect(v!["ask"]) ? "the question the task asks" : v["ask"]!.GetValue<string>();
-        var expect = v["expect"] is { } e ? (IsFromExpect(e) ? "what the task expects" : YesNo(e) ?? e.ToString()) : Yes;
+        var ask = IsFromExpect(v!["ask"]) ? "the question the stage asks" : v["ask"]!.GetValue<string>();
+        var expect = v["expect"] is { } e ? (IsFromExpect(e) ? "what the stage expects" : YesNo(e) ?? e.ToString()) : Yes;
         return name == Decide ? $"a decider answers '{expect}' to: {ask}" : $"a judge says {expect} to: {ask}";
     }
 
@@ -247,18 +247,18 @@ static class Judge
         var client = attempt.Judges ?? throw new ProctorException($"check '{check}': grading a {name} check needs the judges of exams/proctor.json");
         var (judge, def) = client.Resolve(KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), check);
 
-        // What the task supplies under the check's name: the expectation itself, or {ask, expect} when the question is the task's too.
+        // What the stage supplies under the check's name: the expectation itself, or {ask, expect} when the question is the stage's too.
         var fromTask = attempt.Expect?[check];
         var expect = spec["expect"];
         if (IsFromExpect(expect))
         {
             expect = fromTask is JsonObject o ? o["expect"] : fromTask;
-            if (expect is null) return Verdict.Err($"{name}: task has no expect.{check}");
+            if (expect is null) return Verdict.Err($"{name}: stage has no expect.{check}");
         }
         if (IsFromExpect(spec["ask"]))
         {
             if ((fromTask as JsonObject)?["ask"] is not JsonValue a || !a.TryGetValue<string>(out var ask) || string.IsNullOrWhiteSpace(ask))
-                return Verdict.Err($"{name}: task has no expect.{check}.ask");
+                return Verdict.Err($"{name}: stage has no expect.{check}.ask");
             spec = (JsonObject)spec.DeepClone();
             spec["ask"] = ask;
         }
