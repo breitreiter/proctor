@@ -2,7 +2,7 @@
 type: plan
 title: Proctor becomes auspex — the viewer moves in, then the rename
 created: 2026-11-23
-status: agreed with the user 2026-11-23 (see "Decided"). Nothing done. Deferred 2026-11-24 (the user): after `axes-build.md` is done, whenever that is; the 2026-11-29 target no longer holds. auspex.bot is registered (2026-11-23). Counts are grep counts from 2026-11-23, to size the work, not a checklist
+status: reviewed against the code on 2026-11-28, after slice 7 of `axes-build.md` (see "Review, 2026-11-28", which replaces the stage 2 table, the schedule and step 7 of stage 1 where they differ). Stage 1 is done but for the old checkout. Stage 2 is not started and waits on the decisions listed there. Counts in the older sections are from 2026-11-23
 ---
 
 # Proctor becomes auspex
@@ -13,6 +13,138 @@ read what they did. That name is held today by the viewer
 already going to fold into proctor (the user, 2026-11-21). So this plan
 covers two jobs: the viewer moves into this repository, and the
 repository takes its name.
+
+## Review, 2026-11-28
+
+Slice 7 is done, so the reason for deferring is gone. This section is the
+plan as it stands; the sections below it are kept as written and are
+right where this one does not say otherwise.
+
+### What changed since the plan was written
+
+- **The viewer is in** (`View/`, stage 1). What is left of stage 1 is the
+  old checkout, and the user has chosen what becomes of it (below).
+- **There is one shape.** Tasks, variants and bundles are gone, so the
+  rename touches less. In return it now carries the names that were kept
+  for it: `variant` and `task` in the bank's and the report's files,
+  `PROCTOR_TASK` and `{{task}}`, and `TaskDef` and `BankAttempt` in code.
+- **The old-words gate is removed** (the user, 2026-11-28), so layer 8, a
+  gate for "proctor", is dropped. One search at the end of each layer
+  does its work, and is not kept.
+- **The version is not 0.4.0.** The user, 2026-11-28: one revision when
+  the work in flight is done, tentatively 0.9. The rename is under
+  "Unreleased" until then.
+- **The site is auspex.bot** and is another session's work
+  (`project/plans/site.md`). Layer 6 is only the base URL in
+  `Setup/providers.json`, `Setup/Catalogue.cs` and the setup plans.
+- **`tern-docs` has 72 paid stages in the bank** (12 tries), made through
+  Harbor. The plan did not have to protect anything like them. See "The
+  paid tries".
+
+### The old checkout (the user, 2026-11-28)
+
+It is not archived and not deleted. It becomes the private repository
+for what is not published. In place of step 7 of stage 1:
+
+1. The directory `/srv/aiwork/auspex` is renamed, which frees the name.
+2. Its remote on GitHub is dropped. Found on 2026-11-28: the checkout has
+   no remote configured, and `gh` sees no `breitreiter/auspex`, among the
+   private repositories it does see. So this and step 5 look done
+   already; the user confirms on GitHub.
+3. It gets a remote on the house server, as the other private
+   repositories have (`library:/srv/data/git/<name>.git`). The bare
+   repository there is made by the user: `claude`'s login on that host is
+   git-shell.
+4. Its contents are scrubbed. Tracked today: 748 files, 736 of them under
+   `project/` (712 in `project/trials/`), and the first viewer's code,
+   which `View/` replaced and which goes. `datasets/` (1.9 GB) is
+   untracked and stays on this disk only, with no copy elsewhere.
+5. The GitHub repository `auspex` is deleted (see 2).
+6. Proctor is renamed auspex: the rest of this section.
+
+Two things here point at the old path and are changed in step 1's
+commit: `CLAUDE.md` ("Friction is beside grading", `../auspex/project/…`)
+and `View/CLAUDE.md` (the old checkout, `datasets/`).
+
+### Before the rename
+
+- **A quiet tree.** A second session commits here daily (the site). The
+  rename touches about 340 files, so it is done when that session is
+  stopped or has nothing uncommitted, and it is told the new paths.
+- **One branch.** `exam-variant-attempt` is 185 commits ahead of
+  `master`; `exam-cleanup`, `exam-live`, `exam-pool`, `exam-rename`,
+  `exam-variants`, `script-check-outdated` and `workbench-plan` are still
+  there, two of them in worktrees. The branch merges to `master` first
+  and the others are deleted or rebased by their owner, or each conflicts
+  with every line.
+- **What is keyed by the path.** Claude Code keeps a project's memory and
+  sessions under a directory named after the checkout's path, so renaming
+  `/srv/aiwork/proctor` moves that directory too, or the memory is not
+  found. `/srv/aiwork/proctor-private` and `/srv/aiwork/proctor-worktrees`
+  are named after it as well.
+
+### The paid tries
+
+A script check through Harbor is not run again by `grade`: its verdict
+was fixed in the verifier when the try was made, and it reads `outdated`
+when the check's script, or what the verifier was handed, is no longer
+what compile would write (`HarborCompile.Outdated`). `tern-docs`' four
+check scripts read `PROCTOR_WORK`, `PROCTOR_TASK`, `PROCTOR_EXAM_DIR` and
+`PROCTOR_FIXTURE`. Renaming those variables with no fallback, as decided
+on 2026-11-23, means editing the scripts, and every one of the 72 stages
+goes `outdated` until the tries are made again, on Sonnet.
+
+Three ways through, for the user to choose:
+
+1. **Both names for the script contract, for now.** Hooks and script
+   checks are handed `AUSPEX_*` and the same values as `PROCTOR_*`; new
+   scripts and the docs use the new names; the old ones go at 1.0 or when
+   the last try that needs them is retired. Everything proctor itself
+   reads from its user (`PROCTOR_ENV_FILE`, `PROCTOR_GATE`,
+   `PROCTOR_CONFORMANCE`, the test variables) changes at once, with the
+   refusal as planned. `tern-docs` is not touched and stays 72 of 72.
+   This reverses "no fallback" for the one contract other people's
+   scripts are written against.
+2. **No fallback, and `tern-docs` is made again.** As decided, at the
+   cost of 12 tries on Sonnet.
+3. **No fallback, and `tern-docs` is left to read `outdated`.** Its
+   report stops being current.
+
+The same question, smaller, for the file names inside the bank
+(`variant`, `task`, `versions.proctor`): the reader takes both and the
+writer writes the new one. That needs no decision; nothing is rewritten.
+
+### Stage 2, as it now stands
+
+One commit per layer, both suites passing after each.
+
+| # | Layer | Size on 2026-11-28 | Notes |
+|---|---|---|---|
+| 1 | The kept names | `TaskDef`, `BankAttempt`, `OnDisk.Variant(s)`; `{{task}}`, `PROCTOR_TASK` | In code a stage is a `Stage` and one stage of one try an `Attempt`. On disk the writer says `configuration` and `stage`, and the reader takes either. `{{stage}}` replaces `{{task}}`, the old one refused with the new. Done first, under the old name, so it is checked on its own |
+| 2 | Code | 77 files in `namespace Proctor` | `Proctor` → `Auspex`, the assembly `proctor` → `auspex`, the project and solution files, `InternalsVisibleTo`. The viewer holds `Auspex` and `Auspex.Tests` today, so it becomes `Auspex.View`, `Auspex.View.Tests` and `auspex-view` in the same commit |
+| 3 | Environment variables | 59 names, about 590 uses, in scripts of 10 exams and 8 fixtures | → `AUSPEX_*`, per "The paid tries". The viewer's `AUSPEX_TEST_*` become `AUSPEX_VIEW_TEST_*` |
+| 4 | Files on disk | `proctor.json` (157 mentions), `.proctor/` (33) | → `auspex.json`, `.auspex/`, the `.gitignore` patterns. A machine with the old file and not the new gets a one-line refusal. On this machine `.proctor/` is moved, not left: it holds the checkouts a regrade restores |
+| 5 | The skills | `skills/proctor-exam/`, `skills/proctor-answers/` | → `auspex-exam`, `auspex-answers`. The plan named one; there are two |
+| 6 | The site's base URL | 13 mentions of `github.io/proctor` | → `auspex.bot`, agreed with the site's session first. No anchor has been released |
+| 7 | Prose | about 3,500 mentions in 340 files, before the layers above take theirs | `CLAUDE.md`, README, `docs/`, live plans, `todo.md`, `View/` docs. `project/archive/`, past CHANGELOG entries, learnings, captured fixtures and the published reports keep "proctor" |
+| 8 | The migration guide | new `docs/migrating-from-proctor.md` | As planned, and it now also maps the kept names of layer 1 |
+| 9 | Repository and directory | 17 mentions of `breitreiter/proctor` | GitHub `proctor` → `auspex` (it redirects), then the local directory, with what is keyed by its path. Last, not first as planned: every layer before it can be pushed and reverted under the old name |
+| 10 | The exams that show an agent proctor | `exam-authoring`, `agent-onboarding` | Both pin this repository at a revision, where the tool is still called proctor. They are pinned again at a revision after the rename, and their prompts and checks follow. `exam-authoring` has 2 tries in the bank, on a local model, which go stale |
+| 11 | nb | stage 2b, as written | Its refusal says "a proctor arm"; "arm" and "variant" are both gone now, so it becomes "an auspex value with "agent": …" |
+
+The changelog entry is written as the layers land; the version is the
+user's to cut.
+
+### To decide
+
+1. The paid tries: 1, 2 or 3 above.
+2. The private repository's name, and whether
+   `/srv/aiwork/proctor-private` (391 MB, not a repository) folds into it.
+3. Whether `project/trials/` is kept in it (712 files that quote
+   transcripts) or dropped.
+4. Whether `exam-variant-attempt` merges to `master` before the rename,
+   and what becomes of the seven other branches.
+5. Whether layer 1 goes ahead now. It needs none of the above.
 
 In this plan, **the viewer** means today's auspex repository and
 **proctor** means this one, until stage 2 says otherwise.
