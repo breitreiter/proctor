@@ -51,10 +51,8 @@ for what is not published. In place of step 7 of stage 1:
    no remote configured, and `gh` sees no `breitreiter/auspex`, among the
    private repositories it does see. So this and step 5 look done
    already; the user confirms on GitHub.
-3. It gets a remote on the house server, as the other private
-   repositories have (`library:/srv/data/git/<name>.git`). The bare
-   repository there is made by the user: `claude`'s login on that host is
-   git-shell.
+3. It gets a remote on the user's own server, as the other private
+   repositories have. The bare repository there is made by the user.
 4. Its contents are scrubbed. Tracked today: 748 files, 736 of them under
    `project/` (712 in `project/trials/`), and the first viewer's code,
    which `View/` replaced and which goes. `datasets/` (1.9 GB) is
