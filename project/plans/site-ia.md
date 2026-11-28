@@ -31,7 +31,8 @@ The guides already in `docs/` (`getting-started.md`, `cli.md`,
 the front door and the agent page. The site does not rewrite them.
 
 Nav, on every page: auspex (mark and name), Reports, What you'll need,
-For your agent, Remix, GitHub. Six items is enough. The sections between
+For your agent, Remix, GitHub, and "Sign in" set apart at the right end
+(to `app.auspex.bot/sign-in`, `report-hosting.md`). The sections between
 those are reached by scrolling, not by the nav.
 
 ## Front door
