@@ -85,32 +85,31 @@ Auspex can run a user-simulator agent that provides sensible answers from a cont
 
 | What | What it's for | Can you do without it? |
 |---|---|---|
-| A coding agent you already use | Plans and builds exams with you | Yes, though the docs are written for an agent |
-| Linux with rootless podman, plus uv | Containers for the agents you measure. Arch and Ubuntu are supported. | Partly. Claude Code, Codex and Qwen Code need it; the bundled harness doesn't. |
+| Your coding agent | Plans and builds exams with you | Yes, though the docs are written for an agent |
+| Linux, rootless podman, uv | Containers for the agents you measure. | Required for vendor harness runs, optional for the built-in harness |
 | .NET 10 SDK and git | Building from source | No, until binaries ship |
-| A key for each agent you measure | Anthropic for Claude Code, OpenAI for Codex | Yes. The bundled harness runs on a local or free model. |
-| A key for a judge model | Checks where a model reads the transcript | Yes, if every check is deterministic |
-| A key for a decider model | Classification checks, where a small model returns a label and a probability | Yes, by leaving those checks out |
+| Keys for vendor harnesses | Anthropic for Claude Code, OpenAI for Codex | Yes. The built-in harness can run on a local model. |
+| Key for a judge model | Checks where a model reads the transcript | Yes, if every check is deterministic |
+| Key for a decider model | Classification checks, where a small model returns a label and a probability | Yes, by leaving those checks out |
 
-Pick a judge from a model family you aren't measuring, because a model tends to favor its own family's work. With Claude and GPT under test, that means an open model such as GLM or Kimi, through OpenRouter or z.ai.
+Pick a judge from a model family you aren't measuring, because a model tends to favor its own family's work. With Claude and GPT under test, that means an open model like GLM or Kimi.
 
-A sweep of Claude Code and Codex takes four keys. OpenRouter serves judges and deciders, so one key there can cover both.
-
-The playground exam needs no model and no key, and ends in a full report. If your setup can't meet this list, see Remix.
+If you can't meet a requirement, but still want to use Auspex, check out the next section.
 
 [Remix]
 
 ## 8. Remix, license, repository
 
-## Remix, license, repository
+## Remix manifesto
 
-One person maintains Auspex. Covering every setup is out of scope, and Docker and macOS are unmaintained.
+"This all sounds great, but can't I just vibe-code my own tool?"
 
-Your code can read its files and call its commands. Exams, attempts and reports are plain JSON and markdown in named, versioned formats, and commands can answer in JSON. What's promised about these is written down, so an upgrade is a version bump. In a fork of the C#, nothing is promised and internals change weekly.
+You can and you should. Auspex is built to be remixed:
 
-The remix guide is written for your coding agent, with recipes such as another container engine or your own report page. A feature request gets built if it's cheap or daily work needs it, and gets a recipe if not.
+- Each feature has clear seams and documented, versioned formats. Borrow the parts you need or fold Auspex into a larger solution.
+- Auspex is free under the MIT license. Take what you need, even if you're releasing under a stricter license.
 
-Auspex is free under the MIT license.
+The remix guide is written for your coding agent. In addition to general guidance, it includes recipes for common modifications (like new container engines).
 
 [Remix guide] [Repository]
 

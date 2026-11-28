@@ -248,6 +248,20 @@ Agree a spend cap first, and set a token cap per call,
 so a thinking loop costs a capped call and not the wallet. The site's example judge
 follows the result.
 
+## Check the site copy's claims once the current changes land
+
+After the work in flight lands (slice 7, the rename, and whatever else is open at the
+time), read `plans/site-copy.md` and `docs/getting-started.md` claim by claim against
+the repository. Each capability the copy names should be one a stranger can run from
+the README. Known to be ahead of the code on 2026-11-28:
+- section 8's "named, versioned formats", "commands can answer in JSON" and "what's
+  promised is written down" (remix steps 1–4: today only `compare` and `coverage`
+  answer in JSON, and `docs/remix/` doesn't exist);
+- the guide's commands, which say `proctor` until the rename.
+
+Check each citation's quoted strings against its live page too (Microsoft first). The
+drafts were read through a fetch tool that summarises, so the quotes may not be exact.
+
 ## The wrap-up list for 2026-11-01
 
 Cross-repo checklist for tying up the agent-neutral and oracle arc:
