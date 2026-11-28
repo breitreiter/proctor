@@ -165,7 +165,6 @@ static class Build
     static (Built? Built, string? Why) One(Exam exam, ResolvedNb? nb, Configuration c, string label, string scratch)
     {
         var axes = exam.Axes!;
-        if (axes.NotYet(c) is { } notYet) return (null, notYet);
         var stages = exam.StagesOf(c.Key);
         if (stages.Count == 0) return (null, "no stage applies in it");
         var fixture = exam.FixtureOf(stages[0]);

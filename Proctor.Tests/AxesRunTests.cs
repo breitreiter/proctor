@@ -205,4 +205,46 @@ public class AxesRunTests
         repo.EditJson("smoke/exam.json", e => e["exclude"] = JsonNode.Parse("""[ { "docs": "shipped", "tone": "terse" } ]"""));
         Assert.Contains("is excluded by exclude", Assert.Throws<ProctorException>(() => Run(repo, ["docs=shipped", "tone=terse"])).Message);
     }
+
+    [Fact]
+    public void AValuesFiles_MayComeFromAGitRevision_OnlyThePathsItNames_AndThoseArePartOfItsIdentity()
+    {
+        using var repo = Smoke();
+        var source = Directory.CreateDirectory(Path.Combine(repo.Root, "upstream")).FullName;
+        Directory.CreateDirectory(Path.Combine(source, "docs", "deep"));
+        File.WriteAllText(Path.Combine(source, "README.md"), "from the revision\n");
+        File.WriteAllText(Path.Combine(source, "docs", "deep", "page.md"), "page\n");
+        File.WriteAllText(Path.Combine(source, "secret.md"), "not among the paths\n");
+        foreach (var args in new[] { "init -q", "add -A", "-c user.email=t@t -c user.name=t commit -q -m one" })
+            Assert.Equal(0, Subprocess.Run("git", args.Split(' '), source).ExitCode);
+        var rev = Subprocess.Run("git", ["rev-parse", "HEAD"], source).Stdout.Trim();
+        void Paths(string paths) => repo.EditJson("smoke/exam.json", e =>
+            e["axes"]!["docs"]!["values"]!["rewritten"]!["files"] = new JsonObject { ["git"] = source, ["rev"] = rev, ["paths"] = JsonNode.Parse(paths) });
+
+        Paths("""["docs/", "README.md"]""");
+        var whole = repo.LoadExam("smoke").Axes.ValueHashes[("docs", "rewritten")];
+        Run(repo, configuration: "rewritten");
+        var read = Path.Combine(Tries(repo)["docs=rewritten,tone=plain,assistant=mock"], "stages", "1-read");
+        // The stage read the README the revision holds, laid over the checkout before it began.
+        Assert.Contains("from the revision", File.ReadAllText(Path.Combine(read, "transcript.jsonl")));
+        var entry = Bank.Entries(repo.Root, "smoke").Single();
+        var work = Layout.Work(repo.Root, "smoke", entry.Attempts[0].Id!);
+        Assert.True(File.Exists(Path.Combine(work, "docs", "deep", "page.md")));
+        Assert.False(File.Exists(Path.Combine(work, "secret.md")));
+
+        // Another subset of the same revision is another value, which the name that made tries may not become.
+        Paths("""["README.md"]""");
+        Assert.NotEqual(whole, repo.LoadExam("smoke").Axes.ValueHashes[("docs", "rewritten")]);
+        Assert.Contains("this is not the docs=rewritten that made attempts", Assert.Throws<ProctorException>(() => Run(repo, configuration: "rewritten")).Message);
+
+        Paths("""["docs/", "README.md"]""");
+
+        // A path the revision does not have stops the run, and is not an empty tree.
+        repo.EditJson("smoke/exam.json", e => e["axes"]!["docs"]!["values"]!["later"] = new JsonObject
+        {
+            ["note"] = "a later draft",
+            ["files"] = new JsonObject { ["git"] = source, ["rev"] = rev, ["paths"] = new JsonArray("missing.md") },
+        });
+        Assert.Contains("docs=later: missing.md is not in", Assert.Throws<ProctorException>(() => Run(repo, values: ["docs=later"])).Message);
+    }
 }

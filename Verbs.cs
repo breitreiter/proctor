@@ -341,8 +341,6 @@ static class Verbs
             if (exam.Axes!.Configurations.All(c => c.Key != asked[0]))
                 throw new ProctorException($"{exam.Axes.Of(asked[0])!.Label}: no stage applies in it, so there is nothing to run");
         }
-        foreach (var c in exam.Axes.Configurations.Where(c => asked.Contains(c.Key)))
-            if (exam.Axes.NotYet(c) is { } why) throw new ProctorException($"{c.Label} {why}");
         return (exam, asked);
     }
 

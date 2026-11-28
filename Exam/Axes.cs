@@ -151,8 +151,16 @@ sealed class Axes
 
     /// <summary>The files a configuration's values lay over the checkout, in the order the axes are declared.</summary>
     public List<(string Dir, string? To)> Overlays(Configuration c, string examDir) =>
-        c.Values.Select(v => Value(v.Axis, v.Value).Files).OfType<FilesSource>().Where(f => f.Path is not null)
-            .Select(f => (Path.GetFullPath(Path.Combine(examDir, f.Path!)), f.To)).ToList();
+        c.Values.Select(v => (Of: $"{v.Axis}={v.Value}", Value(v.Axis, v.Value).Files)).Where(x => x.Files is not null)
+            .Select(x => (DirOf(x.Files!, examDir, x.Of), x.Files!.To)).ToList();
+
+    /// <summary>
+    /// Where a tree of files is on this machine: a directory beside the exam (or, for a fixture's default, the fixture),
+    /// or a git revision fetched under the repository root (<see cref="GitFiles"/>), which is two levels above either.
+    /// </summary>
+    static string DirOf(FilesSource files, string dir, string what) => files.Git is not null
+        ? GitFiles.Fetch(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(dir)))!, files, what)
+        : Path.GetFullPath(Path.Combine(dir, files.Path!));
 
     /// <summary>
     /// Every parameter the base declares, as a configuration has it: the declared default, or what one of its values
@@ -163,7 +171,7 @@ sealed class Axes
         var result = new Dictionary<string, string>();
         void Give(string name, ParamDef declared, JsonNode? given, string dir) => result[name] =
             given is null ? ""
-            : declared.Tree == true ? given.Deserialize<FilesSource>(Exam.JsonOptions)?.Path is { } p ? Path.GetFullPath(Path.Combine(dir, p)) : ""
+            : declared.Tree == true ? given.Deserialize<FilesSource>(Exam.JsonOptions) is { } tree && (tree.Path ?? tree.Git) is not null ? DirOf(tree, dir, $"parameter {name}") : ""
             : declared.Secret == true ? Environment.GetEnvironmentVariable(given.ToString()) ?? ""
             : given.ToString();
         foreach (var (name, declared) in fixture?.Def.Params ?? []) Give(name, declared, declared.Default, fixture!.Dir);
@@ -177,14 +185,6 @@ sealed class Axes
     /// <summary>A configuration as a log entry and a manifest keep it: each axis's value by name and by the hash that is its identity.</summary>
     public Dictionary<string, Ref> Seen(Configuration c) => c.Values.ToDictionary(v => v.Axis, v => new Ref(v.Value, ValueHashes[v]));
 
-    /// <summary>Why a configuration cannot be run yet, or null: what later slices of plans/axes-build.md build.</summary>
-    public string? NotYet(Configuration c)
-    {
-        foreach (var (axis, value) in c.Values)
-            if (Value(axis, value) is var v && (v.Files?.Git is not null || (v.Set ?? []).Values.Any(g => g is JsonObject o && o["git"] is not null)))
-                return $"{axis}={value} takes its files from a git revision, which is not fetched yet; give it a directory";
-        return null;
-    }
     public ValueDef Value(string axis, string value) => Def[axis].Values![value]!;
     public bool Applies(TaskDef stage, Configuration c) => !Conditions.TryGetValue(stage.Id!, out var when) || when.Holds(c);
     /// <summary>The fixture a configuration runs in: its world value's, or the exam's.</summary>
