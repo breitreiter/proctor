@@ -84,8 +84,9 @@ machine's files are `exams/auspex.json`, `.auspex/` and `~/.config/auspex/env`;
 containers and images are `auspex-…`; the skills are `skills/auspex-exam` and
 `skills/auspex-answers`; messages and docs say auspex. No old name is read:
 a `PROCTOR_` variable, `exams/proctor.json` or `~/.config/proctor/env` left
-in place is refused with its new name. Still proctor: the repository, this
-directory, the site's base URL (`Catalogue.SiteBase`), `docs/index.html` and
+in place is refused with its new name. The repository on GitHub and this
+directory took the name the same day; GitHub redirects the old URL. Still
+proctor: the site's base URL (`Catalogue.SiteBase`), `docs/index.html` and
 `docs/providers.html`, and the two exams that show an agent the tool,
 `agent-onboarding` and `exam-authoring`, with their fixtures: they pin this
 repository at a revision from before the rename, so their prompts, scripts

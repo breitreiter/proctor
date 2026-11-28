@@ -192,6 +192,16 @@ user's to cut.
   and this directory (9), and `agent-onboarding` and `exam-authoring` with
   their fixtures (10). `project/where-we-are.md` holds another session's
   uncommitted edit and was not touched.
+- **Layer 9, the directory, 2026-11-28.** `/srv/aiwork/proctor` is
+  `/srv/aiwork/auspex`; the old viewer checkout that had that path is
+  `/srv/aiwork/auspex-private`. Both worktrees were repaired
+  (`git worktree repair <path>` for each, since the one outside this
+  directory is not found without its path), and the sessions and memory
+  under `~/.claude/projects/` were sorted to the two new paths.
+  `/srv/aiwork/proctor-private` and `/srv/aiwork/proctor-worktrees` keep
+  their names. The repository on GitHub was renamed `auspex` the same day
+  and the remote points at it; the URLs written in the files still say
+  `proctor`, which GitHub redirects.
 
 ### To decide
 
