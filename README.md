@@ -84,7 +84,7 @@ its bundled harness, which lives in a repository of its own:
 
 ```bash
 git clone https://github.com/breitreiter/nb && (cd nb && dotnet build)
-git clone https://github.com/breitreiter/proctor && cd proctor && dotnet build
+git clone https://github.com/breitreiter/auspex && cd auspex && dotnet build
 export PATH="$PWD/../nb/bin/Debug/net10.0:$PATH"
 alias auspex="dotnet $PWD/bin/Debug/net10.0/auspex.dll"
 auspex setup

@@ -53,7 +53,7 @@ source for now.
 
 ```bash
 git clone https://github.com/breitreiter/nb && (cd nb && dotnet build)
-git clone https://github.com/breitreiter/proctor && cd proctor && dotnet build
+git clone https://github.com/breitreiter/auspex && cd auspex && dotnet build
 export PATH="$PWD/../nb/bin/Debug/net10.0:$PATH"            # auspex finds nb on PATH
 alias auspex="dotnet $PWD/bin/Debug/net10.0/auspex.dll"
 ```
@@ -62,7 +62,7 @@ On Windows, in PowerShell:
 
 ```powershell
 git clone https://github.com/breitreiter/nb; cd nb; dotnet build; cd ..
-git clone https://github.com/breitreiter/proctor; cd proctor; dotnet build
+git clone https://github.com/breitreiter/auspex; cd auspex; dotnet build
 $env:PATH = "$PWD\..\nb\bin\Debug\net10.0;$env:PATH"
 function auspex { dotnet "$PWD\bin\Debug\net10.0\auspex.dll" @args }
 ```
