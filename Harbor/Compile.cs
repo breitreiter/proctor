@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 // An exam's configurations as Harbor tasks, where they run through Harbor: one task directory per configuration, under the log entry of the run that compiled them, and one job file
 // per attempt. Only the fixture's repo/ enters the image the agent runs in; its checks, the exam and the expectations go
@@ -332,7 +332,7 @@ static class HarborCompile
     {
         var lines = jsonl.Split('\n').ToList();
         var run = lines.FindLastIndex(l => l.Length > 0 && JsonNode.Parse(l)?["type"]?.GetValue<string>() == "run");
-        if (run < 0) throw new ProctorException("the compiled program has no run to hand to the simulated user");
+        if (run < 0) throw new AuspexException("the compiled program has no run to hand to the simulated user");
         lines.RemoveAt(run);
         return string.Join('\n', lines);
     }
@@ -652,7 +652,7 @@ static class HarborCompile
     {
         if (fixture.Source.Git is not null)
         {
-            if (Checkout.Materialise(fixture, dest) is { } error) throw new ProctorException($"fixture {fixture.Id}: {error}");
+            if (Checkout.Materialise(fixture, dest) is { } error) throw new AuspexException($"fixture {fixture.Id}: {error}");
             Directory.Delete(Path.Combine(dest, ".git"), recursive: true);
             return;
         }

@@ -238,7 +238,7 @@ not run, never "no change". A try with a stage that failed an integrity
 check is listed and not counted. The method is named in the report's
 last paragraph. No model writes any part of it; a judge's role ends at a
 label and a quote. To read tries, transcripts and comparisons on a page,
-start the viewer (`dotnet View/bin/Debug/net10.0/auspex.dll <root>`, which prints the address to open).
+start the viewer (`dotnet View/bin/Debug/net10.0/auspex-view.dll <root>`, which prints the address to open).
 
 In those files, and in a try's `manifest.json` and a run's `entry.json`,
 a configuration's key is the field `configuration` and a stage is

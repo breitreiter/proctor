@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// A shell command as the friction rules read it: split into actions, one per pipeline, named by the pipeline's first

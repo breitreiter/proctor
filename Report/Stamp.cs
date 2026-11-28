@@ -1,4 +1,4 @@
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// The report's stamp: when it was built, the log entries of the runs that made its tries, each configuration's and

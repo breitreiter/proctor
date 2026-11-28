@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>One row of results.jsonl: coordinates on every row, no transcript text.
 /// <c>Outdated</c> is set, with <c>Undecided</c>, when the attempt is undecided because a correctness check's verdict is outdated.</summary>

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// <c>exams/sandbox-plan.md</c>: a brief for the user's coding agent, written when the sandbox is to run on this machine.

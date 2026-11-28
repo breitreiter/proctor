@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text;
-using P = Proctor;
-using static Auspex.Pages;
+using P = Auspex;
+using static Auspex.View.Pages;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>
 /// The page of an exam with axes, as designed on the canvas (2026-11-26 and 27): the configurations the exam names, each

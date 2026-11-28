@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace Proctor;
+namespace Auspex;
 
 // The report of an exam (plans/axes-build.md, slice 3; the model is plans/axes.md). Three things a person
 // needs from it: which configurations have evidence and which do not, how each value on an axis with a live value

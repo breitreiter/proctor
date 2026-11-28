@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// One entry of exams/proctor.json's judges block: an endpoint proctor's own checks call at grade time. The question is
@@ -30,7 +30,7 @@ record JudgeDef(string? Kind, string? Endpoint, string? Model, string? ApiKey, s
 
     static string Resolve(string value, string judge, string field) =>
         EnvRef.Replace(value, m => Environment.GetEnvironmentVariable(m.Groups[1].Value)
-            ?? throw new ProctorException($"judge '{judge}': {m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} (exams/proctor.json judges.{judge}.{field})"));
+            ?? throw new AuspexException($"judge '{judge}': {m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} (exams/proctor.json judges.{judge}.{field})"));
 
     /// <summary>The endpoint with every ${VAR} stood in for by a URL, so its shape can be checked before any is set.</summary>
     public string EndpointShape => EnvRef.Replace(Endpoint ?? "", "http://x");

@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>What a run relays to its agents, as its log entry records it: the directory holding the sockets and the ports of this machine behind them.</summary>
 record ResolvedRelay(string Dir, List<int> Ports);
@@ -61,7 +61,7 @@ sealed class HostRelay : IDisposable
         foreach (var port in ports)
         {
             var path = Path.Combine(dir, SocketName(port));
-            if (Encoding.UTF8.GetByteCount(path) > 107) throw new ProctorException($"the relay's socket path is too long for a unix socket ({path}): set XDG_RUNTIME_DIR to a shorter directory");
+            if (Encoding.UTF8.GetByteCount(path) > 107) throw new AuspexException($"the relay's socket path is too long for a unix socket ({path}): set XDG_RUNTIME_DIR to a shorter directory");
             var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
             listener.Bind(new UnixDomainSocketEndPoint(path));
             listener.Listen(64);

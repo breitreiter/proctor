@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// log/&lt;id&gt;/entry.json: what one `proctor run` did, and the conditions it ran under. The exam's hash (its definition
@@ -115,7 +115,7 @@ static class StageEnd
 }
 
 /// <summary>One run's tries, made into the bank: configuration by configuration, hooks around each configuration's tries and around each try, nb as a subprocess or an agent through Harbor.</summary>
-sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config, TextWriter log)
+sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config, TextWriter log)
 {
     readonly string entryDir = Layout.LogEntry(root, entry.Id);
     readonly string examsDir = Layout.Exams(root);
@@ -125,7 +125,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// was lost or never finished is not taken up again part way, since its workspace is half way through: it is made
     /// again, whole, under the next number. Returns the id of the log entry written, or null when there was nothing to make.
     /// </summary>
-    public static string? Run(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log,
+    public static string? Run(string root, Exam exam, AuspexConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log,
         IReadOnlyCollection<string>? keys = null)
     {
         RefuseChangedValues(root, exam);
@@ -158,7 +158,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>A new run that makes the given tries, stage by stage: only what goes through Harbor among them is compiled.</summary>
-    static string Start(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log,
+    static string Start(string root, Exam exam, AuspexConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log,
         List<(Assistant Assistant, StageDef Stage, int Attempt)> attempts)
     {
         var assistants = exam.Assistants.Where(v => attempts.Any(a => a.Assistant == v)).ToList();
@@ -229,7 +229,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     public static LogEntry LoadEntry(string root, string entryId)
     {
         var file = Layout.LogEntryFileIn(root, entryId);
-        if (!File.Exists(file)) throw new ProctorException($"no log entry {entryId} under {Path.Combine(root, Layout.LogDir)}");
+        if (!File.Exists(file)) throw new AuspexException($"no log entry {entryId} under {Path.Combine(root, Layout.LogDir)}");
         return ReadJson<LogEntry>(file)!;
     }
 
@@ -249,7 +249,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
                 changed[then.Id] = then;   // the latest entry's record says what it was
             }
         if (changed.Count == 0) return;
-        throw new ProctorException(string.Join("\n", changed.SelectMany(c => axes.Seen(axes.Of(c.Key)!)
+        throw new AuspexException(string.Join("\n", changed.SelectMany(c => axes.Seen(axes.Of(c.Key)!)
             .Where(now => c.Value.Def[now.Key]?["hash"]?.GetValue<string>() is { } then && then != now.Value.Hash)
             .Select(now => (Axis: now.Key, Value: now.Value.Id)))
             .GroupBy(x => (x.Axis, x.Value)).Select(g => $"exams/{exam.Id}/exam.json: axes.{g.Key.Axis}.values.{g.Key.Value}: this is not the {g.Key.Axis}={g.Key.Value} that made attempts ({string.Join(", ", changed.Keys.Where(k => axes.Of(k)![g.Key.Axis] == g.Key.Value))}).\n"
@@ -577,15 +577,15 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// process by value and whose key goes by name, as on the bare path, where nb resolves them itself. A provider
     /// with no endpoint (Mock) reaches nothing.
     /// </summary>
-    static AgentRoute Route(string root, ProctorConfig config, ResolvedNb nb, Assistant assistant)
+    static AgentRoute Route(string root, AuspexConfig config, ResolvedNb nb, Assistant assistant)
     {
         if (!assistant.IsVendor) return NbRoute(nb, assistant);
         var endpoint = config.Agents?.GetValueOrDefault(assistant.Agent!)
-            ?? throw new ProctorException($"{config.Source} has no agents.{assistant.Agent} ({assistant.Id}): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
+            ?? throw new AuspexException($"{config.Source} has no agents.{assistant.Agent} ({assistant.Id}): add {{\"base_url\", \"api_key\"}} for it, as in proctor.example.json");
         var baseUrl = ResolveEnv(endpoint.BaseUrl!, $"{config.Source} agents.{assistant.Agent}.base_url").TrimEnd('/');
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"{config.Source} agents.{assistant.Agent}.base_url: '{baseUrl}' is not a URL");
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new AuspexException($"{config.Source} agents.{assistant.Agent}.base_url: '{baseUrl}' is not a URL");
         var agentConfig = endpoint.Config is null ? null : Path.GetFullPath(Path.Combine(Layout.Exams(root), endpoint.Config));
-        if (agentConfig is not null && !File.Exists(agentConfig)) throw new ProctorException($"{config.Source} agents.{assistant.Agent}.config: {agentConfig} not found");
+        if (agentConfig is not null && !File.Exists(agentConfig)) throw new AuspexException($"{config.Source} agents.{assistant.Agent}.config: {agentConfig} not found");
         return new AgentRoute(baseUrl, endpoint.ApiKey is null ? null : ResolveEnv(endpoint.ApiKey, $"{config.Source} agents.{assistant.Agent}.api_key"), HarborCompile.KeyEnv(assistant.Agent!), Config: agentConfig);
     }
 
@@ -607,7 +607,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
                 ? $"'{models[0].Assistant.Id}': its model is at {models[0].Route.BaseUrl}, which is this machine's port {port}, and nothing answers there; start it, or if a service of fixture '{models[0].Fixture.Id}' answers on that port beside the agent, list it in the fixture's image.serves"
                 : $"fixture '{wanted.First(w => w.Fixture.Def.Image?.HostPorts?.Contains(port) == true).Fixture.Id}' names this machine's port {port} (image.host_ports), and nothing answers there; start what it is for");
         }
-        if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
+        if (problems.Count > 0) throw new AuspexException(string.Join("\n", problems));
         return new ResolvedRelay(HostRelay.Dir(entryId), ports);
     }
 
@@ -618,32 +618,32 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var where = nb.Config ?? "nb's config";
         var providers = nb.Config is null ? null : JsonNode.Parse(File.ReadAllText(nb.Config), documentOptions: new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })?["ChatProviders"] as JsonArray;
         var entry = providers?.OfType<JsonObject>().FirstOrDefault(p => p["Name"]?.GetValue<string>() == assistant.Provider)
-            ?? throw new ProctorException($"'{assistant.Id}': provider '{assistant.Provider}' is not in {where} ChatProviders; nb through Harbor reads its endpoint from there");
+            ?? throw new AuspexException($"'{assistant.Id}': provider '{assistant.Provider}' is not in {where} ChatProviders; nb through Harbor reads its endpoint from there");
         var endpoint = entry["Endpoint"]?.GetValue<string>();
         if (endpoint is null) return new AgentRoute(null, null);
         var env = EnvRef.Matches(endpoint).Select(m => m.Groups[1].Value).Distinct().ToDictionary(v => v, v => ResolveEnv($"${{{v}}}", $"{where} {assistant.Provider}.Endpoint"));
         var baseUrl = EnvRef.Replace(endpoint, m => env[m.Groups[1].Value]);
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new ProctorException($"{where} {assistant.Provider}.Endpoint: '{baseUrl}' is not a URL");
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out _)) throw new AuspexException($"{where} {assistant.Provider}.Endpoint: '{baseUrl}' is not a URL");
         var key = entry["ApiKey"]?.GetValue<string>() is { } k && EnvRef.Match(k) is { Success: true } m ? m.Groups[1].Value : null;
         return new AgentRoute(baseUrl, key is null ? null : ResolveEnv($"${{{key}}}", $"{where} {assistant.Provider}.ApiKey"), key, env);
     }
 
     /// <summary>nb's layer from proctor.json harbor.nb, which must be the same nb as the host binary that compiles the programs and runs nb bare.</summary>
-    static string NbImage(string root, ProctorConfig config, string hostVersion)
+    static string NbImage(string root, AuspexConfig config, string hostVersion)
     {
-        var publish = config.Harbor?.Nb ?? throw new ProctorException($"nb runs through Harbor on its self-contained linux-x64 publish: set harbor.nb in {config.Source} to its directory");
+        var publish = config.Harbor?.Nb ?? throw new AuspexException($"nb runs through Harbor on its self-contained linux-x64 publish: set harbor.nb in {config.Source} to its directory");
         var (tag, version) = HarborRun.NbImage(NbPublish(root, config), config.HarborOrDefault);
         if (version != hostVersion)
-            throw new ProctorException($"nb's publish ({config.Source} harbor.nb) is {version}, the host nb is {hostVersion}: publish the same nb, so the program compiled on the host is the program the image runs");
+            throw new AuspexException($"nb's publish ({config.Source} harbor.nb) is {version}, the host nb is {hostVersion}: publish the same nb, so the program compiled on the host is the program the image runs");
         return tag;
     }
 
     /// <summary>The directory of nb's publish, proctor.json harbor.nb resolved against exams/.</summary>
-    static string NbPublish(string root, ProctorConfig config) => Path.GetFullPath(Path.Combine(Layout.Exams(root), config.Harbor!.Nb!));
+    static string NbPublish(string root, AuspexConfig config) => Path.GetFullPath(Path.Combine(Layout.Exams(root), config.Harbor!.Nb!));
 
     static string ResolveEnv(string value, string field) =>
         System.Text.RegularExpressions.Regex.Replace(value, @"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", m => Environment.GetEnvironmentVariable(m.Groups[1].Value)
-            ?? throw new ProctorException($"{m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} ({field})"));
+            ?? throw new AuspexException($"{m.Groups[1].Value} is not set in the environment or {EnvFile.DefaultPath()} ({field})"));
 
     /// <summary>
     /// `nb --compile` on the host binary, in the exam directory so `@file` includes resolve against the exam: the
@@ -765,19 +765,19 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         });
     }
 
-    internal static ResolvedNb ResolveNb(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride)
+    internal static ResolvedNb ResolveNb(string root, Exam exam, AuspexConfig config, string? nbOverride, string? runnerOverride)
     {
         var nb = config.NbOrDefault;
         var examsDir = Layout.Exams(root);
         if (!File.Exists(Path.Combine(root, config.Source)) && File.Exists(Path.Combine(examsDir, "proctor.example.json")))
-            throw new ProctorException("no exams/proctor.json: run `proctor setup` at a terminal, which writes it (skip every job for a config the playground runs on); or copy exams/proctor.example.json and nb.example.json beside themselves and point them at your gateway");
+            throw new AuspexException("no exams/proctor.json: run `proctor setup` at a terminal, which writes it (skip every job for a config the playground runs on); or copy exams/proctor.example.json and nb.example.json beside themselves and point them at your gateway");
         var path = nbOverride ?? nb.Path;
         if (path.Contains(Path.DirectorySeparatorChar)) path = Path.GetFullPath(Path.Combine(nbOverride is null ? examsDir : Directory.GetCurrentDirectory(), path));
         else if (FindOnPath(path) is { } found) path = found;
-        else throw new ProctorException($"nb not found: '{path}' is not on PATH; set nb.path in {config.Source} or pass --nb");
-        if (!File.Exists(path)) throw new ProctorException($"nb not found at {path}");
+        else throw new AuspexException($"nb not found: '{path}' is not on PATH; set nb.path in {config.Source} or pass --nb");
+        if (!File.Exists(path)) throw new AuspexException($"nb not found at {path}");
         var configPath = nb.Config is null ? null : Path.GetFullPath(Path.Combine(examsDir, nb.Config));
-        if (configPath is not null && !File.Exists(configPath)) throw new ProctorException($"nb config not found at {configPath} ({config.Source} nb.config){(File.Exists(Path.ChangeExtension(configPath, ".example.json")) ? $"; copy {Path.GetFileName(Path.ChangeExtension(configPath, ".example.json"))} beside it" : "")}");
+        if (configPath is not null && !File.Exists(configPath)) throw new AuspexException($"nb config not found at {configPath} ({config.Source} nb.config){(File.Exists(Path.ChangeExtension(configPath, ".example.json")) ? $"; copy {Path.GetFileName(Path.ChangeExtension(configPath, ".example.json"))} beside it" : "")}");
         var runner = ResolveRunner(root, exam, runnerOverride);
         return new ResolvedNb(path, configPath, runner, runner is null ? null : exam.Def.Nb?.Mounts);
     }
@@ -789,7 +789,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var script = runnerOverride ?? exam.Def.Nb?.Runner;
         if (script is null || runnerOverride == "none") return null;
         var path = Path.GetFullPath(Path.Combine(runnerOverride is null ? exam.Dir : Directory.GetCurrentDirectory(), script));
-        if (!File.Exists(path)) throw new ProctorException($"runner not found at {path} ({(runnerOverride is null ? $"exams/{exam.Id}/exam.json nb.runner" : "--runner")})");
+        if (!File.Exists(path)) throw new AuspexException($"runner not found at {path} ({(runnerOverride is null ? $"exams/{exam.Id}/exam.json nb.runner" : "--runner")})");
         var relative = Path.GetRelativePath(examsDir, path);
         return new ResolvedRunner(relative.StartsWith("..") ? path : relative, path, Sha256(File.ReadAllText(path)));
     }
@@ -805,12 +805,12 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>Proctor's own version, from the csproj, without the +commit suffix; what --version prints and every log entry records.</summary>
-    public static string ProctorVersion =>
+    public static string AuspexVersion =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0";
 
     static Dictionary<string, string> Versions(string nbPath)
     {
-        var proctor = ProctorVersion;
+        var proctor = AuspexVersion;
         var result = Subprocess.Run(nbPath, ["--version"], Path.GetDirectoryName(nbPath)!, new Dictionary<string, string> { ["NO_COLOR"] = "1" });
         var nb = result.Started && result.ExitCode == 0 ? result.Stdout.Trim().Split('+')[0] : "";
         return new() { ["proctor"] = proctor, ["nb"] = nb.Length > 0 ? nb : "unknown" };

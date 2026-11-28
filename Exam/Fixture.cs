@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 // A fixture: the repository a stage is run against and what "done" looks like in it. Repo-level,
 // under fixtures/<id>/, reused across exams. Its checker lives beside the checkout source, never
@@ -113,7 +113,7 @@ sealed record Fixture
         {
             var f = $"checks.{name}";
             if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9_-]*$")) Add(f, "check names are lowercase letters, digits, hyphens and underscores");
-            foreach (var (field, problem) in Proctor.Checks.ValidateCheck(spec, dir)) Add(field.Length == 0 ? f : $"{f}.{field}", problem);
+            foreach (var (field, problem) in Auspex.Checks.ValidateCheck(spec, dir)) Add(field.Length == 0 ? f : $"{f}.{field}", problem);
         }
         if (problems.Count > before) return null;
 

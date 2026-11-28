@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.Text;
-using P = Proctor;
-using static Auspex.Pages;
-using static Auspex.ExamPage;
+using P = Auspex;
+using static Auspex.View.Pages;
+using static Auspex.View.ExamPage;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>
 /// The page of one named configuration, as designed on the canvas (2026-11-26 and 27): against what is live on five

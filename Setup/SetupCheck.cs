@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// <c>proctor setup --check</c>: what is set up, read by a coding agent, so plain lines and no Spectre. One line per
@@ -23,7 +23,7 @@ static class SetupCheck
             return 1;
         }
 
-        var proctorPath = Path.Combine(examsDir, Layout.ProctorConfigFile);
+        var proctorPath = Path.Combine(examsDir, Layout.AuspexConfigFile);
         var nbPath = Path.Combine(examsDir, SetupFiles.NbFile);
         output.WriteLine($"setup: {Shown(SetupState.PathIn(examsDir))} ({state.Updated.ToLocalTime():yyyy-MM-dd HH:mm}), "
             + string.Join(", ", new[] { proctorPath, nbPath }.Select(p => File.Exists(p) ? Shown(p) : $"{Shown(p)} missing")));
@@ -132,7 +132,7 @@ static class SetupCheck
 
     static string NbLine(string root, string examsDir, List<string> problems)
     {
-        var config = ReadConfig(Path.Combine(examsDir, Layout.ProctorConfigFile));
+        var config = ReadConfig(Path.Combine(examsDir, Layout.AuspexConfigFile));
         var path = (string?)config?["nb"]?["path"] ?? "nb";
         var found = path.Contains('/') || path.Contains('\\')
             ? (File.Exists(Path.GetFullPath(Path.Combine(examsDir, path))) ? Path.GetFullPath(Path.Combine(examsDir, path)) : null)

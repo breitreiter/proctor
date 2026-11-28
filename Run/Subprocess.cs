@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Proctor;
+namespace Auspex;
 
 record SubprocessResult(int ExitCode, string Stdout, string Stderr, bool Started, bool TimedOut = false)
 {

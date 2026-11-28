@@ -69,7 +69,7 @@ the promise this pays.
 
 ## Publish proctor as a dotnet tool
 
-`PackAsTool` on `Proctor.csproj` (`first-slice.md` says "later"; this is the
+`PackAsTool` on `Auspex.csproj` (`first-slice.md` says "later"; this is the
 reminder), a tag-triggered release workflow that packs and pushes, mirroring
 nb's `Feature_Release_Workflow_Publishes_To_Nuget.md`. Package id is
 `Dreamlands.Proctor`: bare `Proctor` is taken on nuget.org
@@ -1496,7 +1496,7 @@ What is wanted first is evidence, not a page: an exam in which an agent (Opus)
 is asked questions of that kind about a bank with several varying axes and has
 only proctor's tools to answer with (`compare`, `coverage`, `--within`,
 `--against`, the skill `proctor-answers`). The bank's answers are known, as
-`Proctor.Tests/exams/axes-answers` is built to have, so each answer can be
+`Auspex.Tests/exams/axes-answers` is built to have, so each answer can be
 graded. What it finds decides whether the tools need more, and only then
 whether a screen is worth drawing.
 

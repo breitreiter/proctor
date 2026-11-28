@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>The exam's surface declaration, compiled: what is under test, what an agent would use in its place, and what a failed call to it looks like.</summary>
 sealed class Surface

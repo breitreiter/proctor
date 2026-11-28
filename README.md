@@ -86,7 +86,7 @@ its bundled harness, which lives in a repository of its own:
 git clone https://github.com/breitreiter/nb && (cd nb && dotnet build)
 git clone https://github.com/breitreiter/proctor && cd proctor && dotnet build
 export PATH="$PWD/../nb/bin/Debug/net10.0:$PATH"
-alias proctor="dotnet $PWD/bin/Debug/net10.0/proctor.dll"
+alias proctor="dotnet $PWD/bin/Debug/net10.0/auspex.dll"
 proctor setup
 ```
 

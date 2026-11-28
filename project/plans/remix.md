@@ -195,7 +195,7 @@ Three levels, said on one page (`docs/remix/promises.md`):
   `summary.md`. Read them at your own risk.
 
 A file moves from described to held by getting a schema name and one
-captured example under `Proctor.Tests/fixtures/contract/` that a test
+captured example under `Auspex.Tests/fixtures/contract/` that a test
 reads, so that breaking a promise fails the build and is not found by a
 remixer. This is the only code the plan asks for.
 
@@ -313,7 +313,7 @@ Then, in this order, three or four days:
 3. What the commands lack: JSON from `list`, what `run` and `grade`
    did, the exit codes written down.
 4. Names on the files that have none, a captured example of each under
-   `Proctor.Tests/fixtures/contract/`, and described becomes held.
+   `Auspex.Tests/fixtures/contract/`, and described becomes held.
 
 **After that, as they come:** three recipes that cost nothing to prove
 (another tool, a set for people to grade, a page of your own), the

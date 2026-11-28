@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// A run's Harbor, as its log entry keeps it: the pinned release and the hash of the tasks compiled for it; with nb, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
@@ -40,14 +40,14 @@ static class HarborRun
     {
         var engine = harbor.Engine;
         var binary = Path.Combine(publishDir, "nb");
-        if (!File.Exists(binary)) throw new ProctorException($"no nb binary in {publishDir} (exams/proctor.json harbor.nb): publish one with `dotnet publish nb.csproj -c Release -r linux-x64 --self-contained -o <dir>` in nb's repository");
+        if (!File.Exists(binary)) throw new AuspexException($"no nb binary in {publishDir} (exams/proctor.json harbor.nb): publish one with `dotnet publish nb.csproj -c Release -r linux-x64 --self-contained -o <dir>` in nb's repository");
         var asked = Subprocess.Run(binary, ["--version"], publishDir, new Dictionary<string, string> { ["NO_COLOR"] = "1" });
-        if (!asked.Started || asked.ExitCode != 0) throw new ProctorException($"{binary} --version failed: {(asked.Started ? asked.FirstStderrLine : asked.Stderr)}");
+        if (!asked.Started || asked.ExitCode != 0) throw new AuspexException($"{binary} --version failed: {(asked.Started ? asked.FirstStderrLine : asked.Stderr)}");
         var tag = (engine == "podman" ? "localhost/" : "") + "proctor-nb:" + Tree.Hash(publishDir, new HashSet<string>()).Split(':')[1][..16];
         if (Subprocess.Run(engine, ["image", "inspect", tag], publishDir) is not { Started: true, ExitCode: 0 })
         {
             var built = Subprocess.Run(engine, ["build", "-q", "-t", tag, "-f", "-", "."], publishDir, stdin: "FROM scratch\nCOPY . /opt/nb\n");
-            if (!built.Started || built.ExitCode != 0) throw new ProctorException($"could not build nb's layer {tag} from {publishDir}: {(built.Started ? built.FirstStderrLine : built.Stderr)}");
+            if (!built.Started || built.ExitCode != 0) throw new AuspexException($"could not build nb's layer {tag} from {publishDir}: {(built.Started ? built.FirstStderrLine : built.Stderr)}");
         }
         return (tag, asked.Stdout.Trim().Split('+')[0]);
     }
@@ -95,7 +95,7 @@ static class HarborRun
         var compose = Subprocess.Run("podman", ["compose", "version"], Directory.GetCurrentDirectory());
         var registries = Subprocess.Run("podman", ["info", "--format", "{{json .Registries}}"], Directory.GetCurrentDirectory());
         var problems = PodmanProblems(compose is { Started: true, ExitCode: 0 } ? compose.Stdout : null, registries is { Started: true, ExitCode: 0 } ? registries.Stdout : null, compose.Stderr);
-        if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
+        if (problems.Count > 0) throw new AuspexException(string.Join("\n", problems));
     }
 
     /// <summary>The problems in `podman compose version` (its output and its stderr) and `podman info`'s registries, either output null when the command failed.</summary>

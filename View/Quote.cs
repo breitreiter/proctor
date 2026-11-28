@@ -1,4 +1,4 @@
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>Where a quote sits in a text under proctor's judge rule: a substring match with all whitespace removed.</summary>
 public static class Quote

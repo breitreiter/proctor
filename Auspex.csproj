@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>auspex</AssemblyName>
+    <RootNamespace>Auspex</RootNamespace>
+    <Version>0.3.6</Version>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- The test project and the data directories sit under this root but are not compiled into the exe. -->
+  <ItemGroup>
+    <Compile Remove="Auspex.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;bank\**;log\**;exams-seen\**;reports\**" />
+    <None Remove="Auspex.Tests\**;View\**;bench\**;exams\**;fixtures\**;attempts\**;bank\**;log\**;exams-seen\**;reports\**" />
+  </ItemGroup>
+
+  <!-- The report's logo, inlined as a data URI; proctor's own Harbor agents (nb, Qwen Code), compiled into each run with a configuration that uses one; setup's provider catalogue. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Harbor\nb_agent.py" LogicalName="nb_agent.py" />
+    <EmbeddedResource Include="Harbor\oracle_user.py" LogicalName="oracle_user.py" />
+    <EmbeddedResource Include="Harbor\qwen_code_agent.py" LogicalName="qwen_code_agent.py" />
+    <EmbeddedResource Include="Harbor\relay.py" LogicalName="relay.py" />
+    <EmbeddedResource Include="Setup\providers.json" LogicalName="providers.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Auspex.Tests" />
+    <!-- The viewer (View/) shows proctor's own numbers by calling the code that works them out. -->
+    <InternalsVisibleTo Include="auspex-view" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.5.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.5.0" />
+    <PackageReference Include="Spectre.Console" Version="0.57.2" />
+  </ItemGroup>
+
+</Project>

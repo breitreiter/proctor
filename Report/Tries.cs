@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// One stage of one try, in a word: right, wrong, undecided, invalid, or not_reached (a chained try broke before it).

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>Runs the declared checks over the exam's current, completed attempts and writes checks.json beside the evidence.</summary>
 static class Grade

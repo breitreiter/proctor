@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.Text;
-using P = Proctor;
-using static Auspex.Pages;
-using static Auspex.ExamPage;
+using P = Auspex;
+using static Auspex.View.Pages;
+using static Auspex.View.ExamPage;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>
 /// The exams, as designed on the canvas (2026-11-27): one row an exam, the one tried most recently first. An exam with

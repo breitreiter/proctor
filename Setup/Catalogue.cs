@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>One field of a kind's form: a value written into the provider's nb.json entry, a secret going to the env file under <see cref="Env"/>.</summary>
 record ProviderField(string Name, string Prompt, bool Secret = false, bool Required = true, string? Env = null);
@@ -44,7 +44,7 @@ static class Catalogue
     public static IReadOnlyList<ProviderKind> Kinds => kinds.Value;
 
     public static ProviderKind Get(string kind) =>
-        Kinds.FirstOrDefault(k => k.Kind == kind) ?? throw new ProctorException($"no provider kind '{kind}' (known: {string.Join(", ", Kinds.Select(k => k.Kind))})");
+        Kinds.FirstOrDefault(k => k.Kind == kind) ?? throw new AuspexException($"no provider kind '{kind}' (known: {string.Join(", ", Kinds.Select(k => k.Kind))})");
 
     static List<ProviderKind> Load()
     {

@@ -2,7 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// One provider setup knows: its name in the exams, its catalogue kind, the env variable holding its key (none for a
@@ -59,7 +59,7 @@ record SetupState(DateTime Updated, List<SetupProvider> Providers, Dictionary<st
         var path = PathIn(examsDir);
         if (!File.Exists(path)) return null;
         try { return JsonSerializer.Deserialize<SetupState>(File.ReadAllText(path), Options); }
-        catch (JsonException e) { throw new ProctorException($"{path}: {e.Message}"); }
+        catch (JsonException e) { throw new AuspexException($"{path}: {e.Message}"); }
     }
 
     public void Save(string examsDir)

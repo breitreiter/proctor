@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Proctor;
+namespace Auspex;
 
 // How each change a prediction expects came out (plans/axes-build.md, slice 6). A prediction is held to account by the
 // same measure every comparison uses, try against try: the prediction's tries against those of what it is compared with.

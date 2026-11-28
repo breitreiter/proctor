@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>What a bank holds, listed and not counted: the attempts made before an exam was stages and axes, or
 /// everything in the bank of an exam proctor cannot read as it stands. Plain links, by the name each is filed under;

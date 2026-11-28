@@ -20,7 +20,7 @@ tmp=$(mktemp -d)
 
 # proctor and nb on PATH, as the image has them.
 mkdir -p "$tmp/bin"
-printf '#!/bin/sh\nexec dotnet %s "$@"\n' "$root/bin/Debug/net10.0/proctor.dll" >"$tmp/bin/proctor"
+printf '#!/bin/sh\nexec dotnet %s "$@"\n' "$root/bin/Debug/net10.0/auspex.dll" >"$tmp/bin/proctor"
 ln -s "$nb" "$tmp/bin/nb"
 chmod +x "$tmp/bin/proctor"
 export PATH="$tmp/bin:$PATH"

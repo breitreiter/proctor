@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>auspex-view</AssemblyName>
+    <RootNamespace>Auspex.View</RootNamespace>
+    <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <!-- datasets/ and project/ hold copied repositories and notes; only the root's own files are the program -->
+  <ItemGroup>
+    <Compile Include="*.cs" />
+    <!-- VERSION records which Web Awesome was vendored and its checksum; it is for the repository, not the page -->
+    <EmbeddedResource Include="assets/**" Exclude="assets/webawesome/VERSION" LogicalName="assets/%(RecursiveDir)%(Filename)%(Extension)" />
+    <InternalsVisibleTo Include="Auspex.View.Tests" />
+  </ItemGroup>
+
+  <!-- Proctor's own code, for what only it may work out: a comparison, coverage, which configurations an exam carries. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Auspex.csproj" />
+  </ItemGroup>
+
+</Project>

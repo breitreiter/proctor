@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
-using P = Proctor;
+using P = Auspex;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>
 /// What only proctor may work out, asked of proctor's own code: an exam's axes and the configurations it carries, where
@@ -21,7 +21,7 @@ static class Measured
             var exam = P.Exam.Load(root, id, problems);
             return exam?.Axes is not null ? (exam, null) : (null, problems.Count > 0 ? string.Join("\n", problems) : "this exam declares no axes");
         }
-        catch (Exception e) when (e is P.ProctorException or IOException or JsonException or UnauthorizedAccessException) { return (null, e.Message); }
+        catch (Exception e) when (e is P.AuspexException or IOException or JsonException or UnauthorizedAccessException) { return (null, e.Message); }
     }
 
     public static (P.CoverageAnswer? Answer, string? Problem) Coverage(string root, P.Exam exam, string? asOf) =>
@@ -40,13 +40,13 @@ static class Measured
             var within = Values(query("within"));
             if (query("configuration") is { Length: > 0 } asked)
             {
-                P.Configuration Named(string given) => axes.Named.FirstOrDefault(c => c.Name == given) ?? axes.Of(given) ?? throw new P.ProctorException($"'{given}' is not a configuration of this exam");
+                P.Configuration Named(string given) => axes.Named.FirstOrDefault(c => c.Name == given) ?? axes.Of(given) ?? throw new P.AuspexException($"'{given}' is not a configuration of this exam");
                 return P.Answers.Compare(root, exam, Named(asked), query("against") is { Length: > 0 } other ? Named(other) : null, within.Count > 0 ? within : null, asOf);
             }
             var (change, against) = (Values(query("change")), Values(query("against")));
-            if (change.Count == 0 || !change.Keys.Order().SequenceEqual(against.Keys.Order())) throw new P.ProctorException("a comparison names what changed and what it is compared with, on the same axes: ?change=axis=value&against=axis=value");
+            if (change.Count == 0 || !change.Keys.Order().SequenceEqual(against.Keys.Order())) throw new P.AuspexException("a comparison names what changed and what it is compared with, on the same axes: ?change=axis=value&against=axis=value");
             foreach (var (axis, value) in change.Concat(against).Concat(within))
-                if (!axes.Def.TryGetValue(axis, out var def) || !def.Values!.ContainsKey(value)) throw new P.ProctorException($"{axis}={value} is not a value this exam declares");
+                if (!axes.Def.TryGetValue(axis, out var def) || !def.Values!.ContainsKey(value)) throw new P.AuspexException($"{axis}={value} is not a value this exam declares");
             return P.Answers.Compare(root, exam, change, against, within.Count > 0 ? within : null, asOf, null);
         });
     }
@@ -63,7 +63,7 @@ static class Measured
         var current = P.Bank.Select(root, exam).Current;
         var problems = new List<P.Problem>();
         var predictions = P.Predictions.Load(root, exam, problems);
-        if (problems.Count > 0) throw new P.ProctorException(string.Join("\n", problems));
+        if (problems.Count > 0) throw new P.AuspexException(string.Join("\n", problems));
         var (stats, friction) = P.Configurations.Compute(root, exam, current, P.Bank.Of(root, exam), P.Results.Collect(root, exam, current), null, predictions);
         var ids = current.Select(a => (a.Configuration, a.Attempt, Id: a.Entry.IdOf(a.Configuration, a.Attempt))).Where(a => a.Id is not null).Distinct().ToDictionary(a => (a.Configuration, a.Attempt), a => a.Id!);
         return new Reported(stats, friction, ids);
@@ -74,7 +74,7 @@ static class Measured
     static (T? Answer, string? Problem) Asked<T>(Func<T> ask) where T : class
     {
         try { return (ask(), null); }
-        catch (Exception e) when (e is P.ProctorException or IOException or JsonException or UnauthorizedAccessException) { return (null, e.Message); }
+        catch (Exception e) when (e is P.AuspexException or IOException or JsonException or UnauthorizedAccessException) { return (null, e.Message); }
     }
 
     /// <summary>axis=value,axis=value as a map; empty when there is none.</summary>

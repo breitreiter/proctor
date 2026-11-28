@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 // The definition tier: proctor.json, exam.json with its stages, and the program template,
 // loaded into records and validated with a file and field on every problem.
@@ -28,7 +28,7 @@ record NbMounts(string? Work = null, string? Bundle = null);
 /// grade-time checks call; agents are where each vendor agent's model calls go (the machine's, like nb.path); harbor is
 /// how Harbor is started on this machine.
 /// </summary>
-record ProctorConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, Dictionary<string, AgentEndpoint>? Agents = null, HarborConfig? Harbor = null)
+record AuspexConfig(NbConfig? Nb, Dictionary<string, JudgeDef>? Judges = null, Dictionary<string, AgentEndpoint>? Agents = null, HarborConfig? Harbor = null)
 {
     public NbConfig NbOrDefault => Nb ?? new NbConfig();
     public HarborConfig HarborOrDefault => Harbor ?? new HarborConfig();
@@ -328,12 +328,12 @@ sealed class Exam
     /// The machine's config: exams/proctor.json, or the file --config names (resolved against the working directory),
     /// which must exist. Relative paths inside either resolve against exams/, wherever the file is.
     /// </summary>
-    public static ProctorConfig LoadConfig(string root, List<Problem> problems, string? configFile = null)
+    public static AuspexConfig LoadConfig(string root, List<Problem> problems, string? configFile = null)
     {
-        var file = configFile is null ? Path.Combine(Layout.Exams(root), Layout.ProctorConfigFile) : Path.GetFullPath(configFile);
-        if (configFile is not null && !File.Exists(file)) throw new ProctorException($"--config {configFile}: no such file");
-        if (!File.Exists(file)) return new ProctorConfig(null);
-        var config = ReadJson<ProctorConfig>(file, problems);
+        var file = configFile is null ? Path.Combine(Layout.Exams(root), Layout.AuspexConfigFile) : Path.GetFullPath(configFile);
+        if (configFile is not null && !File.Exists(file)) throw new AuspexException($"--config {configFile}: no such file");
+        if (!File.Exists(file)) return new AuspexConfig(null);
+        var config = ReadJson<AuspexConfig>(file, problems);
         // The runner and its mounts moved to exam.json (they are the exam's, with its hooks); a leftover here would be silently ignored.
         var raw = config is null ? null : JsonNode.Parse(File.ReadAllText(file), documentOptions: new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })?["nb"];
         foreach (var field in new[] { "runner", "mounts" })
@@ -348,7 +348,7 @@ sealed class Exam
             else if (string.IsNullOrWhiteSpace(endpoint?.BaseUrl)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.base_url", "required: where the agent's model calls go"));
             if (endpoint?.Config is not null && name != Assistant.Codex) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.config", $"not yet: only {Assistant.Codex} takes a native config"));
         }
-        return (config ?? new ProctorConfig(null)) with { Source = Path.GetRelativePath(root, file) };
+        return (config ?? new AuspexConfig(null)) with { Source = Path.GetRelativePath(root, file) };
     }
 
     /// <summary>

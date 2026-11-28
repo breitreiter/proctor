@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 // Axes, values and configurations (project/plans/axes.md; the declaration is project/plans/axes-ports.md).
 // An exam declares what is under test as axes: each axis a named thing with several values, a

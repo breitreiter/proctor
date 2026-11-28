@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>A directory as a definition: its files minus excluded directory names, and a content hash over them.</summary>
 static class Tree

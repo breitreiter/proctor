@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Spectre.Console;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// <c>proctor setup</c>, the interactive wizard: a list of jobs, each answered with a provider already set up, a new
@@ -96,7 +96,7 @@ static partial class SetupWizard
     static void Banner()
     {
         var mark = AnsiConsole.Profile.Capabilities.Unicode ? "🧙 " : "";
-        AnsiConsole.MarkupLine($"\n{mark}[bold]Proctor {Esc(Runner.ProctorVersion)}[/]\n");
+        AnsiConsole.MarkupLine($"\n{mark}[bold]Proctor {Esc(Runner.AuspexVersion)}[/]\n");
     }
 
     static void Welcome(Session w)
@@ -107,7 +107,7 @@ static partial class SetupWizard
         var rows = new (string Path, string What)[]
         {
             (w.EnvPath, "your API keys (only you can read it)"),
-            (SetupCheck.Shown(Path.Combine(w.ExamsDir, Layout.ProctorConfigFile)), "proctor's config for this machine"),
+            (SetupCheck.Shown(Path.Combine(w.ExamsDir, Layout.AuspexConfigFile)), "proctor's config for this machine"),
             (SetupCheck.Shown(Path.Combine(w.ExamsDir, SetupFiles.NbFile)), "AI providers for nb, proctor's built-in harness"),
             (SetupCheck.Shown(SetupState.PathIn(w.ExamsDir)), "your choices from this wizard, minus keys"),
         };
@@ -122,7 +122,7 @@ static partial class SetupWizard
     static void Prepare(Session w)
     {
         if (SetupFiles.EnsureGitIgnore(w.ExamsDir)) w.Wrote(Path.Combine(w.ExamsDir, SetupFiles.GitIgnore), "setup's files excluded");
-        var proctor = Path.Combine(w.ExamsDir, Layout.ProctorConfigFile);
+        var proctor = Path.Combine(w.ExamsDir, Layout.AuspexConfigFile);
         if (!File.Exists(proctor)) w.Wrote(SetupFiles.EnsureProctor(w.ExamsDir), "created: nb from PATH, nb.json beside it");
         var nb = Path.Combine(w.ExamsDir, SetupFiles.NbFile);
         if (!File.Exists(nb)) w.Wrote(SetupFiles.EnsureNb(w.ExamsDir), "created: nb's Mock provider, for the playground");

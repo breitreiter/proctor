@@ -1,4 +1,4 @@
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>The work directory: a fixture materialised into it before the attempt, the diff collected after, and both again for a regrade.</summary>
 static class Checkout

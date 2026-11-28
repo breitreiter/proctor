@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 // Grades over time (plans/axes-build.md, slice 5; plans/axes.md, "Grades over time"). The checks are the standard, and
 // the standard is allowed to change after the tries are made: a check added later is graded over every earlier try, and

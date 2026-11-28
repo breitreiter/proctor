@@ -1,4 +1,4 @@
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// The user's env file, <c>~/.config/proctor/env</c>: <c>NAME=value</c> lines that every verb loads into
@@ -25,7 +25,7 @@ static class EnvFile
     /// <summary>
     /// The file's variables, in order. Blank lines and <c>#</c> comments are skipped; <c>export </c> before a name is
     /// allowed; a value in matching single or double quotes loses them, with nothing unescaped. A line that is not
-    /// <c>NAME=value</c> is a <see cref="ProctorException"/> naming the file and line, never skipped, since a key
+    /// <c>NAME=value</c> is a <see cref="AuspexException"/> naming the file and line, never skipped, since a key
     /// that silently fails to load surfaces later as a provider's 401.
     /// </summary>
     public static List<(string Name, string Value)> Parse(string path)
@@ -40,7 +40,7 @@ static class EnvFile
             var eq = line.IndexOf('=');
             var name = eq > 0 ? line[..eq].Trim() : "";
             if (!IsName(name))
-                throw new ProctorException($"{path}:{i + 1}: expected NAME=value, where NAME is letters, digits and underscores");
+                throw new AuspexException($"{path}:{i + 1}: expected NAME=value, where NAME is letters, digits and underscores");
             var value = line[(eq + 1)..].Trim();
             if (value.Length >= 2 && (value[0] == '"' || value[0] == '\'') && value[^1] == value[0]) value = value[1..^1];
             vars.Add((name, value));
@@ -71,7 +71,7 @@ static class EnvFile
     public static void Set(string path, string name, string value)
     {
         if (!IsName(name)) throw new ArgumentException($"not a variable name: {name}");
-        if (value.Contains('\n') || value.Contains('\r')) throw new ProctorException($"{name}: a value cannot span lines");
+        if (value.Contains('\n') || value.Contains('\r')) throw new AuspexException($"{name}: a value cannot span lines");
         var lines = File.Exists(path) ? File.ReadAllLines(path).ToList() : [];
         var line = $"{name}={value}";
         var at = lines.FindIndex(l => NameOf(l) == name);

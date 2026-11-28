@@ -1,11 +1,11 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
-using P = Proctor;
-using static Auspex.Pages;
-using static Auspex.ExamPage;
+using P = Auspex;
+using static Auspex.View.Pages;
+using static Auspex.View.ExamPage;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>
 /// One stage of a try, as designed on the canvas (2026-11-26 and 27): the stages of the try as

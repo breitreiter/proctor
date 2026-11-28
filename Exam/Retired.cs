@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>One retired configuration: why, in its author's words, and since when.</summary>
 record RetiredMark(string Reason, string Since);
@@ -41,11 +41,11 @@ static class Retired
         {
             var read = JsonSerializer.Deserialize<RetiredFile>(File.ReadAllText(file), Exam.JsonOptions);
             return read is { Schema: Schema, Configurations: { } marks } && marks.All(m => m.Value is { Reason: not null, Since: not null }) ? marks
-                : throw new ProctorException($"{file}: not the file `proctor retire` writes; it holds {{\"schema\": \"{Schema}\", \"configurations\": {{\"<name>\": {{\"reason\", \"since\"}}}}}}");
+                : throw new AuspexException($"{file}: not the file `proctor retire` writes; it holds {{\"schema\": \"{Schema}\", \"configurations\": {{\"<name>\": {{\"reason\", \"since\"}}}}}}");
         }
         catch (JsonException e)
         {
-            throw new ProctorException($"{file}: not JSON ({e.Message.Split(" Path:")[0]})");
+            throw new AuspexException($"{file}: not JSON ({e.Message.Split(" Path:")[0]})");
         }
     }
 

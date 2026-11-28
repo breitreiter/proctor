@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>
 /// What proctor wrote under its root, read from disk and nothing more: the exams in bank/, each try's files, and from

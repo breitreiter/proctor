@@ -1,9 +1,9 @@
 using System.Text;
-using P = Proctor;
-using static Auspex.Pages;
-using static Auspex.ExamPage;
+using P = Auspex;
+using static Auspex.View.Pages;
+using static Auspex.View.ExamPage;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>
 /// The pages of an exam with axes (proctor's plans/axes-build.md, slice 3d; project/view/exam-page-axes.md): the exam

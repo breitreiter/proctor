@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>Where things live. Paths and file names only; see project/plans/on-disk-layout.md.</summary>
 static class Layout
@@ -21,7 +21,7 @@ static class Layout
     /// <summary>Beside exam.json: which configurations of several values `proctor build` found to be their values put together, and which not.</summary>
     public const string CombinationsFile = "combinations.json";
 
-    public const string ProctorConfigFile = "proctor.json";
+    public const string AuspexConfigFile = "proctor.json";
     public const string ExamFile = "exam.json";
     public const string ProgramTemplateFile = "program.nb";
     /// <summary>Beside the definition in the earlier shape, and read only to say so: a task per file.</summary>

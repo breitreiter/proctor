@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 // An attempt's record read into the fixed windows the checks look at: nb's JSONL, or an agent attempt's ATIF trajectory with
 // proctor's counted core. Nothing here judges anything.

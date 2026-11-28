@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// What a model check sees: named, deterministic extractions from the transcript, joined with `+`. The whole transcript

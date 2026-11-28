@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 // Predictions (plans/axes-build.md, slice 6; the word is the user's, 2026-11-25). A prediction is one statement, written
 // before the tries are made: "if this configuration is run, this is what will change." It names one full configuration,
@@ -111,7 +111,7 @@ static class Predictions
     public static DateTime? WrittenAt(string written)
     {
         try { return Answers.ParseAsOf(written); }
-        catch (ProctorException) { return null; }
+        catch (AuspexException) { return null; }
     }
 
     /// <summary>One change as a person would say it: what, which way, against what.</summary>

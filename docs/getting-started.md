@@ -55,7 +55,7 @@ source for now.
 git clone https://github.com/breitreiter/nb && (cd nb && dotnet build)
 git clone https://github.com/breitreiter/proctor && cd proctor && dotnet build
 export PATH="$PWD/../nb/bin/Debug/net10.0:$PATH"            # proctor finds nb on PATH
-alias proctor="dotnet $PWD/bin/Debug/net10.0/proctor.dll"
+alias proctor="dotnet $PWD/bin/Debug/net10.0/auspex.dll"
 ```
 
 On Windows, in PowerShell:
@@ -64,7 +64,7 @@ On Windows, in PowerShell:
 git clone https://github.com/breitreiter/nb; cd nb; dotnet build; cd ..
 git clone https://github.com/breitreiter/proctor; cd proctor; dotnet build
 $env:PATH = "$PWD\..\nb\bin\Debug\net10.0;$env:PATH"
-function proctor { dotnet "$PWD\bin\Debug\net10.0\proctor.dll" @args }
+function proctor { dotnet "$PWD\bin\Debug\net10.0\auspex.dll" @args }
 ```
 
 Put the PATH line and the alias (or the function) in your shell profile.

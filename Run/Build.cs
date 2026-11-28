@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 // `proctor build` (plans/axes-build.md, slice 3b; plans/axes.md, decisions 15 and 16). A value's files and parameters
 // are as flexible as the base's scripts make them, so what a value does is found by building it: the checkout, the
@@ -52,7 +52,7 @@ static class Build
     {
         var axes = exam.Axes!;
         if (axes.Def.Keys.FirstOrDefault(a => axes.ReferenceOf(a) is null) is { } unheld)
-            throw new ProctorException($"axis '{unheld}' has no live value and names no reference. A value is looked at with every other axis held at its reference, "
+            throw new AuspexException($"axis '{unheld}' has no live value and names no reference. A value is looked at with every other axis held at its reference, "
                 + $"so give the axis \"reference\": \"<value>\" in exam.json ({string.Join(", ", axes.Def[unheld].Values!.Keys)})");
         return axes.Alone(new Dictionary<string, string>(), out _)!;
     }
@@ -83,7 +83,7 @@ static class Build
     /// Build the reference twice, then each value alone (or only the one named), then each configuration the exam carries
     /// that is more than one value off the reference. What each left is under .proctor/builds/&lt;exam&gt;/.
     /// </summary>
-    public static BuildResult Run(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, (string Axis, string Value)? only, TextWriter log)
+    public static BuildResult Run(string root, Exam exam, AuspexConfig config, string? nbOverride, string? runnerOverride, (string Axis, string Value)? only, TextWriter log)
     {
         var axes = exam.Axes!;
         var reference = Reference(exam);
@@ -96,7 +96,7 @@ static class Build
         var nb = Hooks(exam).Any() ? Runner.ResolveNb(root, exam, config, nbOverride, runnerOverride) : null;
 
         var (first, whyNot) = One(exam, nb, reference, "reference", scratch);
-        if (first is null) throw new ProctorException($"the reference ({reference.Label}) could not be built: {whyNot}");
+        if (first is null) throw new AuspexException($"the reference ({reference.Label}) could not be built: {whyNot}");
         // Built again: a path two builds of the same thing disagree on is the build's own, and would read as every value's change.
         var (again, _) = One(exam, nb, reference, "reference-again", scratch);
         var noise = again is null ? [] : Differing(first.Files, again.Files).Order(StringComparer.Ordinal).ToList();

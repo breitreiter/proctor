@@ -1,4 +1,4 @@
-using Auspex;
+using Auspex.View;
 
 // auspex <proctor root> [--port N]: serve the exams in a proctor root's bank.
 var port = 0;

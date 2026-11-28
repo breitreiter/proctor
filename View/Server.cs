@@ -4,7 +4,10 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 
-namespace Auspex;
+namespace Auspex.View;
+
+// Auspex.Results, the core's results.jsonl rows, would otherwise be found first.
+using Results = Microsoft.AspNetCore.Http.Results;
 
 /// <summary>The one server: loopback only, every page behind a per-start token, every asset out of the assembly
 /// through one handler. There is no development mode and nothing is read relative to the working directory.</summary>

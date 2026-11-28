@@ -170,8 +170,8 @@ holding `bank/` and `exams/`.
   without `library=`: the default library fetches from Font Awesome's
   CDN. Dark mode is the `wa-dark` class, set from the system setting by
   an inline script in each page's head.
-- `Measured.cs`: the one doorway to proctor's code (`Proctor.Exam.Load`,
-  `Proctor.Answers.Compare` and `Coverage`, and `Stats`, an exam's
+- `Measured.cs`: the one doorway to proctor's code (`Auspex.Exam.Load`,
+  `Auspex.Answers.Compare` and `Coverage`, and `Stats`, an exam's
   report as `proctor report` computes it). What it gives is rendered
   as given; what proctor refuses is shown in proctor's words.
 - `AxesPages.cs`: an exam with axes (proctor's `axes-build.md`, slice
@@ -187,17 +187,17 @@ holding `bank/` and `exams/`.
   since. No page holds an agent's prose; each says what to ask one.
 - The stage page takes `?check=<name>` (and, with script, `?point=<id>`),
   so a link can point at one verdict or one friction point.
-- `Auspex.Tests/`: starts the real server on a free port and crawls it.
+- `Auspex.View.Tests/`: starts the real server on a free port and crawls it.
   `AxesBank` is a proctor root with an exam of axes whose bank the
   proctor built beside the tests made; `AxesPagesTests` holds each page
   against what `proctor compare` and `proctor coverage` answer.
 
 ```
 dotnet build                                   # at the repository's root: proctor and the viewer
-dotnet test View/Auspex.Tests --no-build       # AxesPagesTests makes a bank with the proctor just built, so nb must be built too
-AUSPEX_TEST_PUBLISH=1 AUSPEX_TEST_ROOT=<proctor root> dotnet test View/Auspex.Tests --no-build
-dotnet View/bin/Debug/net10.0/auspex.dll <proctor root>
-# no bank on hand: Proctor.Tests/exams/axes-answers/make.sh <empty dir> makes one, with axes, on Mock
+dotnet test View/Auspex.View.Tests --no-build       # AxesPagesTests makes a bank with the proctor just built, so nb must be built too
+AUSPEX_TEST_PUBLISH=1 AUSPEX_TEST_ROOT=<proctor root> dotnet test View/Auspex.View.Tests --no-build
+dotnet View/bin/Debug/net10.0/auspex-view.dll <proctor root>
+# no bank on hand: Auspex.Tests/exams/axes-answers/make.sh <empty dir> makes one, with axes, on Mock
 ```
 
 Not built: the person's disposition on a point and the treatment record

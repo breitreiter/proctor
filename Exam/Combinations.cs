@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Proctor;
+namespace Auspex;
 
 // exams/<exam>/combinations.json (plans/axes-build.md, slice 3b; plans/axes.md, decision 16). Committed with the exam
 // and in no hash. What `proctor build` found when it held each configuration of several values
@@ -35,7 +35,7 @@ sealed class Combinations
         }
         catch (JsonException e)
         {
-            throw new ProctorException($"{Path.Combine("exams", exam.Id, Layout.CombinationsFile)}: not the file `proctor build` writes ({e.Message}); delete it and build again");
+            throw new AuspexException($"{Path.Combine("exams", exam.Id, Layout.CombinationsFile)}: not the file `proctor build` writes ({e.Message}); delete it and build again");
         }
     }
 

@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Proctor;
+namespace Auspex;
 
 // What proctor answers when asked (plans/axes-build.md, slice 3c; plans/axes.md, decision 17). Proctor does no decision
 // support: an agent makes the recommendation, and these two queries are what it is given. So an answer is only what
@@ -91,7 +91,7 @@ static class Answers
         var styles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
         if (DateTime.TryParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture, styles, out var day)) return day.AddDays(1).AddMinutes(-1);
         if (DateTime.TryParseExact(text, ["yyyy-MM-dd'T'HH:mm'Z'", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd'T'HH:mm:ss'Z'"], CultureInfo.InvariantCulture, styles, out var time)) return time;
-        throw new ProctorException($"--as-of {text}: expects a date (2026-11-24) or a time in UTC (2026-11-24T21:05Z), as an answer's as_of gives it");
+        throw new AuspexException($"--as-of {text}: expects a date (2026-11-24) or a time in UTC (2026-11-24T21:05Z), as an answer's as_of gives it");
     }
 
     static string Encoded(string s) => Uri.EscapeDataString(s);
@@ -110,8 +110,8 @@ static class Answers
     {
         var axes = exam.Axes!;
         against ??= axes.Def[axis].Live ?? axes.ReferenceOf(axis)
-            ?? throw new ProctorException($"axis '{axis}' has no live value and no reference to compare {axis}={value} with: say --against <value> ({string.Join(", ", axes.Def[axis].Values!.Keys.Where(v => v != value))})");
-        if (against == value) throw new ProctorException($"{axis}={value} against itself: say --against <value> ({string.Join(", ", axes.Def[axis].Values!.Keys.Where(v => v != value))})");
+            ?? throw new AuspexException($"axis '{axis}' has no live value and no reference to compare {axis}={value} with: say --against <value> ({string.Join(", ", axes.Def[axis].Values!.Keys.Where(v => v != value))})");
+        if (against == value) throw new AuspexException($"{axis}={value} against itself: say --against <value> ({string.Join(", ", axes.Def[axis].Values!.Keys.Where(v => v != value))})");
         return Compare(root, exam, new Dictionary<string, string> { [axis] = value }, new Dictionary<string, string> { [axis] = against }, within, asOf, null);
     }
 
@@ -128,7 +128,7 @@ static class Answers
         var other = against ?? axes.Make(configuration.Values.ToDictionary(v => v.Axis, v => axes.Def[v.Axis].Live ?? v.Value))!;
         var differs = configuration.Values.Where(v => other[v.Axis] != v.Value).Select(v => v.Axis).ToList();
         if (differs.Count == 0)
-            throw new ProctorException(against is not null ? $"{configuration.Name ?? configuration.Label} against itself: there is nothing to compare"
+            throw new AuspexException(against is not null ? $"{configuration.Name ?? configuration.Label} against itself: there is nothing to compare"
                 : $"{configuration.Name ?? configuration.Label} has the live value on every axis that has one, so it is what is in use: say --against <configuration> to compare it with another");
         var held = new Dictionary<string, string>(within ?? new Dictionary<string, string>());
         foreach (var (axis, def) in axes.Def)
@@ -143,7 +143,7 @@ static class Answers
     internal static ComparisonAnswer Compare(string root, Exam exam, Dictionary<string, string> change, Dictionary<string, string> against, IReadOnlyDictionary<string, string>? within, DateTime? asOf, string? asked)
     {
         var axes = exam.Axes!;
-        if (within?.Keys.FirstOrDefault(change.ContainsKey) is { } clash) throw new ProctorException($"--within {clash}=…: '{clash}' is an axis the comparison is along; --within holds the other axes");
+        if (within?.Keys.FirstOrDefault(change.ContainsKey) is { } clash) throw new AuspexException($"--within {clash}=…: '{clash}' is an axis the comparison is along; --within holds the other axes");
         string Said(Dictionary<string, string> values) => string.Join(" × ", axes.Def.Keys.Where(values.ContainsKey).Select(x => $"{x}={values[x]}"));
         var (changeSaid, againstSaid) = (Said(change), Said(against));
         var now = DateTime.UtcNow;
@@ -163,7 +163,7 @@ static class Answers
         // the rest of the exam may stay that way, and this comparison may not.
         var keys = comparison.Cells.SelectMany(c => new[] { c.Key, c.LiveKey }).ToHashSet();
         var ungraded = current.Count(a => keys.Contains(a.Configuration) && a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.StageOf(a.Stage), a.Dir(root)));
-        if (ungraded > 0) throw new ProctorException($"{ungraded} stage{(ungraded == 1 ? "" : "s")} of the tries in this comparison {(ungraded == 1 ? "is" : "are")} not yet graded under the checks as they are now, and an ungraded try would read as one that held nothing: run `proctor grade {exam.Id}` first");
+        if (ungraded > 0) throw new AuspexException($"{ungraded} stage{(ungraded == 1 ? "" : "s")} of the tries in this comparison {(ungraded == 1 ? "is" : "are")} not yet graded under the checks as they are now, and an ungraded try would read as one that held nothing: run `proctor grade {exam.Id}` first");
 
         var ids = then.GroupBy(x => (x.Attempt.Configuration, x.Attempt.Attempt)).ToDictionary(g => g.Key, g => g.First().Id);
         SideAnswer Side(string key)

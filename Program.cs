@@ -1,4 +1,4 @@
-namespace Proctor;
+namespace Auspex;
 
 static class Program
 {
@@ -102,7 +102,7 @@ static class Program
                 case "--check": check = true; break;
                 case "--probe": probe = true; break;
                 case "-h" or "--help": Console.WriteLine(Usage); return 0;
-                case "--version": Console.WriteLine($"proctor {Runner.ProctorVersion}"); return 0;
+                case "--version": Console.WriteLine($"proctor {Runner.AuspexVersion}"); return 0;
                 case var flag when flag.StartsWith("--"): Console.Error.WriteLine($"unknown flag {flag}"); Console.Error.WriteLine(Usage); return 1;
                 default: positional.Add(args[i]); break;
             }
@@ -133,7 +133,7 @@ static class Program
                 _ => Fail(Usage),
             };
         }
-        catch (ProctorException e)
+        catch (AuspexException e)
         {
             return Fail(e.Message);
         }
@@ -147,4 +147,4 @@ static class Program
 }
 
 /// <summary>A user-facing failure: the message is the whole story, no stack trace.</summary>
-sealed class ProctorException(string message) : Exception(message);
+sealed class AuspexException(string message) : Exception(message);

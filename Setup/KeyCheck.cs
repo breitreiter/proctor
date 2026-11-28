@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 enum KeyCheckStatus { Ok, Failed, NotAvailable }
 

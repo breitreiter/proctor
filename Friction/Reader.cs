@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// The reader stage of `proctor friction`: a chat model reads one attempt and names the friction rules cannot see (a

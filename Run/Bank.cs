@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// One stage of one try in an exam's bank: the configuration by its key, the stage, the try's number among the

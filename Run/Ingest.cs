@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>An agent attempt as Harbor reported it, in the manifest: the agent as it ran, the Harbor that ran it, and what it used.</summary>
 record AgentTrial(string Name, string? Version, string Model, Dictionary<string, string> Kwargs, Dictionary<string, string> Env, string Harbor, string? Trial,
@@ -71,7 +71,7 @@ static class Ingest
             ["save_memory"] = "memory",
             ["tool_search"] = "meta", ["tool_call"] = "meta",
         },
-        // Mirrored by nb's nb.Tests/ProctorContractTests.cs, which fails when nb advertises a tool not listed here.
+        // Mirrored by nb's nb.Tests/AuspexContractTests.cs, which fails when nb advertises a tool not listed here.
         [Assistant.Nb] = new()
         {
             ["bash"] = "shell",

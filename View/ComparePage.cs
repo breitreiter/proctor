@@ -1,10 +1,10 @@
 using System.Globalization;
 using System.Text;
-using P = Proctor;
-using static Auspex.Pages;
-using static Auspex.ExamPage;
+using P = Auspex;
+using static Auspex.View.Pages;
+using static Auspex.View.ExamPage;
 
-namespace Auspex;
+namespace Auspex.View;
 
 /// <summary>
 /// One configuration against another, as designed on the canvas (2026-11-26 and 27): "X vs Y", where the name before vs

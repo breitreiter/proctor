@@ -1,4 +1,4 @@
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// A value's files from a git revision: the repository cloned once per revision under .proctor/files/, and, when the
@@ -21,7 +21,7 @@ static class GitFiles
                 var result = Subprocess.Run("git", args, clone);
                 if (result is { Started: true, ExitCode: 0 }) continue;
                 Directory.Delete(clone, recursive: true);   // a half-made clone would pass for the revision next time
-                throw new ProctorException($"{what}: git {args[0]} {source.Git} failed: {(result.Started ? result.FirstStderrLine : result.Stderr)}");
+                throw new AuspexException($"{what}: git {args[0]} {source.Git} failed: {(result.Started ? result.FirstStderrLine : result.Stderr)}");
             }
         }
         if (source.Paths is not { } paths) return clone;
@@ -48,7 +48,7 @@ static class GitFiles
             {
                 Directory.Delete(staging, recursive: true);
                 // A path the revision does not have is an error, not an empty tree.
-                throw new ProctorException($"{what}: {path} is not in {source.Git} at {source.Rev}");
+                throw new AuspexException($"{what}: {path} is not in {source.Git} at {source.Rev}");
             }
         }
         Directory.Move(staging, dir);

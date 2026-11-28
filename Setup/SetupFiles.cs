@@ -2,7 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// What setup writes into <c>exams/</c>: nb.json's provider entries, proctor.json's <c>agents</c> and <c>harbor.engine</c>,
@@ -14,7 +14,7 @@ static class SetupFiles
     public const string NbFile = "nb.json", GitIgnore = ".gitignore", SandboxPlan = "sandbox-plan.md";
 
     /// <summary>Everything setup writes in exams/ that names this machine, and so is never committed.</summary>
-    public static readonly string[] Ignored = [Layout.ProctorConfigFile, NbFile, SetupState.FileName, SandboxPlan];
+    public static readonly string[] Ignored = [Layout.AuspexConfigFile, NbFile, SetupState.FileName, SandboxPlan];
 
     static readonly JsonSerializerOptions Write = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
@@ -78,7 +78,7 @@ static class SetupFiles
     /// <summary>proctor.json <c>agents.&lt;agent&gt;</c>: the kind's base URL for that agent and the provider's key as <c>${ENV}</c>.</summary>
     public static string PutAgent(string examsDir, string agent, string baseUrl, string env)
     {
-        var path = Path.Combine(examsDir, Layout.ProctorConfigFile);
+        var path = Path.Combine(examsDir, Layout.AuspexConfigFile);
         var root = ReadObject(path) ?? FreshProctor();
         var agents = root["agents"] as JsonObject ?? (JsonObject)(root["agents"] = new JsonObject());
         agents[agent] = new JsonObject { ["base_url"] = baseUrl, ["api_key"] = $"${{{env}}}" };
@@ -88,14 +88,14 @@ static class SetupFiles
 
     public static void RemoveAgent(string examsDir, string agent)
     {
-        var path = Path.Combine(examsDir, Layout.ProctorConfigFile);
+        var path = Path.Combine(examsDir, Layout.AuspexConfigFile);
         if (ReadObject(path) is not { } root || root["agents"] is not JsonObject agents || !agents.Remove(agent)) return;
         Save(path, root);
     }
 
     public static string PutEngine(string examsDir, string engine)
     {
-        var path = Path.Combine(examsDir, Layout.ProctorConfigFile);
+        var path = Path.Combine(examsDir, Layout.AuspexConfigFile);
         var root = ReadObject(path) ?? FreshProctor();
         var harbor = root["harbor"] as JsonObject ?? (JsonObject)(root["harbor"] = new JsonObject());
         harbor["engine"] = engine;
@@ -106,7 +106,7 @@ static class SetupFiles
     /// <summary>proctor.json exists, so a verb that needs it finds it; created fresh when missing.</summary>
     public static string EnsureProctor(string examsDir)
     {
-        var path = Path.Combine(examsDir, Layout.ProctorConfigFile);
+        var path = Path.Combine(examsDir, Layout.AuspexConfigFile);
         if (!File.Exists(path)) Save(path, FreshProctor());
         return path;
     }
@@ -142,9 +142,9 @@ static class SetupFiles
         try
         {
             return JsonNode.Parse(File.ReadAllText(path), documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject
-                ?? throw new ProctorException($"{path}: expected a JSON object");
+                ?? throw new AuspexException($"{path}: expected a JSON object");
         }
-        catch (JsonException e) { throw new ProctorException($"{path}: {e.Message}; setup edits only a file it can read, so fix it by hand first"); }
+        catch (JsonException e) { throw new AuspexException($"{path}: {e.Message}; setup edits only a file it can read, so fix it by hand first"); }
     }
 
     static void Save(string path, JsonObject root)

@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace Proctor;
+namespace Auspex;
 
 /// <summary>
 /// A check's outcome. <c>error</c> means the check could not run; it is never folded into fail. <c>outdated</c> means the
@@ -162,8 +162,8 @@ static class Checks
         var why = spec[Why];
         if (why is not null && (why is not JsonValue wv || !wv.TryGetValue<string>(out var whyText) || string.IsNullOrWhiteSpace(whyText)))
             yield return (Why, "a why is a sentence, not an empty string");
-        if (spec[When] is { } when && (when is not JsonValue cv || !cv.TryGetValue<string>(out var condition) || Proctor.When.Parse(condition, out _) is null))
-            yield return (When, when is JsonValue pv && pv.TryGetValue<string>(out var given) && Proctor.When.Parse(given, out var problem) is null ? problem! : "a condition: `axis = value` or `axis != value`, joined by `and`");
+        if (spec[When] is { } when && (when is not JsonValue cv || !cv.TryGetValue<string>(out var condition) || Auspex.When.Parse(condition, out _) is null))
+            yield return (When, when is JsonValue pv && pv.TryGetValue<string>(out var given) && Auspex.When.Parse(given, out var problem) is null ? problem! : "a condition: `axis = value` or `axis != value`, joined by `and`");
         if (description is null && spec.ContainsKey("script"))
             yield return (Description, "required for a script check: say in a sentence what the script tests, for the report's reader");
         foreach (var (key, value) in fields)

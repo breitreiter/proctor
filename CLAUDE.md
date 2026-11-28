@@ -13,8 +13,8 @@ axes.
 
 ```bash
 dotnet build
-dotnet test --no-build                 # both suites, proctor's and the viewer's (View/Auspex.Tests); the runner tests spawn nb per stage
-dotnet bin/Debug/net10.0/proctor.dll list             # or: dotnet run -- list
+dotnet test --no-build                 # both suites, proctor's and the viewer's (View/Auspex.View.Tests); the runner tests spawn nb per stage
+dotnet bin/Debug/net10.0/auspex.dll list             # or: dotnet run -- list
 ```
 
 Tests need nb built: `$NB_PATH`, else `../nb/bin/Debug/net10.0/nb` (build nb
@@ -92,7 +92,7 @@ in the order the verbs run them. Every file is one concern:
 
 | file | holds |
 |---|---|
-| `Program.cs` | flag parsing and verb dispatch; `ProctorException` is a user-facing failure; what proctor 0.3 had and this has not (`--arm`, `--tasks`, `--live`, `baseline`, `resume`) refused with what replaces each |
+| `Program.cs` | flag parsing and verb dispatch; `AuspexException` is a user-facing failure; what proctor 0.3 had and this has not (`--arm`, `--tasks`, `--live`, `baseline`, `resume`) refused with what replaces each |
 | `Verbs.cs` | one method per verb: `list`, `run`, `build`, `grade`, `friction`, `report`, `compare`, `coverage`, `predict`, `retire`; which configurations a `--value` or `--configuration` selects (`Verbs.ForRun`); the earlier report moved aside |
 | `Exam/Layout.cs` | paths and file names, nothing else |
 | `Exam/Exam.cs` | `proctor.json` (the host binary and its config, `HarborConfig`), `exam.json` (attempts, stages, the `nb` block with the runner and mounts, hooks, grading), the program template: records, loading, validation (`Problem` = file, field, message); the earlier shape refused with what each part becomes; the merged check set and expect block per stage; the stages that apply in a configuration (`StagesOf`); the exam's hash and the job's (`JobHash`: what the agent meets) |
@@ -129,7 +129,7 @@ in the order the verbs run them. Every file is one concern:
 | `Friction/Reader.cs` | the reader stage of `friction --reader`: an attempt's trajectory rendered as text with a call id per call, the fixed instructions, the reply checked into points with a model source, the reading file kept in the attempt |
 | `Setup/providers.json` | `proctor setup`'s provider catalogue, embedded: per kind its form fields (a secret's env variable), the jobs it `serves` (`?` untested) or serves `by_hand`, the site help anchor (never a vendor URL; an anchor once released is permanent), where it lists models. The plan and mockups are `project/plans/setup/` |
 | `Setup/Catalogue.cs` | the catalogue as records; `ProviderKind.Fit(job)` |
-| `Setup/KeyCheck.cs` | the key check: list a provider's models (no tokens), the ids sorted, or the provider's words with the key redacted and a reading that is the same for every kind; Azure, and an OpenAI-compatible entry with no endpoint yet, have none. `Proctor.Tests/fixtures/models/` are answers captured from each vendor, trimmed |
+| `Setup/KeyCheck.cs` | the key check: list a provider's models (no tokens), the ids sorted, or the provider's words with the key redacted and a reading that is the same for every kind; Azure, and an OpenAI-compatible entry with no endpoint yet, have none. `Auspex.Tests/fixtures/models/` are answers captured from each vendor, trimmed |
 | `Setup/SetupState.cs` | `exams/setup.json`: the providers setup knows (kind, key variable, last check, the models listed) and the answer per job (`set`, `later`, `by-hand`; the sandbox's place), intent included; the job order |
 | `Setup/SetupFiles.cs` | setup's writes in `exams/`: its own nb.json entries (the key as `${VAR}`, no `Model`), proctor.json `agents.<agent>` and `harbor.engine`, `exams/.gitignore`; read as a JSON tree and written back whole, so an entry setup did not write is never touched, and a file it cannot parse is refused, not overwritten |
 | `Setup/SetupWizard.cs` | `proctor setup`: the Spectre wizard, job by job (use a provider, add one, skip); the provider flow (pick, form, key check, name); the rerun menu; the summary. Refuses with exit 2 without a terminal. The only file that uses Spectre: `--check` and every other verb print plain lines |
@@ -157,17 +157,17 @@ in the order the verbs run them. Every file is one concern:
 | `exams/readme-answers/` | the first exam on a hosted model, after `playground`: six questions about jot answered from a README alone (`system @{{param.README}}/README.md`, `tools none`), two values of the `docs` axis that differ only in the README tree they set, Gemini Flash-Lite on the free tier, every check a regex (`correct` per stage in `expect`); `reference/shakedown.sh` proves the checks on Mock (`--wrong` for none) |
 | `fixtures/` | the repositories stages run in, each with its own checks beside (never inside) its `repo/`. `jotcli` is a tiny TypeScript CLI whose `clear` reads its confirmation from `/dev/tty` with no `--yes` and exits 0 when it gives up, planted on purpose (its README says why); one of two non-.NET fixtures, with `tern-shop` (Python, beside two compose services: Tern's sandbox API and a docs site serving the `DOCS` tree parameter). `empty` holds nothing, for stages whose whole context is in the prompt. `toolchain` is a scripted control whose image takes a declared parameter as a build argument and writes it to `/etc/toolchain`, standing in for a real toolchain axis |
 | `assets/` | the wizard hat icon, adapted from Lorc's "Pointy hat" (game-icons.net, CC BY 3.0); not MIT. Wherever it ships (the site), the credit goes with it |
-| `Proctor.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one nb run (`capture.sh` regenerates them); `exams/` is test data `TestRepo.CopyExam` finds after `exams/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never an exam to run; `TestRepo` has the helpers (`A` and `B`, two configurations' keys; `Run`, `TryDir`, `StageDir`, `EditStage`); `exams/axes-harbor` is the scripted control for axes through Harbor (nb on Mock in `fixtures/toolchain`'s image, a toolchain as a build argument, a README laid into the repository, a stage with a condition), compiled by `AxesHarborTests` and run in Docker by hand; `exams/axes-answers` is a scripted exam with known answers for `compare` and `coverage` (its checks pass at a chance set by the configuration; `make.sh <dir>` makes its bank in a scratch root, no model), which `AnswersTests` runs part of; `python/` is `oracle_user.py`'s unittests, on stub `harbor` modules and captured `acpx` output, which `OracleHarborTests` runs with `python3` |
+| `Auspex.Tests/` | xunit, flat; `fixtures/` are captured Mock transcripts, and `fixtures/nb-run/` pairs of nb's JSONL and its own trajectory from one nb run (`capture.sh` regenerates them); `exams/` is test data `TestRepo.CopyExam` finds after `exams/` (`harbor-unit`, which `HarborTests` build on with a fake uv), never an exam to run; `TestRepo` has the helpers (`A` and `B`, two configurations' keys; `Run`, `TryDir`, `StageDir`, `EditStage`); `exams/axes-harbor` is the scripted control for axes through Harbor (nb on Mock in `fixtures/toolchain`'s image, a toolchain as a build argument, a README laid into the repository, a stage with a condition), compiled by `AxesHarborTests` and run in Docker by hand; `exams/axes-answers` is a scripted exam with known answers for `compare` and `coverage` (its checks pass at a chance set by the configuration; `make.sh <dir>` makes its bank in a scratch root, no model), which `AnswersTests` runs part of; `python/` is `oracle_user.py`'s unittests, on stub `harbor` modules and captured `acpx` output, which `OracleHarborTests` runs with `python3` |
 | `docs/` | user-facing guides beyond the README: `getting-started.md`, clone to a first report in three steps (setup with every job skipped, then `playground`; setup's Gemini, then `readme-answers`; your own exam with your agent); `cli.md`, every verb and flag, what a try is and how one ends, what is live, the report files; `configuration.md`, the reference for exam, stage, axis, value, fixture, check and `proctor.json`; `porting-from-suites.md`, the map from tasks and variants (and from suites) to stages and axes; `porting-to-agent-neutral.md`, what an exam, its fixture and the machine need for a try through Harbor; `network.md`, what an agent's container can reach on any engine, what an allowlist is and is not, and how to see it (the page every engine guide points at); `service-fixtures.md`, how to write a fixture with services and what the agent can and cannot see of one; `docker.md`, what Docker needs, rootless and its bridge's range, what a trial leaves, and macOS marked not run; `podman.md`, what a machine needs for `harbor.engine: podman`, why, and a sandbox for Harbor |
 | `skills/proctor-answers/` | the skill for an agent answering a person from `compare` and `coverage`: quote proctor's numbers, keep each inside its scope, link the evidence, and say which part is the agent's own recommendation |
 | `skills/proctor-exam/` | the onboarding skill a user copies into their agent's skills directory: plan an exam with the user (inventory, stages, checks, axes and the configurations to run, cost; a `PLAN.md` approved), then build it and prove its checks for free; only what a frontier model would not guess and proctor's gotchas, pointing at `docs/configuration.md` and the example exams for the rest |
-| `View/` | the viewer, auspex, moved in on 2026-11-24 (stage 1 of `project/plans/rename-to-auspex.md`): its own project (`View/Auspex.csproj`, ASP.NET, pages rendered on the server) and tests (`View/Auspex.Tests/`) in the same solution, not compiled into proctor. It reads the bank's files itself and calls proctor's code for what only proctor may work out (`View/Measured.cs`: an exam's configurations, `Answers.Compare`, `Answers.Coverage`), so proctor's internals are visible to it. It makes no model call. Its own notes are `View/CLAUDE.md`; its design notes are `project/view/` |
+| `View/` | the viewer, auspex, moved in on 2026-11-24 (stage 1 of `project/plans/rename-to-auspex.md`): its own project (`View/Auspex.View.csproj`, ASP.NET, pages rendered on the server) and tests (`View/Auspex.View.Tests/`) in the same solution, not compiled into proctor. It reads the bank's files itself and calls proctor's code for what only proctor may work out (`View/Measured.cs`: an exam's configurations, `Answers.Compare`, `Answers.Coverage`), so proctor's internals are visible to it. It makes no model call. Its own notes are `View/CLAUDE.md`; its design notes are `project/view/` |
 | `project/` | the brief, the plans, the learnings and the loose ends (`todo.md`); `archive/` holds built and dropped plans and the old bug notes, in the earlier words |
 
 The directories are for reading, not for namespaces: everything is
-`namespace Proctor`. The data directories `exams/`, `fixtures/`, `bench/`,
+`namespace Auspex` (the viewer is `Auspex.View`). The data directories `exams/`, `fixtures/`, `bench/`,
 `bank/`, `log/`, `exams-seen/` and `reports/` are lowercase and excluded from compilation in
-`Proctor.csproj`.
+`Auspex.csproj`.
 
 ## Conventions and gotchas
 
@@ -352,7 +352,7 @@ The directories are for reading, not for namespaces: everything is
   `project/plans/container-network-finish.md`; what was measured is `project/learnings/harbor.md`.
 - **The engine is on this machine; a second machine file picks another.** `--config <file>` on `list`, `run` and
   `grade` reads that file in place of `exams/proctor.json` (relative paths still against `exams/`;
-  `ProctorConfig.Source` is what messages call it). Modal, an engine off the machine, was taken out of the core on 2026-11-27 (`project/plans/remix.md`):
+  `AuspexConfig.Source` is what messages call it). Modal, an engine off the machine, was taken out of the core on 2026-11-27 (`project/plans/remix.md`):
   `harbor.engine: modal` is refused with where it went (`HarborConfig.GoneWhere`), the code is at the git tag
   `modal-in-core`, and its plan, guide and example file are in `project/archive/` (`modal-runs.md` lists what it
   touched). The path for a remote engine went with it, having no other user.
@@ -417,7 +417,7 @@ The directories are for reading, not for namespaces: everything is
   wrong, fix it in `stats.json` first. The unit is the try: each gives the
   correctness checks it held, of all that apply in its configuration, and
   its flagged steps. There is no HTML page: auspex is the viewer.
-- **Version and changelog.** `<Version>` in `Proctor.csproj` is what
+- **Version and changelog.** `<Version>` in `Auspex.csproj` is what
   `--version` prints and `versions.proctor` records. Before 1.0 a minor bump
   is a breaking change to the layout, a file format or the vocabulary, and
   `CHANGELOG.md` says what broke and what still reads the old form; bump
@@ -442,7 +442,7 @@ The directories are for reading, not for namespaces: everything is
   judge names one; Jev on OpenRouter's `/alpha/decisions` through a local
   gateway today; the wire format is the seam, not the vendor). Its answer
   is read unwrapped, `{model, answers, usage}`, as
-  `Proctor.Tests/fixtures/openrouter-decisions.json` captured it, and its
+  `Auspex.Tests/fixtures/openrouter-decisions.json` captured it, and its
   POST is hand-rolled on purpose: Microsoft.Extensions.AI has no decision
   abstraction and no .NET System One client is worth the dependency.
   `judge` goes through

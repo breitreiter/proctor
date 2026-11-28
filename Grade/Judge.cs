@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 using OpenAI;
 
-namespace Proctor;
+namespace Auspex;
 
 // The two model checks. `decide` asks a System One endpoint a typed question over a window and reads a probability;
 // `judge` asks a chat model a criterion over a window and reads a label with verbatim evidence, reasoning discarded.
@@ -73,15 +73,15 @@ sealed class JudgeClient
         }
     }
 
-    public static JudgeClient From(ProctorConfig config, List<string>? remaps, bool rejudge, Action<string>? note = null)
+    public static JudgeClient From(AuspexConfig config, List<string>? remaps, bool rejudge, Action<string>? note = null)
     {
         var remap = new Dictionary<string, string>();
         foreach (var r in remaps ?? [])
         {
             var parts = r.Split('=', 2);
-            if (parts.Length != 2 || parts.Any(string.IsNullOrWhiteSpace)) throw new ProctorException($"--judge expects from=to, got '{r}'");
+            if (parts.Length != 2 || parts.Any(string.IsNullOrWhiteSpace)) throw new AuspexException($"--judge expects from=to, got '{r}'");
             foreach (var name in parts)
-                if (config.Judges?.ContainsKey(name) != true) throw new ProctorException($"--judge {r}: no judge '{name}' in exams/proctor.json");
+                if (config.Judges?.ContainsKey(name) != true) throw new AuspexException($"--judge {r}: no judge '{name}' in exams/proctor.json");
             remap[parts[0]] = parts[1];
         }
         return new JudgeClient { Defs = config.Judges ?? [], Remap = remap, Rejudge = rejudge, Note = note ?? (_ => { }) };
@@ -92,13 +92,13 @@ sealed class JudgeClient
     {
         var declared = Declared(kind, with, check);
         if (!Remap.TryGetValue(declared.Name, out var to)) return declared;
-        if (Defs[to].Kind != kind) throw new ProctorException($"--judge {declared.Name}={to}: '{to}' is {Defs[to].Kind}; check '{check}' needs {kind}");
+        if (Defs[to].Kind != kind) throw new AuspexException($"--judge {declared.Name}={to}: '{to}' is {Defs[to].Kind}; check '{check}' needs {kind}");
         return (to, Defs[to]);
     }
 
     /// <summary>The judge the exam declares for a check, remap aside.</summary>
     public (string Name, JudgeDef Def) Declared(string kind, string? with, string check) =>
-        Judges.Resolve(Defs, kind, with, out var problem) ?? throw new ProctorException($"check '{check}': {problem}");
+        Judges.Resolve(Defs, kind, with, out var problem) ?? throw new AuspexException($"check '{check}': {problem}");
 
     /// <summary>Whether a comparison pass touches this check: its declared judge is remapped.</summary>
     public bool Remaps(string name, JsonObject spec, string check) =>
@@ -244,7 +244,7 @@ static class Judge
 
     public static Verdict Evaluate(string name, JsonObject spec, string check, AttemptContext attempt, Transcript t)
     {
-        var client = attempt.Judges ?? throw new ProctorException($"check '{check}': grading a {name} check needs the judges of exams/proctor.json");
+        var client = attempt.Judges ?? throw new AuspexException($"check '{check}': grading a {name} check needs the judges of exams/proctor.json");
         var (judge, def) = client.Resolve(KindOf(name), (spec["with"] as JsonValue)?.GetValue<string>(), check);
 
         // What the stage supplies under the check's name: the expectation itself, or {ask, expect} when the question is the stage's too.
@@ -302,7 +302,7 @@ static class Judge
         {
             return Save(call, hash, request, [], [new JudgeVote(null, null, null, null, e.Message)], null, null, started, Verdict.Err($"decide: {e.Message}"));
         }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException or ProctorException or JudgeHttpException)
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException or AuspexException or JudgeHttpException)
         {
             return Save(call, hash, request, [], [new JudgeVote(null, null, null, null, e.Message)], null, null, started,
                 Verdict.Err($"decide: {call.Judge} did not answer: {FirstLine(e.Message)}"));
@@ -378,7 +378,7 @@ static class Judge
         long? input = null, output = null;
         IChatClient chat;
         try { chat = call.Client.ChatClient(call.Def with { Endpoint = call.Def.ResolvedEndpoint(call.Judge) }, call.Def.ResolvedKey(call.Judge)); }
-        catch (Exception e) when (e is UriFormatException or ProctorException)
+        catch (Exception e) when (e is UriFormatException or AuspexException)
         {
             return Save(call, hash, request, [], [new JudgeVote(null, null, null, null, e.Message)], null, null, started, Verdict.Err($"judge: {call.Judge}: {FirstLine(e.Message)}"));
         }
