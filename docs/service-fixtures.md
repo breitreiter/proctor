@@ -66,14 +66,12 @@ services:
   Proctor adds one line for it (below); if you declare `main` yourself,
   yours is kept and proctor's is not added.
 
-Two directories appear beside the compose file for a service to mount:
+One directory appears beside the compose file for a service to mount:
 
-- `./bundle`: the variant's bundle, empty for a variant with none. A
-  docs service mounts it and serves it, so the agent reads the docs over
-  HTTP and cannot search them on disk.
-- `./params/<NAME>`: each tree parameter of an exam with axes, empty
-  when the configuration sets none. `fixtures/tern-shop`'s docs site
-  serves `./params/DOCS`.
+- `./params/<NAME>`: each tree parameter the fixture declares, empty
+  when the configuration sets none. A docs service mounts one and serves
+  it, so the agent reads the docs over HTTP and cannot search them on
+  disk. `fixtures/tern-shop`'s docs site serves `./params/DOCS`.
 
 ## What the agent can and cannot see
 

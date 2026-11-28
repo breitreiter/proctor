@@ -1,6 +1,6 @@
 # What an agent can reach
 
-An agent variant runs in a container, through
+A coding agent runs in a container, through
 [Harbor](https://github.com/harbor-framework/harbor), and proctor
 compiles what that container may reach on the network. This page says
 what that is, what it is not, and how to see it for yourself. The engine
@@ -11,7 +11,7 @@ Checked on 2026-11-27 with Harbor 0.26.0, on rootless podman 5.7.0 and
 rootless Docker 29.1.3, both on Linux. Not run: rootful Docker, Docker Desktop, any engine on macOS or
 Windows.
 
-None of this applies to a variant with no agent. Bare nb runs on your
+None of this applies to nb run bare. Bare nb runs on your
 machine, or in whatever the exam's `nb.runner` starts, with that
 process's network.
 
@@ -127,7 +127,7 @@ The key is in the agent's container, since the agent's own CLI makes the
 calls. An agent can therefore call your gateway outside its harness: any
 route and any model that key serves, with no record in the trajectory.
 The relay carries bytes and holds no key, so it does not change this.
-Give agent variants a key that serves only the routes the exam needs, if
+Give the agents a key that serves only the routes the exam needs, if
 your gateway can issue one.
 
 ## Vendor web tools are off
@@ -150,7 +150,7 @@ VM's kernel (2527, 2593).
 ## Seeing it for yourself
 
 - A run's compiled tasks are under
-  `log/<id>/harbor/tasks/<variant>/<task>/`. `task.toml` holds the policy
+  `log/<id>/harbor/tasks/<configuration>/<exam>/`. `task.toml` holds the policy
   (`network_mode` and `allowed_hosts`, the same under `[agent]` and
   `[environment]`), and `environment/docker-compose.yaml` the services
   beside the agent, the relay among them.

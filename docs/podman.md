@@ -1,4 +1,4 @@
-# Agent variants on rootless podman
+# Coding agents on rootless podman
 
 What a machine needs before `harbor.engine: podman` works, and why each
 step is there. Checked on 2026-10-27 with rootless podman 5.7.0 on Ubuntu,
@@ -204,7 +204,7 @@ Harbor pins its own version but not its dependencies', and one of them
 (litellm 1.107.0, 2026-10-21) shipped a credential stealer that ran at
 every Python startup. Proctor resolves Harbor's dependencies under a
 seven-day cooldown, which keeps out a poisoned release pulled within the
-week. If the account that runs agent variants also holds keys worth stealing
+week. If the account that runs the agents also holds keys worth stealing
 (`~/.ssh`, a GitHub token, an AI client's credentials), `harbor.uv` can
 point at a wrapper that runs uv in a bubblewrap sandbox with the home
 directory hidden:
@@ -251,7 +251,7 @@ exec bwrap \
 - Harbor's working directory (the attempt, under `bank/`, and the compiled tasks, under `log/`) must be visible
   and writable inside; add a `--bind` for it if it lies under `$HOME`,
   `/tmp` or another hidden path.
-- An `agent: nb` variant also passes its provider endpoint's `${VAR}`s by value;
+- nb through Harbor also passes its provider endpoint's `${VAR}`s by value;
   add them to the list.
 - This stops a dependency that reads credential files. It does not stop
   one that drives the podman socket, which can start a container mounting

@@ -1,107 +1,141 @@
-# Porting a suite to an exam
+# Porting an exam to stages and axes
 
-A suite written for proctor 0.3 or earlier (`suites/<id>/suite.json`, its
-arms, its `tasks/`) does not load any more: old spellings are not accepted,
-and old runs are not read. This is what to change. The reference for every
-field is [`configuration.md`](configuration.md); the two worked examples
-are `exams/readme-answers` (a model answering, no sandbox) and
-`exams/tern-docs` (a coding agent in a container).
+An exam written as tasks and variants (`exams/<id>/tasks/`,
+`exams/<id>/variants/`), or a suite of proctor 0.3 or earlier
+(`suites/<id>/suite.json`, its arms), does not load any more. This is
+what to change. The reference for every field is
+[`configuration.md`](configuration.md); the worked examples are
+`exams/readme-answers` (a model answering, no sandbox),
+`exams/tern-docs` (a coding agent in a container) and
+`exams/code-change` (one question in three repositories).
+
+`proctor list <exam>` on an exam of the earlier shape says what it found
+and what each part becomes.
 
 ## The words
 
-| Then | Now |
-|---|---|
-| suite | exam |
-| arm | variant |
-| task | stage |
-| sample, cell | attempt: one try, every stage once |
-| experiment, `runs/<id>/` | the bank, `bank/<exam>/`: every attempt of the exam, whenever it was made |
-| baseline | the live variant |
+| Then | Before that | Now |
+|---|---|---|
+| exam | suite | exam |
+| task | task | stage |
+| variant | arm | a configuration: one value on every axis |
+| a variant's fields | an arm's fields | a value of an axis |
+| a variant's bundle | an arm's bundle | a value's `files`, or a tree parameter it sets |
+| attempt | sample, cell | a try is every stage once; an attempt is one stage of it |
+| the bank | experiment, `runs/<id>/` | the bank, `bank/<exam>/<try id>/` |
+| the live variant | baseline | the live value of an axis |
 
 ## The files
 
 | Then | Now |
 |---|---|
-| `suites/<id>/suite.json` | `exams/<id>/exam.json` |
-| `arms: [...]` in `suite.json` | one file per variant, `exams/<id>/variants/<variant>.json`; the file name is the id |
-| an arm's `description` | the variant's `note` |
-| an arm's `samples` | `attempts` on the exam, the same for every variant |
 | `tasks/<task>.json`, one per task | `stages: [...]` in `exam.json`, in the order they run |
-| a task's `fixture` | `fixture` on the exam, once |
+| a task's `fixture` | `fixture` on the exam, once; or an axis of worlds (below) |
 | a task's `description` | the stage's `about` |
 | a task's `labels` | the exam's `labels`; a stage has none |
-| `hooks.arm`, `hooks.sample` | `hooks.variant`, `hooks.attempt` (once around the try) |
-| `suites/proctor.json`, `suites/nb.json` | `exams/proctor.json`, `exams/nb.json`; `proctor setup` writes them |
-| `baseline.json`, `proctor baseline` | `live.json`, `proctor live <exam> <variant>` |
-| `runs/` in `.gitignore` | `bank/` |
+| `variants/<id>.json`, one per variant | a value under `axes` in `exam.json`, and a name under `configurations` |
+| a variant's `note` | the value's `note`: what it changes for the agent |
+| `runner: nb`, `harness`, `provider`, `model` | a value with `provider` and `model`; nb runs bare unless it says `"route": "harbor"` |
+| `agent: nb` | `"route": "harbor"` |
+| `agent`, `agent_version`, `model` | the same, on a value |
+| `bundle: {path}` or `{git, rev, paths}` | `files: {…}` (laid over the checkout), or `set: {NAME: {…}}` for a tree a service or the program reads |
+| `attempts` | the same: tries of every named configuration |
+| `hooks.variant`, `hooks.attempt` | `hooks.configuration`, `hooks.try` |
+| `live.json`, `proctor live` | `"live": "<value>"` on the axis |
+| `--variant`, `--tasks` | `--configuration <name>`, `--value axis=value`; a stage is never run alone |
 
-In `program.nb`, `{{arm}}` is `{{variant}}` and `{{sample}}` is
-`{{attempt}}`. In hooks and script checks:
+In `program.nb`, `{{variant}}` is `{{configuration}}`, and `{{bundle}}`
+is gone: files a value carries are under `{{work}}`, and a tree it sets
+is `{{param.NAME}}`. In hooks and script checks:
 
 | Then | Now |
 |---|---|
-| `PROCTOR_SUITE_DIR` | `PROCTOR_EXAM_DIR` |
-| `PROCTOR_ARM` | `PROCTOR_VARIANT` |
-| `PROCTOR_SAMPLE` | `PROCTOR_ATTEMPT` |
-| `PROCTOR_CELL` | `PROCTOR_ATTEMPT_DIR` |
-| `PROCTOR_EXPERIMENT` | gone; `PROCTOR_EXAM` names the exam |
+| `PROCTOR_VARIANT` | `PROCTOR_CONFIGURATION` (the key, `axis=value,…`), and `PROCTOR_AXIS_<NAME>` per axis |
+| `PROCTOR_BUNDLE`, `PROCTOR_BUNDLE_MOUNT` | gone; `PROCTOR_PARAM_<NAME>` for a parameter |
 | `PROCTOR_TASK`, `PROCTOR_TASK_JSON` | the same names; they hold the stage's id and the stage |
+| `PROCTOR_ATTEMPT` | the same name; the try's number |
 
-## A suite's tasks become one exam's stages, or several exams
+From a suite of 0.3 or earlier, also: `suites/` is `exams/`,
+`suite.json` is `exam.json`, `PROCTOR_SUITE_DIR` is `PROCTOR_EXAM_DIR`,
+`PROCTOR_ARM` is `PROCTOR_CONFIGURATION`, `PROCTOR_SAMPLE` is
+`PROCTOR_ATTEMPT`, `PROCTOR_CELL` is `PROCTOR_ATTEMPT_DIR`, and
+`PROCTOR_EXPERIMENT` is gone.
 
-An exam has one fixture, and every stage runs in it.
+## Variants become axes
 
-- **Every task names the same fixture:** one exam. Each task is a stage:
-  `id`, `about`, `prompt`, and its `expect` and own `checks` if it had
-  them.
-- **The tasks name different fixtures:** one exam per fixture. Copy the
-  grading, the program and the variants to each. A task alone on its
-  fixture is an exam of one stage.
-- **A task that fails on purpose** (a scripted outage, say) is an exam of
-  its own. A stage that does not run loses its whole try, so it would take
-  the stages beside it with it.
+Ask what the variants differed in. Each thing that was varied is an
+axis; each variant is then one value on each, which is a configuration,
+and you name the ones you ran.
 
-Then two questions the suite never asked:
+- **They differed in one thing** (two versions of the docs, on one
+  agent): one axis for that thing, and an `assistant` axis with the one
+  value that does the work.
+- **They were different agents and models:** one `assistant` axis, a
+  value each. Agent and model that only ever change together are one
+  axis, not two.
+- **They were a hand-written grid** (two doc sets on two models): two
+  axes, and the four configurations named.
+- **They differed by a hook** (a setup script branching on the variant's
+  id): move the difference into a value, as files or as a parameter the
+  hook reads (`PROCTOR_PARAM_<NAME>`), where proctor can see and hash it.
 
-- **Does a later stage need what an earlier one made?** In a suite every
-  task had a fresh checkout, and stages keep that: each starts from the
-  fixture as it was. Leave it so unless the work is one job done in steps;
-  then set `"chained": true` on the exam.
-- **How many tries?** `samples: 3` meant three of each task, and the
-  report's `n` was the task count. Now the `n` is tries, and a difference
-  from the live variant needs 4 tries a side to be confirmed (or 3 against
-  5). Set `attempts` to 4 or more for anything you mean to compare. The
-  model runs are variants × attempts × stages, as before.
+Mark the value in use as `"live"` on its axis. An axis nobody chooses
+gets a `"reference"` instead, or nothing if it has one value.
+
+## Tasks become stages
+
+- **Every task named the same fixture:** each task is a stage. A stage
+  starts from the workspace as the try began, as a task had a fresh
+  checkout.
+- **The tasks named different fixtures:** the fixture is an axis whose
+  values each name one (`"fixture": "ledger"`), and each stage says
+  which it belongs to (`"when": "repository = ledger"`). A try is then
+  one repository's stages, and the configurations to name are each
+  assistant in each repository.
+- **A task that fails on purpose** (a scripted outage), or one with an
+  answer sheet that is to run through Harbor, wants a try of its own: an
+  axis whose values each pick one stage (`"when": "script = fail"`), as
+  `exams/conformance` and `exams/gate-oracle` do. A stage that does not
+  run loses its whole try, so it would take the stages beside it with it.
+- **A hook that set up one task** has no place: a `try` hook runs once
+  around the try. Make it part of that world's fixture, or a stage's own
+  doing.
+
+Then two questions:
+
+- **Does a later stage need what an earlier one made?** Leave stages
+  fresh unless the work is one job done in steps; then set
+  `"chained": true`.
+- **How many tries?** The unit is the try, and a difference from what is
+  live needs 4 tries a side to be confirmed (or 3 against 5). Set
+  `attempts` to 4 or more for anything you mean to compare.
 
 ## What else changed
 
-- **A check is asked of each stage.** The exam's and the fixture's checks
-  apply to every stage with that stage's `expect`, as a suite's applied
-  to every task. `pass` and `validity` are listed the same way. A stage
-  failing a `validity` check leaves its try out of the comparison.
-- **A stage's `id` is its label on screen.** Two or three words, about 20
-  characters; a task's file name usually serves.
-- **An oracle** (a task's answer sheet for a simulated user) works on a
-  stage only when every variant is bare nb. With an agent variant, keep
-  it to an exam whose variants are all bare for now.
-- **Changing a stage makes every attempt of the exam stale**, where
-  changing a task touched only that task. Changing a check or an expected
-  value is still only a regrade.
-- **Arms that differed by a hook** (a setup script branching on the arm's
-  id) need the difference moved into each variant's `bundle`, where
-  proctor can see it.
-- **The commands take the exam, never a run's id.** `proctor run <exam>`
-  makes the attempts the exam lacks and continues after a crash; there is
-  no `resume`. `grade`, `friction` and `report` read every current
-  attempt. `report --against` and `--tolerance` are gone: mark a variant
-  live and the report compares the others with it.
+- **Changing a stage makes every try of the exam stale**, where changing
+  a task touched only that task. Changing a check or an expected value is
+  still only a regrade.
+- **A correctness check must reach every stage**, from the exam, the
+  fixture or the stage's own block.
+- **`run` makes what is named.** It no longer continues an interrupted
+  run: a try that was lost is made again, whole.
+- **The report is by configuration**, each value against its axis's live
+  one. `proctor compare` and `proctor coverage` answer the same as JSON.
+
+## The tries already made
+
+Attempts made under tasks and variants stay in `bank/<exam>/` and are
+read by nothing: what was under test is named and hashed another way,
+so they are no configuration's tries. `proctor list` says how many are
+there, and the viewer lists them from the exam's page, so their
+transcripts can still be opened. Make the tries again to have numbers.
 
 ## Check the port
 
 ```bash
 proctor list <exam>     # validates, and names what is wrong and where
+proctor build <exam>    # what each value changes, with nothing run
 ```
 
-Then prove the checks without a model, as the two examples do in
-`reference/shakedown.sh`, before a paid run. Results from `runs/` are not
-carried over: make the attempts again.
+Then prove the checks without a model, as the examples do in
+`reference/shakedown.sh`, before a paid run.

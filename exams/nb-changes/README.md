@@ -1,13 +1,16 @@
 # nb-changes
 
 From a bug report or a written contract, can a shipped coding agent make a change to nb, a .NET codebase of
-about 13,000 lines that it cannot read whole? Five tasks plant one defect each in nb at a pinned revision
-(one plants two; one plants none and reports documented behaviour as a bug); one asks for a feature. The plan,
-with why each task has the shape it has, is `project/archive/debugging-suite.md`.
+about 13,000 lines that it cannot read whole? Five stages report a defect in nb at a pinned revision (four of
+them planted, one of those two defects at once; the fifth reports documented behaviour as a bug); one asks for
+a feature. The plan, with why each has the shape it has, is `project/archive/debugging-suite.md` (written when
+they were tasks).
 
-Tasks carry `labels.kind`, `defect` or `feature`. Read the pass rate per kind.
+What is planted is an axis, `planted`, whose values each name a fixture; a stage belongs to the value it
+reports, so a try is the one or two stages of one repository. Read the results per kind: a stage carries no
+label, so the kind is in this table and not in the files.
 
-| Task | Kind | The agent is given | nb's own tests |
+| Stage | Kind | The agent is given | nb's own tests |
 |---|---|---|---|
 | `red-test` | defect | "the build is red" | 5 fail |
 | `report-only` | defect | a user's report with a program and what it compiles to | all pass |
@@ -18,22 +21,22 @@ Tasks carry `labels.kind`, `defect` or `feature`. Read the pass rate per kind.
 
 ## Fixtures
 
-Each planted task has its own fixture (`fixtures/nb-<task>`), so no task's defect is in another task's
-repository. `not-a-bug` and `ask-user-question` share `fixtures/nb-pinned`, nb unchanged. A fixture's source is
+Each planted defect has its own fixture (`fixtures/nb-<value>`), so no stage's defect is in another's
+repository. `not-a-bug` and `ask-user-question` share `fixtures/nb-pinned`, nb unchanged (`planted = none`). A fixture's source is
 nb's repository at the pin; the first `image.run` line applies `plant.patch` (carried in the line as base64)
 and makes the repository again, so the plant is in the only commit. Change a plant by editing `plant.patch`
-and putting its base64 in that line; `planted-present` fails every attempt if the two disagree.
+and putting its base64 in that line; `planted-present` fails every try if the two disagree.
 
 ## Checks
 
-`builds`, `acceptance` and `tests-green` decide a pass with `exit_ok`. `acceptance/<task>/` holds xunit files
-dropped into nb's test project for the one attempt, and `acceptance/<task>.sh` a script against the built nb on
-its Mock provider; the verifier is the only place either exists. `planted-present` is validity.
-`tests-untouched`, `diff-in-scope` and `named-cause` are guardrail rates.
+`builds`, `acceptance` and `tests-green` are the correctness checks, with `exit_ok`. `acceptance/<stage>/` holds
+xunit files dropped into nb's test project for the one stage, and `acceptance/<stage>.sh` a script against the
+built nb on its Mock provider; the verifier is the only place either exists. `planted-present` is integrity.
+`tests-untouched`, `diff-in-scope` and `named-cause` are observations.
 
 `not-a-bug` passes on an empty diff, which is also what giving up looks like. Its `named-cause` (the closing
-message names the page that documents the behaviour) is what tells the two apart, and it is a guardrail, not
-part of the pass.
+message names the page that documents the behaviour) is what tells the two apart, and it is an observation, not
+part of correctness.
 
 ## Proving the checks without a model
 

@@ -1,4 +1,4 @@
-# Agent variants on Docker
+# Coding agents on Docker
 
 Docker is the default engine (`harbor.engine: docker`, or no
 `harbor.engine` at all). It needs less setting up than podman. Rootless
@@ -143,7 +143,7 @@ from `exams/proctor.json`, or from a file you name in place of `1`.
 
 ## 7. macOS and Windows (not run)
 
-Nobody has run proctor's agent variants on Docker Desktop, OrbStack,
+Nobody has run coding agents under proctor on Docker Desktop, OrbStack,
 Colima or podman machine. What is known from outside:
 
 - Each runs containers in a Linux virtual machine. Harbor's allowlist
@@ -157,8 +157,8 @@ Colima or podman machine. What is known from outside:
 
 An exam and its fixtures do not change between machines: the engine is
 the machine's (`exams/proctor.json`), never the exam's. If the laptop
-cannot run agent variants, the exam can still be written and its checks
-proved there (bare nb, the reference scripts), and its agent variants
+cannot run coding agents, the exam can still be written and its checks
+proved there (bare nb, the reference scripts), and its agents
 run on a Linux machine.
 
 ## 8. Harbor without your credentials in reach

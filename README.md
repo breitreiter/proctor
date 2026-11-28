@@ -7,10 +7,10 @@ or MCP server. Proctor measures whether what you built helped an agent
 reach a goal or a correct answer, and whether your last change made it
 better or worse.
 
-You describe tasks and what "done" looks like. Proctor runs real agents
-against them in sandboxed environments, several times each, grades every
-attempt with checks you can read, and writes a report that says what changed,
-with a confidence interval around it.
+You describe the work and what "done" looks like. Proctor runs real agents
+at it in sandboxed environments, several times each, grades every try with
+checks you can read, and says what changed and whether so few tries can
+confirm it.
 
 ## Why measure
 
@@ -28,23 +28,24 @@ one good attempt doesn't mean the problem is gone.
 
 - **Coding agents.** Claude Code, Codex and Qwen Code run through
   [Harbor](https://github.com/harbor-framework/harbor), one container
-  per attempt, each pinned to a version. Each attempt gets a fresh checkout of a
-  fixture repository, and your MCP server, skill, docs or prompt as a
-  bundle the agent can reach. A variant is what is under test: an
-  agent, a model and a bundle, so two variants that differ only in the
-  bundle measure the bundle.
+  per try, each pinned to a version. Each try gets a fresh checkout of a
+  fixture repository, with your MCP server, skill, docs or prompt laid
+  into it or served beside it. What is under test is declared as axes:
+  the docs, the agent and model, the repository. A configuration is one
+  value on each, so two configurations that differ only in the docs
+  measure the docs.
 - **Assistants and conversations.** For an in-product assistant, a
   chatbot or a headless job, proctor bundles a lightweight harness: you
   supply the system prompt, the tools and the model, from any local or
-  hosted provider. A task can carry an *oracle*, what the user knows but
+  hosted provider. A stage can carry an *oracle*, what the user knows but
   did not say, and proctor plays the user when the model stops to ask.
 
 ## How it grades
 
-A check is one yes-or-no question asked of a finished attempt. Three kinds
-mix as an exam needs:
+A check is one yes-or-no question asked of a finished stage of a try.
+Three kinds mix as an exam needs:
 
-- **Static**, no model: how the attempt ended, turns and tool calls, wall
+- **Static**, no model: how it ended, turns and tool calls, wall
   time, whether the diff stayed in scope, your own tests against the
   result.
 - **Judge**: a model sees one named window of the transcript and one
@@ -54,30 +55,31 @@ mix as an exam needs:
 - **Classifier**: a typed classifier reads the window and returns a label
   with a probability, against a threshold.
 
-Proctor counts turns, tool calls and how an attempt ended from the trajectory
+Proctor counts turns, tool calls and how a stage ended from the trajectory
 itself, never from the agent's own report.
 
 ## The report
 
-One self-contained HTML page and a markdown twin. Every rate carries a
-95% interval and its counts; the minimum detectable effect is stated, so
-"no difference" can't stand in for "couldn't tell"; failures are listed by
-check with the judge's quoted evidence. No model writes any of it.
+Numbers as files (`stats.json`, `results.jsonl`) and a plain markdown
+summary, with a viewer (`View/`) for reading tries, transcripts and
+comparisons on a page. Mark the value in use as live on its axis, and
+every other value of that axis is compared with it, try against try,
+with every other axis held: better, worse or the same, and whether the
+tries made can confirm it. A comparison says what it could not have
+shown, so "no difference" can't stand in for "couldn't tell". No model
+writes any of it; a judge's role ends at a label and a quote.
 
-Until a variant is live, the report shows the variants side by side. Mark
-the one in use with `proctor live <exam> <variant>`, and every report after
-compares each other variant with it on the tasks they share: better, worse
-or the same, and whether the interval confirms it.
+`proctor compare` and `proctor coverage` give the same answers as JSON,
+for a coding agent answering a person.
 
-Two example reports from proctor's own exams are in
-[`docs/reports/`](docs/reports/), HTML only. They were rendered by an
-earlier version and use its words: suite for exam, arm for variant
-and baseline for the live variant.
+Two example reports are in [`docs/reports/`](docs/reports/), HTML only.
+They were rendered by a much earlier version, in its words and its
+shape, and are kept as they were.
 
 ## Install
 
-You need the .NET 10 SDK and git. Running coding agents also needs Docker
-or podman, and uv. Proctor is built from source for now, together with
+You need the .NET 10 SDK and git. Running coding agents also needs
+rootless podman (Docker works and is not maintained) and uv. Proctor is built from source for now, together with
 its bundled harness, which lives in a repository of its own:
 
 ```bash
@@ -109,7 +111,7 @@ a first report in three steps:
 The loop is always the same:
 
 ```bash
-proctor run <exam>      # makes the attempts the exam lacks; after a crash, the same command continues
+proctor run <exam>      # makes the tries the exam lacks; after a crash, the same command makes what was lost
 proctor grade <exam>
 proctor report <exam>   # reports/<exam>/explore/summary.md
 ```
@@ -117,13 +119,13 @@ proctor report <exam>   # reports/<exam>/explore/summary.md
 ## Documentation
 
 - [`docs/getting-started.md`](docs/getting-started.md): clone to first report
-- [`docs/cli.md`](docs/cli.md): every command and flag; the live variant
-- [`docs/configuration.md`](docs/configuration.md): exams, fixtures, stages, variants, judges, and the machine's config
+- [`docs/cli.md`](docs/cli.md): every command and flag; tries, what is live, the report
+- [`docs/configuration.md`](docs/configuration.md): exams, stages, axes and values, fixtures, checks, judges, and the machine's config
 - [`docs/network.md`](docs/network.md): what a coding agent's container can reach, and why
 - [`docs/service-fixtures.md`](docs/service-fixtures.md): a fixture that brings an API or a docs site the agent can call and cannot read
 - [`docs/podman.md`](docs/podman.md): running coding agents on rootless podman, the engine that is supported; [`docs/docker.md`](docs/docker.md) is not maintained
-- [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): moving an exam to coding-agent variants
-- [`docs/porting-from-suites.md`](docs/porting-from-suites.md): moving a suite from proctor 0.3 or earlier to an exam of stages
+- [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): what a fixture needs for a coding agent to run in it
+- [`docs/porting-from-suites.md`](docs/porting-from-suites.md): moving an exam of tasks and variants, or a suite of proctor 0.3 or earlier, to stages and axes
 
 ## What it is not
 

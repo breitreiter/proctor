@@ -34,12 +34,12 @@ otherwise (`nb.path`).
 
 ```bash
 proctor setup                   # skip every job for now: this writes the config the playground runs on
-proctor run playground          # makes its attempts; run it again and it has nothing to do
+proctor run playground          # makes its tries; run it again and it has nothing to do
 proctor grade playground
 proctor report playground       # then open reports/playground/explore/summary.md
 ```
 
-The playground's one variant is nb's Mock provider, which answers from a
+The playground's one configuration is nb on its Mock provider, which answers from a
 script in the prompt, so nothing leaves your machine. The point is to see
 the loop once (run, grade, report) and to read a report before anything
 real is measured. `exams/playground/README.md` says what each part shows.
