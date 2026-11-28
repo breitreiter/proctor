@@ -16,4 +16,4 @@ class QwenCodeAgent(QwenCode):
         result = await environment.exec(command=self.get_version_command())
         found = self.parse_version(result.stdout or "") if result.return_code == 0 else None
         if found != self._version:
-            raise RuntimeError(f"the image has Qwen Code {found or 'not installed'}, the variant pins {self._version}")
+            raise RuntimeError(f"the image has Qwen Code {found or 'not installed'}, the exam pins {self._version}")

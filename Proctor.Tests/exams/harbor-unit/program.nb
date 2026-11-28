@@ -1,2 +1,2 @@
-# harbor-unit: agent variants take the task prompt as their instruction; this template is for nb variants.
+# harbor-unit: a vendor's agent takes the stage's prompt as its instruction; this template is for nb.
 run {{prompt}}

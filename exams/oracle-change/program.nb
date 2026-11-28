@@ -1,5 +1,5 @@
-# oracle-change: code-change's template, except that someone answers. On the Harbor
-# variant the run is the simulated user's, so the template ends in its one run.
+# oracle-change: code-change's template, except that someone answers. Through Harbor
+# the run is the simulated user's, so the template ends in its one run.
 provider {{provider}}
 harness {{harness}}
 approval default deny

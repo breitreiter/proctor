@@ -61,3 +61,35 @@ project/view/**		# the viewer's design notes, moved in with it; they record what
 bundles/smoke/README.md	smoke eval's bundle	# the bundle's only file: rewording it changes the bundle's identity and so the smoke variant b's hash
 project/plans/site.md	"Evals" in the general sense|"eval" was once|evals, measure, grade	# evaluation in general: the site plan says where the word may stand
 project/plans/site-copy.md	eval cases|53% baseline|baseline 53%|agent-evals|suit evals	# evaluation in general, and Vercel's own words and URL, quoted in the site copy
+
+# Variant, gated since there is one shape (project/plans/axes-build.md, slice 7). These say the earlier shape by name.
+project/plans/**	variant	# plans written before or across the move to axes say what a variant was and what replaced it
+project/view/**	variant	# the viewer's design notes, dated, in the words of their day
+project/where-we-are.md	variant	# the working log names what was removed
+project/migrate/**	variant	# the migration script for the layout before the bank
+CLAUDE.md	variant	# names the word as an old one, the on-disk field kept as first written, and the refusals
+View/CLAUDE.md	variant	# names the word as an old one; the library's own attribute
+docs/porting-from-suites.md	variant	# the map from the earlier shape names its parts
+docs/cli.md	field `variant`	# the on-disk field kept as first written
+docs/index.html	variant	# the site, which another plan rewrites (project/plans/site.md)
+docs/providers.html	variant	# the site, which another plan rewrites (project/plans/site.md)
+**.cs	OnDisk\.Variants?|Variant = "variant"|\["variants?"\]|filed as "variant"	# the bank's and the report's field names, kept as first written until the binary is renamed
+Program.cs	variant	# refuses --variant and `live` with what replaced each
+Exam/Exam.cs	variant	# refuses the earlier shape and says what each part becomes
+Exam/Axes.cs	variant	# refuses variants/ beside axes
+Exam/Layout.cs	variant	# the earlier shape's directory, read only to refuse it
+Run/Bank.cs	variant	# counts the attempts made under the earlier shape
+Run/Runner.cs	variant	# says which log entries are of the earlier shape
+Verbs.cs	tasks and variants	# list says how many attempts of the earlier shape are in the bank
+Proctor.Tests/AxesTests.cs	variant	# tests the refusal of variants/ beside axes
+Proctor.Tests/ExamTests.cs	variant	# tests the refusal of hooks.variant
+View/**.cs	variant	# the viewer reads the earlier layout, filed by variant, and the library's own attribute
+View/assets/**	variant	# Web Awesome's own attribute and CSS, vendored
+View/Auspex.Tests/**	variant	# a sample bank in the earlier layout
+exams/agent-onboarding/trial/run.sh	variant	# reads results.jsonl, where a configuration's key is the field `variant`
+exams/exam-authoring/trial/run.sh	variant	# reads results.jsonl, where a configuration's key is the field `variant`
+exams/tern-docs/**	PROCTOR_VARIANT	# 72 paid tries in the bank: a file here is not edited for a word (the variable is unset and unread)
+fixtures/tern-shop/README.md	variant	# beside 72 paid tries: not edited for a word
+docs/porting-from-suites.md		# the map from the earlier shapes names every earlier word
+**	porting-from-suites\.md	# the guide's file name
+CLAUDE.md	both suites	# the two test suites, proctor's and the viewer's

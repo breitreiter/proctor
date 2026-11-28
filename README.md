@@ -125,7 +125,7 @@ proctor report <exam>   # reports/<exam>/explore/summary.md
 - [`docs/service-fixtures.md`](docs/service-fixtures.md): a fixture that brings an API or a docs site the agent can call and cannot read
 - [`docs/podman.md`](docs/podman.md): running coding agents on rootless podman, the engine that is supported; [`docs/docker.md`](docs/docker.md) is not maintained
 - [`docs/porting-to-agent-neutral.md`](docs/porting-to-agent-neutral.md): what a fixture needs for a coding agent to run in it
-- [`docs/porting-from-suites.md`](docs/porting-from-suites.md): moving an exam of tasks and variants, or a suite of proctor 0.3 or earlier, to stages and axes
+- [`docs/porting-from-suites.md`](docs/porting-from-suites.md): moving an exam of the earlier shapes to stages and axes
 
 ## What it is not
 

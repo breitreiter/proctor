@@ -172,7 +172,7 @@ combinations.json   written by `proctor build`
 
 `exams/readme-answers` (nb, bare, no tools) and `exams/tern-docs` (a
 coding agent in a container) are the two to read first. Coming from an
-exam of tasks and variants: [`porting-from-suites.md`](porting-from-suites.md)
+exam of the earlier shape: [`porting-from-suites.md`](porting-from-suites.md)
 has the map.
 
 ```json

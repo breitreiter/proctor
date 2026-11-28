@@ -14,8 +14,15 @@ formats or the vocabulary; a patch bump does not.
   that way is refused with what each part becomes: a task is a stage of
   `exam.json`, a variant's fields are a value of an axis, a bundle is a
   value's `files` or a tree parameter it sets, and what is live is
-  `"live"` on an axis. Every exam in the repository is ported but
-  `agent-onboarding` and `exam-authoring`, which follow.
+  `"live"` on an axis. Every exam in the repository is ported.
+  `docs/porting-from-suites.md` is the map.
+- **A value's `files`, and a tree parameter, may come from a git
+  revision**: `{"git": url, "rev": sha, "paths": [...]}`, cloned once
+  under `.proctor/files/`. A path the revision lacks stops the run.
+- **`exam-authoring` lost `continue-the-batch`**, its workspace
+  (`fixtures/authoring-interrupted`) and its two checks: there is no
+  run to continue. Both authoring exams now ask for, and grade, exams
+  of stages and axes.
 - **Breaking: attempts made under tasks and variants are no longer
   read.** They stay in `bank/<exam>/` where they were made; `list` says
   how many, and the viewer lists them on an exam's page ("earlier

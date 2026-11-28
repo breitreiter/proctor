@@ -11,7 +11,7 @@ tmp=$(mktemp -d)
 for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   stage=$(jq -c --arg c "$c" '.stages[] | select(.id == $c)' "$here/exam.json")
   f=$(jq -r --arg c "$c" '. as $e | .stages[] | select(.id == $c) | .when | capture("^(?<a>[a-z_-]+) = (?<v>.+)$") | $e.axes[.a].values[.v].fixture' "$here/exam.json")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_CONFIGURATION=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work"
   export PROCTOR_TASK_JSON="$stage" PROCTOR_EXPECT="$(jq -c .expect <<<"$stage")"
   export PROCTOR_TRANSCRIPT="$PROCTOR_ATTEMPT_DIR/transcript.jsonl" PROCTOR_DIFF="$PROCTOR_ATTEMPT_DIR/diff.patch"
