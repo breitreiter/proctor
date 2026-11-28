@@ -1,19 +1,60 @@
 # Getting started
 
-Three steps, each a little more real than the last: an exam that needs
-nothing, an exam on a free hosted model, then an exam of your own. Allow
-half an hour for the first two.
+Proctor measures how well coding agents and models work with something you
+built, such as a CLI, an SDK, documentation or a prompt. You write an exam,
+proctor runs agents or models through its stages, grades each stage with
+checks, and reports how one version of your work compares with another.
+The counting and the report are done by deterministic code, with no model
+involved.
+
+This page takes you from a clone to a first report, then to an exam of your
+own. Each step says who does it. Allow half an hour for steps 1 and 2.
+
+## If you are a coding agent
+
+Follow these rules through every step of this page.
+
+- **Never handle an API key.** Do not ask for, read, echo or write one, in
+  a command, a file or a message. Keys are kept in the user's env
+  file (`~/.config/proctor/env`, or `%LOCALAPPDATA%\proctor\env` on
+  Windows), outside the repository. Do not open that file. Config files
+  under `exams/` refer to keys as `${VAR}` and must stay that way.
+- **`proctor setup` belongs to the user.** It is interactive, asks for keys
+  at a hidden prompt, and exits with code 2 when there is no terminal. Ask
+  the user to run it in their own terminal and say which choices to make.
+- **Read the state with `proctor setup --check`.** It prints one plain line
+  per provider and per job and never shows a key. A line that starts with
+  `problem:` says what to fix, and the exit code is then 1. The models each
+  key can reach are listed in `exams/setup.json`. `--probe` repeats each key
+  check, which lists models and spends no tokens.
+- **Agree the spend before any run that calls a hosted model.** Estimate
+  the requests (configurations × `attempts` × stages) and get the user's
+  yes first. Exams on nb's Mock provider cost nothing, and
+  `readme-answers` fits in Gemini's free tier.
+- **Plan an exam with the shipped skill**, `skills/proctor-exam/`. It
+  covers planning with the user, building the files, and proving the checks
+  for free before a paid run.
+- **Leave the machine's files out of git.** Setup writes
+  `exams/proctor.json`, `exams/nb.json`, `exams/setup.json` and
+  `exams/sandbox-plan.md`, and lists them in `exams/.gitignore`. Edit only
+  the entries an exam needs.
+- **Never open the host's loopback interface to containers**, and never
+  suggest it. A model or dev server on the user's machine is named as
+  `localhost`, and proctor relays that one port. The rules are in
+  `docs/network.md`.
 
 ## 0. Install
 
+Who: you or your agent.
+
 You need the .NET 10 SDK, git, and Node 22 (the first fixture is a small
-TypeScript CLI). Proctor and nb are built from source for now; released
-binaries will make this step shorter.
+TypeScript CLI). Proctor and its built-in harness, nb, are built from
+source for now.
 
 ```bash
 git clone https://github.com/breitreiter/nb && (cd nb && dotnet build)
 git clone https://github.com/breitreiter/proctor && cd proctor && dotnet build
-export PATH="$PWD/../nb/bin/Debug/net10.0:$PATH"
+export PATH="$PWD/../nb/bin/Debug/net10.0:$PATH"            # proctor finds nb on PATH
 alias proctor="dotnet $PWD/bin/Debug/net10.0/proctor.dll"
 ```
 
@@ -26,97 +67,106 @@ $env:PATH = "$PWD\..\nb\bin\Debug\net10.0;$env:PATH"
 function proctor { dotnet "$PWD\bin\Debug\net10.0\proctor.dll" @args }
 ```
 
-Put the PATH line and the alias (or the function) in your shell profile to
-keep them. Proctor finds nb on PATH unless `exams/proctor.json` says
-otherwise (`nb.path`).
+Put the PATH line and the alias (or the function) in your shell profile.
+Windows runs the built-in harness, which covers steps 1 to 3; the sandbox
+in step 4 needs Linux.
 
-## 1. The playground: no model, no key
+## 1. The playground, with no model and no key
+
+Who: you run `proctor setup`. You or your agent run the rest.
 
 ```bash
-proctor setup                   # skip every job for now: this writes the config the playground runs on
-proctor run playground          # makes its tries; run it again and it has nothing to do
+proctor setup                   # you, in a terminal: choose "Skip for now" at every job
+proctor run playground          # makes its tries; run again, it has nothing to do
 proctor grade playground
 proctor report playground       # then open reports/playground/explore/summary.md
 ```
 
-The playground's one configuration is nb on its Mock provider, which answers from a
-script in the prompt, so nothing leaves your machine. The point is to see
-the loop once (run, grade, report) and to read a report before anything
-real is measured. `exams/playground/README.md` says what each part shows.
+Skipping every job still writes the config the playground runs on. Its one
+configuration is nb on the Mock provider, which answers from a script in
+the prompt, so nothing leaves your machine. This is the loop once (run,
+grade, report), with a report to read before you measure anything.
+`exams/playground/README.md` explains each part of the exam.
 
-## 2. A real model: `proctor setup` again, then `readme-answers`
+## 2. A hosted model on Gemini's free tier
 
-```bash
-proctor setup
-```
+Who: you run `proctor setup` and enter the key. You or your agent run the
+rest.
 
-Setup is a short wizard, one job at a time; run again, it opens on a menu
-of the jobs. Run it in a terminal yourself,
-not through a coding agent: it asks for API keys at a hidden prompt and
-writes them to a file in your user profile (`~/.config/proctor/env`, or
-`%LOCALAPPDATA%\proctor\env` on Windows), never to this repository. The
-config files it writes in `exams/` refer to keys by name and are
-gitignored.
+Run `proctor setup` again. This time it opens on a menu of jobs.
 
-For this step you need one job, the built-in harness, on one provider:
-
-1. Choose **Built-in harness**, then *Add a provider*, then *Gemini*.
-   Setup prints where to get a key; Google AI Studio's free tier needs no
-   card. Paste the key. Setup checks it by listing the models it can reach,
-   which costs nothing. Keep the suggested name, `gemini`.
-2. Choose *Done*, then *Done* again. Run `proctor setup` whenever you want
-   another job.
-
-Then:
+1. Choose **Built-in harness**, then *Add a provider*, then *Gemini
+   (Google AI Studio)*. Setup prints where to get a key, and the free tier
+   needs no card. Paste the key at the hidden prompt. Setup checks it by
+   listing the models it can reach, which costs nothing. Keep the suggested
+   name, `gemini`, because the exam names its provider that way.
+2. Choose *Done*, then *Done* again.
 
 ```bash
-proctor run readme-answers      # if it stops part way (a throttle, a closed laptop), run it again: it continues where it stopped
+proctor setup --check                 # agent: confirm "job nb: ready (gemini)"
+proctor run readme-answers            # if it stops part way, run it again
 proctor grade readme-answers
-proctor report readme-answers
+proctor report readme-answers         # then open reports/readme-answers/explore/summary.md
+proctor compare readme-answers docs=for-scripts   # the same comparison as JSON
 ```
 
 `readme-answers` asks Gemini Flash-Lite six questions about the
-playground's CLI, answered from its README alone, under two versions of
-that README. The README as it ships is the live one, so the report gives
-the other version's difference from it: a documentation change, measured
-try against try. `proctor compare readme-answers docs=for-scripts` gives
-the same comparison as JSON, for an agent to read.
+playground's CLI, answered from its README alone. Its `docs` axis has two
+values: `as-shipped`, the live value, is the README as it ships, and
+`for-scripts` adds a section on using the CLI from a script. The report
+shows how `for-scripts` differs from `as-shipped`, try against try.
 
-It is 36 requests, free on Gemini's free tier
-(whose requests Google may use to improve its models), and takes a few
-minutes because a free tier allows only a few requests a minute.
-`exams/readme-answers/README.md` says what to expect.
+The run is 48 requests. On Gemini's free tier that costs nothing, though
+Google may use free-tier requests to improve its models. The free tier
+allows only a few requests a minute, so the run takes a few minutes.
+`exams/readme-answers/README.md` says what result to expect.
 
 ## 3. Your own exam
 
-What to measure is your project's question, so this step is a conversation
-with your coding agent. Proctor ships a skill for it,
-`skills/proctor-exam/`: copy that directory into your agent's skills
-directory (`~/.claude/skills/` for Claude Code, `~/.codex/skills/` for
-Codex), then, in your own repository, ask the agent to help you plan a
-proctor exam. It inventories your project with you, proposes what an
-agent should be able to do with what you built and how you would know it
-did, and builds the exam once you agree. Without the skill, ask it to
-read this repository's `README.md` and `docs/configuration.md` first.
-Two things it can read for itself:
+Who: you and your agent together. You approve the plan and any spend.
 
-- `proctor setup --check` prints what is set up on this machine, which
-  providers you have and what is missing, in plain lines meant for an
-  agent; `exams/setup.json` beside it lists the models each key could
-  reach. Neither holds a key.
-- `exams/` holds worked examples: `readme-answers` for a question answered
-  from a document, `cli-for-agents` for a code change checked by running
-  the result, `exam-authoring` for an agent that writes exams.
+Copy `skills/proctor-exam/` into your agent's skills directory
+(`~/.claude/skills/` for Claude Code, `~/.codex/skills/` for Codex). Then,
+in your own repository, ask the agent to help you plan a proctor exam. It
+goes through your project with you, proposes the stages and the check for
+each one, writes the plan as `exams/<id>/PLAN.md`, and builds the exam
+after you approve it. Without the skill, ask the agent to read this
+repository's `README.md` and `docs/configuration.md` first.
 
-Your agent should never handle a key. When an exam needs a provider you
-have not added, run `proctor setup` yourself.
+The agent has worked examples in `exams/` to read. `readme-answers` is a
+model answering from a document, `tern-docs` is a coding agent with docs
+served beside it, and `code-change` asks one question in three
+repositories.
 
-**Claude Code, Codex and other coding agents** run inside a sandbox
-(Harbor, in containers), since an agent under test is often given vague or
-risky instructions on purpose. In `proctor setup`, choose *On this machine*
-at **2. Sandbox**: setup looks at what is installed and writes
-`exams/sandbox-plan.md`, a brief for your coding agent to finish the job
-with you. What it needs and why is in `docs/docker.md` or
-`docs/podman.md`, and what the agent can then reach is in
-`docs/network.md`. Exams on the built-in harness, like
-the two above, need no sandbox.
+Before any paid run, the agent proves the checks with no model and shows
+you the cost. These commands are free:
+
+```bash
+proctor list <id>               # validates the exam and shows its configurations
+proctor build <id>              # shows what each value changes, with nothing run
+```
+
+When the exam needs a provider you have not added, run `proctor setup`.
+
+## 4. The sandbox, for coding agents under test
+
+Who: you choose it in `proctor setup`. Your agent helps you finish it.
+
+Claude Code, Codex and other coding agents under test run in containers
+through Harbor, because an agent under test is often given vague or risky
+instructions on purpose. Exams on the built-in harness, like the two
+above, need no sandbox.
+
+The supported platform is rootless podman on Arch and Ubuntu, with uv
+installed. Docker is not maintained and macOS is not run. Start with
+`docs/podman.md`, which lists what the machine needs and why.
+
+In `proctor setup`, choose **Sandbox**, then *On this machine*. Setup looks
+at what is installed and writes `exams/sandbox-plan.md`, a brief for your
+agent that says what proctor needs. Ask the agent to read the plan and
+`docs/podman.md`, then work through it with you. You run the steps that
+need root yourself. `docs/network.md` describes what an agent's
+container can reach once the sandbox works.
+
+The Claude Code and Codex jobs in `proctor setup` come after the sandbox.
+You enter an API key for each.

@@ -79,6 +79,41 @@ Auspex can run a user-simulator agent that provides sensible answers from a cont
 
 6. **Change one thing and run again.** Edit the docs or move to another model, then compare. The report says whether the two differ or whether there are too few attempts to tell.
 
+## 6. What you'll need
+
+## What you'll need
+
+| What | What it's for | Can you do without it? |
+|---|---|---|
+| A coding agent you already use | Plans and builds exams with you | Yes, though the docs are written for an agent |
+| Linux with rootless podman, plus uv | Containers for the agents you measure. Arch and Ubuntu are supported. | Partly. Claude Code, Codex and Qwen Code need it; the bundled harness doesn't. |
+| .NET 10 SDK and git | Building from source | No, until binaries ship |
+| A key for each agent you measure | Anthropic for Claude Code, OpenAI for Codex | Yes. The bundled harness runs on a local or free model. |
+| A key for a judge model | Checks where a model reads the transcript | Yes, if every check is deterministic |
+| A key for a decider model | Classification checks, where a small model returns a label and a probability | Yes, by leaving those checks out |
+
+Pick a judge from a model family you aren't measuring, because a model tends to favor its own family's work. With Claude and GPT under test, that means an open model such as GLM or Kimi, through OpenRouter or z.ai.
+
+A sweep of Claude Code and Codex takes four keys. OpenRouter serves judges and deciders, so one key there can cover both.
+
+The playground exam needs no model and no key, and ends in a full report. If your setup can't meet this list, see Remix.
+
+[Remix]
+
+## 8. Remix, license, repository
+
+## Remix, license, repository
+
+One person maintains Auspex. Covering every setup is out of scope, and Docker and macOS are unmaintained.
+
+Your code can read its files and call its commands. Exams, attempts and reports are plain JSON and markdown in named, versioned formats, and commands can answer in JSON. What's promised about these is written down, so an upgrade is a version bump. In a fork of the C#, nothing is promised and internals change weekly.
+
+The remix guide is written for your coding agent, with recipes such as another container engine or your own report page. A feature request gets built if it's cheap or daily work needs it, and gets a recipe if not.
+
+Auspex is free under the MIT license.
+
+[Remix guide] [Repository]
+
 ## Notes
 
 Adversarial pass done, 2026-11-27.
@@ -109,3 +144,31 @@ I read these pages through a fetch tool that summarises, so the quoted strings a
 - Step 2 says the shakedown shows each check "passes a good attempt and fails a bad one". The sheet says only that the checks are proved for free. Cut the clause if that is not what the shakedown scripts do.
 - Step 3 says a vague prompt or broken fixture shows up on the cheap model. That is my reason for the step; the sheet gives none.
 - Step 4 says "several attempts per configuration", from the product description's "several times each".
+
+### Sections 6 and 8
+
+Left out, and why:
+
+- **Qwen Code in the podman row.** Added in the adversarial pass: Claude Code, Codex and Qwen Code all need the sandbox.
+- **app.auspex.bot and "the project holds nothing of yours".** Neither is something a reader needs before installing. It fits a privacy line near "See a report".
+- **nb by name.** "The bundled harness", as in the sheet and as sections 1 to 4 avoid the name.
+- **Keys entered at a hidden prompt, never through the agent.** Drafted and cut for length. A reader counting keys will ask where they go, so it is worth a line on the setup page.
+- **"Fewer agents, fewer keys."** The table's fourth row says a key per agent you measure.
+- **"Released binaries later" as its own sentence.** The table cell "No, until binaries ship" carries it.
+- **Typesafe, and the provider lists in full.** The judge paragraph names OpenRouter and z.ai; the four-key paragraph names only OpenRouter, the one that covers both. The section was over length and I could not confirm Typesafe.
+- **"The repo is written for an agent to work in" and "someone who needs Docker or macOS can own a recipe".** Cut for length from section 8; both belong on the remix page.
+- **"People with coding agents increasingly build their own tools."** A trend claim with no source, and the section reads the same without it.
+- **"Small on purpose" and the podman platform line in section 8.** Section 6 already states the supported platform; section 8 keeps only what is new there, that Docker and macOS are unmaintained.
+- **"Auspex unchanged" in the beside paragraph.** Implied by "an upgrade is a version bump".
+- **The link from section 8's stance back to section 6.** One direction is enough.
+
+Added or changed beyond the sheet:
+
+- **"A model tends to favor its own family's work"** where the sheet says "is biased". Softer, and closer to what the published self-preference results support.
+- **"One key there can cover the last two."** The sheet says one provider can cover both; the copy does not go on to say "three keys", since that is arithmetic the reader can do and a number I would be inventing.
+- **"Still ends in a full report"** for the playground exam. The sheet says it "needs nothing at all"; the copy says no model and no key, since it still needs the build tools in the table.
+- **"So an upgrade is a version bump."** The "so" ties the written promise to the upgrade; the sheet lists them as separate facts.
+- **"Covering every setup is out of scope"** for "not to be everything to everyone", reworded to avoid the contrast form.
+- **The closing line "Auspex is free under the MIT license."** Repeats the hero's wording so the section ends on a plain fact above the links.
+
+Adversarial pass on sections 6 and 8 done, 2026-11-28.
