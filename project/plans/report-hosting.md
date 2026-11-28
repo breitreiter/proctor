@@ -19,6 +19,20 @@ machine: the viewer, hosted, so a report can be shared by link.
   auspex is in invite-only alpha, and the tool itself is free in the
   repository (link). It is not an error page, and there is no sign-up
   form.
+- **The sign-in flow (the user, 2026-11-28):**
+  1. The site's home page has a "Sign in" link to the interstitial.
+  2. The interstitial, `app.auspex.bot/sign-in`, says that online auspex
+     is a closed beta and that the tool is free in the repository, and
+     carries a standard "Sign in with Google" button.
+  3. A failed sign-in comes back to the interstitial with an error above
+     the button. The error says which failure it was: Google sign-in
+     didn't complete, or the email isn't on the invite list (named, so a
+     person who used the wrong Google account can tell).
+  4. A successful sign-in goes to the account's exam list on
+     `app.auspex.bot`, or to the page it was going to when sign-in was
+     asked for.
+- **Signing in is never needed to read a public snapshot.** A public link
+  opens with no interstitial.
 - **A public mode: an exam shared publicly at a stable URL**, readable
   without signing in. We need it ourselves, for the site's evidence.
 - **Report hosting only.** No runs, no judges, no keys, and no model
@@ -144,7 +158,11 @@ API behind a static page, so Functions fits it badly. The proposal:
 - **Built-in authentication (Easy Auth) with the Google provider**, with
   anonymous requests allowed through. The app decides: a public snapshot
   is served to anyone, everything else needs a signed-in email on the
-  allowlist, and any other signed-in email gets the alpha page.
+  allowlist, and anyone else is sent to `/sign-in`, with the error when
+  they did sign in. The interstitial itself is anonymous. Check
+  that Easy Auth can return a failed or unlisted sign-in to our own page,
+  rather than to its own error. If it can't, the Google sign-in moves into
+  the app (ASP.NET's Google handler), which is a day's work.
 - **Blob Storage** for snapshots. No database: the allowlist is a file
   baked into the deploy for now, and a snapshot's flag lives in its
   `snapshot.json`.
