@@ -1154,6 +1154,39 @@ it" or "a flag" off the result is not proctor's (decision 17).
   `docs/porting-from-suites.md` are rewritten for axes.
 - `PROCTOR_VARIANT` becomes `PROCTOR_AXIS_<NAME>`.
 
+**Under way, 2026-11-27** (the user: "go ahead with slice 7"; Modal's removal, `remix.md`, was taken first, in the
+same files: commit `0364ac0`, tag `modal-in-core`). In stages, each a commit that leaves both suites green:
+
+1. **The exams ported.** Done but two: `playground`, `cli-for-agents`, `oracle-change`, `code-change`,
+   `nb-changes`, `smoke`, `gate`, `conformance`, and the test exam `harbor-unit`. What each became:
+   - `code-change`: `repository` is the world axis (a value names a fixture) and each stage belongs to one; agent and
+     model are one `assistant` axis; all fifteen configurations are named, since `run` makes what is named.
+   - `nb-changes`: `planted` is the world axis, its values the five fixtures as they are. The ports document proposed
+     one fixture with a `PLANTED` parameter; the fixtures were left alone, which needed no rebuild of anything.
+   - `gate`, `oracle-change`: a `route` axis, as `gate-oracle`. The gate's writing stage is second, so each route
+     is also held to starting the next stage from a clean workspace.
+   - `conformance`: `script` and `assistant` axes, a try one script's stage, as `gate-oracle`'s endings. An outage
+     then loses only its own try, which is what "`fail` apart" in the ports document was for.
+   - `smoke`: `assistant` and `extra` (files), four stages. The teardown hook that stood in for the agent's edit
+     became a stage that writes a file (finding 6).
+   - **Lost in the port:** a task's `labels` (a stage has none: `kind` on `code-change` and `nb-changes`).
+   - **Not ported yet:** `agent-onboarding` and `exam-authoring`. Their shape ports like the rest, but what they
+     hand the agent and grade it against is proctor's docs and example exams at a pinned revision, in the earlier
+     shape: the prompts, the reference exams, the planted attempts and the trial scripts all say tasks and variants.
+     They are rewritten last, against the docs as this slice leaves them, at a revision that exists only then.
+     `exam-authoring` also needs a value's files from a git revision, which `Axes.NotYet` still refuses.
+2. **The tests** moved to configurations and tries with the ports (`TestRepo.OneConfiguration`, `Run`, `StageDir`,
+   `TryDir`). Removed with what they tested: the tests of the earlier report, its statistics and the live mark.
+3. **The old path deleted** (next): `tasks/`, `variants/`, bundles, `live.json` and `proctor live`, `--variant` and
+   `--tasks`, `Stats.cs`, `Report.cs`, the `tries/1` report, continuing an interrupted run (a try is never taken up
+   part way, so only the old path used it), the viewer's page for an exam of variants.
+4. **The words**: variant out of code, flags, files and docs; `PROCTOR_VARIANT`; the hooks' names.
+5. **The docs, the skill and the two exams about proctor itself.**
+
+Found while porting, and fixed: the container name handed to hooks (`PROCTOR_CONTAINER`) changed with the stage and
+held `=` and `,` on an exam with axes, so no hook could have made a container by it (it is the try's now); the
+outdated summary told the user to move a directory that is not where a try is kept.
+
 ## Not in this plan
 
 - **The move-in and the rename** (`rename-to-auspex.md`): deferred
