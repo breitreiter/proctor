@@ -2,7 +2,7 @@
 type: plan
 title: Proctor becomes auspex — the viewer moves in, then the rename
 created: 2026-11-23
-status: reviewed against the code on 2026-11-28, after slice 7 of `axes-build.md` (see "Review, 2026-11-28", which replaces the stage 2 table, the schedule and step 7 of stage 1 where they differ). Stage 1 is done but for the old checkout. Stage 2 is not started and waits on the decisions listed there. Counts in the older sections are from 2026-11-23
+status: reviewed against the code on 2026-11-28, after slice 7 of `axes-build.md` (see "Review, 2026-11-28", which replaces the stage 2 table, the schedule and step 7 of stage 1 where they differ). Stage 1 is done but for the old checkout. Stage 2 is done through layer 4 (see "Done"). Counts in the older sections are from 2026-11-23
 ---
 
 # Proctor becomes auspex
@@ -151,6 +151,31 @@ user's to cut.
   machine every try made before is now an earlier attempt: `tern-docs` has
   none current. Left: the field `attempt`, `PROCTOR_ATTEMPT` and
   `{{attempt}}` hold a try's number, which the vocabulary calls a try.
+- **The merge, 2026-11-28.** `exam-variant-attempt` was fast-forwarded into
+  `master` and pushed; work lands on `master`. The other branches are untouched.
+- **A try's number, 2026-11-28** (`599e32e`; the user: the field names will
+  reach text agents write for people, so they keep to the vocabulary). The
+  number is `try_number` in the bank's files, `{{try_number}}` and
+  `AUSPEX_TRY_NUMBER`, because a manifest's `try` was already the try's id;
+  `exam.json`'s `attempts` is `tries`. `stats.json` still calls it `n`.
+- **Layer 2, 2026-11-28** (`cf2f6e6`). As planned. `Auspex.Results` hides
+  ASP.NET's `Results` from the viewer, which is in a child namespace now, so
+  `View/Server.cs` aliases it. Messages and docs still say proctor.
+- **Layer 3, 2026-11-28** (`798cbe4`). As planned, with the refusal the first
+  plan decided: a `PROCTOR_` variable set when a verb starts is refused with
+  its new name. A script that still reads one gets an empty value and is not
+  caught. `exam-authoring`'s trial always grades with the host's build, so it
+  needed no second name and layer 1's were removed; `agent-onboarding`'s
+  planted runner, which the pinned proctor runs in a real try, reads either
+  prefix until layer 10. `bench/` is a frozen 0.3 root and keeps its names.
+- **Layer 4, 2026-11-28** (`886c83a`). As planned, and wider: the env file is
+  `~/.config/auspex/env`, a log entry records `versions.auspex`, and
+  containers, images and volumes are `auspex-…`. The old config or env file
+  left in place is refused. On this machine `exams/proctor.json` and
+  `.proctor/` were moved and the `proctor-dotnet` image tagged
+  `auspex-dotnet`; the user's own `~/.config/proctor/env` is theirs to move.
+  `agent-onboarding`'s reference solutions carry `auspex.json`, ahead of the
+  pin: a real try of it, or of `exam-authoring`, waits for layer 10.
 
 ### To decide
 
@@ -159,10 +184,9 @@ user's to cut.
    `/srv/aiwork/proctor-private` (391 MB, not a repository) folds into it.
 3. Whether `project/trials/` is kept in it (712 files that quote
    transcripts) or dropped.
-4. Whether `exam-variant-attempt` merges to `master` before the rename,
-   and what becomes of the seven other branches.
-5. When layer 1 starts. It needs none of the above, only a tree the
-   other session is not writing code in.
+4. ~~Whether `exam-variant-attempt` merges first~~: merged. What becomes
+   of the eight other branches, two of them in worktrees, is open.
+5. ~~When layer 1 starts~~: done.
 
 In this plan, **the viewer** means today's auspex repository and
 **proctor** means this one, until stage 2 says otherwise.

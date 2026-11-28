@@ -76,6 +76,19 @@ is `tries` in `exam.json`; `stats.json` still calls a try's number `n`. Who does
 configuration is an `Assistant` (`Axes.AssistantOf`), whose `Id` is the
 configuration's key.
 
+**The rename to auspex is half done** (2026-11-28, layers 2 to 4 of the same
+plan, whose "Done" section says what each did). The code is `namespace
+Auspex` and builds `auspex.dll` (the viewer is `Auspex.View`,
+`auspex-view.dll`); every variable is `AUSPEX_*`; the machine's files are
+`exams/auspex.json`, `.auspex/` and `~/.config/auspex/env`; containers and
+images are `auspex-…`. Still proctor: the command people type and every
+message and doc that says it, the skills' directories, the site's base URL,
+the repository and this directory. `agent-onboarding` and `exam-authoring`
+pin this repository at a revision from before the rename, so a real try of
+either waits until they are pinned again (their shakedowns pass). No old
+name is read anywhere but `agent-onboarding/trial/`, which the pinned
+proctor runs.
+
 **Attempts made by an earlier proctor** (log entries with no stages, no try
 ids, or the earlier field names, `LogEntry.Earlier`) stay on disk and are read by nothing: `Bank.Entries`
 skips them, `list` counts them (`Bank.Earlier`), and the viewer lists them
