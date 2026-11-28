@@ -43,7 +43,7 @@ It's not a great fit for benchmarks. It's designed for tool-using agents in comp
 
 ## 3. What sets it apart
 
-## Why the numbers hold up
+## What sets it apart
 
 **Agents run in their own harness.**
 Models are tuned to their own harness, so Claude Code, Codex and Qwen Code each run natively through Harbor, an open-source harness runner. Each attempt gets its own container, with controlled network access.
