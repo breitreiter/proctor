@@ -49,11 +49,12 @@ they need to start, and sees finished reports as evidence.
   `SetupTests` before setup is released, and keep every anchor.
 - **Every claim is runnable from the README** (the old todo's rule): read
   the page against the repository, line by line, before it goes up.
-- **Public words**: measure and grade, and never an "AI testing
-  product". The gate refuses "eval" and "evals". If the site's copy
-  wants them (people search for them), allow `docs/index.html` in
-  `old-words.allow` with that reason. Name no employer, and anonymise the precedent the brief
-  leans on.
+- **Public words**: evals, measure, grade, and never an "AI testing
+  product". "Evals" in the general sense is welcome. The gate catches it
+  only because "eval" was once proctor's word for an exam, so each use
+  on the site gets an `old-words.allow` line for `docs/index.html`
+  ("evaluation in general"), as the old page's had. Name no employer,
+  and anonymise the precedent the brief leans on.
 - A weekly link check (lychee) over the vendor links, once it is live.
 - The old `docs/reports/*/report.html` pages are from the HTML report
   dropped on 2026-11-22. They do not go on the new site.
