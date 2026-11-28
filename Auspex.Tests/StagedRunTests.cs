@@ -21,7 +21,7 @@ public class StagedRunTests
         repo.Write("smoke/program.nb", "provider {{provider}}\nharness {{harness}}\nloop 2\nbudget tool_calls 3\napproval bash *\nrun {{prompt}}\n");
         repo.EditJson("smoke/exam.json", e =>
         {
-            e["attempts"] = attempts;
+            e["tries"] = attempts;
             if (chained) e["chained"] = true;
             e["stages"] = new JsonArray(stages.Select(s => (JsonNode)new JsonObject { ["id"] = s.Id, ["prompt"] = s.Prompt }).ToArray());
         });
@@ -41,9 +41,9 @@ public class StagedRunTests
         Stage(repo, 1, true, ("write", "MOCK:tool=bash echo one > made.txt"), ("read", "MOCK:tool=bash cat made.txt"), ("say", "MOCK:response=done"));
         var (id, log) = Run(repo);
 
-        Assert.Contains("one job of 3 stages, 1 attempt wanted", log);
+        Assert.Contains("one job of 3 stages, 1 try wanted", log);
         Assert.Contains($"{K}/1  whole", log);
-        Assert.Contains("1 attempt made: 1 whole", log);
+        Assert.Contains("1 try made: 1 whole", log);
         Assert.Equal(["1-write", "2-read", "3-say"], Directory.GetDirectories(Path.Combine(TryDir(repo, 1), "stages")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         foreach (var stage in new[] { "1-write", "2-read", "3-say" })
         {
@@ -65,7 +65,7 @@ public class StagedRunTests
         // A stage's manifest says its place, and carries the job's hash; the log entry names the stages in order.
         var exam = repo.LoadExam("smoke");
         var manifest = Manifest(repo, 1, "2-read");
-        Assert.Equal((2, 1, "read", exam.StageHashes["read"]), (manifest["place"]!.GetValue<int>(), manifest["attempt"]!.GetValue<int>(), manifest["stage"]!["id"]!.GetValue<string>(), manifest["stage"]!["hash"]!.GetValue<string>()));
+        Assert.Equal((2, 1, "read", exam.StageHashes["read"]), (manifest["place"]!.GetValue<int>(), manifest["try_number"]!.GetValue<int>(), manifest["stage"]!["id"]!.GetValue<string>(), manifest["stage"]!["hash"]!.GetValue<string>()));
         Assert.Equal(["write", "read", "say"], Runner.LoadEntry(repo.Root, id!).Stages);
 
         Assert.Contains("nothing to make", Run(repo).Log);
@@ -95,10 +95,10 @@ public class StagedRunTests
         using var repo = new TestRepo();
         Stage(repo, 1, false, ("say", "MOCK:response=one"), ("again", "MOCK:response=two"));
         Run(repo);
-        repo.EditJson("smoke/exam.json", e => e["attempts"] = 3);
+        repo.EditJson("smoke/exam.json", e => e["tries"] = 3);
         var (_, log) = Run(repo);
-        Assert.Contains("1 of 3 attempts   making 2", log);
-        Assert.Contains("2 attempts made: 2 whole", log);
+        Assert.Contains("1 of 3 tries   making 2", log);
+        Assert.Contains("2 tries made: 2 whole", log);
         // Each try is kept under an id of its own; its number is its place among the configuration's.
         Assert.Equal(3, Directory.GetDirectories(Path.Combine(repo.Root, "bank", "smoke")).Length);
         Assert.Equal(3, new[] { 1, 2, 3 }.Select(n => TryDir(repo, n)).Where(Directory.Exists).Distinct().Count());
@@ -116,7 +116,7 @@ public class StagedRunTests
         Assert.StartsWith("not launched: the try was lost at stage breaks", Manifest(repo, 1, "3-after")["status_reason"]!.GetValue<string>());
         Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "stages", "3-after", "transcript.jsonl")));
         Assert.Contains($"{K}/1  lost at breaks: did not run: provider_error", log);
-        Assert.Contains("1 attempt made: 0 whole, 1 lost", log);
+        Assert.Contains("1 try made: 0 whole, 1 lost", log);
 
         // None of a lost try is a result, the stage that finished included, and it is not taken up again: a new try is made.
         var exam = repo.LoadExam("smoke");
@@ -124,7 +124,7 @@ public class StagedRunTests
         Assert.Empty(Bank.Select(repo.Root, exam).Current);
         var again = Run(repo).Log;
         Assert.DoesNotContain("interrupted", again);
-        Assert.Contains("0 of 1 attempt   making 1", again);
+        Assert.Contains("0 of 1 try   making 1", again);
         Assert.True(Directory.Exists(TryDir(repo, 2)));
     }
 
@@ -143,7 +143,7 @@ public class StagedRunTests
         if (chained) Assert.StartsWith("not reached: stage loops was stopped", Manifest(repo, 1, "2-after")["status_reason"]!.GetValue<string>());
 
         // Either way the try counts, and nothing is made again.
-        Assert.Contains(chained ? "1 attempt made: 0 whole, 1 broke" : "1 attempt made: 1 whole", log);
+        Assert.Contains(chained ? "1 try made: 0 whole, 1 broke" : "1 try made: 1 whole", log);
         Assert.All(Bank.Of(repo.Root, repo.LoadExam("smoke")), a => Assert.True(a.Counts));
         Assert.Contains("nothing to make", Run(repo).Log);
     }
@@ -215,7 +215,7 @@ public class StagedRunTests
 
         Assert.Equal([("help", null), ("loops", null), ("after", "not reached")], read.Select(r => (r.Stage, r.Skipped)));
         var file = JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "1-help", "friction.json")))!;
-        Assert.Equal(("friction/3", "help", "1", 1), (file["schema"]!.GetValue<string>(), file["attempt"]!["stage"]!.GetValue<string>(), file["attempt"]!["attempt"]!.GetValue<string>(), file["attempt"]!["place"]!.GetValue<int>()));
+        Assert.Equal(("friction/3", "help", "1", 1), (file["schema"]!.GetValue<string>(), file["attempt"]!["stage"]!.GetValue<string>(), file["attempt"]!["try_number"]!.GetValue<string>(), file["attempt"]!["place"]!.GetValue<int>()));
         // The stage's points are found in its own steps: asking for help is flagged here and not on the stage after.
         Assert.Contains(file["points"]!.AsArray(), p => p!["label"]!.GetValue<string>() == "ran-help");
         Assert.Equal(2, JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-loops", "friction.json")))!["attempt"]!["place"]!.GetValue<int>());

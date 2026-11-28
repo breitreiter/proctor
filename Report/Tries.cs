@@ -97,10 +97,10 @@ static class Tries
             var of = stages.Sum(s => Standard.PassIn(exam, s, key).Count);
             var found = kinds[key] = [];
             var tryRows = new List<TryRow>();
-            foreach (var group in current.Where(a => a.Configuration == key).GroupBy(a => a.Attempt).OrderBy(g => g.Key))
+            foreach (var group in current.Where(a => a.Configuration == key).GroupBy(a => a.TryNumber).OrderBy(g => g.Key))
             {
                 var n = group.Key;
-                var perStage = stages.Select(s => (Stage: s, Attempt: group.FirstOrDefault(a => a.Stage == s.Id), Row: rows.FirstOrDefault(r => r.Configuration == key && r.Attempt == n && r.Stage == s.Id))).ToList();
+                var perStage = stages.Select(s => (Stage: s, Attempt: group.FirstOrDefault(a => a.Stage == s.Id), Row: rows.FirstOrDefault(r => r.Configuration == key && r.TryNumber == n && r.Stage == s.Id))).ToList();
                 int held = 0, undecided = 0;
                 int? flagged = 0;
                 string? invalid = null;
@@ -126,32 +126,32 @@ static class Tries
                     invalid, undecided, results, ran.Sum(r => r.ToolCalls ?? 0), ran.Sum(r => r.Usage?.Input ?? 0), manifests.Sum(m => m.DurationMs ?? 0)));
             }
             var counted = tryRows.Where(t => t.Invalid is null).ToList();
-            var lost = bank.Where(a => a.Lost && a.Configuration == key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count();
+            var lost = bank.Where(a => a.Lost && a.Configuration == key && Bank.Stale(exam, a) is null).Select(a => a.TryNumber).Distinct().Count();
             keys.Add(new ConfigurationTries(key, counted.Count, lost, tryRows.Count - counted.Count, counted.Count(t => t.Passed),
                 SpreadOf(counted.Select(t => (double)t.Held)), counted.Count > 0 && counted.All(t => t.Flagged is not null) ? SpreadOf(counted.Select(t => (double)t.Flagged!.Value)) : null,
                 stages.Select(s =>
                 {
                     var graded = counted.Select(t => t.Stages.First(x => x.Id == s.Id)).Where(x => x.Of is > 0).ToList();
                     var shares = graded.Select(x => (double)x.Held!.Value / x.Of!.Value).ToList();
-                    var mine = rows.Where(r => r.Configuration == key && r.Stage == s.Id && r.Checks is not null && counted.Any(t => t.N == r.Attempt)).ToList();
-                    var notHeld = Standard.PassIn(exam, s, key).Select(c => (Check: c, Failed: mine.Where(r => r.Checks!.GetValueOrDefault(c) == Verdict.Fail).OrderBy(r => r.Attempt).ToList()))
+                    var mine = rows.Where(r => r.Configuration == key && r.Stage == s.Id && r.Checks is not null && counted.Any(t => t.N == r.TryNumber)).ToList();
+                    var notHeld = Standard.PassIn(exam, s, key).Select(c => (Check: c, Failed: mine.Where(r => r.Checks!.GetValueOrDefault(c) == Verdict.Fail).OrderBy(r => r.TryNumber).ToList()))
                         .Where(x => x.Failed.Count > 0).Select(x => new NotHeld(x.Check, x.Failed.Count, x.Failed[0].Reasons?.GetValueOrDefault(x.Check))).ToList();
                     return new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count, Standard.PassIn(exam, s, key).Count, graded.Count,
                         SpreadOf(shares), shares.Count > 0 ? Math.Round(shares.Average(), 4) : null, notHeld.Count > 0 ? notHeld : null);
                 }).ToList(), tryRows,
                 Whole(counted, t => t.ToolCalls), Whole(counted, t => t.TokensIn), Whole(counted, t => t.DurationMs),
                 // An integrity check's rate is over every graded try, since it says how many were counted; any other check's is over the counted ones.
-                exam.CheckNames.Select(c => (Check: c, Verdicts: rows.Where(r => r.Configuration == key && (exam.RoleOf(c) == Roles.Integrity ? tryRows : counted).Any(t => t.N == r.Attempt)).Select(r => r.Checks?.GetValueOrDefault(c)).Where(v => v is Verdict.Pass or Verdict.Fail).ToList()))
+                exam.CheckNames.Select(c => (Check: c, Verdicts: rows.Where(r => r.Configuration == key && (exam.RoleOf(c) == Roles.Integrity ? tryRows : counted).Any(t => t.N == r.TryNumber)).Select(r => r.Checks?.GetValueOrDefault(c)).Where(v => v is Verdict.Pass or Verdict.Fail).ToList()))
                     .Where(x => x.Verdicts.Count > 0).Select(x => new CheckRate(x.Check, exam.RoleOf(x.Check), x.Verdicts.Count(v => v == Verdict.Pass), x.Verdicts.Count)).ToList()));
         }
 
         // A configuration never in `current` can still have lost every try it made: it has no numbers, but its lost tries are said.
-        var lostTries = bank.Where(a => a.Lost && Bank.Stale(exam, a) is null).GroupBy(a => (a.Configuration, a.Attempt)).OrderBy(g => exam.Assistants.FindIndex(v => v.Id == g.Key.Configuration)).ThenBy(g => g.Key.Attempt)
+        var lostTries = bank.Where(a => a.Lost && Bank.Stale(exam, a) is null).GroupBy(a => (a.Configuration, a.TryNumber)).OrderBy(g => exam.Assistants.FindIndex(v => v.Id == g.Key.Configuration)).ThenBy(g => g.Key.TryNumber)
             .Select(g =>
             {
                 var at = g.FirstOrDefault(a => a.Status == AttemptStatus.Failed) ?? g.First(a => a.Unfinished);
                 var manifest = Path.Combine(at.Dir(root), Layout.ManifestFile);
-                return new LostTry(g.Key.Configuration, g.Key.Attempt, at.Stage, (File.Exists(manifest) ? Runner.ReadManifest(manifest).StatusReason : null) ?? at.Status);
+                return new LostTry(g.Key.Configuration, g.Key.TryNumber, at.Stage, (File.Exists(manifest) ? Runner.ReadManifest(manifest).StatusReason : null) ?? at.Status);
             }).ToList();
 
         var rollup = keys.Select(v => Rollup(v, kinds[v.Id])).ToList();

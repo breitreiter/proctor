@@ -7,7 +7,7 @@ namespace Auspex;
 static class Grade
 {
     /// <summary>One stage of a try as grade left it. Try is the id the try is kept under in the bank, which is its directory there.</summary>
-    public record AttemptGrade(string Configuration, string Stage, int Attempt, string Status, Dictionary<string, Verdict>? Checks, bool? Pass, string? Invalid, string? Try = null);
+    public record AttemptGrade(string Configuration, string Stage, int TryNumber, string Status, Dictionary<string, Verdict>? Checks, bool? Pass, string? Invalid, string? Try = null);
 
     /// <summary>Grade the given attempts, each a current one from the bank; one that did not complete is returned ungraded. With a `--judge a=b` client, compare instead.</summary>
     public static List<AttemptGrade> Attempts(string root, Exam exam, List<BankAttempt> attempts, TextWriter log, JudgeClient? judges = null)
@@ -18,7 +18,7 @@ static class Grade
             foreach (var note in Judge.SameFamilyNotes(exam, judges)) log.WriteLine($"  note: {note}");
         foreach (var a in attempts)
         {
-            var (assistant, c, n) = (exam.Assistants.First(v => v.Id == a.Configuration), exam.Stages.First(t => t.Id == a.Stage), a.Attempt);
+            var (assistant, c, n) = (exam.Assistants.First(v => v.Id == a.Configuration), exam.Stages.First(t => t.Id == a.Stage), a.TryNumber);
             var attemptDir = a.Dir(root);
             var status = Runner.ReadStatus(attemptDir);
             if (status != AttemptStatus.Completed)
@@ -58,7 +58,7 @@ static class Grade
                 var attemptDir = a.Dir(root);
                 var asking = exam.ChecksFor(c).Where(k => Standard.Applies(exam, k.Value, a.Configuration) && Checks.ModelChecks(k.Value.Spec).Any()).ToList();
                 if (asking.Count == 0 || Runner.ReadStatus(attemptDir) != AttemptStatus.Completed) continue;
-                var attempt = Runner.Context(root, a.Entry, exam, assistant, c, a.Attempt) with { Judges = judges };
+                var attempt = Runner.Context(root, a.Entry, exam, assistant, c, a.TryNumber) with { Judges = judges };
                 var transcript = Transcript.Read(attemptDir, Before(root, exam, a));
                 foreach (var (name, check) in asking)
                     foreach (var (kind, spec) in Checks.ModelChecks(check.Spec)) Judge.Evaluate(kind, spec, name, attempt, transcript);
@@ -83,7 +83,7 @@ static class Grade
         int compared = 0, agreed = 0;
         foreach (var a in attempts)
         {
-            var (assistant, c, n) = (exam.Assistants.First(v => v.Id == a.Configuration), exam.Stages.First(t => t.Id == a.Stage), a.Attempt);
+            var (assistant, c, n) = (exam.Assistants.First(v => v.Id == a.Configuration), exam.Stages.First(t => t.Id == a.Stage), a.TryNumber);
             var attemptDir = a.Dir(root);
             var status = Runner.ReadStatus(attemptDir);
             var existing = status == AttemptStatus.Completed ? ReadChecks(attemptDir) : null;
@@ -174,7 +174,7 @@ static class Grade
         if (holding.Count == 0) return null;
         var checks = holding.SelectMany(g => g.Checks!.Where(k => k.Value.Result == Verdict.Outdated).Select(k => k.Key)).Distinct().Order(StringComparer.Ordinal).ToList();
         // A try is made again whole, so it is the try's directory that moves, whichever of its stages hold the verdicts.
-        var tries = holding.Select(g => g.Try ?? $"{g.Configuration}/{g.Attempt}").Distinct().ToList();
+        var tries = holding.Select(g => g.Try ?? $"{g.Configuration}/{g.TryNumber}").Distinct().ToList();
         return $"{tries.Count} {(tries.Count == 1 ? "try holds" : "tries hold")} outdated verdicts for {string.Join(", ", checks)}: "
             + $"through Harbor a script check runs when the try is made, and {(checks.Count == 1 ? "this check has" : "these checks have")} changed or been added since, so those verdicts are left out of every number. "
             + $"Make the {(tries.Count == 1 ? "try" : "tries")} again: move {(tries.Count == 1 ? "its directory" : "their directories")} out of {Layout.BankDir}/{examId}/ ({string.Join(" ", tries)}) and run `proctor run {examId}`, which makes what is missing with the checks as they are now.";
@@ -190,7 +190,7 @@ static class Grade
     /// stage was ever found, and every verdict of a staged exam was counted as new on every grade (issue #13).
     /// </summary>
     public static Dictionary<string, Dictionary<string, Verdict>?> Before(string root, IEnumerable<BankAttempt> attempts) =>
-        attempts.ToDictionary(a => $"{a.Configuration}/{a.Stage}/{a.Attempt}", a => ReadChecks(a.Dir(root)));
+        attempts.ToDictionary(a => $"{a.Configuration}/{a.Stage}/{a.TryNumber}", a => ReadChecks(a.Dir(root)));
 
     public static IEnumerable<string> ByCheck(List<AttemptGrade> grades, Dictionary<string, Dictionary<string, Verdict>?> before)
     {
@@ -203,7 +203,7 @@ static class Grade
         {
             var on = graded.Where(g => g.Checks!.ContainsKey(name)).ToList();
             var decided = on.Where(g => Decided(g.Checks![name])).ToList();
-            var fresh = decided.Count(g => !Decided(before.GetValueOrDefault($"{g.Configuration}/{g.Stage}/{g.Attempt}")?.GetValueOrDefault(name)));
+            var fresh = decided.Count(g => !Decided(before.GetValueOrDefault($"{g.Configuration}/{g.Stage}/{g.TryNumber}")?.GetValueOrDefault(name)));
             var not = on.Except(decided).GroupBy(g => g.Checks![name].Result).Select(r => $"{r.Count()} {r.Key switch
             {
                 Verdict.Outdated => "cannot be regraded from what was kept",

@@ -1,7 +1,7 @@
 {
   "id": "gate",
   "description": "The deterministic gate: nb on Mock run bare and the same nb run through Harbor must give identical counted cores and checks, stage for stage, apart from timings. The stage that writes a file comes second, so the gate also holds each route to starting the next stage from a clean workspace.",
-  "attempts": 2,
+  "tries": 2,
   "fixture": "note",
   "harbor": {
     "version": "0.26.0"

@@ -1,7 +1,7 @@
 {
   "id": "nb-changes",
   "description": "From a bug report or a written contract, can a shipped coding agent make a change to nb, a .NET codebase of about 13,000 lines it cannot read whole? Five tasks report a defect planted in nb at a pinned revision and one asks for a feature; hidden acceptance says whether the change is right, and nb's own tests say whether anything else broke.",
-  "attempts": 3,
+  "tries": 3,
   "labels": {
     "area": "coding/change",
     "stack": "dotnet"

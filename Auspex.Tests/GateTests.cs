@@ -61,10 +61,10 @@ public class GateTests
         var bare = exam.Assistants.Single(a => !a.IsAgent);
         var bank = Bank.Of(root, exam);
         foreach (var c in exam.Stages)
-            foreach (var n in Enumerable.Range(1, exam.Attempts))
+            foreach (var n in Enumerable.Range(1, exam.Tries))
             {
                 var at = $"{c.Id}/{n}";
-                BankAttempt Of(Assistant v) => bank.Single(a => a.Configuration == v.Id && a.Stage == c.Id && a.Attempt == n);
+                BankAttempt Of(Assistant v) => bank.Single(a => a.Configuration == v.Id && a.Stage == c.Id && a.TryNumber == n);
                 var (b, h) = (Of(bare).Dir(root), Of(harbor).Dir(root));
                 var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
                 if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)

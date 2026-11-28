@@ -14,7 +14,7 @@ public class PredictionsTests
     {
         var repo = new TestRepo();
         repo.CopyExam("axes-answers");
-        repo.EditJson("axes-answers/exam.json", e => e["attempts"] = attempts);
+        repo.EditJson("axes-answers/exam.json", e => e["tries"] = attempts);
         repo.Write($"axes-answers/predictions/{prediction}.json", body);
         return repo;
     }

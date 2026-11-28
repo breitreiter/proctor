@@ -37,7 +37,7 @@ record Verdict(string Result, string Reason)
 record Evidence(string? Step = null, string? File = null);
 
 /// <summary>Everything the runner and the grader need to know about one attempt, without the transcript.</summary>
-record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string ExamId, string Configuration, StageDef Stage, int Attempt)
+record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string ExamId, string Configuration, StageDef Stage, int TryNumber)
 {
     /// <summary>What the stage expects, its fixture's defaults included; the stage's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Stage.Expect;
@@ -73,7 +73,7 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     /// around the try. Proctor never uses it; hooks and runners that own a container agree on it through this. A try's
     /// id is letters, digits and hyphens, which every engine takes as a name.
     /// </summary>
-    public string Container => $"proctor-{ExamId}-{Try ?? Attempt.ToString()}";
+    public string Container => $"proctor-{ExamId}-{Try ?? TryNumber.ToString()}";
 
     public IDictionary<string, string> Environment()
     {
@@ -91,7 +91,7 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
         ["PROCTOR_EXAM"] = ExamId,
         ["PROCTOR_CONFIGURATION"] = Configuration,
         ["PROCTOR_STAGE"] = Stage.Id ?? "",
-        ["PROCTOR_ATTEMPT"] = Attempt.ToString(),
+        ["PROCTOR_TRY_NUMBER"] = TryNumber.ToString(),
         ["PROCTOR_ATTEMPT_DIR"] = AttemptDir,
         ["PROCTOR_WORK"] = WorkDir,
         ["PROCTOR_WORK_MOUNT"] = WorkMount,

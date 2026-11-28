@@ -497,7 +497,7 @@ static class HarborCompile
             ["PROCTOR_EXAM"] = exam.Id,
             ["PROCTOR_CONFIGURATION"] = key,
             ["PROCTOR_STAGE"] = task.Id!,
-            ["PROCTOR_ATTEMPT"] = "",
+            ["PROCTOR_TRY_NUMBER"] = "",
             ["PROCTOR_ATTEMPT_DIR"] = "",
             ["PROCTOR_WORK"] = Workdir,
             ["PROCTOR_WORK_MOUNT"] = Workdir,

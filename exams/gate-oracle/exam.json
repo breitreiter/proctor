@@ -1,7 +1,7 @@
 {
   "id": "gate-oracle",
   "description": "The oracle's deterministic gate: nb on Mock run bare (nb's in-process oracle) and the same nb through Harbor (the simulated user over the ACP bridge) must give the same counted cores, oracle turns and checks, apart from timings and the judge's tokens. Each ending is one stage, so a try is one stage with an answer sheet, which is the only kind the simulated user can answer.",
-  "attempts": 1,
+  "tries": 1,
   "fixture": "note",
   "harbor": {
     "version": "0.26.0"

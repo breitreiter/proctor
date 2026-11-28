@@ -73,7 +73,7 @@ any root. A scratch copy is ignored when its id says so (`*-mock`,
 `checks/trial.sh` runs `trial/run.sh` once. It copies the written root and
 gives the written exam one more axis, `planted`, with a value per plant in
 `trial/<stage>/plants.json`; each configuration the exam names is named once
-per plant, everything else of it kept, and `attempts` is set to 1. It drops
+per plant, everything else of it kept, and `tries` is set to 1. It drops
 hooks, the nb runner and model checks; a model check named in `correctness`
 or `integrity` is a problem, since nothing here can answer one. It then runs,
 grades and reports those inner tries with the image's proctor. The runner is

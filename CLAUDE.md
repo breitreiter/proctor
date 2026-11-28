@@ -69,8 +69,10 @@ a log entry's `stage_hashes` is each stage it ran with the job's hash.
 stage is a `StageDef` (`Exam.Stages`) and one stage of one try a
 `BankAttempt`. Nothing reads the earlier field names: no compatibility layer
 is kept for tries made on this branch (the user, 2026-11-28), since everyone
-else is on `master`. One oddity is left: the field `attempt`, `PROCTOR_ATTEMPT`
-and `{{attempt}}` hold the try's number. Who does the work in a
+else is on `master`. A try's number among its configuration's is `try_number` in those files,
+`PROCTOR_TRY_NUMBER` and `{{try_number}}` (`try` in a manifest was already
+the try's id), and how many tries an exam wants of each named configuration
+is `tries` in `exam.json`; `stats.json` still calls a try's number `n`. Who does the work in a
 configuration is an `Assistant` (`Axes.AssistantOf`), whose `Id` is the
 configuration's key.
 
@@ -431,7 +433,7 @@ The directories are for reading, not for namespaces: everything is
   ` ```json ` fence in the last assistant message.
 - **Program templates.** Placeholders are `{{prompt}}`, `{{stage}}` (the
   stage's id), `{{work}}` (the fixture checkout), `{{provider}}`, `{{model}}`,
-  `{{harness}}`, `{{configuration}}`, `{{attempt}}`, `{{axis.<name>}}` and
+  `{{harness}}`, `{{configuration}}`, `{{try_number}}`, `{{axis.<name>}}` and
   `{{param.NAME}}` (a tree parameter as its directory). `{{work}}` is the path the *model* will
   see: the exam's `nb.mounts` replaces it when a runner is in effect, and a bare run ignores the mounts so
   `--runner none` stays a host shakedown. A prompt's newlines become nb continuation lines (` \`), so a
@@ -509,7 +511,7 @@ The directories are for reading, not for namespaces: everything is
   and the verdict hash makes it a per-stage verdict file.
 - **Hooks and script checks** run with `PROCTOR_EXAM_DIR`, `PROCTOR_FIXTURE`,
   `PROCTOR_EXAM`, `PROCTOR_CONFIGURATION` (the key), `PROCTOR_AXIS_<NAME>` and
-  `PROCTOR_PARAM_<NAME>`, `PROCTOR_STAGE` (the stage's id), `PROCTOR_ATTEMPT` (the try's number),
+  `PROCTOR_PARAM_<NAME>`, `PROCTOR_STAGE` (the stage's id), `PROCTOR_TRY_NUMBER` (the try's number),
   `PROCTOR_ATTEMPT_DIR`, `PROCTOR_WORK`, `PROCTOR_STAGE_JSON`, `PROCTOR_EXPECT` (the
   merged block), `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`, `PROCTOR_RUNNER` (the
   runner script in effect, empty on a bare run), `PROCTOR_NB` and
@@ -583,7 +585,7 @@ The directories are for reading, not for namespaces: everything is
   log entries' lists, so a directory no entry lists is not seen). A try is
   current when the configuration's and the job's hashes it was made under are
   today's, and stale otherwise (`Bank.Stale`, which says which moved). Per
-  named configuration, missing is the exam's `attempts` less its current
+  named configuration, missing is the exam's `tries` less its current
   tries that were not lost (`Bank.Missing`); a new try is numbered after
   every try of that configuration, and filed under an id of its own,
   `bank/<exam>/<try id>/`. Nothing is continued: a try whose run died, or

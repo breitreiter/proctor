@@ -18,7 +18,7 @@ proctor report playground       # then open reports/playground/explore/summary.m
 |---|---|
 | fixture | `fixtures/jotcli`: a tiny TypeScript to-do CLI with its own tests |
 | axis | `assistant`, with one value, `mock`: nb on Mock. The configuration named `mock` is that value |
-| tries | 2, set as `attempts` in `exam.json`; a try is both stages, once |
+| tries | 2, set as `tries` in `exam.json`; a try is both stages, once |
 | stages | `hello`: the model answers in one turn. `runs-the-cli`: the model builds the CLI and runs it once with bash |
 | correctness | the stage ended cleanly, the answer contains what the stage expects, and the repository still compiles and passes its tests |
 

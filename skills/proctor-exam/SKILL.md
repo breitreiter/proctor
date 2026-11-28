@@ -73,7 +73,7 @@ read and let the user correct you.
    answers (a document, a prompt, a tool definition, a chatbot turn), the
    value names a `provider` and a `model`, nb runs it bare with
    `tools none`, and it needs no sandbox. Start there when you can.
-7. **What will it cost?** Model runs = named configurations × the exam's `attempts` × the stages in each: a try is every stage once.
+7. **What will it cost?** Model runs = named configurations × the exam's `tries` × the stages in each: a try is every stage once.
    Estimate tokens per stage, price it, and agree the number with the user
    before any paid run. A free tier or a local model is the place to iterate.
 8. **How current must it stay?** Agents ship new versions every week or
@@ -90,7 +90,7 @@ and what result would change the user's mind. Get approval before Part 2.
 share an environment, so they share causes, and proctor compares one
 configuration's tries with another's. Each try gives two numbers, how
 many of its correctness checks held and how many of its steps were flagged
-as friction. Plan at least 4 tries of each configuration (`attempts`), or 3
+as friction. Plan at least 4 tries of each configuration (`tries`), or 3
 against 5; fewer can show a gap and never confirm one. More stages make
 each try's number finer; more tries are what confirm a difference. One
 try is a shakedown, for setup problems and plain failures.
@@ -237,7 +237,7 @@ once; an attempt is one stage of it), bank, live, prediction.
    a prompt of `MOCK:response=<text>` makes Mock reply `<text>`
    (`exams/readme-answers/reference/shakedown.sh`, with `--wrong`).
 3. `proctor build <id>`: what each value changes, read against its note.
-4. One try of one configuration on a free or local model (`"attempts": 1`
+4. One try of one configuration on a free or local model (`"tries": 1`
    for now, and `proctor run <id> --configuration <name>`), read the
    transcripts and the report, and fix what looks wrong.
 5. Then the agreed run: `proctor run <id>`, then `proctor grade <id>` and

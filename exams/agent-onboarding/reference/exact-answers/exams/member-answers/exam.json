@@ -1,7 +1,7 @@
 {
   "id": "member-answers",
   "description": "Does the tool library's help bot give members the figure the handbook gives? Five questions members ask, each passing only on the exact figure and its unit.",
-  "attempts": 3,
+  "tries": 3,
   "fixture": "bot-chat",
   "axes": {
     "assistant": {

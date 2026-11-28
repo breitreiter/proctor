@@ -118,10 +118,10 @@ record OracleDef(string? Judge = null, int? Turns = null)
 }
 
 /// <summary>
-/// exam.json. Attempts is how many tries every configuration the exam names should have. Tags is what labels replaced
+/// exam.json. Tries is how many tries every configuration the exam names should have. Tags is what labels replaced
 /// and `arms` what axes replaced; both are here so a leftover is a problem rather than silently ignored.
 /// </summary>
-record ExamDef(string? Id, JsonNode? Arms, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null, string? Fixture = null, List<StageDef>? Stages = null, bool? Chained = null,
+record ExamDef(string? Id, JsonNode? Arms, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Tries = null, string? Fixture = null, List<StageDef>? Stages = null, bool? Chained = null,
     Dictionary<string, AxisDef>? Axes = null, Dictionary<string, Dictionary<string, string?>?>? Configurations = null, List<Dictionary<string, string?>?>? Exclude = null, Dictionary<string, ParamDef>? Params = null);
 
 /// <summary>
@@ -205,7 +205,7 @@ record Problem(string File, string Field, string Message)
 sealed class Exam
 {
     /// <summary>Placeholders a program template may use; resolved per attempt by the runner.</summary>
-    public static readonly string[] Placeholders = ["prompt", "stage", "work", "provider", "model", "harness", "configuration", "attempt"];
+    public static readonly string[] Placeholders = ["prompt", "stage", "work", "provider", "model", "harness", "configuration", "try_number"];
 
     public required string Id { get; init; }
     public required string Dir { get; init; }
@@ -243,7 +243,7 @@ sealed class Exam
     public bool HasHarbor => Assistants.Any(v => v.IsAgent);
     public Grading Grading => Def.Grading!;
     /// <summary>How many tries every configuration the exam names should have.</summary>
-    public int Attempts => Def.Attempts ?? 1;
+    public int Tries => Def.Tries ?? 1;
 
     /// <summary>An exam is judged when any check an attempt can carry asks a model (decide or judge); there is no marker to declare.</summary>
     public bool Judged => AllChecks().Any(c => Checks.AsksAModel(c.Spec));
@@ -452,7 +452,7 @@ sealed class Exam
                 else if (name == "arm")
                     problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{configuration}}, the configuration's key; one axis's value is {{axis.<name>}}"));
                 else if (name is "sample")
-                    problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{attempt}}, the try's number"));
+                    problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{try_number}}"));
                 else if (name == "bundle")
                     problems.Add(new Problem(rel(templateFile), m.Value, "there is no bundle: a value's files are laid over the checkout, so read them from {{work}}; a tree a value sets is {{param.NAME}}"));
                 else if (!Placeholders.Contains(m.Groups[1].Value))
@@ -589,7 +589,7 @@ sealed class Exam
         Labels.Validate(def.Labels, Add);
 
         if (def.Arms is not null) Add("arms", "removed: what is under test is declared under \"axes\", each arm's fields a value of an axis, and the ones to run are named under \"configurations\"");
-        if (def.Attempts is < 1) Add("attempts", "must be at least 1");
+        if (def.Tries is < 1) Add("tries", "must be at least 1");
 
         ValidateHarbor(def, Add, dir, tasks, assistants, fixtures, root, problems);
         ValidateOracle(def, Add, tasks, assistants, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, c.File!), c.At + field, message)),

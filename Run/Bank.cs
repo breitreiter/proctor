@@ -7,11 +7,11 @@ namespace Auspex;
 /// configuration's, its status, the configuration and stage hashes it was made under, and the log entry of the run that
 /// made it, which says how nb and Harbor were resolved for it.
 /// </summary>
-record BankAttempt(LogEntry Entry, string Configuration, string Stage, int Attempt, string Status, string ConfigurationHash, string StageHash)
+record BankAttempt(LogEntry Entry, string Configuration, string Stage, int TryNumber, string Status, string ConfigurationHash, string StageHash)
 {
-    public string Label => $"{Configuration}/{Attempt}/{Stage}";
+    public string Label => $"{Configuration}/{TryNumber}/{Stage}";
     /// <summary>The id the try is kept under.</summary>
-    public string Try => Entry.IdOf(Configuration, Attempt)!;
+    public string Try => Entry.IdOf(Configuration, TryNumber)!;
     public string Dir(string root) => Layout.Attempt(root, Entry.Exam, Stage, Entry.Stages!, Try);
     /// <summary>Never finished: pending, running when the run stopped, or failed for a reason of the machine's. A completed stage is a result, whatever its exit reason.</summary>
     public bool Unfinished => Status is AttemptStatus.Pending or AttemptStatus.Running or AttemptStatus.Failed;
@@ -89,8 +89,8 @@ static class Bank
     public static List<BankAttempt> Of(string root, Exam exam)
     {
         var all = Read(root, exam);
-        var lost = all.Where(a => a.Unfinished).Select(a => (a.Configuration, a.Attempt)).ToHashSet();
-        return all.Select(a => lost.Contains((a.Configuration, a.Attempt)) ? a with { Lost = true } : a).ToList();
+        var lost = all.Where(a => a.Unfinished).Select(a => (a.Configuration, a.TryNumber)).ToHashSet();
+        return all.Select(a => lost.Contains((a.Configuration, a.TryNumber)) ? a with { Lost = true } : a).ToList();
     }
 
     static List<BankAttempt> Read(string root, Exam exam) =>
@@ -99,7 +99,7 @@ static class Bank
             var dir = Layout.Attempt(root, exam.Id, a.Stage, entry.Stages!, a.Id!);
             var manifestFile = Path.Combine(dir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
-            return new BankAttempt(entry, a.Configuration, a.Stage, a.Attempt, Runner.ReadStatus(dir),
+            return new BankAttempt(entry, a.Configuration, a.Stage, a.TryNumber, Runner.ReadStatus(dir),
                 manifest?.Configuration.Hash ?? entry.Configurations.First(v => v.Id == a.Configuration).Hash,
                 manifest?.Stage.Hash ?? entry.StageHashes.First(t => t.Id == a.Stage).Hash);
         })).ToList();
@@ -124,21 +124,21 @@ static class Bank
     /// <summary>For each configuration and stage: the tries the exam wants less its current, whole tries in the bank.</summary>
     public static Dictionary<(string Configuration, string Stage), int> Gaps(Exam exam, List<BankAttempt> bank) =>
         (from assistant in exam.Assistants from task in exam.StagesOf(assistant.Id!) select (assistant.Id!, task.Id!)).ToDictionary(k => k, k =>
-            Math.Max(0, exam.Attempts - bank.Count(a => a.Configuration == k.Item1 && a.Stage == k.Item2 && a.Counts && Stale(exam, a) is null)));
+            Math.Max(0, exam.Tries - bank.Count(a => a.Configuration == k.Item1 && a.Stage == k.Item2 && a.Counts && Stale(exam, a) is null)));
 
     /// <summary>
     /// What a new run has to make: every gap, within the configurations given. Each new try is numbered after every try
     /// of its configuration already in the bank, stale and lost ones included, so a configuration's nth try names one
     /// try for good. In the order they are made: each configuration's tries in order, each try's stages in theirs.
     /// </summary>
-    public static List<(Assistant Assistant, StageDef Stage, int Attempt)> Missing(Exam exam, List<BankAttempt> bank, IReadOnlyCollection<string>? keys = null)
+    public static List<(Assistant Assistant, StageDef Stage, int TryNumber)> Missing(Exam exam, List<BankAttempt> bank, IReadOnlyCollection<string>? keys = null)
     {
         var gaps = Gaps(exam, bank);
         var missing = new List<(Assistant, StageDef, int)>();
         foreach (var assistant in exam.Assistants.Where(v => keys is null || keys.Contains(v.Id!)))
             foreach (var task in exam.StagesOf(assistant.Id!))
             {
-                var next = bank.Where(a => a.Configuration == assistant.Id && a.Stage == task.Id).Select(a => a.Attempt).DefaultIfEmpty(0).Max() + 1;
+                var next = bank.Where(a => a.Configuration == assistant.Id && a.Stage == task.Id).Select(a => a.TryNumber).DefaultIfEmpty(0).Max() + 1;
                 for (var i = 0; i < gaps[(assistant.Id!, task.Id!)]; i++) missing.Add((assistant, task, next + i));
             }
         return missing.GroupBy(m => m.Item1).SelectMany(g => g.OrderBy(m => m.Item3)).ToList();

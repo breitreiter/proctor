@@ -1,7 +1,7 @@
 {
   "id": "stock-count",
   "description": "Can the agent read a stock sheet and report exactly how many items are due for reorder, without changing it?",
-  "attempts": 3,
+  "tries": 3,
   "fixture": "stock",
   "axes": {
     "assistant": {

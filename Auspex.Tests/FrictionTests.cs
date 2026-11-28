@@ -192,7 +192,7 @@ public class FrictionTests
         var file = JsonNode.Parse(File.ReadAllText(Path.Combine(repo.StageDir("smoke", TestRepo.A, "uses-bash"), Layout.FrictionFile)))!;
         Assert.Equal(Friction.Schema, file["schema"]!.GetValue<string>());
         Assert.Equal("uses-bash", file["attempt"]!["stage"]!.GetValue<string>());
-        Assert.Equal("1", file["attempt"]!["attempt"]!.GetValue<string>());
+        Assert.Equal("1", file["attempt"]!["try_number"]!.GetValue<string>());
         Assert.Null(file["attempt"]!["batch"]);
         Assert.True(file["summary"]!["calls"]!.GetValue<int>() > 0);
 

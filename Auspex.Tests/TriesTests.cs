@@ -35,7 +35,7 @@ public class TriesTests
         repo.EditJson("smoke/exam.json", e =>
         {
             e.Remove("hooks");
-            e["attempts"] = attempts;
+            e["tries"] = attempts;
             e["stages"] = new JsonArray(
                 JsonNode.Parse("""{"id": "ask-help", "about": "Ask a tool for its help", "prompt": "MOCK:tool=bash git --help"}"""),
                 JsonNode.Parse("""{"id": "say-hello", "about": "Answer in one turn", "prompt": "MOCK:response=hello world", "expect": {"answer_contains": "hello"}}"""));
@@ -62,7 +62,7 @@ public class TriesTests
 
     /// <summary>A configuration's tries in the bank, oldest first: each try's directory.</summary>
     static List<string> TriesOf(TestRepo repo, Exam exam, string key) =>
-        Bank.Of(repo.Root, exam).Where(a => a.Configuration == key).OrderBy(a => a.Attempt).Select(a => Path.GetDirectoryName(Path.GetDirectoryName(a.Dir(repo.Root)))!).Distinct().ToList();
+        Bank.Of(repo.Root, exam).Where(a => a.Configuration == key).OrderBy(a => a.TryNumber).Select(a => Path.GetDirectoryName(Path.GetDirectoryName(a.Dir(repo.Root)))!).Distinct().ToList();
 
     static void EditChecks(string tryDir, string stage, Action<JsonObject> edit)
     {

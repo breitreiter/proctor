@@ -7,6 +7,15 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: a try's number is `try_number`, and an exam asks for `tries`.**
+  In `manifest.json`, `entry.json`, `results.jsonl` and `friction.json` the
+  field `attempt`, which held the try's number, is `try_number`;
+  `PROCTOR_ATTEMPT` is `PROCTOR_TRY_NUMBER` and `{{attempt}}` is
+  `{{try_number}}`. `exam.json`'s `attempts` is `tries`. An attempt is one
+  stage of one try and nothing else now. `run`'s lines count tries.
+- **The code is `namespace Auspex` and the binary `auspex.dll`**; the
+  viewer is `Auspex.View` and `auspex-view.dll`. An alias or script that
+  names `proctor.dll` needs the new path.
 - **Breaking: the bank's files name a configuration and a stage.** In
   `manifest.json`, `entry.json`, `results.jsonl`, `stats.json` and
   `friction.json` (now `friction/3`) the field `variant` is

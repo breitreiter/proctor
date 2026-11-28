@@ -28,7 +28,7 @@ in_role=$(jq -r --argjson m "$asks_model" '[(.grading.correctness // []) + (.gra
 plants=$(for f in "/trial/$TRIAL_TASK"/*.sh; do basename "$f" .sh; done | jq -R . | jq -sc .)
 jq --argjson m "$asks_model" --argjson plants "$plants" '
    def drop: with_entries(select(.key as $k | $m | index($k) | not));
-   .attempts = 1 | del(.hooks, .nb) | .grading.checks |= drop
+   .tries = 1 | .attempts = 1 | del(.hooks, .nb) | .grading.checks |= drop
    | (if .grading.quality then .grading.quality |= map(select(. as $n | $m | index($n) | not)) else . end)
    | .stages |= map(if .checks then .checks |= drop else . end)
    | .axes.planted = {about: "the planted run, which the trial adds", reference: $plants[0],

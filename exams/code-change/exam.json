@@ -1,7 +1,7 @@
 {
   "id": "code-change",
   "description": "Can the agent make a small, well-specified change to a .NET repository so that it builds, the tests pass and nothing outside the task is touched?",
-  "attempts": 1,
+  "tries": 1,
   "labels": {
     "area": "coding/change",
     "stack": "dotnet"

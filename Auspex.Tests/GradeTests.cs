@@ -86,7 +86,7 @@ public class GradeTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.EditJson("smoke/exam.json", e => e["attempts"] = 1);
+        repo.EditJson("smoke/exam.json", e => e["tries"] = 1);
         repo.Run("smoke");
         var exam = repo.LoadExam("smoke");
         bool Graded(string key, string stage) => File.Exists(Path.Combine(repo.StageDir("smoke", key, stage), "checks.json"));

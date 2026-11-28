@@ -1,7 +1,7 @@
 {
   "id": "readme-answers",
   "description": "Does a README tell a reader what they need to use jot from a script? Six questions answered from the README alone, under two versions of it: as shipped, and with a section for scripts.",
-  "attempts": 4,
+  "tries": 4,
   "labels": { "area": "docs", "purpose": "onboarding" },
   "fixture": "empty",
   "params": {

@@ -49,7 +49,7 @@ names=$(jq -c ".plants | keys_unsorted" "$plants")
 jq '. as $e | [.configurations | to_entries[] | . as $c | {key: ([$e.axes | keys_unsorted[] | "\(.)=\($c.value[.])"] | join(",")), value: $c.key}] | from_entries' \
   "$def" >"$out/configurations.json" || fail "a configuration in exams/$id/exam.json could not be read"
 jq --argjson plants "$names" '
-  .attempts = 1 | del(.hooks, .nb)
+  .tries = 1 | .attempts = 1 | del(.hooks, .nb)
   | .axes.planted = {about: "the planted reply the bot gives, which the trial adds", reference: $plants[0],
       values: ($plants | map({key: ., value: {note: "the trial answers as the plant \(.)"}}) | from_entries)}
   | .configurations = ([.configurations | to_entries[] as $c | $plants[] | {key: "\(.)-\($c.key)", value: ($c.value + {planted: .})}] | from_entries)' \

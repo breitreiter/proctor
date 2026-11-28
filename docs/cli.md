@@ -45,8 +45,8 @@ axes that hold that value.
 
 ## What an exam's tries are
 
-An exam wants `attempts` tries of each configuration it names
-(`exam.json`). Its tries are its bank: every try under `bank/<exam>/`,
+An exam says how many tries it wants of each configuration it names
+(`tries` in `exam.json`). Its tries are its bank: every try under `bank/<exam>/`,
 whenever it was made. One made last week counts as one made today. A try
 is **current** while its configuration's values and the exam's stages
 are what they were when it was made; one made before either changed is
@@ -85,7 +85,7 @@ that configuration's tries. A try comes out one of three ways:
 its workspace is half way through: one that was lost or never finished
 is made again, whole, under the next number, by the same command.
 
-So naming a configuration makes only its tries, raising `attempts`
+So naming a configuration makes only its tries, raising `tries`
 makes only the extra ones, and changing a stage makes every try again.
 A changed value under a name that has made tries is refused: give it a
 new name. A configuration no longer wanted is retired (below); its

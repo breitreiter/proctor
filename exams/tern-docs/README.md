@@ -53,7 +53,7 @@ steps were flagged as friction. So:
 - `no-docs` is a configuration like the others, not labelled as the control.
 
 The `n` of a comparison is tries, and a difference needs four a side to be confirmed (or three against five).
-`attempts` is 2, which shows the size of a gap and cannot confirm one; raising it to 4 doubles the spend.
+`tries` is 2, which shows the size of a gap and cannot confirm one; raising it to 4 doubles the spend.
 
 ## Running it
 

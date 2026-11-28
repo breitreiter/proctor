@@ -39,7 +39,7 @@ and what each part becomes.
 | `agent: nb` | `"route": "harbor"` |
 | `agent`, `agent_version`, `model` | the same, on a value |
 | `bundle: {path}` or `{git, rev, paths}` | `files: {…}` (laid over the checkout), or `set: {NAME: {…}}` for a tree a service or the program reads |
-| `attempts` | the same: tries of every named configuration |
+| `attempts` | `tries`: how many tries every named configuration should have |
 | `hooks.variant`, `hooks.attempt` | `hooks.configuration`, `hooks.try` |
 | `live.json`, `proctor live` | `"live": "<value>"` on the axis |
 | `--variant`, `--tasks` | `--configuration <name>`, `--value axis=value`; a stage is never run alone |
@@ -53,12 +53,12 @@ is `{{param.NAME}}`. In hooks and script checks:
 | `PROCTOR_VARIANT` | `PROCTOR_CONFIGURATION` (the key, `axis=value,…`), and `PROCTOR_AXIS_<NAME>` per axis |
 | `PROCTOR_BUNDLE`, `PROCTOR_BUNDLE_MOUNT` | gone; `PROCTOR_PARAM_<NAME>` for a parameter |
 | `PROCTOR_TASK`, `PROCTOR_TASK_JSON` | `PROCTOR_STAGE`, `PROCTOR_STAGE_JSON`: the stage's id and the stage |
-| `PROCTOR_ATTEMPT` | the same name; the try's number |
+| `PROCTOR_ATTEMPT` | `PROCTOR_TRY_NUMBER`: the try's number |
 
 From a suite of 0.3 or earlier, also: `suites/` is `exams/`,
 `suite.json` is `exam.json`, `PROCTOR_SUITE_DIR` is `PROCTOR_EXAM_DIR`,
 `PROCTOR_ARM` is `PROCTOR_CONFIGURATION`, `PROCTOR_SAMPLE` is
-`PROCTOR_ATTEMPT`, `PROCTOR_CELL` is `PROCTOR_ATTEMPT_DIR`, and
+`PROCTOR_TRY_NUMBER`, `PROCTOR_CELL` is `PROCTOR_ATTEMPT_DIR`, and
 `PROCTOR_EXPERIMENT` is gone.
 
 ## Variants become axes
@@ -108,7 +108,7 @@ Then two questions:
   `"chained": true`.
 - **How many tries?** The unit is the try, and a difference from what is
   live needs 4 tries a side to be confirmed (or 3 against 5). Set
-  `attempts` to 4 or more for anything you mean to compare.
+  `tries` to 4 or more for anything you mean to compare.
 
 ## What else changed
 

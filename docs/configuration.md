@@ -179,7 +179,7 @@ has the map.
 {
   "id": "readme-answers",
   "description": "Does a README tell a reader what they need to use jot from a script?",
-  "attempts": 4,
+  "tries": 4,
   "fixture": "empty",
   "params": { "README": { "tree": true, "about": "the directory holding the README the model is given" } },
   "axes": {
@@ -215,7 +215,7 @@ has the map.
 }
 ```
 
-`attempts` is how many tries every named configuration should have (1
+`tries` is how many tries every named configuration should have (1
 if absent).
 
 ### Stages
@@ -430,7 +430,7 @@ in the value.
 `program.nb` is the nb program a value that runs nb is given, with
 `{{prompt}}`, `{{stage}}` (the stage's id), `{{work}}` (the
 checkout), `{{provider}}`, `{{model}}`, `{{harness}}`,
-`{{configuration}}`, `{{attempt}}`, `{{axis.<name>}}` and
+`{{configuration}}`, `{{try_number}}`, `{{axis.<name>}}` and
 `{{param.NAME}}`. A vendor's agent takes the stage's prompt as its
 instruction and never sees the template.
 
@@ -608,7 +608,7 @@ Hooks and script checks get the stage in the environment:
 script can read its `fixture.json`), `PROCTOR_EXAM` (its id),
 `PROCTOR_CONFIGURATION` (the configuration's key, `axis=value,…`),
 `PROCTOR_AXIS_<NAME>` and `PROCTOR_PARAM_<NAME>`, `PROCTOR_STAGE` (the
-stage's id), `PROCTOR_ATTEMPT` (the try's number), `PROCTOR_ATTEMPT_DIR`,
+stage's id), `PROCTOR_TRY_NUMBER` (the try's number), `PROCTOR_ATTEMPT_DIR`,
 `PROCTOR_WORK`, `PROCTOR_STAGE_JSON`, `PROCTOR_EXPECT`,
 `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`, `PROCTOR_RUNNER`, `PROCTOR_NB`,
 `PROCTOR_NB_CONFIG`, `PROCTOR_CONTAINER` and `PROCTOR_WORK_MOUNT`. A

@@ -1,7 +1,7 @@
 {
   "id": "harbor-unit",
   "description": "Test data for HarborTests: Claude Code as the one assistant, one stage on ledger. Never run for real: HarborTests stand a fake uv in for Harbor.",
-  "attempts": 1,
+  "tries": 1,
   "labels": {
     "area": "coding/change",
     "stack": "dotnet"

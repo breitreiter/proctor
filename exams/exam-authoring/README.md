@@ -56,7 +56,7 @@ it went with its workspace and its checks on 2026-11-27 (they are in git).
 `checks/trial.sh` runs `trial/run.sh` in a container with no network. The trial
 copies the workspace, gives the written exam one more axis, `planted`, with a
 value per planted run in `trial/<stage>/` (`good-*` and `bad-*`), names each of
-its configurations once per plant, sets `attempts` to 1, puts nb's Mock under
+its configurations once per plant, sets `tries` to 1, puts nb's Mock under
 every provider name it uses, and swaps its hooks and runner for
 `trial/planted.sh`. That runner applies the planted change to the checkout and
 has nb's Mock provider make one tool call and give the planted closing message,

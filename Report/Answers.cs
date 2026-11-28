@@ -100,7 +100,7 @@ static class Answers
 
     /// <summary>The current tries as of a time, each stage with the id of its try.</summary>
     static List<(BankAttempt Attempt, string Id, DateTime Made)> Timed(List<BankAttempt> current) =>
-        current.Select(a => (a, Id: a.Entry.IdOf(a.Configuration, a.Attempt))).Where(x => MadeAt(x.Id) is not null).Select(x => (x.a, x.Id!, MadeAt(x.Id)!.Value)).ToList();
+        current.Select(a => (a, Id: a.Entry.IdOf(a.Configuration, a.TryNumber))).Where(x => MadeAt(x.Id) is not null).Select(x => (x.a, x.Id!, MadeAt(x.Id)!.Value)).ToList();
 
     /// <summary>
     /// One value of an axis against another, every other axis held, as of a time (now when null). Against defaults to
@@ -165,7 +165,7 @@ static class Answers
         var ungraded = current.Count(a => keys.Contains(a.Configuration) && a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.StageOf(a.Stage), a.Dir(root)));
         if (ungraded > 0) throw new AuspexException($"{ungraded} stage{(ungraded == 1 ? "" : "s")} of the tries in this comparison {(ungraded == 1 ? "is" : "are")} not yet graded under the checks as they are now, and an ungraded try would read as one that held nothing: run `proctor grade {exam.Id}` first");
 
-        var ids = then.GroupBy(x => (x.Attempt.Configuration, x.Attempt.Attempt)).ToDictionary(g => g.Key, g => g.First().Id);
+        var ids = then.GroupBy(x => (x.Attempt.Configuration, x.Attempt.TryNumber)).ToDictionary(g => g.Key, g => g.First().Id);
         SideAnswer Side(string key)
         {
             var c = axes.Of(key)!;
@@ -178,7 +178,7 @@ static class Answers
         {
             if (c.State != "compared") return null;
             List<int> Counted(string key) => byKey[key].Rows.Where(r => r.Invalid is null).Select(r => r.N).ToList();
-            int Held(string key, List<int> ns, string stage, string check) => rows.Count(r => r.Configuration == key && ns.Contains(r.Attempt) && r.Stage == stage && r.Checks?.GetValueOrDefault(check) == Verdict.Pass);
+            int Held(string key, List<int> ns, string stage, string check) => rows.Count(r => r.Configuration == key && ns.Contains(r.TryNumber) && r.Stage == stage && r.Checks?.GetValueOrDefault(check) == Verdict.Pass);
             var (mineNs, theirNs) = (Counted(c.Key), Counted(c.LiveKey));
             return exam.StagesOf(c.Key).SelectMany(s => Standard.PassIn(exam, s, c.Key).Select(check =>
                 new CheckHeld(s.Id!, check, exam.ChecksFor(s).GetValueOrDefault(check) is { } declared ? Checks.Describe(declared.Spec) : null, Held(c.Key, mineNs, s.Id!, check), mineNs.Count, Held(c.LiveKey, theirNs, s.Id!, check), theirNs.Count))).ToList();
@@ -188,7 +188,7 @@ static class Answers
         {
             if (c.State != "compared") return null;
             var (mine, theirs) = (byKey[c.Key], byKey[c.LiveKey]);
-            List<double> Stages(ConfigurationTries v, string check) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)rows.Count(x => x.Configuration == v.Id && x.Attempt == r.N && x.Checks?.GetValueOrDefault(check) == Verdict.Pass)).ToList();
+            List<double> Stages(ConfigurationTries v, string check) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)rows.Count(x => x.Configuration == v.Id && x.TryNumber == r.N && x.Checks?.GetValueOrDefault(check) == Verdict.Pass)).ToList();
             return (mine.Checks ?? []).Select(k => (Mine: k, Theirs: theirs.Checks?.FirstOrDefault(o => o.Check == k.Check))).Where(k => k.Theirs is not null).Select(k =>
                 new CheckCompared(k.Mine.Check, k.Mine.Role, exam.Stages.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Mine.Check)).FirstOrDefault(d => d is not null) is { } declared ? Checks.Describe(declared.Spec) : null,
                     k.Mine.Held, k.Mine.Asked, k.Theirs!.Held, k.Theirs.Asked, Tries.Compare(Stages(mine, k.Mine.Check), Stages(theirs, k.Mine.Check), higherIsBetter: true))).ToList();
@@ -282,7 +282,7 @@ static class Answers
         var axes = exam.Axes!;
         var at = asOf ?? DateTime.UtcNow;
         var bank = Bank.Of(root, exam);
-        var counted = bank.Where(a => a.Counts && Bank.Stale(exam, a) is null).Select(a => (a, Id: a.Entry.IdOf(a.Configuration, a.Attempt))).Where(x => MadeAt(x.Id) <= at)
+        var counted = bank.Where(a => a.Counts && Bank.Stale(exam, a) is null).Select(a => (a, Id: a.Entry.IdOf(a.Configuration, a.TryNumber))).Where(x => MadeAt(x.Id) <= at)
             .GroupBy(x => x.a.Configuration).ToDictionary(g => g.Key, g => g.Select(x => x.Id!).Distinct().Order(StringComparer.Ordinal).ToList());
         var standing = Combinations.Load(exam).Stand(exam);
         var retired = Retired.Load(exam);
@@ -294,9 +294,9 @@ static class Answers
             var ids = counted.GetValueOrDefault(c.Key) ?? [];
             var times = ids.Select(id => MadeAt(id)!.Value).ToList();
             return new CoverageRow(c.Key, c.Name, c.Values.ToDictionary(v => v.Axis, v => v.Value), liveAxes.Count > 0 && liveAxes.All(x => c[x] == axes.Def[x].Live),
-                liveAxes.Where(x => c[x] != axes.Def[x].Live).Select(x => $"{x}={c[x]}").ToList(), ids.Count, exam.Attempts,
-                bank.Where(a => a.Lost && a.Configuration == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
-                bank.Where(a => a.Configuration == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
+                liveAxes.Where(x => c[x] != axes.Def[x].Live).Select(x => $"{x}={c[x]}").ToList(), ids.Count, exam.Tries,
+                bank.Where(a => a.Lost && a.Configuration == c.Key && Bank.Stale(exam, a) is null).Select(a => a.TryNumber).Distinct().Count(),
+                bank.Where(a => a.Configuration == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.TryNumber).Distinct().Count(),
                 times.Count > 0 ? Iso(times.Min()) : null, times.Count > 0 ? Iso(times.Max()) : null, times.Count > 0 ? Math.Round((at - times.Max()).TotalDays, 1) : null,
                 standing.TryGetValue(c.Key, out var together) ? together.State : null, ConfigurationAddress(exam, c.Key), ungraded.Count(u => u.Configuration == c.Key), c.Name is null ? null : retired.GetValueOrDefault(c.Name));
         }
@@ -323,7 +323,7 @@ static class Answers
             span = new LiveSpan(liveAxes.Select(x => $"{x}={axes.Def[x].Live}").ToList(), across, (int)Math.Min(int.MaxValue, size), spanned.Count(r => r.Tries > 0), listed, spanned);
         }
         return new CoverageAnswer(Schema, exam.Id, Iso(at), $"/{exam.Id}/coverage?as_of={Encoded(Iso(at))}", values, rows, span,
-            axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), bank.Where(a => Bank.Stale(exam, a) is not null).Select(a => (a.Configuration, a.Attempt)).Distinct().Count(),
+            axes.Excludes.Select(e => new Dictionary<string, string>(e)).ToList(), bank.Where(a => Bank.Stale(exam, a) is not null).Select(a => (a.Configuration, a.TryNumber)).Distinct().Count(),
             "Every number here is proctor's. tries counts whole, current tries as of as_of; wanted is how many the exam asks for of each configuration it makes; a stale try was made before a value or a stage changed and counts nowhere. "
             + "configurations are the ones the exam names or has tries of: any other was never asked for, and nobody spans the rest. "
             + "live on a configuration means it has the live value on every axis that has one; an axis with no live value (one that is not ours to choose) has a reference instead, which is only the value held while others are looked at. "

@@ -28,7 +28,7 @@ public sealed class AxesBank : IDisposable
         File.WriteAllText(Path.Combine(Root, "exams", "proctor.json"), new JsonObject { ["nb"] = new JsonObject { ["path"] = nb, ["config"] = "nb.json" } }.ToJsonString());
         var examFile = Path.Combine(Root, "exams", Exam, "exam.json");
         var exam = JsonNode.Parse(File.ReadAllText(examFile))!;
-        exam["attempts"] = 1;
+        exam["tries"] = 1;
         File.WriteAllText(examFile, exam.ToJsonString());
 
         foreach (var name in new[] { "shipped", "shipped-b", "rewritten", "rewritten-b" })

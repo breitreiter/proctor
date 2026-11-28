@@ -1,7 +1,7 @@
 {
   "id": "axes-harbor",
   "description": "A scripted control for axes through Harbor: nb on Mock as the agent in the fixture's image, with a toolchain set as a build argument, a README laid into the image's repository, and a stage that applies on one toolchain only. No model.",
-  "attempts": 1,
+  "tries": 1,
   "fixture": "toolchain",
   "harbor": { "version": "0.24.0" },
   "limits": { "wall_ms": 120000 },

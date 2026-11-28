@@ -102,7 +102,7 @@ sealed class TestRepo : IDisposable
     public void OneConfiguration(string examId = "smoke", string keep = "a") =>
         EditJson($"{examId}/exam.json", e =>
         {
-            e["attempts"] = 1;
+            e["tries"] = 1;
             var named = e["configurations"]!.AsObject();
             foreach (var name in named.Select(c => c.Key).Where(n => n != keep).ToList()) named.Remove(name);
         });
@@ -122,14 +122,14 @@ sealed class TestRepo : IDisposable
     /// <summary>One stage of a configuration's n-th try: the directory its manifest, transcript and checks are in.</summary>
     public string StageDir(string examId, string key, string stage, int n = 1)
     {
-        var entry = Bank.Entries(Root, examId).Last(e => e.Attempts.Any(a => a.Configuration == key && a.Attempt == n));
+        var entry = Bank.Entries(Root, examId).Last(e => e.Attempts.Any(a => a.Configuration == key && a.TryNumber == n));
         return Layout.Attempt(Root, examId, stage, entry.Stages!, entry.IdOf(key, n)!);
     }
 
     /// <summary>The directory of a configuration's n-th try, by its number, whatever id it is kept under.</summary>
     public string TryDir(string examId, string key, int n)
     {
-        var entry = Bank.Entries(Root, examId).Last(e => e.Attempts.Any(a => a.Configuration == key && a.Attempt == n));
+        var entry = Bank.Entries(Root, examId).Last(e => e.Attempts.Any(a => a.Configuration == key && a.TryNumber == n));
         return Layout.Try(Root, examId, entry.IdOf(key, n)!);
     }
 

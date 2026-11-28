@@ -270,7 +270,7 @@ public class HarborTests
 
     static Manifest NewManifest() => new()
     {
-        Id = "r", Log = "e", Exam = "x", Configuration = new("cc-haiku", "sha256:v"), Stage = new("fix-null-deref", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
+        Id = "r", Log = "e", Exam = "x", Configuration = new("cc-haiku", "sha256:v"), Stage = new("fix-null-deref", "sha256:t"), TryNumber = 1, Host = "h", Versions = [], ProgramHash = "p",
         Agent = new AgentTrial("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
     };
 
@@ -445,12 +445,12 @@ public class HarborTests
         AppendTo(repo, "fixtures/ledger/checks/tests-pass.sh", "# stricter now\n");
 
         // A second try is made by a new run, which compiles the script as it is now.
-        repo.EditJson("harbor-unit/exam.json", e => e["attempts"] = 2);
+        repo.EditJson("harbor-unit/exam.json", e => e["tries"] = 2);
         var second = Run(repo)!;
         Assert.NotEqual(first, second);
         var exam = repo.LoadExam("harbor-unit");
         var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
-        Assert.Equal([(1, Verdict.Outdated), (2, Verdict.Fail)], grades.OrderBy(g => g.Attempt).Select(g => (g.Attempt, g.Checks!["tests-pass"].Result)));
+        Assert.Equal([(1, Verdict.Outdated), (2, Verdict.Fail)], grades.OrderBy(g => g.TryNumber).Select(g => (g.TryNumber, g.Checks!["tests-pass"].Result)));
         Assert.All(grades, g => Assert.Equal(Verdict.Pass, g.Checks!["builds"].Result));
         var firstTry = repo.TryDir("harbor-unit", K, 1);
         Assert.Equal("1 try holds outdated verdicts for tests-pass: through Harbor a script check runs when the try is made, and this check has changed or been added since, so those verdicts are left out of every number. "
@@ -463,7 +463,7 @@ public class HarborTests
         Directory.Delete(firstTry, recursive: true);
         var third = Run(repo)!;
         Assert.DoesNotContain(third, new[] { first, second });
-        Assert.All(Runner.LoadEntry(repo.Root, third).Attempts, a => Assert.Equal((K, 3), (a.Configuration, a.Attempt)));
+        Assert.All(Runner.LoadEntry(repo.Root, third).Attempts, a => Assert.Equal((K, 3), (a.Configuration, a.TryNumber)));
         exam = repo.LoadExam("harbor-unit");
         grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
         Assert.Equal([Verdict.Fail, Verdict.Fail], grades.Where(g => g.Checks is not null).Select(g => g.Checks!["tests-pass"].Result));

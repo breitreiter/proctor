@@ -21,16 +21,16 @@ record LogEntry(
     ResolvedHarbor? Harbor = null, List<string>? Stages = null)
 {
     /// <summary>The id a try's directory is named by.</summary>
-    public string? IdOf(string key, int attempt) => Attempts.FirstOrDefault(a => a.Configuration == key && a.Attempt == attempt)?.Id;
+    public string? IdOf(string key, int attempt) => Attempts.FirstOrDefault(a => a.Configuration == key && a.TryNumber == attempt)?.Id;
     /// <summary>Written by an earlier proctor: by a run of an exam of tasks and variants, laid out by variant and number where a try is now kept under an id of its own, or before an entry named its configurations and stages.</summary>
-    public bool Earlier => Configurations is null || StageHashes is null || Stages is null || Attempts.Any(a => a.Id is null || a.Configuration is null);
+    public bool Earlier => Configurations is null || StageHashes is null || Stages is null || Attempts.Any(a => a.Id is null || a.Configuration is null || a.TryNumber == 0);
 }
 
 /// <summary>A configuration, a value or a stage as a manifest names it: its id and the hash that is its identity.</summary>
 record Ref(string Id, string Hash);
 
 /// <summary>One stage of one try a run set out to make: the configuration's key, the stage, the try's number among the configuration's, and the id the try is kept under.</summary>
-record AttemptRef(string Configuration, string Stage, int Attempt, string? Id = null);
+record AttemptRef(string Configuration, string Stage, int TryNumber, string? Id = null);
 
 /// <summary>A configuration as a log entry keeps it: its key, its hash, and each axis's value by name and hash.</summary>
 record SeenConfiguration(string Id, string Hash, JsonObject Def);
@@ -56,8 +56,8 @@ record Manifest
     /// <summary>The configuration, by its key and the hash that is its identity.</summary>
     public required Ref Configuration { get; init; }
     public required Ref Stage { get; init; }
-    public required int Attempt { get; init; }
-    /// <summary>The stage's place in its try, from 1. Stage names the stage, Configuration the configuration by its key, and Attempt the try by its number among the configuration's.</summary>
+    public required int TryNumber { get; init; }
+    /// <summary>The stage's place in its try, from 1. Stage names the stage, Configuration the configuration by its key, and TryNumber the try by its number among the configuration's.</summary>
     public int? Place { get; init; }
     /// <summary>The try's id, which is its directory; the value on each axis, by name and hash; and a hash of the workspace as the stage left it, kept whether or not the workspace is.</summary>
     public string? Try { get; init; }
@@ -144,22 +144,22 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         // Counted in tries: every stage of a configuration has the same gap, since a try is all of them or none.
         int Per(Assistant v) => Math.Max(1, exam.StagesOf(v.Id!).Count);
         var width = exam.Assistants.Max(v => v.Id!.Length);
-        log.WriteLine($"{exam.Id}: one job of {exam.Stages.Count} stage{(exam.Stages.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted");
+        log.WriteLine($"{exam.Id}: one job of {exam.Stages.Count} stage{(exam.Stages.Count == 1 ? "" : "s")}, {TryCount(exam.Tries)} wanted");
         // Two configurations are compared try against try, and under 4 tries a side nothing can be confirmed (3 against 5 can).
-        if (exam.Assistants.Count > 1 && Tries.MinP(exam.Attempts, exam.Attempts) >= 0.05)
-            log.WriteLine($"  note: {AttemptCount(exam.Attempts)} a configuration can show a difference between two and never confirm one; 4 a configuration can");
+        if (exam.Assistants.Count > 1 && Tries.MinP(exam.Tries, exam.Tries) >= 0.05)
+            log.WriteLine($"  note: {TryCount(exam.Tries)} a configuration can show a difference between two and never confirm one; 4 a configuration can");
         foreach (var assistant in exam.Assistants)
         {
-            var (per, wanted) = (Per(assistant), exam.Attempts);
+            var (per, wanted) = (Per(assistant), exam.Tries);
             var have = wanted - gaps.Where(g => g.Key.Configuration == assistant.Id).Sum(g => g.Value) / per;
             var making = keys is not null && !keys.Contains(assistant.Id!) ? 0 : gaps.Where(g => g.Key.Configuration == assistant.Id).Sum(g => g.Value) / per;
-            log.WriteLine($"  {assistant.Id!.PadRight(width)}  {have} of {AttemptCount(wanted)}{(making > 0 ? $"   making {making}" : have < wanted ? "   not asked for" : "")}");
+            log.WriteLine($"  {assistant.Id!.PadRight(width)}  {have} of {TryCount(wanted)}{(making > 0 ? $"   making {making}" : have < wanted ? "   not asked for" : "")}");
         }
     }
 
     /// <summary>A new run that makes the given tries, stage by stage: only what goes through Harbor among them is compiled.</summary>
     static string Start(string root, Exam exam, AuspexConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log,
-        List<(Assistant Assistant, StageDef Stage, int Attempt)> attempts)
+        List<(Assistant Assistant, StageDef Stage, int TryNumber)> attempts)
     {
         var assistants = exam.Assistants.Where(v => attempts.Any(a => a.Assistant == v)).ToList();
         var tasks = exam.Stages.Where(t => attempts.Any(a => a.Stage == t)).ToList();
@@ -168,7 +168,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         var id = Layout.NewLogEntryId(exam.Id, DateTime.UtcNow);
         // A try is named when it is made, by time and chance, and never by its place among the others.
         var tryIds = new Dictionary<(string, int), string>();
-        foreach (var key in attempts.Select(a => (a.Assistant.Id!, a.Attempt)).Distinct())
+        foreach (var key in attempts.Select(a => (a.Assistant.Id!, a.TryNumber)).Distinct())
         {
             string tryId;
             do tryId = Layout.NewTryId(DateTime.UtcNow); while (tryIds.ContainsValue(tryId) || Directory.Exists(Layout.Try(root, exam.Id, tryId)));
@@ -178,7 +178,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
             Id: id, Exam: exam.Id, ExamHash: exam.Hash,
             Configurations: assistants.Select(v => new SeenConfiguration(v.Id!, v.Hash, SeenDef(exam, v))).ToList(),
             StageHashes: tasks.Select(c => new Ref(c.Id!, exam.StageHashes[c.Id!])).ToList(),
-            Attempts: attempts.Select(a => new AttemptRef(a.Assistant.Id!, a.Stage.Id!, a.Attempt, tryIds[(a.Assistant.Id!, a.Attempt)])).ToList(),
+            Attempts: attempts.Select(a => new AttemptRef(a.Assistant.Id!, a.Stage.Id!, a.TryNumber, tryIds[(a.Assistant.Id!, a.TryNumber)])).ToList(),
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
             Stages: exam.StageIds);
@@ -208,7 +208,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         }
         KeepExam(root, exam);
         WriteJson(Path.Combine(dir, Layout.LogEntryFile), entry);
-        log.WriteLine($"run {id}: {AttemptCount(attempts.Select(a => (a.Assistant, a.Attempt)).Distinct().Count())} to make");
+        log.WriteLine($"run {id}: {TryCount(attempts.Select(a => (a.Assistant, a.TryNumber)).Distinct().Count())} to make");
         new Runner(root, entry, exam, config, log).Make(attempts);
         return id;
     }
@@ -225,7 +225,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         WriteJson(file, new ExamSeen(exam.Id, exam.Hash, JsonNode.Parse(File.ReadAllText(Layout.ExamFileIn(exam.Dir)))!.AsObject()));
     }
 
-    static string AttemptCount(int n) => $"{n} attempt{(n == 1 ? "" : "s")}";
+    static string TryCount(int n) => $"{n} {(n == 1 ? "try" : "tries")}";
     public static LogEntry LoadEntry(string root, string entryId)
     {
         var file = Layout.LogEntryFileIn(root, entryId);
@@ -279,7 +279,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
     }
 
     /// <summary>Make the given tries of this run, configuration by configuration, the configuration hooks around each one's tries; then say how they came out.</summary>
-    void Make(List<(Assistant Assistant, StageDef Stage, int Attempt)> attempts)
+    void Make(List<(Assistant Assistant, StageDef Stage, int TryNumber)> attempts)
     {
         // The relay's host end lives as long as the tries are being made, at the directory the log entry recorded.
         using var relay = entry.Harbor?.Relay is { } r && attempts.Any(a => a.Assistant.IsAgent) ? HostRelay.Start(r.Dir, r.Ports) : null;
@@ -287,7 +287,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         foreach (var group in attempts.GroupBy(a => a.Assistant))
         {
             var assistant = group.Key;
-            var pending = group.Select(a => (a.Stage, a.Attempt)).ToList();
+            var pending = group.Select(a => (a.Stage, a.TryNumber)).ToList();
             var hooksDir = Path.Combine(entryDir, Layout.HooksDir);
             Directory.CreateDirectory(hooksDir);
             var hookEnv = new Dictionary<string, string> { ["PROCTOR_EXAM"] = exam.Id, ["PROCTOR_CONFIGURATION"] = assistant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_RUNNER"] = entry.Nb.Runner?.Script ?? "" };
@@ -299,7 +299,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
                 continue;
             }
 
-            foreach (var n in pending.Select(p => p.Attempt).Distinct())
+            foreach (var n in pending.Select(p => p.TryNumber).Distinct())
                 if (assistant.IsAgent) RunAgentTry(assistant, n);
                 else RunTry(assistant, n);
 
@@ -308,9 +308,9 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
         }
         WriteStatusCounts();
         // A try is whole when every stage completed, broke when a chained one stopped part way (it still counts), and lost when a stage did not run.
-        var tries = attempts.GroupBy(a => (a.Assistant.Id, a.Attempt)).Select(g => g.Select(a => ReadStatus(AttemptDir(a.Assistant, a.Stage, a.Attempt))).ToList())
+        var tries = attempts.GroupBy(a => (a.Assistant.Id, a.TryNumber)).Select(g => g.Select(a => ReadStatus(AttemptDir(a.Assistant, a.Stage, a.TryNumber))).ToList())
             .Select(s => s.Any(x => x is not (AttemptStatus.Completed or AttemptStatus.Skipped)) ? "lost" : s.Contains(AttemptStatus.Skipped) ? "broke" : "whole").ToList();
-        log.WriteLine($"{AttemptCount(tries.Count)} made: " + string.Join(", ", new[] { "whole", "broke", "lost" }.Where(k => k == "whole" || tries.Contains(k)).Select(k => $"{tries.Count(t => t == k)} {k}")));
+        log.WriteLine($"{TryCount(tries.Count)} made: " + string.Join(", ", new[] { "whole", "broke", "lost" }.Where(k => k == "whole" || tries.Contains(k)).Select(k => $"{tries.Count(t => t == k)} {k}")));
     }
 
     string AttemptDir(Assistant assistant, StageDef task, int n) => Layout.Attempt(root, exam.Id, task.Id!, entry.Stages!, entry.IdOf(assistant.Id!, n)!);
@@ -494,7 +494,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
 
     Manifest NewManifest(Assistant assistant, StageDef task, int n, Fixture? fixture, string programHash) => new()
     {
-        Id = Layout.NewAttemptId(), Exam = exam.Id, Log = entry.Id, Configuration = RefOf(assistant), Stage = RefOf(task), Attempt = n,
+        Id = Layout.NewAttemptId(), Exam = exam.Id, Log = entry.Id, Configuration = RefOf(assistant), Stage = RefOf(task), TryNumber = n,
         Place = entry.Stages!.IndexOf(task.Id!) + 1,
         Runner = assistant.Runner, Harness = assistant.Harness, Provider = assistant.Provider, Model = assistant.Model,
         Fixture = fixture is null ? null : new FixtureRef(fixture.Id, fixture.Hash),
@@ -755,7 +755,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
             ["model"] = assistant.Model ?? "",
             ["harness"] = assistant.Harness ?? "",
             ["configuration"] = assistant.Id!,
-            ["attempt"] = n.ToString(),
+            ["try_number"] = n.ToString(),
         };
         return System.Text.RegularExpressions.Regex.Replace(template, @"\{\{\s*([^}]*?)\s*\}\}", m => m.Groups[1].Value switch
         {

@@ -206,7 +206,7 @@ public class AxesTests
         using var repo = Smoke();
         repo.Write("smoke/program.nb", "# {{arm}} {{sample}} {{task}}\nprovider {{provider}}\nharness {{harness}}\nrun {{prompt}}\n");
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{arm}}" && p.Message.Contains("{{configuration}}"));
-        Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{sample}}" && p.Message.Contains("{{attempt}}"));
+        Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{sample}}" && p.Message.Contains("{{try_number}}"));
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "{{task}}" && p.Message.Contains("{{stage}}"));
 
         repo.Write("smoke/program.nb", "# {{bundle}}\nprovider {{provider}}\nharness {{harness}}\nrun {{prompt}}\n");

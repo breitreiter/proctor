@@ -28,7 +28,7 @@ public class RunnerTests
     /// <summary>Configuration a alone, one try: an exam edit.</summary>
     static readonly Action<JsonObject> One = e =>
     {
-        e["attempts"] = 1;
+        e["tries"] = 1;
         e["configurations"]!.AsObject().Remove("b");
     };
 
@@ -58,7 +58,7 @@ public class RunnerTests
         // The exam as it stood, once per hash.
         var seen = ReadJson(Path.Combine(repo.Root, "exams-seen", $"sha256-{exam.Hash[7..19]}.json"));
         Assert.Equal(("smoke", exam.Hash), (seen["exam"]!.GetValue<string>(), seen["hash"]!.GetValue<string>()));
-        Assert.Equal(1, seen["def"]!["attempts"]!.GetValue<int>());
+        Assert.Equal(1, seen["def"]!["tries"]!.GetValue<int>());
         // The configuration it made tries of: each axis's value, by name and by the hash that is its identity.
         var made = Assert.Single(entry["configurations"]!.AsArray())!;
         Assert.Equal((A, "mock", "none"), (made["id"]!.GetValue<string>(), made["def"]!["assistant"]!["id"]!.GetValue<string>(), made["def"]!["extra"]!["id"]!.GetValue<string>()));
@@ -90,7 +90,7 @@ public class RunnerTests
         Assert.Equal(id, manifest["log"]!.GetValue<string>());
         Assert.Equal((A, exam.Assistants.Single().Hash), (manifest["configuration"]!["id"]!.GetValue<string>(), manifest["configuration"]!["hash"]!.GetValue<string>()));
         Assert.Equal(("plain", exam.StageHashes["plain"]), (manifest["stage"]!["id"]!.GetValue<string>(), manifest["stage"]!["hash"]!.GetValue<string>()));
-        Assert.Equal((1, 1, Path.GetFileName(tryDir)), (manifest["attempt"]!.GetValue<int>(), manifest["place"]!.GetValue<int>(), manifest["try"]!.GetValue<string>()));
+        Assert.Equal((1, 1, Path.GetFileName(tryDir)), (manifest["try_number"]!.GetValue<int>(), manifest["place"]!.GetValue<int>(), manifest["try"]!.GetValue<string>()));
         Assert.Equal("mock", manifest["values"]!["assistant"]!["id"]!.GetValue<string>());
         Assert.Equal("Mock", manifest["provider"]!.GetValue<string>());
         Assert.Equal("nb-jsonl", manifest["transcript"]!["format"]!.GetValue<string>());
@@ -137,7 +137,7 @@ public class RunnerTests
         // Nothing is missing, so the same command makes nothing.
         var (again, log) = RunAgain(repo);
         Assert.Null(again);
-        Assert.Equal($"smoke: one job of 4 stages, 2 attempts wanted\n  note: 2 attempts a configuration can show a difference between two and never confirm one; 4 a configuration can\n  {A}     2 of 2 attempts\n  {B}  2 of 2 attempts\nnothing to make\n", log);
+        Assert.Equal($"smoke: one job of 4 stages, 2 tries wanted\n  note: 2 tries a configuration can show a difference between two and never confirm one; 4 a configuration can\n  {A}     2 of 2 tries\n  {B}  2 of 2 tries\nnothing to make\n", log);
         Assert.Single(Directory.GetDirectories(Path.Combine(repo.Root, "log")));
     }
 
@@ -152,11 +152,11 @@ public class RunnerTests
         var (again, log) = RunAgain(repo);
 
         Assert.NotEqual(id, again);
-        Assert.Contains($"  {A}  0 of 1 attempt   making 1\n", log);
-        Assert.Contains($"run {again}: 1 attempt to make\n", log);
+        Assert.Contains($"  {A}  0 of 1 try   making 1\n", log);
+        Assert.Contains($"run {again}: 1 try to make\n", log);
         var entry = Runner.LoadEntry(repo.Root, again!);
         // Numbered after the stale one, so a configuration's n-th try names one try for good.
-        Assert.All(entry.Attempts, a => Assert.Equal((A, 2), (a.Configuration, a.Attempt)));
+        Assert.All(entry.Attempts, a => Assert.Equal((A, 2), (a.Configuration, a.TryNumber)));
         var exam = repo.LoadExam("smoke");
         var selection = Bank.Select(repo.Root, exam);
         Assert.Equal([$"{A}/2/loops", $"{A}/2/plain", $"{A}/2/uses-bash", $"{A}/2/writes-a-file"], selection.Current.Select(a => a.Label).Order(StringComparer.Ordinal));
@@ -177,7 +177,7 @@ public class RunnerTests
         var entry = Runner.LoadEntry(repo.Root, again!);
         Assert.Equal([c], entry.Configurations.Select(v => v.Id));
         Assert.Equal(4, entry.Attempts.Count);
-        Assert.All(entry.Attempts, a => Assert.Equal((c, 1), (a.Configuration, a.Attempt)));
+        Assert.All(entry.Attempts, a => Assert.Equal((c, 1), (a.Configuration, a.TryNumber)));
         Assert.Equal(8, Bank.Select(repo.Root, repo.LoadExam("smoke")).Current.Count);
 
         // Asking for one configuration narrows: a has all it wants, so asking for a alone makes nothing.
@@ -195,7 +195,7 @@ public class RunnerTests
         repo.WriteScript("smoke/hooks/flaky-setup.sh", "#!/usr/bin/env bash\nif [ \"$PROCTOR_AXIS_ASSISTANT\" = mock ]; then echo 'no fakes for mock' >&2; exit 7; fi\n");
         var id = StartSmoke(repo, e =>
         {
-            e["attempts"] = 1;
+            e["tries"] = 1;
             e["hooks"]!["try"]!["setup"] = "hooks/flaky-setup.sh";
         });
 
@@ -218,8 +218,8 @@ public class RunnerTests
         // A lost try is never taken up again part way: the next run makes it again, whole, under the next number.
         var (again, log) = RunAgain(repo);
         Assert.NotEqual(id, again);
-        Assert.Contains($"  {A}     0 of 1 attempt   making 1\n", log);
-        Assert.All(Runner.LoadEntry(repo.Root, again!).Attempts, a => Assert.Equal((A, 2), (a.Configuration, a.Attempt)));
+        Assert.Contains($"  {A}     0 of 1 try   making 1\n", log);
+        Assert.All(Runner.LoadEntry(repo.Root, again!).Attempts, a => Assert.Equal((A, 2), (a.Configuration, a.TryNumber)));
     }
 
     [Fact]
@@ -230,7 +230,7 @@ public class RunnerTests
         repo.WriteScript("smoke/hooks/b-fails.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_AXIS_EXTRA\" = smoke ] && { echo 'fakes did not start' >&2; exit 1; }\nexit 0\n");
         StartSmoke(repo, e =>
         {
-            e["attempts"] = 1;
+            e["tries"] = 1;
             e["hooks"]!["configuration"]!["setup"] = "hooks/b-fails.sh";
         });
 
@@ -304,8 +304,8 @@ public class RunnerTests
     {
         var assistant = new Assistant("floor", "nb", "nb", "Mock", "m");
         var c = new StageDef("x", null, "Add a flag.\nKeep tests green.\n  Indented line.", null);
-        var program = Runner.ResolveProgram("run {{prompt}}\n# {{stage}} on {{configuration}} attempt {{attempt}} in {{work}}\n", assistant, c, 2, "/w");
-        Assert.Equal("run Add a flag. \\\nKeep tests green. \\\n  Indented line.\n# x on floor attempt 2 in /w\n", program);
+        var program = Runner.ResolveProgram("run {{prompt}}\n# {{stage}} on {{configuration}} try {{try_number}} in {{work}}\n", assistant, c, 2, "/w");
+        Assert.Equal("run Add a flag. \\\nKeep tests green. \\\n  Indented line.\n# x on floor try 2 in /w\n", program);
     }
 
     [Fact]

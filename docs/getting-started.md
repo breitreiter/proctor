@@ -28,7 +28,7 @@ Follow these rules through every step of this page.
   key can reach are listed in `exams/setup.json`. `--probe` repeats each key
   check, which lists models and spends no tokens.
 - **Agree the spend before any run that calls a hosted model.** Estimate
-  the requests (configurations × `attempts` × stages) and get the user's
+  the requests (configurations × `tries` × stages) and get the user's
   yes first. Exams on nb's Mock provider cost nothing, and
   `readme-answers` fits in Gemini's free tier.
 - **Plan an exam with the shipped skill**, `skills/proctor-exam/`. It

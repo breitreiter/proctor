@@ -144,7 +144,7 @@ static class Friction
 
     internal record Step(string Id, List<Call> Calls);
 
-    public record AttemptFriction(string Configuration, string Stage, int Attempt, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
+    public record AttemptFriction(string Configuration, string Stage, int TryNumber, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
 
     /// <summary>friction.json beside each given attempt's trajectory, each a current one from the bank: one stage of a try, whose steps are that stage's own. An attempt not completed, a stage not reached, or one with no trajectory is skipped and said so.</summary>
     /// <param name="reader">A chat judge of the machine's config that reads each attempt for what rules cannot see; its points are added with a model source. Null for rules only.</param>
@@ -154,7 +154,7 @@ static class Friction
         var done = new List<AttemptFriction>();
         foreach (var a in attempts)
         {
-            var (key, task, n) = (a.Configuration, a.Stage, a.Attempt);
+            var (key, task, n) = (a.Configuration, a.Stage, a.TryNumber);
             var attemptDir = a.Dir(root);
             var trajectory = Path.Combine(attemptDir, Layout.TrajectoryFile);
             // A stage a chained try never reached has nothing to read, which is not the same as an attempt that did not finish.
@@ -165,8 +165,8 @@ static class Friction
                 done.Add(new AttemptFriction(key, task, n, null, skipped));
                 continue;
             }
-            var attempt = new JsonObject { ["exam"] = exam.Id, ["configuration"] = key, ["stage"] = task, ["attempt"] = n.ToString() };
-            // A stage of a try, as its manifest says it: stage is the stage's id, attempt the try's number, place the stage's place in the try.
+            var attempt = new JsonObject { ["exam"] = exam.Id, ["configuration"] = key, ["stage"] = task, ["try_number"] = n.ToString() };
+            // A stage of a try, as its manifest says it: stage is the stage's id, try_number the try's number, place the stage's place in the try.
             if (a.Entry.Stages is { } stages) attempt["place"] = stages.IndexOf(task) + 1;
             var parsed = JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject();
             var (file, steps) = Detect(parsed, surface, attempt);

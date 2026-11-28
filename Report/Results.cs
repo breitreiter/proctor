@@ -5,7 +5,7 @@ namespace Auspex;
 /// <summary>One row of results.jsonl: coordinates on every row, no transcript text.
 /// <c>Outdated</c> is set, with <c>Undecided</c>, when the attempt is undecided because a correctness check's verdict is outdated.</summary>
 record ResultRow(
-    string Id, string Configuration, string Stage, int Attempt,
+    string Id, string Configuration, string Stage, int TryNumber,
     string Status, string? StatusReason, string? ExitReason,
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null,
@@ -29,10 +29,10 @@ static class Results
     public static List<ResultRow> Collect(string root, Exam exam, IEnumerable<BankAttempt> attempts)
     {
         var rows = new List<ResultRow>();
-        var ordered = attempts.OrderBy(a => exam.Assistants.FindIndex(v => v.Id == a.Configuration)).ThenBy(a => exam.Stages.FindIndex(t => t.Id == a.Stage)).ThenBy(a => a.Attempt);
+        var ordered = attempts.OrderBy(a => exam.Assistants.FindIndex(v => v.Id == a.Configuration)).ThenBy(a => exam.Stages.FindIndex(t => t.Id == a.Stage)).ThenBy(a => a.TryNumber);
         foreach (var a in ordered)
         {
-            var (c, n) = (exam.Stages.First(t => t.Id == a.Stage), a.Attempt);
+            var (c, n) = (exam.Stages.First(t => t.Id == a.Stage), a.TryNumber);
             var attemptDir = a.Dir(root);
             var manifestFile = Path.Combine(attemptDir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
@@ -41,7 +41,7 @@ static class Results
             var checks = status == AttemptStatus.Completed ? Grade.ReadChecks(attemptDir) : null;
             rows.Add(new ResultRow(
                 Id: manifest?.Id ?? "",
-                Configuration: a.Configuration, Stage: c.Id!, Attempt: n,
+                Configuration: a.Configuration, Stage: c.Id!, TryNumber: n,
                 Status: status,
                 StatusReason: manifest?.StatusReason ?? (checks is null && status == AttemptStatus.Completed ? "not graded" : null),
                 ExitReason: trailer?.ExitReason,

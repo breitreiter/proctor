@@ -163,7 +163,7 @@ public class AnswersTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("axes-answers");
-        repo.EditJson("axes-answers/exam.json", e => e["attempts"] = 1);
+        repo.EditJson("axes-answers/exam.json", e => e["tries"] = 1);
         foreach (var name in new[] { "shipped", "rewritten" })
         {
             var (exam, keys) = Verbs.ForRun(repo.Root, repo.LoadExam("axes-answers"), null, null, name);

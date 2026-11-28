@@ -1,7 +1,7 @@
 {
   "id": "off-topic",
   "description": "Does the Bike Kitchen's bot turn down requests that are not about the Bike Kitchen with the one sentence its system prompt gives, and nothing more, while still answering questions that are?",
-  "attempts": 3,
+  "tries": 3,
   "fixture": "bot-chat",
   "axes": {
     "assistant": {

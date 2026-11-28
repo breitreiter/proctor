@@ -56,8 +56,8 @@ static class Configurations
         var judges = Judge.Uses(root, current);
         // Comparisons use the standard as it is now, both sides alike: a try graded only under earlier checks is not yet graded, and in no number.
         var ungraded = NotGraded(root, exam, current);
-        current = current.Where(a => !ungraded.Contains((a.Configuration, a.Attempt))).ToList();
-        rows = rows.Where(r => !ungraded.Contains((r.Configuration, r.Attempt))).ToList();
+        current = current.Where(a => !ungraded.Contains((a.Configuration, a.TryNumber))).ToList();
+        rows = rows.Where(r => !ungraded.Contains((r.Configuration, r.TryNumber))).ToList();
         var moves = Standard.Moves(root, exam, current);
         var (tries, friction) = Tries.Compute(root, exam, current, bank, rows, built);
         var byKey = tries.Configurations.ToDictionary(v => v.Id);
@@ -71,9 +71,9 @@ static class Configurations
             var made = t?.Tries ?? 0;
             var stages = exam.StagesOf(c.Key);
             return new ConfigurationRow(c.Key, c.Label, c.Values.ToDictionary(v => v.Axis, v => v.Value), c.Name, Live(c),
-                made == 0 ? (ungraded.Any(u => u.Configuration == c.Key) ? "not_graded" : "not_run") : made < exam.Attempts ? "partial" : "made", exam.Attempts, made,
-                bank.Where(a => a.Lost && a.Configuration == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
-                bank.Where(a => a.Configuration == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
+                made == 0 ? (ungraded.Any(u => u.Configuration == c.Key) ? "not_graded" : "not_run") : made < exam.Tries ? "partial" : "made", exam.Tries, made,
+                bank.Where(a => a.Lost && a.Configuration == c.Key && Bank.Stale(exam, a) is null).Select(a => a.TryNumber).Distinct().Count(),
+                bank.Where(a => a.Configuration == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.TryNumber).Distinct().Count(),
                 stages.Select(s => s.Id!).ToList(), stages.Sum(s => Standard.PassIn(exam, s, c.Key).Count), t,
                 standing.TryGetValue(c.Key, out var together) ? together.State : null, together.Paths is { Count: > 0 } ? together.Paths : null,
                 ungraded.Count(u => u.Configuration == c.Key), c.Name is null ? null : retired.GetValueOrDefault(c.Name));
@@ -110,8 +110,8 @@ static class Configurations
         Compare(exam, byKey, standing, new Dictionary<string, string> { [axis] = value }, new Dictionary<string, string> { [axis] = against }, within, moves);
 
     /// <summary>The tries, by configuration and number, with a completed stage that holds no grade under the standard as it is now.</summary>
-    public static HashSet<(string Configuration, int Attempt)> NotGraded(string root, Exam exam, IEnumerable<BankAttempt> current) =>
-        current.Where(a => a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.StageOf(a.Stage), a.Dir(root))).Select(a => (a.Configuration, a.Attempt)).ToHashSet();
+    public static HashSet<(string Configuration, int TryNumber)> NotGraded(string root, Exam exam, IEnumerable<BankAttempt> current) =>
+        current.Where(a => a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.StageOf(a.Stage), a.Dir(root))).Select(a => (a.Configuration, a.TryNumber)).ToHashSet();
 
     /// <summary>
     /// The same for a change on several axes at once: these values together against those, every other axis held. It is

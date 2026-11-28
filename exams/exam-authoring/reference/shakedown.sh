@@ -19,7 +19,7 @@ for c in $(jq -r '.stages[].id' "$def"); do
   workspace=$(jq -r '.when | sub("^workspace = "; "")' <<<"$stage")
   f=$(jq -r --arg w "$workspace" '.axes.workspace.values[$w].fixture' "$def")
   id=$(jq -r .expect.exam <<<"$stage")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_STAGE="$c" PROCTOR_ATTEMPT=1
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_STAGE="$c" PROCTOR_TRY_NUMBER=1
   export PROCTOR_CONFIGURATION="workspace=$workspace,docs=ref,assistant=ref" PROCTOR_AXIS_WORKSPACE="$workspace"
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work"
   export PROCTOR_STAGE_JSON="$stage" PROCTOR_EXPECT="$(jq -c .expect <<<"$stage")"

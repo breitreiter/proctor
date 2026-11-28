@@ -23,7 +23,7 @@ public class AxesRunTests
         repo.EditJson("smoke/exam.json", e =>
         {
             e.Remove("hooks");
-            e["attempts"] = 1;
+            e["tries"] = 1;
             e["params"] = JsonNode.Parse("""{ "TONE": { "default": "plain" } }""");
             e["stages"] = JsonNode.Parse("""
                 [ { "id": "read", "prompt": "MOCK:tool=bash cat README.md" },
@@ -69,7 +69,7 @@ public class AxesRunTests
     {
         using var repo = Smoke();
         var log = Run(repo);
-        Assert.Contains("4 attempts made: 4 whole", log);
+        Assert.Contains("4 tries made: 4 whole", log);
 
         var tries = Tries(repo);
         Assert.Equal(4, tries.Count);
@@ -156,7 +156,7 @@ public class AxesRunTests
         repo.Write("smoke/values/docs/rewritten-2/README.md", "rewritten again\n");
         repo.EditJson("smoke/exam.json", e => e["axes"]!["docs"]!["values"]!["rewritten-2"] = JsonNode.Parse("""{ "note": "rewritten again", "files": { "path": "values/docs/rewritten-2" } }"""));
         Assert.Contains("nothing to make", Run(repo));
-        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten-2"]));
+        Assert.Contains("1 try made: 1 whole", Run(repo, ["docs=rewritten-2"]));
         Assert.Equal(5, Tries(repo).Count);
     }
 
@@ -164,12 +164,12 @@ public class AxesRunTests
     public void Run_MakesWhatIsNamed_OrAValueAlone_AndNeverTheCrossProduct()
     {
         using var repo = Smoke(e => e["configurations"] = JsonNode.Parse("""{ "shipped": { "docs": "shipped", "tone": "plain", "assistant": "mock" } }"""));
-        Assert.Contains("1 attempt made: 1 whole", Run(repo));
+        Assert.Contains("1 try made: 1 whole", Run(repo));
         Assert.Equal(["docs=shipped,tone=plain,assistant=mock"], Tries(repo).Keys);
 
         // --value is that value with every other axis at its reference: the live docs, and the tone the axis names.
-        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["tone=terse"]));
-        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten"]));
+        Assert.Contains("1 try made: 1 whole", Run(repo, ["tone=terse"]));
+        Assert.Contains("1 try made: 1 whole", Run(repo, ["docs=rewritten"]));
         Assert.Equal(["docs=rewritten,tone=plain,assistant=mock", "docs=shipped,tone=plain,assistant=mock", "docs=shipped,tone=terse,assistant=mock"], Tries(repo).Keys.Order());
 
         // Once made, a configuration is carried without a name: it is read, listed and reported like a named one.
@@ -180,11 +180,11 @@ public class AxesRunTests
         Assert.Equal(6, Bank.Select(repo.Root, exam).Current.Count);
 
         // A plain run tops up what is named and leaves the rest as it is.
-        repo.EditJson("smoke/exam.json", e => e["attempts"] = 2);
-        Assert.Contains("1 attempt made: 1 whole", Run(repo));
+        repo.EditJson("smoke/exam.json", e => e["tries"] = 2);
+        Assert.Contains("1 try made: 1 whole", Run(repo));
         Assert.Equal(4, Directory.GetDirectories(Path.Combine(repo.Root, "bank", "smoke")).Length);
         Assert.Contains("nothing to make", Run(repo, configuration: "shipped"));
-        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten"]));
+        Assert.Contains("1 try made: 1 whole", Run(repo, ["docs=rewritten"]));
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public class AxesRunTests
         var unheld = Assert.Throws<AuspexException>(() => Run(repo, ["docs=rewritten"]));
         Assert.Contains("axis 'tone' has no live value and names no reference", unheld.Message);
         // Saying the value for the axis that has no reference is enough.
-        Assert.Contains("1 attempt made: 1 whole", Run(repo, ["docs=rewritten", "tone=terse"]));
+        Assert.Contains("1 try made: 1 whole", Run(repo, ["docs=rewritten", "tone=terse"]));
 
         Assert.Contains("one or the other", Assert.Throws<AuspexException>(() => Run(repo, ["docs=rewritten"], "shipped")).Message);
         Assert.Contains("names no such configuration (none)", Assert.Throws<AuspexException>(() => Run(repo, configuration: "shipped")).Message);

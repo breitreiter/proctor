@@ -29,7 +29,7 @@ static class Verbs
             var fixtures = exam.Stages.Select(c => c.Fixture).OfType<string>().Distinct().Count();
             var byLevel = levels.Count < 2 ? "" : " (" + string.Join(", ", levels.Select(g => $"{g.Count()} of {g.Key switch { "exam" => "the exam's", "fixture" => fixtures == 1 ? "the fixture's" : "the fixtures'", _ => "the stages' own" }}")) + ")";
             var size = exam.Axes.Conditions.Count > 0 ? Count(exam.Stages.Count, "stage") : $"one job of {Count(exam.Stages.Count, "stage")}";
-            Console.WriteLine($"  {size}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted{(exam.Judged ? "; judged" : "")}");
+            Console.WriteLine($"  {size}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {TryCount(exam.Tries)} wanted{(exam.Judged ? "; judged" : "")}");
             Console.WriteLine($"  stages: {string.Join(", ", exam.Stages.Select(c => c.Id))}");
             // A stage's id is its label on screen; these will not read as one (plans/bank.md, B9). Said, never refused.
             if (exam.UnreadableStageIds() is { Count: > 0 } unreadable) Console.WriteLine($"  stage ids that will not read as a label (over 20 characters, or a number): {string.Join(", ", unreadable)}");
@@ -175,7 +175,7 @@ static class Verbs
         foreach (var c in predictions.Where(c => name is null || c.Name == name))
         {
             var written = Predictions.WrittenAt(c.Def.Written!);
-            var made = bank.Where(a => a.Configuration == c.Configuration.Key).Select(a => (a.Attempt, Made: Answers.MadeAt(a.Entry.IdOf(a.Configuration, a.Attempt)))).Distinct().Count(a => a.Made < written);
+            var made = bank.Where(a => a.Configuration == c.Configuration.Key).Select(a => (a.TryNumber, Made: Answers.MadeAt(a.Entry.IdOf(a.Configuration, a.TryNumber)))).Distinct().Count(a => a.Made < written);
             var pinned = Predictions.Stamp(exam, c);
             Console.WriteLine($"{c.Name}: {c.Configuration.Name} against {c.Against.Name ?? c.Against.Label}; written {c.Def.Written}"
                 + (pinned ? ", its standard pinned now" : "")
@@ -305,7 +305,7 @@ static class Verbs
             Console.WriteLine($"reader {reader}: {asked.Count(r => r.Problem is null)} asked, {readings.Count(r => !r.Asked)} reused, {readings.Count(r => r.Problem is not null)} without an answer; "
                 + $"{readings.Sum(r => r.Kept)} of {readings.Sum(r => r.Labelled)} labelled calls kept; {asked.Sum(r => r.InputTokens ?? 0):N0} tokens in, {asked.Sum(r => r.OutputTokens ?? 0):N0} out");
             foreach (var c in read.Where(c => c.Reading!.Dropped.Count > 0))
-                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Configuration}/{c.Attempt}/{c.Stage} {drop}");
+                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Configuration}/{c.TryNumber}/{c.Stage} {drop}");
         }
         return 0;
     }
@@ -425,7 +425,7 @@ static class Verbs
         var unheld = axes.Def.Keys.Where(a => axes.ReferenceOf(a) is null).ToList();
         var named = axes.Named.Count();
         var others = axes.Configurations.Count - named;
-        Console.WriteLine($"  {Count(named, "configuration")} named{(others > 0 ? $", {others} more with attempts" : "")}; {Count(exam.Attempts, "attempt")} wanted of each"
+        Console.WriteLine($"  {Count(named, "configuration")} named{(others > 0 ? $", {others} more with tries" : "")}; {TryCount(exam.Tries)} wanted of each"
             + (unheld.Count > 0 ? $"; no live value or reference on {string.Join(", ", unheld)}" : ""));
         bool Live(Configuration c) => axes.IsLive(c);
         var retired = Retired.Load(exam);
@@ -438,7 +438,7 @@ static class Verbs
             foreach (var c in axes.Configurations)
             {
                 var notes = string.Join(", ", new[] { c.Name ?? "not named", Live(c) ? "live" : null, c.Name is not null && retired.ContainsKey(c.Name) ? "retired" : null }.OfType<string>());
-                Console.WriteLine($"  {c.Label.PadRight(width)}  {exam.Stages.Count(s => axes.Applies(s, c)),-6}  {Made(c),-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
+                Console.WriteLine($"  {c.Label.PadRight(width)}  {exam.Stages.Count(s => axes.Applies(s, c)),-6}  {Made(c),-8}  {exam.Tries,-6}  {notes}".TrimEnd());
             }
         }
         foreach (var excluded in axes.Excludes)
@@ -461,6 +461,7 @@ static class Verbs
     }
 
     static string Count(int n, string one) => $"{n} {one}{(n == 1 ? "" : "s")}";
+    static string TryCount(int n) => $"{n} {(n == 1 ? "try" : "tries")}";
 
     /// <summary>The setup wizard at a terminal; with <c>--check</c>, what is set up, as plain lines an agent reads.</summary>
     public static int Setup(string root, bool check, bool probe) =>

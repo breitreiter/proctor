@@ -15,7 +15,7 @@ public class ExamTests
         Assert.Equal("smoke", exam.Id);
         Assert.Equal(2, exam.Assistants.Count);
         Assert.Equal(["plain", "uses-bash", "loops", "writes-a-file"], exam.Stages.Select(t => t.Id));
-        Assert.Equal(2, exam.Attempts);
+        Assert.Equal(2, exam.Tries);
         Assert.Equal(["exit_ok", "says-expected"], exam.Grading.Correctness);
         Assert.StartsWith("sha256:", exam.Hash);
         Assert.Equal(exam.Hash, repo.LoadExam("smoke").Hash);
@@ -116,7 +116,7 @@ public class ExamTests
     [InlineData("labels", "{\"area\": []}", "smoke/exam.json", "labels.area")]
     [InlineData("labels", "{\"area\": [\"x\", \"\"]}", "smoke/exam.json", "labels.area")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"judge\": {}}}, \"correctness\": [\"x\"]}", "smoke/exam.json", "grading.checks.x.judge")]
-    [InlineData("attempts", "0", "smoke/exam.json", "attempts")]
+    [InlineData("tries", "0", "smoke/exam.json", "tries")]
     [InlineData("hooks", "{\"run\": {\"setup\": \"hooks/configuration-setup.sh\"}}", "smoke/exam.json", "hooks.run")]
     [InlineData("hooks", "{\"task\": {\"setup\": \"hooks/configuration-setup.sh\"}}", "smoke/exam.json", "hooks.task")]
     [InlineData("hooks", "{\"configuration\": {\"setup\": \"hooks/missing.sh\"}}", "smoke/exam.json", "hooks.configuration.setup")]

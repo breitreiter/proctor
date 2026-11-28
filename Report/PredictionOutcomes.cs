@@ -26,7 +26,7 @@ static class PredictionOutcomes
 
     public static List<PredictionReport> Compute(Exam exam, List<Prediction> predictions, IReadOnlyDictionary<string, ConfigurationTries> byKey, List<ResultRow> rows, IEnumerable<BankAttempt> current)
     {
-        var made = current.Select(a => (a.Configuration, Made: Answers.MadeAt(a.Entry.IdOf(a.Configuration, a.Attempt)), a.Attempt)).Where(x => x.Made is not null).Distinct().ToList();
+        var made = current.Select(a => (a.Configuration, Made: Answers.MadeAt(a.Entry.IdOf(a.Configuration, a.TryNumber)), a.TryNumber)).Where(x => x.Made is not null).Distinct().ToList();
         return predictions.Select(c =>
         {
             var (mine, theirs) = (byKey.GetValueOrDefault(c.Configuration.Key), byKey.GetValueOrDefault(c.Against.Key));
@@ -66,7 +66,7 @@ static class PredictionOutcomes
 
     /// <summary>The number a change is about, for one try: the stages in which its check held, or the try's own count. Null when it cannot be read (friction not run).</summary>
     static double? Number(ChangeDef p, TryRow row, string key, List<ResultRow> rows) => p.Check is { } check
-        ? rows.Count(r => r.Configuration == key && r.Attempt == row.N && r.Checks?.GetValueOrDefault(check) == Verdict.Pass)
+        ? rows.Count(r => r.Configuration == key && r.TryNumber == row.N && r.Checks?.GetValueOrDefault(check) == Verdict.Pass)
         : p.Metric switch
         {
             "held" => row.Held, "flagged_steps" => row.Flagged, "tool_calls" => row.ToolCalls, "tokens" => row.TokensIn, "duration" => row.DurationMs, _ => null,

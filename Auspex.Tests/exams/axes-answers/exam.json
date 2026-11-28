@@ -1,7 +1,7 @@
 {
   "id": "axes-answers",
   "description": "A scripted exam with known answers, for proctor's own queries (compare, coverage): a support bot's prompt, varied along five axes, on nb's Mock provider. The checks are scripted to pass at a chance set by the configuration, so what each comparison should find is known.",
-  "attempts": 4,
+  "tries": 4,
   "fixture": "note",
   "hooks": { "try": { "setup": "hooks/prompt.sh" } },
   "params": {

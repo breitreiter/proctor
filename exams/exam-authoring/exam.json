@@ -1,7 +1,7 @@
 {
   "id": "exam-authoring",
   "description": "Can a coding agent write a proctor exam from proctor's documentation, one that passes a correct run and fails the wrong ones? The two values of the docs axis show the agent the same pinned documentation, one with the example exams beside it.",
-  "attempts": 3,
+  "tries": 3,
   "labels": {
     "area": "authoring/exams",
     "stack": "dotnet"
