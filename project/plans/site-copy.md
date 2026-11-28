@@ -4,9 +4,9 @@
 
 # Find out whether agents can use what you ship
 
-auspex runs Claude Code, Codex and Qwen Code against your MCP server, CLI, API or docs, several times per task, and grades every attempt. The report gives each pass rate with its counts and a 95% interval, and links to the transcripts behind it.
+Auspex is an experiment manager and runner for AI. It runs real coding agents against your MCP server, CLI, API, or docs, then helps you find faults and friction.
 
-auspex is free under the MIT license, and exams are files in your git repository.
+Auspex is free under the MIT license and runs locally. It's modular and built to be remixed.
 
 [See a report] [What you'll need]
 
@@ -14,9 +14,9 @@ auspex is free under the MIT license, and exams are files in your git repository
 
 ## Agents use your product too
 
-Coding agents read your docs and call your API, and teams now ship pieces for them, such as an MCP server, a skill, an llms.txt or an AGENTS.md. Mathias Biilmann of Netlify [named this agent experience, or AX](https://biilmann.blog/articles/introducing-ax/), in 2025.
+Coding agents read your docs and call your API, and teams now ship features for them, like MCP servers, skills, and AGENTS.md. Mathias Biilmann of Netlify [named this agent experience, or AX](https://biilmann.blog/articles/introducing-ax/), in 2025.
 
-The usual check is that someone tries it once and merges when it works. One run is weak evidence, because an agent's behavior shifts with the model, its version, the harness and whatever else is in its context. Three teams have published measurements.
+Most teams are managing AX through vibes; if it works with someone's Claude Code, it ships. But agent behavior shifts with the model family, version, the harness and whatever else is in its context:
 
 **Vercel: the skill went unopened in 56% of eval cases**
 On Next.js 16 tasks the pass rate with the skill stayed at the 53% baseline, and an 8KB docs index placed in AGENTS.md reached 100%.
@@ -32,42 +32,36 @@ Stripe holds that "a mostly correct integration is a failure". In its 11 integra
 
 ### Who it is for
 
-auspex is for people who:
+Auspex is for people who:
 
 - ship an MCP server, a CLI, an API or docs that agents use
 - maintain a skill, a plugin or a CLAUDE.md
 - run an assistant inside a product, or an agent as a headless job
 - decide which agent and model a team works with, and want to know whether a change helped
 
-It produces no leaderboard and does not suit evals of one prompt in and one answer out.
+It's not a great fit for benchmarks. It's designed for tool-using agents in complex environments, so may be overkill for some cases.
 
 ## 3. What sets it apart
 
 ## Why the numbers hold up
 
 **Agents run in their own harness.**
-Models are tuned to their own harness, so Claude Code, Codex and Qwen Code each run in theirs, at pinned versions, through Harbor, an open-source harness runner. Each attempt gets its own container, with network access limited to the model's host.
+Models are tuned to their own harness, so Claude Code, Codex and Qwen Code each run natively through Harbor, an open-source harness runner. Each attempt gets its own container, with controlled network access.
 
-**Grading does not rely on the agent's summary.**
-Where it can be, a check is deterministic, meaning a script, one of the repository's acceptance tests run in a separate offline verifier, or a count of turns or tool calls from the trajectory. A judging model has to quote the transcript, and each quote is checked to exist there. Several votes have to agree, and a split is recorded as undecided. A judge's output is limited to a label and a quote, and no model writes any part of the report.
+**All the grading levers you'd expect.**
+Auspex includes a toolbox of configurable, deterministic checks and metrics calculated over each run. For more complex classification tasks, you can use a decider model like Jev or Clef. Auspex supports llm-as-judge, but with guardrails. Judge models need to quote transcript evidence in support of assertions and we run multiple passes to ensure AI-generated findings are consistent.
 
-**Every rate has an interval.**
-Each rate appears with its counts and a 95% interval, and comparisons are paired by task. Too few attempts to tell and no difference found are separate results in the report.
+**Simple, flexible experiment management.**
+Use as much rigor as you need for your project. Start with just a bare prompt and review the transcript to see what's actually happening. Layer in checks to watch for bad behavior and report on them. Try making some changes and compare the new result. Use axes to break your changes into controlled chunks, so you can measure the individual effects and matrix coverage. Group changes into named, controlled configurations to track release proposals. Write and track predictions to justify and steer your eval AI spend.
 
-**One thing changes at a time.**
-What you vary, such as the docs version or the model, is an axis, and a comparison holds every other axis fixed. A prediction written before the run names the check a change will move and the direction. It is scored against the results, with misses listed the same way as hits.
-
-**Attempts are kept.**
-Every attempt goes into the bank, and a check added later is graded on the attempts already there without another agent run. Since that can move a number with nothing rerun, the report says when the grading standard changed between two reports.
-
-**It can play the user.**
-Some assistants should ask before they act, as in this exchange:
+**Multi-turn is built in.**
+Some assistants should ask before they act:
 
 > "I'm looking for some shoes."
 > "What kind?"
 > "Running shoes, for trails."
 
-An answer sheet holds what the user knows and did not say, and the transcript shows whether the model asked or guessed.
+Auspex can run a user-simulator agent that provides sensible answers from a controlled oracle data sheet, allowing your evals to handle complex conversations.
 
 ## 4. How it works
 
@@ -81,7 +75,7 @@ An answer sheet holds what the user knows and did not say, and the transcript sh
 
 4. **Run the agents.** Each task gets several attempts per configuration, each in its own container.
 
-5. **Read the report, then the transcripts.** Read a few transcripts even when every row is green, because a check that is too lenient produces the same green row as an agent that did the work.
+5. **Read the report, then the transcripts.** Read a few transcripts even when every row is green. Your first checks will be bad, because they're guesses. Once you see what the agents are doing, you can sharpen the checks.
 
 6. **Change one thing and run again.** Edit the docs or move to another model, then compare. The report says whether the two differ or whether there are too few attempts to tell.
 
