@@ -95,7 +95,7 @@ not a wall of text. The sections in order:
      never a default.
   3. **Numbers that say how sure they are.** Every rate has a 95% interval
      and its counts, and comparisons are paired by task. The report says
-     "could not tell" when the sample cannot tell.
+     "could not tell" when the attempts are too few to tell.
   4. **One thing changed at a time.** An exam has axes (docs version,
      agent, model, …), and a comparison holds every other axis still.
      A prediction, written before the attempts, is held against them, with
