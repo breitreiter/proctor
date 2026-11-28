@@ -4,9 +4,9 @@
 # its PATH; unset, the gateway is trusted to serve the profile itself.
 set -euo pipefail
 # Another exam's hook may name the profile as the first argument instead.
-case "${1:-${PROCTOR_AXIS_ASSISTANT:-}}" in
+case "${1:-${AUSPEX_AXIS_ASSISTANT:-}}" in
   floor|qwen|qcoder) profile=qcoder ;;
-  *) echo "no model profile for assistant ${PROCTOR_AXIS_ASSISTANT:-}; nothing to do"; exit 0 ;;
+  *) echo "no model profile for assistant ${AUSPEX_AXIS_ASSISTANT:-}; nothing to do"; exit 0 ;;
 esac
 host="${LLM_MODEL_HOST:-}"
 [ -n "$host" ] || { echo "LLM_MODEL_HOST not set; trusting the gateway to serve $profile"; exit 0; }

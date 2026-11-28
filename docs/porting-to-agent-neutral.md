@@ -65,11 +65,11 @@ in. A text parameter is a build argument for these steps to act on.
 
 - **A script check runs in Harbor's verifier**, a fresh copy of the
   image with the stage's diff applied, offline. It sees the container's
-  paths (`PROCTOR_WORK` is `/app`, the exam at `/tests/exam`, the fixture
+  paths (`AUSPEX_WORK` is `/app`, the exam at `/tests/exam`, the fixture
   at `/tests/fixture`) and keeps the 0/1/2 exit contract. The stage's
   directory and number, nb and the runner are empty there.
 - **There is no transcript in the verifier.** A script check that reads
-  `PROCTOR_TRANSCRIPT` cannot run; it is `error` there. The fixture's
+  `AUSPEX_TRANSCRIPT` cannot run; it is `error` there. The fixture's
   checks and the expectations are in the verifier only, by construction,
   so a check that the agent stayed out of them has nothing to guard.
 - **Built-in and model checks are unchanged**: `grade` reads the ATIF

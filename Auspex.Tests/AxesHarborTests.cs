@@ -38,7 +38,7 @@ public class AxesHarborTests
         // A build argument, set before the image's own step reads it, and never the agent's environment: a parameter can say what is planted.
         Assert.Contains("ARG TOOLCHAIN=\"1.20\"\n", dockerfile);
         Assert.True(dockerfile.IndexOf("ARG TOOLCHAIN", StringComparison.Ordinal) < dockerfile.IndexOf("RUN echo \"toolchain $TOOLCHAIN\"", StringComparison.Ordinal));
-        Assert.DoesNotContain("PROCTOR_PARAM", dockerfile);
+        Assert.DoesNotContain("AUSPEX_PARAM", dockerfile);
         Assert.DoesNotContain("ENV TOOLCHAIN", dockerfile);
         Assert.Contains("audit --json", File.ReadAllText(Path.Combine(old, "environment", "repo", "README.md")));
 
@@ -51,9 +51,9 @@ public class AxesHarborTests
 
         // The verifier's checks are told the configuration, as a check on the bare path is.
         var env = File.ReadAllText(Path.Combine(old, "steps", "read", "tests", "env.sh"));
-        Assert.Contains("export PROCTOR_AXIS_TOOLCHAIN='1.20'", env);
-        Assert.Contains("export PROCTOR_AXIS_DOCS='rewritten'", env);
-        Assert.Contains("export PROCTOR_PARAM_TOOLCHAIN='1.20'", env);
+        Assert.Contains("export AUSPEX_AXIS_TOOLCHAIN='1.20'", env);
+        Assert.Contains("export AUSPEX_AXIS_DOCS='rewritten'", env);
+        Assert.Contains("export AUSPEX_PARAM_TOOLCHAIN='1.20'", env);
     }
 
     [Fact]

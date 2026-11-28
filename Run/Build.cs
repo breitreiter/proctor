@@ -188,8 +188,8 @@ static class Build
         };
         if (fixture is not null && Checkout.Materialise(fixture, work, context.Overlays) is { } checkoutError) return (null, $"fixture checkout failed: {checkoutError}");
 
-        var hookEnv = new Dictionary<string, string> { ["PROCTOR_EXAM"] = exam.Id, ["PROCTOR_CONFIGURATION"] = c.Key, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_RUNNER"] = nb?.Runner?.Script ?? "" };
-        foreach (var (axis, value) in c.Values) hookEnv["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
+        var hookEnv = new Dictionary<string, string> { ["AUSPEX_EXAM"] = exam.Id, ["AUSPEX_CONFIGURATION"] = c.Key, ["AUSPEX_EXAM_DIR"] = exam.Dir, ["AUSPEX_RUNNER"] = nb?.Runner?.Script ?? "" };
+        foreach (var (axis, value) in c.Values) hookEnv["AUSPEX_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
         string Log(string name) => Path.Combine(attemptDir, name + ".log");
         var failure = Runner.RunHook(exam, exam.Def.Hooks?.Configuration?.Setup, hookEnv, Log("configuration.setup")) is { } setupFailed ? $"configuration setup hook failed: {setupFailed}" : null;
         var env = context.Environment();

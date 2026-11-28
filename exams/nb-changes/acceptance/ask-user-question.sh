@@ -2,7 +2,7 @@
 # ask-user-question: the tool as the task's prompt specifies it, on the built nb with its Mock provider. Each
 # case is one program; the first that does not hold is the reason.
 set -uo pipefail
-nb="$PROCTOR_WORK/bin/Debug/net10.0/nb"
+nb="$AUSPEX_WORK/bin/Debug/net10.0/nb"
 [ -x "$nb" ] || { echo "no built nb at bin/Debug/net10.0/nb"; exit 1; }
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 echo '{"Harness": "nb", "ActiveProvider": "Mock", "ChatProviders": [{"Name": "Mock", "Response": "mock-ok"}]}' >"$tmp/nb.json"

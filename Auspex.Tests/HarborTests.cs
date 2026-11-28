@@ -43,7 +43,7 @@ public class HarborTests
     {
         var repo = new TestRepo();
         repo.CopyExam("harbor-unit");
-        var keyVar = "PROCTOR_TEST_KEY_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        var keyVar = "AUSPEX_TEST_KEY_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
         Environment.SetEnvironmentVariable(keyVar, "sk-test-" + keyVar);
         File.WriteAllText(Path.Combine(repo.Root, "exams", "proctor.json"), JsonSerializer.Serialize(new
         {
@@ -200,8 +200,8 @@ public class HarborTests
         Assert.DoesNotContain("diff-in-scope", test);
         Assert.True(File.GetUnixFileMode(Path.Combine(step, "tests", "test.sh")).HasFlag(UnixFileMode.UserExecute));
         var env = File.ReadAllText(Path.Combine(step, "tests", "env.sh"));
-        Assert.Contains("export PROCTOR_WORK='/app'\n", env);
-        Assert.Contains("export PROCTOR_STAGE='fix-null-deref'\n", env);
+        Assert.Contains("export AUSPEX_WORK='/app'\n", env);
+        Assert.Contains("export AUSPEX_STAGE='fix-null-deref'\n", env);
         Assert.Contains("\"files_touched\":{\"paths\":[\"Ledger/**\"]", env);
 
         // Nothing compiled holds the key.

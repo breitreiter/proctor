@@ -1,6 +1,6 @@
 {
   "id": "playground",
-  "description": "The first exam to run: two scripted tasks against a tiny TypeScript CLI, no model and no key, so the loop and the report can be seen before anything real is measured.",
+  "description": "The first exam to run: two scripted stages against a tiny TypeScript CLI, no model and no key, so the loop and the report can be seen before anything real is measured.",
   "tries": 2,
   "labels": {
     "purpose": "onboarding"

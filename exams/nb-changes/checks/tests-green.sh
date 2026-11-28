@@ -4,7 +4,7 @@
 # and fails now and then on a loaded machine.
 set -uo pipefail
 for attempt in 1 2; do
-  out=$(cd "$PROCTOR_WORK" && timeout 600 dotnet test nb.Tests --nologo 2>&1)
+  out=$(cd "$AUSPEX_WORK" && timeout 600 dotnet test nb.Tests --nologo 2>&1)
   summary=$(grep -E '^(Passed|Failed)!' <<<"$out" | tail -1)
   [ -n "$summary" ] || { echo "nb's tests did not run: $(grep -m1 -E ' error [A-Z]+[0-9]+' <<<"$out" | sed -E 's|^.*/([^/]+\([0-9,]+\)): |\1: |' | cut -c1-140)"; exit 1; }
   failed=$(sed -E 's/.*Failed: *([0-9]+).*/\1/' <<<"$summary"); total=$(sed -E 's/.*Total: *([0-9]+).*/\1/' <<<"$summary")

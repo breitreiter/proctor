@@ -10,7 +10,7 @@ public class SetupFilesTests : IDisposable
     readonly string env;
     readonly string exams;
     // Process-wide: a key name of this test's own, so parallel tests cannot collide.
-    readonly string keyVar = "PROCTOR_TEST_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() + "_API_KEY";
+    readonly string keyVar = "AUSPEX_TEST_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() + "_API_KEY";
 
     public SetupFilesTests()
     {

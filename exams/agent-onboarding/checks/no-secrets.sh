@@ -4,7 +4,7 @@
 # in config as ${VAR}; a literal value that looks like a credential fails, with the file it is in and the
 # value redacted. Placeholders ("none", "your-key-here", a llama-server's "sk-no-key-required") are not keys.
 set -uo pipefail
-diff=${PROCTOR_DIFF:-}
+diff=${AUSPEX_DIFF:-}
 [ -s "$diff" ] || { echo "nothing written"; exit 0; }
 hits=$(awk '
   /^\+\+\+ b\// { file = substr($0, 7); next }

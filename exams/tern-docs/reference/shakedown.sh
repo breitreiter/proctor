@@ -29,21 +29,21 @@ unexpected=0
 fixture="$root/fixtures/$(jq -r .fixture "$here/exam.json")"
 for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   [ "$only" = "  " ] || [[ "$only" == *" $c "* ]] || continue
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$fixture" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_STAGE="$c" PROCTOR_TRY_NUMBER=1
-  export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_STAGE_JSON="$(jq -c --arg id "$c" '.stages[] | select(.id == $id)' "$here/exam.json")" PROCTOR_EXPECT="{}" PROCTOR_TRANSCRIPT=""
-  mkdir -p "$PROCTOR_ATTEMPT_DIR"; cp -r "$fixture/repo" "$PROCTOR_WORK"
-  (cd "$PROCTOR_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm fixture) || exit 1
+  export AUSPEX_EXAM_DIR="$here" AUSPEX_FIXTURE="$fixture" AUSPEX_EXAM="$(basename "$here")" AUSPEX_CONFIGURATION=ref AUSPEX_STAGE="$c" AUSPEX_TRY_NUMBER=1
+  export AUSPEX_ATTEMPT_DIR="$tmp/$c/attempt" AUSPEX_WORK="$tmp/$c/work" AUSPEX_DIFF="$tmp/$c/attempt/diff.patch"
+  export AUSPEX_STAGE_JSON="$(jq -c --arg id "$c" '.stages[] | select(.id == $id)' "$here/exam.json")" AUSPEX_EXPECT="{}" AUSPEX_TRANSCRIPT=""
+  mkdir -p "$AUSPEX_ATTEMPT_DIR"; cp -r "$fixture/repo" "$AUSPEX_WORK"
+  (cd "$AUSPEX_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm fixture) || exit 1
   case "$mode" in
     --unsolved) ;;
-    --v1) "$here/reference/solve.sh" "$PROCTOR_WORK" --v1 ;;
-    --kilograms) "$here/reference/solve.sh" "$PROCTOR_WORK"; sed -i 's|"weight": _grams(cart)}|"weight": cart.total_weight_kg()}|' "$PROCTOR_WORK/shop/shipping.py" ;;
-    *) "$here/reference/solve.sh" "$PROCTOR_WORK" ;;
+    --v1) "$here/reference/solve.sh" "$AUSPEX_WORK" --v1 ;;
+    --kilograms) "$here/reference/solve.sh" "$AUSPEX_WORK"; sed -i 's|"weight": _grams(cart)}|"weight": cart.total_weight_kg()}|' "$AUSPEX_WORK/shop/shipping.py" ;;
+    *) "$here/reference/solve.sh" "$AUSPEX_WORK" ;;
   esac
-  (cd "$PROCTOR_WORK" && git add -A -N . && git diff --no-color --binary >"$PROCTOR_DIFF")
+  (cd "$AUSPEX_WORK" && git add -A -N . && git diff --no-color --binary >"$AUSPEX_DIFF")
   for check in "${checks[@]}"; do
     script="$here/checks/$check.sh"; [ -f "$script" ] || script="$fixture/checks/$check.sh"
-    reason=$(cd "$PROCTOR_ATTEMPT_DIR" && "$script"); code=$?
+    reason=$(cd "$AUSPEX_ATTEMPT_DIR" && "$script"); code=$?
     got=$([ $code = 0 ] && echo pass || echo fail)
     want=$(expected "$c" "$check")
     mark=$([ "$got" = "$want" ] && echo "" || echo " UNEXPECTED (want $want)")

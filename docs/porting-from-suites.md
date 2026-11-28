@@ -50,15 +50,16 @@ is `{{param.NAME}}`. In hooks and script checks:
 
 | Then | Now |
 |---|---|
-| `PROCTOR_VARIANT` | `PROCTOR_CONFIGURATION` (the key, `axis=value,…`), and `PROCTOR_AXIS_<NAME>` per axis |
-| `PROCTOR_BUNDLE`, `PROCTOR_BUNDLE_MOUNT` | gone; `PROCTOR_PARAM_<NAME>` for a parameter |
-| `PROCTOR_TASK`, `PROCTOR_TASK_JSON` | `PROCTOR_STAGE`, `PROCTOR_STAGE_JSON`: the stage's id and the stage |
-| `PROCTOR_ATTEMPT` | `PROCTOR_TRY_NUMBER`: the try's number |
+| `PROCTOR_VARIANT` | `AUSPEX_CONFIGURATION` (the key, `axis=value,…`), and `AUSPEX_AXIS_<NAME>` per axis |
+| `PROCTOR_BUNDLE`, `PROCTOR_BUNDLE_MOUNT` | gone; `AUSPEX_PARAM_<NAME>` for a parameter |
+| `PROCTOR_TASK`, `PROCTOR_TASK_JSON` | `AUSPEX_STAGE`, `AUSPEX_STAGE_JSON`: the stage's id and the stage |
+| `PROCTOR_ATTEMPT` | `AUSPEX_TRY_NUMBER`: the try's number |
+| any other `PROCTOR_<NAME>` | `AUSPEX_<NAME>` |
 
 From a suite of 0.3 or earlier, also: `suites/` is `exams/`,
-`suite.json` is `exam.json`, `PROCTOR_SUITE_DIR` is `PROCTOR_EXAM_DIR`,
-`PROCTOR_ARM` is `PROCTOR_CONFIGURATION`, `PROCTOR_SAMPLE` is
-`PROCTOR_TRY_NUMBER`, `PROCTOR_CELL` is `PROCTOR_ATTEMPT_DIR`, and
+`suite.json` is `exam.json`, `PROCTOR_SUITE_DIR` is `AUSPEX_EXAM_DIR`,
+`PROCTOR_ARM` is `AUSPEX_CONFIGURATION`, `PROCTOR_SAMPLE` is
+`AUSPEX_TRY_NUMBER`, `PROCTOR_CELL` is `AUSPEX_ATTEMPT_DIR`, and
 `PROCTOR_EXPERIMENT` is gone.
 
 ## Variants become axes
@@ -77,7 +78,7 @@ and you name the ones you ran.
   axes, and the four configurations named.
 - **They differed by a hook** (a setup script branching on the variant's
   id): move the difference into a value, as files or as a parameter the
-  hook reads (`PROCTOR_PARAM_<NAME>`), where proctor can see and hash it.
+  hook reads (`AUSPEX_PARAM_<NAME>`), where proctor can see and hash it.
 
 Mark the value in use as `"live"` on its axis. An axis nobody chooses
 gets a `"reference"` instead, or nothing if it has one value.

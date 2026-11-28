@@ -4,13 +4,13 @@ using Auspex;
 
 namespace Auspex.Tests;
 
-/// <summary>Runs only when PROCTOR_GATE names nb's self-contained linux-x64 publish; it needs Docker or podman (PROCTOR_GATE_ENGINE, default docker), uv and Harbor too.</summary>
+/// <summary>Runs only when AUSPEX_GATE names nb's self-contained linux-x64 publish; it needs Docker or podman (AUSPEX_GATE_ENGINE, default docker), uv and Harbor too.</summary>
 sealed class GateFactAttribute : FactAttribute
 {
     public GateFactAttribute()
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PROCTOR_GATE")))
-            Skip = "set PROCTOR_GATE to nb's linux-x64 publish directory (Docker or podman, uv and Harbor needed) to run the deterministic gate";
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AUSPEX_GATE")))
+            Skip = "set AUSPEX_GATE to nb's linux-x64 publish directory (Docker or podman, uv and Harbor needed) to run the deterministic gate";
     }
 }
 
@@ -39,8 +39,8 @@ public class GateTests
             nb = new { path = TestRepo.NbPath, config = TestRepo.NbMockConfig },
             harbor = new
             {
-                nb = Path.GetFullPath(Environment.GetEnvironmentVariable("PROCTOR_GATE")!),
-                engine = Environment.GetEnvironmentVariable("PROCTOR_GATE_ENGINE") is { Length: > 0 } engine ? engine : "docker",
+                nb = Path.GetFullPath(Environment.GetEnvironmentVariable("AUSPEX_GATE")!),
+                engine = Environment.GetEnvironmentVariable("AUSPEX_GATE_ENGINE") is { Length: > 0 } engine ? engine : "docker",
             },
         }));
         var problems = new List<Problem>();

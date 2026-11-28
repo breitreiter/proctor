@@ -4,14 +4,14 @@
 # problem, or the right replies that failed and the checks that failed them, which are the ones asking for more
 # than the stage does.
 set -uo pipefail
-. "$PROCTOR_EXAM_DIR/checks/written.sh"
-"$PROCTOR_EXAM_DIR/checks/trial.sh"
-out="${PROCTOR_ATTEMPT_DIR:-$PWD}/trial"; t="$out/trial.json"
+. "$AUSPEX_EXAM_DIR/checks/written.sh"
+"$AUSPEX_EXAM_DIR/checks/trial.sh"
+out="${AUSPEX_ATTEMPT_DIR:-$PWD}/trial"; t="$out/trial.json"
 [ -f "$t" ] || { echo "the trial did not run: $(tail -1 "$out/trial.log" 2>/dev/null)"; exit 3; }
 problem=$(jq -r '.problems[0] // empty' "$t")
 [ -z "$problem" ] || { echo "$problem"; exit 1; }
 right=$(jq '[.runs[] | select(.expect == "pass")] | length' "$t")
-[ "$right" -gt 0 ] || { echo "no right reply to pass: $(jq -r .unrecognised "$PROCTOR_EXAM_DIR/trial/$PROCTOR_STAGE/plants.json")"; exit 1; }
+[ "$right" -gt 0 ] || { echo "no right reply to pass: $(jq -r .unrecognised "$AUSPEX_EXAM_DIR/trial/$AUSPEX_STAGE/plants.json")"; exit 1; }
 failed=$(jq -r '[.runs[] | select(.expect == "pass" and (.pass != true or .invalid != null))
   | "\(.plant) on \(.stage): \(if .status != "completed" then .status elif .invalid != null then "excluded (\(.invalid))" else (.failed | join(", ")) end)"] | unique | .[]' "$t")
 if [ -z "$failed" ]; then

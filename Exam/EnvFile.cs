@@ -8,9 +8,9 @@ namespace Auspex;
 /// </summary>
 static class EnvFile
 {
-    public const string OverrideVariable = "PROCTOR_ENV_FILE";
+    public const string OverrideVariable = "AUSPEX_ENV_FILE";
 
-    /// <summary><c>$PROCTOR_ENV_FILE</c>, else <c>$XDG_CONFIG_HOME/proctor/env</c>, else <c>~/.config/proctor/env</c> (on Windows, <c>%LOCALAPPDATA%\proctor\env</c>: local, not roaming, so a key never syncs to a domain profile server).</summary>
+    /// <summary><c>$AUSPEX_ENV_FILE</c>, else <c>$XDG_CONFIG_HOME/proctor/env</c>, else <c>~/.config/proctor/env</c> (on Windows, <c>%LOCALAPPDATA%\proctor\env</c>: local, not roaming, so a key never syncs to a domain profile server).</summary>
     public static string DefaultPath()
     {
         if (Environment.GetEnvironmentVariable(OverrideVariable) is { Length: > 0 } explicitPath) return explicitPath;

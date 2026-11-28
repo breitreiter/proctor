@@ -2,15 +2,15 @@
 # Does the task's hidden acceptance pass? Either xunit files dropped into nb's test project for the one run
 # (acceptance/<task>/*.cs, namespace nb.Tests.Acceptance) or a script against the built nb (acceptance/<task>.sh).
 set -uo pipefail
-dir="$PROCTOR_EXAM_DIR/acceptance/$PROCTOR_STAGE"
+dir="$AUSPEX_EXAM_DIR/acceptance/$AUSPEX_STAGE"
 if [ -f "$dir.sh" ]; then exec bash "$dir.sh"; fi
-[ -d "$dir" ] || { echo "no acceptance for stage $PROCTOR_STAGE"; exit 3; }
-tests="$PROCTOR_WORK/nb.Tests"
+[ -d "$dir" ] || { echo "no acceptance for stage $AUSPEX_STAGE"; exit 3; }
+tests="$AUSPEX_WORK/nb.Tests"
 copied=(); for f in "$dir"/*.cs; do copied+=("$tests/$(basename "$f")"); done
 # Removed again on exit: left in place, tests-green would count them as nb's own.
 trap 'rm -f "${copied[@]}"' EXIT
 cp "$dir"/*.cs "$tests/"
-out=$(cd "$PROCTOR_WORK" && dotnet test nb.Tests --nologo --filter 'FullyQualifiedName~nb.Tests.Acceptance' 2>&1)
+out=$(cd "$AUSPEX_WORK" && dotnet test nb.Tests --nologo --filter 'FullyQualifiedName~nb.Tests.Acceptance' 2>&1)
 summary=$(grep -E '^(Passed|Failed)!' <<<"$out" | tail -1)
 [ -n "$summary" ] || { echo "acceptance tests did not run: $(grep -m1 -E ' error [A-Z]+[0-9]+' <<<"$out" | sed -E 's|^.*/([^/]+\([0-9,]+\)): |\1: |' | cut -c1-140)"; exit 1; }
 failed=$(sed -E 's/.*Failed: *([0-9]+).*/\1/' <<<"$summary"); total=$(sed -E 's/.*Total: *([0-9]+).*/\1/' <<<"$summary")

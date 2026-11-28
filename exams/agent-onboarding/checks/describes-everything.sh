@@ -3,7 +3,7 @@
 # proctor falls back to a prompt line for a stage, but a reader deserves a sentence. (An axis's `about` and a
 # value's `note` proctor requires itself, so `validates` holds those.)
 set -uo pipefail
-. "$PROCTOR_EXAM_DIR/checks/written.sh"
+. "$AUSPEX_EXAM_DIR/checks/written.sh"
 def="$WRITTEN_DIR/exam.json"
 missing=$(jq -r '[(if (.description // "") == "" then "the exam" else empty end),
   ((.stages // [])[] | select((.about // "") == "") | "stage \(.id // "?")")] | join(", ")' "$def" 2>/dev/null)

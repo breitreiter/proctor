@@ -79,30 +79,30 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
     {
         var env = Coordinates();
         // Declared axes and parameters only: what a hook or a check reads here is in the configuration's identity.
-        foreach (var (axis, value) in Axis) env["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
-        foreach (var (name, value) in Params) env["PROCTOR_PARAM_" + name] = value;
+        foreach (var (axis, value) in Axis) env["AUSPEX_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
+        foreach (var (name, value) in Params) env["AUSPEX_PARAM_" + name] = value;
         return env;
     }
 
     Dictionary<string, string> Coordinates() => new()
     {
-        ["PROCTOR_EXAM_DIR"] = ExamDir,
-        ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
-        ["PROCTOR_EXAM"] = ExamId,
-        ["PROCTOR_CONFIGURATION"] = Configuration,
-        ["PROCTOR_STAGE"] = Stage.Id ?? "",
-        ["PROCTOR_TRY_NUMBER"] = TryNumber.ToString(),
-        ["PROCTOR_ATTEMPT_DIR"] = AttemptDir,
-        ["PROCTOR_WORK"] = WorkDir,
-        ["PROCTOR_WORK_MOUNT"] = WorkMount,
-        ["PROCTOR_STAGE_JSON"] = JsonSerializer.Serialize(Stage, Exam.JsonOptions),
-        ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
-        ["PROCTOR_TRANSCRIPT"] = Path.Combine(AttemptDir, Layout.TranscriptFile),
-        ["PROCTOR_DIFF"] = Path.Combine(AttemptDir, Layout.DiffFile),
-        ["PROCTOR_RUNNER"] = NbRunner,
-        ["PROCTOR_NB"] = NbPath,
-        ["PROCTOR_NB_CONFIG"] = NbConfig ?? "",
-        ["PROCTOR_CONTAINER"] = Container,
+        ["AUSPEX_EXAM_DIR"] = ExamDir,
+        ["AUSPEX_FIXTURE"] = Fixture?.Dir ?? "",
+        ["AUSPEX_EXAM"] = ExamId,
+        ["AUSPEX_CONFIGURATION"] = Configuration,
+        ["AUSPEX_STAGE"] = Stage.Id ?? "",
+        ["AUSPEX_TRY_NUMBER"] = TryNumber.ToString(),
+        ["AUSPEX_ATTEMPT_DIR"] = AttemptDir,
+        ["AUSPEX_WORK"] = WorkDir,
+        ["AUSPEX_WORK_MOUNT"] = WorkMount,
+        ["AUSPEX_STAGE_JSON"] = JsonSerializer.Serialize(Stage, Exam.JsonOptions),
+        ["AUSPEX_EXPECT"] = Expect?.ToJsonString() ?? "{}",
+        ["AUSPEX_TRANSCRIPT"] = Path.Combine(AttemptDir, Layout.TranscriptFile),
+        ["AUSPEX_DIFF"] = Path.Combine(AttemptDir, Layout.DiffFile),
+        ["AUSPEX_RUNNER"] = NbRunner,
+        ["AUSPEX_NB"] = NbPath,
+        ["AUSPEX_NB_CONFIG"] = NbConfig ?? "",
+        ["AUSPEX_CONTAINER"] = Container,
     };
 }
 

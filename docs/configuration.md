@@ -128,7 +128,7 @@ in its own config, which is how `exams/nb.json` reaches the same gateway.
 ```
 
 Keys belong in your env file, `~/.config/proctor/env` (`$XDG_CONFIG_HOME/proctor/env`
-if that is set; `%LOCALAPPDATA%\proctor\env` on Windows; `PROCTOR_ENV_FILE` names
+if that is set; `%LOCALAPPDATA%\proctor\env` on Windows; `AUSPEX_ENV_FILE` names
 another), one `NAME=value` per line, `#` comments allowed. Every verb loads it at
 startup, so a `${VAR}` in `proctor.json` or nb's config resolves without an
 export, in nb, the judges, Harbor and your hooks alike; a variable already in the
@@ -285,8 +285,8 @@ Where each reaches:
 
 - the program template, as `{{param.NAME}}` (a tree as its directory);
   an axis's value by name is `{{axis.<name>}}`;
-- hooks and script checks, as `PROCTOR_PARAM_<NAME>`, with each axis's
-  value as `PROCTOR_AXIS_<NAME>`;
+- hooks and script checks, as `AUSPEX_PARAM_<NAME>`, with each axis's
+  value as `AUSPEX_AXIS_<NAME>`;
 - through Harbor, the image as a build argument (`ARG NAME`) for its own
   steps to act on, never the agent's environment, since a parameter can
   say what is planted. `image.params` lists the ones the image reads;
@@ -474,7 +474,7 @@ where a test was run (`__pycache__`, `.pytest_cache`, `.mypy_cache`,
 A fixture's `expect` is a default that a stage's `expect` overlays one
 top-level key at a time: a stage's `files_touched` replaces the
 fixture's whole `files_touched`. The merged block is what `"@expect"`
-reads and what scripts see as `PROCTOR_EXPECT`.
+reads and what scripts see as `AUSPEX_EXPECT`.
 
 ### Services
 
@@ -604,17 +604,17 @@ nudge, the oracle) has none, and so does one that found nothing.
 ### What a script is given
 
 Hooks and script checks get the stage in the environment:
-`PROCTOR_EXAM_DIR`, `PROCTOR_FIXTURE` (the fixture's directory, so a
-script can read its `fixture.json`), `PROCTOR_EXAM` (its id),
-`PROCTOR_CONFIGURATION` (the configuration's key, `axis=value,…`),
-`PROCTOR_AXIS_<NAME>` and `PROCTOR_PARAM_<NAME>`, `PROCTOR_STAGE` (the
-stage's id), `PROCTOR_TRY_NUMBER` (the try's number), `PROCTOR_ATTEMPT_DIR`,
-`PROCTOR_WORK`, `PROCTOR_STAGE_JSON`, `PROCTOR_EXPECT`,
-`PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`, `PROCTOR_RUNNER`, `PROCTOR_NB`,
-`PROCTOR_NB_CONFIG`, `PROCTOR_CONTAINER` and `PROCTOR_WORK_MOUNT`. A
-configuration hook, which runs once and not per try, gets `PROCTOR_EXAM`,
-`PROCTOR_CONFIGURATION`, `PROCTOR_AXIS_<NAME>`, `PROCTOR_EXAM_DIR` and
-`PROCTOR_RUNNER`. A script exits 0, 1 or 2 for pass, fail or
+`AUSPEX_EXAM_DIR`, `AUSPEX_FIXTURE` (the fixture's directory, so a
+script can read its `fixture.json`), `AUSPEX_EXAM` (its id),
+`AUSPEX_CONFIGURATION` (the configuration's key, `axis=value,…`),
+`AUSPEX_AXIS_<NAME>` and `AUSPEX_PARAM_<NAME>`, `AUSPEX_STAGE` (the
+stage's id), `AUSPEX_TRY_NUMBER` (the try's number), `AUSPEX_ATTEMPT_DIR`,
+`AUSPEX_WORK`, `AUSPEX_STAGE_JSON`, `AUSPEX_EXPECT`,
+`AUSPEX_TRANSCRIPT`, `AUSPEX_DIFF`, `AUSPEX_RUNNER`, `AUSPEX_NB`,
+`AUSPEX_NB_CONFIG`, `AUSPEX_CONTAINER` and `AUSPEX_WORK_MOUNT`. A
+configuration hook, which runs once and not per try, gets `AUSPEX_EXAM`,
+`AUSPEX_CONFIGURATION`, `AUSPEX_AXIS_<NAME>`, `AUSPEX_EXAM_DIR` and
+`AUSPEX_RUNNER`. A script exits 0, 1 or 2 for pass, fail or
 needs-judge, and its first line of output is the reason; any other exit
 is `error`, never a fail.
 
@@ -909,12 +909,12 @@ hidden. [`podman.md`](podman.md) §8 has one.
 To check that a machine can run them, without a model and at $0:
 
 ```bash
-PROCTOR_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
+AUSPEX_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
 ```
 
 This runs every vendor agent at its pin against a scripted stub model,
 then each `code-change` stage's reference solution through Harbor's
-verifier. It takes about twenty minutes. `PROCTOR_CONFORMANCE` may
+verifier. It takes about twenty minutes. `AUSPEX_CONFORMANCE` may
 instead name a `proctor.json` whose `harbor` block to use.
 
 ## Running bare nb in a container
@@ -933,16 +933,16 @@ whole interface:
 |---|---|
 | stdin: the resolved program, compiled on the host by `nb --compile` so every `@file` include is inlined | pass it to nb's stdin unchanged |
 | cwd: the work directory on the host | start nb with the checkout as its working directory, wherever that is inside |
-| the stage's environment (`PROCTOR_*`, which includes `PROCTOR_NB`, the host binary, `PROCTOR_NB_CONFIG`, `PROCTOR_WORK_MOUNT` and `PROCTOR_CONTAINER`) and `NO_COLOR` | run nb where the checkout and the config are at the paths those name |
+| the stage's environment (`AUSPEX_*`, which includes `AUSPEX_NB`, the host binary, `AUSPEX_NB_CONFIG`, `AUSPEX_WORK_MOUNT` and `AUSPEX_CONTAINER`) and `NO_COLOR` | run nb where the checkout and the config are at the paths those name |
 | nothing on argv | run `nb --output jsonl [--config <config>] -` |
 | stdout and stderr captured to the stage's directory | put only nb's stdout on stdout |
 | | exit with nb's exit code |
 
-`PROCTOR_CONTAINER` is a name for the try, `proctor-<exam>-<try id>`,
+`AUSPEX_CONTAINER` is a name for the try, `proctor-<exam>-<try id>`,
 that proctor never uses, so hooks and the runner can agree on one
 container: the try's setup hook creates it, the runner execs into it for
 each stage, the try's teardown hook removes it. Hooks see which is in
-effect in `PROCTOR_RUNNER`, empty on a bare run, and skip the container.
+effect in `AUSPEX_RUNNER`, empty on a bare run, and skip the container.
 The manifest records the script and its hash.
 
 ```bash
@@ -969,11 +969,11 @@ like a hook, and `mounts`, where the runner will show nb the checkout:
 
 With a runner in effect, `{{work}}` in the program resolves to that
 path, so the model is told where things are inside the container. Hooks
-and checks run on the host and keep `PROCTOR_WORK` as the host path;
-`PROCTOR_WORK_MOUNT` is the path the model was told, which falls back to
+and checks run on the host and keep `AUSPEX_WORK` as the host path;
+`AUSPEX_WORK_MOUNT` is the path the model was told, which falls back to
 the host path when nothing is mounted. A bare run ignores the mounts,
 which is what makes `--runner none` a shakedown of the exam on the host.
-A runner script is given the whole environment, `PROCTOR_EXPECT` (the
+A runner script is given the whole environment, `AUSPEX_EXPECT` (the
 answer key) included, so it must never forward its environment into the
 container wholesale: pass the variables nb needs by name
 (`-e LLM_GATEWAY`). Bare nb gets only `NO_COLOR`. A mount is an absolute

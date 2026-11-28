@@ -35,33 +35,33 @@ for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   stage=$(jq -c --arg c "$c" '.stages[] | select(.id == $c)' "$here/exam.json")
   [ "$only" = "  " ] || [[ "$only" == *" $c "* ]] || continue
   f=$(jq -r --arg c "$c" '. as $e | .stages[] | select(.id == $c) | .when | capture("^(?<a>[a-z_-]+) = (?<v>.+)$") | $e.axes[.a].values[.v].fixture' "$here/exam.json")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_CONFIGURATION=ref PROCTOR_STAGE="$c" PROCTOR_TRY_NUMBER=1
-  export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_STAGE_JSON="$stage" PROCTOR_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" PROCTOR_TRANSCRIPT=""
-  mkdir -p "$PROCTOR_ATTEMPT_DIR"
-  git -c safe.directory='*' clone -q "${NB_REPO:-$(jq -r .source.git "$PROCTOR_FIXTURE/fixture.json")}" "$PROCTOR_WORK" || exit 1
+  export AUSPEX_EXAM_DIR="$here" AUSPEX_FIXTURE="$root/fixtures/$f" AUSPEX_EXAM="$(basename "$here")" AUSPEX_CONFIGURATION=ref AUSPEX_STAGE="$c" AUSPEX_TRY_NUMBER=1
+  export AUSPEX_ATTEMPT_DIR="$tmp/$c/attempt" AUSPEX_WORK="$tmp/$c/work" AUSPEX_DIFF="$tmp/$c/attempt/diff.patch"
+  export AUSPEX_STAGE_JSON="$stage" AUSPEX_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" AUSPEX_TRANSCRIPT=""
+  mkdir -p "$AUSPEX_ATTEMPT_DIR"
+  git -c safe.directory='*' clone -q "${NB_REPO:-$(jq -r .source.git "$AUSPEX_FIXTURE/fixture.json")}" "$AUSPEX_WORK" || exit 1
   (
-    cd "$PROCTOR_WORK" && git checkout -q "$(jq -r .source.rev "$PROCTOR_FIXTURE/fixture.json")" && rm -rf .git
-    [ ! -f "$PROCTOR_FIXTURE/plant.patch" ] || git apply "$PROCTOR_FIXTURE/plant.patch"
+    cd "$AUSPEX_WORK" && git checkout -q "$(jq -r .source.rev "$AUSPEX_FIXTURE/fixture.json")" && rm -rf .git
+    [ ! -f "$AUSPEX_FIXTURE/plant.patch" ] || git apply "$AUSPEX_FIXTURE/plant.patch"
     git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm nb
   ) || exit 1
   case "$mode:$c" in
     --unsolved:*) ;;
-    --half:two-causes) (cd "$PROCTOR_WORK" && git apply --reverse "$here/reference/two-causes-first-only.patch") ;;
-    --half:not-a-bug) echo '// inline includes' >>"$PROCTOR_WORK/nb.Core/Transcript/ProgramParser.cs" ;;
-    --half:*) "$here/reference/$c.sh" "$PROCTOR_WORK"; rm "$PROCTOR_WORK/nb.Tests/TodoManagerTests.cs" ;;
-    *) "$here/reference/$c.sh" "$PROCTOR_WORK" ;;
+    --half:two-causes) (cd "$AUSPEX_WORK" && git apply --reverse "$here/reference/two-causes-first-only.patch") ;;
+    --half:not-a-bug) echo '// inline includes' >>"$AUSPEX_WORK/nb.Core/Transcript/ProgramParser.cs" ;;
+    --half:*) "$here/reference/$c.sh" "$AUSPEX_WORK"; rm "$AUSPEX_WORK/nb.Tests/TodoManagerTests.cs" ;;
+    *) "$here/reference/$c.sh" "$AUSPEX_WORK" ;;
   esac
-  (cd "$PROCTOR_WORK" && git add -A -N . && git diff --no-color --binary >"$PROCTOR_DIFF")
+  (cd "$AUSPEX_WORK" && git add -A -N . && git diff --no-color --binary >"$AUSPEX_DIFF")
   for check in "${checks[@]}"; do
-    reason=$(cd "$PROCTOR_ATTEMPT_DIR" && "$here/checks/$check.sh"); code=$?
+    reason=$(cd "$AUSPEX_ATTEMPT_DIR" && "$here/checks/$check.sh"); code=$?
     got=$([ $code = 0 ] && echo pass || echo fail)
     want=$(expected "$c" "$check")
     mark=$([ "$got" = "$want" ] && echo "" || echo " UNEXPECTED (want $want)")
     [ -z "$mark" ] || unexpected=$((unexpected + 1))
     printf '%-12s %-16s %-8s %s%s\n' "$c" "$check" "$([ $code = 0 ] && echo pass || echo "fail($code)")" "$(cut -c1-150 <<<"$reason")" "$mark"
   done
-  rm -rf "$PROCTOR_WORK"
+  rm -rf "$AUSPEX_WORK"
 done
 rm -rf "$tmp"
 if [ $unexpected -gt 0 ]; then echo "$unexpected check(s) did not come out as expected"; exit 1; fi

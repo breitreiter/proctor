@@ -5,15 +5,15 @@ using Auspex;
 namespace Auspex.Tests;
 
 /// <summary>
-/// Runs only when PROCTOR_CONFORMANCE is set; it needs Docker or podman, uv and Harbor, and network to build the images.
+/// Runs only when AUSPEX_CONFORMANCE is set; it needs Docker or podman, uv and Harbor, and network to build the images.
 /// `1` takes harbor.uv and harbor.engine from this repository's exams/proctor.json; a path takes them from that file.
 /// </summary>
 sealed class ConformanceFactAttribute : FactAttribute
 {
     public ConformanceFactAttribute()
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PROCTOR_CONFORMANCE")))
-            Skip = "set PROCTOR_CONFORMANCE=1 (Docker or podman, uv and Harbor needed) to run every vendor agent against the stub model";
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AUSPEX_CONFORMANCE")))
+            Skip = "set AUSPEX_CONFORMANCE=1 (Docker or podman, uv and Harbor needed) to run every vendor agent against the stub model";
     }
 }
 
@@ -27,10 +27,10 @@ public class ConformanceTests
 {
     const string Stub = "http://localhost:8765";
 
-    /// <summary>The Harbor conformance runs on: harbor.uv and harbor.engine of the proctor.json PROCTOR_CONFORMANCE names.</summary>
+    /// <summary>The Harbor conformance runs on: harbor.uv and harbor.engine of the proctor.json AUSPEX_CONFORMANCE names.</summary>
     static (string Uv, string Engine) MachineHarbor()
     {
-        var named = Environment.GetEnvironmentVariable("PROCTOR_CONFORMANCE");
+        var named = Environment.GetEnvironmentVariable("AUSPEX_CONFORMANCE");
         var file = named is null or "1" ? Path.Combine(TestRepo.SourceRoot, "exams", "proctor.json") : Path.GetFullPath(named);
         var harbor = File.Exists(file) ? JsonNode.Parse(File.ReadAllText(file))?["harbor"] : null;
         return (harbor?["uv"]?.GetValue<string>() ?? "uv", harbor?["engine"]?.GetValue<string>() ?? "docker");

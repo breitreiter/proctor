@@ -5,9 +5,9 @@
 # reads only which revision to build. The image is runners/Containerfile's, the package cache warmed for this
 # exam's workspaces.
 set -euo pipefail
-[ "${PROCTOR_AXIS_ASSISTANT:-}" != qcoder ] || "$PROCTOR_EXAM_DIR/../code-change/hooks/ensure-model.sh" qcoder
-root=$(cd "$PROCTOR_EXAM_DIR/../.." && pwd)
-files=$(jq -c --arg v "$PROCTOR_AXIS_DOCS" '.axes.docs.values[$v].files' "$PROCTOR_EXAM_DIR/exam.json")
+[ "${AUSPEX_AXIS_ASSISTANT:-}" != qcoder ] || "$AUSPEX_EXAM_DIR/../code-change/hooks/ensure-model.sh" qcoder
+root=$(cd "$AUSPEX_EXAM_DIR/../.." && pwd)
+files=$(jq -c --arg v "$AUSPEX_AXIS_DOCS" '.axes.docs.values[$v].files' "$AUSPEX_EXAM_DIR/exam.json")
 url=$(jq -r .git <<<"$files"); rev=$(jq -r .rev <<<"$files")
 
 # proctor as a user would have it, built once per revision on the host (it is our own source, not the model's).
@@ -18,9 +18,9 @@ build="$root/.proctor/proctor-builds/$rev"
 [ -f "$build/proctor.dll" ] || dotnet build "$src/Proctor.csproj" -c Release -o "$build" --nologo -v q >/dev/null
 echo "proctor $rev built at $build"
 
-[ -n "$PROCTOR_RUNNER" ] || { echo "bare run: no image"; exit 0; }
+[ -n "$AUSPEX_RUNNER" ] || { echo "bare run: no image"; exit 0; }
 engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)
-runners="$PROCTOR_EXAM_DIR/../runners"
+runners="$AUSPEX_EXAM_DIR/../runners"
 "$engine" build -q -t proctor-dotnet --build-arg "UID=$(id -u)" --build-arg "GID=$(id -g)" -f "$runners/Containerfile" "$runners" >/dev/null
 echo "image proctor-dotnet $("$engine" image inspect --format '{{.Id}}' proctor-dotnet)"
 # Warm the package cache for the .NET repositories inside the workspaces, so neither the agent nor the trial pays for a restore.

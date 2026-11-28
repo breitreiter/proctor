@@ -169,9 +169,9 @@ once; an attempt is one stage of it), bank, live, prediction.
   own.** A stage with an answer sheet beside a vendor's agent is refused.
 - **Script checks** exit 0 pass, 1 fail, 2 needs a judge, anything else
   "could not grade"; the first line of stdout is the reason; each needs a
-  `description`. They read `PROCTOR_WORK`, `PROCTOR_DIFF`,
-  `PROCTOR_TRANSCRIPT` and `PROCTOR_EXPECT`, and each axis's value as
-  `PROCTOR_AXIS_<NAME>`. Through Harbor they run in an offline verifier,
+  `description`. They read `AUSPEX_WORK`, `AUSPEX_DIFF`,
+  `AUSPEX_TRANSCRIPT` and `AUSPEX_EXPECT`, and each axis's value as
+  `AUSPEX_AXIS_<NAME>`. Through Harbor they run in an offline verifier,
   never on the host, and see no transcript.
 - **A coding agent reaches its model and what its fixture provides,
   nothing else.** Code that calls an API needs that API as a service of

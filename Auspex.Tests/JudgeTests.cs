@@ -403,26 +403,26 @@ public class JudgeTests
     {
         var dir = Directory.CreateTempSubdirectory("proctor-judge").FullName;
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.98"));
-        Environment.SetEnvironmentVariable("PROCTOR_TEST_GATEWAY", "http://resolved.test/x");
+        Environment.SetEnvironmentVariable("AUSPEX_TEST_GATEWAY", "http://resolved.test/x");
         try
         {
-            var client = new JudgeClient { Defs = new() { ["jev"] = Jev with { Endpoint = "${PROCTOR_TEST_GATEWAY}/systemone" } }, Http = new HttpClient(http) };
+            var client = new JudgeClient { Defs = new() { ["jev"] = Jev with { Endpoint = "${AUSPEX_TEST_GATEWAY}/systemone" } }, Http = new HttpClient(http) };
             Exam("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), client, attemptDir: dir, name: "done");
         }
-        finally { Environment.SetEnvironmentVariable("PROCTOR_TEST_GATEWAY", null); }
+        finally { Environment.SetEnvironmentVariable("AUSPEX_TEST_GATEWAY", null); }
         Assert.Equal("http://resolved.test/x/systemone", http.LastUri!.ToString());
         var written = JsonSerializer.Deserialize<VerdictFile>(File.ReadAllText(Directory.GetFiles(Path.Combine(dir, Layout.VerdictsDir)).Single()), Auspex.Exam.JsonOptions)!;
-        Assert.Equal("${PROCTOR_TEST_GATEWAY}/systemone", written.Endpoint);
+        Assert.Equal("${AUSPEX_TEST_GATEWAY}/systemone", written.Endpoint);
     }
 
     [Fact]
     public void Endpoint_UnsetReference_IsAnError_NotACall()
     {
         var http = new ScriptedHttp(HttpStatusCode.OK, Noul.Replace("P", "0.98"));
-        var client = new JudgeClient { Defs = new() { ["jev"] = Jev with { Endpoint = "${PROCTOR_TEST_UNSET}/systemone" } }, Http = new HttpClient(http) };
+        var client = new JudgeClient { Defs = new() { ["jev"] = Jev with { Endpoint = "${AUSPEX_TEST_UNSET}/systemone" } }, Http = new HttpClient(http) };
         var v = Exam("{\"decide\": {\"ask\": \"?\", \"window\": \"answer\"}}", Fixture("plain"), client);
         Assert.Equal("error", v.Result);
-        Assert.Contains("PROCTOR_TEST_UNSET is not set", v.Reason);
+        Assert.Contains("AUSPEX_TEST_UNSET is not set", v.Reason);
         Assert.Equal(0, http.Calls);
     }
 

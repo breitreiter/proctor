@@ -89,7 +89,7 @@ public class StagedHarborTests
         foreach (var stage in new[] { "look", "fix-null-deref" })
         {
             Assert.Contains("check 'builds' ", File.ReadAllText(Path.Combine(task, "steps", stage, "tests", "test.sh")));
-            Assert.Contains($"export PROCTOR_STAGE='{stage}'", File.ReadAllText(Path.Combine(task, "steps", stage, "tests", "env.sh")));
+            Assert.Contains($"export AUSPEX_STAGE='{stage}'", File.ReadAllText(Path.Combine(task, "steps", stage, "tests", "env.sh")));
         }
         Assert.False(File.Exists(Path.Combine(task, "tests", "test.sh")));
         Assert.True(Directory.Exists(Path.Combine(task, "tests", "exam")));

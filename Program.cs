@@ -112,6 +112,9 @@ static class Program
         try
         {
             EnvFile.Load(EnvFile.DefaultPath());
+            // Every variable took the new prefix at once and no old name is read, so one still set would be silently ignored.
+            if (Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith("PROCTOR_", StringComparison.Ordinal)).Order().FirstOrDefault() is { } old)
+                throw new AuspexException($"{old} is set: every PROCTOR_ variable is AUSPEX_ now, so set AUSPEX_{old["PROCTOR_".Length..]} and unset this one");
             return (positional[0], positional.Skip(1).ToList()) switch
             {
                 ("list", var rest) => Verbs.List(root, rest.FirstOrDefault(), labels, configFile),

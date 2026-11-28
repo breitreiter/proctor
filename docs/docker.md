@@ -133,7 +133,7 @@ a finite pool.
 ## 6. Checking a machine: conformance
 
 ```bash
-PROCTOR_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
+AUSPEX_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests
 ```
 
 Every vendor agent at its pin against a scripted model, and each

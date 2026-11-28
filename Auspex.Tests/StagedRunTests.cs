@@ -157,7 +157,7 @@ public class StagedRunTests
     {
         using var repo = new TestRepo();
         Stage(repo, 1, chained, ("write", "MOCK:tool=bash echo one > made.txt"), ("say", "MOCK:response=hello world"), ("edit", "MOCK:tool=bash echo changed > note.txt"));
-        File.SetUnixFileMode(repo.Write("smoke/checks/made.sh", "#!/bin/bash\nif [ -f \"$PROCTOR_WORK/made.txt\" ]; then echo 'made.txt is there'; exit 0; fi\necho 'no made.txt'; exit 1\n"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        File.SetUnixFileMode(repo.Write("smoke/checks/made.sh", "#!/bin/bash\nif [ -f \"$AUSPEX_WORK/made.txt\" ]; then echo 'made.txt is there'; exit 0; fi\necho 'no made.txt'; exit 1\n"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         repo.EditJson("smoke/exam.json", e =>
         {
             e["stages"]![1]!["expect"] = JsonNode.Parse("""{"answer_contains": "hello"}""");

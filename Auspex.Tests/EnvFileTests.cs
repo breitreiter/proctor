@@ -6,7 +6,7 @@ public class EnvFileTests : IDisposable
 {
     readonly string dir = Directory.CreateTempSubdirectory("proctor-env-").FullName;
     // Process-wide state: every test uses names of its own so parallel tests cannot collide.
-    readonly string prefix = "PROCTOR_TEST_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() + "_";
+    readonly string prefix = "AUSPEX_TEST_" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() + "_";
     readonly List<string> touched = [];
 
     string Var(string name) { touched.Add(prefix + name); return prefix + name; }

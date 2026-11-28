@@ -188,10 +188,10 @@ finite pool.
 ## 7. Checking a machine: conformance
 
 ```bash
-PROCTOR_CONFORMANCE=<proctor.json> dotnet test --no-build --filter ConformanceTests
+AUSPEX_CONFORMANCE=<proctor.json> dotnet test --no-build --filter ConformanceTests
 ```
 
-`PROCTOR_CONFORMANCE=1` takes `harbor.uv` and `harbor.engine` from the
+`AUSPEX_CONFORMANCE=1` takes `harbor.uv` and `harbor.engine` from the
 repository's `exams/proctor.json`; a path takes them from that file
 instead, so a machine can be checked on podman without changing its
 config. A file holding only `{"harbor": {"engine": "podman"}}` is enough.

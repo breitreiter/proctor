@@ -170,11 +170,11 @@ public class CrawlTests
         finally { await app.StopAsync(); }
     }
 
-    /// <summary>Opt in with AUSPEX_TEST_PUBLISH=1: builds what a user installs and repeats the crawl against it.</summary>
+    /// <summary>Opt in with AUSPEX_VIEW_TEST_PUBLISH=1: builds what a user installs and repeats the crawl against it.</summary>
     [Fact]
     public async Task ThePublishedProgram_PassesTheSameCrawl()
     {
-        if (Environment.GetEnvironmentVariable("AUSPEX_TEST_PUBLISH") != "1") return;
+        if (Environment.GetEnvironmentVariable("AUSPEX_VIEW_TEST_PUBLISH") != "1") return;
         using var bank = new SampleBank();
         var output = Path.Combine(bank.Root, "..", "published");
         var project = Path.Combine(RepoRoot(), "Auspex.View.csproj");
@@ -197,11 +197,11 @@ public class CrawlTests
         finally { served.Kill(); }
     }
 
-    /// <summary>Opt in with AUSPEX_TEST_ROOT=dir: every page over a real proctor root's bank renders.</summary>
+    /// <summary>Opt in with AUSPEX_VIEW_TEST_ROOT=dir: every page over a real proctor root's bank renders.</summary>
     [Fact]
     public async Task ARealProctorRoot_RendersEveryPage()
     {
-        if (Environment.GetEnvironmentVariable("AUSPEX_TEST_ROOT") is not { Length: > 0 } root) return;
+        if (Environment.GetEnvironmentVariable("AUSPEX_VIEW_TEST_ROOT") is not { Length: > 0 } root) return;
         var (app, url) = await Server.Start(root, 0);
         try { Assert.NotEmpty((await Crawl(url)).Pages); }
         finally { await app.StopAsync(); }

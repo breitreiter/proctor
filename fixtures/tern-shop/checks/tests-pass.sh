@@ -2,7 +2,7 @@
 # Do the shop's own tests pass? Only the test files in the fixture commit: a test the agent added may call Tern's
 # sandbox, which the verifier does not run.
 set -uo pipefail
-cd "$PROCTOR_WORK"
+cd "$AUSPEX_WORK"
 mapfile -t files < <(git ls-tree -r --name-only HEAD -- tests | grep '/test_[^/]*\.py$')
 [ ${#files[@]} -gt 0 ] || { echo "no test files in the fixture commit"; exit 3; }
 out=$(python -m pytest -q -p no:cacheprovider "${files[@]}" 2>&1); code=$?

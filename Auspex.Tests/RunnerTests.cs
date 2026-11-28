@@ -33,7 +33,7 @@ public class RunnerTests
     };
 
     /// <summary>The runner contract's bare equivalent: nb itself, started as proctor would start it, with the program on stdin.</summary>
-    const string Passthrough = "#!/usr/bin/env bash\nexec \"$PROCTOR_NB\" --output jsonl --config \"$PROCTOR_NB_CONFIG\" -\n";
+    const string Passthrough = "#!/usr/bin/env bash\nexec \"$AUSPEX_NB\" --output jsonl --config \"$AUSPEX_NB_CONFIG\" -\n";
 
     static string Stage(TestRepo repo, string key, string stage, int n = 1) => repo.StageDir("smoke", key, stage, n);
 
@@ -192,7 +192,7 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.WriteScript("smoke/hooks/flaky-setup.sh", "#!/usr/bin/env bash\nif [ \"$PROCTOR_AXIS_ASSISTANT\" = mock ]; then echo 'no fakes for mock' >&2; exit 7; fi\n");
+        repo.WriteScript("smoke/hooks/flaky-setup.sh", "#!/usr/bin/env bash\nif [ \"$AUSPEX_AXIS_ASSISTANT\" = mock ]; then echo 'no fakes for mock' >&2; exit 7; fi\n");
         var id = StartSmoke(repo, e =>
         {
             e["tries"] = 1;
@@ -227,7 +227,7 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        repo.WriteScript("smoke/hooks/b-fails.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_AXIS_EXTRA\" = smoke ] && { echo 'fakes did not start' >&2; exit 1; }\nexit 0\n");
+        repo.WriteScript("smoke/hooks/b-fails.sh", "#!/usr/bin/env bash\n[ \"$AUSPEX_AXIS_EXTRA\" = smoke ] && { echo 'fakes did not start' >&2; exit 1; }\nexit 0\n");
         StartSmoke(repo, e =>
         {
             e["tries"] = 1;
@@ -391,8 +391,8 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         repo.WriteScript("runners/spy.sh", "#!/usr/bin/env bash\n"
-            + "echo \"argv=$#\" >&2\necho \"cwd=$PWD\" >&2\necho \"container=$PROCTOR_CONTAINER\" >&2\necho \"runner=$PROCTOR_RUNNER\" >&2\necho \"work=$PROCTOR_WORK\" >&2\necho \"nocolor=$NO_COLOR\" >&2\n"
-            + "exec \"$PROCTOR_NB\" --output jsonl --config \"$PROCTOR_NB_CONFIG\" -\n");
+            + "echo \"argv=$#\" >&2\necho \"cwd=$PWD\" >&2\necho \"container=$AUSPEX_CONTAINER\" >&2\necho \"runner=$AUSPEX_RUNNER\" >&2\necho \"work=$AUSPEX_WORK\" >&2\necho \"nocolor=$NO_COLOR\" >&2\n"
+            + "exec \"$AUSPEX_NB\" --output jsonl --config \"$AUSPEX_NB_CONFIG\" -\n");
         var id = StartSmoke(repo, One, runner: "runners/spy.sh");
         var entry = Runner.LoadEntry(repo.Root, id);
 
@@ -419,9 +419,9 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         repo.WriteScript("runners/spy.sh", "#!/usr/bin/env bash\n"
-            + "echo \"work=$PROCTOR_WORK mount=$PROCTOR_WORK_MOUNT\" >&2\n"
-            + "exec \"$PROCTOR_NB\" --output jsonl --config \"$PROCTOR_NB_CONFIG\" -\n");
-        repo.WriteScript("smoke/hooks/mounts.sh", "#!/usr/bin/env bash\necho \"work=$PROCTOR_WORK mount=$PROCTOR_WORK_MOUNT\"\n");
+            + "echo \"work=$AUSPEX_WORK mount=$AUSPEX_WORK_MOUNT\" >&2\n"
+            + "exec \"$AUSPEX_NB\" --output jsonl --config \"$AUSPEX_NB_CONFIG\" -\n");
+        repo.WriteScript("smoke/hooks/mounts.sh", "#!/usr/bin/env bash\necho \"work=$AUSPEX_WORK mount=$AUSPEX_WORK_MOUNT\"\n");
         var id = StartSmoke(repo, e =>
         {
             One(e);

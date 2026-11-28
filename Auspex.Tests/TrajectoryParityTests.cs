@@ -36,11 +36,11 @@ public class TrajectoryParityTests
         Assert.Equal(Results(jsonl), Results(atif));
     }
 
-    /// <summary>Opt in with PROCTOR_PARITY_DIR=dir: every attempt under it holding both nb's transcript.jsonl and trajectory.json reads the same both ways.</summary>
+    /// <summary>Opt in with AUSPEX_PARITY_DIR=dir: every attempt under it holding both nb's transcript.jsonl and trajectory.json reads the same both ways.</summary>
     [Fact]
     public void RealAttempts_ReadTheSameBothWays()
     {
-        if (Environment.GetEnvironmentVariable("PROCTOR_PARITY_DIR") is not { Length: > 0 } root) return;
+        if (Environment.GetEnvironmentVariable("AUSPEX_PARITY_DIR") is not { Length: > 0 } root) return;
         var differ = new List<string>();
         var n = 0;
         foreach (var jsonlFile in Directory.EnumerateFiles(root, Layout.TranscriptFile, SearchOption.AllDirectories))

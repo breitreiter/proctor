@@ -492,32 +492,32 @@ static class HarborCompile
     {
         var values = new Dictionary<string, string>
         {
-            ["PROCTOR_EXAM_DIR"] = "/tests/exam",
-            ["PROCTOR_FIXTURE"] = "/tests/fixture",
-            ["PROCTOR_EXAM"] = exam.Id,
-            ["PROCTOR_CONFIGURATION"] = key,
-            ["PROCTOR_STAGE"] = task.Id!,
-            ["PROCTOR_TRY_NUMBER"] = "",
-            ["PROCTOR_ATTEMPT_DIR"] = "",
-            ["PROCTOR_WORK"] = Workdir,
-            ["PROCTOR_WORK_MOUNT"] = Workdir,
-            ["PROCTOR_STAGE_JSON"] = JsonSerializer.Serialize(task, Exam.JsonOptions),
-            ["PROCTOR_EXPECT"] = exam.ExpectFor(task)?.ToJsonString() ?? "{}",
-            ["PROCTOR_TRANSCRIPT"] = "",
-            ["PROCTOR_DIFF"] = DiffInContainer,
-            ["PROCTOR_RUNNER"] = "",
-            ["PROCTOR_NB"] = "",
-            ["PROCTOR_NB_CONFIG"] = "",
-            ["PROCTOR_CONTAINER"] = "",
+            ["AUSPEX_EXAM_DIR"] = "/tests/exam",
+            ["AUSPEX_FIXTURE"] = "/tests/fixture",
+            ["AUSPEX_EXAM"] = exam.Id,
+            ["AUSPEX_CONFIGURATION"] = key,
+            ["AUSPEX_STAGE"] = task.Id!,
+            ["AUSPEX_TRY_NUMBER"] = "",
+            ["AUSPEX_ATTEMPT_DIR"] = "",
+            ["AUSPEX_WORK"] = Workdir,
+            ["AUSPEX_WORK_MOUNT"] = Workdir,
+            ["AUSPEX_STAGE_JSON"] = JsonSerializer.Serialize(task, Exam.JsonOptions),
+            ["AUSPEX_EXPECT"] = exam.ExpectFor(task)?.ToJsonString() ?? "{}",
+            ["AUSPEX_TRANSCRIPT"] = "",
+            ["AUSPEX_DIFF"] = DiffInContainer,
+            ["AUSPEX_RUNNER"] = "",
+            ["AUSPEX_NB"] = "",
+            ["AUSPEX_NB_CONFIG"] = "",
+            ["AUSPEX_CONTAINER"] = "",
         };
         // Declared axes and text parameters, as a hook or a check has them on the bare path. A tree is files and a secret is kept out of files.
         if (exam.Axes.Of(key) is { } configuration)
         {
-            foreach (var (axis, value) in configuration.Values) values["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
+            foreach (var (axis, value) in configuration.Values) values["AUSPEX_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
             var fixture = exam.FixtureOf(task);
             var given = exam.Axes.Params(configuration, exam.Def, fixture, exam.Dir);
             foreach (var (name, declared) in (exam.Def.Params ?? []).Concat(fixture?.Def.Params ?? []))
-                if (declared.Tree != true && declared.Secret != true) values["PROCTOR_PARAM_" + name] = given.GetValueOrDefault(name) ?? "";
+                if (declared.Tree != true && declared.Secret != true) values["AUSPEX_PARAM_" + name] = given.GetValueOrDefault(name) ?? "";
         }
         return "# The script check contract, as the verifier sees it. Compiled by proctor.\n"
             + string.Concat(values.Select(kv => $"export {kv.Key}={Shell(kv.Value)}\n"));
@@ -537,7 +537,7 @@ static class HarborCompile
             out=/logs/verifier
             . /tests/env.sh
             cd /app
-            if [ -s "$PROCTOR_DIFF" ] && ! git apply --whitespace=nowarn "$PROCTOR_DIFF" > "$out/apply.out" 2>&1; then
+            if [ -s "$AUSPEX_DIFF" ] && ! git apply --whitespace=nowarn "$AUSPEX_DIFF" > "$out/apply.out" 2>&1; then
               echo '{}' > "$out/reward.json"; exit 0
             fi
             rewards=()
@@ -588,8 +588,8 @@ static class HarborCompile
         var changed = ChangedFiles(Path.Combine(tests, "exam"), exam.Dir, root, ExamDefinition)
             .Concat(ChangedFiles(Path.Combine(tests, "fixture"), fixture.Dir, root, FixtureDefinition(fixture))).ToList();
         string? Line(IEnumerable<string> lines, string prefix) => lines.FirstOrDefault(l => l.StartsWith(prefix, StringComparison.Ordinal));
-        var expectThen = Line(File.ReadLines(envScript!), "export PROCTOR_EXPECT=");
-        var expectNow = Line(VerifierEnv(exam, key, task).Split('\n'), "export PROCTOR_EXPECT=");
+        var expectThen = Line(File.ReadLines(envScript!), "export AUSPEX_EXPECT=");
+        var expectNow = Line(VerifierEnv(exam, key, task).Split('\n'), "export AUSPEX_EXPECT=");
         var then = File.ReadAllLines(testScript!);
         var now = TestScript(exam, task).Split('\n');
 

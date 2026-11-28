@@ -7,7 +7,7 @@
 set -euo pipefail
 cat >/dev/null
 dir="/trial/$TRIAL_TASK"
-plant=$PROCTOR_AXIS_PLANTED
+plant=$AUSPEX_AXIS_PLANTED
 bash "$dir/$plant.sh" >&2
 config=$(mktemp)
 jq -n --rawfile answer "$dir/$plant.answer" \

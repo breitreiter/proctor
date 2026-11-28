@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Does the repository compile as the run left it? Reason: the error count.
 set -uo pipefail
-cd "$PROCTOR_WORK" || exit 1
+cd "$AUSPEX_WORK" || exit 1
 [ -d node_modules ] || npm ci --no-audit --no-fund --silent >/dev/null 2>&1 || { echo "npm ci failed"; exit 1; }
 out=$(npx tsc --pretty false 2>&1)
 errors=$(grep -c 'error TS' <<<"$out" || true)

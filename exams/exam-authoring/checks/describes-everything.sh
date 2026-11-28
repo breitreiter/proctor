@@ -3,8 +3,8 @@
 # proctor falls back to a prompt line for a stage, but a reader deserves a sentence. (An axis's `about` and a
 # value's `note` proctor requires itself, so `validates` holds those.)
 set -uo pipefail
-id=$(jq -r .exam <<<"$PROCTOR_EXPECT")
-def="$PROCTOR_WORK/exams/$id/exam.json"
+id=$(jq -r .exam <<<"$AUSPEX_EXPECT")
+def="$AUSPEX_WORK/exams/$id/exam.json"
 [ -f "$def" ] || { echo "no exam to read"; exit 1; }
 stages=$(jq '(.stages // []) | length' "$def" 2>/dev/null)
 [ "${stages:-0}" -gt 0 ] || { echo "exam.json has no stages"; exit 1; }

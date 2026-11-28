@@ -28,7 +28,7 @@ in_role=$(jq -r --argjson m "$asks_model" '[(.grading.correctness // []) + (.gra
 plants=$(for f in "/trial/$TRIAL_TASK"/*.sh; do basename "$f" .sh; done | jq -R . | jq -sc .)
 jq --argjson m "$asks_model" --argjson plants "$plants" '
    def drop: with_entries(select(.key as $k | $m | index($k) | not));
-   .tries = 1 | .attempts = 1 | del(.hooks, .nb) | .grading.checks |= drop
+   .tries = 1 | del(.hooks, .nb) | .grading.checks |= drop
    | (if .grading.quality then .grading.quality |= map(select(. as $n | $m | index($n) | not)) else . end)
    | .stages |= map(if .checks then .checks |= drop else . end)
    | .axes.planted = {about: "the planted run, which the trial adds", reference: $plants[0],
@@ -41,14 +41,13 @@ jq -n '{nb: {path: "/opt/nb/nb", config: "trial-nb.json"}}' >"$defs/proctor.json
 jq -n --argjson p "$providers" '{Harness: "nb", ActiveProvider: "Mock", Trust: false, ChatProviders: ([{Name: "Mock"}] + [$p[] | {Name: ., Provider: "Mock"}])}' >"$defs/trial-nb.json"
 
 cd "$root"
-proctor() { dotnet /opt/proctor/proctor.dll "$@"; }
+proctor() { dotnet /opt/proctor/auspex.dll "$@"; }
 proctor run "$id" --runner /trial/planted.sh >/out/run.log 2>&1 || fail "proctor run refused it: $(grep -v '^ ' /out/run.log | tail -1)"
 made=$(sed -n 's/^run \([^ :]*\): .*/\1/p' /out/run.log | tail -1)
 proctor grade "$id" >/out/grade.log 2>&1 || fail "proctor grade failed: $(tail -1 /out/grade.log)"
 proctor report "$id" >/out/report.log 2>&1 || fail "proctor report failed: $(tail -1 /out/report.log)"
 cp -r bank log /out/
-# In results.jsonl the proctor pinned in the image says `variant` and `task` where the host's says `configuration` and `stage`; both are read until the pin moves past the rename.
-jq -s '{plants: (map(. + {plant: ((.configuration // .variant) | capture("(^|,)planted=(?<p>[^,]+)").p)}) | group_by(.plant)
-        | map({key: .[0].plant, value: map({stage: (.stage // .task), status, pass, checks})}) | from_entries)}' \
+jq -s '{plants: (map(. + {plant: (.configuration | capture("(^|,)planted=(?<p>[^,]+)").p)}) | group_by(.plant)
+        | map({key: .[0].plant, value: map({stage: .stage, status, pass, checks})}) | from_entries)}' \
   "reports/$id/explore/results.jsonl" >/out/trial.json
 echo "trial $made: $(jq -r '.plants | to_entries | map("\(.key)=\(.value | map(.pass) | tostring)") | join(" ")' /out/trial.json)"

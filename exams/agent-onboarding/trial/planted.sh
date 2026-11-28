@@ -10,10 +10,11 @@ set -euo pipefail
 program=$(cat)
 plants=$TRIAL_PLANTS
 # The proctor that runs this is the one pinned in the fixture's image in a real try and the host's in the shakedown,
-# and the two name a stage differently until the pin is moved past the rename: both names are read here.
-stage_id=${PROCTOR_STAGE:-${PROCTOR_TASK:-}} stage_json=${PROCTOR_STAGE_JSON:-${PROCTOR_TASK_JSON:-}}
-plant=$PROCTOR_AXIS_PLANTED
-written_key=${PROCTOR_CONFIGURATION%",planted=$plant"}
+# and the two name these variables differently until the pin is moved past the rename: both names are read here.
+stage_id=${AUSPEX_STAGE:-${PROCTOR_STAGE:-${PROCTOR_TASK:-}}} stage_json=${AUSPEX_STAGE_JSON:-${PROCTOR_STAGE_JSON:-${PROCTOR_TASK_JSON:-}}}
+plant=${AUSPEX_AXIS_PLANTED:-${PROCTOR_AXIS_PLANTED:-}}
+AUSPEX_CONFIGURATION=${AUSPEX_CONFIGURATION:-${PROCTOR_CONFIGURATION:-}}
+written_key=${AUSPEX_CONFIGURATION%",planted=$plant"}
 written=$(jq -r --arg k "$written_key" '.[$k] // $k' "$TRIAL_CONFIGURATIONS")
 prompt=$(jq -r '.prompt // ""' <<<"$stage_json")
 
@@ -37,10 +38,10 @@ planted=$(jq -c --arg v "$plant" --arg ver "$version" --arg k "$key" '
     else {answer: ($x.answers[$k] // $x.answers["*"]),
           expect: (if $k == "*" then "none" elif ($x.expect | type) == "object" then $x.expect[$k] else $x.expect end)}
     end' "$plants")
-jq -n --argjson p "$planted" --arg configuration "$PROCTOR_CONFIGURATION" --arg stage "$stage_id" \
+jq -n --argjson p "$planted" --arg configuration "$AUSPEX_CONFIGURATION" --arg stage "$stage_id" \
   --arg plant "$plant" --arg written "$written" --arg key "$key" --arg version "$version" \
   '{configuration: $configuration, stage: $stage, plant: $plant, written: $written, key: $key, version: $version, expect: $p.expect}' \
-  >"$TRIAL_RECORDS/$PROCTOR_CONFIGURATION.$stage_id.json"
+  >"$TRIAL_RECORDS/$AUSPEX_CONFIGURATION.$stage_id.json"
 
 config=$(mktemp)
 jq -n --arg answer "$(jq -r .answer <<<"$planted")" \

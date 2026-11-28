@@ -195,7 +195,7 @@ holding `bank/` and `exams/`.
 ```
 dotnet build                                   # at the repository's root: proctor and the viewer
 dotnet test View/Auspex.View.Tests --no-build       # AxesPagesTests makes a bank with the proctor just built, so nb must be built too
-AUSPEX_TEST_PUBLISH=1 AUSPEX_TEST_ROOT=<proctor root> dotnet test View/Auspex.View.Tests --no-build
+AUSPEX_VIEW_TEST_PUBLISH=1 AUSPEX_VIEW_TEST_ROOT=<proctor root> dotnet test View/Auspex.View.Tests --no-build
 dotnet View/bin/Debug/net10.0/auspex-view.dll <proctor root>
 # no bank on hand: Auspex.Tests/exams/axes-answers/make.sh <empty dir> makes one, with axes, on Mock
 ```

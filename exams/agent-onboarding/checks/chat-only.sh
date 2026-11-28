@@ -3,7 +3,7 @@
 # Harbor), and does its program say `tools none`? A chat exam needs no sandbox; a value that runs an agent, or a
 # program with tools, is not the exam the user asked for.
 set -uo pipefail
-. "$PROCTOR_EXAM_DIR/checks/written.sh"
+. "$AUSPEX_EXAM_DIR/checks/written.sh"
 def="$WRITTEN_DIR/exam.json"
 jq -e '.axes | type == "object"' "$def" >/dev/null 2>&1 || { echo "exam.json declares no axes"; exit 1; }
 agents=$(jq -r '[.axes | to_entries[] | .key as $a | (.value.values // {}) | to_entries[]

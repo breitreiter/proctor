@@ -19,17 +19,17 @@ for c in $(jq -r '.stages[].id' "$def"); do
   workspace=$(jq -r '.when | sub("^workspace = "; "")' <<<"$stage")
   f=$(jq -r --arg w "$workspace" '.axes.workspace.values[$w].fixture' "$def")
   id=$(jq -r .expect.exam <<<"$stage")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_STAGE="$c" PROCTOR_TRY_NUMBER=1
-  export PROCTOR_CONFIGURATION="workspace=$workspace,docs=ref,assistant=ref" PROCTOR_AXIS_WORKSPACE="$workspace"
-  export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work"
-  export PROCTOR_STAGE_JSON="$stage" PROCTOR_EXPECT="$(jq -c .expect <<<"$stage")"
-  mkdir -p "$PROCTOR_ATTEMPT_DIR" "$PROCTOR_WORK"
-  cp -r "$PROCTOR_FIXTURE/repo/." "$PROCTOR_WORK"
-  (cd "$PROCTOR_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm "fixture $f")
+  export AUSPEX_EXAM_DIR="$here" AUSPEX_FIXTURE="$root/fixtures/$f" AUSPEX_EXAM="$(basename "$here")" AUSPEX_STAGE="$c" AUSPEX_TRY_NUMBER=1
+  export AUSPEX_CONFIGURATION="workspace=$workspace,docs=ref,assistant=ref" AUSPEX_AXIS_WORKSPACE="$workspace"
+  export AUSPEX_ATTEMPT_DIR="$tmp/$c/attempt" AUSPEX_WORK="$tmp/$c/work"
+  export AUSPEX_STAGE_JSON="$stage" AUSPEX_EXPECT="$(jq -c .expect <<<"$stage")"
+  mkdir -p "$AUSPEX_ATTEMPT_DIR" "$AUSPEX_WORK"
+  cp -r "$AUSPEX_FIXTURE/repo/." "$AUSPEX_WORK"
+  (cd "$AUSPEX_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm "fixture $f")
   checks="validates accepts-correct rejects-wrong describes-everything"
-  [ "$mode" = --unsolved ] || cp -r "$here/reference/$c/." "$PROCTOR_WORK"
+  [ "$mode" = --unsolved ] || cp -r "$here/reference/$c/." "$AUSPEX_WORK"
   if [ "$mode" = --naive ]; then
-    e="$PROCTOR_WORK/exams/$id/exam.json"
+    e="$AUSPEX_WORK/exams/$id/exam.json"
     case "$c" in
       guard-the-tests)   jq '.grading.correctness -= ["tests-untouched"]' "$e" ;;
       check-the-answer)  jq '.grading.checks["right-count"] = {answer_contains: "8"} | .grading.correctness -= ["read-only"]' "$e" ;;
@@ -37,7 +37,7 @@ for c in $(jq -r '.stages[].id' "$def"); do
     esac >"$e.naive" && mv "$e.naive" "$e"
   fi
   for check in $checks; do
-    reason=$(cd "$PROCTOR_ATTEMPT_DIR" && "$here/checks/$check.sh"); code=$?
+    reason=$(cd "$AUSPEX_ATTEMPT_DIR" && "$here/checks/$check.sh"); code=$?
     got=$([ $code = 0 ] && echo pass || echo fail)
     case "$mode:$check" in :*) want=pass ;; --naive:rejects-wrong) want=fail ;; --naive:*) want=pass ;; *) want=fail ;; esac
     mark=""; [ "$got" = "$want" ] || { mark=" UNEXPECTED (want $want)"; unexpected=$((unexpected + 1)); }

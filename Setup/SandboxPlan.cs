@@ -98,7 +98,7 @@ static class SandboxPlan
         b.AppendLine("## Done means").AppendLine();
         b.AppendLine("`proctor setup --check` reports the engine and uv found. The full proof, which runs every vendor agent against "
             + "a scripted stub model at no cost, is:").AppendLine();
-        b.AppendLine("    PROCTOR_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests").AppendLine();
+        b.AppendLine("    AUSPEX_CONFORMANCE=1 dotnet test --no-build --filter ConformanceTests").AppendLine();
         b.AppendLine("It takes about half an hour; offer it, do not run it unasked.");
         return b.ToString();
     }

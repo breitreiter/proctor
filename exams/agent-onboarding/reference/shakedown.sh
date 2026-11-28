@@ -44,15 +44,15 @@ for c in $(jq -r '.stages[].id' "$def"); do
   stage=$(jq -c --arg c "$c" '.stages[] | select(.id == $c)' "$def")
   project=$(jq -r '.when | sub("^project = "; "")' <<<"$stage")
   f=$(jq -r --arg p "$project" '.axes.project.values[$p].fixture' "$def")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_STAGE="$c" PROCTOR_TRY_NUMBER=1
-  export PROCTOR_CONFIGURATION="project=$project,assistant=ref" PROCTOR_AXIS_PROJECT="$project" PROCTOR_AXIS_ASSISTANT=ref
-  export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_STAGE_JSON="$stage" PROCTOR_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" PROCTOR_TRANSCRIPT=""
-  mkdir -p "$PROCTOR_ATTEMPT_DIR" "$PROCTOR_WORK"
-  cp -r "$PROCTOR_FIXTURE/repo/." "$PROCTOR_WORK"
-  (cd "$PROCTOR_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm "fixture $f")
-  if [ "$mode" != --unsolved ]; then cp -r "$here/reference/$c/." "$PROCTOR_WORK"; fi
-  s=$(find "$PROCTOR_WORK/exams" -mindepth 2 -maxdepth 2 -name exam.json 2>/dev/null | head -1 | xargs -r dirname)
+  export AUSPEX_EXAM_DIR="$here" AUSPEX_FIXTURE="$root/fixtures/$f" AUSPEX_EXAM="$(basename "$here")" AUSPEX_STAGE="$c" AUSPEX_TRY_NUMBER=1
+  export AUSPEX_CONFIGURATION="project=$project,assistant=ref" AUSPEX_AXIS_PROJECT="$project" AUSPEX_AXIS_ASSISTANT=ref
+  export AUSPEX_ATTEMPT_DIR="$tmp/$c/attempt" AUSPEX_WORK="$tmp/$c/work" AUSPEX_DIFF="$tmp/$c/attempt/diff.patch"
+  export AUSPEX_STAGE_JSON="$stage" AUSPEX_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" AUSPEX_TRANSCRIPT=""
+  mkdir -p "$AUSPEX_ATTEMPT_DIR" "$AUSPEX_WORK"
+  cp -r "$AUSPEX_FIXTURE/repo/." "$AUSPEX_WORK"
+  (cd "$AUSPEX_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm "fixture $f")
+  if [ "$mode" != --unsolved ]; then cp -r "$here/reference/$c/." "$AUSPEX_WORK"; fi
+  s=$(find "$AUSPEX_WORK/exams" -mindepth 2 -maxdepth 2 -name exam.json 2>/dev/null | head -1 | xargs -r dirname)
   edit() { jq "$2" "$1" >"$1.new" && mv "$1.new" "$1"; }
   if [ "$mode" = --naive ]; then
     case "$c" in
@@ -66,13 +66,13 @@ for c in $(jq -r '.stages[].id' "$def"); do
     esac
   fi
   if [ "$mode" = --sloppy ]; then
-    edit "$PROCTOR_WORK/exams/nb.json" '.ChatProviders[0].ApiKey = "sk-proj-shakedownFAKEkey000000000000"'
+    edit "$AUSPEX_WORK/exams/nb.json" '.ChatProviders[0].ApiKey = "sk-proj-shakedownFAKEkey000000000000"'
     edit "$s/exam.json" 'del(.description) | .stages |= map(del(.about))'
     sed -i '/^tools none$/d' "$s/program.nb"
   fi
-  (cd "$PROCTOR_WORK" && git add -A -N . && git diff --no-color --binary >"$PROCTOR_DIFF")
+  (cd "$AUSPEX_WORK" && git add -A -N . && git diff --no-color --binary >"$AUSPEX_DIFF")
   for check in "${checks[@]}"; do
-    reason=$(cd "$PROCTOR_ATTEMPT_DIR" && "$here/checks/$check.sh"); code=$?
+    reason=$(cd "$AUSPEX_ATTEMPT_DIR" && "$here/checks/$check.sh"); code=$?
     got=$([ $code = 0 ] && echo pass || echo fail)
     want=$(expected "$check")
     mark=$([ "$got" = "$want" ] && echo "" || { echo " UNEXPECTED (want $want)"; })

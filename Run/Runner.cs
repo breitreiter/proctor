@@ -290,8 +290,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, AuspexConfig config,
             var pending = group.Select(a => (a.Stage, a.TryNumber)).ToList();
             var hooksDir = Path.Combine(entryDir, Layout.HooksDir);
             Directory.CreateDirectory(hooksDir);
-            var hookEnv = new Dictionary<string, string> { ["PROCTOR_EXAM"] = exam.Id, ["PROCTOR_CONFIGURATION"] = assistant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_RUNNER"] = entry.Nb.Runner?.Script ?? "" };
-            foreach (var (axis, value) in exam.Axes.Of(assistant.Id!)!.Values) hookEnv["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
+            var hookEnv = new Dictionary<string, string> { ["AUSPEX_EXAM"] = exam.Id, ["AUSPEX_CONFIGURATION"] = assistant.Id!, ["AUSPEX_EXAM_DIR"] = exam.Dir, ["AUSPEX_RUNNER"] = entry.Nb.Runner?.Script ?? "" };
+            foreach (var (axis, value) in exam.Axes.Of(assistant.Id!)!.Values) hookEnv["AUSPEX_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
             var setup = RunHook(exam.Def.Hooks?.Configuration?.Setup, hookEnv, Path.Combine(hooksDir, $"{assistant.Id}.setup.log"));
             if (setup is not null)
             {

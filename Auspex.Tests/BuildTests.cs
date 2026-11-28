@@ -52,9 +52,9 @@ public class BuildTests
     {
         repo.Write("smoke/hooks/prompt.sh", $$"""
             #!/usr/bin/env bash
-            cd "$PROCTOR_WORK"
-            printf 'tone: %s\n{{between}}' "$PROCTOR_PARAM_TONE" > prompt.txt
-            [ "$PROCTOR_PARAM_EXAMPLES" = two ] && echo "example one; example two" >> prompt.txt
+            cd "$AUSPEX_WORK"
+            printf 'tone: %s\n{{between}}' "$AUSPEX_PARAM_TONE" > prompt.txt
+            [ "$AUSPEX_PARAM_EXAMPLES" = two ] && echo "example one; example two" >> prompt.txt
             {{extra}}
             date +%s%N > built-at.txt
             exit 0
@@ -112,7 +112,7 @@ public class BuildTests
     [Fact]
     public void AValueThatQuietlyDoesASecondThing_ShowsBothInItsChange()
     {
-        using var repo = Smoke("""[ "$PROCTOR_PARAM_TONE" = terse ] && echo fixed > note.txt""");
+        using var repo = Smoke("""[ "$AUSPEX_PARAM_TONE" = terse ] && echo fixed > note.txt""");
         var tone = Assert.Single(Build(repo, ("tone", "terse")).Values);
         Assert.Equal(["note.txt", "prompt.txt"], tone.Paths.Select(p => p.Path));
     }
@@ -126,7 +126,7 @@ public class BuildTests
         Assert.Equal(("terse-two", 0, 0), (sound.Name, sound.Differs.Count, sound.Unclear.Count));
 
         // A line written only when both are set is in neither value's change: the configuration is more than its values.
-        WriteHook(repo, """[ "$PROCTOR_PARAM_TONE" = terse ] && [ "$PROCTOR_PARAM_EXAMPLES" = two ] && echo "keep the examples short too" >> prompt.txt""");
+        WriteHook(repo, """[ "$AUSPEX_PARAM_TONE" = terse ] && [ "$AUSPEX_PARAM_EXAMPLES" = two ] && echo "keep the examples short too" >> prompt.txt""");
         var more = Assert.Single(Build(repo).Combinations);
         Assert.Contains("prompt.txt (not what the changes of tone=terse and examples=two alone come to)", Assert.Single(more.Differs));
 

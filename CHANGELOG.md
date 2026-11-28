@@ -7,6 +7,13 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: every `PROCTOR_` variable is `AUSPEX_`.** What a hook or a
+  script check is handed (`AUSPEX_WORK`, `AUSPEX_EXAM_DIR`, `AUSPEX_STAGE`,
+  `AUSPEX_EXPECT`, …), and what a person sets (`AUSPEX_ENV_FILE`,
+  `AUSPEX_GATE`, `AUSPEX_CONFORMANCE`). No old name is read. A `PROCTOR_`
+  variable still set when a verb starts is refused with its new name; a
+  script that still reads one gets an empty value, so rename them in your
+  hooks and checks. The viewer's `AUSPEX_TEST_*` are `AUSPEX_VIEW_TEST_*`.
 - **Breaking: a try's number is `try_number`, and an exam asks for `tries`.**
   In `manifest.json`, `entry.json`, `results.jsonl` and `friction.json` the
   field `attempt`, which held the try's number, is `try_number`;

@@ -113,7 +113,7 @@ without the fixture's services. A check that needs one starts its own
 from the fixture's copy, which the checks' container does hold:
 
 ```bash
-python -u "$PROCTOR_FIXTURE/services/tern_api.py" &
+python -u "$AUSPEX_FIXTURE/services/tern_api.py" &
 ```
 
 `exams/tern-docs/checks/acceptance.sh` does this, on a spare port when

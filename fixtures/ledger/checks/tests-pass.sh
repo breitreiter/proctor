@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Do the fixture's own tests pass as the run left the repository? Reason: the counts.
 set -uo pipefail
-out=$(cd "$PROCTOR_WORK" && dotnet test Ledger.Tests --nologo 2>&1)
+out=$(cd "$AUSPEX_WORK" && dotnet test Ledger.Tests --nologo 2>&1)
 summary=$(grep -E '^(Passed|Failed)!' <<<"$out" | tail -1)
 if [ -z "$summary" ]; then echo "tests did not run: $(grep -m1 'error ' <<<"$out" | sed 's/.*error /error /' | cut -c1-120)"; exit 1; fi
 failed=$(sed -E 's/.*Failed: *([0-9]+).*/\1/' <<<"$summary")
