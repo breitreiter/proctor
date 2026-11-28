@@ -1202,8 +1202,8 @@ same files: commit `0364ac0`, tag `modal-in-core`). In stages, each a commit tha
 
 **Not done, and where it stands:**
 
-- `ConformanceTests` (rewritten for stages, its oracle pass with a `solution/` per step) and `OracleGateTests`
-  have not been run since the rewrite. `GateTests` passed on podman.
+- Run on podman after the rewrite, all passing, at $0: `GateTests`, `OracleGateTests`, and `ConformanceTests`
+  (the stub tries and the oracle pass with a `solution/` per step, 20 minutes).
 - Attempts made under the earlier shape are not migrated: kept, listed by the viewer, in no number.
 - A stage has no labels, so `kind` on `code-change` and `nb-changes` is in a README, not in `results.jsonl`.
 - `proctor retire` has no JSON output yet (`remix.md`'s second rule).

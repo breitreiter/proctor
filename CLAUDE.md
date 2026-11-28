@@ -354,8 +354,7 @@ The directories are for reading, not for namespaces: everything is
   its spend agreed first. `PROCTOR_CONFORMANCE=1 dotnet test --no-build
   --filter ConformanceTests` runs the stub tries and the oracle pass (each
   `code-change` stage's `reference/<stage>.sh` as Harbor's `solution/`,
-  every script check 1); podman (or Docker) and uv needed, about half an hour, $0. The oracle pass was rewritten
-  for stages on 2026-11-27 and has not been run since.
+  every script check 1); podman (or Docker) and uv needed, about twenty minutes, $0.
 - **The stub model is the vendor agents' Mock.** `fixtures/stub/services/stub.py`
   speaks Anthropic Messages, OpenAI Responses and Chat Completions and
   reads its script from the prompt: `STUB:run=<cmd>` (one call to the
