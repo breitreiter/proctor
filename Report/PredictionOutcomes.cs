@@ -24,16 +24,16 @@ static class PredictionOutcomes
     const double Alpha = 0.05;
     public const string Supported = "supported", Contradicted = "contradicted", NoEffect = "no_effect", Inconclusive = "inconclusive", NotRun = "not_run";
 
-    public static List<PredictionReport> Compute(Exam exam, List<Prediction> predictions, IReadOnlyDictionary<string, TryVariant> byKey, List<ResultRow> rows, IEnumerable<BankAttempt> current)
+    public static List<PredictionReport> Compute(Exam exam, List<Prediction> predictions, IReadOnlyDictionary<string, ConfigurationTries> byKey, List<ResultRow> rows, IEnumerable<BankAttempt> current)
     {
-        var made = current.Select(a => (a.Variant, Made: Answers.MadeAt(a.Entry.IdOf(a.Variant, a.Attempt)), a.Attempt)).Where(x => x.Made is not null).Distinct().ToList();
+        var made = current.Select(a => (a.Configuration, Made: Answers.MadeAt(a.Entry.IdOf(a.Configuration, a.Attempt)), a.Attempt)).Where(x => x.Made is not null).Distinct().ToList();
         return predictions.Select(c =>
         {
             var (mine, theirs) = (byKey.GetValueOrDefault(c.Configuration.Key), byKey.GetValueOrDefault(c.Against.Key));
             var (name, other) = (c.Configuration.Name ?? c.Configuration.Label, c.Against.Name ?? c.Against.Label);
             var labels = new List<string>();
             var written = Predictions.WrittenAt(c.Def.Written!);
-            var before = made.Count(m => m.Variant == c.Configuration.Key && m.Made < written);
+            var before = made.Count(m => m.Configuration == c.Configuration.Key && m.Made < written);
             if (before > 0) labels.Add($"Post hoc: {before} {(before == 1 ? "try" : "tries")} of {name} had been made before this prediction was written ({c.Def.Written}).");
             var moved = c.Def.Standard is { } pinned && exam.StagesOf(c.Configuration.Key).Any(s => pinned.GetValueOrDefault(s.Id!) != Standard.Hash(exam, s));
             if (moved) labels.Add("The standard changed after this prediction was pinned: the checks it is held against are not the checks it was written under.");
@@ -41,7 +41,7 @@ static class PredictionOutcomes
             var outcomes = (c.Def.Changes ?? []).Select(p =>
             {
                 var said = Predictions.Said(p, c);
-                List<double>? Numbers(TryVariant? v, string key) => v?.Rows.Where(r => r.Invalid is null).Select(r => Number(p, r, key, rows)).ToList() is { } all && all.All(n => n is not null) ? all.Select(n => n!.Value).ToList() : null;
+                List<double>? Numbers(ConfigurationTries? v, string key) => v?.Rows.Where(r => r.Invalid is null).Select(r => Number(p, r, key, rows)).ToList() is { } all && all.All(n => n is not null) ? all.Select(n => n!.Value).ToList() : null;
                 var (a, b) = (Numbers(mine, c.Configuration.Key), Numbers(theirs, c.Against.Key));
                 if (a is null or { Count: 0 } || b is null or { Count: 0 })
                     return new ChangeOutcome(p.Check, p.Metric, p.Direction!, p.Because, NotRun, a?.Count ?? 0, b?.Count ?? 0, null, false,
@@ -66,7 +66,7 @@ static class PredictionOutcomes
 
     /// <summary>The number a change is about, for one try: the stages in which its check held, or the try's own count. Null when it cannot be read (friction not run).</summary>
     static double? Number(ChangeDef p, TryRow row, string key, List<ResultRow> rows) => p.Check is { } check
-        ? rows.Count(r => r.Variant == key && r.Attempt == row.N && r.Checks?.GetValueOrDefault(check) == Verdict.Pass)
+        ? rows.Count(r => r.Configuration == key && r.Attempt == row.N && r.Checks?.GetValueOrDefault(check) == Verdict.Pass)
         : p.Metric switch
         {
             "held" => row.Held, "flagged_steps" => row.Flagged, "tool_calls" => row.ToolCalls, "tokens" => row.TokensIn, "duration" => row.DurationMs, _ => null,

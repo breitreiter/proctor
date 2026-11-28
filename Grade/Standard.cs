@@ -102,12 +102,12 @@ static class Standard
             foreach (var (name, verdict) in now.Checks)
             {
                 if (verdict.Result == Verdict.NotApplicable && history.Take(at).LastOrDefault(r => Decided(r.Checks.GetValueOrDefault(name))) is { } then)
-                    found.Add((name, "narrowed", a.Variant, then.Checks[name].Result == Verdict.Pass));
+                    found.Add((name, "narrowed", a.Configuration, then.Checks[name].Result == Verdict.Pass));
                 else if (!first.Checks.ContainsKey(name) && Decided(verdict))
-                    found.Add((name, "added", a.Variant, verdict.Result == Verdict.Pass));
+                    found.Add((name, "added", a.Configuration, verdict.Result == Verdict.Pass));
             }
             foreach (var (name, verdict) in before.Checks)
-                if (!now.Checks.ContainsKey(name) && Decided(verdict)) found.Add((name, "removed", a.Variant, verdict.Result == Verdict.Pass));
+                if (!now.Checks.ContainsKey(name) && Decided(verdict)) found.Add((name, "removed", a.Configuration, verdict.Result == Verdict.Pass));
         }
         return found.GroupBy(f => (f.Check, f.Kind)).Select(g =>
         {

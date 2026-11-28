@@ -13,7 +13,7 @@ public class ExamTests
         var exam = repo.LoadExam("smoke");
 
         Assert.Equal("smoke", exam.Id);
-        Assert.Equal(2, exam.Variants.Count);
+        Assert.Equal(2, exam.Assistants.Count);
         Assert.Equal(["plain", "uses-bash", "loops", "writes-a-file"], exam.Tasks.Select(t => t.Id));
         Assert.Equal(2, exam.Attempts);
         Assert.Equal(["exit_ok", "says-expected"], exam.Grading.Correctness);
@@ -119,7 +119,9 @@ public class ExamTests
     [InlineData("attempts", "0", "smoke/exam.json", "attempts")]
     [InlineData("hooks", "{\"run\": {\"setup\": \"hooks/configuration-setup.sh\"}}", "smoke/exam.json", "hooks.run")]
     [InlineData("hooks", "{\"task\": {\"setup\": \"hooks/configuration-setup.sh\"}}", "smoke/exam.json", "hooks.task")]
-    [InlineData("hooks", "{\"variant\": {\"setup\": \"hooks/missing.sh\"}}", "smoke/exam.json", "hooks.variant.setup")]
+    [InlineData("hooks", "{\"configuration\": {\"setup\": \"hooks/missing.sh\"}}", "smoke/exam.json", "hooks.configuration.setup")]
+    [InlineData("hooks", "{\"variant\": {\"setup\": \"hooks/configuration-setup.sh\"}}", "smoke/exam.json", "hooks.variant")]
+    [InlineData("hooks", "{\"attempt\": {\"setup\": \"hooks/try-setup.sh\"}}", "smoke/exam.json", "hooks.attempt")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"y\"]}", "smoke/exam.json", "grading.correctness")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"x\"], \"integrity\": [\"y\"]}", "smoke/exam.json", "grading.integrity")]
     [InlineData("grading", "{\"checks\": {\"x\": {\"exit_reason\": \"ok\"}}, \"correctness\": [\"x\"], \"integrity\": [\"x\"]}", "smoke/exam.json", "grading.integrity")]

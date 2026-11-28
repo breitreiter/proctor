@@ -76,15 +76,15 @@ public class ConformanceTests
         var (uv, engine) = MachineHarbor();
         var entryDir = Path.Combine(repo.Root, "log", "oracle");
         // One vendor's agent in each repository: the image is the fixture's, whoever the assistant is.
-        var pairs = exam.Variants.Where(v => v.IsVendor).GroupBy(v => exam.Axes!.Of(v.Id!)![exam.Axes.WorldAxis!]).Select(g => g.First())
-            .Select(v => (Variant: v, Stage: exam.StagesOf(v.Id!).Single())).ToList();
+        var pairs = exam.Assistants.Where(v => v.IsVendor).GroupBy(v => exam.Axes!.Of(v.Id!)![exam.Axes.WorldAxis!]).Select(g => g.First())
+            .Select(v => (Configuration: v, Stage: exam.StagesOf(v.Id!).Single())).ToList();
         Assert.Equal(exam.Tasks.Count, pairs.Count);
         HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(null, null), pairs: pairs);
 
         var misses = new List<string>();
-        foreach (var (variant, c) in pairs)
+        foreach (var (assistant, c) in pairs)
         {
-            var taskDir = Layout.HarborJobTask(entryDir, variant.Id!, exam.Id);
+            var taskDir = Layout.HarborJobTask(entryDir, assistant.Id!, exam.Id);
             // Harbor's oracle agent runs a step's own solution/solve.sh.
             var solution = Path.Combine(taskDir, "steps", c.Id!, "solution");
             Directory.CreateDirectory(solution);
@@ -93,7 +93,7 @@ public class ConformanceTests
 
             var harborDir = Path.Combine(entryDir, "oracle-jobs", c.Id!);
             Directory.CreateDirectory(harborDir);
-            var job = HarborCompile.Job(variant, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null), engine: engine);
+            var job = HarborCompile.Job(assistant, taskDir, Path.Combine(harborDir, "jobs"), new AgentRoute(null, null), engine: engine);
             job["agents"] = new JsonArray(new JsonObject { ["name"] = "oracle" });
             Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), job);
             var run = Subprocess.Run(uv, HarborRun.UvArgs(exam.Def.Harbor!.Version), harborDir,
@@ -117,7 +117,7 @@ public class ConformanceTests
             var agent = exam.Axes.Value("assistant", assistant).Agent!;
             void Miss(string script, string what) => misses.Add($"{assistant}/{script}: {what}");
             // A try is one script's stage alone, in the configuration of that script and this assistant.
-            string Attempt(string script) => bank.Single(a => a.Variant == $"script={script},assistant={assistant}" && a.Task == script).Dir(root);
+            string Attempt(string script) => bank.Single(a => a.Configuration == $"script={script},assistant={assistant}" && a.Task == script).Dir(root);
             string Reason(string script) => Runner.ReadManifest(Path.Combine(Attempt(script), Layout.ManifestFile)).StatusReason ?? "";
             CountedCore? Core(string script) => File.Exists(Path.Combine(Attempt(script), Layout.CoreFile)) ? Runner.ReadJson<CountedCore>(Path.Combine(Attempt(script), Layout.CoreFile)) : null;
 

@@ -6,10 +6,10 @@ using System.Text.RegularExpressions;
 
 namespace Proctor;
 
-// An exam's agent variants as Harbor tasks: one task directory per variant and task, under the log entry of the run that compiled them, and one job file
+// An exam's configurations as Harbor tasks, where they run through Harbor: one task directory per configuration, under the log entry of the run that compiled them, and one job file
 // per attempt. Only the fixture's repo/ enters the image the agent runs in; its checks, the exam and the expectations go
 // to tests/, which Harbor copies into the separate verifier container only.
-// Harbor tasks are compiled once per run, per variant and task, and kept with its log entry: an attempt's verdicts are checked against the copy its run compiled.
+// Harbor tasks are compiled once per run, per configuration, and kept with its log entry: an attempt's verdicts are checked against the copy its run compiled.
 
 /// <summary>
 /// What compile needs from the machine: where the agent's model calls go, resolved, and the key with the variable it
@@ -44,11 +44,11 @@ static class HarborCompile
     /// </summary>
     static readonly Dictionary<string, (string Import, string File)> OwnAgents = new()
     {
-        [Variant.Nb] = ("nb_agent:NbAgent", "nb_agent.py"),
-        [Variant.QwenCode] = ("qwen_code_agent:QwenCodeAgent", "qwen_code_agent.py"),
+        [Assistant.Nb] = ("nb_agent:NbAgent", "nb_agent.py"),
+        [Assistant.QwenCode] = ("qwen_code_agent:QwenCodeAgent", "qwen_code_agent.py"),
     };
 
-    /// <summary>The oracle's simulated user (Harbor/oracle_user.py), compiled beside the agents for a run with an oracle task and an agent variant.</summary>
+    /// <summary>The oracle's simulated user (Harbor/oracle_user.py), compiled beside the agents for a run with an answer sheet through Harbor.</summary>
     const string OracleUserImport = "oracle_user:OracleUser", OracleUserFile = "oracle_user.py";
 
     /// <summary>
@@ -58,8 +58,8 @@ static class HarborCompile
     public const string OracleTemplateFile = "oracle_user.j2";
     const string OracleTemplate = "{{ instruction }}\n<<<PROCTOR-BRIDGE>>>\n{{ bridge_instructions }}\n";
 
-    /// <summary>Whether Harbor imports this variant's agent from the log entry rather than naming one of its own.</summary>
-    public static bool IsOwnAgent(Variant variant) => OwnAgents.ContainsKey(variant.Agent!);
+    /// <summary>Whether Harbor imports this agent from the log entry rather than naming one of its own.</summary>
+    public static bool IsOwnAgent(Assistant assistant) => OwnAgents.ContainsKey(assistant.Agent!);
 
     /// <summary>
     /// The Harbor tasks a run's tries go through, one per configuration that runs through Harbor among those it makes
@@ -67,14 +67,14 @@ static class HarborCompile
     /// agents beside them for the ones that use one. Returns the tree's hash, which the log entry records. The nb image
     /// is the tag of proctor's nb layer.
     /// </summary>
-    public static string Tasks(string entryDir, Exam exam, Func<Variant, AgentRoute> route, string? nbImage = null,
-        IReadOnlyCollection<(Variant Variant, TaskDef Task)>? pairs = null, string? relayDir = null)
+    public static string Tasks(string entryDir, Exam exam, Func<Assistant, AgentRoute> route, string? nbImage = null,
+        IReadOnlyCollection<(Assistant Assistant, TaskDef Task)>? pairs = null, string? relayDir = null)
     {
-        pairs ??= (from variant in exam.Variants.Where(a => a.IsAgent) from c in exam.StagesOf(variant.Id!) select (variant, c)).ToList();
-        foreach (var variant in pairs.Select(p => p.Variant).Distinct())
-            if (Plain(exam, variant.Id!)) Task(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, exam.StagesOf(variant.Id!)[0], route(variant), nbImage, relayDir);
-            else Job(Layout.HarborJobTask(entryDir, variant.Id!, exam.Id), exam, variant, route(variant), nbImage, relayDir);
-        var files = pairs.Select(p => p.Variant).Where(IsOwnAgent).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
+        pairs ??= (from assistant in exam.Assistants.Where(a => a.IsAgent) from c in exam.StagesOf(assistant.Id!) select (assistant, c)).ToList();
+        foreach (var assistant in pairs.Select(p => p.Assistant).Distinct())
+            if (Plain(exam, assistant.Id!)) Task(Layout.HarborJobTask(entryDir, assistant.Id!, exam.Id), exam, assistant, exam.StagesOf(assistant.Id!)[0], route(assistant), nbImage, relayDir);
+            else Job(Layout.HarborJobTask(entryDir, assistant.Id!, exam.Id), exam, assistant, route(assistant), nbImage, relayDir);
+        var files = pairs.Select(p => p.Assistant).Where(IsOwnAgent).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
         var oracle = pairs.Any(p => p.Task.Oracle is not null);
         if (oracle) files.Add(OracleUserFile);
         var agents = AgentsDir(entryDir);
@@ -95,7 +95,7 @@ static class HarborCompile
     /// task and not a step, so a one-stage try with an oracle is a task (plans/axes-build.md, slice 4; bank.md, step 4).
     /// A try is the stages that apply in its configuration, so each configuration is asked for itself.
     /// </summary>
-    public static bool Plain(Exam exam, string variant) => exam.StagesOf(variant) is [{ Oracle: not null }];
+    public static bool Plain(Exam exam, string key) => exam.StagesOf(key) is [{ Oracle: not null }];
 
     /// <summary>Where proctor's own Harbor agents are compiled to: the directory Harbor's process gets on PYTHONPATH.</summary>
     public static string AgentsDir(string entryDir) => Path.Combine(entryDir, Layout.HarborDir, "agents");
@@ -115,11 +115,11 @@ static class HarborCompile
     /// fixture's services as environment/params/NAME/ (empty when nothing sets it), so a service can serve it, a docs site
     /// say, while the agent's own container never holds it.
     /// </summary>
-    public static void Task(string dir, Exam exam, Variant variant, TaskDef task, AgentRoute route, string? nbImage = null, string? relayDir = null)
+    public static void Task(string dir, Exam exam, Assistant assistant, TaskDef task, AgentRoute route, string? nbImage = null, string? relayDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         var fixture = exam.FixtureOf(task)!;
-        var configuration = exam.Axes.Of(variant.Id!)!;
+        var configuration = exam.Axes.Of(assistant.Id!)!;
         Directory.CreateDirectory(Path.Combine(dir, "environment"));
         File.WriteAllText(Path.Combine(dir, "instruction.md"), task.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
         // The ports of this machine the task's agent reaches at its own localhost, when the run holds a relay (a local engine).
@@ -128,7 +128,7 @@ static class HarborCompile
         CopyRepo(fixture, Path.Combine(dir, "environment", "repo"));
         foreach (var (from, to) in exam.Axes.Overlays(configuration, exam.Dir))
             CopyTree(from, Path.Combine(dir, "environment", "repo", to ?? ""), [Path.Combine(from, ".git")]);
-        File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, variant, nbImage, BuildArgs(exam, fixture, configuration)));
+        File.WriteAllText(Path.Combine(dir, "environment", "Dockerfile"), Dockerfile(fixture, assistant, nbImage, BuildArgs(exam, fixture, configuration)));
         if (fixture.Def.Image!.Services is { } services) CopyTree(Path.Combine(fixture.Dir, services), Path.Combine(dir, "environment"), []);
         var compose = Path.Combine(dir, "environment", "docker-compose.yaml");
         if (relayed.Count > 0)
@@ -149,7 +149,7 @@ static class HarborCompile
         var tests = Path.Combine(dir, "tests");
         CopyTree(exam.Dir, Path.Combine(tests, "exam"), []);
         CopyTree(fixture.Dir, Path.Combine(tests, "fixture"), [Path.GetFullPath(fixture.SourceDir ?? Path.Combine(fixture.Dir, "repo"))]);
-        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant.Id!, task));
+        File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, assistant.Id!, task));
         var test = Path.Combine(tests, "test.sh");
         File.WriteAllText(test, TestScript(exam, task));
         File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
@@ -164,12 +164,12 @@ static class HarborCompile
     /// that timed out does not end the try. A stage starts fresh unless the exam is chained: its step's setup.sh puts the
     /// workspace back first.
     /// </summary>
-    public static void Job(string dir, Exam exam, Variant variant, AgentRoute route, string? nbImage = null, string? relayDir = null)
+    public static void Job(string dir, Exam exam, Assistant assistant, AgentRoute route, string? nbImage = null, string? relayDir = null)
     {
         // A try is the stages that apply in its configuration.
-        var stages = exam.StagesOf(variant.Id!);
+        var stages = exam.StagesOf(assistant.Id!);
         // The environment, and the exam and fixture the script checks read, are a task's; any stage stands for the job there.
-        Task(dir, exam, variant, stages[0], route, nbImage, relayDir);
+        Task(dir, exam, assistant, stages[0], route, nbImage, relayDir);
         foreach (var file in new[] { "instruction.md", Path.Combine("tests", "test.sh"), Path.Combine("tests", "env.sh") }) File.Delete(Path.Combine(dir, file));
         File.WriteAllText(Path.Combine(dir, "task.toml"), TaskToml(exam, stages[0], Reached(exam.FixtureOf(stages[0])!, route, relayDir), bridged: false, name: exam.Id, description: exam.Def.Description ?? exam.Id)
             + string.Concat(stages.Select(s => $"\n[[steps]]\nname = {Toml(s.Id!)}\n")));
@@ -179,7 +179,7 @@ static class HarborCompile
             var tests = Directory.CreateDirectory(Path.Combine(step, "tests")).FullName;
             File.WriteAllText(Path.Combine(step, "instruction.md"), stage.Prompt!.Replace("\r\n", "\n").TrimEnd() + "\n");
             // Harbor lays a step's tests over the task's, so each stage's verifier has the shared exam and fixture with its own contract and script.
-            File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, variant.Id!, stage));
+            File.WriteAllText(Path.Combine(tests, "env.sh"), VerifierEnv(exam, assistant.Id!, stage));
             var test = Path.Combine(tests, "test.sh");
             File.WriteAllText(test, TestScript(exam, stage));
             File.SetUnixFileMode(test, File.GetUnixFileMode(test) | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
@@ -282,14 +282,14 @@ static class HarborCompile
     /// The key is not here: it goes in the environment of the one Harbor process. proctor's own agents (nb, Qwen
     /// Code) are named by import path; nb's kwargs carry the attempt's host-compiled program and nb's config.
     /// </summary>
-    public static JsonObject Job(Variant variant, string taskDir, string jobsDir, AgentRoute route, NbAttempt? nb = null, string engine = "docker", OracleAttempt? oracle = null)
+    public static JsonObject Job(Assistant assistant, string taskDir, string jobsDir, AgentRoute route, NbAttempt? nb = null, string engine = "docker", OracleAttempt? oracle = null)
     {
         var agent = new JsonObject();
-        if (OwnAgents.TryGetValue(variant.Agent!, out var own)) agent["import_path"] = own.Import;
-        else agent["name"] = variant.Agent;
-        agent["model_name"] = variant.Model;
-        agent["kwargs"] = JsonSerializer.SerializeToNode(AgentKwargs(variant, route, nb));
-        agent["env"] = JsonSerializer.SerializeToNode(AgentEnv(variant, route));
+        if (OwnAgents.TryGetValue(assistant.Agent!, out var own)) agent["import_path"] = own.Import;
+        else agent["name"] = assistant.Agent;
+        agent["model_name"] = assistant.Model;
+        agent["kwargs"] = JsonSerializer.SerializeToNode(AgentKwargs(assistant, route, nb));
+        agent["env"] = JsonSerializer.SerializeToNode(AgentEnv(assistant, route));
         var job = new JsonObject
         {
             ["job_name"] = "job",
@@ -343,13 +343,13 @@ static class HarborCompile
     /// sandbox bypassed, always). nb's: the program and config on the host, the work directory, and the key's
     /// variable by name.
     /// </summary>
-    public static Dictionary<string, string> AgentKwargs(Variant variant, AgentRoute route, NbAttempt? nb = null)
+    public static Dictionary<string, string> AgentKwargs(Assistant assistant, AgentRoute route, NbAttempt? nb = null)
     {
-        switch (variant.Agent)
+        switch (assistant.Agent)
         {
-            case Variant.ClaudeCode: return new() { ["version"] = variant.AgentVersion!, ["permission_mode"] = "bypassPermissions" };
-            case Variant.Codex when route.Config is not null: return new() { ["version"] = variant.AgentVersion!, ["config"] = route.Config };
-            case Variant.Codex or Variant.QwenCode: return new() { ["version"] = variant.AgentVersion! };
+            case Assistant.ClaudeCode: return new() { ["version"] = assistant.AgentVersion!, ["permission_mode"] = "bypassPermissions" };
+            case Assistant.Codex when route.Config is not null: return new() { ["version"] = assistant.AgentVersion!, ["config"] = route.Config };
+            case Assistant.Codex or Assistant.QwenCode: return new() { ["version"] = assistant.AgentVersion! };
         }
         var kwargs = new Dictionary<string, string> { ["program"] = nb!.Program, ["workdir"] = Workdir };
         if (nb.Config is not null) kwargs["config"] = nb.Config;
@@ -358,24 +358,24 @@ static class HarborCompile
     }
 
     /// <summary>The variable a vendor agent's key travels in, in Harbor's process environment.</summary>
-    public static string KeyEnv(string agent) => agent == Variant.ClaudeCode ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
+    public static string KeyEnv(string agent) => agent == Assistant.ClaudeCode ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
 
     /// <summary>
     /// What the agent's process sees beyond Harbor's own. Claude Code: the base URL and every model alias set to the
-    /// variant's model, explicitly. Codex and Qwen Code: the base URL (Harbor writes Codex's into its config.toml; Qwen
+    /// assistant's model, explicitly. Codex and Qwen Code: the base URL (Harbor writes Codex's into its config.toml; Qwen
     /// Code takes the model from model_name). nb: the variables its config's provider entry names for its endpoint.
     /// </summary>
-    public static Dictionary<string, string> AgentEnv(Variant variant, AgentRoute route) => variant.Agent switch
+    public static Dictionary<string, string> AgentEnv(Assistant assistant, AgentRoute route) => assistant.Agent switch
     {
-        Variant.ClaudeCode => new()
+        Assistant.ClaudeCode => new()
         {
             ["ANTHROPIC_BASE_URL"] = route.BaseUrl!,
-            ["ANTHROPIC_DEFAULT_OPUS_MODEL"] = variant.Model!,
-            ["ANTHROPIC_DEFAULT_SONNET_MODEL"] = variant.Model!,
-            ["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = variant.Model!,
-            ["CLAUDE_CODE_SUBAGENT_MODEL"] = variant.Model!,
+            ["ANTHROPIC_DEFAULT_OPUS_MODEL"] = assistant.Model!,
+            ["ANTHROPIC_DEFAULT_SONNET_MODEL"] = assistant.Model!,
+            ["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = assistant.Model!,
+            ["CLAUDE_CODE_SUBAGENT_MODEL"] = assistant.Model!,
         },
-        Variant.Codex or Variant.QwenCode => new() { ["OPENAI_BASE_URL"] = route.BaseUrl! },
+        Assistant.Codex or Assistant.QwenCode => new() { ["OPENAI_BASE_URL"] = route.BaseUrl! },
         _ => new(route.Env ?? []),
     };
 
@@ -427,13 +427,13 @@ static class HarborCompile
 
     /// <summary>
     /// The fixture as a commit in the work directory, so the diff after the agent is the change; the fixture's own
-    /// setup after it; then the variant's agent, pinned, so a trial installs nothing and needs no network to start.
+    /// setup after it; then the agent, pinned, so a trial installs nothing and needs no network to start.
     /// </summary>
-    static string Dockerfile(Fixture fixture, Variant variant, string? nbImage, List<(string Name, string Value)>? args = null)
+    static string Dockerfile(Fixture fixture, Assistant assistant, string? nbImage, List<(string Name, string Value)>? args = null)
     {
         var image = fixture.Def.Image!;
         var sb = new StringBuilder();
-        sb.Append($"# Compiled by proctor from fixture {fixture.Id} ({fixture.Hash}) for agent {variant.Agent} {(variant.IsVendor ? variant.AgentVersion : nbImage)}.\n");
+        sb.Append($"# Compiled by proctor from fixture {fixture.Id} ({fixture.Hash}) for agent {assistant.Agent} {(assistant.IsVendor ? assistant.AgentVersion : nbImage)}.\n");
         sb.Append($"FROM {image.From}\n");
         // A configuration's parameters, for the image's own steps to act on. Build arguments, so they are not in the agent's environment:
         // a parameter can say what is planted.
@@ -445,7 +445,7 @@ static class HarborCompile
         sb.Append($"WORKDIR {Workdir}\n");
         sb.Append($"RUN git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm {Shell($"fixture {fixture.Id} {fixture.Hash}")}\n");
         foreach (var command in image.Run ?? []) sb.Append($"RUN {command}\n");
-        sb.Append(AgentInstall(variant, $"--from={nbImage} /opt/nb"));
+        sb.Append(AgentInstall(assistant, $"--from={nbImage} /opt/nb"));
         return sb.ToString();
     }
 
@@ -453,34 +453,34 @@ static class HarborCompile
     /// The agent at its pin. nb comes from proctor's nb layer (the publish proctor.json names, tagged by its hash), so the
     /// image holds that binary and nothing it was built from.
     /// </summary>
-    static string AgentInstall(Variant variant, string nbSource) => variant.Agent switch
+    static string AgentInstall(Assistant assistant, string nbSource) => assistant.Agent switch
     {
-        Variant.Nb => $"""
+        Assistant.Nb => $"""
             COPY {nbSource} /opt/nb
             ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
             RUN /opt/nb/nb --version
 
             """,
-        Variant.ClaudeCode => $"""
+        Assistant.ClaudeCode => $"""
             RUN apt-get update -q && apt-get install -y -q --no-install-recommends procps >/dev/null && rm -rf /var/lib/apt/lists/* \
-             && curl -fsSL https://downloads.claude.ai/claude-code-releases/bootstrap.sh | bash -s -- {variant.AgentVersion} \
+             && curl -fsSL https://downloads.claude.ai/claude-code-releases/bootstrap.sh | bash -s -- {assistant.AgentVersion} \
              && /root/.local/bin/claude --version
 
             """,
         // Node from nvm under ~/.nvm, where Harbor's agents look for it, so their version checks find the pin.
-        Variant.Codex => $"""
+        Assistant.Codex => $"""
             RUN apt-get update -q && apt-get install -y -q --no-install-recommends ripgrep procps >/dev/null && rm -rf /var/lib/apt/lists/* \
              && {NodeInstall} \
-             && npm install -g @openai/codex@{variant.AgentVersion} >/dev/null && codex --version \
+             && npm install -g @openai/codex@{assistant.AgentVersion} >/dev/null && codex --version \
              && ln -sf "$(command -v node)" /usr/local/bin/node && ln -sf "$(command -v codex)" /usr/local/bin/codex
 
             """,
-        Variant.QwenCode => $"""
+        Assistant.QwenCode => $"""
             RUN {NodeInstall} \
-             && npm install -g @qwen-code/qwen-code@{variant.AgentVersion} >/dev/null && qwen --version
+             && npm install -g @qwen-code/qwen-code@{assistant.AgentVersion} >/dev/null && qwen --version
 
             """,
-        _ => throw new InvalidOperationException($"no install for agent {variant.Agent}"),
+        _ => throw new InvalidOperationException($"no install for agent {assistant.Agent}"),
     };
 
     /// <summary>
@@ -488,21 +488,19 @@ static class HarborCompile
     /// meaning there (the attempt's directory and number, nb, a runner) is empty. There is no transcript in the verifier: a check that
     /// reads one cannot run there yet.
     /// </summary>
-    static string VerifierEnv(Exam exam, string variant, TaskDef task)
+    static string VerifierEnv(Exam exam, string key, TaskDef task)
     {
         var values = new Dictionary<string, string>
         {
             ["PROCTOR_EXAM_DIR"] = "/tests/exam",
             ["PROCTOR_FIXTURE"] = "/tests/fixture",
-            ["PROCTOR_BUNDLE"] = "",
             ["PROCTOR_EXAM"] = exam.Id,
-            ["PROCTOR_VARIANT"] = variant,
+            ["PROCTOR_CONFIGURATION"] = key,
             ["PROCTOR_TASK"] = task.Id!,
             ["PROCTOR_ATTEMPT"] = "",
             ["PROCTOR_ATTEMPT_DIR"] = "",
             ["PROCTOR_WORK"] = Workdir,
             ["PROCTOR_WORK_MOUNT"] = Workdir,
-            ["PROCTOR_BUNDLE_MOUNT"] = "",
             ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(task, Exam.JsonOptions),
             ["PROCTOR_EXPECT"] = exam.ExpectFor(task)?.ToJsonString() ?? "{}",
             ["PROCTOR_TRANSCRIPT"] = "",
@@ -513,7 +511,7 @@ static class HarborCompile
             ["PROCTOR_CONTAINER"] = "",
         };
         // Declared axes and text parameters, as a hook or a check has them on the bare path. A tree is files and a secret is kept out of files.
-        if (exam.Axes.Of(variant) is { } configuration)
+        if (exam.Axes.Of(key) is { } configuration)
         {
             foreach (var (axis, value) in configuration.Values) values["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
             var fixture = exam.FixtureOf(task);
@@ -576,7 +574,7 @@ static class HarborCompile
     /// service), except another check's script. With no compiled copy, every script check is reported, since nothing shows
     /// its verdict is current.
     /// </summary>
-    public static Dictionary<string, string> Outdated(string? taskDir, Exam exam, TaskDef task, string variant)
+    public static Dictionary<string, string> Outdated(string? taskDir, Exam exam, TaskDef task, string key)
     {
         var names = exam.ChecksFor(task).Where(k => k.Value.Spec.ContainsKey("script")).Select(k => k.Key).ToList();
         var tests = taskDir is null ? null : Path.Combine(taskDir, "tests");
@@ -591,7 +589,7 @@ static class HarborCompile
             .Concat(ChangedFiles(Path.Combine(tests, "fixture"), fixture.Dir, root, FixtureDefinition(fixture))).ToList();
         string? Line(IEnumerable<string> lines, string prefix) => lines.FirstOrDefault(l => l.StartsWith(prefix, StringComparison.Ordinal));
         var expectThen = Line(File.ReadLines(envScript!), "export PROCTOR_EXPECT=");
-        var expectNow = Line(VerifierEnv(exam, variant, task).Split('\n'), "export PROCTOR_EXPECT=");
+        var expectNow = Line(VerifierEnv(exam, key, task).Split('\n'), "export PROCTOR_EXPECT=");
         var then = File.ReadAllLines(testScript!);
         var now = TestScript(exam, task).Split('\n');
 

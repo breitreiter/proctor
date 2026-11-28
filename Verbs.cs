@@ -175,7 +175,7 @@ static class Verbs
         foreach (var c in predictions.Where(c => name is null || c.Name == name))
         {
             var written = Predictions.WrittenAt(c.Def.Written!);
-            var made = bank.Where(a => a.Variant == c.Configuration.Key).Select(a => (a.Attempt, Made: Answers.MadeAt(a.Entry.IdOf(a.Variant, a.Attempt)))).Distinct().Count(a => a.Made < written);
+            var made = bank.Where(a => a.Configuration == c.Configuration.Key).Select(a => (a.Attempt, Made: Answers.MadeAt(a.Entry.IdOf(a.Configuration, a.Attempt)))).Distinct().Count(a => a.Made < written);
             var pinned = Predictions.Stamp(exam, c);
             Console.WriteLine($"{c.Name}: {c.Configuration.Name} against {c.Against.Name ?? c.Against.Label}; written {c.Def.Written}"
                 + (pinned ? ", its standard pinned now" : "")
@@ -228,11 +228,11 @@ static class Verbs
     public static int Grade(string root, string examId, List<string>? judgeRemaps = null, bool rejudge = false, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
-        var variantIds = Narrowed(exam);
+        var keys = Narrowed(exam);
         var problems = new List<Problem>();
         var config = Exam.LoadConfig(root, problems, configFile);
         if (problems.Count > 0) throw new ProctorException(string.Join("\n", problems));
-        var selection = Bank.Select(root, exam, variantIds);
+        var selection = Bank.Select(root, exam, keys);
         var judges = exam.Judged || judgeRemaps is { Count: > 0 } ? JudgeClient.From(config, judgeRemaps, rejudge, Console.WriteLine) : null;
         var before = Proctor.Grade.Before(root, selection.Current);
         // What the judges will be asked, said before any is: a regrade's cost is the verdicts not already on file.
@@ -246,7 +246,7 @@ static class Verbs
         var invalid = grades.Count(g => g.Invalid is not null);
         var undecided = grades.Where(g => g.Checks is not null && g.Invalid is null && g.Pass is null).ToList();
         var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.CorrectnessFor(exam.TaskOf(g.Task))) is not null);
-        var untouched = variantIds is null ? 0 : Bank.Select(root, exam).Current.Count - grades.Count;
+        var untouched = keys is null ? 0 : Bank.Select(root, exam).Current.Count - grades.Count;
         Console.WriteLine($"graded {graded} of {grades.Count} stages{(grades.Count(g => g.Status == AttemptStatus.Skipped) is > 0 and var skipped ? $" ({skipped} not reached)" : "")}; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --value/--configuration left as they were" : "")}");
         foreach (var line in Proctor.Grade.ByCheck(grades, before)) Console.WriteLine(line);
         if (Proctor.Grade.OutdatedSummary(exam.Id, grades) is { } summary) Console.WriteLine(summary);
@@ -269,7 +269,7 @@ static class Verbs
     public static int Friction(string root, string examId, string? reader = null, bool again = false, string? configFile = null)
     {
         var exam = LoadExam(root, examId);
-        var variantIds = Narrowed(exam);
+        var keys = Narrowed(exam);
         JudgeClient? judges = null;
         if (reader is not null)
         {
@@ -281,7 +281,7 @@ static class Verbs
             judges = new JudgeClient { Defs = config.Judges, Rejudge = again, Note = Console.WriteLine };
         }
         else if (again) throw new ProctorException("--rejudge goes with --reader");
-        var selection = Bank.Select(root, exam, variantIds);
+        var selection = Bank.Select(root, exam, keys);
         if (exam.Def.Surface is null) Console.WriteLine($"  note: exam '{exam.Id}' declares no surface; only help, environment and tool-error points can be found");
         var attempts = Proctor.Friction.Attempts(root, exam, selection.Current, Console.Out, judges, reader);
         var read = attempts.Where(c => c.Points is not null).ToList();
@@ -295,7 +295,7 @@ static class Verbs
             Console.WriteLine($"reader {reader}: {asked.Count(r => r.Problem is null)} asked, {readings.Count(r => !r.Asked)} reused, {readings.Count(r => r.Problem is not null)} without an answer; "
                 + $"{readings.Sum(r => r.Kept)} of {readings.Sum(r => r.Labelled)} labelled calls kept; {asked.Sum(r => r.InputTokens ?? 0):N0} tokens in, {asked.Sum(r => r.OutputTokens ?? 0):N0} out");
             foreach (var c in read.Where(c => c.Reading!.Dropped.Count > 0))
-                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Variant}/{c.Attempt}/{c.Task} {drop}");
+                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Configuration}/{c.Attempt}/{c.Task} {drop}");
         }
         return 0;
     }
@@ -406,7 +406,7 @@ static class Verbs
         var axes = exam.Axes!;
         var bank = Bank.Of(root, exam);
         // Tries made: a configuration's current stages that count, over the stages a try of it has.
-        int Made(Configuration c) => bank.Count(a => a.Variant == c.Key && a.Counts && Bank.Stale(exam, a) is null) / Math.Max(1, exam.StagesOf(c.Key).Count);
+        int Made(Configuration c) => bank.Count(a => a.Configuration == c.Key && a.Counts && Bank.Stale(exam, a) is null) / Math.Max(1, exam.StagesOf(c.Key).Count);
         var name = axes.Def.Keys.Max(k => k.Length);
         var values = axes.Def.ToDictionary(a => a.Key, a => string.Join(", ", a.Value.Values!.Keys.Select(v =>
             v == a.Value.Live ? v + " (live)" : v == a.Value.Reference ? v + " (reference)" : v)));

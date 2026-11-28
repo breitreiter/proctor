@@ -47,7 +47,7 @@ record AgentEndpoint(string? BaseUrl, string? ApiKey, string? Config = null);
 
 /// <summary>
 /// proctor.json's harbor block: the uv that runs the exam's pinned Harbor (default: uv on PATH), nb's self-contained
-/// linux-x64 publish directory, which an nb variant's image carries (relative to exams/, like nb.path), and the container
+/// linux-x64 publish directory, which the image carries where nb runs through Harbor (relative to exams/, like nb.path), and the container
 /// engine Harbor drives, its environment type: docker (the default) or podman, on this machine. An engine off the machine (Modal) was
 /// taken out of the core on 2026-11-27 and is kept at the tag modal-in-core (project/archive/modal-runs.md).
 /// </summary>
@@ -65,7 +65,7 @@ record HarborConfig(string Uv = "uv", string? Nb = null, string Engine = "docker
 /// in the fixture's image: a vendor agent is that agent's real CLI at a pinned version; agent nb is nb itself, the binary
 /// proctor.json's harbor.nb names, on the provider named.
 /// </summary>
-record Variant(string? Id, string? Runner, string? Harness, string? Provider, string? Model, string? Agent = null, string? AgentVersion = null)
+record Assistant(string? Id, string? Runner, string? Harness, string? Provider, string? Model, string? Agent = null, string? AgentVersion = null)
 {
     public const string Nb = "nb", ClaudeCode = "claude-code", Codex = "codex", QwenCode = "qwen-code";
     /// <summary>The vendor agents, each its vendor's CLI on its vendor's models only.</summary>
@@ -79,15 +79,20 @@ record Variant(string? Id, string? Runner, string? Harness, string? Provider, st
     public bool IsVendor => IsAgent && Agent != Nb;
 }
 
-/// <summary>exam.json's harbor block: the Harbor release every agent variant runs on, pinned.</summary>
+/// <summary>exam.json's harbor block: the Harbor release every try through Harbor runs on, pinned.</summary>
 record HarborDef(string? Version);
 
-/// <summary>exam.json's limits: the policy each agent variant's attempts run under. wall_ms is Harbor's agent timeout; the rest are not yet.</summary>
+/// <summary>exam.json's limits: the policy each stage through Harbor runs under. wall_ms is Harbor's agent timeout; the rest are not yet.</summary>
 record Limits(long? WallMs, int? ToolCalls, long? Tokens, double? CostUsd);
 
 record HookPair(string? Setup, string? Teardown);
 
-record Hooks(HookPair? Run, HookPair? Variant, HookPair? Task, HookPair? Attempt);
+/// <summary>
+/// The exam's hooks, each a setup and a teardown script run on the host: around each configuration's tries, and around
+/// each try. `variant` and `attempt` are those two under their earlier names, read only to be refused; Run and Task were
+/// never built.
+/// </summary>
+record Hooks(HookPair? Run = null, HookPair? Configuration = null, HookPair? Task = null, HookPair? Try = null, JsonNode? Variant = null, JsonNode? Attempt = null);
 
 /// <summary>
 /// The checks, and the role of each by the list that names it (the user, 2026-11-26): correctness (was the task
@@ -103,7 +108,7 @@ static class Roles
 }
 
 /// <summary>
-/// exam.json's oracle block, for the tasks that name an answer sheet: the nb config entry that judges (absent, the variant's
+/// exam.json's oracle block, for the stages that name an answer sheet: the nb config entry that judges (absent, the assistant's
 /// own provider, as nb's in-process oracle does) and how many answers an attempt may get. See plans/oracle-in-proctor.md.
 /// </summary>
 record OracleDef(string? Judge = null, int? Turns = null)
@@ -114,7 +119,7 @@ record OracleDef(string? Judge = null, int? Turns = null)
 
 /// <summary>
 /// exam.json. Attempts is how many tries every configuration the exam names should have. Tags is what labels replaced
-/// and Variants what axes replaced; both are here so a leftover is a problem rather than silently ignored.
+/// and `variants` what axes replaced; both are here so a leftover is a problem rather than silently ignored.
 /// </summary>
 record ExamDef(string? Id, JsonNode? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null, string? Fixture = null, List<TaskDef>? Stages = null, bool? Chained = null,
     Dictionary<string, AxisDef>? Axes = null, Dictionary<string, Dictionary<string, string?>?>? Configurations = null, List<Dictionary<string, string?>?>? Exclude = null, Dictionary<string, ParamDef>? Params = null);
@@ -200,7 +205,7 @@ record Problem(string File, string Field, string Message)
 sealed class Exam
 {
     /// <summary>Placeholders a program template may use; resolved per attempt by the runner.</summary>
-    public static readonly string[] Placeholders = ["prompt", "task", "work", "provider", "model", "harness", "variant", "attempt"];
+    public static readonly string[] Placeholders = ["prompt", "task", "work", "provider", "model", "harness", "configuration", "attempt"];
 
     public required string Id { get; init; }
     public required string Dir { get; init; }
@@ -212,7 +217,7 @@ sealed class Exam
     /// <summary>sha256 over every definition file, so a changed exam is a different exam in a log entry and under exams-seen/.</summary>
     public required string Hash { get; init; }
     /// <summary>Who does the work in each configuration the exam carries, by the configuration's key, in the order of the axes' values; each carries the configuration's hash.</summary>
-    public required List<Variant> Variants { get; init; }
+    public required List<Assistant> Assistants { get; init; }
     /// <summary>
     /// Each stage's hash by id. An exam is one job of stages (plans/bank.md, B5): one workspace, set up once, the agent
     /// launched once per stage in order. So every stage carries the job's hash: what the agent meets (each prompt and
@@ -234,8 +239,8 @@ sealed class Exam
     /// <summary>The stages a try of a configuration runs, by its key: those whose condition holds in it.</summary>
     public List<TaskDef> StagesOf(string key) => Axes.Of(key) is { } c ? Tasks.Where(s => Axes.Applies(s, c)).ToList() : Tasks;
 
-    /// <summary>Whether any variant runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
-    public bool HasAgentVariants => Variants.Any(v => v.IsAgent);
+    /// <summary>Whether any configuration the exam carries runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
+    public bool HasHarbor => Assistants.Any(v => v.IsAgent);
     public Grading Grading => Def.Grading!;
     /// <summary>How many tries every configuration the exam names should have.</summary>
     public int Attempts => Def.Attempts ?? 1;
@@ -339,9 +344,9 @@ sealed class Exam
         Judges.Validate(config?.Judges, (field, message) => problems.Add(new Problem(Path.GetRelativePath(root, file), field, message)));
         foreach (var (name, endpoint) in config?.Agents ?? [])
         {
-            if (!Variant.Vendors.Contains(name)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}", $"unknown agent; known: {string.Join(", ", Variant.Vendors)}"));
+            if (!Assistant.Vendors.Contains(name)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}", $"unknown agent; known: {string.Join(", ", Assistant.Vendors)}"));
             else if (string.IsNullOrWhiteSpace(endpoint?.BaseUrl)) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.base_url", "required: where the agent's model calls go"));
-            if (endpoint?.Config is not null && name != Variant.Codex) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.config", $"not yet: only {Variant.Codex} takes a native config"));
+            if (endpoint?.Config is not null && name != Assistant.Codex) problems.Add(new Problem(Path.GetRelativePath(root, file), $"agents.{name}.config", $"not yet: only {Assistant.Codex} takes a native config"));
         }
         return (config ?? new ProctorConfig(null)) with { Source = Path.GetRelativePath(root, file) };
     }
@@ -387,18 +392,18 @@ sealed class Exam
             return null;
         }
         var tasks = LoadStages(def, dir, rel(examFile), problems);
-        var variants = new List<Variant>();
+        var assistants = new List<Assistant>();
         var fixtures = new Dictionary<string, Fixture>();
         foreach (var name in tasks.Select(c => c.Fixture).Concat(Axes.FixturesNamed(def)).Where(f => f is not null).Distinct())
             if (Fixture.Load(root, name!, problems) is { } fixture) fixtures[name!] = fixture;
 
-        // With axes, who does the work in each configuration stands where a variant did, so what an exam owes its agents is checked the same way.
+        // Who does the work in each configuration the exam carries, so that what an exam owes its agents is checked.
         Axes? axes = null;
         if (problems.Count == before)
         {
             axes = Axes.Load(def, root, dir, tasks, fixtures, (field, message) => problems.Add(new Problem(rel(examFile), field, message)), [.. also ?? [], .. Bank.Keys(root, examId)]);
             // Each value alone is checked too, where every other axis has a reference to hold it at: one configuration per value, so a
-            // value nobody has named yet is still read once. Only the carried ones stand where variants did.
+            // value nobody has named yet is still read once. Only the carried ones are run.
             var alone = axes is null ? [] : axes.Def.SelectMany(a => a.Value.Values!.Keys.Select(v => axes.Alone(new Dictionary<string, string> { [a.Key] = v }, out _)))
                 .OfType<Configuration>().Where(c => !c.Excluded && axes.Configurations.All(k => k.Key != c.Key)).DistinctBy(c => c.Key).ToList();
             foreach (var c in (axes?.Configurations ?? []).Concat(alone))
@@ -406,8 +411,8 @@ sealed class Exam
                 void Add(string field, string message) => problems.Add(new Problem(rel(examFile), "axes", $"{c.Label}: {(field.Length == 0 ? "" : field + ": ")}{message}"));
                 var who = axes!.AssistantProblems(c).ToList();
                 foreach (var problem in who) Add("", problem);
-                if (who.Count == 0) ValidateWho(axes.Assistant(c), Add);
-                if (problems.Count == before && axes.Configurations.Contains(c)) variants.Add(axes.Assistant(c));
+                if (who.Count == 0) ValidateWho(axes.AssistantOf(c), Add);
+                if (problems.Count == before && axes.Configurations.Contains(c)) assistants.Add(axes.AssistantOf(c));
             }
         }
         // A check's `when` says which configurations it applies in (plans/axes-build.md, slice 5): it names only what the exam declares.
@@ -422,7 +427,7 @@ sealed class Exam
                 else if (declared.Values?.ContainsKey(value) != true) problems.Add(new Problem(file, field, $"'{value}' is not a value of axis '{axis}'; declared: {string.Join(", ", declared.Values?.Keys.AsEnumerable() ?? [])}"));
         }
 
-        ValidateDef(def, root, dir, rel(examFile), examId, tasks, variants, fixtures, problems);
+        ValidateDef(def, root, dir, rel(examFile), examId, tasks, assistants, fixtures, problems);
         if (judges is not null)
         {
             foreach (var (check, spec) in def.Grading?.Checks ?? [])
@@ -448,12 +453,14 @@ sealed class Exam
             foreach (Match m in Regex.Matches(template, @"\{\{\s*([^}]*?)\s*\}\}"))
                 if (m.Groups[1].Value is var name && name.StartsWith("axis.") && def.Axes.ContainsKey(name[5..])) continue;
                 else if (name.StartsWith("param.") && (def.Params?.ContainsKey(name[6..]) == true || fixtures.Values.Any(f => f.Def.Params?.ContainsKey(name[6..]) == true))) continue;
+                else if (name == "variant")
+                    problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{configuration}}, the configuration's key; one axis's value is {{axis.<name>}}"));
                 else if (name == "bundle")
                     problems.Add(new Problem(rel(templateFile), m.Value, "there is no bundle: a value's files are laid over the checkout, so read them from {{work}}; a tree a value sets is {{param.NAME}}"));
                 else if (!Placeholders.Contains(m.Groups[1].Value))
                     problems.Add(new Problem(rel(templateFile), m.Value, $"unknown placeholder; known: {string.Join(", ", Placeholders.Select(p => "{{" + p + "}}"))}"));
             if (tasks.Any(c => c.Oracle is not null))
-                foreach (var problem in OracleTemplateProblems(template, variants.Any(a => a is { IsAgent: true, IsVendor: false })))
+                foreach (var problem in OracleTemplateProblems(template, assistants.Any(a => a is { IsAgent: true, IsVendor: false })))
                     problems.Add(new Problem(rel(templateFile), "", problem));
         }
 
@@ -469,14 +476,14 @@ sealed class Exam
             ProgramTemplate = template,
             Hash = HashDefinition(root, dir, def, tasks, fixtures.Values),
             Axes = axes,
-            Variants = variants,
+            Assistants = assistants,
             TaskHashes = tasks.ToDictionary(c => c.Id!, _ => JobHash(root, dir, def, tasks, def.Fixture is null ? null : fixtures[def.Fixture])),
         };
     }
 
     /// <summary>
     /// What an oracle task needs of the program template. The exam's oracle block owns the oracle's directives, which
-    /// proctor prepends, so the template may not state its own. On an nb variant through Harbor the prompt is sent by the
+    /// proctor prepends, so the template may not state its own. Where nb runs through Harbor the prompt is sent by the
     /// simulated user rather than run by the program, so the template's one run must be the last directive and run the
     /// task's prompt as it is, or the bridge would run something other than what the bare path does.
     /// </summary>
@@ -489,7 +496,7 @@ sealed class Exam
         if (directives.Any(d => Regex.IsMatch(d, @"^budget\s+oracle_turns\b")))
             problems.Add("budget oracle_turns with a task naming an answer sheet: set oracle.turns in exam.json instead");
         if (bridged && (directives.Count(d => Verb(d) == "run") != 1 || directives.LastOrDefault() != "run {{prompt}}"))
-            problems.Add("an oracle task on an nb agent variant needs the template to end in its one run, exactly `run {{prompt}}`: the simulated user sends the prompt over the bridge");
+            problems.Add("a stage with an answer sheet, where nb runs through Harbor, needs the template to end in its one run, exactly `run {{prompt}}`: the simulated user sends the prompt over the bridge");
         return problems;
     }
 
@@ -572,7 +579,7 @@ sealed class Exam
         return null;
     }
 
-    private static void ValidateDef(ExamDef def, string root, string dir, string file, string examId, List<TaskDef> tasks, List<Variant> variants, Dictionary<string, Fixture> fixtures, List<Problem> problems)
+    private static void ValidateDef(ExamDef def, string root, string dir, string file, string examId, List<TaskDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures, List<Problem> problems)
     {
         void Add(string field, string message) => problems.Add(new Problem(file, field, message));
 
@@ -586,13 +593,15 @@ sealed class Exam
         if (def.Variants is not null) Add("variants", "removed: what is under test is declared under \"axes\", each variant's fields a value of an axis, and the ones to run are named under \"configurations\"");
         if (def.Attempts is < 1) Add("attempts", "must be at least 1");
 
-        ValidateHarbor(def, Add, dir, tasks, variants, fixtures, root, problems);
-        ValidateOracle(def, Add, tasks, variants, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, c.File!), c.At + field, message)),
+        ValidateHarbor(def, Add, dir, tasks, assistants, fixtures, root, problems);
+        ValidateOracle(def, Add, tasks, assistants, fixtures, (c, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, c.File!), c.At + field, message)),
             (f, field, message) => problems.Add(new Problem(Path.GetRelativePath(root, Path.Combine(f.Dir, Layout.FixtureFile)), field, message)));
 
-        if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not yet implemented; use variant or attempt");
-        if (def.Hooks?.Task is not null) Add("hooks.task", "task-level hooks are not yet implemented; use variant or attempt");
-        foreach (var (level, pair) in new[] { ("variant", def.Hooks?.Variant), ("attempt", def.Hooks?.Attempt) })
+        if (def.Hooks?.Run is not null) Add("hooks.run", "run-level hooks are not built; use configuration or try");
+        if (def.Hooks?.Task is not null) Add("hooks.task", "a hook around one stage is not built; use configuration or try");
+        if (def.Hooks?.Variant is not null) Add("hooks.variant", "renamed: hooks.configuration, which runs once around each configuration's tries");
+        if (def.Hooks?.Attempt is not null) Add("hooks.attempt", "renamed: hooks.try, which runs once around each try, its setup before the first stage and its teardown after the last");
+        foreach (var (level, pair) in new[] { ("configuration", def.Hooks?.Configuration), ("try", def.Hooks?.Try) })
         {
             if (pair is null) continue;
             foreach (var (kind, script) in new[] { ("setup", pair.Setup), ("teardown", pair.Teardown) })
@@ -654,13 +663,13 @@ sealed class Exam
         foreach (var name in def.Grading.Correctness ?? [])
             if (name is null) Add("grading.correctness", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.correctness", why);
-            else if (NbOnlyBesideVendor(name)) Add("grading.correctness", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's attempts do not carry, so they could never pass; leave it out of the lists, as an observation");
+            else if (NbOnlyBesideVendor(name)) Add("grading.correctness", $"'{name}' reads only nb's loop nudge, which a vendor agent's attempts do not carry, so they could never pass; leave it out of the lists, as an observation");
         foreach (var name in def.Grading.Integrity ?? [])
         {
             if (name is null) Add("grading.integrity", "a check name, not null");
             else if (Undeclared(name) is { } why) Add("grading.integrity", why);
             else if (def.Grading.Correctness?.Contains(name) == true) Add("grading.integrity", $"'{name}' is also in correctness; a check has one role");
-            else if (NbOnlyBesideVendor(name)) Add("grading.integrity", $"'{name}' reads only nb's loop nudge, which a vendor agent variant's attempts do not carry; leave it out of the lists, as an observation");
+            else if (NbOnlyBesideVendor(name)) Add("grading.integrity", $"'{name}' reads only nb's loop nudge, which a vendor agent's attempts do not carry; leave it out of the lists, as an observation");
         }
 
         foreach (var name in def.Grading.Quality ?? [])
@@ -677,59 +686,59 @@ sealed class Exam
         IEnumerable<JsonObject?> SpecsOf(string name) =>
             def.Grading.Checks.TryGetValue(name, out var spec) ? [spec] : tasks.Select(c => c.Checks?.GetValueOrDefault(name) ?? (c.Fixture is null ? null : fixtures.GetValueOrDefault(c.Fixture)?.Checks.GetValueOrDefault(name)));
         bool NbOnlyBesideVendor(string name) =>
-            variants.Any(v => v.IsVendor)
+            assistants.Any(v => v.IsVendor)
             && SpecsOf(name).Any(s => s is not null && Checks.NbOnly(s));
     }
 
     /// <summary>Who does the work in a configuration and how it is reached (<see cref="Axes.Assistant"/>): a vendor's agent, nb through Harbor, or nb bare.</summary>
-    static void ValidateWho(Variant variant, Action<string, string> add)
+    static void ValidateWho(Assistant assistant, Action<string, string> add)
     {
-        if (variant.IsVendor) { ValidateAgentVariant(variant, add); return; }
-        if (variant.IsAgent) { ValidateNbAgentVariant(variant, add); return; }
-        if (string.IsNullOrWhiteSpace(variant.Provider)) add("provider", "required for nb (a provider entry name in nb's config)");
+        if (assistant.IsVendor) { ValidateVendor(assistant, add); return; }
+        if (assistant.IsAgent) { ValidateNbThroughHarbor(assistant, add); return; }
+        if (string.IsNullOrWhiteSpace(assistant.Provider)) add("provider", "required for nb (a provider entry name in nb's config)");
     }
 
     /// <summary>
-    /// A vendor agent variant: a model of the agent's own vendor, with no provider prefix (Harbor passes it to the gateway
+    /// A vendor's agent: a model of the agent's own vendor, with no provider prefix (Harbor passes it to the gateway
     /// verbatim), at a pinned agent version. The nb fields have no meaning on it.
     /// </summary>
-    static void ValidateAgentVariant(Variant variant, Action<string, string> add)
+    static void ValidateVendor(Assistant assistant, Action<string, string> add)
     {
-        var (vendor, models, example) = variant.Agent switch
+        var (vendor, models, example) = assistant.Agent switch
         {
-            Variant.ClaudeCode => ("an Anthropic", @"^claude-", "claude-haiku-5-5"),
-            Variant.Codex => ("an OpenAI", @"^(gpt-|o\d|codex-)", "gpt-5-mini"),
-            Variant.QwenCode => ("a Qwen", @"^qwen", "qwen3-coder-next"),
+            Assistant.ClaudeCode => ("an Anthropic", @"^claude-", "claude-haiku-5-5"),
+            Assistant.Codex => ("an OpenAI", @"^(gpt-|o\d|codex-)", "gpt-5-mini"),
+            Assistant.QwenCode => ("a Qwen", @"^qwen", "qwen3-coder-next"),
             _ => (null, null, null),
         };
-        if (vendor is null) { add("agent", $"unknown agent '{variant.Agent}'; known: {Variant.Nb}, {string.Join(", ", Variant.Vendors)}"); return; }
-        if (variant.Provider is not null) add("provider", $"an nb field; agent {variant.Agent} is that agent, on the model it names");
-        if (string.IsNullOrWhiteSpace(variant.Model)) add("model", $"required for agent {variant.Agent}");
-        else if (variant.Model.Contains('/')) add("model", $"'{variant.Model}' has a provider prefix; name the model bare ({example}), as the gateway receives it");
-        else if (!Regex.IsMatch(variant.Model, models!)) add("model", $"'{variant.Model}' is not {vendor} model; {variant.Agent} runs {vendor[(vendor.IndexOf(' ') + 1)..]} models only, so the harness and the model are one vendor's");
-        if (string.IsNullOrWhiteSpace(variant.AgentVersion)) add("agent_version", $"required: the {variant.Agent} release under test, pinned (there is no latest)");
-        else if (!Regex.IsMatch(variant.AgentVersion, @"^\d+(\.\d+)*$")) add("agent_version", $"'{variant.AgentVersion}' is not a version number");
+        if (vendor is null) { add("agent", $"unknown agent '{assistant.Agent}'; known: {Assistant.Nb}, {string.Join(", ", Assistant.Vendors)}"); return; }
+        if (assistant.Provider is not null) add("provider", $"an nb field; agent {assistant.Agent} is that agent, on the model it names");
+        if (string.IsNullOrWhiteSpace(assistant.Model)) add("model", $"required for agent {assistant.Agent}");
+        else if (assistant.Model.Contains('/')) add("model", $"'{assistant.Model}' has a provider prefix; name the model bare ({example}), as the gateway receives it");
+        else if (!Regex.IsMatch(assistant.Model, models!)) add("model", $"'{assistant.Model}' is not {vendor} model; {assistant.Agent} runs {vendor[(vendor.IndexOf(' ') + 1)..]} models only, so the harness and the model are one vendor's");
+        if (string.IsNullOrWhiteSpace(assistant.AgentVersion)) add("agent_version", $"required: the {assistant.Agent} release under test, pinned (there is no latest)");
+        else if (!Regex.IsMatch(assistant.AgentVersion, @"^\d+(\.\d+)*$")) add("agent_version", $"'{assistant.AgentVersion}' is not a version number");
     }
 
     /// <summary>
     /// nb as a Harbor agent: the harness and provider as on the bare path, the model optional likewise. The version is
     /// the binary's, so it is not a value's to say.
     /// </summary>
-    static void ValidateNbAgentVariant(Variant variant, Action<string, string> add)
+    static void ValidateNbThroughHarbor(Assistant assistant, Action<string, string> add)
     {
-        if (variant.AgentVersion is not null) add("agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
-        if (string.IsNullOrWhiteSpace(variant.Provider)) add("provider", "required for nb (a provider entry name in nb's config)");
+        if (assistant.AgentVersion is not null) add("agent_version", "nb's version is the binary's (proctor.json harbor.nb), which must match the host nb; agent_version pins a vendor agent");
+        if (string.IsNullOrWhiteSpace(assistant.Provider)) add("provider", "required for nb (a provider entry name in nb's config)");
     }
 
     /// <summary>
-    /// What an agent variant needs from the rest of the exam: a pinned Harbor, a wall limit (Harbor's agent timeout) and an
+    /// What running through Harbor needs from the rest of the exam: a pinned Harbor, a wall limit (Harbor's agent timeout) and an
     /// image on every task's fixture. An attempt hook runs on the host, which an agent's container never sees; the setup it
     /// did belongs in the fixture's image.
     /// </summary>
-    static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, List<Variant> variants, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
+    static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
     {
-        // Only the configurations the exam carries stand in `variants`, so a value that names an agent or the Harbor route counts too.
-        var agents = variants.Any(v => v.IsAgent) || def.Axes!.Values.Any(a => a?.Values?.Values.Any(v => v?.Agent is not null || v?.Route == ValueDef.Harbor) == true);
+        // Only the configurations the exam carries stand in `assistants`, so a value that names an agent or the Harbor route counts too.
+        var agents = assistants.Any(v => v.IsAgent) || def.Axes!.Values.Any(a => a?.Values?.Values.Any(v => v?.Agent is not null || v?.Route == ValueDef.Harbor) == true);
         if (def.Harbor is { } harbor && (string.IsNullOrWhiteSpace(harbor.Version) || !Regex.IsMatch(harbor.Version, @"^\d+(\.\d+)*$")))
             add("harbor.version", "required: the Harbor release, pinned (0.26.0)");
         foreach (var (field, value) in new (string, object?)[] { ("tool_calls", def.Limits?.ToolCalls), ("tokens", def.Limits?.Tokens), ("cost_usd", def.Limits?.CostUsd) })
@@ -743,7 +752,7 @@ sealed class Exam
         }
         if (def.Harbor is null) add("harbor.version", "required where a value runs through Harbor: the Harbor release it runs on, pinned (0.26.0)");
         if (def.Limits?.WallMs is null) add("limits.wall_ms", "required where a value runs through Harbor: how long each stage may take");
-        if (def.Hooks?.Attempt is not null) add("hooks.attempt", "not yet through Harbor: this hook runs on the host, the agent in its container; move the setup into the fixture's image");
+        if (def.Hooks?.Try is not null) add("hooks.try", "not yet through Harbor: this hook runs on the host, the agent in its container; move the setup into the fixture's image");
         foreach (var c in tasks)
         {
             if (c.Fixture is null) problems.Add(new Problem(Path.GetRelativePath(root, c.File!), "fixture", "required through Harbor: the agent runs in the fixture's image"));
@@ -753,11 +762,11 @@ sealed class Exam
     }
 
     /// <summary>
-    /// The oracle block needs a task to serve, and an oracle task needs variants that can take one: nb, bare or through
+    /// The oracle block needs a stage to serve, and a stage with a sheet needs an assistant that can take one: nb, bare or through
     /// Harbor. A vendor agent can be a bridge target, but bridged it leaves no ATIF (Harbor converts the user agent's
     /// log, not the target's), and Qwen Code cannot be a target at all (plans/oracle-in-proctor.md, question 4).
     /// </summary>
-    static void ValidateOracle(ExamDef def, Action<string, string> add, List<TaskDef> tasks, List<Variant> variants, Dictionary<string, Fixture> fixtures,
+    static void ValidateOracle(ExamDef def, Action<string, string> add, List<TaskDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures,
         Action<TaskDef, string, string> addToTask, Action<Fixture, string, string> addToFixture)
     {
         var oracleTasks = tasks.Where(c => c.Oracle is not null).Select(c => c.Id).ToList();
@@ -780,16 +789,16 @@ sealed class Exam
         }
         // Through Harbor a try with an answer sheet must be one stage: the simulated user answers a task, never a step of one. On an
         // exam with axes a try is the stages whose condition holds in its configuration, so each configuration is looked at for itself.
-        List<TaskDef> StagesOf(Variant v)
+        List<TaskDef> StagesOf(Assistant v)
         {
             var values = v.Id!.Split(',').Select(p => p.Split('=', 2)).Where(p => p.Length == 2).ToDictionary(p => p[0], p => p[1]);
             return tasks.Where(s => s.When is null || When.Parse(s.When, out _) is not { } when || when.Terms.All(t => (values.GetValueOrDefault(t.Axis) == t.Value) != t.Not)).ToList();
         }
-        if (variants.FirstOrDefault(a => a.IsAgent && StagesOf(a) is { Count: > 1 } several && several.Any(s => s.Oracle is not null)) is { } staged)
+        if (assistants.FirstOrDefault(a => a.IsAgent && StagesOf(a) is { Count: > 1 } several && several.Any(s => s.Oracle is not null)) is { } staged)
             add("axes", $"not yet: '{staged.Id}' runs through Harbor a try of {StagesOf(staged).Count} stages, and one of them names an answer sheet; Harbor's simulated user answers one task, not a step of several. "
                 + "Give it a try of one stage (a stage's `when`), or run it bare, where nb's own oracle answers");
-        foreach (var variant in variants.Where(a => a.IsVendor && StagesOf(a).Any(s => s.Oracle is not null)))
-            add("axes", $"not yet: '{variant.Id}' is {variant.Agent}, and stage {StagesOf(variant).First(s => s.Oracle is not null).Id} names an answer sheet, and an oracle runs on nb only. Through Harbor's simulated user, {variant.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
+        foreach (var assistant in assistants.Where(a => a.IsVendor && StagesOf(a).Any(s => s.Oracle is not null)))
+            add("axes", $"not yet: '{assistant.Id}' is {assistant.Agent}, and stage {StagesOf(assistant).First(s => s.Oracle is not null).Id} names an answer sheet, and an oracle runs on nb only. Through Harbor's simulated user, {assistant.Agent} would leave no ATIF trajectory to grade (plans/oracle-in-proctor.md)");
     }
 
     /// <summary>
@@ -804,7 +813,7 @@ sealed class Exam
     {
         var files = new List<string> { Path.Combine(dir, Layout.ProgramTemplateFile) };
         files.AddRange(prompts.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));
-        foreach (var pair in new[] { def.Hooks?.Variant, def.Hooks?.Attempt })
+        foreach (var pair in new[] { def.Hooks?.Configuration, def.Hooks?.Try })
             foreach (var script in new[] { pair?.Setup, pair?.Teardown })
                 if (script is not null) files.Add(Path.Combine(dir, script));
         var built = fixture is null ? "" : JsonSerializer.Serialize(new { fixture.Id, fixture.Def.Source, fixture.Def.Stack, fixture.Def.Image, fixture.Hash }, JsonOptions);
@@ -819,7 +828,7 @@ sealed class Exam
         files.AddRange(tasks.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));
         foreach (var spec in def.Grading!.Checks!.Values.Concat(tasks.SelectMany(c => (c.Checks ?? []).Values)))
             if (spec["script"] is JsonValue v && v.TryGetValue<string>(out var script)) files.Add(Path.Combine(dir, script));
-        foreach (var pair in new[] { def.Hooks?.Variant, def.Hooks?.Attempt })
+        foreach (var pair in new[] { def.Hooks?.Configuration, def.Hooks?.Try })
             foreach (var script in new[] { pair?.Setup, pair?.Teardown })
                 if (script is not null) files.Add(Path.Combine(dir, script));
         foreach (var fixture in fixtures) files.AddRange(fixture.DefinitionFiles());

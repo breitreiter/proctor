@@ -186,7 +186,7 @@ public class FrictionTests
 
         var attempts = Friction.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
 
-        Assert.All(attempts, c => Assert.Equal(TestRepo.A, c.Variant));
+        Assert.All(attempts, c => Assert.Equal(TestRepo.A, c.Configuration));
         var read = attempts.Single(c => c.Task == "uses-bash");
         Assert.NotNull(read.Points);
         var file = JsonNode.Parse(File.ReadAllText(Path.Combine(repo.StageDir("smoke", TestRepo.A, "uses-bash"), Layout.FrictionFile)))!;

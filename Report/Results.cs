@@ -5,7 +5,7 @@ namespace Proctor;
 /// <summary>One row of results.jsonl: coordinates on every row, no transcript text.
 /// <c>Outdated</c> is set, with <c>Undecided</c>, when the attempt is undecided because a correctness check's verdict is outdated.</summary>
 record ResultRow(
-    string Id, string Variant, string Task, int Attempt,
+    string Id, [property: System.Text.Json.Serialization.JsonPropertyName(OnDisk.Variant)] string Configuration, string Task, int Attempt,
     string Status, string? StatusReason, string? ExitReason,
     UsageRow? Usage, int? ToolCalls, int? DeniedCalls, long? DurationMs,
     Dictionary<string, string>? Checks, bool? Pass, Dictionary<string, string>? Reasons, string? Invalid = null,
@@ -25,11 +25,11 @@ record UsageRow(long? Input, long? Output, long? Total, bool Estimated, double? 
 
 static class Results
 {
-    /// <summary>Read the given attempts into rows, in the exam's order of variants and tasks, then by attempt. Grades come from checks.json; attempts without one are not analysed.</summary>
+    /// <summary>Read the given attempts into rows, in the exam's order of configurations and stages, then by try. Grades come from checks.json; attempts without one are not analysed.</summary>
     public static List<ResultRow> Collect(string root, Exam exam, IEnumerable<BankAttempt> attempts)
     {
         var rows = new List<ResultRow>();
-        var ordered = attempts.OrderBy(a => exam.Variants.FindIndex(v => v.Id == a.Variant)).ThenBy(a => exam.Tasks.FindIndex(t => t.Id == a.Task)).ThenBy(a => a.Attempt);
+        var ordered = attempts.OrderBy(a => exam.Assistants.FindIndex(v => v.Id == a.Configuration)).ThenBy(a => exam.Tasks.FindIndex(t => t.Id == a.Task)).ThenBy(a => a.Attempt);
         foreach (var a in ordered)
         {
             var (c, n) = (exam.Tasks.First(t => t.Id == a.Task), a.Attempt);
@@ -41,7 +41,7 @@ static class Results
             var checks = status == AttemptStatus.Completed ? Grade.ReadChecks(attemptDir) : null;
             rows.Add(new ResultRow(
                 Id: manifest?.Id ?? "",
-                Variant: a.Variant, Task: c.Id!, Attempt: n,
+                Configuration: a.Configuration, Task: c.Id!, Attempt: n,
                 Status: status,
                 StatusReason: manifest?.StatusReason ?? (checks is null && status == AttemptStatus.Completed ? "not graded" : null),
                 ExitReason: trailer?.ExitReason,

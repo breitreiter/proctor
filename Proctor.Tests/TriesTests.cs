@@ -62,7 +62,7 @@ public class TriesTests
 
     /// <summary>A configuration's tries in the bank, oldest first: each try's directory.</summary>
     static List<string> TriesOf(TestRepo repo, Exam exam, string key) =>
-        Bank.Of(repo.Root, exam).Where(a => a.Variant == key).OrderBy(a => a.Attempt).Select(a => Path.GetDirectoryName(Path.GetDirectoryName(a.Dir(repo.Root)))!).Distinct().ToList();
+        Bank.Of(repo.Root, exam).Where(a => a.Configuration == key).OrderBy(a => a.Attempt).Select(a => Path.GetDirectoryName(Path.GetDirectoryName(a.Dir(repo.Root)))!).Distinct().ToList();
 
     static void EditChecks(string tryDir, string stage, Action<JsonObject> edit)
     {
@@ -88,7 +88,7 @@ public class TriesTests
         Assert.Equal(("compared", "same", 16), (cell.State, cell.Held!.Direction, cell.Held.Pairings));
 
         // What recurs: asking for help, in every try of both, one flagged step each time, on the stage that asked.
-        var kind = Assert.Single(friction.Variants[0].Kinds);
+        var kind = Assert.Single(friction.Configurations[0].Kinds);
         Assert.Equal(("ran-help", 4, 4, new Spread(1, 1, 1), 1.0), (kind.Label, kind.In, kind.Of, kind.When, kind.PerTry));
         Assert.Equal(["ask-help"], kind.Stages);
         Assert.Equal(new Spread(1, 1, 1), same.Configurations[0].Tries!.Flagged);
@@ -131,7 +131,7 @@ public class TriesTests
         var b = stats.Configurations[1];
         Assert.Equal((1, 1, "partial"), (b.Made, b.Lost, b.State));
         var lost = Assert.Single(stats.Lost);
-        Assert.Equal((B, "say-hello", "did not run: provider_error"), (lost.Variant, lost.At, lost.Why));
+        Assert.Equal((B, "say-hello", "did not run: provider_error"), (lost.Configuration, lost.At, lost.Why));
         var cell = stats.Comparisons[0].Cells[0];
         Assert.Equal((1, 2), (cell.Tries, cell.LiveTries));
         Assert.False(cell.Held!.Confirmed);

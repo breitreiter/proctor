@@ -7,7 +7,7 @@ namespace Proctor;
 static class Grade
 {
     /// <summary>One stage of a try as grade left it. Try is the id the try is kept under in the bank, which is its directory there.</summary>
-    public record AttemptGrade(string Variant, string Task, int Attempt, string Status, Dictionary<string, Verdict>? Checks, bool? Pass, string? Invalid, string? Try = null);
+    public record AttemptGrade(string Configuration, string Task, int Attempt, string Status, Dictionary<string, Verdict>? Checks, bool? Pass, string? Invalid, string? Try = null);
 
     /// <summary>Grade the given attempts, each a current one from the bank; one that did not complete is returned ungraded. With a `--judge a=b` client, compare instead.</summary>
     public static List<AttemptGrade> Attempts(string root, Exam exam, List<BankAttempt> attempts, TextWriter log, JudgeClient? judges = null)
@@ -18,24 +18,24 @@ static class Grade
             foreach (var note in Judge.SameFamilyNotes(exam, judges)) log.WriteLine($"  note: {note}");
         foreach (var a in attempts)
         {
-            var (variant, c, n) = (exam.Variants.First(v => v.Id == a.Variant), exam.Tasks.First(t => t.Id == a.Task), a.Attempt);
+            var (assistant, c, n) = (exam.Assistants.First(v => v.Id == a.Configuration), exam.Tasks.First(t => t.Id == a.Task), a.Attempt);
             var attemptDir = a.Dir(root);
             var status = Runner.ReadStatus(attemptDir);
             if (status != AttemptStatus.Completed)
             {
-                grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, null, null, null));
+                grades.Add(new AttemptGrade(assistant.Id!, c.Id!, n, status, null, null, null));
                 continue;
             }
-            var attempt = Runner.Context(root, a.Entry, exam, variant, c, n) with { Judges = judges };
+            var attempt = Runner.Context(root, a.Entry, exam, assistant, c, n) with { Judges = judges };
             // A stage's script checks run on the workspace as that stage left it, which the try's own checkout no longer is once a later stage has run: the fixture with the stage's diff, rebuilt beside it.
-            if (!variant.IsAgent) attempt = attempt with { WorkDir = Layout.WorkAsStageLeftIt(root, exam.Id, Path.GetFileName(attemptDir), a.Try) };
+            if (!assistant.IsAgent) attempt = attempt with { WorkDir = Layout.WorkAsStageLeftIt(root, exam.Id, Path.GetFileName(attemptDir), a.Try) };
             // A script check may need the checkout; after it is gone, the fixture plus the diff is the same tree. An agent attempt's scripts ran in the verifier.
-            if (!variant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir, attempt.Overlays, Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(attemptDir))!, Layout.SetupPatchFile)) is { } error)
+            if (!assistant.IsAgent && attempt.Fixture is not null && exam.ChecksFor(c).Values.Any(k => k.Spec.ContainsKey("script")) && Checkout.Restore(attempt.Fixture, attempt.WorkDir, attemptDir, attempt.Overlays, Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(attemptDir))!, Layout.SetupPatchFile)) is { } error)
                 log.WriteLine($"  {a.Label}  could not restore the checkout: {error}");
             var checks = Attempt(attempt, exam, Transcript.Read(attemptDir, Before(root, exam, a)));
             var pass = Pass(checks, exam.CorrectnessFor(c));
             var invalid = Invalid(checks, exam.IntegrityFor(c));
-            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, checks, pass, invalid, a.Try));
+            grades.Add(new AttemptGrade(assistant.Id!, c.Id!, n, status, checks, pass, invalid, a.Try));
             log.WriteLine($"  {a.Label}  {(invalid is not null ? "invalid" : pass switch { true => "pass", false => "fail", null => Outdated(checks, exam.CorrectnessFor(c)) is null ? "undecided" : "outdated" })}  {string.Join("  ", checks.Where(k => k.Value.Result != Verdict.Pass).Select(k => $"{k.Key}={k.Value.Result}{Because(k.Value)}"))}");
         }
         return grades;
@@ -54,11 +54,11 @@ static class Grade
         {
             foreach (var a in attempts)
             {
-                var (variant, c) = (exam.Variants.First(v => v.Id == a.Variant), exam.Tasks.First(t => t.Id == a.Task));
+                var (assistant, c) = (exam.Assistants.First(v => v.Id == a.Configuration), exam.Tasks.First(t => t.Id == a.Task));
                 var attemptDir = a.Dir(root);
-                var asking = exam.ChecksFor(c).Where(k => Standard.Applies(exam, k.Value, a.Variant) && Checks.ModelChecks(k.Value.Spec).Any()).ToList();
+                var asking = exam.ChecksFor(c).Where(k => Standard.Applies(exam, k.Value, a.Configuration) && Checks.ModelChecks(k.Value.Spec).Any()).ToList();
                 if (asking.Count == 0 || Runner.ReadStatus(attemptDir) != AttemptStatus.Completed) continue;
-                var attempt = Runner.Context(root, a.Entry, exam, variant, c, a.Attempt) with { Judges = judges };
+                var attempt = Runner.Context(root, a.Entry, exam, assistant, c, a.Attempt) with { Judges = judges };
                 var transcript = Transcript.Read(attemptDir, Before(root, exam, a));
                 foreach (var (name, check) in asking)
                     foreach (var (kind, spec) in Checks.ModelChecks(check.Spec)) Judge.Evaluate(kind, spec, name, attempt, transcript);
@@ -83,17 +83,17 @@ static class Grade
         int compared = 0, agreed = 0;
         foreach (var a in attempts)
         {
-            var (variant, c, n) = (exam.Variants.First(v => v.Id == a.Variant), exam.Tasks.First(t => t.Id == a.Task), a.Attempt);
+            var (assistant, c, n) = (exam.Assistants.First(v => v.Id == a.Configuration), exam.Tasks.First(t => t.Id == a.Task), a.Attempt);
             var attemptDir = a.Dir(root);
             var status = Runner.ReadStatus(attemptDir);
             var existing = status == AttemptStatus.Completed ? ReadChecks(attemptDir) : null;
             if (existing is null)
             {
-                grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, null, null, null));
+                grades.Add(new AttemptGrade(assistant.Id!, c.Id!, n, status, null, null, null));
                 if (status == AttemptStatus.Completed) log.WriteLine($"  {a.Label}  no checks.json; run grade without --judge first");
                 continue;
             }
-            var attempt = Runner.Context(root, a.Entry, exam, variant, c, n) with { Judges = judges };
+            var attempt = Runner.Context(root, a.Entry, exam, assistant, c, n) with { Judges = judges };
             var transcript = Transcript.Read(attemptDir, Before(root, exam, a));
             foreach (var (name, check) in exam.ChecksFor(c))
             {
@@ -105,7 +105,7 @@ static class Grade
                 if (applied?.Result == other.Result) agreed++;
                 log.WriteLine($"  {a.Label}  {name}: {from}={applied?.Result ?? "none"} ({applied?.Reason})  {to}={other.Result} ({other.Reason})");
             }
-            grades.Add(new AttemptGrade(variant.Id!, c.Id!, n, status, existing, Pass(existing, exam.CorrectnessFor(c)), Invalid(existing, exam.IntegrityFor(c))));
+            grades.Add(new AttemptGrade(assistant.Id!, c.Id!, n, status, existing, Pass(existing, exam.CorrectnessFor(c)), Invalid(existing, exam.IntegrityFor(c))));
         }
         log.WriteLine($"  {agreed} of {compared} verdicts agree; checks.json unchanged");
         return grades;
@@ -118,10 +118,10 @@ static class Grade
     /// </summary>
     public static Dictionary<string, Verdict> Attempt(AttemptContext attempt, Exam exam, Transcript transcript)
     {
-        var outdated = attempt.ScriptsInVerifier ? HarborCompile.Outdated(attempt.VerifierTask, exam, attempt.Task, attempt.Variant) : [];
+        var outdated = attempt.ScriptsInVerifier ? HarborCompile.Outdated(attempt.VerifierTask, exam, attempt.Task, attempt.Configuration) : [];
         // A check that does not apply in this configuration is not asked: no script runs and no judge is called for it.
         var verdicts = exam.ChecksFor(attempt.Task).Where(k => !(attempt.Vendor && Checks.NbOnly(k.Value.Spec))).ToDictionary(k => k.Key,
-            k => Explained(!Standard.Applies(exam, k.Value, attempt.Variant) ? new Verdict(Verdict.NotApplicable, $"applies only when {k.Value.Spec[Checks.When]}")
+            k => Explained(!Standard.Applies(exam, k.Value, attempt.Configuration) ? new Verdict(Verdict.NotApplicable, $"applies only when {k.Value.Spec[Checks.When]}")
                 : outdated.TryGetValue(k.Key, out var why) ? new Verdict(Verdict.Outdated, why) : Checks.Evaluate(k.Value, attempt, transcript, k.Key), k.Value, exam) with { Role = exam.RoleOf(k.Key) });
         Runner.WriteJson(Path.Combine(attempt.AttemptDir, Layout.ChecksFile), verdicts);
         Standard.Keep(attempt.AttemptDir, exam, attempt.Task, verdicts);
@@ -148,8 +148,8 @@ static class Grade
     /// <summary>
     /// Whether the attempt passed: true when every check named in grading.correctness passed; false when any failed, errored or is missing;
     /// null (undecided) when none failed but one could not decide or is outdated. An undecided attempt is out of the pass rate
-    /// on both sides: a check that cannot decide is the check's weakness, not the variant's, and an outdated one is the
-    /// attempt's age, not the variant's.
+    /// on both sides: a check that cannot decide is the check's weakness, not the configuration's, and an outdated one is the
+    /// try's age, not the configuration's.
     /// </summary>
     public static bool? Pass(Dictionary<string, Verdict> checks, List<string> passChecks)
     {
@@ -174,7 +174,7 @@ static class Grade
         if (holding.Count == 0) return null;
         var checks = holding.SelectMany(g => g.Checks!.Where(k => k.Value.Result == Verdict.Outdated).Select(k => k.Key)).Distinct().Order(StringComparer.Ordinal).ToList();
         // A try is made again whole, so it is the try's directory that moves, whichever of its stages hold the verdicts.
-        var tries = holding.Select(g => g.Try ?? $"{g.Variant}/{g.Attempt}").Distinct().ToList();
+        var tries = holding.Select(g => g.Try ?? $"{g.Configuration}/{g.Attempt}").Distinct().ToList();
         return $"{tries.Count} {(tries.Count == 1 ? "try holds" : "tries hold")} outdated verdicts for {string.Join(", ", checks)}: "
             + $"through Harbor a script check runs when the try is made, and {(checks.Count == 1 ? "this check has" : "these checks have")} changed or been added since, so those verdicts are left out of every number. "
             + $"Make the {(tries.Count == 1 ? "try" : "tries")} again: move {(tries.Count == 1 ? "its directory" : "their directories")} out of {Layout.BankDir}/{examId}/ ({string.Join(" ", tries)}) and run `proctor run {examId}`, which makes what is missing with the checks as they are now.";
@@ -185,12 +185,12 @@ static class Grade
     /// how many of those it had none for before this grade, and how many it could not decide and why.
     /// </summary>
     /// <summary>
-    /// The verdicts each attempt held before this grade, keyed as <see cref="ByCheck"/> looks them up: variant, task,
+    /// The verdicts each attempt held before this grade, keyed as <see cref="ByCheck"/> looks them up: configuration, stage,
     /// attempt. Not an attempt's label, which for a stage of a try puts the try before the stage: keyed by label, no
     /// stage was ever found, and every verdict of a staged exam was counted as new on every grade (issue #13).
     /// </summary>
     public static Dictionary<string, Dictionary<string, Verdict>?> Before(string root, IEnumerable<BankAttempt> attempts) =>
-        attempts.ToDictionary(a => $"{a.Variant}/{a.Task}/{a.Attempt}", a => ReadChecks(a.Dir(root)));
+        attempts.ToDictionary(a => $"{a.Configuration}/{a.Task}/{a.Attempt}", a => ReadChecks(a.Dir(root)));
 
     public static IEnumerable<string> ByCheck(List<AttemptGrade> grades, Dictionary<string, Dictionary<string, Verdict>?> before)
     {
@@ -203,7 +203,7 @@ static class Grade
         {
             var on = graded.Where(g => g.Checks!.ContainsKey(name)).ToList();
             var decided = on.Where(g => Decided(g.Checks![name])).ToList();
-            var fresh = decided.Count(g => !Decided(before.GetValueOrDefault($"{g.Variant}/{g.Task}/{g.Attempt}")?.GetValueOrDefault(name)));
+            var fresh = decided.Count(g => !Decided(before.GetValueOrDefault($"{g.Configuration}/{g.Task}/{g.Attempt}")?.GetValueOrDefault(name)));
             var not = on.Except(decided).GroupBy(g => g.Checks![name].Result).Select(r => $"{r.Count()} {r.Key switch
             {
                 Verdict.Outdated => "cannot be regraded from what was kept",

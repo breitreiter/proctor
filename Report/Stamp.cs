@@ -6,7 +6,7 @@ namespace Proctor;
 /// with why), the narrowing asked for, and, per configuration, the conditions its tries were made under when they were
 /// not all the same.
 /// </summary>
-record BuiltFrom(string At, List<string> Log, Dictionary<string, string> Variants, Dictionary<string, string> Tasks, int Current, int Stale,
+record BuiltFrom(string At, List<string> Log, [property: System.Text.Json.Serialization.JsonPropertyName(OnDisk.Variants)] Dictionary<string, string> Configurations, Dictionary<string, string> Tasks, int Current, int Stale,
     List<StaleAttempt>? StaleAttempts = null, string? Narrowed = null, Dictionary<string, List<string>>? Mixed = null);
 
 static class Stamp
@@ -20,17 +20,17 @@ static class Stamp
     {
         var current = selection.Current;
         var mixed = new Dictionary<string, List<string>>();
-        foreach (var variant in exam.Variants.Where(v => current.Any(a => a.Variant == v.Id)))
+        foreach (var assistant in exam.Assistants.Where(v => current.Any(a => a.Configuration == v.Id)))
         {
-            var conditions = current.Where(a => a.Variant == variant.Id).Select(a => a.Entry).DistinctBy(b => b.Id).Select(b => Conditions(b, variant.IsAgent)).ToList();
+            var conditions = current.Where(a => a.Configuration == assistant.Id).Select(a => a.Entry).DistinctBy(b => b.Id).Select(b => Conditions(b, assistant.IsAgent)).ToList();
             var differ = conditions.SelectMany(c => c.Keys).Distinct()
                 .Select(k => (k, values: conditions.Select(c => c.GetValueOrDefault(k, "none")).Distinct().Order(StringComparer.Ordinal).ToList()))
                 .Where(x => x.values.Count > 1).Select(x => $"{x.k} {string.Join(", ", x.values)}").ToList();
-            if (differ.Count > 0) mixed[variant.Id!] = differ;
+            if (differ.Count > 0) mixed[assistant.Id!] = differ;
         }
         return new BuiltFrom(at.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),
             current.Select(a => a.Entry.Id).Distinct().Order(StringComparer.Ordinal).ToList(),
-            exam.Variants.Where(v => current.Any(a => a.Variant == v.Id)).ToDictionary(v => v.Id!, v => v.Hash),
+            exam.Assistants.Where(v => current.Any(a => a.Configuration == v.Id)).ToDictionary(v => v.Id!, v => v.Hash),
             exam.Tasks.Where(t => current.Any(a => a.Task == t.Id)).ToDictionary(t => t.Id!, t => exam.TaskHashes[t.Id!]),
             current.Count, selection.Stale.Count, selection.Stale.Count > 0 ? selection.Stale : null, narrowed, mixed.Count > 0 ? mixed : null);
 

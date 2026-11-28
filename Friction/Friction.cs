@@ -144,7 +144,7 @@ static class Friction
 
     internal record Step(string Id, List<Call> Calls);
 
-    public record AttemptFriction(string Variant, string Task, int Attempt, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
+    public record AttemptFriction(string Configuration, string Task, int Attempt, int? Points, string? Skipped, FrictionReader.Reading? Reading = null);
 
     /// <summary>friction.json beside each given attempt's trajectory, each a current one from the bank: a task's attempt, or one stage of a try, whose steps are that stage's own. An attempt not completed, a stage not reached, or one with no trajectory is skipped and said so.</summary>
     /// <param name="reader">A chat judge of the machine's config that reads each attempt for what rules cannot see; its points are added with a model source. Null for rules only.</param>
@@ -154,7 +154,7 @@ static class Friction
         var done = new List<AttemptFriction>();
         foreach (var a in attempts)
         {
-            var (variant, task, n) = (a.Variant, a.Task, a.Attempt);
+            var (key, task, n) = (a.Configuration, a.Task, a.Attempt);
             var attemptDir = a.Dir(root);
             var trajectory = Path.Combine(attemptDir, Layout.TrajectoryFile);
             // A stage a chained try never reached has nothing to read, which is not the same as an attempt that did not finish.
@@ -162,10 +162,10 @@ static class Friction
             var skipped = status == AttemptStatus.Skipped ? "not reached" : status != AttemptStatus.Completed ? "not completed" : !File.Exists(trajectory) ? "no trajectory" : null;
             if (skipped is not null)
             {
-                done.Add(new AttemptFriction(variant, task, n, null, skipped));
+                done.Add(new AttemptFriction(key, task, n, null, skipped));
                 continue;
             }
-            var attempt = new JsonObject { ["exam"] = exam.Id, ["variant"] = variant, ["task"] = task, ["attempt"] = n.ToString() };
+            var attempt = new JsonObject { ["exam"] = exam.Id, [OnDisk.Variant] = key, ["task"] = task, ["attempt"] = n.ToString() };
             // A stage of a try, as its manifest says it: task is the stage's id, attempt the try, stage its place in the try.
             if (a.Entry.Stages is { } stages) attempt["stage"] = stages.IndexOf(task) + 1;
             var parsed = JsonNode.Parse(File.ReadAllText(trajectory))!.AsObject();
@@ -173,7 +173,7 @@ static class Friction
             var reading = reader is null ? null : FrictionReader.Read(attemptDir, parsed, file, steps, exam.Def.Surface?.Description, judges!, reader);
             File.WriteAllText(Path.Combine(attemptDir, Layout.FrictionFile), file.ToJsonString(Written) + "\n");
             var points = file["points"]!.AsArray();
-            done.Add(new AttemptFriction(variant, task, n, points.Count, null, reading));
+            done.Add(new AttemptFriction(key, task, n, points.Count, null, reading));
             log.WriteLine($"  {a.Label}  {points.Count} point{(points.Count == 1 ? "" : "s")}  {string.Join("  ", file["summary"]!["by_label"]!.AsObject().Select(k => $"{k.Key} {k.Value}"))}{(reading is null ? "" : $"  [reader: {reading.Says}]")}");
         }
         return done;

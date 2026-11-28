@@ -15,10 +15,10 @@ record ValueInfo(string Name, string? Note, string Hash, bool Reference = false,
 /// <summary>
 /// One configuration's standing: one the exam names or has tries of. State is not_run (no counted try), not_graded (it
 /// has tries, and none is graded under the checks as they are now), partial (fewer than the exam wants) or made.
-/// NotGraded counts its tries without a grade under the current standard: they are in no number until `grade` reads them. Tries holds its tries as a staged exam's variant has them; null when none were read.
+/// NotGraded counts its tries without a grade under the current standard: they are in no number until `grade` reads them. Tries holds its tries; null when none were read.
 /// </summary>
 record ConfigurationRow(string Key, string Label, Dictionary<string, string> Values, string? Name, bool Live, string State, int Wanted, int Made, int Lost, int Stale,
-    List<string> Stages, int CorrectnessChecks, TryVariant? Tries, string? Together = null, List<string>? Differs = null, int NotGraded = 0, RetiredMark? Retired = null);
+    List<string> Stages, int CorrectnessChecks, ConfigurationTries? Tries, string? Together = null, List<string>? Differs = null, int NotGraded = 0, RetiredMark? Retired = null);
 
 /// <summary>
 /// A value against the live value of its axis with every other axis held: one cell of a comparison. State is compared,
@@ -56,11 +56,11 @@ static class Configurations
         var judges = Judge.Uses(root, current);
         // Comparisons use the standard as it is now, both sides alike: a try graded only under earlier checks is not yet graded, and in no number.
         var ungraded = NotGraded(root, exam, current);
-        current = current.Where(a => !ungraded.Contains((a.Variant, a.Attempt))).ToList();
-        rows = rows.Where(r => !ungraded.Contains((r.Variant, r.Attempt))).ToList();
+        current = current.Where(a => !ungraded.Contains((a.Configuration, a.Attempt))).ToList();
+        rows = rows.Where(r => !ungraded.Contains((r.Configuration, r.Attempt))).ToList();
         var moves = Standard.Moves(root, exam, current);
         var (tries, friction) = Tries.Compute(root, exam, current, bank, rows, built);
-        var byKey = tries.Variants.ToDictionary(v => v.Id);
+        var byKey = tries.Configurations.ToDictionary(v => v.Id);
         bool Live(Configuration c) => axes.Def.Any(a => a.Value.Live is not null) && axes.Def.All(a => a.Value.Live is null || a.Value.Live == c[a.Key]);
         var standing = Combinations.Load(exam).Stand(exam);
         var retired = Retired.Load(exam);
@@ -71,12 +71,12 @@ static class Configurations
             var made = t?.Tries ?? 0;
             var stages = exam.StagesOf(c.Key);
             return new ConfigurationRow(c.Key, c.Label, c.Values.ToDictionary(v => v.Axis, v => v.Value), c.Name, Live(c),
-                made == 0 ? (ungraded.Any(u => u.Variant == c.Key) ? "not_graded" : "not_run") : made < exam.Attempts ? "partial" : "made", exam.Attempts, made,
-                bank.Where(a => a.Lost && a.Variant == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
-                bank.Where(a => a.Variant == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
+                made == 0 ? (ungraded.Any(u => u.Configuration == c.Key) ? "not_graded" : "not_run") : made < exam.Attempts ? "partial" : "made", exam.Attempts, made,
+                bank.Where(a => a.Lost && a.Configuration == c.Key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count(),
+                bank.Where(a => a.Configuration == c.Key && Bank.Stale(exam, a) is not null).Select(a => a.Attempt).Distinct().Count(),
                 stages.Select(s => s.Id!).ToList(), stages.Sum(s => Standard.PassIn(exam, s, c.Key).Count), t,
                 standing.TryGetValue(c.Key, out var together) ? together.State : null, together.Paths is { Count: > 0 } ? together.Paths : null,
-                ungraded.Count(u => u.Variant == c.Key), c.Name is null ? null : retired.GetValueOrDefault(c.Name));
+                ungraded.Count(u => u.Configuration == c.Key), c.Name is null ? null : retired.GetValueOrDefault(c.Name));
         }).ToList();
 
         var comparisons = new List<AxisComparison>();
@@ -105,19 +105,19 @@ static class Configurations
     /// it to the settings of the other axes that hold those values. Where the settings compared point different ways it
     /// is "better here, worse there", and they are not read as one: opposite differences would cancel into "the same".
     /// </summary>
-    public static AxisComparison Compare(Exam exam, IReadOnlyDictionary<string, TryVariant> byKey, Dictionary<string, (string State, List<string> Paths)> standing,
+    public static AxisComparison Compare(Exam exam, IReadOnlyDictionary<string, ConfigurationTries> byKey, Dictionary<string, (string State, List<string> Paths)> standing,
         string axis, string value, string against, IReadOnlyDictionary<string, string>? within = null, IReadOnlyList<StandardMove>? moves = null) =>
         Compare(exam, byKey, standing, new Dictionary<string, string> { [axis] = value }, new Dictionary<string, string> { [axis] = against }, within, moves);
 
     /// <summary>The tries, by configuration and number, with a completed stage that holds no grade under the standard as it is now.</summary>
-    public static HashSet<(string Variant, int Attempt)> NotGraded(string root, Exam exam, IEnumerable<BankAttempt> current) =>
-        current.Where(a => a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.TaskOf(a.Task), a.Dir(root))).Select(a => (a.Variant, a.Attempt)).ToHashSet();
+    public static HashSet<(string Configuration, int Attempt)> NotGraded(string root, Exam exam, IEnumerable<BankAttempt> current) =>
+        current.Where(a => a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.TaskOf(a.Task), a.Dir(root))).Select(a => (a.Configuration, a.Attempt)).ToHashSet();
 
     /// <summary>
     /// The same for a change on several axes at once: these values together against those, every other axis held. It is
     /// how a configuration is compared with another (plans/axes-build.md, 3c): the change is the axes on which they differ.
     /// </summary>
-    public static AxisComparison Compare(Exam exam, IReadOnlyDictionary<string, TryVariant> byKey, Dictionary<string, (string State, List<string> Paths)> standing,
+    public static AxisComparison Compare(Exam exam, IReadOnlyDictionary<string, ConfigurationTries> byKey, Dictionary<string, (string State, List<string> Paths)> standing,
         IReadOnlyDictionary<string, string> change, IReadOnlyDictionary<string, string> instead, IReadOnlyDictionary<string, string>? within = null, IReadOnlyList<StandardMove>? moves = null)
     {
         var axes = exam.Axes!;
@@ -175,10 +175,10 @@ static class Configurations
             sentence + string.Concat(cautions.Select(c => " " + c)), cautions.Count > 0 ? cautions : null, verdict);
 
         // A count of a try's work (tool calls, tokens read, time): fewer is better, and it is compared only when every counted try on both sides has it.
-        static List<double>? Numbers(TryVariant v, Func<TryRow, double?> of) => v.Rows.Where(r => r.Invalid is null).ToList() is var counted && counted.All(r => of(r) is not null) ? counted.Select(r => of(r)!.Value).ToList() : null;
-        static Measure? Fewer(TryVariant mine, TryVariant theirs, Func<TryRow, double?> of) => Numbers(mine, of) is { } a && Numbers(theirs, of) is { } b ? Tries.Compare(a, b, higherIsBetter: false) : null;
-        static List<double> Held(TryVariant v) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)r.Held).ToList();
-        static List<double>? Flagged(TryVariant v) => v.Rows.Where(r => r.Invalid is null).ToList() is var counted && counted.All(r => r.Flagged is not null) ? counted.Select(r => (double)r.Flagged!.Value).ToList() : null;
+        static List<double>? Numbers(ConfigurationTries v, Func<TryRow, double?> of) => v.Rows.Where(r => r.Invalid is null).ToList() is var counted && counted.All(r => of(r) is not null) ? counted.Select(r => of(r)!.Value).ToList() : null;
+        static Measure? Fewer(ConfigurationTries mine, ConfigurationTries theirs, Func<TryRow, double?> of) => Numbers(mine, of) is { } a && Numbers(theirs, of) is { } b ? Tries.Compare(a, b, higherIsBetter: false) : null;
+        static List<double> Held(ConfigurationTries v) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)r.Held).ToList();
+        static List<double>? Flagged(ConfigurationTries v) => v.Rows.Where(r => r.Invalid is null).ToList() is var counted && counted.All(r => r.Flagged is not null) ? counted.Select(r => (double)r.Flagged!.Value).ToList() : null;
     }
 
     static string Holding(Dictionary<string, string> holding) => holding.Count == 0 ? "the one configuration" : string.Join(" × ", holding.Select(h => $"{h.Key}={h.Value}"));
@@ -351,7 +351,7 @@ static class Configurations
         if (stats.Lost.Count > 0)
         {
             md.AppendLine("## Lost tries").AppendLine();
-            foreach (var l in stats.Lost) md.AppendLine($"- {l.Variant}, try {l.N}, at {l.At}: {l.Why}");
+            foreach (var l in stats.Lost) md.AppendLine($"- {l.Configuration}, try {l.N}, at {l.At}: {l.Why}");
             md.AppendLine();
         }
         if (stats.Judges is { Count: > 0 } judges)

@@ -283,7 +283,7 @@ public class ChecksTests
     public void Script_SeesTheAttemptInItsEnvironment()
     {
         using var repo = new TestRepo();
-        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_TASK\" = c ] && [ \"$PROCTOR_VARIANT\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_ATTEMPT_DIR\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
+        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_TASK\" = c ] && [ \"$PROCTOR_CONFIGURATION\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_ATTEMPT_DIR\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
         File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var attempt = Attempt(JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject(), Path.Combine(repo.Root, "exams", "e"), repo.Root);
         Assert.Equal("pass", Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/env.sh\"}")!.AsObject(), attempt, Fixture("plain")).Result);

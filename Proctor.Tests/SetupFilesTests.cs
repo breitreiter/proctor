@@ -277,7 +277,7 @@ public class SetupFilesTests : IDisposable
         Assert.Equal("podman", SandboxPlan.EngineFrom(seen));
         var plan = SandboxPlan.Render(new DateOnly(2026, 11, 8), seen, ["Claude Code"], "podman");
         Assert.Contains("| podman | podman version 5.6.1 |", plan);
-        Assert.Contains("- Agent variants wanted: Claude Code.", plan);
+        Assert.Contains("- Agents wanted: Claude Code.", plan);
         Assert.Contains("setup wrote `podman` here", plan);
         Assert.Contains("Here podman is present", plan);
         Assert.Contains("Ask before you change anything.", plan);

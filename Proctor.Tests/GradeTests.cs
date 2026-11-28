@@ -91,15 +91,15 @@ public class GradeTests
         var exam = repo.LoadExam("smoke");
         bool Graded(string key, string stage) => File.Exists(Path.Combine(repo.StageDir("smoke", key, stage), "checks.json"));
 
-        var onlyA = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, variants: [TestRepo.A]).Current, TextWriter.Null);
-        Assert.All(onlyA, g => Assert.Equal(TestRepo.A, g.Variant));
+        var onlyA = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, keys: [TestRepo.A]).Current, TextWriter.Null);
+        Assert.All(onlyA, g => Assert.Equal(TestRepo.A, g.Configuration));
         Assert.True(Graded(TestRepo.A, "plain"));
         Assert.False(Graded(TestRepo.B, "plain"));
 
         // a later pass over b leaves a's checks.json untouched
         var aPlain = Path.Combine(repo.StageDir("smoke", TestRepo.A, "plain"), "checks.json");
         File.WriteAllText(aPlain, "{}");
-        Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, variants: [TestRepo.B]).Current, TextWriter.Null);
+        Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam, keys: [TestRepo.B]).Current, TextWriter.Null);
         Assert.True(Graded(TestRepo.B, "plain"));
         Assert.Equal("{}", File.ReadAllText(aPlain));
     }

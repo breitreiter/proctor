@@ -30,7 +30,7 @@ public class GateTests
         Assert.True(differences.Count == 0, string.Join("\n", differences));
     }
 
-    /// <summary>A gate exam run, both variants, and graded, with the publish and the engine the environment names.</summary>
+    /// <summary>A gate exam run, both routes, and graded, with the publish and the engine the environment names.</summary>
     internal static (Exam Exam, string Id) RunGraded(TestRepo repo, string examId)
     {
         repo.CopyExam(examId);
@@ -57,14 +57,14 @@ public class GateTests
     internal static List<string> Differences(string root, string entryId, Exam exam)
     {
         var differences = new List<string>();
-        var harbor = exam.Variants.Single(a => a.IsAgent);
-        var bare = exam.Variants.Single(a => !a.IsAgent);
+        var harbor = exam.Assistants.Single(a => a.IsAgent);
+        var bare = exam.Assistants.Single(a => !a.IsAgent);
         var bank = Bank.Of(root, exam);
         foreach (var c in exam.Tasks)
             foreach (var n in Enumerable.Range(1, exam.Attempts))
             {
                 var at = $"{c.Id}/{n}";
-                BankAttempt Of(Variant v) => bank.Single(a => a.Variant == v.Id && a.Task == c.Id && a.Attempt == n);
+                BankAttempt Of(Assistant v) => bank.Single(a => a.Configuration == v.Id && a.Task == c.Id && a.Attempt == n);
                 var (b, h) = (Of(bare).Dir(root), Of(harbor).Dir(root));
                 var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
                 if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)
@@ -82,7 +82,7 @@ public class GateTests
 
                 var trajectory = JsonNode.Parse(File.ReadAllText(Path.Combine(b, Layout.TrajectoryFile)))!.AsObject();
                 var exit = trajectory!["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";
-                var bareCore = Ingest.Count(trajectory, Variant.Nb, exit).Core! with { DurationMs = null };
+                var bareCore = Ingest.Count(trajectory, Assistant.Nb, exit).Core! with { DurationMs = null };
                 var harborCore = Runner.ReadJson<CountedCore>(Path.Combine(h, Layout.CoreFile))! with { DurationMs = null };
                 var (bc, hc) = (JsonSerializer.Serialize(bareCore, Exam.JsonOptions), JsonSerializer.Serialize(harborCore, Exam.JsonOptions));
                 if (bc != hc) differences.Add($"{at}: counted core differs\n--- bare\n{bc}\n--- harbor\n{hc}");
@@ -103,7 +103,7 @@ public class GateTests
 }
 
 /// <summary>
-/// The oracle's gate (plans/oracle-in-proctor.md, *The gate*): exams/gate-oracle's Mock variant bare, with nb's in-process
+/// The oracle's gate (plans/oracle-in-proctor.md, *The gate*): exams/gate-oracle's nb on Mock bare, with nb's in-process
 /// oracle, and through Harbor, with the simulated user over the ACP bridge, give the same counted core, the same user
 /// turns (text, source, keys) and the same checks.json, for each of the endings ok, oracle_miss and oracle_budget. The
 /// one known difference is the judge's tokens: bare, nb charges them to the run; bridged, they are the manifest's.
@@ -130,9 +130,9 @@ public class OracleGateTests
         foreach (var c in exam.Tasks)
         {
             var at = c.Id!;
-            string Of(bool agent) => current.Single(a => a.Task == c.Id && exam.Variants.Single(v => v.Id == a.Variant).IsAgent == agent).Dir(root);
+            string Of(bool agent) => current.Single(a => a.Task == c.Id && exam.Assistants.Single(v => v.Id == a.Configuration).IsAgent == agent).Dir(root);
             var (b, h) = (Of(false), Of(true));
-            if (!File.Exists(Path.Combine(Layout.HarborJobTask(Layout.LogEntry(root, entryId), current.Single(a => a.Dir(root) == h).Variant, exam.Id), "instruction.md")))
+            if (!File.Exists(Path.Combine(Layout.HarborJobTask(Layout.LogEntry(root, entryId), current.Single(a => a.Dir(root) == h).Configuration, exam.Id), "instruction.md")))
                 differences.Add($"{at}: the Harbor try was not compiled as a plain task");
             var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
             var manifest = Runner.ReadManifest(Path.Combine(h, Layout.ManifestFile));
@@ -144,7 +144,7 @@ public class OracleGateTests
 
             var trajectory = JsonNode.Parse(File.ReadAllText(Path.Combine(b, Layout.TrajectoryFile)))!.AsObject();
             var exit = trajectory["extra"]?["result"]?["exit_reason"]?.GetValue<string>() ?? "ok";
-            var bareCore = Ingest.Count(trajectory, Variant.Nb, exit).Core! with { DurationMs = null };
+            var bareCore = Ingest.Count(trajectory, Assistant.Nb, exit).Core! with { DurationMs = null };
             var judge = manifest.Oracle;
             if (judge is null) { differences.Add($"{at}: the harbor attempt's manifest has no oracle"); continue; }
             bareCore = bareCore with

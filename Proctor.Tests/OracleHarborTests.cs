@@ -39,19 +39,19 @@ public class OracleHarborTests
         Assert.Equal(["nb_agent.py"], Directory.GetFiles(HarborCompile.AgentsDir(entryDir)).Select(Path.GetFileName));
     }
 
-    static readonly Variant NbVariant = new("nb-harbor", null, "nb", "Mock", "mock", Agent: "nb");
+    static readonly Assistant NbThroughHarbor = new("nb-harbor", null, "nb", "Mock", "mock", Agent: "nb");
 
     [Fact]
     public void Job_AnOracleAttempt_IsBridged_ToOracleUserOnTheHost()
     {
         var oracle = new OracleAttempt("/exam/oracle/plain.md", "/host/nb", "/exams/nb.json", "Judge", 3, "/exp/harbor/agents/oracle_user.j2");
-        var job = HarborCompile.Job(NbVariant, "/t", "/j", new AgentRoute(null, null), new NbAttempt("/attempt/program.jsonl", "/exams/nb.json"), oracle: oracle);
+        var job = HarborCompile.Job(NbThroughHarbor, "/t", "/j", new AgentRoute(null, null), new NbAttempt("/attempt/program.jsonl", "/exams/nb.json"), oracle: oracle);
 
         Assert.Equal("""
             {"import_path":"oracle_user:OracleUser","user_prompt_template_path":"/exp/harbor/agents/oracle_user.j2","bridge":{"kind":"acp"},"kwargs":{"sheet":"/exam/oracle/plain.md","nb":"/host/nb","turns":3,"config":"/exams/nb.json","judge":"Judge"}}
             """, job["user_agent"]!.ToJsonString());
         Assert.Equal("nb_agent:NbAgent", job["agents"]![0]!["import_path"]!.GetValue<string>());
-        Assert.Null(HarborCompile.Job(NbVariant, "/t", "/j", new AgentRoute(null, null), new NbAttempt("/attempt/program.jsonl", null))["user_agent"]);
+        Assert.Null(HarborCompile.Job(NbThroughHarbor, "/t", "/j", new AgentRoute(null, null), new NbAttempt("/attempt/program.jsonl", null))["user_agent"]);
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class OracleHarborTests
 
     static Manifest NbManifest() => new()
     {
-        Id = "r", Log = "e", Exam = "x", Variant = new("nb-harbor", "sha256:v"), Task = new("plain", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
+        Id = "r", Log = "e", Exam = "x", Key = new("nb-harbor", "sha256:v"), Task = new("plain", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
         Agent = new AgentTrial("nb", null, "mock", [], [], "0.24.0", null),
     };
 
@@ -123,7 +123,7 @@ public class OracleHarborTests
         var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         var manifest = NbManifest();
 
-        Assert.Null(Ingest.Trial(trial, attempt, NbVariant, manifest, "0.9.0", bridged: true));
+        Assert.Null(Ingest.Trial(trial, attempt, NbThroughHarbor, manifest, "0.9.0", bridged: true));
         Assert.True(File.Exists(Path.Combine(attempt, "user-agent", "oracle-user.json")));
         Assert.Null(manifest.NbExitCode);   // nb over the bridge has no exit of its own
 
@@ -155,7 +155,7 @@ public class OracleHarborTests
         var trial = WriteBridgedTrial(Path.Combine(repo.Root, "trial"), r => r["ending"] = ending);
         var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
 
-        Assert.Null(Ingest.Trial(trial, attempt, NbVariant, NbManifest(), "0.9.0", bridged: true));
+        Assert.Null(Ingest.Trial(trial, attempt, NbThroughHarbor, NbManifest(), "0.9.0", bridged: true));
         Assert.Equal(exitReason, ReadJson(Path.Combine(attempt, "core.json"))["exit_reason"]!.GetValue<string>());
     }
 
@@ -165,7 +165,7 @@ public class OracleHarborTests
         using var repo = new TestRepo();
         var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         var n = 0;
-        string? Ingested(Action<JsonObject> record) => Ingest.Trial(WriteBridgedTrial(Path.Combine(repo.Root, $"t{++n}"), record), attempt, NbVariant, NbManifest(), "0.9.0", bridged: true);
+        string? Ingested(Action<JsonObject> record) => Ingest.Trial(WriteBridgedTrial(Path.Combine(repo.Root, $"t{++n}"), record), attempt, NbThroughHarbor, NbManifest(), "0.9.0", bridged: true);
         JsonObject InFlight() => new() { ["text"] = "MOCK:response=us-east.", ["keys"] = new JsonArray("region") };
 
         // acpx trims a prompt's trailing whitespace before nb sees it.
@@ -200,15 +200,15 @@ public class OracleHarborTests
             r["ending"] = "judge_error";
             r["error"] = "nb --judge exited 1: no such provider";
         });
-        Assert.Equal("judge_error: nb --judge exited 1: no such provider", Ingest.Trial(judgeError, attempt, NbVariant, manifest, "0.9.0", bridged: true));
+        Assert.Equal("judge_error: nb --judge exited 1: no such provider", Ingest.Trial(judgeError, attempt, NbThroughHarbor, manifest, "0.9.0", bridged: true));
         Assert.Equal("judge_error", manifest.Oracle!.Ending);
 
         var noRecord = WriteBridgedTrial(Path.Combine(repo.Root, "t2"));
         File.Delete(Path.Combine(noRecord, "user-agent", "oracle-user.json"));
-        Assert.Equal("the simulated user left no user-agent/oracle-user.json", Ingest.Trial(noRecord, attempt, NbVariant, NbManifest(), "0.9.0", bridged: true));
+        Assert.Equal("the simulated user left no user-agent/oracle-user.json", Ingest.Trial(noRecord, attempt, NbThroughHarbor, NbManifest(), "0.9.0", bridged: true));
 
         Assert.Equal("nb answered no prompt over the bridge (no agent/trajectory.json)",
-            Ingest.Trial(WriteBridgedTrial(Path.Combine(repo.Root, "t3"), trajectory: false), attempt, NbVariant, NbManifest(), "0.9.0", bridged: true));
+            Ingest.Trial(WriteBridgedTrial(Path.Combine(repo.Root, "t3"), trajectory: false), attempt, NbThroughHarbor, NbManifest(), "0.9.0", bridged: true));
         // Out of time with the task still in flight: a completed run with nothing in it, as on the direct path.
         var timedOut = WriteBridgedTrial(Path.Combine(repo.Root, "t4"), r =>
         {
@@ -216,7 +216,7 @@ public class OracleHarborTests
             r["prompts"] = new JsonArray(new JsonObject { ["text"] = "MOCK:response=Which deploy target? MOCK:oracle=deploy-target" });
             r["judgements"] = new JsonArray();
         }, exception: "AgentTimeoutError", trajectory: false);
-        Assert.Null(Ingest.Trial(timedOut, attempt, NbVariant, NbManifest(), "0.9.0", bridged: true));
+        Assert.Null(Ingest.Trial(timedOut, attempt, NbThroughHarbor, NbManifest(), "0.9.0", bridged: true));
         Assert.Equal("time_budget", ReadJson(Path.Combine(attempt, "core.json"))["exit_reason"]!.GetValue<string>());
     }
 }

@@ -10,7 +10,7 @@ namespace Auspex;
 /// The exams, as designed on the canvas (2026-11-27): one row an exam, the one tried most recently first. An exam with
 /// axes shows its named configurations with the mark each carries on the exam's own page, which is the headline read:
 /// what is live, what might replace it, how that is going; then its predictions as "X vs Y" with their count, its tries
-/// and when the last was made. An exam of variants, or one proctor cannot read, is a plain row. Every mark and count
+/// and when the last was made. An exam proctor cannot read is a plain row. Every mark and count
 /// is proctor's (Measured.cs).
 /// </summary>
 static class IndexPage
@@ -77,7 +77,7 @@ static class IndexPage
     /// <summary>An exam proctor cannot read as it stands (one still written as tasks and variants, say): what the bank holds, nothing counted.</summary>
     static Row Plain(Exam e, string? problem)
     {
-        var tries = e.Attempts.Select(a => (a.Variant, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
+        var tries = e.Attempts.Select(a => (a.Configuration, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
         var row = new StringBuilder("<div class=\"row ex\" style=\"padding:18px 0\">").Append(Head(e, "not read")).Append("<span class=\"list\">");
         row.Append($"<span class=\"small soft\" title=\"{E(problem ?? "")}\">Proctor cannot read this exam as it stands, so nothing is counted.</span>");
         row.Append("</span><span class=\"small dim\">None</span>")

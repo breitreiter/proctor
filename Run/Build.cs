@@ -74,7 +74,7 @@ static class Build
     }
 
     static IEnumerable<string> Hooks(Exam exam) =>
-        new[] { exam.Def.Hooks?.Variant?.Setup, exam.Def.Hooks?.Variant?.Teardown, exam.Def.Hooks?.Attempt?.Setup, exam.Def.Hooks?.Attempt?.Teardown }.OfType<string>();
+        new[] { exam.Def.Hooks?.Configuration?.Setup, exam.Def.Hooks?.Configuration?.Teardown, exam.Def.Hooks?.Try?.Setup, exam.Def.Hooks?.Try?.Teardown }.OfType<string>();
 
     /// <summary>The axes on which a configuration is not at the reference.</summary>
     public static List<(string Axis, string Value)> Off(Configuration c, Configuration reference) => c.Values.Where(v => reference[v.Axis] != v.Value).ToList();
@@ -169,7 +169,7 @@ static class Build
         var stages = exam.StagesOf(c.Key);
         if (stages.Count == 0) return (null, "no stage applies in it");
         var fixture = exam.FixtureOf(stages[0]);
-        if (axes.Assistant(c) is { IsAgent: true } agent)
+        if (axes.AssistantOf(c) is { IsAgent: true } agent)
         {
             // Through Harbor: the task as `run` would compile it, with no route and a fixed name for nb's layer, since neither is the value's.
             if (fixture?.Def.Image is null) return (null, "runs through Harbor, and its fixture declares no image");
@@ -189,12 +189,13 @@ static class Build
         };
         if (fixture is not null && Checkout.Materialise(fixture, work, context.Overlays) is { } checkoutError) return (null, $"fixture checkout failed: {checkoutError}");
 
-        var variantEnv = new Dictionary<string, string> { ["PROCTOR_EXAM"] = exam.Id, ["PROCTOR_VARIANT"] = c.Key, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_BUNDLE"] = "", ["PROCTOR_RUNNER"] = nb?.Runner?.Script ?? "" };
+        var hookEnv = new Dictionary<string, string> { ["PROCTOR_EXAM"] = exam.Id, ["PROCTOR_CONFIGURATION"] = c.Key, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_RUNNER"] = nb?.Runner?.Script ?? "" };
+        foreach (var (axis, value) in c.Values) hookEnv["PROCTOR_AXIS_" + axis.ToUpperInvariant().Replace('-', '_')] = value;
         string Log(string name) => Path.Combine(attemptDir, name + ".log");
-        var failure = Runner.RunHook(exam, exam.Def.Hooks?.Variant?.Setup, variantEnv, Log("variant.setup")) is { } variantError ? $"variant setup hook failed: {variantError}" : null;
+        var failure = Runner.RunHook(exam, exam.Def.Hooks?.Configuration?.Setup, hookEnv, Log("configuration.setup")) is { } setupFailed ? $"configuration setup hook failed: {setupFailed}" : null;
         var env = context.Environment();
-        var attemptSetupRan = failure is null;
-        if (failure is null && Runner.RunHook(exam, exam.Def.Hooks?.Attempt?.Setup, env, Log("attempt.setup")) is { } setupError) failure = $"attempt setup hook failed: {setupError}";
+        var trySetupRan = failure is null;
+        if (failure is null && Runner.RunHook(exam, exam.Def.Hooks?.Try?.Setup, env, Log("try.setup")) is { } setupError) failure = $"try setup hook failed: {setupError}";
 
         string? tree = null;
         var files = new Dictionary<string, (long, string)>();
@@ -222,8 +223,8 @@ static class Build
                         files[path] = (new FileInfo(copy).Length, Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(copy))));
                     }
         // Teardown runs whenever setup ran, as in a try; what it does is after the starting state and in no change.
-        if (attemptSetupRan) Runner.RunHook(exam, exam.Def.Hooks?.Attempt?.Teardown, env, Log("attempt.teardown"));
-        Runner.RunHook(exam, exam.Def.Hooks?.Variant?.Teardown, variantEnv, Log("variant.teardown"));
+        if (trySetupRan) Runner.RunHook(exam, exam.Def.Hooks?.Try?.Teardown, env, Log("try.teardown"));
+        Runner.RunHook(exam, exam.Def.Hooks?.Configuration?.Teardown, hookEnv, Log("configuration.teardown"));
         return failure is null ? (new Built(files, tree, work), null) : (null, failure);
     }
 

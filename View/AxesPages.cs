@@ -33,7 +33,7 @@ static class AxesPages
         {
             // Proctor could not read the exam as it is now: say so in its words, and still list what the bank holds.
             page.Append($"</header><div class=\"said\"><b>Proctor cannot read this exam as it stands</b>, so nothing is counted here.</div><pre class=\"mono small soft\">{E(problem ?? coverageProblem ?? "")}</pre>");
-            Tries(page, e, e.Attempts.Select(a => a.Variant).Distinct().ToList());
+            Tries(page, e, e.Attempts.Select(a => a.Configuration).Distinct().ToList());
             return Close(page);
         }
         var axes = exam.Axes!;
@@ -106,12 +106,12 @@ static class AxesPages
     /// <summary>The tries the bank holds of these configurations, newest first, each with its stages; nothing counted.</summary>
     static void Tries(StringBuilder page, Exam e, IReadOnlyCollection<string> configurations)
     {
-        var tries = e.Attempts.Where(a => a.ById && configurations.Contains(a.Variant)).GroupBy(a => a.N).OrderByDescending(g => g.Key, StringComparer.Ordinal).ToList();
+        var tries = e.Attempts.Where(a => a.ById && configurations.Contains(a.Configuration)).GroupBy(a => a.N).OrderByDescending(g => g.Key, StringComparer.Ordinal).ToList();
         if (tries.Count == 0) { page.Append("<div class=\"said soft\">No try of it in the bank.</div>"); return; }
         foreach (var t in tries)
             page.Append($"<div class=\"row\" style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><a {Mono} href=\"{U($"/{e.Id}/try/{t.Key}")}\">{E(t.Key)}</a>")
                 .Append(string.Concat(t.Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">{E(a.Task)}</a>{(a.Status == "completed" ? "" : $" <wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(a.Status)}</wa-badge>")}</span>")))
-                .Append(configurations.Count > 1 ? $"<span class=\"small dim\">{E(t.First().Variant)}</span>" : "").Append("</div>");
+                .Append(configurations.Count > 1 ? $"<span class=\"small dim\">{E(t.First().Configuration)}</span>" : "").Append("</div>");
     }
 
     /// <summary>One comparison, at the address proctor's answer gave: the numbers as they stood then, and as they are now when tries have been added since.</summary>

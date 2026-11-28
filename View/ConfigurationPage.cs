@@ -81,7 +81,7 @@ static class ConfigurationPage
     }
 
     /// <summary>Each stage across the tries: the share of its correctness checks a try held, as average, lowest and highest, in how many tries it went right, and what did not hold.</summary>
-    static void Stages(StringBuilder page, P.ConfigurationsFile stats, P.TryVariant tries)
+    static void Stages(StringBuilder page, P.ConfigurationsFile stats, P.ConfigurationTries tries)
     {
         Section(page, "Stages", "Stages are defined by the exam. A try is one attempt at the exam by this configuration. Right means that all the stage's correctness checks passed. Each percentage is the share of the stage's correctness checks that held in a try: the average across tries, then the lowest and the highest try.");
         page.Append("<div style=\"min-width:860px\"><div class=\"row row-head grid\"><span>Stage</span><span class=\"r\">Checks</span><span class=\"r\">Average</span><span class=\"r\">Lowest</span><span class=\"r\">Highest</span><span class=\"r\">Right in</span><span>Did not hold</span></div>");
@@ -100,7 +100,7 @@ static class ConfigurationPage
     }
 
     /// <summary>Each check's rate here and, beside it, in what is live: how often it held of the times it was asked.</summary>
-    static void Checks(StringBuilder page, P.Exam exam, P.TryVariant tries, P.ConfigurationRow? live, string name)
+    static void Checks(StringBuilder page, P.Exam exam, P.ConfigurationTries tries, P.ConfigurationRow? live, string name)
     {
         Section(page, "Checks", "Checks are small tests that verify the agent's work. Correctness checks fail the stage, integrity invalidates the run. Each number is how often the check held, of the times it was asked.");
         page.Append($"<div style=\"min-width:760px\"><div class=\"row row-head rates\"><span>Check</span><span></span><span class=\"r\">{E(name)}</span><span class=\"r\">{E(live?.Name ?? "")}</span><span></span></div>");
@@ -120,10 +120,10 @@ static class ConfigurationPage
     }
 
     /// <summary>What recurs as friction across the tries, by kind, most flagged steps a try first; each opens a stage where it happened.</summary>
-    static void Friction(StringBuilder page, Exam e, Measured.Reported report, string key, P.TryVariant tries)
+    static void Friction(StringBuilder page, Exam e, Measured.Reported report, string key, P.ConfigurationTries tries)
     {
         Section(page, "Friction", "Instances where the agent performed fruitless work, back-tracked, or otherwise appeared to be struggling with the environment or available tools.");
-        var friction = report.Friction.Variants.FirstOrDefault(v => v.Id == key);
+        var friction = report.Friction.Configurations.FirstOrDefault(v => v.Id == key);
         if (friction is null || tries.Flagged is null)
         {
             page.Append("<div class=\"said soft\">Friction has not been read on every stage of these tries.</div></div></section>");
@@ -151,7 +151,7 @@ static class ConfigurationPage
     }
 
     /// <summary>Every try, with its stages in order as squares: filled is right, hollow is wrong, dashed did not run. Each square opens that stage of that try.</summary>
-    static void Tries(StringBuilder page, Exam e, Measured.Reported report, string key, P.TryVariant tries, P.ConfigurationsFile stats)
+    static void Tries(StringBuilder page, Exam e, Measured.Reported report, string key, P.ConfigurationTries tries, P.ConfigurationsFile stats)
     {
         Section(page, "Tries", "Each recorded attempt at this exam, for this configuration. A filled square is a stage that went right, a hollow one went wrong. Each opens that stage.");
         page.Append("<div style=\"min-width:900px\"><div class=\"row row-head everytry\"><span>Try</span><span>Made</span><span>Stages, in order</span><span class=\"r\">Checks held</span><span class=\"r\">Friction</span><span class=\"r\">Tool calls</span><span class=\"r\">Tokens read</span><span class=\"r\">Time</span></div>");
@@ -172,7 +172,7 @@ static class ConfigurationPage
                 .Append($"<span class=\"r num\">{t.Held} of {t.Of}</span><span class=\"r fr\">{(t.Flagged is { } f ? f.ToString() : "–")}</span>")
                 .Append($"<span class=\"r num\">{(t.ToolCalls is { } calls ? calls.ToString() : "–")}</span><span class=\"r num\">{(t.TokensIn is { } tokens ? E(Tokens(tokens)) : "–")}</span><span class=\"r num\">{(t.DurationMs is { } ms ? E(Time(ms)) : "–")}</span></div>");
         }
-        foreach (var l in stats.Lost.Where(l => l.Variant == key))
+        foreach (var l in stats.Lost.Where(l => l.Configuration == key))
             page.Append($"<div class=\"row small dim\" style=\"display:block\">Try {l.N} is lost and counted nowhere, at {E(l.At)}: {E(l.Why)}</div>");
         page.Append("</div></div></section>");
     }

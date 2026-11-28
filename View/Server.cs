@@ -69,10 +69,10 @@ public static class Server
             Bank.FindTryById(root, exam, id) is { Count: > 0 } stages && stages.FirstOrDefault(s => s.Task == stage) is { } a
                 ? Html(TryStagePage.Render(root, a, stages, request.Query["show"])) : Results.NotFound());
         // An attempt of the earlier shape, by the path the bank keeps it at.
-        app.MapGet("/{exam}/{variant}/{n}", (string exam, string variant, string n) =>
-            Bank.FindTry(root, exam, variant, n) is { Count: > 0 } stages ? Results.Redirect(Pages.U(stages[0].Path)) : Results.NotFound());
-        app.MapGet("/{exam}/{variant}/{first}/{second}", (string exam, string variant, string first, string second, HttpRequest request) =>
-            Bank.FindAttempt(root, exam, variant, first, second) is { } a ? Html(TryStagePage.Render(root, a, Bank.FindTry(root, exam, variant, a.N), request.Query["show"])) : Results.NotFound());
+        app.MapGet("/{exam}/{filed}/{n}", (string exam, string filed, string n) =>
+            Bank.FindTry(root, exam, filed, n) is { Count: > 0 } stages ? Results.Redirect(Pages.U(stages[0].Path)) : Results.NotFound());
+        app.MapGet("/{exam}/{filed}/{first}/{second}", (string exam, string filed, string first, string second, HttpRequest request) =>
+            Bank.FindAttempt(root, exam, filed, first, second) is { } a ? Html(TryStagePage.Render(root, a, Bank.FindTry(root, exam, filed, a.N), request.Query["show"])) : Results.NotFound());
 
         await app.StartAsync();
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();

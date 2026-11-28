@@ -215,8 +215,8 @@ sealed class Axes
         void Add(string field, string message) { problems++; add(field, message); }
         var axes = def.Axes!;
 
-        var variantsDir = Layout.VariantsDirIn(dir);
-        if (Directory.Exists(variantsDir) && Directory.GetFiles(variantsDir, "*.json").Length > 0)
+        var earlierDir = Layout.VariantsDirIn(dir);
+        if (Directory.Exists(earlierDir) && Directory.GetFiles(earlierDir, "*.json").Length > 0)
             Add("axes", "this exam also has variants/*.json, the earlier shape; what is under test is declared here, so make each variant's fields a value and delete the files");
         if (axes.Count == 0) Add("axes", "at least one axis is required");
 
@@ -416,14 +416,14 @@ sealed class Axes
     /// Who does the work in a configuration, as the runner knows it: proctor's own fields from each value, merged. The
     /// route says bare or through Harbor; without one, a vendor agent goes through Harbor and nb runs bare.
     /// </summary>
-    public Variant Assistant(Configuration c)
+    public Assistant AssistantOf(Configuration c)
     {
         string? Pick(Func<ValueDef, string?> field) => c.Values.Select(v => field(Value(v.Axis, v.Value))).FirstOrDefault(f => f is not null);
         var (agent, route) = (Pick(v => v.Agent), Pick(v => v.Route));
-        var vendor = agent is not null && agent != Variant.Nb;
+        var vendor = agent is not null && agent != Assistant.Nb;
         var bare = !vendor && route != ValueDef.Harbor;
-        return new Variant(c.Key, bare ? Variant.Nb : null, vendor ? null : Pick(v => v.Harness) ?? Variant.Nb, Pick(v => v.Provider), Pick(v => v.Model),
-            Agent: bare ? null : agent ?? Variant.Nb, AgentVersion: Pick(v => v.AgentVersion)) { Hash = c.Hash };
+        return new Assistant(c.Key, bare ? Assistant.Nb : null, vendor ? null : Pick(v => v.Harness) ?? Assistant.Nb, Pick(v => v.Provider), Pick(v => v.Model),
+            Agent: bare ? null : agent ?? Assistant.Nb, AgentVersion: Pick(v => v.AgentVersion)) { Hash = c.Hash };
     }
 
     /// <summary>What is wrong with who does the work in a configuration, in the words of the fields that say it.</summary>
@@ -431,7 +431,7 @@ sealed class Axes
     {
         string? Pick(Func<ValueDef, string?> field) => c.Values.Select(v => field(Value(v.Axis, v.Value))).FirstOrDefault(f => f is not null);
         var (agent, route) = (Pick(v => v.Agent), Pick(v => v.Route));
-        if (agent is not null && agent != Variant.Nb && route == ValueDef.Bare)
+        if (agent is not null && agent != Assistant.Nb && route == ValueDef.Bare)
             yield return $"agent {agent} with route {ValueDef.Bare}: a vendor's agent runs through Harbor only";
         if (agent is null && Pick(v => v.Model) is null && Pick(v => v.Provider) is null)
             yield return "no value says who does the work; one axis needs values with agent and model (or, for nb, provider and model)";

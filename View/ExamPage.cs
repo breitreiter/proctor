@@ -73,7 +73,7 @@ static class ExamPage
         page.Append("<section class=\"sec sec-plain\" aria-label=\"How this is counted\"><div class=\"sec-head\"><span class=\"label\">How this is counted</span></div>")
             .Append($"<div class=\"sec-body note\" style=\"display:flex;flex-direction:column;gap:6px;max-width:900px\"><div>{E(stats.Methods)}</div>");
         foreach (var l in stats.Lost)
-            page.Append($"<div>Try {l.N} of {E(named.FirstOrDefault(c => c.Key == l.Variant)?.Name ?? l.Variant)} is lost and counted nowhere, at {E(l.At)}: {E(l.Why)}</div>");
+            page.Append($"<div>Try {l.N} of {E(named.FirstOrDefault(c => c.Key == l.Configuration)?.Name ?? l.Configuration)} is lost and counted nowhere, at {E(l.At)}: {E(l.Why)}</div>");
         page.Append("<div>Every number here is proctor's. Nothing on this page recommends anything.</div></div></section>");
         return Close(page);
     }
@@ -122,7 +122,7 @@ static class ExamPage
     /// <summary>A line to what the bank still holds from before the exam was stages and axes; empty when there is nothing.</summary>
     static string EarlierLink(Exam e)
     {
-        var tries = e.Earlier.Select(a => (a.Variant, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
+        var tries = e.Earlier.Select(a => (a.Configuration, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
         return tries == 0 ? "" : $"<a id=\"earlier\" href=\"{U($"/{e.Id}/earlier")}\">{tries} earlier {(tries == 1 ? "attempt" : "attempts")}</a> <span class=\"dim\">made while this exam was tasks and variants. In the bank, and in no number here.</span>";
     }
 

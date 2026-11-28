@@ -57,7 +57,7 @@ public class StagedRunTests
         Assert.DoesNotContain("made.txt", File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "3-say", "transcript.jsonl")));
 
         // The hooks run once around the try. Each stage keeps the diff as it left the workspace, so on a chained exam a later stage's holds the earlier ones' changes.
-        Assert.True(File.Exists(Path.Combine(TryDir(repo, 1), "hooks", "attempt.setup.log")));
+        Assert.True(File.Exists(Path.Combine(TryDir(repo, 1), "hooks", "try.setup.log")));
         Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "diff.patch")));
         foreach (var stage in new[] { "1-write", "2-read", "3-say" })
             Assert.Contains("made.txt", File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", stage, "diff.patch")));

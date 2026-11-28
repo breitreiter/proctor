@@ -21,8 +21,8 @@ record TryRow(int N, string? Made, int Held, int Of, bool Passed, int? Flagged, 
 record Spread(double Min, double Median, double Max);
 
 /// <summary>
-/// One measure of a variant's tries against live's, try against try (Mann–Whitney): in how many of the pairings the
-/// variant's try was higher, lower or tied, the exact two-sided p, and the direction in the report's words: better, worse or same.
+/// One measure of one set of tries against another, try against try (Mann–Whitney): in how many of the pairings the
+/// first's try was higher, lower or tied, the exact two-sided p, and the direction in the report's words: better, worse or same.
 /// Median and OtherMedian are each side's middle try, and Change the first as a fraction above or below the second (0.8 is 80% more;
 /// null when the other's median is zero). They say how far, never whether: the direction and the p are the pairings'. Null on a measure pooled over several settings.
 /// </summary>
@@ -43,32 +43,32 @@ record StageTally(string Id, int Right, int Of, int Checks = 0, int Graded = 0, 
 record CheckRate(string Check, string Role, int Held, int Asked);
 
 /// <summary>One configuration's tries, by its key: how many counted, were lost or were invalid, and the two numbers of each as spreads.</summary>
-record TryVariant(string Id, int Tries, int Lost, int Invalid, int Passed, Spread? Held, Spread? Flagged,
+record ConfigurationTries(string Id, int Tries, int Lost, int Invalid, int Passed, Spread? Held, Spread? Flagged,
     List<StageTally> Stages, List<TryRow> Rows, Spread? ToolCalls = null, Spread? Tokens = null, Spread? Duration = null, List<CheckRate>? Checks = null);
 
 /// <summary>A try in which a stage did not run: left out of every number.</summary>
-record LostTry(string Variant, int N, string At, string Why);
+record LostTry([property: System.Text.Json.Serialization.JsonPropertyName(OnDisk.Variant)] string Configuration, int N, string At, string Why);
 
 /// <summary>A stage as the report names it. Checks is every check it carries with its role (correctness, integrity, quality, observation).</summary>
 record StageInfo(string Id, int Place, string About, List<string> CorrectnessChecks, Dictionary<string, string>? Checks = null);
 
 /// <summary>What <see cref="Tries.Compute"/> reads out of the bank: the stages, each configuration's tries, and the tries that were lost.</summary>
-record TriesRead(List<StageInfo> Stages, List<TryVariant> Variants, List<LostTry> Lost);
+record TriesRead(List<StageInfo> Stages, List<ConfigurationTries> Configurations, List<LostTry> Lost);
 
 /// <summary>
-/// One kind of friction in a variant's tries: a label and what the rule fired on (a reader's points have no detail and
+/// One kind of friction in a configuration's tries: a label and what the rule fired on (a reader's points have no detail and
 /// group by label). In how many tries, how many flagged steps when it happens, and its flagged steps over all the tries
 /// divided by their number, which is what the kinds sort by. <c>Example</c> is a stage where it happened, as try/stage.
 /// </summary>
 record FrictionKind(string Label, string? Detail, List<string> Stages, int In, int Of, Spread When, double PerTry, string Example);
 
-/// <summary>One label of friction in a variant's tries: its flagged steps a try, over all the counted tries. A step may carry several labels, so the labels add up to more than the flagged steps.</summary>
+/// <summary>One label of friction in a configuration's tries: its flagged steps a try, over all the counted tries. A step may carry several labels, so the labels add up to more than the flagged steps.</summary>
 record FrictionLabel(string Label, double PerTry);
 
-record FrictionVariant(string Id, int Tries, double PerTry, List<FrictionKind> Kinds, List<FrictionLabel>? Labels = null);
+record ConfigurationFriction(string Id, int Tries, double PerTry, List<FrictionKind> Kinds, List<FrictionLabel>? Labels = null);
 
-/// <summary>reports/&lt;exam&gt;/explore/friction.json: what recurs across a variant's tries (check-evidence.md, C5.4).</summary>
-record FrictionRollup(string Schema, string Exam, List<FrictionVariant> Variants, BuiltFrom? BuiltFrom);
+/// <summary>reports/&lt;exam&gt;/explore/friction.json: what recurs across a configuration's tries (check-evidence.md, C5.4).</summary>
+record FrictionRollup(string Schema, string Exam, [property: System.Text.Json.Serialization.JsonPropertyName(OnDisk.Variants)] List<ConfigurationFriction> Configurations, BuiltFrom? BuiltFrom);
 
 /// <summary>
 /// The tries of an exam, read out of its bank. A try is the unit: every stage that applies in its configuration once,
@@ -86,21 +86,21 @@ static class Tries
     {
         var surface = new Surface(exam.Def.Surface);
         var kinds = new Dictionary<string, List<(int Try, string Stage, string Label, string? Detail, int Steps)>>();
-        var variants = new List<TryVariant>();
-        var ids = exam.Variants.Select(v => v.Id!).Where(v => current.Any(a => a.Variant == v)).ToList();
+        var keys = new List<ConfigurationTries>();
+        var ids = exam.Assistants.Select(v => v.Id!).Where(v => current.Any(a => a.Configuration == v)).ToList();
 
-        foreach (var variant in ids)
+        foreach (var key in ids)
         {
             // A try is the stages that apply in its configuration, and holds of those stages' correctness checks.
-            var stages = exam.StagesOf(variant);
+            var stages = exam.StagesOf(key);
             // Of the correctness checks that apply in this configuration: one that does not apply is no part of what a try can hold.
-            var of = stages.Sum(s => Standard.PassIn(exam, s, variant).Count);
-            var found = kinds[variant] = [];
+            var of = stages.Sum(s => Standard.PassIn(exam, s, key).Count);
+            var found = kinds[key] = [];
             var tryRows = new List<TryRow>();
-            foreach (var group in current.Where(a => a.Variant == variant).GroupBy(a => a.Attempt).OrderBy(g => g.Key))
+            foreach (var group in current.Where(a => a.Configuration == key).GroupBy(a => a.Attempt).OrderBy(g => g.Key))
             {
                 var n = group.Key;
-                var perStage = stages.Select(s => (Stage: s, Attempt: group.FirstOrDefault(a => a.Task == s.Id), Row: rows.FirstOrDefault(r => r.Variant == variant && r.Attempt == n && r.Task == s.Id))).ToList();
+                var perStage = stages.Select(s => (Stage: s, Attempt: group.FirstOrDefault(a => a.Task == s.Id), Row: rows.FirstOrDefault(r => r.Configuration == key && r.Attempt == n && r.Task == s.Id))).ToList();
                 int held = 0, undecided = 0;
                 int? flagged = 0;
                 string? invalid = null;
@@ -108,7 +108,7 @@ static class Tries
                 foreach (var (stage, attempt, row) in perStage)
                 {
                     if (row?.Checks is null) { results.Add(new TryStage(stage.Id!, row?.Status == AttemptStatus.Skipped ? "not_reached" : "undecided")); if (row?.Status == AttemptStatus.Completed) flagged = null; continue; }
-                    var pass = Standard.PassIn(exam, stage, variant);
+                    var pass = Standard.PassIn(exam, stage, key);
                     held += pass.Count(c => row.Checks.GetValueOrDefault(c) == Verdict.Pass);
                     undecided += pass.Count(c => row.Checks.GetValueOrDefault(c) is Verdict.NeedsJudge or Verdict.Outdated);
                     invalid ??= row.Invalid is null ? null : $"{stage.Id}: {row.Invalid}";
@@ -126,37 +126,37 @@ static class Tries
                     invalid, undecided, results, ran.Sum(r => r.ToolCalls ?? 0), ran.Sum(r => r.Usage?.Input ?? 0), manifests.Sum(m => m.DurationMs ?? 0)));
             }
             var counted = tryRows.Where(t => t.Invalid is null).ToList();
-            var lost = bank.Where(a => a.Lost && a.Variant == variant && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count();
-            variants.Add(new TryVariant(variant, counted.Count, lost, tryRows.Count - counted.Count, counted.Count(t => t.Passed),
+            var lost = bank.Where(a => a.Lost && a.Configuration == key && Bank.Stale(exam, a) is null).Select(a => a.Attempt).Distinct().Count();
+            keys.Add(new ConfigurationTries(key, counted.Count, lost, tryRows.Count - counted.Count, counted.Count(t => t.Passed),
                 SpreadOf(counted.Select(t => (double)t.Held)), counted.Count > 0 && counted.All(t => t.Flagged is not null) ? SpreadOf(counted.Select(t => (double)t.Flagged!.Value)) : null,
                 stages.Select(s =>
                 {
                     var graded = counted.Select(t => t.Stages.First(x => x.Id == s.Id)).Where(x => x.Of is > 0).ToList();
                     var shares = graded.Select(x => (double)x.Held!.Value / x.Of!.Value).ToList();
-                    var mine = rows.Where(r => r.Variant == variant && r.Task == s.Id && r.Checks is not null && counted.Any(t => t.N == r.Attempt)).ToList();
-                    var notHeld = Standard.PassIn(exam, s, variant).Select(c => (Check: c, Failed: mine.Where(r => r.Checks!.GetValueOrDefault(c) == Verdict.Fail).OrderBy(r => r.Attempt).ToList()))
+                    var mine = rows.Where(r => r.Configuration == key && r.Task == s.Id && r.Checks is not null && counted.Any(t => t.N == r.Attempt)).ToList();
+                    var notHeld = Standard.PassIn(exam, s, key).Select(c => (Check: c, Failed: mine.Where(r => r.Checks!.GetValueOrDefault(c) == Verdict.Fail).OrderBy(r => r.Attempt).ToList()))
                         .Where(x => x.Failed.Count > 0).Select(x => new NotHeld(x.Check, x.Failed.Count, x.Failed[0].Reasons?.GetValueOrDefault(x.Check))).ToList();
-                    return new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count, Standard.PassIn(exam, s, variant).Count, graded.Count,
+                    return new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count, Standard.PassIn(exam, s, key).Count, graded.Count,
                         SpreadOf(shares), shares.Count > 0 ? Math.Round(shares.Average(), 4) : null, notHeld.Count > 0 ? notHeld : null);
                 }).ToList(), tryRows,
                 Whole(counted, t => t.ToolCalls), Whole(counted, t => t.TokensIn), Whole(counted, t => t.DurationMs),
                 // An integrity check's rate is over every graded try, since it says how many were counted; any other check's is over the counted ones.
-                exam.CheckNames.Select(c => (Check: c, Verdicts: rows.Where(r => r.Variant == variant && (exam.RoleOf(c) == Roles.Integrity ? tryRows : counted).Any(t => t.N == r.Attempt)).Select(r => r.Checks?.GetValueOrDefault(c)).Where(v => v is Verdict.Pass or Verdict.Fail).ToList()))
+                exam.CheckNames.Select(c => (Check: c, Verdicts: rows.Where(r => r.Configuration == key && (exam.RoleOf(c) == Roles.Integrity ? tryRows : counted).Any(t => t.N == r.Attempt)).Select(r => r.Checks?.GetValueOrDefault(c)).Where(v => v is Verdict.Pass or Verdict.Fail).ToList()))
                     .Where(x => x.Verdicts.Count > 0).Select(x => new CheckRate(x.Check, exam.RoleOf(x.Check), x.Verdicts.Count(v => v == Verdict.Pass), x.Verdicts.Count)).ToList()));
         }
 
         // A configuration never in `current` can still have lost every try it made: it has no numbers, but its lost tries are said.
-        var lostTries = bank.Where(a => a.Lost && Bank.Stale(exam, a) is null).GroupBy(a => (a.Variant, a.Attempt)).OrderBy(g => exam.Variants.FindIndex(v => v.Id == g.Key.Variant)).ThenBy(g => g.Key.Attempt)
+        var lostTries = bank.Where(a => a.Lost && Bank.Stale(exam, a) is null).GroupBy(a => (a.Configuration, a.Attempt)).OrderBy(g => exam.Assistants.FindIndex(v => v.Id == g.Key.Configuration)).ThenBy(g => g.Key.Attempt)
             .Select(g =>
             {
                 var at = g.FirstOrDefault(a => a.Status == AttemptStatus.Failed) ?? g.First(a => a.Unfinished);
                 var manifest = Path.Combine(at.Dir(root), Layout.ManifestFile);
-                return new LostTry(g.Key.Variant, g.Key.Attempt, at.Task, (File.Exists(manifest) ? Runner.ReadManifest(manifest).StatusReason : null) ?? at.Status);
+                return new LostTry(g.Key.Configuration, g.Key.Attempt, at.Task, (File.Exists(manifest) ? Runner.ReadManifest(manifest).StatusReason : null) ?? at.Status);
             }).ToList();
 
-        var rollup = variants.Select(v => Rollup(v, kinds[v.Id])).ToList();
+        var rollup = keys.Select(v => Rollup(v, kinds[v.Id])).ToList();
         return (new TriesRead(
-                exam.Tasks.Select((s, i) => new StageInfo(s.Id!, i + 1, Exam.Describe(s), exam.CorrectnessFor(s), exam.ChecksFor(s).Keys.ToDictionary(k => k, exam.RoleOf))).ToList(), variants, lostTries),
+                exam.Tasks.Select((s, i) => new StageInfo(s.Id!, i + 1, Exam.Describe(s), exam.CorrectnessFor(s), exam.ChecksFor(s).Keys.ToDictionary(k => k, exam.RoleOf))).ToList(), keys, lostTries),
             new FrictionRollup(FrictionSchema, exam.Id, rollup, built));
     }
 
@@ -183,7 +183,7 @@ static class Tries
         return (flagged, byKind.Select(k => (k.Key.Item1, k.Key.Item2, k.Value.Count)).ToList());
     }
 
-    static FrictionVariant Rollup(TryVariant v, List<(int Try, string Stage, string Label, string? Detail, int Steps)> found)
+    static ConfigurationFriction Rollup(ConfigurationTries v, List<(int Try, string Stage, string Label, string? Detail, int Steps)> found)
     {
         var counted = v.Rows.Where(t => t.Invalid is null).Select(t => t.N).ToHashSet();
         var n = counted.Count;
@@ -196,7 +196,7 @@ static class Tries
         var flagged = v.Rows.Where(t => t.Invalid is null && t.Flagged is not null).Select(t => (double)t.Flagged!.Value).ToList();
         var labels = n == 0 ? [] : found.Where(f => counted.Contains(f.Try)).GroupBy(f => f.Label).Select(g => new FrictionLabel(g.Key, Math.Round((double)g.Sum(f => f.Steps) / n, 2)))
             .OrderByDescending(l => l.PerTry).ThenBy(l => l.Label, StringComparer.Ordinal).ToList();
-        return new FrictionVariant(v.Id, n, flagged.Count == 0 ? 0 : Math.Round(flagged.Average(), 2), kinds, labels);
+        return new ConfigurationFriction(v.Id, n, flagged.Count == 0 ? 0 : Math.Round(flagged.Average(), 2), kinds, labels);
     }
 
     public static Measure Compare(List<double> mine, List<double> theirs, bool higherIsBetter)

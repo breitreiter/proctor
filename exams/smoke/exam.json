@@ -4,10 +4,10 @@
   "attempts": 2,
   "fixture": "note",
   "hooks": {
-    "variant": {
+    "configuration": {
       "setup": "hooks/configuration-setup.sh"
     },
-    "attempt": {
+    "try": {
       "setup": "hooks/try-setup.sh",
       "teardown": "hooks/try-teardown.sh"
     }

@@ -6,7 +6,7 @@ namespace Proctor.Tests;
 /// <summary>Axes, values and configurations as declared (plans/axes-build.md, slice 1): what loads, and what is refused and where.</summary>
 public class AxesTests
 {
-    /// <summary>smoke as stages with two axes: docs (two overlays, as-shipped live) and assistant (two Mock providers). variants/ is gone.</summary>
+    /// <summary>smoke as stages with two axes: docs (two overlays, as-shipped live) and assistant (two Mock providers).</summary>
     static TestRepo Smoke(Action<JsonObject>? edit = null)
     {
         var repo = new TestRepo();
@@ -49,7 +49,7 @@ public class AxesTests
         // Nobody spans the cross product: an exam that names none carries none, and any one is made when asked for.
         using var none = Smoke();
         Assert.Empty(none.LoadExam("smoke").Axes!.Configurations);
-        Assert.Empty(none.LoadExam("smoke").Variants);
+        Assert.Empty(none.LoadExam("smoke").Assistants);
         Assert.Equal("docs=rewritten × assistant=b", none.LoadExam("smoke").Axes!.Of("docs=rewritten,assistant=b")!.Label);
         Assert.Null(none.LoadExam("smoke").Axes!.Of("docs=gone,assistant=b"));
 
@@ -62,11 +62,11 @@ public class AxesTests
         Assert.Equal("docs=as-shipped × assistant=a", axes.Configurations[0].Label);
         Assert.Equal("as-shipped", axes.Def["docs"].Live);
         Assert.Null(axes.Def["assistant"].Live);
-        // Who does the work stands where a variant did: nb, bare, on the value's provider.
-        Assert.Equal(axes.Configurations.Select(c => c.Key), exam.Variants.Select(v => v.Id));
-        Assert.All(exam.Variants, v => Assert.True(v is { Runner: "nb", Harness: "nb", IsAgent: false }));
-        Assert.Equal(["Mock", "MockB", "Mock", "MockB"], exam.Variants.Select(v => v.Provider));
-        Assert.Equal(axes.Configurations.Select(c => c.Hash), exam.Variants.Select(v => v.Hash));
+        // Who does the work: nb, bare, on the value's provider.
+        Assert.Equal(axes.Configurations.Select(c => c.Key), exam.Assistants.Select(v => v.Id));
+        Assert.All(exam.Assistants, v => Assert.True(v is { Runner: "nb", Harness: "nb", IsAgent: false }));
+        Assert.Equal(["Mock", "MockB", "Mock", "MockB"], exam.Assistants.Select(v => v.Provider));
+        Assert.Equal(axes.Configurations.Select(c => c.Hash), exam.Assistants.Select(v => v.Hash));
     }
 
     [Fact]
@@ -104,8 +104,8 @@ public class AxesTests
         Assert.Equal([2, 2, 3, 2], every.Select(key => exam.Tasks.Count(s => axes.Applies(s, axes.Of(key)!))));
         Assert.Equal([false, false, false, true], every.Select(key => axes.Of(key)!.Excluded));
         Assert.Equal("shipped", axes.Of(every[0])!.Name);
-        // Only what is named is carried, so one configuration stands where a variant did.
-        Assert.Equal(["docs=as-shipped,assistant=a"], exam.Variants.Select(v => v.Id));
+        // Only what is named is carried.
+        Assert.Equal(["docs=as-shipped,assistant=a"], exam.Assistants.Select(v => v.Id));
 
         // Naming the excluded one is refused, where it is named.
         repo.EditJson("smoke/exam.json", e => e["configurations"]!["never"] = JsonNode.Parse("""{ "docs": "rewritten", "assistant": "b" }"""));

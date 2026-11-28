@@ -12,6 +12,6 @@ fi
 [ "$PROCTOR_AXIS_TONE" = terse ] && chance=$((chance + 10))
 [ "$PROCTOR_AXIS_EXAMPLES" = two ] && chance=$((chance + 10))
 [ "$PROCTOR_AXIS_LENGTH" = long ] && chance=$((chance + 5))
-roll=$(( $(printf '%s' "$PROCTOR_VARIANT/$PROCTOR_ATTEMPT/$check" | cksum | cut -d' ' -f1) % 100 ))
+roll=$(( $(printf '%s' "$PROCTOR_CONFIGURATION/$PROCTOR_ATTEMPT/$check" | cksum | cut -d' ' -f1) % 100 ))
 if [ "$roll" -lt "$chance" ]; then echo "held (rolled $roll under $chance)"; exit 0; fi
 echo "did not hold (rolled $roll, needed under $chance)"; exit 1

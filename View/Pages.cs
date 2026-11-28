@@ -18,7 +18,7 @@ public static class Pages
     {
         var held = earlier ? e.Earlier : e.Attempts;
         var page = Open(e.Id, earlier ? [("exams", "/"), (e.Id, $"/{e.Id}"), ("earlier attempts", null)] : [("exams", "/"), (e.Id, null)], style: "one");
-        var tries = held.Select(a => (a.Variant, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
+        var tries = held.Select(a => (a.Configuration, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
         page.Append($"<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">{(earlier ? "earlier attempts" : "bank")}</span>")
             .Append($"<h1 class=\"title\">{E(e.Id)}</h1>").Append(e.Description is { } d ? $"<p class=\"desc\">{E(d)}</p>" : "")
             .Append("<dl class=\"facts\">").Append(ExamPage.Fact("Filed under", e.Filed(held).Count.ToString())).Append(ExamPage.Fact("Tries", tries.ToString())).Append("</dl></header>");
@@ -29,19 +29,19 @@ public static class Pages
             : "Proctor cannot read this exam as it stands, so nothing is counted. Each try is listed as the bank holds it, under the name it is filed by.");
         string Unfinished(Attempt a) => a.Status is var status && status == "completed" ? "" : $" <wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(status)}</wa-badge>";
         var first = true;
-        foreach (var variant in e.Filed(held))
+        foreach (var key in e.Filed(held))
         {
             page.Append($"<div class=\"row{(first ? " first" : "")}\" style=\"grid-template-columns:minmax(180px,260px) minmax(0,1fr);padding:14px 0\">")
-                .Append($"<span style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap\"><span class=\"name\">{E(variant)}</span></span><span class=\"stack\" style=\"gap:8px\">");
+                .Append($"<span style=\"display:flex;gap:10px;align-items:center;flex-wrap:wrap\"><span class=\"name\">{E(key)}</span></span><span class=\"stack\" style=\"gap:8px\">");
             first = false;
             // Each try, then its stages in order. A stage that did not complete says its status.
-            var staged = held.Where(a => a.Variant == variant && a.Staged).ToList();
+            var staged = held.Where(a => a.Configuration == key && a.Staged).ToList();
             foreach (var n in staged.Select(a => a.N).Distinct())
-                page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><a href=\"{U(staged.First(a => a.N == n).ById ? $"/{e.Id}/try/{n}" : $"/{e.Id}/{variant}/{n}")}\">try {E(n)}</a>")
+                page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><a href=\"{U(staged.First(a => a.N == n).ById ? $"/{e.Id}/try/{n}" : $"/{e.Id}/{key}/{n}")}\">try {E(n)}</a>")
                     .Append(string.Concat(staged.Where(a => a.N == n).Select(a => $"<span class=\"small\"><a class=\"mono\" href=\"{U(a.Path)}\">{E(a.Task)}</a>{Unfinished(a)}</span>"))).Append("</span>");
-            foreach (var task in held.Where(a => a.Variant == variant && !a.Staged).Select(a => a.Task).Distinct())
+            foreach (var task in held.Where(a => a.Configuration == key && !a.Staged).Select(a => a.Task).Distinct())
                 page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><span class=\"mono\">{E(task)}</span>")
-                    .Append(string.Concat(held.Where(a => a.Variant == variant && a.Task == task).Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">try {E(a.N)}</a>{Unfinished(a)}</span>"))).Append("</span>");
+                    .Append(string.Concat(held.Where(a => a.Configuration == key && a.Task == task).Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">try {E(a.N)}</a>{Unfinished(a)}</span>"))).Append("</span>");
             page.Append("</span></div>");
         }
         return Close(page.Append("</div></section>"));

@@ -65,7 +65,7 @@ static class Measured
         var predictions = P.Predictions.Load(root, exam, problems);
         if (problems.Count > 0) throw new P.ProctorException(string.Join("\n", problems));
         var (stats, friction) = P.Configurations.Compute(root, exam, current, P.Bank.Of(root, exam), P.Results.Collect(root, exam, current), null, predictions);
-        var ids = current.Select(a => (a.Variant, a.Attempt, Id: a.Entry.IdOf(a.Variant, a.Attempt))).Where(a => a.Id is not null).Distinct().ToDictionary(a => (a.Variant, a.Attempt), a => a.Id!);
+        var ids = current.Select(a => (a.Configuration, a.Attempt, Id: a.Entry.IdOf(a.Configuration, a.Attempt))).Where(a => a.Id is not null).Distinct().ToDictionary(a => (a.Configuration, a.Attempt), a => a.Id!);
         return new Reported(stats, friction, ids);
     });
 

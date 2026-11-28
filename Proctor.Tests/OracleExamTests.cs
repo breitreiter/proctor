@@ -75,7 +75,7 @@ public class OracleExamTests
         Assert.Contains(problems, p => p.Field == "oracle.judge");
     }
 
-    // Decided 2026-10-29: bridged, a vendor agent leaves no ATIF, so an oracle runs on nb variants only.
+    // Decided 2026-10-29: bridged, a vendor agent leaves no ATIF, so an oracle runs on nb only.
     [Fact]
     public void AVendorsAgent_IsRefused_WhereAStageHasASheet()
     {

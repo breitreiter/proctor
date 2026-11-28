@@ -24,7 +24,7 @@ public class BuildTests
         WriteHook(repo, extra);
         repo.EditJson("smoke/exam.json", e =>
         {
-            e["hooks"] = JsonNode.Parse("""{ "attempt": { "setup": "hooks/prompt.sh" } }""");
+            e["hooks"] = JsonNode.Parse("""{ "try": { "setup": "hooks/prompt.sh" } }""");
             e["attempts"] = 1;
             e["params"] = JsonNode.Parse("""{ "TONE": { "default": "plain" }, "EXAMPLES": { "default": "none" } }""");
             e["stages"] = JsonNode.Parse("""[ { "id": "write", "prompt": "MOCK:tool=bash echo mine > made.txt" } ]""");

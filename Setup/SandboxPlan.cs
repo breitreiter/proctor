@@ -45,7 +45,7 @@ static class SandboxPlan
         var wanted = wantedAgents.ToList();
         var b = new StringBuilder();
         b.AppendLine("# Setting up a sandbox for proctor on this machine").AppendLine();
-        b.AppendLine("You are helping the user make this machine able to run proctor's agent variants (Claude Code, Codex, Qwen Code, "
+        b.AppendLine("You are helping the user make this machine able to run coding agents under proctor (Claude Code, Codex, Qwen Code, "
             + "nb with tools). Those run through Harbor, in containers, so the agent under test cannot touch the user's files, keys "
             + $"or settings. `proctor setup` wrote this file on {today:yyyy-MM-dd} from what it could see; it does not know this "
             + "user's constraints. Find them out before acting.").AppendLine();
@@ -53,8 +53,8 @@ static class SandboxPlan
         b.AppendLine("## What the user said").AppendLine();
         b.AppendLine("- Sandbox: on this machine (step 2 of `proctor setup`).");
         b.AppendLine(wanted.Count == 0
-            ? "- Agent variants wanted: none chosen yet (steps 3 and 4 come after this one; `proctor setup --check` has the latest)."
-            : $"- Agent variants wanted: {string.Join(", ", wanted)}.");
+            ? "- Agents wanted: none chosen yet (steps 3 and 4 come after this one; `proctor setup --check` has the latest)."
+            : $"- Agents wanted: {string.Join(", ", wanted)}.");
         b.AppendLine();
 
         b.AppendLine("## What setup observed").AppendLine();

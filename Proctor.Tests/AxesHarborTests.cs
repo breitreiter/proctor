@@ -21,7 +21,7 @@ public class AxesHarborTests
     static string Compile(TestRepo repo, Exam exam, string key)
     {
         var dir = Path.Combine(repo.Root, "compiled", key);
-        HarborCompile.Job(dir, exam, exam.Variants.Single(v => v.Id == key), new AgentRoute(null, null), nbImage: "proctor-nb:test");
+        HarborCompile.Job(dir, exam, exam.Assistants.Single(v => v.Id == key), new AgentRoute(null, null), nbImage: "proctor-nb:test");
         return dir;
     }
 
@@ -31,7 +31,7 @@ public class AxesHarborTests
         var (repo, exam) = Control();
         using var _ = repo;
         // Who does the work comes from a value: nb, through Harbor because the value says so.
-        Assert.All(exam.Variants, v => Assert.True(v is { IsAgent: true, IsVendor: false, Agent: "nb", Provider: "Mock" }));
+        Assert.All(exam.Assistants, v => Assert.True(v is { IsAgent: true, IsVendor: false, Agent: "nb", Provider: "Mock" }));
 
         var old = Compile(repo, exam, "toolchain=1.20,docs=rewritten,assistant=nb-mock");
         var dockerfile = File.ReadAllText(Path.Combine(old, "environment", "Dockerfile"));
@@ -62,7 +62,7 @@ public class AxesHarborTests
         using var repo = new TestRepo();
         repo.CopyExam("tern-docs");
         var exam = repo.LoadExam("tern-docs");
-        Assert.Equal(["docs=as-shipped,assistant=sonnet", "docs=restructure,assistant=sonnet", "docs=none,assistant=sonnet"], exam.Variants.Select(v => v.Id));
+        Assert.Equal(["docs=as-shipped,assistant=sonnet", "docs=restructure,assistant=sonnet", "docs=none,assistant=sonnet"], exam.Assistants.Select(v => v.Id));
 
         var shipped = Compile(repo, exam, "docs=as-shipped,assistant=sonnet");
         Assert.True(File.Exists(Path.Combine(shipped, "environment", "params", "DOCS", "quickstart.html")));
@@ -100,10 +100,10 @@ public class AxesHarborTests
         using var repo = new TestRepo();
         repo.CopyExam("gate-oracle");
         var exam = repo.LoadExam("gate-oracle");
-        var harbor = exam.Variants.Where(v => v.IsAgent).ToList();
+        var harbor = exam.Assistants.Where(v => v.IsAgent).ToList();
         Assert.Equal(3, harbor.Count);
         Assert.All(harbor, v => Assert.True(HarborCompile.Plain(exam, v.Id!)));
-        Assert.All(exam.Variants.Where(v => !v.IsAgent), v => Assert.Single(exam.StagesOf(v.Id!)));
+        Assert.All(exam.Assistants.Where(v => !v.IsAgent), v => Assert.Single(exam.StagesOf(v.Id!)));
 
         // The simulated user answers a task, never a step: the try is a task, with its instruction and its verifier at the top.
         var entry = Path.Combine(repo.Root, "entry");

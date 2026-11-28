@@ -13,7 +13,7 @@
     "wall_ms": 2700000
   },
   "hooks": {
-    "variant": {
+    "configuration": {
       "setup": "../code-change/hooks/ensure-model.sh"
     }
   },

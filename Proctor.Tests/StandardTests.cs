@@ -28,7 +28,7 @@ public class StandardTests
     static List<Grade.AttemptGrade> Grade_(TestRepo repo, string? only = null)
     {
         var exam = repo.LoadExam("axes-answers");
-        var current = Bank.Select(repo.Root, exam).Current.Where(a => only is null || exam.Axes!.Of(a.Variant)!.Name == only).ToList();
+        var current = Bank.Select(repo.Root, exam).Current.Where(a => only is null || exam.Axes!.Of(a.Configuration)!.Name == only).ToList();
         return Grade.Attempts(repo.Root, exam, current, TextWriter.Null);
     }
 
@@ -40,7 +40,7 @@ public class StandardTests
     }
 
     static string StageOf(TestRepo repo, Exam exam, string name) =>
-        Bank.Select(repo.Root, exam).Current.Single(a => exam.Axes!.Of(a.Variant)!.Name == name).Dir(repo.Root);
+        Bank.Select(repo.Root, exam).Current.Single(a => exam.Axes!.Of(a.Configuration)!.Name == name).Dir(repo.Root);
 
     [Fact]
     public void AGrade_NamesTheStandardItWasMadeUnder_AndARegradeUnderAnotherIsKeptBesideIt()
@@ -94,9 +94,9 @@ public class StandardTests
         repo.EditJson("axes-answers/exam.json", e => e["grading"]!["checks"]!["cites-note"]!["when"] = "assistant != mock-b");
         var grades = Grade_(repo);
         // Neither pass, fail nor undecided, on the assistant it no longer applies to; and still decided on the other.
-        Assert.All(grades.Where(g => g.Variant.EndsWith("assistant=mock-b")), g => Assert.Equal(Verdict.NotApplicable, g.Checks!["cites-note"].Result));
-        Assert.All(grades.Where(g => g.Variant.EndsWith("assistant=mock")), g => Assert.Contains(g.Checks!["cites-note"].Result, new[] { Verdict.Pass, Verdict.Fail }));
-        Assert.Equal("applies only when assistant != mock-b", grades.First(g => g.Variant.EndsWith("assistant=mock-b")).Checks!["cites-note"].Reason);
+        Assert.All(grades.Where(g => g.Configuration.EndsWith("assistant=mock-b")), g => Assert.Equal(Verdict.NotApplicable, g.Checks!["cites-note"].Result));
+        Assert.All(grades.Where(g => g.Configuration.EndsWith("assistant=mock")), g => Assert.Contains(g.Checks!["cites-note"].Result, new[] { Verdict.Pass, Verdict.Fail }));
+        Assert.Equal("applies only when assistant != mock-b", grades.First(g => g.Configuration.EndsWith("assistant=mock-b")).Checks!["cites-note"].Reason);
 
         var (after, exam) = Report(repo);
         // A try there holds of three checks now, not four: the check is no part of what it can hold.

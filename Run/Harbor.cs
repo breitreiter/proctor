@@ -4,7 +4,7 @@ namespace Proctor;
 
 /// <summary>
 /// A run's Harbor, as its log entry keeps it: the pinned release and the hash of the tasks compiled for it, which `run` must find
-/// unchanged to continue the run; with an nb variant, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
+/// unchanged to continue the run; with nb, the nb layer its images copy (proctor.json harbor.nb, tagged by content); the container
 /// engine every attempt runs on (proctor.json harbor.engine), which holds that layer.
 /// </summary>
 record ResolvedHarbor(string Version, string TasksHash, string? NbImage = null, string Engine = "docker", ResolvedRelay? Relay = null);
@@ -33,7 +33,7 @@ static class HarborRun
 
     /// <summary>
     /// nb's layer: the self-contained publish proctor.json harbor.nb names, as a local image holding only /opt/nb,
-    /// tagged by the publish's content hash and built once in the engine's store. An nb variant's image copies it, so the
+    /// tagged by the publish's content hash and built once in the engine's store. An nb image copies it, so the
     /// binary that runs is the one hashed, and its version is asked of it here. Podman keeps a local image under
     /// localhost/, so the tag says so rather than leave a build to resolve a short name.
     /// </summary>
@@ -118,19 +118,19 @@ static class HarborRun
     }
 
     /// <summary>Run the trial. Returns the trial directory, or why there is none (infrastructure: the attempt fails).</summary>
-    public static (string? TrialDir, string? Failure) Trial(string uv, string version, string engine, string attemptDir, Variant variant, string taskDir, AgentRoute route, long wallMs, string agentsDir, NbAttempt? nb = null, OracleAttempt? oracle = null)
+    public static (string? TrialDir, string? Failure) Trial(string uv, string version, string engine, string attemptDir, Assistant assistant, string taskDir, AgentRoute route, long wallMs, string agentsDir, NbAttempt? nb = null, OracleAttempt? oracle = null)
     {
         var harborDir = Path.Combine(attemptDir, Layout.HarborDir);
         if (Directory.Exists(harborDir)) Directory.Delete(harborDir, recursive: true);   // an attempt made again starts clean
         Directory.CreateDirectory(harborDir);
         var jobsDir = Path.Combine(harborDir, "jobs");
         var timeout = TimeSpan.FromMilliseconds(wallMs) + Overhead;
-        Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), HarborCompile.Job(variant, taskDir, jobsDir, route, nb, engine, oracle));
+        Runner.WriteJson(Path.Combine(harborDir, Layout.HarborJobFile), HarborCompile.Job(assistant, taskDir, jobsDir, route, nb, engine, oracle));
 
         var env = new Dictionary<string, string> { ["HARBOR_TELEMETRY"] = "off", ["NO_COLOR"] = "1" };
         if (route is { KeyEnv: { } name, ApiKey: { } key }) env[name] = key;
         // nb's and Qwen Code's agents, and the oracle's simulated user, are proctor's own, imported from the log entry's harbor/agents/.
-        if (HarborCompile.IsOwnAgent(variant) || oracle is not null) env["PYTHONPATH"] = agentsDir;
+        if (HarborCompile.IsOwnAgent(assistant) || oracle is not null) env["PYTHONPATH"] = agentsDir;
         var result = Subprocess.Run(uv, UvArgs(version), harborDir, env,
             stdoutFile: Path.Combine(harborDir, Layout.HarborLogFile), stderrFile: Path.Combine(harborDir, "harbor.stderr.log"), timeout: timeout);
         if (!result.Started) return (null, $"could not start Harbor: {result.Stderr} (exams/proctor.json harbor.uv)");

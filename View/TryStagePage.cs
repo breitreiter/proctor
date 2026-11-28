@@ -12,9 +12,9 @@ namespace Auspex;
 /// tabs, each right or wrong on an exam with axes; its checks by role, each with the steps its evidence points at as pills; its friction
 /// points likewise; and the transcript, a step a row that opens. It shows what the stage's files hold (checks.json,
 /// friction.json, trajectory.json, the diff) and what proctor says of the stage (right or wrong). A pill opens its
-/// step, which the browser marks as the target, so nothing here needs script. A try of an exam of variants is the
-/// same page with no word from proctor on right or wrong, since proctor works that out for exams with axes only; a try
-/// of one task has one stage, and so no tabs.
+/// step, which the browser marks as the target, so nothing here needs script. An attempt made before the exam
+/// was stages and axes is the same page with no word from proctor on right or wrong, since proctor reads none of those;
+/// one that was a task's has one stage, and so no tabs.
 /// </summary>
 static class TryStagePage
 {
@@ -23,11 +23,11 @@ static class TryStagePage
         IReadOnlyList<Attempt> stages = stagesOfTry is { Count: > 1 } ? stagesOfTry : [];
         var (exam, _) = Measured.Load(root, a.Exam);
         var report = exam?.Axes is null ? null : Measured.Report(root, exam).Report;
-        var configuration = exam?.Axes?.Of(a.Variant);
-        var name = configuration?.Name ?? a.Variant;
+        var configuration = exam?.Axes?.Of(a.Configuration);
+        var name = configuration?.Name ?? a.Configuration;
         // Proctor's word for each stage of this try: right, wrong, or why it is neither.
-        var number = report?.TryIds.FirstOrDefault(t => t.Key.Configuration == a.Variant && t.Value == a.N).Key.Try;
-        var row = report?.Stats.Configurations.FirstOrDefault(c => c.Key == a.Variant)?.Tries?.Rows.FirstOrDefault(r => r.N == number);
+        var number = report?.TryIds.FirstOrDefault(t => t.Key.Configuration == a.Configuration && t.Value == a.N).Key.Try;
+        var row = report?.Stats.Configurations.FirstOrDefault(c => c.Key == a.Configuration)?.Tries?.Rows.FirstOrDefault(r => r.N == number);
         string? Result(string stage) => row?.Stages.FirstOrDefault(s => s.Id == stage)?.Result;
 
         var checks = (a.Checks ?? []).Select(c => new Check(c.Key, c.Value as JsonObject ?? [])).ToList();
@@ -37,10 +37,10 @@ static class TryStagePage
         var ids = steps.Select(s => Bank.Str(s["step_id"])).ToList();
         var place = stages.ToList().FindIndex(s => s.Task == a.Task) + 1;
 
-        // A try under its own id belongs to a configuration, which has a page; on an exam of variants a try is a variant's, by number.
-        (string, string?)[] crumbs = a.ById ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), (name, $"/{a.Exam}/configuration/{a.Variant}"), (a.N, $"/{a.Exam}/try/{a.N}"), (a.Task, null)]
-            : a.Staged ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Variant} · try {a.N}", $"/{a.Exam}/{a.Variant}/{a.N}"), (a.Task, null)]
-            : [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Variant} · {a.Task} · try {a.N}", null)];
+        // A try under its own id belongs to a configuration, which has a page; an earlier attempt is filed under the name it was made by, and a number.
+        (string, string?)[] crumbs = a.ById ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), (name, $"/{a.Exam}/configuration/{a.Configuration}"), (a.N, $"/{a.Exam}/try/{a.N}"), (a.Task, null)]
+            : a.Staged ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Configuration} · try {a.N}", $"/{a.Exam}/{a.Configuration}/{a.N}"), (a.Task, null)]
+            : [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Configuration} · {a.Task} · try {a.N}", null)];
         var page = Open($"{a.Task} · {a.N}", crumbs, style: "one");
         var core = a.Core;
         var exit = ExitOf(a);

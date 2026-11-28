@@ -31,6 +31,17 @@ formats or the vocabulary; a patch bump does not.
   under; it named a directory that is not where a try is.
 - **`summary.md` and `stats.json` name the judges** whose verdicts the
   tries hold, each with the checks it graded (`judges`).
+- **Breaking: the word variant is gone from what an exam's scripts and
+  files say.** `PROCTOR_VARIANT` is `PROCTOR_CONFIGURATION` (the
+  configuration's key, as before; each axis's value is still
+  `PROCTOR_AXIS_<NAME>`). `{{variant}}` in a program template is
+  `{{configuration}}`. `hooks.variant` in `exam.json` is
+  `hooks.configuration` and `hooks.attempt` is `hooks.try`; each old
+  key is refused with its new name, and their logs are
+  `<key>.setup.log` in the run's log entry and `try.setup.log` in the
+  try. `PROCTOR_TASK`, and the fields `variant` and `task` in
+  `manifest.json`, `entry.json`, `results.jsonl` and `stats.json`, are
+  unchanged: they are renamed once, with the binary.
 - `PROCTOR_BUNDLE`, `PROCTOR_BUNDLE_MOUNT`, `{{bundle}}` and
   `nb.mounts.bundle` went with the bundle. A value's files are laid over
   the checkout, so they are under `PROCTOR_WORK`.

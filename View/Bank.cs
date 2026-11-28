@@ -35,20 +35,20 @@ public static class Bank
         var def = Json(Path.Combine(root, ExamsDir, id, ExamFile));
 
         var attempts = new List<Attempt>();
-        foreach (var variantDir in Directory.GetDirectories(bank).Order(StringComparer.Ordinal))
+        foreach (var filedDir in Directory.GetDirectories(bank).Order(StringComparer.Ordinal))
         {
             // A try sits under its own id, bank/<exam>/<try id>/stages/…, and its manifests say which configuration it ran as. Anything else is of the earlier shape.
-            if (Directory.Exists(Path.Combine(variantDir, StagesDir))) { attempts.AddRange(TryById(id, variantDir)); continue; }
-            foreach (var taskDir in Directory.GetDirectories(variantDir).OrderBy(d => Path.GetFileName(d), Natural))
+            if (Directory.Exists(Path.Combine(filedDir, StagesDir))) { attempts.AddRange(TryById(id, filedDir)); continue; }
+            foreach (var taskDir in Directory.GetDirectories(filedDir).OrderBy(d => Path.GetFileName(d), Natural))
             {
                 if (Directory.Exists(Path.Combine(taskDir, StagesDir)))
                 {
-                    attempts.AddRange(Stages(id, Path.GetFileName(variantDir), Path.GetFileName(taskDir), taskDir));
+                    attempts.AddRange(Stages(id, Path.GetFileName(filedDir), Path.GetFileName(taskDir), taskDir));
                     continue;
                 }
                 foreach (var attemptDir in Directory.GetDirectories(taskDir).OrderBy(d => Path.GetFileName(d), Natural))
                     if (File.Exists(Path.Combine(attemptDir, ManifestFile)))
-                        attempts.Add(new Attempt(id, Path.GetFileName(variantDir), Path.GetFileName(taskDir), Path.GetFileName(attemptDir), attemptDir));
+                        attempts.Add(new Attempt(id, Path.GetFileName(filedDir), Path.GetFileName(taskDir), Path.GetFileName(attemptDir), attemptDir));
             }
         }
 
@@ -59,19 +59,19 @@ public static class Bank
     /// An attempt of the earlier shape, by the last two segments of its address: the try and the stage's id, or the task
     /// and the attempt's number. The stages directory on disk says which.
     /// </summary>
-    public static Attempt? FindAttempt(string root, string exam, string variant, string first, string second)
+    public static Attempt? FindAttempt(string root, string exam, string key, string first, string second)
     {
-        if (!SafeName(exam) || !SafeName(variant) || !SafeName(first) || !SafeName(second)) return null;
-        var tryDir = Path.Combine(root, BankDir, exam, variant, first);
-        if (Directory.Exists(Path.Combine(tryDir, StagesDir))) return Stages(exam, variant, first, tryDir).FirstOrDefault(s => s.Task == second);
+        if (!SafeName(exam) || !SafeName(key) || !SafeName(first) || !SafeName(second)) return null;
+        var tryDir = Path.Combine(root, BankDir, exam, key, first);
+        if (Directory.Exists(Path.Combine(tryDir, StagesDir))) return Stages(exam, key, first, tryDir).FirstOrDefault(s => s.Task == second);
         var dir = Path.Combine(tryDir, second);
-        return File.Exists(Path.Combine(dir, ManifestFile)) ? new Attempt(exam, variant, first, second, dir) : null;
+        return File.Exists(Path.Combine(dir, ManifestFile)) ? new Attempt(exam, key, first, second, dir) : null;
     }
 
     /// <summary>The stages of one try of the earlier shape, filed by variant and number, in the order they ran; none when it is not one.</summary>
-    public static IReadOnlyList<Attempt> FindTry(string root, string exam, string variant, string n) =>
-        SafeName(exam) && SafeName(variant) && SafeName(n) && Path.Combine(root, BankDir, exam, variant, n) is var tryDir && Directory.Exists(Path.Combine(tryDir, StagesDir))
-            ? Stages(exam, variant, n, tryDir) : [];
+    public static IReadOnlyList<Attempt> FindTry(string root, string exam, string key, string n) =>
+        SafeName(exam) && SafeName(key) && SafeName(n) && Path.Combine(root, BankDir, exam, key, n) is var tryDir && Directory.Exists(Path.Combine(tryDir, StagesDir))
+            ? Stages(exam, key, n, tryDir) : [];
 
     /// <summary>The stages of a try, by its id, in the order they ran; none when there is no such try.</summary>
     public static IReadOnlyList<Attempt> FindTryById(string root, string exam, string id) =>
@@ -83,17 +83,17 @@ public static class Bank
         var id = Path.GetFileName(tryDir)!;
         var stages = Stages(exam, "", id, tryDir);
         var configuration = stages.Select(s => Text(s.Manifest?["variant"]?["id"])).FirstOrDefault(k => k is not null) ?? "";
-        return [.. stages.Select(s => s with { Variant = configuration, ById = true })];
+        return [.. stages.Select(s => s with { Configuration = configuration, ById = true })];
     }
 
     // A stage's directory is <place>-<id>; the place orders it and the id names it.
-    static List<Attempt> Stages(string exam, string variant, string n, string tryDir) =>
+    static List<Attempt> Stages(string exam, string key, string n, string tryDir) =>
         [.. Directory.GetDirectories(Path.Combine(tryDir, StagesDir))
             .Select(dir => (Dir: dir, Name: Path.GetFileName(dir)!))
             .Select(s => (s.Dir, Cut: s.Name.IndexOf('-'), s.Name))
             .Where(s => s.Cut > 0 && int.TryParse(s.Name[..s.Cut], out _) && File.Exists(Path.Combine(s.Dir, ManifestFile)))
             .OrderBy(s => int.Parse(s.Name[..s.Cut]))
-            .Select(s => new Attempt(exam, variant, s.Name[(s.Cut + 1)..], n, s.Dir) { Place = int.Parse(s.Name[..s.Cut]) })];
+            .Select(s => new Attempt(exam, key, s.Name[(s.Cut + 1)..], n, s.Dir) { Place = int.Parse(s.Name[..s.Cut]) })];
 
     public static string Str(JsonNode? node) => node is JsonValue v ? v.ToString() : "";
 
@@ -133,21 +133,21 @@ public sealed record Exam(string Id, string? Description, IReadOnlyList<Attempt>
     public IReadOnlyList<Attempt> Earlier => [.. Attempts.Where(a => !a.ById)];
 
     /// <summary>The names the bank's contents are filed under: a configuration's key for a try, a variant's id for an earlier attempt.</summary>
-    public IReadOnlyList<string> Filed(IEnumerable<Attempt> of) => [.. of.Select(a => a.Variant).Distinct().Order(StringComparer.Ordinal)];
+    public IReadOnlyList<string> Filed(IEnumerable<Attempt> of) => [.. of.Select(a => a.Configuration).Distinct().Order(StringComparer.Ordinal)];
 }
 
 /// <summary>
-/// One stage of a try in the bank, and its files as proctor wrote them: Task is the stage's id, N the try's id, Variant
+/// One stage of a try in the bank, and its files as proctor wrote them: Task is the stage's id, N the try's id, Configuration
 /// the configuration's key, and Place where the stage comes in the try. Of the earlier shape (not <see cref="ById"/>),
-/// Variant is a variant's id and N a number, and without a Place it is a task's attempt.
+/// Configuration is the name it was filed under then (a variant's id) and N a number, and without a Place it is a task's attempt.
 /// </summary>
-public sealed record Attempt(string Exam, string Variant, string Task, string N, string Dir)
+public sealed record Attempt(string Exam, string Configuration, string Task, string N, string Dir)
 {
     public int? Place { get; init; }
     public bool Staged => Place is not null;
     /// <summary>A stage of a try that sits under its own id, as every try made now does.</summary>
     public bool ById { get; init; }
-    public string Path => ById ? $"/{Exam}/try/{N}/{Task}" : Staged ? $"/{Exam}/{Variant}/{N}/{Task}" : $"/{Exam}/{Variant}/{Task}/{N}";
+    public string Path => ById ? $"/{Exam}/try/{N}/{Task}" : Staged ? $"/{Exam}/{Configuration}/{N}/{Task}" : $"/{Exam}/{Configuration}/{Task}/{N}";
 
     /// <summary>Proctor's status file; an attempt without one has not started (proctor's own reading).</summary>
     public string Status => Bank.Read(Bank.StatusPath(Dir))?.Trim() is { Length: > 0 } s ? s : "pending";

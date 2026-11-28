@@ -501,7 +501,7 @@ static class Judge
         return uses.OrderBy(u => u.Key.Item1, StringComparer.Ordinal).Select(u => new JudgeUse(u.Key.Item1, u.Key.Item2, u.Key.Item3, u.Key.Item4, u.Value)).ToList();
     }
 
-    /// <summary>A variant whose model or provider carries a judge's family name, so the grader can say so once; the off-family rule is the brief's to keep.</summary>
+    /// <summary>An assistant whose model or provider carries a judge's family name, so the grader can say so once; the off-family rule is the brief's to keep.</summary>
     public static IEnumerable<string> SameFamilyNotes(Exam exam, JudgeClient client)
     {
         var specs = exam.Grading.Checks!.Concat(exam.Fixtures.Values.SelectMany(f => f.Checks));
@@ -512,9 +512,9 @@ static class Judge
                 if (spec[name] is not JsonObject s) continue;
                 var (judge, def) = client.Resolve(KindOf(name), (s["with"] as JsonValue)?.GetValue<string>(), check);
                 if (def.Family is not { } family) continue;
-                foreach (var variant in exam.Variants.Where(a => $"{a.Model} {a.Provider}".Contains(family, StringComparison.OrdinalIgnoreCase)))
-                    if (seen.Add((variant.Id!, judge)))
-                        yield return $"variant '{variant.Id}' ({variant.Model}) is in the family of judge '{judge}' ({family}); a judge should be off-family from every variant it grades";
+                foreach (var assistant in exam.Assistants.Where(a => $"{a.Model} {a.Provider}".Contains(family, StringComparison.OrdinalIgnoreCase)))
+                    if (seen.Add((assistant.Id!, judge)))
+                        yield return $"'{assistant.Id}' ({assistant.Model}) is in the family of judge '{judge}' ({family}); a judge should be off-family from every model it grades";
             }
     }
 

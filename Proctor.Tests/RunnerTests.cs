@@ -73,7 +73,7 @@ public class RunnerTests
         Assert.Equal(Path.Combine(repo.Root, "bank", "smoke"), Path.GetDirectoryName(tryDir));
         Assert.Matches(@"^\d{8}-\d{4}-[a-z0-9]{4}$", Path.GetFileName(tryDir));
         Assert.Equal(["hooks", "setup.patch", "stages"], Directory.GetFileSystemEntries(tryDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
-        Assert.Equal(["attempt.setup.log", "attempt.teardown.log"], Directory.GetFiles(Path.Combine(tryDir, "hooks")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal(["try.setup.log", "try.teardown.log"], Directory.GetFiles(Path.Combine(tryDir, "hooks")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Equal(["1-plain", "2-uses-bash", "3-loops", "4-writes-a-file"], Directory.GetDirectories(Path.Combine(tryDir, "stages")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
 
         // A stage: every file the plan names, and nothing that belongs elsewhere.
@@ -88,7 +88,7 @@ public class RunnerTests
         Assert.Matches("^[0-9a-f]{16}$", manifest["id"]!.GetValue<string>());
         Assert.Equal("smoke", manifest["exam"]!.GetValue<string>());
         Assert.Equal(id, manifest["log"]!.GetValue<string>());
-        Assert.Equal((A, exam.Variants.Single().Hash), (manifest["variant"]!["id"]!.GetValue<string>(), manifest["variant"]!["hash"]!.GetValue<string>()));
+        Assert.Equal((A, exam.Assistants.Single().Hash), (manifest["variant"]!["id"]!.GetValue<string>(), manifest["variant"]!["hash"]!.GetValue<string>()));
         Assert.Equal(("plain", exam.TaskHashes["plain"]), (manifest["task"]!["id"]!.GetValue<string>(), manifest["task"]!["hash"]!.GetValue<string>()));
         Assert.Equal((1, 1, Path.GetFileName(tryDir)), (manifest["attempt"]!.GetValue<int>(), manifest["stage"]!.GetValue<int>(), manifest["try"]!.GetValue<string>()));
         Assert.Equal("mock", manifest["configuration"]!["assistant"]!["id"]!.GetValue<string>());
@@ -156,7 +156,7 @@ public class RunnerTests
         Assert.Contains($"run {again}: 1 attempt to make\n", log);
         var entry = Runner.LoadEntry(repo.Root, again!);
         // Numbered after the stale one, so a configuration's n-th try names one try for good.
-        Assert.All(entry.Attempts, a => Assert.Equal((A, 2), (a.Variant, a.Attempt)));
+        Assert.All(entry.Attempts, a => Assert.Equal((A, 2), (a.Configuration, a.Attempt)));
         var exam = repo.LoadExam("smoke");
         var selection = Bank.Select(repo.Root, exam);
         Assert.Equal([$"{A}/2/loops", $"{A}/2/plain", $"{A}/2/uses-bash", $"{A}/2/writes-a-file"], selection.Current.Select(a => a.Label).Order(StringComparer.Ordinal));
@@ -175,9 +175,9 @@ public class RunnerTests
         var (again, _) = RunAgain(repo);
 
         var entry = Runner.LoadEntry(repo.Root, again!);
-        Assert.Equal([c], entry.Variants.Select(v => v.Id));
+        Assert.Equal([c], entry.Configurations.Select(v => v.Id));
         Assert.Equal(4, entry.Attempts.Count);
-        Assert.All(entry.Attempts, a => Assert.Equal((c, 1), (a.Variant, a.Attempt)));
+        Assert.All(entry.Attempts, a => Assert.Equal((c, 1), (a.Configuration, a.Attempt)));
         Assert.Equal(8, Bank.Select(repo.Root, repo.LoadExam("smoke")).Current.Count);
 
         // Asking for one configuration narrows: a has all it wants, so asking for a alone makes nothing.
@@ -196,7 +196,7 @@ public class RunnerTests
         var id = StartSmoke(repo, e =>
         {
             e["attempts"] = 1;
-            e["hooks"]!["attempt"]!["setup"] = "hooks/flaky-setup.sh";
+            e["hooks"]!["try"]!["setup"] = "hooks/flaky-setup.sh";
         });
 
         var failed = Stage(repo, A, "plain");
@@ -205,7 +205,7 @@ public class RunnerTests
         Assert.Equal("failed", manifest["status"]!.GetValue<string>());
         Assert.Contains("hooks/flaky-setup.sh exited 7: no fakes for mock", manifest["status_reason"]!.GetValue<string>());
         Assert.False(File.Exists(Path.Combine(failed, "transcript.jsonl")), "nb must not run when setup failed");
-        Assert.True(File.Exists(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "attempt.teardown.log")), "teardown runs whenever setup ran, so a half-made environment is not left behind");
+        Assert.True(File.Exists(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "try.teardown.log")), "teardown runs whenever setup ran, so a half-made environment is not left behind");
         // Nothing more of a lost try is launched.
         Assert.Equal("skipped", Runner.ReadStatus(Stage(repo, A, "loops")));
         Assert.Contains("the try was lost at stage plain", ReadJson(Path.Combine(Stage(repo, A, "loops"), "manifest.json"))["status_reason"]!.GetValue<string>());
@@ -219,7 +219,7 @@ public class RunnerTests
         var (again, log) = RunAgain(repo);
         Assert.NotEqual(id, again);
         Assert.Contains($"  {A}     0 of 1 attempt   making 1\n", log);
-        Assert.All(Runner.LoadEntry(repo.Root, again!).Attempts, a => Assert.Equal((A, 2), (a.Variant, a.Attempt)));
+        Assert.All(Runner.LoadEntry(repo.Root, again!).Attempts, a => Assert.Equal((A, 2), (a.Configuration, a.Attempt)));
     }
 
     [Fact]
@@ -231,7 +231,7 @@ public class RunnerTests
         StartSmoke(repo, e =>
         {
             e["attempts"] = 1;
-            e["hooks"]!["variant"]!["setup"] = "hooks/b-fails.sh";
+            e["hooks"]!["configuration"]!["setup"] = "hooks/b-fails.sh";
         });
 
         foreach (var c in new[] { "loops", "plain", "uses-bash", "writes-a-file" })
@@ -302,9 +302,9 @@ public class RunnerTests
     [Fact]
     public void ResolveProgram_EscapesNewlinesAsContinuations()
     {
-        var variant = new Variant("floor", "nb", "nb", "Mock", "m");
+        var assistant = new Assistant("floor", "nb", "nb", "Mock", "m");
         var c = new TaskDef("x", null, "Add a flag.\nKeep tests green.\n  Indented line.", null);
-        var program = Runner.ResolveProgram("run {{prompt}}\n# {{task}} on {{variant}} attempt {{attempt}} in {{work}}\n", variant, c, 2, "/w");
+        var program = Runner.ResolveProgram("run {{prompt}}\n# {{task}} on {{configuration}} attempt {{attempt}} in {{work}}\n", assistant, c, 2, "/w");
         Assert.Equal("run Add a flag. \\\nKeep tests green. \\\n  Indented line.\n# x on floor attempt 2 in /w\n", program);
     }
 
@@ -409,7 +409,7 @@ public class RunnerTests
         Assert.Contains("runner=runners/spy.sh\n", stderr);
         Assert.Contains("nocolor=1\n", stderr);
         // The hooks see the same runner and container name, so they can own a container nb is exec'd into, and every stage of a try runs in the one.
-        Assert.Contains(container, File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "attempt.setup.log")));
+        Assert.Contains(container, File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "try.setup.log")));
         Assert.Contains($"container={container}\n", File.ReadAllText(Path.Combine(Stage(repo, A, "loops"), "stderr.txt")));
         Assert.Contains("runners/spy.sh", File.ReadAllText(Path.Combine(Layout.LogEntry(repo.Root, id), "hooks", $"{A}.setup.log")));
     }
@@ -425,7 +425,7 @@ public class RunnerTests
         var id = StartSmoke(repo, e =>
         {
             One(e);
-            e["hooks"]!["attempt"]!["setup"] = "hooks/mounts.sh";
+            e["hooks"]!["try"]!["setup"] = "hooks/mounts.sh";
             WithWorkComment(repo);
         }, runner: "runners/spy.sh", mounts: new { work = "/work" });
         var entry = Runner.LoadEntry(repo.Root, id);
@@ -438,7 +438,7 @@ public class RunnerTests
         // The runner and the hooks, on the host, get both.
         var expected = $"work={work} mount=/work";
         Assert.Contains(expected, File.ReadAllText(Path.Combine(stage, "stderr.txt")));
-        Assert.Contains(expected, File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "attempt.setup.log")));
+        Assert.Contains(expected, File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "try.setup.log")));
         // The manifest records the mounts beside the runner.
         Assert.Equal("/work", (string)ReadJson(Path.Combine(stage, "manifest.json"))["nb"]!["mounts"]!["work"]!);
     }
@@ -455,7 +455,7 @@ public class RunnerTests
         Assert.Equal("completed", Runner.ReadStatus(stage));
         var work = Layout.Work(repo.Root, "smoke", entry.IdOf(A, 1)!);
         Assert.Contains($"# work: {work}\n", File.ReadAllText(Path.Combine(stage, "program.nb")));
-        Assert.Contains($"work_mount={work}", File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "attempt.setup.log")));
+        Assert.Contains($"work_mount={work}", File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "try.setup.log")));
         Assert.Null(ReadJson(Path.Combine(stage, "manifest.json"))["nb"]!["mounts"]);
     }
 
@@ -509,7 +509,7 @@ public class RunnerTests
         var stage = Stage(repo, A, "plain");
         Assert.Equal("completed", Runner.ReadStatus(stage));
         Assert.Null(ReadJson(Path.Combine(stage, "manifest.json"))["nb"]!["runner"]);
-        Assert.Contains("runner= container=", File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "attempt.setup.log")));
+        Assert.Contains("runner= container=", File.ReadAllText(Path.Combine(repo.TryDir("smoke", A, 1), "hooks", "try.setup.log")));
     }
 
     [Fact]

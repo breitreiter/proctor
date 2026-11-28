@@ -37,7 +37,7 @@ record Verdict(string Result, string Reason)
 record Evidence(string? Step = null, string? File = null);
 
 /// <summary>Everything the runner and the grader need to know about one attempt, without the transcript.</summary>
-record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string ExamId, string Variant, TaskDef Task, int Attempt)
+record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string ExamId, string Configuration, TaskDef Task, int Attempt)
 {
     /// <summary>What the task expects, its fixture's defaults included; the task's own block when there is no fixture.</summary>
     public JsonObject? Expect { get; init; } = Task.Expect;
@@ -89,7 +89,7 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
         ["PROCTOR_EXAM_DIR"] = ExamDir,
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
         ["PROCTOR_EXAM"] = ExamId,
-        ["PROCTOR_VARIANT"] = Variant,
+        ["PROCTOR_CONFIGURATION"] = Configuration,
         ["PROCTOR_TASK"] = Task.Id ?? "",
         ["PROCTOR_ATTEMPT"] = Attempt.ToString(),
         ["PROCTOR_ATTEMPT_DIR"] = AttemptDir,
