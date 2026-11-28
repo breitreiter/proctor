@@ -53,18 +53,23 @@ report of variants side by side are gone; `Exam.Load` refuses the earlier
 shape and says what each part becomes, and `docs/porting-from-suites.md` is
 the map. "Variant" is an old word now, like suite, arm and batch before it.
 
-**Three names are kept as first written** until the binary is renamed
-(`project/plans/rename-to-auspex.md`, stage 2), so that every try already
-made still reads: in `manifest.json`, `entry.json`, `results.jsonl`,
-`stats.json` and `friction.json` a configuration's key is the field
-`variant` (`OnDisk.Variant`, `OnDisk.Variants`) and a stage is `task`;
-`PROCTOR_TASK` and `{{task}}` hold a stage's id; and in code a stage is a
-`TaskDef` and one stage of one try a `BankAttempt`. Who does the work in a
+**The names kept for the rename are gone** (2026-11-28, layer 1 of stage 2 in
+`project/plans/rename-to-auspex.md`). In `manifest.json`, `entry.json`,
+`results.jsonl`, `stats.json` and `friction.json` (`friction/3`) a
+configuration's key is `configuration` and a stage is `stage`; a manifest's
+`values` is the value on each axis and `place` the stage's place in its try;
+a log entry's `stage_hashes` is each stage it ran with the job's hash.
+`PROCTOR_STAGE`, `PROCTOR_STAGE_JSON` and `{{stage}}` hold a stage. In code a
+stage is a `StageDef` (`Exam.Stages`) and one stage of one try a
+`BankAttempt`. Nothing reads the earlier field names: no compatibility layer
+is kept for tries made on this branch (the user, 2026-11-28), since everyone
+else is on `master`. One oddity is left: the field `attempt`, `PROCTOR_ATTEMPT`
+and `{{attempt}}` hold the try's number. Who does the work in a
 configuration is an `Assistant` (`Axes.AssistantOf`), whose `Id` is the
-configuration's key. Write nothing else in the earlier words.
+configuration's key.
 
-**Attempts made before axes** (log entries with no stages or no try ids,
-`LogEntry.Earlier`) stay on disk and are read by nothing: `Bank.Entries`
+**Attempts made by an earlier proctor** (log entries with no stages, no try
+ids, or the earlier field names, `LogEntry.Earlier`) stay on disk and are read by nothing: `Bank.Entries`
 skips them, `list` counts them (`Bank.Earlier`), and the viewer lists them
 at `/{exam}/earlier` so their transcripts can still be opened. `tern-docs`
 has 72 paid tries in the bank of this machine: a change under
@@ -114,7 +119,7 @@ in the order the verbs run them. Every file is one concern:
 | `Grade/Standard.cs` | grades over time: the standard a stage is graded under (its checks, their conditions and scripts, the correctness and integrity lists, the expected values), each grade kept under it in the attempt's `grades/`, whether a check applies in a configuration (`when`), which tries are not yet graded, and what moved between an earlier grade and this one (`Standard.Moves`: narrowed, added, removed) |
 | `Grade/Grade.cs` | checks over a stage's attempt into `checks.json`; whether it passed |
 | `Friction/Shell.cs` | a shell command as the friction rules read it: words, then actions (one per pipeline, named by its first command, heredoc bodies dropped); POSIX path and glob helpers, since the paths are the container's |
-| `Friction/Friction.cs` | `Surface` (the exam's `surface` block, compiled) and the friction rules: an attempt's trajectory into `friction.json` (schema `friction/1`: the `attempt` it is about, points, each with a checked quote, and the summary by surface part) |
+| `Friction/Friction.cs` | `Surface` (the exam's `surface` block, compiled) and the friction rules: an attempt's trajectory into `friction.json` (schema `friction/3`: the `attempt` it is about, points, each with a checked quote, and the summary by surface part) |
 | `Friction/Reader.cs` | the reader stage of `friction --reader`: an attempt's trajectory rendered as text with a call id per call, the fixed instructions, the reply checked into points with a model source, the reading file kept in the attempt |
 | `Setup/providers.json` | `proctor setup`'s provider catalogue, embedded: per kind its form fields (a secret's env variable), the jobs it `serves` (`?` untested) or serves `by_hand`, the site help anchor (never a vendor URL; an anchor once released is permanent), where it lists models. The plan and mockups are `project/plans/setup/` |
 | `Setup/Catalogue.cs` | the catalogue as records; `ProviderKind.Fit(job)` |
@@ -418,7 +423,7 @@ The directories are for reading, not for namespaces: everything is
   from the manifest. It carries no cost, so an nb attempt has none.
 - **nb emits no `assistant_json` event**; the `answer_json` window is the last
   ` ```json ` fence in the last assistant message.
-- **Program templates.** Placeholders are `{{prompt}}`, `{{task}}` (the
+- **Program templates.** Placeholders are `{{prompt}}`, `{{stage}}` (the
   stage's id), `{{work}}` (the fixture checkout), `{{provider}}`, `{{model}}`,
   `{{harness}}`, `{{configuration}}`, `{{attempt}}`, `{{axis.<name>}}` and
   `{{param.NAME}}` (a tree parameter as its directory). `{{work}}` is the path the *model* will
@@ -498,8 +503,8 @@ The directories are for reading, not for namespaces: everything is
   and the verdict hash makes it a per-stage verdict file.
 - **Hooks and script checks** run with `PROCTOR_EXAM_DIR`, `PROCTOR_FIXTURE`,
   `PROCTOR_EXAM`, `PROCTOR_CONFIGURATION` (the key), `PROCTOR_AXIS_<NAME>` and
-  `PROCTOR_PARAM_<NAME>`, `PROCTOR_TASK` (the stage's id), `PROCTOR_ATTEMPT` (the try's number),
-  `PROCTOR_ATTEMPT_DIR`, `PROCTOR_WORK`, `PROCTOR_TASK_JSON`, `PROCTOR_EXPECT` (the
+  `PROCTOR_PARAM_<NAME>`, `PROCTOR_STAGE` (the stage's id), `PROCTOR_ATTEMPT` (the try's number),
+  `PROCTOR_ATTEMPT_DIR`, `PROCTOR_WORK`, `PROCTOR_STAGE_JSON`, `PROCTOR_EXPECT` (the
   merged block), `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`, `PROCTOR_RUNNER` (the
   runner script in effect, empty on a bare run), `PROCTOR_NB` and
   `PROCTOR_NB_CONFIG` (the host binary and its resolved config, which a
@@ -560,7 +565,7 @@ The directories are for reading, not for namespaces: everything is
   fixture (how it is built and its source by content), not the checks, their
   scripts or the expected values, which are the standard and so a regrade
   (`Exam.JobHash`). Each stage's manifest records the exam, the configuration's
-  key and hash (filed as `variant`), the stage (`task`), the try and `log`
+  key and hash (`configuration`), the stage (`stage`), the try and `log`
   (the entry of the run that made it); the log entry keeps `exam_hash` (the
   definition itself is under `exams-seen/`, once per hash), each
   configuration it made tries of with its values as they stood, its stages,

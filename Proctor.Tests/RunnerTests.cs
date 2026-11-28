@@ -60,7 +60,7 @@ public class RunnerTests
         Assert.Equal(("smoke", exam.Hash), (seen["exam"]!.GetValue<string>(), seen["hash"]!.GetValue<string>()));
         Assert.Equal(1, seen["def"]!["attempts"]!.GetValue<int>());
         // The configuration it made tries of: each axis's value, by name and by the hash that is its identity.
-        var made = Assert.Single(entry["variants"]!.AsArray())!;
+        var made = Assert.Single(entry["configurations"]!.AsArray())!;
         Assert.Equal((A, "mock", "none"), (made["id"]!.GetValue<string>(), made["def"]!["assistant"]!["id"]!.GetValue<string>(), made["def"]!["extra"]!["id"]!.GetValue<string>()));
         Assert.StartsWith("sha256:", made["hash"]!.GetValue<string>());
         Assert.Equal(["plain", "uses-bash", "loops", "writes-a-file"], entry["stages"]!.AsArray().Select(t => t!.GetValue<string>()));
@@ -88,10 +88,10 @@ public class RunnerTests
         Assert.Matches("^[0-9a-f]{16}$", manifest["id"]!.GetValue<string>());
         Assert.Equal("smoke", manifest["exam"]!.GetValue<string>());
         Assert.Equal(id, manifest["log"]!.GetValue<string>());
-        Assert.Equal((A, exam.Assistants.Single().Hash), (manifest["variant"]!["id"]!.GetValue<string>(), manifest["variant"]!["hash"]!.GetValue<string>()));
-        Assert.Equal(("plain", exam.TaskHashes["plain"]), (manifest["task"]!["id"]!.GetValue<string>(), manifest["task"]!["hash"]!.GetValue<string>()));
-        Assert.Equal((1, 1, Path.GetFileName(tryDir)), (manifest["attempt"]!.GetValue<int>(), manifest["stage"]!.GetValue<int>(), manifest["try"]!.GetValue<string>()));
-        Assert.Equal("mock", manifest["configuration"]!["assistant"]!["id"]!.GetValue<string>());
+        Assert.Equal((A, exam.Assistants.Single().Hash), (manifest["configuration"]!["id"]!.GetValue<string>(), manifest["configuration"]!["hash"]!.GetValue<string>()));
+        Assert.Equal(("plain", exam.StageHashes["plain"]), (manifest["stage"]!["id"]!.GetValue<string>(), manifest["stage"]!["hash"]!.GetValue<string>()));
+        Assert.Equal((1, 1, Path.GetFileName(tryDir)), (manifest["attempt"]!.GetValue<int>(), manifest["place"]!.GetValue<int>(), manifest["try"]!.GetValue<string>()));
+        Assert.Equal("mock", manifest["values"]!["assistant"]!["id"]!.GetValue<string>());
         Assert.Equal("Mock", manifest["provider"]!.GetValue<string>());
         Assert.Equal("nb-jsonl", manifest["transcript"]!["format"]!.GetValue<string>());
         Assert.Equal("completed", manifest["status"]!.GetValue<string>());
@@ -146,7 +146,7 @@ public class RunnerTests
     {
         using var repo = new TestRepo();
         var id = StartSmoke(repo, One);
-        var before = repo.LoadExam("smoke").TaskHashes["plain"];
+        var before = repo.LoadExam("smoke").StageHashes["plain"];
         repo.EditStage("smoke", "plain", c => c["prompt"] = "MOCK:response=hello again");
 
         var (again, log) = RunAgain(repo);
@@ -161,7 +161,7 @@ public class RunnerTests
         var selection = Bank.Select(repo.Root, exam);
         Assert.Equal([$"{A}/2/loops", $"{A}/2/plain", $"{A}/2/uses-bash", $"{A}/2/writes-a-file"], selection.Current.Select(a => a.Label).Order(StringComparer.Ordinal));
         Assert.Equal(4, selection.Stale.Count);
-        Assert.Contains(selection.Stale, s => s.Attempt == $"{A}/1/plain" && s.Why == $"the stages changed ({before[7..15]} then, {exam.TaskHashes["plain"][7..15]} now)");
+        Assert.Contains(selection.Stale, s => s.Attempt == $"{A}/1/plain" && s.Why == $"the stages changed ({before[7..15]} then, {exam.StageHashes["plain"][7..15]} now)");
     }
 
     [Fact]
@@ -303,8 +303,8 @@ public class RunnerTests
     public void ResolveProgram_EscapesNewlinesAsContinuations()
     {
         var assistant = new Assistant("floor", "nb", "nb", "Mock", "m");
-        var c = new TaskDef("x", null, "Add a flag.\nKeep tests green.\n  Indented line.", null);
-        var program = Runner.ResolveProgram("run {{prompt}}\n# {{task}} on {{configuration}} attempt {{attempt}} in {{work}}\n", assistant, c, 2, "/w");
+        var c = new StageDef("x", null, "Add a flag.\nKeep tests green.\n  Indented line.", null);
+        var program = Runner.ResolveProgram("run {{prompt}}\n# {{stage}} on {{configuration}} attempt {{attempt}} in {{work}}\n", assistant, c, 2, "/w");
         Assert.Equal("run Add a flag. \\\nKeep tests green. \\\n  Indented line.\n# x on floor attempt 2 in /w\n", program);
     }
 

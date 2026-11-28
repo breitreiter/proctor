@@ -121,7 +121,7 @@ record OracleDef(string? Judge = null, int? Turns = null)
 /// exam.json. Attempts is how many tries every configuration the exam names should have. Tags is what labels replaced
 /// and `variants` what axes replaced; both are here so a leftover is a problem rather than silently ignored.
 /// </summary>
-record ExamDef(string? Id, JsonNode? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null, string? Fixture = null, List<TaskDef>? Stages = null, bool? Chained = null,
+record ExamDef(string? Id, JsonNode? Variants, Hooks? Hooks, Grading? Grading, ExamNb? Nb = null, Dictionary<string, JsonNode?>? Labels = null, JsonNode? Tags = null, string? Description = null, HarborDef? Harbor = null, Limits? Limits = null, OracleDef? Oracle = null, SurfaceDef? Surface = null, int? Attempts = null, string? Fixture = null, List<StageDef>? Stages = null, bool? Chained = null,
     Dictionary<string, AxisDef>? Axes = null, Dictionary<string, Dictionary<string, string?>?>? Configurations = null, List<Dictionary<string, string?>?>? Exclude = null, Dictionary<string, ParamDef>? Params = null);
 
 /// <summary>
@@ -143,7 +143,7 @@ record SubstitutesDef(List<string>? Commands = null, List<string>? Tools = null,
 /// in which configurations it applies. Fixture, Labels and Description are read only to be refused in exam.json: the
 /// fixture is the exam's (or its world axis's, set here once loaded), and a stage's sentence is About.
 /// </summary>
-record TaskDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, Dictionary<string, JsonObject>? Checks = null, string? Oracle = null, string? About = null, string? When = null)
+record StageDef(string? Id, string? Fixture, string? Prompt, JsonObject? Expect, Dictionary<string, JsonNode?>? Labels = null, string? Description = null, Dictionary<string, JsonObject>? Checks = null, string? Oracle = null, string? About = null, string? When = null)
 {
     /// <summary>The file that declares it, exam.json, and the field prefix inside it: `stages[i].`.</summary>
     [JsonIgnore] public string? File { get; init; }
@@ -205,12 +205,12 @@ record Problem(string File, string Field, string Message)
 sealed class Exam
 {
     /// <summary>Placeholders a program template may use; resolved per attempt by the runner.</summary>
-    public static readonly string[] Placeholders = ["prompt", "task", "work", "provider", "model", "harness", "configuration", "attempt"];
+    public static readonly string[] Placeholders = ["prompt", "stage", "work", "provider", "model", "harness", "configuration", "attempt"];
 
     public required string Id { get; init; }
     public required string Dir { get; init; }
     public required ExamDef Def { get; init; }
-    public required List<TaskDef> Tasks { get; init; }
+    public required List<StageDef> Stages { get; init; }
     /// <summary>The fixtures the stages name, by id.</summary>
     public required Dictionary<string, Fixture> Fixtures { get; init; }
     public required string ProgramTemplate { get; init; }
@@ -224,7 +224,7 @@ sealed class Exam
     /// answer sheet in order, the program template, the hooks and the fixture), not the checks or expected values, and a
     /// change to any stage changes what every later stage meets.
     /// </summary>
-    public required Dictionary<string, string> TaskHashes { get; init; }
+    public required Dictionary<string, string> StageHashes { get; init; }
     /// <summary>The exam's axes (plans/axes.md): what is under test, declared in exam.json.</summary>
     public required Axes Axes { get; init; }
     /// <summary>
@@ -235,9 +235,9 @@ sealed class Exam
     /// </summary>
     public bool Chained => Def.Chained == true;
     /// <summary>The stage ids in the order they run: what the bank's paths are built from.</summary>
-    public List<string> StageIds => Tasks.Select(c => c.Id!).ToList();
+    public List<string> StageIds => Stages.Select(c => c.Id!).ToList();
     /// <summary>The stages a try of a configuration runs, by its key: those whose condition holds in it.</summary>
-    public List<TaskDef> StagesOf(string key) => Axes.Of(key) is { } c ? Tasks.Where(s => Axes.Applies(s, c)).ToList() : Tasks;
+    public List<StageDef> StagesOf(string key) => Axes.Of(key) is { } c ? Stages.Where(s => Axes.Applies(s, c)).ToList() : Stages;
 
     /// <summary>Whether any configuration the exam carries runs through Harbor, which then needs a pinned version, a wall limit and an image per fixture.</summary>
     public bool HasHarbor => Assistants.Any(v => v.IsAgent);
@@ -249,27 +249,27 @@ sealed class Exam
     public bool Judged => AllChecks().Any(c => Checks.AsksAModel(c.Spec));
 
     /// <summary>A stage's labels: its fixture's, with the exam's laid over them. A stage has none of its own.</summary>
-    public Dictionary<string, List<string>> LabelsFor(TaskDef task) => Labels.Merge(FixtureOf(task)?.Def.Labels, Def.Labels);
+    public Dictionary<string, List<string>> LabelsFor(StageDef task) => Labels.Merge(FixtureOf(task)?.Def.Labels, Def.Labels);
 
     /// <summary>Every label the exam carries, its fixtures' included, for finding the exam by one.</summary>
     public Dictionary<string, List<string>> AllLabels()
     {
         var all = new Dictionary<string, List<string>>();
-        foreach (var (key, values) in Tasks.SelectMany(c => LabelsFor(c)).Concat(Labels.Merge(Def.Labels)))
+        foreach (var (key, values) in Stages.SelectMany(c => LabelsFor(c)).Concat(Labels.Merge(Def.Labels)))
             all[key] = (all.GetValueOrDefault(key) ?? []).Concat(values).Distinct().ToList();
         return all;
     }
 
-    public Fixture? FixtureOf(TaskDef task) => task.Fixture is null ? null : Fixtures[task.Fixture];
+    public Fixture? FixtureOf(StageDef task) => task.Fixture is null ? null : Fixtures[task.Fixture];
 
     /// <summary>The stage's answer sheet on the host, or null when it has none.</summary>
-    public string? OracleOf(TaskDef task) => task.Oracle is null ? null : Path.GetFullPath(Path.Combine(Dir, task.Oracle));
+    public string? OracleOf(StageDef task) => task.Oracle is null ? null : Path.GetFullPath(Path.Combine(Dir, task.Oracle));
 
     /// <summary>How many answers an attempt at an oracle stage may get.</summary>
     public int OracleTurns => Def.Oracle?.Turns ?? OracleDef.DefaultTurns;
 
     /// <summary>The checks that apply to a stage, the union of three levels: the exam's, its fixture's, then its own. A stage's scripts resolve against the exam directory, as the exam's do.</summary>
-    public Dictionary<string, CheckDef> ChecksFor(TaskDef c)
+    public Dictionary<string, CheckDef> ChecksFor(StageDef c)
     {
         var checks = Grading.Checks!.ToDictionary(k => k.Key, k => new CheckDef(k.Value, Dir, "exam"));
         foreach (var (name, spec) in FixtureOf(c)?.Checks ?? []) checks[name] = new CheckDef(spec, FixtureOf(c)!.Dir, "fixture");
@@ -278,13 +278,13 @@ sealed class Exam
     }
 
     /// <summary>The correctness checks a stage carries.</summary>
-    public List<string> CorrectnessFor(TaskDef c) => Grading.Correctness!.Where(ChecksFor(c).ContainsKey).ToList();
+    public List<string> CorrectnessFor(StageDef c) => Grading.Correctness!.Where(ChecksFor(c).ContainsKey).ToList();
     /// <summary>A check's role, by the list that names it; in none, an observation.</summary>
     public string RoleOf(string check) =>
         Grading.Correctness!.Contains(check) ? Roles.Correctness : Grading.Integrity?.Contains(check) == true ? Roles.Integrity : Grading.Quality?.Contains(check) == true ? Roles.Quality : Roles.Observation;
     /// <summary>The integrity checks a stage carries.</summary>
-    public List<string>? IntegrityFor(TaskDef c) => Grading.Integrity?.Where(ChecksFor(c).ContainsKey).ToList();
-    public TaskDef TaskOf(string id) => Tasks.First(t => t.Id == id);
+    public List<string>? IntegrityFor(StageDef c) => Grading.Integrity?.Where(ChecksFor(c).ContainsKey).ToList();
+    public StageDef StageOf(string id) => Stages.First(t => t.Id == id);
 
     /// <summary>Every check name any attempt can carry, exam checks first, then each stage's fixture's and its own, in declared order.</summary>
     public List<string> CheckNames => AllChecks().Select(c => c.Name).Distinct().ToList();
@@ -299,13 +299,13 @@ sealed class Exam
     /// <summary>Every declared check in report order: the exam's, then per stage its fixture's and its own. A name shared across stages appears once per stage.</summary>
     IEnumerable<(string Name, JsonObject Spec)> AllChecks() =>
         Grading.Checks!.Select(k => (k.Key, k.Value))
-            .Concat(Tasks.SelectMany(c => (FixtureOf(c)?.Checks ?? []).Concat(c.Checks ?? []).Select(k => (k.Key, k.Value))));
+            .Concat(Stages.SelectMany(c => (FixtureOf(c)?.Checks ?? []).Concat(c.Checks ?? []).Select(k => (k.Key, k.Value))));
 
     /// <summary>What the stage is about, for a reader: its description, else the first line of its prompt.</summary>
-    public static string Describe(TaskDef task) => task.Description ?? task.Prompt!.Split('\n')[0].Trim();
+    public static string Describe(StageDef task) => task.Description ?? task.Prompt!.Split('\n')[0].Trim();
 
     /// <summary>What the stage expects: its fixture's defaults with the stage's own block laid over them, key by key.</summary>
-    public JsonObject? ExpectFor(TaskDef task)
+    public JsonObject? ExpectFor(StageDef task)
     {
         var fixture = FixtureOf(task)?.Def.Expect;
         if (fixture is null) return task.Expect;
@@ -453,6 +453,8 @@ sealed class Exam
             foreach (Match m in Regex.Matches(template, @"\{\{\s*([^}]*?)\s*\}\}"))
                 if (m.Groups[1].Value is var name && name.StartsWith("axis.") && def.Axes.ContainsKey(name[5..])) continue;
                 else if (name.StartsWith("param.") && (def.Params?.ContainsKey(name[6..]) == true || fixtures.Values.Any(f => f.Def.Params?.ContainsKey(name[6..]) == true))) continue;
+                else if (name == "task")
+                    problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{stage}}, the stage's id"));
                 else if (name == "variant")
                     problems.Add(new Problem(rel(templateFile), m.Value, "renamed: {{configuration}}, the configuration's key; one axis's value is {{axis.<name>}}"));
                 else if (name == "bundle")
@@ -471,13 +473,13 @@ sealed class Exam
             Id = examId,
             Dir = dir,
             Def = def,
-            Tasks = tasks,
+            Stages = tasks,
             Fixtures = fixtures,
             ProgramTemplate = template,
             Hash = HashDefinition(root, dir, def, tasks, fixtures.Values),
             Axes = axes,
             Assistants = assistants,
-            TaskHashes = tasks.ToDictionary(c => c.Id!, _ => JobHash(root, dir, def, tasks, def.Fixture is null ? null : fixtures[def.Fixture])),
+            StageHashes = tasks.ToDictionary(c => c.Id!, _ => JobHash(root, dir, def, tasks, def.Fixture is null ? null : fixtures[def.Fixture])),
         };
     }
 
@@ -524,10 +526,10 @@ sealed class Exam
     /// runs in (the exam's, or the one its condition names on a world axis), its about as its description. A stage has
     /// no fixture or labels of its own: the workspace is the job's, and a stage is never run or counted alone.
     /// </summary>
-    private static List<TaskDef> LoadStages(ExamDef def, string dir, string file, List<Problem> problems)
+    private static List<StageDef> LoadStages(ExamDef def, string dir, string file, List<Problem> problems)
     {
         void Add(string field, string message) => problems.Add(new Problem(file, field, message));
-        var stages = new List<TaskDef>();
+        var stages = new List<StageDef>();
         if (Directory.Exists(Layout.TasksDirIn(dir)) && Directory.GetFiles(Layout.TasksDirIn(dir), "*.json").Length > 0)
             Add("stages", "this exam also has tasks/*.json, the earlier shape; its work is the stages listed here, so move each in and delete the files");
         if (def.Fixture is not null && !Regex.IsMatch(def.Fixture, "^[a-z0-9][a-z0-9-]*$"))
@@ -551,7 +553,7 @@ sealed class Exam
     }
 
     /// <summary>A stage's own: a prompt, an answer sheet that resolves, and checks that are well formed.</summary>
-    static void ValidateTask(TaskDef c, string dir, Action<string, string> add)
+    static void ValidateTask(StageDef c, string dir, Action<string, string> add)
     {
         if (string.IsNullOrWhiteSpace(c.Prompt)) add("prompt", "required");
         if (c.Oracle is not null && OracleSheetProblem(dir, c.Oracle) is { } sheetProblem) add("oracle", sheetProblem);
@@ -564,7 +566,7 @@ sealed class Exam
     }
 
     /// <summary>Stage ids that will not read as a label on screen (plans/bank.md, B9): over 20 characters, or only a number or a place ("stage-12", "q3").</summary>
-    public List<string> UnreadableStageIds() => Tasks.Select(c => c.Id!).Where(id => id.Length > 20 || Regex.IsMatch(id, @"^([a-z]+-?)?\d+$")).ToList();
+    public List<string> UnreadableStageIds() => Stages.Select(c => c.Id!).Where(id => id.Length > 20 || Regex.IsMatch(id, @"^([a-z]+-?)?\d+$")).ToList();
 
     /// <summary>A sheet inside the exam directory with at least one headed entry, which is what nb's answer sheet selects.</summary>
     static string? OracleSheetProblem(string dir, string oracle)
@@ -579,7 +581,7 @@ sealed class Exam
         return null;
     }
 
-    private static void ValidateDef(ExamDef def, string root, string dir, string file, string examId, List<TaskDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures, List<Problem> problems)
+    private static void ValidateDef(ExamDef def, string root, string dir, string file, string examId, List<StageDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures, List<Problem> problems)
     {
         void Add(string field, string message) => problems.Add(new Problem(file, field, message));
 
@@ -735,7 +737,7 @@ sealed class Exam
     /// image on every stage's fixture. An attempt hook runs on the host, which an agent's container never sees; the setup it
     /// did belongs in the fixture's image.
     /// </summary>
-    static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<TaskDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
+    static void ValidateHarbor(ExamDef def, Action<string, string> add, string dir, List<StageDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures, string root, List<Problem> problems)
     {
         // Only the configurations the exam carries stand in `assistants`, so a value that names an agent or the Harbor route counts too.
         var agents = assistants.Any(v => v.IsAgent) || def.Axes!.Values.Any(a => a?.Values?.Values.Any(v => v?.Agent is not null || v?.Route == ValueDef.Harbor) == true);
@@ -766,8 +768,8 @@ sealed class Exam
     /// Harbor. A vendor agent can be a bridge target, but bridged it leaves no ATIF (Harbor converts the user agent's
     /// log, not the target's), and Qwen Code cannot be a target at all (plans/oracle-in-proctor.md, question 4).
     /// </summary>
-    static void ValidateOracle(ExamDef def, Action<string, string> add, List<TaskDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures,
-        Action<TaskDef, string, string> addToTask, Action<Fixture, string, string> addToFixture)
+    static void ValidateOracle(ExamDef def, Action<string, string> add, List<StageDef> tasks, List<Assistant> assistants, Dictionary<string, Fixture> fixtures,
+        Action<StageDef, string, string> addToTask, Action<Fixture, string, string> addToFixture)
     {
         var oracleTasks = tasks.Where(c => c.Oracle is not null).Select(c => c.Id).ToList();
         if (def.Oracle is { } oracle)
@@ -789,7 +791,7 @@ sealed class Exam
         }
         // Through Harbor a try with an answer sheet must be one stage: the simulated user answers a task, never a step of one. On an
         // exam with axes a try is the stages whose condition holds in its configuration, so each configuration is looked at for itself.
-        List<TaskDef> StagesOf(Assistant v)
+        List<StageDef> StagesOf(Assistant v)
         {
             var values = v.Id!.Split(',').Select(p => p.Split('=', 2)).Where(p => p.Length == 2).ToDictionary(p => p[0], p => p[1]);
             return tasks.Where(s => s.When is null || When.Parse(s.When, out _) is not { } when || when.Terms.All(t => (values.GetValueOrDefault(t.Axis) == t.Value) != t.Not)).ToList();
@@ -809,7 +811,7 @@ sealed class Exam
     /// or a stage's about: those are the standard an attempt is graded by and how it is labelled, so a change there
     /// means grading again, not attempting again.
     /// </summary>
-    static string JobHash(string root, string dir, ExamDef def, List<TaskDef> prompts, Fixture? fixture)
+    static string JobHash(string root, string dir, ExamDef def, List<StageDef> prompts, Fixture? fixture)
     {
         var files = new List<string> { Path.Combine(dir, Layout.ProgramTemplateFile) };
         files.AddRange(prompts.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));
@@ -822,7 +824,7 @@ sealed class Exam
     }
 
     /// <summary>Every definition file: the exam's own, plus each named fixture's fixture.json and check scripts. Not the fixture's source tree; that is the fixture hash, recorded per stage of a try.</summary>
-    private static string HashDefinition(string root, string dir, ExamDef def, List<TaskDef> tasks, IEnumerable<Fixture> fixtures)
+    private static string HashDefinition(string root, string dir, ExamDef def, List<StageDef> tasks, IEnumerable<Fixture> fixtures)
     {
         var files = new List<string> { Layout.ExamFileIn(dir), Path.Combine(dir, Layout.ProgramTemplateFile) };
         files.AddRange(tasks.Where(c => c.Oracle is not null).Select(c => Path.Combine(dir, c.Oracle!)));

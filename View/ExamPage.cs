@@ -122,8 +122,8 @@ static class ExamPage
     /// <summary>A line to what the bank still holds from before the exam was stages and axes; empty when there is nothing.</summary>
     static string EarlierLink(Exam e)
     {
-        var tries = e.Earlier.Select(a => (a.Configuration, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
-        return tries == 0 ? "" : $"<a id=\"earlier\" href=\"{U($"/{e.Id}/earlier")}\">{tries} earlier {(tries == 1 ? "attempt" : "attempts")}</a> <span class=\"dim\">made while this exam was tasks and variants. In the bank, and in no number here.</span>";
+        var tries = e.Earlier.Select(a => (a.Configuration, a.Staged ? "" : a.Stage, a.N)).Distinct().Count();
+        return tries == 0 ? "" : $"<a id=\"earlier\" href=\"{U($"/{e.Id}/earlier")}\">{tries} earlier {(tries == 1 ? "attempt" : "attempts")}</a> <span class=\"dim\">made by an earlier proctor. In the bank, and in no number here.</span>";
     }
 
     /// <summary>
@@ -278,7 +278,7 @@ static class ExamPage
             .Select(g => (Name: g.Key, g.First().Role, Stages: g.Count())).OrderBy(k => Array.IndexOf(RoleOrder, k.Role)).ToList();
         foreach (var k in checks)
         {
-            var spec = exam.Tasks.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Name)).FirstOrDefault(c => c is not null);
+            var spec = exam.Stages.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Name)).FirstOrDefault(c => c is not null);
             var (tag, says) = RoleTag[k.Role];
             page.Append($"<div class=\"row checks\"><span class=\"mono\">{E(k.Name)}</span><span>{Tagged(tag, k.Role, says)}</span>")
                 .Append($"<span class=\"soft\">{E(spec is null ? "" : P.Checks.Describe(spec.Spec) ?? "")}</span>")

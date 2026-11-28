@@ -25,21 +25,21 @@ static class Verbs
             var labels = exam.AllLabels();
             if (labelFilters?.All(f => Labels.Matches(labels, f)) == false) continue;
             Console.WriteLine(exam.Def.Description is { } about ? $"{exam.Id}: {about}" : exam.Id);
-            var levels = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Select(k => (k.Key, k.Value.Level))).Distinct().GroupBy(k => k.Level).ToList();
-            var fixtures = exam.Tasks.Select(c => c.Fixture).OfType<string>().Distinct().Count();
+            var levels = exam.Stages.SelectMany(c => exam.ChecksFor(c).Select(k => (k.Key, k.Value.Level))).Distinct().GroupBy(k => k.Level).ToList();
+            var fixtures = exam.Stages.Select(c => c.Fixture).OfType<string>().Distinct().Count();
             var byLevel = levels.Count < 2 ? "" : " (" + string.Join(", ", levels.Select(g => $"{g.Count()} of {g.Key switch { "exam" => "the exam's", "fixture" => fixtures == 1 ? "the fixture's" : "the fixtures'", _ => "the stages' own" }}")) + ")";
-            var size = exam.Axes.Conditions.Count > 0 ? Count(exam.Tasks.Count, "stage") : $"one job of {Count(exam.Tasks.Count, "stage")}";
+            var size = exam.Axes.Conditions.Count > 0 ? Count(exam.Stages.Count, "stage") : $"one job of {Count(exam.Stages.Count, "stage")}";
             Console.WriteLine($"  {size}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted{(exam.Judged ? "; judged" : "")}");
-            Console.WriteLine($"  stages: {string.Join(", ", exam.Tasks.Select(c => c.Id))}");
+            Console.WriteLine($"  stages: {string.Join(", ", exam.Stages.Select(c => c.Id))}");
             // A stage's id is its label on screen; these will not read as one (plans/bank.md, B9). Said, never refused.
             if (exam.UnreadableStageIds() is { Count: > 0 } unreadable) Console.WriteLine($"  stage ids that will not read as a label (over 20 characters, or a number): {string.Join(", ", unreadable)}");
             if (labels.Count > 0) Console.WriteLine($"  labels: {Labels.Format(labels)}");
             // A check with no reason, neither its author's nor a guardrail's default (check-evidence.md, C1). Listed, not refused, until the exams have theirs.
-            var unexplained = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Where(k => Checks.WhyOf(k.Value.Spec) is null).Select(k => k.Key)).Distinct().ToList();
+            var unexplained = exam.Stages.SelectMany(c => exam.ChecksFor(c).Where(k => Checks.WhyOf(k.Value.Spec) is null).Select(k => k.Key)).Distinct().ToList();
             if (unexplained.Count > 0) Console.WriteLine($"  {Count(unexplained.Count, "check")} with no why: {string.Join(", ", unexplained)}");
             ListAxes(root, exam);
             if (Bank.Earlier(root, exam.Id) is > 0 and var earlier)
-                Console.WriteLine($"  {Count(earlier, "attempt")} made while this exam was tasks and variants {(earlier == 1 ? "is" : "are")} still in {Layout.BankDir}/{exam.Id}/, and read by nothing: what was under test is named and hashed another way now");
+                Console.WriteLine($"  {Count(earlier, "attempt")} made by an earlier proctor {(earlier == 1 ? "is" : "are")} still in {Layout.BankDir}/{exam.Id}/, and read by nothing: its files name what was under test another way");
         }
         foreach (var p in problems) Console.Error.WriteLine(p);
         return exit;
@@ -255,7 +255,7 @@ static class Verbs
         var graded = grades.Count(g => g.Checks is not null);
         var invalid = grades.Count(g => g.Invalid is not null);
         var undecided = grades.Where(g => g.Checks is not null && g.Invalid is null && g.Pass is null).ToList();
-        var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.CorrectnessFor(exam.TaskOf(g.Task))) is not null);
+        var outdated = undecided.Count(g => Proctor.Grade.Outdated(g.Checks!, exam.CorrectnessFor(exam.StageOf(g.Stage))) is not null);
         var untouched = keys is null ? 0 : Bank.Select(root, exam).Current.Count - grades.Count;
         Console.WriteLine($"graded {graded} of {grades.Count} stages{(grades.Count(g => g.Status == AttemptStatus.Skipped) is > 0 and var skipped ? $" ({skipped} not reached)" : "")}; {grades.Count(g => g.Pass == true && g.Invalid is null)} pass{(invalid > 0 ? $", {invalid} invalid" : "")}{(undecided.Count > outdated ? $", {undecided.Count - outdated} undecided" : "")}{(outdated > 0 ? $", {outdated} outdated" : "")}{(untouched > 0 ? $"; {untouched} outside --value/--configuration left as they were" : "")}");
         foreach (var line in Proctor.Grade.ByCheck(grades, before)) Console.WriteLine(line);
@@ -305,7 +305,7 @@ static class Verbs
             Console.WriteLine($"reader {reader}: {asked.Count(r => r.Problem is null)} asked, {readings.Count(r => !r.Asked)} reused, {readings.Count(r => r.Problem is not null)} without an answer; "
                 + $"{readings.Sum(r => r.Kept)} of {readings.Sum(r => r.Labelled)} labelled calls kept; {asked.Sum(r => r.InputTokens ?? 0):N0} tokens in, {asked.Sum(r => r.OutputTokens ?? 0):N0} out");
             foreach (var c in read.Where(c => c.Reading!.Dropped.Count > 0))
-                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Configuration}/{c.Attempt}/{c.Task} {drop}");
+                foreach (var drop in c.Reading!.Dropped) Console.WriteLine($"  dropped {c.Configuration}/{c.Attempt}/{c.Stage} {drop}");
         }
         return 0;
     }
@@ -438,7 +438,7 @@ static class Verbs
             foreach (var c in axes.Configurations)
             {
                 var notes = string.Join(", ", new[] { c.Name ?? "not named", Live(c) ? "live" : null, c.Name is not null && retired.ContainsKey(c.Name) ? "retired" : null }.OfType<string>());
-                Console.WriteLine($"  {c.Label.PadRight(width)}  {exam.Tasks.Count(s => axes.Applies(s, c)),-6}  {Made(c),-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
+                Console.WriteLine($"  {c.Label.PadRight(width)}  {exam.Stages.Count(s => axes.Applies(s, c)),-6}  {Made(c),-8}  {exam.Attempts,-6}  {notes}".TrimEnd());
             }
         }
         foreach (var excluded in axes.Excludes)

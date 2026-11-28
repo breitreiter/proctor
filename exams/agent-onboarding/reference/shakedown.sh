@@ -44,10 +44,10 @@ for c in $(jq -r '.stages[].id' "$def"); do
   stage=$(jq -c --arg c "$c" '.stages[] | select(.id == $c)' "$def")
   project=$(jq -r '.when | sub("^project = "; "")' <<<"$stage")
   f=$(jq -r --arg p "$project" '.axes.project.values[$p].fixture' "$def")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_STAGE="$c" PROCTOR_ATTEMPT=1
   export PROCTOR_CONFIGURATION="project=$project,assistant=ref" PROCTOR_AXIS_PROJECT="$project" PROCTOR_AXIS_ASSISTANT=ref
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_TASK_JSON="$stage" PROCTOR_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" PROCTOR_TRANSCRIPT=""
+  export PROCTOR_STAGE_JSON="$stage" PROCTOR_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" PROCTOR_TRANSCRIPT=""
   mkdir -p "$PROCTOR_ATTEMPT_DIR" "$PROCTOR_WORK"
   cp -r "$PROCTOR_FIXTURE/repo/." "$PROCTOR_WORK"
   (cd "$PROCTOR_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm "fixture $f")

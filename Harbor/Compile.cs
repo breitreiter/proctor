@@ -68,14 +68,14 @@ static class HarborCompile
     /// is the tag of proctor's nb layer.
     /// </summary>
     public static string Tasks(string entryDir, Exam exam, Func<Assistant, AgentRoute> route, string? nbImage = null,
-        IReadOnlyCollection<(Assistant Assistant, TaskDef Task)>? pairs = null, string? relayDir = null)
+        IReadOnlyCollection<(Assistant Assistant, StageDef Stage)>? pairs = null, string? relayDir = null)
     {
         pairs ??= (from assistant in exam.Assistants.Where(a => a.IsAgent) from c in exam.StagesOf(assistant.Id!) select (assistant, c)).ToList();
         foreach (var assistant in pairs.Select(p => p.Assistant).Distinct())
             if (Plain(exam, assistant.Id!)) Task(Layout.HarborJobTask(entryDir, assistant.Id!, exam.Id), exam, assistant, exam.StagesOf(assistant.Id!)[0], route(assistant), nbImage, relayDir);
             else Job(Layout.HarborJobTask(entryDir, assistant.Id!, exam.Id), exam, assistant, route(assistant), nbImage, relayDir);
         var files = pairs.Select(p => p.Assistant).Where(IsOwnAgent).Select(a => OwnAgents[a.Agent!].File).Distinct().ToList();
-        var oracle = pairs.Any(p => p.Task.Oracle is not null);
+        var oracle = pairs.Any(p => p.Stage.Oracle is not null);
         if (oracle) files.Add(OracleUserFile);
         var agents = AgentsDir(entryDir);
         foreach (var file in files)
@@ -115,7 +115,7 @@ static class HarborCompile
     /// fixture's services as environment/params/NAME/ (empty when nothing sets it), so a service can serve it, a docs site
     /// say, while the agent's own container never holds it.
     /// </summary>
-    public static void Task(string dir, Exam exam, Assistant assistant, TaskDef task, AgentRoute route, string? nbImage = null, string? relayDir = null)
+    public static void Task(string dir, Exam exam, Assistant assistant, StageDef task, AgentRoute route, string? nbImage = null, string? relayDir = null)
     {
         if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         var fixture = exam.FixtureOf(task)!;
@@ -272,7 +272,7 @@ static class HarborCompile
     }
 
     /// <summary>Where a compiled task keeps a verifier's script and contract: a stage's are its step's, a plain task's the task's own.</summary>
-    static string VerifierFile(string taskDir, Exam exam, TaskDef task, string file) =>
+    static string VerifierFile(string taskDir, Exam exam, StageDef task, string file) =>
         Directory.Exists(Path.Combine(taskDir, "steps")) ? Path.Combine(taskDir, "steps", task.Id!, "tests", file) : Path.Combine(taskDir, "tests", file);
 
     /// <summary>
@@ -398,9 +398,9 @@ static class HarborCompile
     public static List<string> Hosts(AgentRoute route, Fixture fixture) =>
         [.. new[] { route.Host }.OfType<string>().Concat(fixture.Def.Image?.AllowedHosts ?? []).Distinct()];
 
-    static string TaskToml(Exam exam, TaskDef c, AgentRoute route, bool bridged, string? name = null, string? description = null) => TaskToml(exam, c, Network(route, exam.FixtureOf(c)!), bridged, name, description);
+    static string TaskToml(Exam exam, StageDef c, AgentRoute route, bool bridged, string? name = null, string? description = null) => TaskToml(exam, c, Network(route, exam.FixtureOf(c)!), bridged, name, description);
 
-    static string TaskToml(Exam exam, TaskDef c, string network, bool bridged, string? name, string? description) => $"""
+    static string TaskToml(Exam exam, StageDef c, string network, bool bridged, string? name, string? description) => $"""
         version = "1.0"
 
         [task]
@@ -488,7 +488,7 @@ static class HarborCompile
     /// meaning there (the attempt's directory and number, nb, a runner) is empty. There is no transcript in the verifier: a check that
     /// reads one cannot run there yet.
     /// </summary>
-    static string VerifierEnv(Exam exam, string key, TaskDef task)
+    static string VerifierEnv(Exam exam, string key, StageDef task)
     {
         var values = new Dictionary<string, string>
         {
@@ -496,12 +496,12 @@ static class HarborCompile
             ["PROCTOR_FIXTURE"] = "/tests/fixture",
             ["PROCTOR_EXAM"] = exam.Id,
             ["PROCTOR_CONFIGURATION"] = key,
-            ["PROCTOR_TASK"] = task.Id!,
+            ["PROCTOR_STAGE"] = task.Id!,
             ["PROCTOR_ATTEMPT"] = "",
             ["PROCTOR_ATTEMPT_DIR"] = "",
             ["PROCTOR_WORK"] = Workdir,
             ["PROCTOR_WORK_MOUNT"] = Workdir,
-            ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(task, Exam.JsonOptions),
+            ["PROCTOR_STAGE_JSON"] = JsonSerializer.Serialize(task, Exam.JsonOptions),
             ["PROCTOR_EXPECT"] = exam.ExpectFor(task)?.ToJsonString() ?? "{}",
             ["PROCTOR_TRANSCRIPT"] = "",
             ["PROCTOR_DIFF"] = DiffInContainer,
@@ -528,7 +528,7 @@ static class HarborCompile
     /// order. One reward key per check: 1 pass, 0 fail, 2 needs-judge; any other exit leaves the key out, which is
     /// error. Each check's output is kept as verifier/&lt;check&gt;.out and its exit code as &lt;check&gt;.exit.
     /// </summary>
-    static string TestScript(Exam exam, TaskDef task)
+    static string TestScript(Exam exam, StageDef task)
     {
         var sb = new StringBuilder("""
             #!/bin/bash
@@ -574,7 +574,7 @@ static class HarborCompile
     /// service), except another check's script. With no compiled copy, every script check is reported, since nothing shows
     /// its verdict is current.
     /// </summary>
-    public static Dictionary<string, string> Outdated(string? taskDir, Exam exam, TaskDef task, string key)
+    public static Dictionary<string, string> Outdated(string? taskDir, Exam exam, StageDef task, string key)
     {
         var names = exam.ChecksFor(task).Where(k => k.Value.Spec.ContainsKey("script")).Select(k => k.Key).ToList();
         var tests = taskDir is null ? null : Path.Combine(taskDir, "tests");

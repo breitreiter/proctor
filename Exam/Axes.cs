@@ -186,7 +186,7 @@ sealed class Axes
     public Dictionary<string, Ref> Seen(Configuration c) => c.Values.ToDictionary(v => v.Axis, v => new Ref(v.Value, ValueHashes[v]));
 
     public ValueDef Value(string axis, string value) => Def[axis].Values![value]!;
-    public bool Applies(TaskDef stage, Configuration c) => !Conditions.TryGetValue(stage.Id!, out var when) || when.Holds(c);
+    public bool Applies(StageDef stage, Configuration c) => !Conditions.TryGetValue(stage.Id!, out var when) || when.Holds(c);
     /// <summary>The fixture a configuration runs in: its world value's, or the exam's.</summary>
     public string? FixtureOf(Configuration c, string? examFixture) => WorldAxis is null ? examFixture : Value(WorldAxis, c[WorldAxis]!).Fixture;
 
@@ -197,7 +197,7 @@ sealed class Axes
         (def.Axes ?? []).Values.SelectMany(a => a?.Values?.Values.AsEnumerable() ?? []).Select(v => v?.Fixture).OfType<string>().Where(f => Regex.IsMatch(f, "^[a-z0-9][a-z0-9-]*$")).Distinct();
 
     /// <summary>The fixture a stage's condition pins it to, when the exam has a world axis and the condition names one value on it.</summary>
-    public static string? FixturePinned(ExamDef def, TaskDef stage)
+    public static string? FixturePinned(ExamDef def, StageDef stage)
     {
         if (stage.When is null || When.Parse(stage.When, out _) is not { } when) return null;
         foreach (var (axis, not, value) in when.Terms)
@@ -209,7 +209,7 @@ sealed class Axes
     /// Validate the declarations against the base and build the configurations. Every refusal names its field in
     /// exam.json and says what to change. Returns null when anything is wrong.
     /// </summary>
-    public static Axes? Load(ExamDef def, string root, string dir, List<TaskDef> stages, Dictionary<string, Fixture> fixtures, Action<string, string> add, IEnumerable<string>? also = null)
+    public static Axes? Load(ExamDef def, string root, string dir, List<StageDef> stages, Dictionary<string, Fixture> fixtures, Action<string, string> add, IEnumerable<string>? also = null)
     {
         var problems = 0;
         void Add(string field, string message) { problems++; add(field, message); }

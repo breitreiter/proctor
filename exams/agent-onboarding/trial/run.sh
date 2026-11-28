@@ -71,7 +71,7 @@ proctor report "$id" --root "$root" >"$out/report.log" 2>&1 || fail "proctor rep
 cp -r bank log "$out/"
 cp "reports/$id/explore/results.jsonl" "$out/results.jsonl"
 
-# In results.jsonl a configuration's key is the field `variant` and a stage is `task`, as proctor first wrote them.
+# In results.jsonl the proctor pinned in the image says `variant` and `task` where the host's says `configuration` and `stage`; both are read until the pin moves past the rename.
 jq -n --slurpfile plants "$plants" --slurpfile exam "$out/written-exam.json" \
   --slurpfile rec <(cat "$out"/records/*.json 2>/dev/null) --slurpfile res "$out/results.jsonl" '
   $plants[0] as $p | $exam[0] as $e | $rec as $r
@@ -99,11 +99,11 @@ jq -n --slurpfile plants "$plants" --slurpfile exam "$out/written-exam.json" \
                 (if $va == $vb then "the values \($axis)=\($a[$axis]) and \($axis)=\($b[$axis]) set and carry the same things, so the value is not what gives them different prompts" else empty end)
             end
         else empty end ),
-      ([$res[] | select(.status != "completed") | . as $row | select([$r[] | select(.configuration == $row.variant and .stage == $row.task)] | length == 0)]
+      ([$res[] | select(.status != "completed") | . as $row | select([$r[] | select(.configuration == ($row.configuration // $row.variant) and .stage == ($row.stage // $row.task))] | length == 0)]
         | select(length > 0) | "\(length) run(s) failed before the bot answered, so the exam never asked it: \(.[0].status_reason // .[0].reason // .[0].status)")
     ] as $problems
   | { problems: $problems,
-      runs: [ $r[] | . as $c | ([$res[] | select(.variant == $c.configuration and .task == $c.stage)] | first) as $row
+      runs: [ $r[] | . as $c | ([$res[] | select((.configuration // .variant) == $c.configuration and (.stage // .task) == $c.stage)] | first) as $row
         | {plant, configuration: .written, stage, key, version, expect,
            status: ($row.status // "missing"), pass: $row.pass, invalid: $row.invalid,
            failed: [($row.checks // {}) | to_entries[] | select(.value != "pass") | "\(.key) \(.value)"]} ] }' >"$out/trial.json" \

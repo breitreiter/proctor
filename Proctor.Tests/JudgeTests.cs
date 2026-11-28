@@ -88,7 +88,7 @@ public class JudgeTests
         Transcript.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name + ".jsonl")), diff);
 
     static AttemptContext Attempt(JudgeClient judges, JsonObject? expect = null, string? attemptDir = null) =>
-        new("/nonexistent", attemptDir ?? Directory.CreateTempSubdirectory("proctor-judge").FullName, "/work", "exp", "a", new TaskDef("c", null, "Say the answer.", expect), 1) { Judges = judges };
+        new("/nonexistent", attemptDir ?? Directory.CreateTempSubdirectory("proctor-judge").FullName, "/work", "exp", "a", new StageDef("c", null, "Say the answer.", expect), 1) { Judges = judges };
 
     static Verdict Exam(string spec, Transcript t, JudgeClient judges, JsonObject? expect = null, string? attemptDir = null, string name = "the-check") =>
         Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), Attempt(judges, expect, attemptDir), t, name);
@@ -536,11 +536,11 @@ public class JudgeTests
         Assert.Contains(cost, line => line.StartsWith("  glm: "));
         Assert.Equal((httpCalls, chatCalls), (http.Calls, chat.Calls));
         Assert.False(judges.Counting);
-        var plain = grades.Single(g => g.Task == "plain");
+        var plain = grades.Single(g => g.Stage == "plain");
         Assert.Equal("pass", plain.Checks!["stance"].Result);
         Assert.Equal("yes p=0.99", plain.Checks["stance"].Reason);
         Assert.Equal("error", plain.Checks["sensible"].Result);   // "OK" is not in plain's answer: every vote discarded
-        var usesBash = grades.Single(g => g.Task == "uses-bash");
+        var usesBash = grades.Single(g => g.Stage == "uses-bash");
         Assert.Equal(("pass", "yes 2/2 — \"OK\""), usesBash.Checks!["sensible"].Deconstruct());
         Assert.True(usesBash.Pass);
         Assert.Equal(3, http.Calls);
@@ -555,7 +555,7 @@ public class JudgeTests
         var compare = new JudgeClient { Defs = JudgeClient.From(Proctor.Exam.LoadConfig(repo.Root, problems), ["glm=k2"], false).Defs, Remap = new() { ["glm"] = "k2" }, Http = new HttpClient(http), ChatClient = (def, _) => def.Model == "k2" ? k2 : chat };
         var compareLog = new StringWriter();
         var compared = Proctor.Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, compareLog, compare);
-        Assert.Equal(("pass", "yes 2/2 — \"OK\""), compared.Single(g => g.Task == "uses-bash").Checks!["sensible"].Deconstruct());
+        Assert.Equal(("pass", "yes 2/2 — \"OK\""), compared.Single(g => g.Stage == "uses-bash").Checks!["sensible"].Deconstruct());
         Assert.Equal("pass", Proctor.Grade.ReadChecks(repo.StageDir("smoke", TestRepo.A, "uses-bash"))!["sensible"].Result);
         Assert.Contains($"{TestRepo.A}/1/uses-bash  sensible: glm=pass (yes 2/2 — \"OK\")  k2=fail (no 2/2, expected yes — \"OK\")", compareLog.ToString());
         Assert.Contains("2 of 3 verdicts agree; checks.json unchanged", compareLog.ToString());   // plain and loops error under both judges ("OK" is not in their answers); uses-bash disagrees

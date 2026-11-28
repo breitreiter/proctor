@@ -153,7 +153,7 @@ public class CrawlTests
     {
         var page = await Page("/staged/earlier");
         Assert.Contains("<span class=\"kind\">earlier attempts</span>", page);
-        Assert.Contains("Made while this exam was tasks and variants.", page);
+        Assert.Contains("Made by an earlier proctor, whose files this one does not read.", page);
         Assert.Contains("href=\"/staged/live-setup/1/write-note\"", page);
     }
 

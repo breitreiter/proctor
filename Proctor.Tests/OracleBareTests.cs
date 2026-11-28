@@ -35,7 +35,7 @@ public class OracleBareTests
 
     static Verdict Check(string attemptDir, string spec)
     {
-        var task = new TaskDef("plain", null, "p", null, Oracle: "oracle/plain.md");
+        var task = new StageDef("plain", null, "p", null, Oracle: "oracle/plain.md");
         return Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), new AttemptContext("/nonexistent", attemptDir, "/work", "exp", "a", task, 1), Transcript.Read(attemptDir));
     }
 
@@ -101,7 +101,7 @@ public class OracleBareTests
     public void OracleHit_OnATaskWithNoSheet_IsAnError_NotAFail()
     {
         var t = Transcript.Parse("""{"type":"result","exit_reason":"ok"}""" + "\n", null);
-        var attempt = new AttemptContext("/nonexistent", Path.GetTempPath(), "/work", "exp", "a", new TaskDef("c", null, "p", null), 1);
+        var attempt = new AttemptContext("/nonexistent", Path.GetTempPath(), "/work", "exp", "a", new StageDef("c", null, "p", null), 1);
         Assert.Equal(Verdict.Error, Checks.Evaluate(JsonNode.Parse("""{"oracle_hit": ["x"]}""")!.AsObject(), attempt, t).Result);
     }
 

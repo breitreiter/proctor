@@ -10,7 +10,7 @@ public class ChecksTests
         Transcript.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name + ".jsonl")), diff);
 
     static AttemptContext Attempt(JsonObject? expect = null, string? examDir = null, string? attemptDir = null) =>
-        new(examDir ?? "/nonexistent", attemptDir ?? Path.GetTempPath(), "/work", "exp", "a", new TaskDef("c", null, "p", expect), 1);
+        new(examDir ?? "/nonexistent", attemptDir ?? Path.GetTempPath(), "/work", "exp", "a", new StageDef("c", null, "p", expect), 1);
 
     static Verdict Exam(string spec, Transcript t, JsonObject? expect = null) =>
         Checks.Evaluate(JsonNode.Parse(spec)!.AsObject(), Attempt(expect), t);
@@ -283,7 +283,7 @@ public class ChecksTests
     public void Script_SeesTheAttemptInItsEnvironment()
     {
         using var repo = new TestRepo();
-        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_TASK\" = c ] && [ \"$PROCTOR_CONFIGURATION\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_ATTEMPT_DIR\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
+        var script = repo.Write("e/checks/env.sh", "#!/usr/bin/env bash\n[ \"$PROCTOR_STAGE\" = c ] && [ \"$PROCTOR_CONFIGURATION\" = a ] && [ \"$(pwd)\" = \"$PROCTOR_ATTEMPT_DIR\" ] && echo \"$PROCTOR_EXPECT\" | grep -q forty && exit 0\nexit 1\n");
         File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var attempt = Attempt(JsonNode.Parse("{\"answer_contains\": \"forty\"}")!.AsObject(), Path.Combine(repo.Root, "exams", "e"), repo.Root);
         Assert.Equal("pass", Checks.Evaluate(JsonNode.Parse("{\"script\": \"checks/env.sh\"}")!.AsObject(), attempt, Fixture("plain")).Result);

@@ -108,7 +108,7 @@ static class ConfigurationPage
         {
             var (tag, says) = RoleTag[k.Role];
             var other = live?.Tries?.Checks?.FirstOrDefault(o => o.Check == k.Check);
-            var spec = exam.Tasks.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Check)).FirstOrDefault(s => s is not null);
+            var spec = exam.Stages.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Check)).FirstOrDefault(s => s is not null);
             // Only a correctness check that fell short is coloured: an observation has no preferred answer.
             var fell = k.Role == P.Roles.Correctness && k.Held < k.Asked;
             page.Append($"<div class=\"row rates\"><span class=\"mono\">{E(k.Check)}</span><span>{Tagged(tag, k.Role, says)}</span>")

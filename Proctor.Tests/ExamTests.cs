@@ -14,7 +14,7 @@ public class ExamTests
 
         Assert.Equal("smoke", exam.Id);
         Assert.Equal(2, exam.Assistants.Count);
-        Assert.Equal(["plain", "uses-bash", "loops", "writes-a-file"], exam.Tasks.Select(t => t.Id));
+        Assert.Equal(["plain", "uses-bash", "loops", "writes-a-file"], exam.Stages.Select(t => t.Id));
         Assert.Equal(2, exam.Attempts);
         Assert.Equal(["exit_ok", "says-expected"], exam.Grading.Correctness);
         Assert.StartsWith("sha256:", exam.Hash);
@@ -54,8 +54,8 @@ public class ExamTests
         repo.EditStage("smoke", "plain", c => c["checks"] = JsonNode.Parse("{\"plain-only\": {\"answer_contains\": \"world\"}}"));
 
         var exam = repo.LoadExam("smoke");
-        var plain = exam.Tasks.Single(c => c.Id == "plain");
-        var loops = exam.Tasks.Single(c => c.Id == "loops");
+        var plain = exam.Stages.Single(c => c.Id == "plain");
+        var loops = exam.Stages.Single(c => c.Id == "loops");
         Assert.Contains("plain-only", exam.ChecksFor(plain).Keys);
         Assert.Equal(exam.Dir, exam.ChecksFor(plain)["plain-only"].Dir);
         Assert.DoesNotContain("plain-only", exam.ChecksFor(loops).Keys);
@@ -87,7 +87,7 @@ public class ExamTests
             repo.EditStage("smoke", stage, c => c["checks"] = JsonNode.Parse("{\"own\": {\"exit_reason\": \"ok\"}}"));
         var exam = repo.LoadExam("smoke");
         Assert.Equal("the attempt ends with 'ok'", exam.CheckDescriptions()["own"]);
-        Assert.Equal("stage", exam.ChecksFor(exam.TaskOf("loops"))["own"].Level);
+        Assert.Equal("stage", exam.ChecksFor(exam.StageOf("loops"))["own"].Level);
         // A correctness check must reach every stage: one that a stage lacks is named with the stage.
         repo.EditJson("smoke/exam.json", e => e["grading"]!["correctness"]!.AsArray().Add("own"));
         Assert.Contains(repo.Problems("smoke"), p => p.Field == "grading.correctness" && p.Message.Contains("'writes-a-file'"));
@@ -214,10 +214,10 @@ public class ExamTests
         Assert.Equal("note", fixture.Id);
         Assert.StartsWith("sha256:", fixture.Hash);
 
-        var loops = exam.Tasks.Single(c => c.Id == "loops");
+        var loops = exam.Stages.Single(c => c.Id == "loops");
         Assert.Null(loops.Expect);
         Assert.Equal("OK", exam.ExpectFor(loops)!["answer_contains"]!.GetValue<string>());
-        var plain = exam.Tasks.Single(c => c.Id == "plain");
+        var plain = exam.Stages.Single(c => c.Id == "plain");
         Assert.Equal("hello", exam.ExpectFor(plain)!["answer_contains"]!.GetValue<string>());
 
         // A fixture check joins the task's set, resolved against the fixture directory.
@@ -284,15 +284,15 @@ public class ExamTests
         repo.CopyExam("smoke");
 
         var exam = repo.LoadExam("smoke");
-        Assert.All(exam.Tasks, s => Assert.Equal("note", s.Fixture));
-        Assert.Equal("The model answers in one turn with no tools", Exam.Describe(exam.Tasks[0]));
+        Assert.All(exam.Stages, s => Assert.Equal("note", s.Fixture));
+        Assert.Equal("The model answers in one turn with no tools", Exam.Describe(exam.Stages[0]));
         // A stage's expected values and the exam's checks reach it.
-        Assert.Equal("hello", exam.ExpectFor(exam.Tasks[0])!["answer_contains"]!.GetValue<string>());
-        Assert.Contains("says-expected", exam.ChecksFor(exam.Tasks[0]).Keys);
+        Assert.Equal("hello", exam.ExpectFor(exam.Stages[0])!["answer_contains"]!.GetValue<string>());
+        Assert.Contains("says-expected", exam.ChecksFor(exam.Stages[0]).Keys);
 
         // The order is exam.json's, not the ids'.
         repo.EditJson("smoke/exam.json", e => { var stages = e["stages"]!.AsArray(); var last = stages[3]!; stages.RemoveAt(3); stages.Insert(0, last); });
-        Assert.Equal(["writes-a-file", "plain", "uses-bash", "loops"], repo.LoadExam("smoke").Tasks.Select(s => s.Id));
+        Assert.Equal(["writes-a-file", "plain", "uses-bash", "loops"], repo.LoadExam("smoke").Stages.Select(s => s.Id));
     }
 
     [Fact]
@@ -300,7 +300,7 @@ public class ExamTests
     {
         using var repo = new TestRepo();
         repo.CopyExam("smoke");
-        var before = repo.LoadExam("smoke").TaskHashes;
+        var before = repo.LoadExam("smoke").StageHashes;
         Assert.Single(before.Values.Distinct());
 
         // What grades or labels a stage is not what the agent meets.
@@ -309,16 +309,16 @@ public class ExamTests
         repo.EditJson("smoke/exam.json", e => e["stages"]![0]!["checks"] = JsonNode.Parse("""{"own": {"exit_reason": "ok"}}"""));
         repo.EditJson("smoke/exam.json", e => e["grading"]!["checks"]!["exit_ok"]!["description"] = "the run ended on its own");
         repo.EditJson("smoke/exam.json", e => e["grading"]!["integrity"] = JsonNode.Parse("[]"));
-        Assert.Equal(before, repo.LoadExam("smoke").TaskHashes);
+        Assert.Equal(before, repo.LoadExam("smoke").StageHashes);
 
         repo.EditJson("smoke/exam.json", e => e["stages"]![1]!["prompt"] = "MOCK:response=goodbye");
-        var changed = repo.LoadExam("smoke").TaskHashes;
+        var changed = repo.LoadExam("smoke").StageHashes;
         Assert.Single(changed.Values.Distinct());
         Assert.NotEqual(before["loops"], changed["loops"]);
 
         // The order is part of the job: a stage meets what the stages before it left.
         repo.EditJson("smoke/exam.json", e => { var stages = e["stages"]!.AsArray(); var last = stages[2]!; stages.RemoveAt(2); stages.Insert(0, last); });
-        Assert.NotEqual(changed["loops"], repo.LoadExam("smoke").TaskHashes["loops"]);
+        Assert.NotEqual(changed["loops"], repo.LoadExam("smoke").StageHashes["loops"]);
     }
 
     [Theory]

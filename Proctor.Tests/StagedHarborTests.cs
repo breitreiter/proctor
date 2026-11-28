@@ -89,7 +89,7 @@ public class StagedHarborTests
         foreach (var stage in new[] { "look", "fix-null-deref" })
         {
             Assert.Contains("check 'builds' ", File.ReadAllText(Path.Combine(task, "steps", stage, "tests", "test.sh")));
-            Assert.Contains($"export PROCTOR_TASK='{stage}'", File.ReadAllText(Path.Combine(task, "steps", stage, "tests", "env.sh")));
+            Assert.Contains($"export PROCTOR_STAGE='{stage}'", File.ReadAllText(Path.Combine(task, "steps", stage, "tests", "env.sh")));
         }
         Assert.False(File.Exists(Path.Combine(task, "tests", "test.sh")));
         Assert.True(Directory.Exists(Path.Combine(task, "tests", "exam")));
@@ -121,7 +121,7 @@ public class StagedHarborTests
         Assert.Contains("Ledger/look", File.ReadAllText(Path.Combine(Stage(repo, "1-look"), "diff.patch")));
         Assert.Contains("Ledger/fix-null-deref", File.ReadAllText(Path.Combine(Stage(repo, "2-fix-null-deref"), "diff.patch")));
         var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(Stage(repo, "2-fix-null-deref"), "manifest.json")))!;
-        Assert.Equal((2, "claude-code", "2.1.301"), (manifest["stage"]!.GetValue<int>(), manifest["agent"]!["name"]!.GetValue<string>(), manifest["agent"]!["version"]!.GetValue<string>()));
+        Assert.Equal((2, "claude-code", "2.1.301"), (manifest["place"]!.GetValue<int>(), manifest["agent"]!["name"]!.GetValue<string>(), manifest["agent"]!["version"]!.GetValue<string>()));
 
         // Grading: each stage's verdicts are its own verifier's, on its own diff.
         var exam = repo.LoadExam("harbor-unit");

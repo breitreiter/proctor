@@ -9,5 +9,5 @@ out="${PROCTOR_ATTEMPT_DIR:-$PWD}/trial"
 mkdir -p "$out"
 exec 9>"$out/.lock"; flock 9
 [ -f "$out/trial.json" ] && exit 0
-TRIAL_TASK="$PROCTOR_TASK" TRIAL_OUT="$out" WRITTEN_ROOT="$WRITTEN_ROOT" WRITTEN_ID="$WRITTEN_ID" \
+TRIAL_TASK="$PROCTOR_STAGE" TRIAL_OUT="$out" WRITTEN_ROOT="$WRITTEN_ROOT" WRITTEN_ID="$WRITTEN_ID" \
   bash "$PROCTOR_EXAM_DIR/trial/run.sh" >"$out/trial.log" 2>&1

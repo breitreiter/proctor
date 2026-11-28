@@ -241,7 +241,8 @@ label and a quote. To read tries, transcripts and comparisons on a page,
 start the viewer (`dotnet View/bin/Debug/net10.0/auspex.dll <root>`, which prints the address to open).
 
 In those files, and in a try's `manifest.json` and a run's `entry.json`,
-a configuration's key is the field `variant` and a stage is `task`, as
-they were first written; `PROCTOR_TASK` is the stage's id likewise. They
-keep those names until the binary is renamed, so that every try already
-made still reads.
+a configuration's key is the field `configuration` and a stage is
+`stage`; in a manifest `values` is the value on each axis and `place` is
+where the stage comes in its try. Tries written before 2026-11-28, which
+said `variant` and `task`, are not read: `list` counts them and the
+viewer lists them as earlier attempts.

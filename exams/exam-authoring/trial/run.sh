@@ -47,8 +47,8 @@ made=$(sed -n 's/^run \([^ :]*\): .*/\1/p' /out/run.log | tail -1)
 proctor grade "$id" >/out/grade.log 2>&1 || fail "proctor grade failed: $(tail -1 /out/grade.log)"
 proctor report "$id" >/out/report.log 2>&1 || fail "proctor report failed: $(tail -1 /out/report.log)"
 cp -r bank log /out/
-# In results.jsonl a configuration's key is the field `variant` and a stage is `task`, as proctor first wrote them.
-jq -s '{plants: (map(. + {plant: (.variant | capture("(^|,)planted=(?<p>[^,]+)").p)}) | group_by(.plant)
-        | map({key: .[0].plant, value: map({stage: .task, status, pass, checks})}) | from_entries)}' \
+# In results.jsonl the proctor pinned in the image says `variant` and `task` where the host's says `configuration` and `stage`; both are read until the pin moves past the rename.
+jq -s '{plants: (map(. + {plant: ((.configuration // .variant) | capture("(^|,)planted=(?<p>[^,]+)").p)}) | group_by(.plant)
+        | map({key: .[0].plant, value: map({stage: (.stage // .task), status, pass, checks})}) | from_entries)}' \
   "reports/$id/explore/results.jsonl" >/out/trial.json
 echo "trial $made: $(jq -r '.plants | to_entries | map("\(.key)=\(.value | map(.pass) | tostring)") | join(" ")' /out/trial.json)"

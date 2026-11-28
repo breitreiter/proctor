@@ -66,7 +66,7 @@ public static class Server
         app.MapGet("/{exam}/try/{id}", (string exam, string id) =>
             Bank.FindTryById(root, exam, id) is { Count: > 0 } stages ? Results.Redirect(Pages.U(stages[0].Path)) : Results.NotFound());
         app.MapGet("/{exam}/try/{id}/{stage}", (string exam, string id, string stage, HttpRequest request) =>
-            Bank.FindTryById(root, exam, id) is { Count: > 0 } stages && stages.FirstOrDefault(s => s.Task == stage) is { } a
+            Bank.FindTryById(root, exam, id) is { Count: > 0 } stages && stages.FirstOrDefault(s => s.Stage == stage) is { } a
                 ? Html(TryStagePage.Render(root, a, stages, request.Query["show"])) : Results.NotFound());
         // An attempt of the earlier shape, by the path the bank keeps it at.
         app.MapGet("/{exam}/{filed}/{n}", (string exam, string filed, string n) =>

@@ -78,7 +78,7 @@ public class ConformanceTests
         // One vendor's agent in each repository: the image is the fixture's, whoever the assistant is.
         var pairs = exam.Assistants.Where(v => v.IsVendor).GroupBy(v => exam.Axes!.Of(v.Id!)![exam.Axes.WorldAxis!]).Select(g => g.First())
             .Select(v => (Configuration: v, Stage: exam.StagesOf(v.Id!).Single())).ToList();
-        Assert.Equal(exam.Tasks.Count, pairs.Count);
+        Assert.Equal(exam.Stages.Count, pairs.Count);
         HarborCompile.Tasks(entryDir, exam, _ => new AgentRoute(null, null), pairs: pairs);
 
         var misses = new List<string>();
@@ -117,7 +117,7 @@ public class ConformanceTests
             var agent = exam.Axes.Value("assistant", assistant).Agent!;
             void Miss(string script, string what) => misses.Add($"{assistant}/{script}: {what}");
             // A try is one script's stage alone, in the configuration of that script and this assistant.
-            string Attempt(string script) => bank.Single(a => a.Configuration == $"script={script},assistant={assistant}" && a.Task == script).Dir(root);
+            string Attempt(string script) => bank.Single(a => a.Configuration == $"script={script},assistant={assistant}" && a.Stage == script).Dir(root);
             string Reason(string script) => Runner.ReadManifest(Path.Combine(Attempt(script), Layout.ManifestFile)).StatusReason ?? "";
             CountedCore? Core(string script) => File.Exists(Path.Combine(Attempt(script), Layout.CoreFile)) ? Runner.ReadJson<CountedCore>(Path.Combine(Attempt(script), Layout.CoreFile)) : null;
 

@@ -63,7 +63,7 @@ public static class Bank
     {
         if (!SafeName(exam) || !SafeName(key) || !SafeName(first) || !SafeName(second)) return null;
         var tryDir = Path.Combine(root, BankDir, exam, key, first);
-        if (Directory.Exists(Path.Combine(tryDir, StagesDir))) return Stages(exam, key, first, tryDir).FirstOrDefault(s => s.Task == second);
+        if (Directory.Exists(Path.Combine(tryDir, StagesDir))) return Stages(exam, key, first, tryDir).FirstOrDefault(s => s.Stage == second);
         var dir = Path.Combine(tryDir, second);
         return File.Exists(Path.Combine(dir, ManifestFile)) ? new Attempt(exam, key, first, second, dir) : null;
     }
@@ -82,8 +82,10 @@ public static class Bank
     {
         var id = Path.GetFileName(tryDir)!;
         var stages = Stages(exam, "", id, tryDir);
-        var configuration = stages.Select(s => Text(s.Manifest?["variant"]?["id"])).FirstOrDefault(k => k is not null) ?? "";
-        return [.. stages.Select(s => s with { Configuration = configuration, ById = true })];
+        var configuration = stages.Select(s => Text(s.Manifest?["configuration"]?["id"])).FirstOrDefault(k => k is not null);
+        // Before 2026-11-28 a manifest filed the key as "variant". Proctor reads no such try; it is listed with the earlier attempts, under that name.
+        var before = configuration is null ? stages.Select(s => Text(s.Manifest?["variant"]?["id"])).FirstOrDefault(k => k is not null) : null;
+        return [.. stages.Select(s => s with { Configuration = configuration ?? before ?? "", ById = true, Before = before is not null })];
     }
 
     // A stage's directory is <place>-<id>; the place orders it and the id names it.
@@ -129,8 +131,8 @@ public sealed record Exam(string Id, string? Description, IReadOnlyList<Attempt>
 
     public string Path => $"/{Id}";
 
-    /// <summary>What was filed before the exam was stages and axes: by variant and task, or by variant and try number.</summary>
-    public IReadOnlyList<Attempt> Earlier => [.. Attempts.Where(a => !a.ById)];
+    /// <summary>What proctor no longer reads: filed before the exam was stages and axes (by variant and task, or by variant and try number), or written before the files named a configuration and a stage.</summary>
+    public IReadOnlyList<Attempt> Earlier => [.. Attempts.Where(a => !a.ById || a.Before)];
 
     /// <summary>The names the bank's contents are filed under: a configuration's key for a try, a variant's id for an earlier attempt.</summary>
     public IReadOnlyList<string> Filed(IEnumerable<Attempt> of) => [.. of.Select(a => a.Configuration).Distinct().Order(StringComparer.Ordinal)];
@@ -141,13 +143,15 @@ public sealed record Exam(string Id, string? Description, IReadOnlyList<Attempt>
 /// the configuration's key, and Place where the stage comes in the try. Of the earlier shape (not <see cref="ById"/>),
 /// Configuration is the name it was filed under then (a variant's id) and N a number, and without a Place it is a task's attempt.
 /// </summary>
-public sealed record Attempt(string Exam, string Configuration, string Task, string N, string Dir)
+public sealed record Attempt(string Exam, string Configuration, string Stage, string N, string Dir)
 {
     public int? Place { get; init; }
     public bool Staged => Place is not null;
     /// <summary>A stage of a try that sits under its own id, as every try made now does.</summary>
     public bool ById { get; init; }
-    public string Path => ById ? $"/{Exam}/try/{N}/{Task}" : Staged ? $"/{Exam}/{Configuration}/{N}/{Task}" : $"/{Exam}/{Configuration}/{Task}/{N}";
+    /// <summary>Under its own id, but written before the bank's files named a configuration and a stage: proctor reads it no more than an attempt of the earlier shape.</summary>
+    public bool Before { get; init; }
+    public string Path => ById ? $"/{Exam}/try/{N}/{Stage}" : Staged ? $"/{Exam}/{Configuration}/{N}/{Stage}" : $"/{Exam}/{Configuration}/{Stage}/{N}";
 
     /// <summary>Proctor's status file; an attempt without one has not started (proctor's own reading).</summary>
     public string Status => Bank.Read(Bank.StatusPath(Dir))?.Trim() is { Length: > 0 } s ? s : "pending";

@@ -37,10 +37,10 @@ record Verdict(string Result, string Reason)
 record Evidence(string? Step = null, string? File = null);
 
 /// <summary>Everything the runner and the grader need to know about one attempt, without the transcript.</summary>
-record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string ExamId, string Configuration, TaskDef Task, int Attempt)
+record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string ExamId, string Configuration, StageDef Stage, int Attempt)
 {
     /// <summary>What the stage expects, its fixture's defaults included; the stage's own block when there is no fixture.</summary>
-    public JsonObject? Expect { get; init; } = Task.Expect;
+    public JsonObject? Expect { get; init; } = Stage.Expect;
     public Fixture? Fixture { get; init; }
     /// <summary>The runner script in effect, relative to exams/; empty on a bare run.</summary>
     public string NbRunner { get; init; } = "";
@@ -90,12 +90,12 @@ record AttemptContext(string ExamDir, string AttemptDir, string WorkDir, string 
         ["PROCTOR_FIXTURE"] = Fixture?.Dir ?? "",
         ["PROCTOR_EXAM"] = ExamId,
         ["PROCTOR_CONFIGURATION"] = Configuration,
-        ["PROCTOR_TASK"] = Task.Id ?? "",
+        ["PROCTOR_STAGE"] = Stage.Id ?? "",
         ["PROCTOR_ATTEMPT"] = Attempt.ToString(),
         ["PROCTOR_ATTEMPT_DIR"] = AttemptDir,
         ["PROCTOR_WORK"] = WorkDir,
         ["PROCTOR_WORK_MOUNT"] = WorkMount,
-        ["PROCTOR_TASK_JSON"] = JsonSerializer.Serialize(Task, Exam.JsonOptions),
+        ["PROCTOR_STAGE_JSON"] = JsonSerializer.Serialize(Stage, Exam.JsonOptions),
         ["PROCTOR_EXPECT"] = Expect?.ToJsonString() ?? "{}",
         ["PROCTOR_TRANSCRIPT"] = Path.Combine(AttemptDir, Layout.TranscriptFile),
         ["PROCTOR_DIFF"] = Path.Combine(AttemptDir, Layout.DiffFile),
@@ -379,7 +379,7 @@ static class Checks
                 return Verdict.Of(t.LoopNudged == v.GetValue<bool>(), t.LoopNudged ? "loop nudge fired" : "no loop nudge");
             case "oracle_hit":
             {
-                if (attempt.Task.Oracle is null) return Verdict.Err($"stage {attempt.Task.Id} names no answer sheet, so the oracle could not answer");
+                if (attempt.Stage.Oracle is null) return Verdict.Err($"stage {attempt.Stage.Id} names no answer sheet, so the oracle could not answer");
                 var keys = t.UserTurns.Where(u => u.IsOracle).SelectMany(u => u.Keys ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 var missing = v.AsArray().Select(n => n!.GetValue<string>()).Where(k => !keys.Contains(k, StringComparer.OrdinalIgnoreCase)).ToList();
                 var answered = keys.Count == 0 ? "the oracle never answered" : $"the oracle answered with {string.Join(", ", keys)}";

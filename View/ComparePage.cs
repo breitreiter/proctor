@@ -167,7 +167,7 @@ static class ComparePage
         page.Append("<div style=\"min-width:900px\"><div class=\"row row-head cstages\"><span>Stage</span><span></span><span class=\"r\">Average</span><span class=\"r\">Lowest</span><span class=\"r\">Highest</span><span class=\"r\">Right in</span><span>Outcome</span><span>Did not hold</span></div>");
         foreach (var (s, i) in (cell.ByStage ?? []).Select((s, i) => (s, i)))
         {
-            var about = exam.Tasks.FirstOrDefault(t => t.Id == s.Stage) is { } stage ? P.Exam.Describe(stage) : "";
+            var about = exam.Stages.FirstOrDefault(t => t.Id == s.Stage) is { } stage ? P.Exam.Describe(stage) : "";
             string Two(Func<P.StageTally, string> of, bool strong = false) => $"<span class=\"two r num{(strong ? "" : " soft")}\"><span{(strong ? " class=\"strong\"" : "")}>{of(s.Value)}</span><span class=\"soft\">{of(s.Against)}</span></span>";
             var notHeld = s.Value.DidNotHold is { Count: > 0 } failed
                 ? string.Concat(failed.Select(f => $"<span class=\"stack\"><span><span class=\"mono\">{E(f.Check)}</span> <span class=\"soft\">in {f.Tries} of {s.Value.Graded} tries of {E(mine)}</span></span><span class=\"small dim\">{E(f.Reason ?? "")}</span></span>"))

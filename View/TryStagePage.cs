@@ -35,20 +35,20 @@ static class TryStagePage
         var points = (friction?["points"] as JsonArray ?? []).OfType<JsonObject>().ToList();
         var steps = (a.Trajectory?["steps"] as JsonArray ?? []).OfType<JsonObject>().ToList();
         var ids = steps.Select(s => Bank.Str(s["step_id"])).ToList();
-        var place = stages.ToList().FindIndex(s => s.Task == a.Task) + 1;
+        var place = stages.ToList().FindIndex(s => s.Stage == a.Stage) + 1;
 
         // A try under its own id belongs to a configuration, which has a page; an earlier attempt is filed under the name it was made by, and a number.
-        (string, string?)[] crumbs = a.ById ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), (name, $"/{a.Exam}/configuration/{a.Configuration}"), (a.N, $"/{a.Exam}/try/{a.N}"), (a.Task, null)]
-            : a.Staged ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Configuration} · try {a.N}", $"/{a.Exam}/{a.Configuration}/{a.N}"), (a.Task, null)]
-            : [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Configuration} · {a.Task} · try {a.N}", null)];
-        var page = Open($"{a.Task} · {a.N}", crumbs, style: "one");
+        (string, string?)[] crumbs = a.ById ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), (name, $"/{a.Exam}/configuration/{a.Configuration}"), (a.N, $"/{a.Exam}/try/{a.N}"), (a.Stage, null)]
+            : a.Staged ? [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Configuration} · try {a.N}", $"/{a.Exam}/{a.Configuration}/{a.N}"), (a.Stage, null)]
+            : [("exams", "/"), (a.Exam, $"/{a.Exam}"), ($"{a.Configuration} · {a.Stage} · try {a.N}", null)];
+        var page = Open($"{a.Stage} · {a.N}", crumbs, style: "one");
         var core = a.Core;
         var exit = ExitOf(a);
         var answers = steps.Count(s => Bank.Str(s["extra"]?["source"]) == "oracle");
         var flagged = points.SelectMany(p => Span(p, ids)).Distinct().Count();
-        var about = exam?.Tasks.FirstOrDefault(t => t.Id == a.Task) is { } def ? P.Exam.Describe(def) : null;
+        var about = exam?.Stages.FirstOrDefault(t => t.Id == a.Stage) is { } def ? P.Exam.Describe(def) : null;
         page.Append($"<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">{(stages.Count > 0 ? $"stage {place} of {stages.Count} · " : "")}try {(a.ById ? "" : E(a.N) + " ")}of {E(name)}</span>")
-            .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(a.Task)}</h1>{Light(Result(a.Task), a.Status)}</div>")
+            .Append($"<div style=\"display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center\"><h1 class=\"title\">{E(a.Stage)}</h1>{Light(Result(a.Stage), a.Status)}</div>")
             .Append(about is null ? "" : $"<p class=\"desc\">{E(about)}</p>").Append("<dl class=\"facts\">")
             .Append(Bank.Str(a.Manifest?["started"]) is { Length: > 0 } started ? Fact("Made", E(When(started))) : "")
             .Append(Bank.Str(a.Manifest?["model"]) is { Length: > 0 } model ? Fact("Model", E(model)) : "")
@@ -68,10 +68,10 @@ static class TryStagePage
         if (stages.Count > 0) page.Append("<div class=\"tabs\" role=\"tablist\" aria-label=\"Stages of this try\">");
         foreach (var s in stages)
         {
-            var result = Result(s.Task);
+            var result = Result(s.Stage);
             // Without proctor's word on a stage, one that did not complete still says its status.
             var tag = result switch { "right" => "<wa-badge class=\"tag tag-right\" appearance=\"outlined\">right</wa-badge>", "wrong" => "<wa-badge class=\"tag tag-wrong\" appearance=\"outlined\">wrong</wa-badge>", null => s.Status is var status && status != "completed" ? $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(status)}</wa-badge>" : "", _ => $"<wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(result.Replace('_', ' '))}</wa-badge>" };
-            page.Append($"<a class=\"tab stab{(s.Task == a.Task ? " tab-on" : "")}\" role=\"tab\" aria-selected=\"{(s.Task == a.Task ? "true" : "false")}\" href=\"{U(s.Path)}\"><span class=\"dim num\">{s.Place}</span><span>{E(s.Task)}</span>{tag}</a>");
+            page.Append($"<a class=\"tab stab{(s.Stage == a.Stage ? " tab-on" : "")}\" role=\"tab\" aria-selected=\"{(s.Stage == a.Stage ? "true" : "false")}\" href=\"{U(s.Path)}\"><span class=\"dim num\">{s.Place}</span><span>{E(s.Stage)}</span>{tag}</a>");
         }
         page.Append($"{(stages.Count > 0 ? "</div>" : "")}<div class=\"cols\"><aside style=\"display:flex;flex-direction:column;gap:32px\">");
         Checks(page, checks, ids, a.Status == "completed");
@@ -95,8 +95,8 @@ static class TryStagePage
         var next = place < stages.Count ? stages[place] : null;
         if (stages.Count == 0) return Close(page.Append("</section></div>"));
         page.Append("<div class=\"row\" style=\"display:flex;justify-content:space-between;gap:12px;border-top-color:var(--rule)\">")
-            .Append($"<span class=\"dim small\">{(place == 1 ? "First stage of this try" : $"<a href=\"{U(stages[place - 2].Path)}\">Previous stage: {stages[place - 2].Place}. {E(stages[place - 2].Task)}</a>")}</span>")
-            .Append(next is null ? "<span class=\"dim small\">Last stage of this try</span>" : $"<a href=\"{U(next.Path)}\">Next stage: {next.Place}. {E(next.Task)}{(Result(next.Task) is { } r ? $", {E(r.Replace('_', ' '))}" : "")}</a>")
+            .Append($"<span class=\"dim small\">{(place == 1 ? "First stage of this try" : $"<a href=\"{U(stages[place - 2].Path)}\">Previous stage: {stages[place - 2].Place}. {E(stages[place - 2].Stage)}</a>")}</span>")
+            .Append(next is null ? "<span class=\"dim small\">Last stage of this try</span>" : $"<a href=\"{U(next.Path)}\">Next stage: {next.Place}. {E(next.Stage)}{(Result(next.Stage) is { } r ? $", {E(r.Replace('_', ' '))}" : "")}</a>")
             .Append("</div></section></div>");
         return Close(page);
     }

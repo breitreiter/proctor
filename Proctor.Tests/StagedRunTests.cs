@@ -65,7 +65,7 @@ public class StagedRunTests
         // A stage's manifest says its place, and carries the job's hash; the log entry names the stages in order.
         var exam = repo.LoadExam("smoke");
         var manifest = Manifest(repo, 1, "2-read");
-        Assert.Equal((2, 1, "read", exam.TaskHashes["read"]), (manifest["stage"]!.GetValue<int>(), manifest["attempt"]!.GetValue<int>(), manifest["task"]!["id"]!.GetValue<string>(), manifest["task"]!["hash"]!.GetValue<string>()));
+        Assert.Equal((2, 1, "read", exam.StageHashes["read"]), (manifest["place"]!.GetValue<int>(), manifest["attempt"]!.GetValue<int>(), manifest["stage"]!["id"]!.GetValue<string>(), manifest["stage"]!["hash"]!.GetValue<string>()));
         Assert.Equal(["write", "read", "say"], Runner.LoadEntry(repo.Root, id!).Stages);
 
         Assert.Contains("nothing to make", Run(repo).Log);
@@ -198,7 +198,7 @@ public class StagedRunTests
         Run(repo);
         var exam = repo.LoadExam("smoke");
         var grades = Grade.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
-        Assert.Equal([("loops", "completed", true), ("after", "skipped", false)], grades.Select(g => (g.Task, g.Status, g.Checks is not null)));
+        Assert.Equal([("loops", "completed", true), ("after", "skipped", false)], grades.Select(g => (g.Stage, g.Status, g.Checks is not null)));
         Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "stages", "2-after", "checks.json")));
         // The stopped stage is a result: its exit check failed, on its own stage.
         Assert.Equal("fail", Checks(repo, 1, "1-loops")["exit_ok"]!["result"]!.GetValue<string>());
@@ -213,12 +213,12 @@ public class StagedRunTests
         var exam = repo.LoadExam("smoke");
         var read = Friction.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
 
-        Assert.Equal([("help", null), ("loops", null), ("after", "not reached")], read.Select(r => (r.Task, r.Skipped)));
+        Assert.Equal([("help", null), ("loops", null), ("after", "not reached")], read.Select(r => (r.Stage, r.Skipped)));
         var file = JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "1-help", "friction.json")))!;
-        Assert.Equal(("friction/2", "help", "1", 1), (file["schema"]!.GetValue<string>(), file["attempt"]!["task"]!.GetValue<string>(), file["attempt"]!["attempt"]!.GetValue<string>(), file["attempt"]!["stage"]!.GetValue<int>()));
+        Assert.Equal(("friction/3", "help", "1", 1), (file["schema"]!.GetValue<string>(), file["attempt"]!["stage"]!.GetValue<string>(), file["attempt"]!["attempt"]!.GetValue<string>(), file["attempt"]!["place"]!.GetValue<int>()));
         // The stage's points are found in its own steps: asking for help is flagged here and not on the stage after.
         Assert.Contains(file["points"]!.AsArray(), p => p!["label"]!.GetValue<string>() == "ran-help");
-        Assert.Equal(2, JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-loops", "friction.json")))!["attempt"]!["stage"]!.GetValue<int>());
+        Assert.Equal(2, JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-loops", "friction.json")))!["attempt"]!["place"]!.GetValue<int>());
         Assert.DoesNotContain(JsonNode.Parse(File.ReadAllText(Path.Combine(TryDir(repo, 1), "stages", "2-loops", "friction.json")))!["points"]!.AsArray(), p => p!["label"]!.GetValue<string>() == "ran-help");
         Assert.False(File.Exists(Path.Combine(TryDir(repo, 1), "stages", "3-after", "friction.json")));
     }

@@ -101,7 +101,7 @@ public class AxesTests
         var axes = exam.Axes!;
 
         string[] every = ["docs=as-shipped,assistant=a", "docs=as-shipped,assistant=b", "docs=rewritten,assistant=a", "docs=rewritten,assistant=b"];
-        Assert.Equal([2, 2, 3, 2], every.Select(key => exam.Tasks.Count(s => axes.Applies(s, axes.Of(key)!))));
+        Assert.Equal([2, 2, 3, 2], every.Select(key => exam.Stages.Count(s => axes.Applies(s, axes.Of(key)!))));
         Assert.Equal([false, false, false, true], every.Select(key => axes.Of(key)!.Excluded));
         Assert.Equal("shipped", axes.Of(every[0])!.Name);
         // Only what is named is carried.
@@ -128,7 +128,7 @@ public class AxesTests
         var exam = repo.LoadExam("smoke");
 
         Assert.Equal("repository", exam.Axes!.WorldAxis);
-        Assert.Equal(["note", "empty", "empty"], exam.Tasks.Select(s => s.Fixture));
+        Assert.Equal(["note", "empty", "empty"], exam.Stages.Select(s => s.Fixture));
         Assert.Equal(["empty", "note"], exam.Fixtures.Keys.Order());
         var inNote = exam.Axes.Of("docs=as-shipped,assistant=a,repository=note")!;
         Assert.Equal("note", exam.Axes.FixtureOf(inNote, exam.Def.Fixture));

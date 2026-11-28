@@ -110,7 +110,7 @@ static class AxesPages
         if (tries.Count == 0) { page.Append("<div class=\"said soft\">No try of it in the bank.</div>"); return; }
         foreach (var t in tries)
             page.Append($"<div class=\"row\" style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><a {Mono} href=\"{U($"/{e.Id}/try/{t.Key}")}\">{E(t.Key)}</a>")
-                .Append(string.Concat(t.Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">{E(a.Task)}</a>{(a.Status == "completed" ? "" : $" <wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(a.Status)}</wa-badge>")}</span>")))
+                .Append(string.Concat(t.Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">{E(a.Stage)}</a>{(a.Status == "completed" ? "" : $" <wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(a.Status)}</wa-badge>")}</span>")))
                 .Append(configurations.Count > 1 ? $"<span class=\"small dim\">{E(t.First().Configuration)}</span>" : "").Append("</div>");
     }
 

@@ -15,32 +15,22 @@ namespace Proctor;
 /// or tries with no id: it is of the earlier shape (<see cref="Earlier"/>), and nothing reads its attempts.
 /// </summary>
 record LogEntry(
-    string Id, string Exam, string ExamHash, [property: JsonPropertyName(OnDisk.Variants)] List<SeenConfiguration> Configurations, List<Ref> Tasks, List<AttemptRef> Attempts,
+    string Id, string Exam, string ExamHash, List<SeenConfiguration> Configurations, List<Ref> StageHashes, List<AttemptRef> Attempts,
     string Created, string CommandLine, string Host,
     Dictionary<string, string> Versions, GitInfo? Repo, ResolvedNb Nb,
     ResolvedHarbor? Harbor = null, List<string>? Stages = null)
 {
     /// <summary>The id a try's directory is named by.</summary>
     public string? IdOf(string key, int attempt) => Attempts.FirstOrDefault(a => a.Configuration == key && a.Attempt == attempt)?.Id;
-    /// <summary>Written by a run of an exam of tasks and variants, or of stages on variants: laid out by variant and number, where a try is now kept under an id of its own.</summary>
-    public bool Earlier => Stages is null || Attempts.Any(a => a.Id is null);
+    /// <summary>Written by an earlier proctor: by a run of an exam of tasks and variants, laid out by variant and number where a try is now kept under an id of its own, or before an entry named its configurations and stages.</summary>
+    public bool Earlier => Configurations is null || StageHashes is null || Stages is null || Attempts.Any(a => a.Id is null || a.Configuration is null);
 }
 
 /// <summary>A configuration, a value or a stage as a manifest names it: its id and the hash that is its identity.</summary>
 record Ref(string Id, string Hash);
 
 /// <summary>One stage of one try a run set out to make: the configuration's key, the stage, the try's number among the configuration's, and the id the try is kept under.</summary>
-record AttemptRef([property: JsonPropertyName(OnDisk.Variant)] string Configuration, string Task, int Attempt, string? Id = null);
-
-/// <summary>
-/// Field names the bank's and the report's files were first written with, kept as they are so that every try already
-/// made still reads: a configuration's key is filed as "variant", and a stage as "task". They are renamed once, with
-/// the binary and the PROCTOR_ variables (project/plans/rename-to-auspex.md, stage 2), and not before.
-/// </summary>
-static class OnDisk
-{
-    public const string Variant = "variant", Variants = "variants";
-}
+record AttemptRef(string Configuration, string Stage, int Attempt, string? Id = null);
 
 /// <summary>A configuration as a log entry keeps it: its key, its hash, and each axis's value by name and hash.</summary>
 record SeenConfiguration(string Id, string Hash, JsonObject Def);
@@ -64,14 +54,14 @@ record Manifest
     /// <summary>The log entry of the run that made it.</summary>
     public required string Log { get; init; }
     /// <summary>The configuration, by its key and the hash that is its identity.</summary>
-    [JsonPropertyName(OnDisk.Variant)] public required Ref Key { get; init; }
-    public required Ref Task { get; init; }
+    public required Ref Configuration { get; init; }
+    public required Ref Stage { get; init; }
     public required int Attempt { get; init; }
-    /// <summary>The stage's place in its try, from 1. Task names the stage, Key the configuration, and Attempt the try by its number among the configuration's.</summary>
-    public int? Stage { get; init; }
+    /// <summary>The stage's place in its try, from 1. Stage names the stage, Configuration the configuration by its key, and Attempt the try by its number among the configuration's.</summary>
+    public int? Place { get; init; }
     /// <summary>The try's id, which is its directory; the value on each axis, by name and hash; and a hash of the workspace as the stage left it, kept whether or not the workspace is.</summary>
     public string? Try { get; init; }
-    public Dictionary<string, Ref>? Configuration { get; init; }
+    public Dictionary<string, Ref>? Values { get; init; }
     public string? WorkspaceHash { get; set; }
     /// <summary>The workspace the try started from, after the values' files were laid and the setup hook ran: the tree of that commit.</summary>
     public string? StartTree { get; set; }
@@ -154,7 +144,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         // Counted in tries: every stage of a configuration has the same gap, since a try is all of them or none.
         int Per(Assistant v) => Math.Max(1, exam.StagesOf(v.Id!).Count);
         var width = exam.Assistants.Max(v => v.Id!.Length);
-        log.WriteLine($"{exam.Id}: one job of {exam.Tasks.Count} stage{(exam.Tasks.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted");
+        log.WriteLine($"{exam.Id}: one job of {exam.Stages.Count} stage{(exam.Stages.Count == 1 ? "" : "s")}, {AttemptCount(exam.Attempts)} wanted");
         // Two configurations are compared try against try, and under 4 tries a side nothing can be confirmed (3 against 5 can).
         if (exam.Assistants.Count > 1 && Tries.MinP(exam.Attempts, exam.Attempts) >= 0.05)
             log.WriteLine($"  note: {AttemptCount(exam.Attempts)} a configuration can show a difference between two and never confirm one; 4 a configuration can");
@@ -169,10 +159,10 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
 
     /// <summary>A new run that makes the given tries, stage by stage: only what goes through Harbor among them is compiled.</summary>
     static string Start(string root, Exam exam, ProctorConfig config, string? nbOverride, string? runnerOverride, string commandLine, TextWriter log,
-        List<(Assistant Assistant, TaskDef Task, int Attempt)> attempts)
+        List<(Assistant Assistant, StageDef Stage, int Attempt)> attempts)
     {
         var assistants = exam.Assistants.Where(v => attempts.Any(a => a.Assistant == v)).ToList();
-        var tasks = exam.Tasks.Where(t => attempts.Any(a => a.Task == t)).ToList();
+        var tasks = exam.Stages.Where(t => attempts.Any(a => a.Stage == t)).ToList();
         var nb = ResolveNb(root, exam, config, nbOverride, runnerOverride);
         foreach (var assistant in assistants.Where(a => a.IsAgent)) Route(root, config, nb, assistant);   // a missing endpoint fails before anything is made
         var id = Layout.NewLogEntryId(exam.Id, DateTime.UtcNow);
@@ -187,8 +177,8 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         var entry = new LogEntry(
             Id: id, Exam: exam.Id, ExamHash: exam.Hash,
             Configurations: assistants.Select(v => new SeenConfiguration(v.Id!, v.Hash, SeenDef(exam, v))).ToList(),
-            Tasks: tasks.Select(c => new Ref(c.Id!, exam.TaskHashes[c.Id!])).ToList(),
-            Attempts: attempts.Select(a => new AttemptRef(a.Assistant.Id!, a.Task.Id!, a.Attempt, tryIds[(a.Assistant.Id!, a.Attempt)])).ToList(),
+            StageHashes: tasks.Select(c => new Ref(c.Id!, exam.StageHashes[c.Id!])).ToList(),
+            Attempts: attempts.Select(a => new AttemptRef(a.Assistant.Id!, a.Stage.Id!, a.Attempt, tryIds[(a.Assistant.Id!, a.Attempt)])).ToList(),
             Created: Now(), CommandLine: commandLine, Host: Environment.MachineName,
             Versions: Versions(nb.Path), Repo: GitInfo(root), Nb: nb,
             Stages: exam.StageIds);
@@ -197,9 +187,9 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         if (agents)
         {
             HarborRun.Preflight(config.HarborOrDefault);
-            var made = attempts.Where(a => a.Assistant.IsAgent).Select(a => (a.Assistant, a.Task)).Distinct().ToList();
+            var made = attempts.Where(a => a.Assistant.IsAgent).Select(a => (a.Assistant, a.Stage)).Distinct().ToList();
             relay = Relay(id, exam, made, assistant => Route(root, config, nb, assistant));
-            foreach (var host in made.SelectMany(p => HarborCompile.Hosts(Route(root, config, nb, p.Assistant), exam.FixtureOf(p.Task)!)).Distinct().Where(h => !HostRelay.Loopback(h)))
+            foreach (var host in made.SelectMany(p => HarborCompile.Hosts(Route(root, config, nb, p.Assistant), exam.FixtureOf(p.Stage)!)).Distinct().Where(h => !HostRelay.Loopback(h)))
                 if (HarborRun.SubnetWarning(config.HarborOrDefault.Engine, host, System.Net.Dns.GetHostAddresses) is { } warning) log.WriteLine($"warning: {warning}");
         }
         var dir = Layout.LogEntry(root, id);
@@ -209,7 +199,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             var version = exam.Def.Harbor!.Version!;
             var engine = config.HarborOrDefault.Engine;
             var nbImage = assistants.Any(a => a.IsAgent && !a.IsVendor) ? NbImage(root, config, entry.Versions["nb"]) : null;
-            var pairs = attempts.Where(a => a.Assistant.IsAgent).Select(a => (a.Assistant, a.Task)).Distinct().ToList();
+            var pairs = attempts.Where(a => a.Assistant.IsAgent).Select(a => (a.Assistant, a.Stage)).Distinct().ToList();
             entry = entry with
             {
                 Versions = new(entry.Versions) { ["harbor"] = version },
@@ -255,7 +245,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
             foreach (var then in entry.Configurations)
             {
                 if (exam.Assistants.FirstOrDefault(v => v.Id == then.Id) is not { } now || now.Hash == then.Hash) continue;
-                if (!entry.Attempts.Any(a => a.Configuration == then.Id && File.Exists(Path.Combine(Layout.Attempt(root, exam.Id, a.Task, entry.Stages!, a.Id!), Layout.ManifestFile)))) continue;
+                if (!entry.Attempts.Any(a => a.Configuration == then.Id && File.Exists(Path.Combine(Layout.Attempt(root, exam.Id, a.Stage, entry.Stages!, a.Id!), Layout.ManifestFile)))) continue;
                 changed[then.Id] = then;   // the latest entry's record says what it was
             }
         if (changed.Count == 0) return;
@@ -267,7 +257,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>Everything a hook or check needs to know about one stage of a try, for the runner and the grader alike. The log entry says how its run resolved nb and the Harbor tasks.</summary>
-    public static AttemptContext Context(string root, LogEntry entry, Exam exam, Assistant assistant, TaskDef task, int n)
+    public static AttemptContext Context(string root, LogEntry entry, Exam exam, Assistant assistant, StageDef task, int n)
     {
         var (configuration, tryId) = (exam.Axes.Of(assistant.Id!)!, entry.IdOf(assistant.Id!, n)!);
         return new(exam.Dir, Layout.Attempt(root, exam.Id, task.Id!, entry.Stages!, tryId), Layout.Work(root, exam.Id, tryId), exam.Id, assistant.Id!, task, n)
@@ -289,7 +279,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>Make the given tries of this run, configuration by configuration, the configuration hooks around each one's tries; then say how they came out.</summary>
-    void Make(List<(Assistant Assistant, TaskDef Task, int Attempt)> attempts)
+    void Make(List<(Assistant Assistant, StageDef Stage, int Attempt)> attempts)
     {
         // The relay's host end lives as long as the tries are being made, at the directory the log entry recorded.
         using var relay = entry.Harbor?.Relay is { } r && attempts.Any(a => a.Assistant.IsAgent) ? HostRelay.Start(r.Dir, r.Ports) : null;
@@ -297,7 +287,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         foreach (var group in attempts.GroupBy(a => a.Assistant))
         {
             var assistant = group.Key;
-            var pending = group.Select(a => (a.Task, a.Attempt)).ToList();
+            var pending = group.Select(a => (a.Stage, a.Attempt)).ToList();
             var hooksDir = Path.Combine(entryDir, Layout.HooksDir);
             Directory.CreateDirectory(hooksDir);
             var hookEnv = new Dictionary<string, string> { ["PROCTOR_EXAM"] = exam.Id, ["PROCTOR_CONFIGURATION"] = assistant.Id!, ["PROCTOR_EXAM_DIR"] = exam.Dir, ["PROCTOR_RUNNER"] = entry.Nb.Runner?.Script ?? "" };
@@ -318,12 +308,12 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         }
         WriteStatusCounts();
         // A try is whole when every stage completed, broke when a chained one stopped part way (it still counts), and lost when a stage did not run.
-        var tries = attempts.GroupBy(a => (a.Assistant.Id, a.Attempt)).Select(g => g.Select(a => ReadStatus(AttemptDir(a.Assistant, a.Task, a.Attempt))).ToList())
+        var tries = attempts.GroupBy(a => (a.Assistant.Id, a.Attempt)).Select(g => g.Select(a => ReadStatus(AttemptDir(a.Assistant, a.Stage, a.Attempt))).ToList())
             .Select(s => s.Any(x => x is not (AttemptStatus.Completed or AttemptStatus.Skipped)) ? "lost" : s.Contains(AttemptStatus.Skipped) ? "broke" : "whole").ToList();
         log.WriteLine($"{AttemptCount(tries.Count)} made: " + string.Join(", ", new[] { "whole", "broke", "lost" }.Where(k => k == "whole" || tries.Contains(k)).Select(k => $"{tries.Count(t => t == k)} {k}")));
     }
 
-    string AttemptDir(Assistant assistant, TaskDef task, int n) => Layout.Attempt(root, exam.Id, task.Id!, entry.Stages!, entry.IdOf(assistant.Id!, n)!);
+    string AttemptDir(Assistant assistant, StageDef task, int n) => Layout.Attempt(root, exam.Id, task.Id!, entry.Stages!, entry.IdOf(assistant.Id!, n)!);
     string TryDir(Assistant assistant, int n) => Layout.Try(root, exam.Id, entry.IdOf(assistant.Id!, n)!);
 
     /// <summary>
@@ -471,7 +461,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>One stage of a try: nb on the stage's program, in the try's workspace. Why the try is lost, or else the stage's exit reason.</summary>
-    (string? Failure, string? ExitReason) RunStage(Assistant assistant, TaskDef stage, int n, bool collectDiff)
+    (string? Failure, string? ExitReason) RunStage(Assistant assistant, StageDef stage, int n, bool collectDiff)
     {
         var attempt = Context(root, entry, exam, assistant, stage, n);
         var attemptDir = attempt.AttemptDir;
@@ -502,19 +492,19 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
         return (failure, exit);
     }
 
-    Manifest NewManifest(Assistant assistant, TaskDef task, int n, Fixture? fixture, string programHash) => new()
+    Manifest NewManifest(Assistant assistant, StageDef task, int n, Fixture? fixture, string programHash) => new()
     {
-        Id = Layout.NewAttemptId(), Exam = exam.Id, Log = entry.Id, Key = RefOf(assistant), Task = RefOf(task), Attempt = n,
-        Stage = entry.Stages!.IndexOf(task.Id!) + 1,
+        Id = Layout.NewAttemptId(), Exam = exam.Id, Log = entry.Id, Configuration = RefOf(assistant), Stage = RefOf(task), Attempt = n,
+        Place = entry.Stages!.IndexOf(task.Id!) + 1,
         Runner = assistant.Runner, Harness = assistant.Harness, Provider = assistant.Provider, Model = assistant.Model,
         Fixture = fixture is null ? null : new FixtureRef(fixture.Id, fixture.Hash),
         Nb = entry.Nb,
         Host = entry.Host, Versions = entry.Versions, ProgramHash = programHash,
-        Try = entry.IdOf(assistant.Id!, n), Configuration = exam.Axes.Seen(exam.Axes.Of(assistant.Id!)!),
+        Try = entry.IdOf(assistant.Id!, n), Values = exam.Axes.Seen(exam.Axes.Of(assistant.Id!)!),
     };
 
     /// <summary>A stage that was not launched, or one whose try failed around it: its manifest and status, with why.</summary>
-    void Mark(Assistant assistant, TaskDef stage, int n, string status, string reason)
+    void Mark(Assistant assistant, StageDef stage, int n, string status, string reason)
     {
         var attemptDir = AttemptDir(assistant, stage, n);
         Directory.CreateDirectory(attemptDir);
@@ -530,7 +520,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// which the simulated user can only answer as a task. It is kept where any try is, with the manifest a stage has,
     /// and a stage that did not run loses it.
     /// </summary>
-    void RunAgentTask(Assistant assistant, TaskDef task, int n, string attemptDir, string taskDir)
+    void RunAgentTask(Assistant assistant, StageDef task, int n, string attemptDir, string taskDir)
     {
         Directory.CreateDirectory(attemptDir);
         var route = Route(root, config, entry.Nb, assistant);
@@ -576,7 +566,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// The simulated user of a stage with an answer sheet: the host nb judges, with its config, as the provider that does
     /// the work unless the exam names a judge, which is what nb's in-process oracle does on the bare path.
     /// </summary>
-    OracleAttempt? OracleAttemptOf(Assistant assistant, TaskDef task) => exam.OracleOf(task) is { } sheet
+    OracleAttempt? OracleAttemptOf(Assistant assistant, StageDef task) => exam.OracleOf(task) is { } sheet
         ? new OracleAttempt(sheet, entry.Nb.Path, entry.Nb.Config, exam.Def.Oracle?.Judge ?? assistant.Provider, exam.OracleTurns,
             Path.Combine(HarborCompile.AgentsDir(entryDir), HarborCompile.OracleTemplateFile))
         : null;
@@ -604,9 +594,9 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// its tasks reach, each of which must answer now, since a model that is not running is better said here than found
     /// by every attempt timing out.
     /// </summary>
-    static ResolvedRelay? Relay(string entryId, Exam exam, IEnumerable<(Assistant Assistant, TaskDef Task)> pairs, Func<Assistant, AgentRoute> route)
+    static ResolvedRelay? Relay(string entryId, Exam exam, IEnumerable<(Assistant Assistant, StageDef Stage)> pairs, Func<Assistant, AgentRoute> route)
     {
-        var wanted = pairs.Select(p => (Fixture: exam.FixtureOf(p.Task)!, p.Assistant, Route: route(p.Assistant))).ToList();
+        var wanted = pairs.Select(p => (Fixture: exam.FixtureOf(p.Stage)!, p.Assistant, Route: route(p.Assistant))).ToList();
         var ports = wanted.SelectMany(w => HarborCompile.RelayPorts(w.Fixture, w.Route)).Distinct().Order().ToList();
         if (ports.Count == 0) return null;
         var problems = new List<string>();
@@ -718,7 +708,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     Ref RefOf(Assistant assistant) => new(assistant.Id!, assistant.Hash);
-    Ref RefOf(TaskDef task) => new(task.Id!, exam.TaskHashes[task.Id!]);
+    Ref RefOf(StageDef task) => new(task.Id!, exam.StageHashes[task.Id!]);
 
     static void SetStatus(string attemptDir, Manifest manifest, string status)
     {
@@ -730,7 +720,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     void WriteStatusCounts()
     {
         var counts = AttemptStatus.All.ToDictionary(s => s, _ => 0);
-        foreach (var a in entry.Attempts) counts[ReadStatus(Layout.Attempt(root, exam.Id, a.Task, entry.Stages!, a.Id!))]++;
+        foreach (var a in entry.Attempts) counts[ReadStatus(Layout.Attempt(root, exam.Id, a.Stage, entry.Stages!, a.Id!))]++;
         WriteJson(Path.Combine(entryDir, Layout.StatusCountsFile), new { planned = entry.Attempts.Count, counts, updated = Now() });
     }
 
@@ -745,7 +735,7 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     /// template needs no placeholder. The sheet is the host path, which --compile inlines, so a runner's container never
     /// needs the file. Empty for a stage without a sheet.
     /// </summary>
-    public static string OraclePrefix(Exam exam, TaskDef task)
+    public static string OraclePrefix(Exam exam, StageDef task)
     {
         if (exam.OracleOf(task) is not { } sheet) return "";
         var prefix = $"oracle @{sheet}\n";
@@ -754,12 +744,12 @@ sealed class Runner(string root, LogEntry entry, Exam exam, ProctorConfig config
     }
 
     /// <summary>Fill the template. {{work}} is the path the model will see, which a runner may mount elsewhere. A prompt's newlines become nb continuation lines so the program stays one directive.</summary>
-    public static string ResolveProgram(string template, Assistant assistant, TaskDef c, int n, string workDir, AttemptContext? attempt = null)
+    public static string ResolveProgram(string template, Assistant assistant, StageDef c, int n, string workDir, AttemptContext? attempt = null)
     {
         var values = new Dictionary<string, string>
         {
             ["prompt"] = c.Prompt!.Replace("\r\n", "\n").Replace("\n", " \\\n"),
-            ["task"] = c.Id!,
+            ["stage"] = c.Id!,
             ["work"] = workDir,
             ["provider"] = assistant.Provider ?? "",
             ["model"] = assistant.Model ?? "",

@@ -111,7 +111,7 @@ static class Configurations
 
     /// <summary>The tries, by configuration and number, with a completed stage that holds no grade under the standard as it is now.</summary>
     public static HashSet<(string Configuration, int Attempt)> NotGraded(string root, Exam exam, IEnumerable<BankAttempt> current) =>
-        current.Where(a => a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.TaskOf(a.Task), a.Dir(root))).Select(a => (a.Configuration, a.Attempt)).ToHashSet();
+        current.Where(a => a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.StageOf(a.Stage), a.Dir(root))).Select(a => (a.Configuration, a.Attempt)).ToHashSet();
 
     /// <summary>
     /// The same for a change on several axes at once: these values together against those, every other axis held. It is

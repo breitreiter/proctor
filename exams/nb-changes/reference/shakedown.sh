@@ -35,9 +35,9 @@ for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   stage=$(jq -c --arg c "$c" '.stages[] | select(.id == $c)' "$here/exam.json")
   [ "$only" = "  " ] || [[ "$only" == *" $c "* ]] || continue
   f=$(jq -r --arg c "$c" '. as $e | .stages[] | select(.id == $c) | .when | capture("^(?<a>[a-z_-]+) = (?<v>.+)$") | $e.axes[.a].values[.v].fixture' "$here/exam.json")
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_CONFIGURATION=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$root/fixtures/$f" PROCTOR_EXAM="$(basename "$here")" PROCTOR_CONFIGURATION=ref PROCTOR_STAGE="$c" PROCTOR_ATTEMPT=1
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_TASK_JSON="$stage" PROCTOR_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" PROCTOR_TRANSCRIPT=""
+  export PROCTOR_STAGE_JSON="$stage" PROCTOR_EXPECT="$(jq -c '.expect // {}' <<<"$stage")" PROCTOR_TRANSCRIPT=""
   mkdir -p "$PROCTOR_ATTEMPT_DIR"
   git -c safe.directory='*' clone -q "${NB_REPO:-$(jq -r .source.git "$PROCTOR_FIXTURE/fixture.json")}" "$PROCTOR_WORK" || exit 1
   (

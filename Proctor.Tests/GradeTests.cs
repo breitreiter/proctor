@@ -42,7 +42,7 @@ public class GradeTests
         Assert.Equal(4, grades.Count);
         // A check that did not pass shows its reason on the stage's line, as checks.json holds it (#12).
         Assert.Matches($@"{TestRepo.A}/1/loops  fail  .*exit_ok=fail \(exit_reason=\w+\)", log.ToString());
-        var plain = grades.Single(g => g.Task == "plain");
+        var plain = grades.Single(g => g.Stage == "plain");
         Assert.True(plain.Pass);
         Assert.Equal("pass", plain.Checks!["exit_ok"].Result);
         Assert.Equal("pass", plain.Checks["says-expected"].Result);
@@ -50,9 +50,9 @@ public class GradeTests
         Assert.Contains("words", plain.Checks["answer-nonempty"].Reason);
         // A stage's own check is graded on that stage and on no other.
         Assert.False(plain.Checks.ContainsKey("made-a-file"));
-        Assert.Equal("pass", grades.Single(g => g.Task == "writes-a-file").Checks!["made-a-file"].Result);
+        Assert.Equal("pass", grades.Single(g => g.Stage == "writes-a-file").Checks!["made-a-file"].Result);
 
-        var loops = grades.Single(g => g.Task == "loops");
+        var loops = grades.Single(g => g.Stage == "loops");
         Assert.False(loops.Pass);
         Assert.Equal("fail", loops.Checks!["exit_ok"].Result);
         Assert.Equal("fail", loops.Checks["not_nudged"].Result);

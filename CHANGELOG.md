@@ -7,6 +7,16 @@ formats or the vocabulary; a patch bump does not.
 
 ## Unreleased
 
+- **Breaking: the bank's files name a configuration and a stage.** In
+  `manifest.json`, `entry.json`, `results.jsonl`, `stats.json` and
+  `friction.json` (now `friction/3`) the field `variant` is
+  `configuration` and `task` is `stage`. A manifest's map of values is
+  `values` and the stage's place in its try is `place`; a log entry's
+  `tasks` is `stage_hashes`. `PROCTOR_TASK` and `PROCTOR_TASK_JSON` are
+  `PROCTOR_STAGE` and `PROCTOR_STAGE_JSON`, and `{{task}}` is
+  `{{stage}}`. Nothing reads the earlier names: tries written with them
+  stay in the bank, `list` counts them, the viewer lists them as earlier
+  attempts, and `run` makes new ones.
 - **`proctor retire --json`** answers as JSON (`retire/1`): what it did,
   the mark that was there before, and every configuration retired now.
 - **Breaking: an exam is stages and axes, and nothing else.** The

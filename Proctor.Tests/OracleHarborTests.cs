@@ -109,7 +109,7 @@ public class OracleHarborTests
 
     static Manifest NbManifest() => new()
     {
-        Id = "r", Log = "e", Exam = "x", Key = new("nb-harbor", "sha256:v"), Task = new("plain", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
+        Id = "r", Log = "e", Exam = "x", Configuration = new("nb-harbor", "sha256:v"), Stage = new("plain", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
         Agent = new AgentTrial("nb", null, "mock", [], [], "0.24.0", null),
     };
 

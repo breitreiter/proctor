@@ -29,7 +29,7 @@ public class FrictionTests
     };
 
     static JsonObject Detect(Surface surface, params (string Tool, JsonObject Arguments, string Result)[][] steps) =>
-        Friction.Detect(Trajectory(steps), surface, new JsonObject { ["task"] = "t" }).File;
+        Friction.Detect(Trajectory(steps), surface, new JsonObject { ["stage"] = "t" }).File;
 
     static string[] LabelsOf(JsonObject file) => file["points"]!.AsArray().Select(p => p!["label"]!.GetValue<string>()).Distinct().Order().ToArray();
     static JsonObject SurfaceOf(JsonObject file) => file["summary"]!["surface"]!.AsObject();
@@ -66,7 +66,7 @@ public class FrictionTests
         var labels = file["detector"]!["labels"]!.AsArray();
         Assert.Equal(Friction.Labels, labels.Select(l => l!["name"]!.GetValue<string>()));
         Assert.StartsWith("a step where", labels.Single(l => l!["name"]!.GetValue<string>() == "fell-back")!["describes"]!.GetValue<string>());
-        Assert.Equal("friction/2", file["schema"]!.GetValue<string>());
+        Assert.Equal("friction/3", file["schema"]!.GetValue<string>());
         Assert.False(SurfaceOf(file)["worked"]!.GetValue<bool>());
         Assert.Equal(1, SurfaceOf(file)["surface_calls_failed"]!.GetValue<int>());
     }
@@ -187,11 +187,11 @@ public class FrictionTests
         var attempts = Friction.Attempts(repo.Root, exam, Bank.Select(repo.Root, exam).Current, TextWriter.Null);
 
         Assert.All(attempts, c => Assert.Equal(TestRepo.A, c.Configuration));
-        var read = attempts.Single(c => c.Task == "uses-bash");
+        var read = attempts.Single(c => c.Stage == "uses-bash");
         Assert.NotNull(read.Points);
         var file = JsonNode.Parse(File.ReadAllText(Path.Combine(repo.StageDir("smoke", TestRepo.A, "uses-bash"), Layout.FrictionFile)))!;
         Assert.Equal(Friction.Schema, file["schema"]!.GetValue<string>());
-        Assert.Equal("uses-bash", file["attempt"]!["task"]!.GetValue<string>());
+        Assert.Equal("uses-bash", file["attempt"]!["stage"]!.GetValue<string>());
         Assert.Equal("1", file["attempt"]!["attempt"]!.GetValue<string>());
         Assert.Null(file["attempt"]!["batch"]);
         Assert.True(file["summary"]!["calls"]!.GetValue<int>() > 0);

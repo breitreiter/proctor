@@ -60,11 +60,11 @@ public class GateTests
         var harbor = exam.Assistants.Single(a => a.IsAgent);
         var bare = exam.Assistants.Single(a => !a.IsAgent);
         var bank = Bank.Of(root, exam);
-        foreach (var c in exam.Tasks)
+        foreach (var c in exam.Stages)
             foreach (var n in Enumerable.Range(1, exam.Attempts))
             {
                 var at = $"{c.Id}/{n}";
-                BankAttempt Of(Assistant v) => bank.Single(a => a.Configuration == v.Id && a.Task == c.Id && a.Attempt == n);
+                BankAttempt Of(Assistant v) => bank.Single(a => a.Configuration == v.Id && a.Stage == c.Id && a.Attempt == n);
                 var (b, h) = (Of(bare).Dir(root), Of(harbor).Dir(root));
                 var (bs, hs) = (Runner.ReadStatus(b), Runner.ReadStatus(h));
                 if (bs != AttemptStatus.Completed || hs != AttemptStatus.Completed)
@@ -127,10 +127,10 @@ public class OracleGateTests
         var differences = new List<string>();
         var current = Bank.Select(root, exam).Current;
         // Each ending is one stage, and a try is that stage alone: once bare, once through Harbor, where it is compiled as a plain task.
-        foreach (var c in exam.Tasks)
+        foreach (var c in exam.Stages)
         {
             var at = c.Id!;
-            string Of(bool agent) => current.Single(a => a.Task == c.Id && exam.Assistants.Single(v => v.Id == a.Configuration).IsAgent == agent).Dir(root);
+            string Of(bool agent) => current.Single(a => a.Stage == c.Id && exam.Assistants.Single(v => v.Id == a.Configuration).IsAgent == agent).Dir(root);
             var (b, h) = (Of(false), Of(true));
             if (!File.Exists(Path.Combine(Layout.HarborJobTask(Layout.LogEntry(root, entryId), current.Single(a => a.Dir(root) == h).Configuration, exam.Id), "instruction.md")))
                 differences.Add($"{at}: the Harbor try was not compiled as a plain task");

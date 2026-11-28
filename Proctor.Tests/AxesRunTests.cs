@@ -62,7 +62,7 @@ public class AxesRunTests
     /// <summary>The tries in the bank, by the configuration each manifest names.</summary>
     static Dictionary<string, string> Tries(TestRepo repo) =>
         Directory.GetDirectories(Path.Combine(repo.Root, "bank", "smoke")).ToDictionary(
-            dir => JsonNode.Parse(File.ReadAllText(Path.Combine(dir, "stages", "1-read", "manifest.json")))!["variant"]!["id"]!.GetValue<string>(), dir => dir);
+            dir => JsonNode.Parse(File.ReadAllText(Path.Combine(dir, "stages", "1-read", "manifest.json")))!["configuration"]!["id"]!.GetValue<string>(), dir => dir);
 
     [Fact]
     public void EveryConfiguration_IsRunInItsOwnTry_NamedByAnId_WithItsValuesInTheManifest()
@@ -78,8 +78,8 @@ public class AxesRunTests
         var dir = tries["docs=rewritten,tone=terse,assistant=mock"];
         var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(dir, "stages", "2-write", "manifest.json")))!;
         Assert.Equal(Path.GetFileName(dir), manifest["try"]!.GetValue<string>());
-        Assert.Equal("rewritten", manifest["configuration"]!["docs"]!["id"]!.GetValue<string>());
-        Assert.StartsWith("sha256:", manifest["configuration"]!["tone"]!["hash"]!.GetValue<string>());
+        Assert.Equal("rewritten", manifest["values"]!["docs"]!["id"]!.GetValue<string>());
+        Assert.StartsWith("sha256:", manifest["values"]!["tone"]!["hash"]!.GetValue<string>());
         Assert.StartsWith("sha256:", manifest["workspace_hash"]!.GetValue<string>());
 
         // The value's files were in the checkout the agent met, and a declared parameter reached the program.
@@ -98,7 +98,7 @@ public class AxesRunTests
         var grades = Grade.Attempts(repo.Root, repo.LoadExam("smoke"), Bank.Select(repo.Root, repo.LoadExam("smoke")).Current, TextWriter.Null);
         Assert.Equal(8, grades.Count);
         Assert.All(grades, g => Assert.True(g.Pass));
-        Assert.All(grades, g => Assert.Equal(g.Task == "write" ? Verdict.Pass : Verdict.Fail, g.Checks!["wrote"].Result));
+        Assert.All(grades, g => Assert.Equal(g.Stage == "write" ? Verdict.Pass : Verdict.Fail, g.Checks!["wrote"].Result));
     }
 
     [Fact]

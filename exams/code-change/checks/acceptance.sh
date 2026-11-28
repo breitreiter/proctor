@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Do the task's acceptance tests pass, dropped into the fixture's test project? A task without any passes trivially.
 set -uo pipefail
-acceptance="$PROCTOR_EXAM_DIR/acceptance/$PROCTOR_TASK"
+acceptance="$PROCTOR_EXAM_DIR/acceptance/$PROCTOR_STAGE"
 [ -d "$acceptance" ] || { echo "no acceptance tests for this task"; exit 0; }
 proj=$(find "$PROCTOR_WORK" -name '*.Tests.csproj' | head -1)
 # Removed again on exit: left in place, the fixture's own tests-pass would run them too.

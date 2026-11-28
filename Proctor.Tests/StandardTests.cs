@@ -49,9 +49,9 @@ public class StandardTests
         var exam = repo.LoadExam("axes-answers");
         var stage = StageOf(repo, exam, "shipped");
         var first = Assert.Single(Standard.History(stage));
-        Assert.Equal(Standard.Hash(exam, exam.Tasks[0]), first.Standard);
+        Assert.Equal(Standard.Hash(exam, exam.Stages[0]), first.Standard);
         Assert.Equal(exam.Hash, first.ExamHash);
-        Assert.True(Standard.Current(exam, exam.Tasks[0], stage));
+        Assert.True(Standard.Current(exam, exam.Stages[0], stage));
 
         // Graded again under the same checks, the record is replaced: one standard, one file.
         Grade_(repo);
@@ -59,13 +59,13 @@ public class StandardTests
 
         // A prompt is not the standard; a check's description, its script or the expected values are.
         repo.EditJson("axes-answers/exam.json", e => e["description"] = "said another way");
-        Assert.Equal(first.Standard, Standard.Hash(repo.LoadExam("axes-answers"), exam.Tasks[0]));
+        Assert.Equal(first.Standard, Standard.Hash(repo.LoadExam("axes-answers"), exam.Stages[0]));
         repo.EditJson("axes-answers/exam.json", e => e["grading"]!["checks"]!["tidy"] = JsonNode.Parse("""{ "max_tool_calls": 3 }"""));
         exam = repo.LoadExam("axes-answers");
-        Assert.NotEqual(first.Standard, Standard.Hash(exam, exam.Tasks[0]));
+        Assert.NotEqual(first.Standard, Standard.Hash(exam, exam.Stages[0]));
 
         // Until graded again the try is not yet graded: it is in no number, and a comparison of it is refused.
-        Assert.False(Standard.Current(exam, exam.Tasks[0], stage));
+        Assert.False(Standard.Current(exam, exam.Stages[0], stage));
         var (stats, _) = Report(repo);
         Assert.All(stats.Configurations.Where(c => c.Name is "shipped" or "rewritten"), c => Assert.Equal(("not_graded", 1), (c.State, c.NotGraded)));
         Assert.Contains("not yet graded under the checks as they are now", Assert.Throws<ProctorException>(() => Answers.Compare(repo.Root, exam, "prompt", "rewritten", null, null, null)).Message);

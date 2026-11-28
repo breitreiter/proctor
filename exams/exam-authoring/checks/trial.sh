@@ -11,7 +11,7 @@ rm -rf "$out" && mkdir -p "$out"
 engine=$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)
 keepid=(); [ "$engine" = podman ] && keepid=(--userns=keep-id)
 grader=$(cd "$PROCTOR_EXAM_DIR/../../bin/Debug/net10.0" && pwd)
-"$engine" run --rm --network none "${keepid[@]}" -e TRIAL_TASK="$PROCTOR_TASK" \
+"$engine" run --rm --network none "${keepid[@]}" -e TRIAL_TASK="$PROCTOR_STAGE" \
   -v "$PROCTOR_WORK:/authored:ro" -v "$PROCTOR_EXAM_DIR/trial:/trial:ro" -v "$grader:/opt/proctor:ro" \
   -v proctor-nuget:/home/agent/.nuget/packages -v "$out:/out" \
   proctor-dotnet bash /trial/run.sh "$(jq -r .exam <<<"$PROCTOR_EXPECT")" >"$out/trial.log" 2>&1

@@ -28,7 +28,7 @@ static class Standard
     /// script's content), which of them decide correctness and which integrity, and the expected values. Not the
     /// prompt, the fixture or anything else the agent meets, which are the job's hash.
     /// </summary>
-    public static string Hash(Exam exam, TaskDef stage)
+    public static string Hash(Exam exam, StageDef stage)
     {
         var parts = new List<string>();
         foreach (var (name, check) in exam.ChecksFor(stage).OrderBy(k => k.Key, StringComparer.Ordinal))
@@ -53,7 +53,7 @@ static class Standard
         WhenOf(check.Spec) is not { } when || exam.Axes.Of(configuration) is not { } c || when.Holds(c);
 
     /// <summary>The correctness checks of a stage that apply in a configuration: what a try of it can hold.</summary>
-    public static List<string> PassIn(Exam exam, TaskDef stage, string configuration)
+    public static List<string> PassIn(Exam exam, StageDef stage, string configuration)
     {
         var checks = exam.ChecksFor(stage);
         return exam.CorrectnessFor(stage).Where(name => Applies(exam, checks[name], configuration)).ToList();
@@ -62,7 +62,7 @@ static class Standard
     static string File_(string attemptDir, string standard) => Path.Combine(attemptDir, Layout.GradesDir, standard[7..23] + ".json");
 
     /// <summary>Keep a grade under the standard it was made under. A regrade under the same standard replaces its record; under another it adds one.</summary>
-    public static void Keep(string attemptDir, Exam exam, TaskDef stage, Dictionary<string, Verdict> verdicts)
+    public static void Keep(string attemptDir, Exam exam, StageDef stage, Dictionary<string, Verdict> verdicts)
     {
         var standard = Hash(exam, stage);
         Directory.CreateDirectory(Path.Combine(attemptDir, Layout.GradesDir));
@@ -70,7 +70,7 @@ static class Standard
     }
 
     /// <summary>Whether the stage holds a grade under the standard as it is now. Without one it is not yet graded, whatever an earlier grade said.</summary>
-    public static bool Current(Exam exam, TaskDef stage, string attemptDir) => File.Exists(File_(attemptDir, Hash(exam, stage)));
+    public static bool Current(Exam exam, StageDef stage, string attemptDir) => File.Exists(File_(attemptDir, Hash(exam, stage)));
 
     /// <summary>Every grade the stage holds, oldest first.</summary>
     public static List<GradeRecord> History(string attemptDir)
@@ -92,7 +92,7 @@ static class Standard
         var found = new List<(string Check, string Kind, string Configuration, bool Passed)>();
         foreach (var a in attempts)
         {
-            var stage = exam.Tasks.FirstOrDefault(t => t.Id == a.Task);
+            var stage = exam.Stages.FirstOrDefault(t => t.Id == a.Stage);
             if (stage is null) continue;
             var history = History(a.Dir(root));
             var standard = Hash(exam, stage);

@@ -99,7 +99,7 @@ public class PredictionsTests
         Assert.Empty(Assert.Single(Outcomes(repo)).Labels);
 
         // Written at a time before which a try had been made: post hoc, and said.
-        repo.EditJson("axes-answers/predictions/rewritten.json", c => { c["written"] = "2099-01-01T00:00Z"; c["standard"] = new JsonObject { ["answer"] = Standard.Hash(repo.LoadExam("axes-answers"), repo.LoadExam("axes-answers").Tasks[0]) }; });
+        repo.EditJson("axes-answers/predictions/rewritten.json", c => { c["written"] = "2099-01-01T00:00Z"; c["standard"] = new JsonObject { ["answer"] = Standard.Hash(repo.LoadExam("axes-answers"), repo.LoadExam("axes-answers").Stages[0]) }; });
         var late = Assert.Single(Outcomes(repo));
         Assert.True(late.PostHoc);
         Assert.StartsWith("Post hoc: 1 try of rewritten had been made before this prediction was written", Assert.Single(late.Labels));

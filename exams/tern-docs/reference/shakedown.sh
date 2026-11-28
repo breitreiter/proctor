@@ -29,9 +29,9 @@ unexpected=0
 fixture="$root/fixtures/$(jq -r .fixture "$here/exam.json")"
 for c in $(jq -r '.stages[].id' "$here/exam.json"); do
   [ "$only" = "  " ] || [[ "$only" == *" $c "* ]] || continue
-  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$fixture" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_TASK="$c" PROCTOR_ATTEMPT=1
+  export PROCTOR_EXAM_DIR="$here" PROCTOR_FIXTURE="$fixture" PROCTOR_EXAM="$(basename "$here")" PROCTOR_VARIANT=ref PROCTOR_STAGE="$c" PROCTOR_ATTEMPT=1
   export PROCTOR_ATTEMPT_DIR="$tmp/$c/attempt" PROCTOR_WORK="$tmp/$c/work" PROCTOR_DIFF="$tmp/$c/attempt/diff.patch"
-  export PROCTOR_TASK_JSON="$(jq -c --arg id "$c" '.stages[] | select(.id == $id)' "$here/exam.json")" PROCTOR_EXPECT="{}" PROCTOR_TRANSCRIPT=""
+  export PROCTOR_STAGE_JSON="$(jq -c --arg id "$c" '.stages[] | select(.id == $id)' "$here/exam.json")" PROCTOR_EXPECT="{}" PROCTOR_TRANSCRIPT=""
   mkdir -p "$PROCTOR_ATTEMPT_DIR"; cp -r "$fixture/repo" "$PROCTOR_WORK"
   (cd "$PROCTOR_WORK" && git init -q && git add -A && git -c user.name=proctor -c user.email=proctor@localhost commit -qm fixture) || exit 1
   case "$mode" in

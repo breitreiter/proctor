@@ -10,7 +10,7 @@ out="${PROCTOR_ATTEMPT_DIR:-$PWD}/trial"; t="$out/trial.json"
 problem=$(jq -r '.problems[0] // empty' "$t")
 [ -z "$problem" ] || { echo "$problem"; exit 1; }
 wrong=$(jq '[.runs[] | select(.expect == "fail")] | length' "$t")
-[ "$wrong" -gt 0 ] || { echo "no wrong reply to reject: $(jq -r .unrecognised "$PROCTOR_EXAM_DIR/trial/$PROCTOR_TASK/plants.json")"; exit 1; }
+[ "$wrong" -gt 0 ] || { echo "no wrong reply to reject: $(jq -r .unrecognised "$PROCTOR_EXAM_DIR/trial/$PROCTOR_STAGE/plants.json")"; exit 1; }
 through=$(jq -r '[.runs[] | select(.expect == "fail" and (.status != "completed" or .invalid != null or .pass != false))]
   | group_by(.plant) | map("\(.[0].plant) on \(length) stage(s) (\([.[].stage] | unique | join(", ")))") | .[]' "$t")
 if [ -n "$through" ]; then

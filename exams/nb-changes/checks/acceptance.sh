@@ -2,9 +2,9 @@
 # Does the task's hidden acceptance pass? Either xunit files dropped into nb's test project for the one run
 # (acceptance/<task>/*.cs, namespace nb.Tests.Acceptance) or a script against the built nb (acceptance/<task>.sh).
 set -uo pipefail
-dir="$PROCTOR_EXAM_DIR/acceptance/$PROCTOR_TASK"
+dir="$PROCTOR_EXAM_DIR/acceptance/$PROCTOR_STAGE"
 if [ -f "$dir.sh" ]; then exec bash "$dir.sh"; fi
-[ -d "$dir" ] || { echo "no acceptance for task $PROCTOR_TASK"; exit 3; }
+[ -d "$dir" ] || { echo "no acceptance for stage $PROCTOR_STAGE"; exit 3; }
 tests="$PROCTOR_WORK/nb.Tests"
 copied=(); for f in "$dir"/*.cs; do copied+=("$tests/$(basename "$f")"); done
 # Removed again on exit: left in place, tests-green would count them as nb's own.

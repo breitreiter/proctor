@@ -77,7 +77,7 @@ static class IndexPage
     /// <summary>An exam proctor cannot read as it stands (one still written as tasks and variants, say): what the bank holds, nothing counted.</summary>
     static Row Plain(Exam e, string? problem)
     {
-        var tries = e.Attempts.Select(a => (a.Configuration, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
+        var tries = e.Attempts.Select(a => (a.Configuration, a.Staged ? "" : a.Stage, a.N)).Distinct().Count();
         var row = new StringBuilder("<div class=\"row ex\" style=\"padding:18px 0\">").Append(Head(e, "not read")).Append("<span class=\"list\">");
         row.Append($"<span class=\"small soft\" title=\"{E(problem ?? "")}\">Proctor cannot read this exam as it stands, so nothing is counted.</span>");
         row.Append("</span><span class=\"small dim\">None</span>")

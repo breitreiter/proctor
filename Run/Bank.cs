@@ -7,12 +7,12 @@ namespace Proctor;
 /// configuration's, its status, the configuration and stage hashes it was made under, and the log entry of the run that
 /// made it, which says how nb and Harbor were resolved for it.
 /// </summary>
-record BankAttempt(LogEntry Entry, string Configuration, string Task, int Attempt, string Status, string ConfigurationHash, string TaskHash)
+record BankAttempt(LogEntry Entry, string Configuration, string Stage, int Attempt, string Status, string ConfigurationHash, string StageHash)
 {
-    public string Label => $"{Configuration}/{Attempt}/{Task}";
+    public string Label => $"{Configuration}/{Attempt}/{Stage}";
     /// <summary>The id the try is kept under.</summary>
     public string Try => Entry.IdOf(Configuration, Attempt)!;
-    public string Dir(string root) => Layout.Attempt(root, Entry.Exam, Task, Entry.Stages!, Try);
+    public string Dir(string root) => Layout.Attempt(root, Entry.Exam, Stage, Entry.Stages!, Try);
     /// <summary>Never finished: pending, running when the run stopped, or failed for a reason of the machine's. A completed stage is a result, whatever its exit reason.</summary>
     public bool Unfinished => Status is AttemptStatus.Pending or AttemptStatus.Running or AttemptStatus.Failed;
     /// <summary>
@@ -44,7 +44,8 @@ static class Bank
     public static List<LogEntry> Entries(string root, string examId) => AllEntries(root, examId).Where(e => !e.Earlier).ToList();
 
     /// <summary>
-    /// How many attempts the exam's runs made under tasks and variants, before it was stages and axes. They stay in the
+    /// How many attempts the exam's runs made that this proctor does not read: under tasks and variants, or before a log
+    /// entry named its configurations and stages (2026-11-28). They stay in the
     /// bank where they were made (bank/&lt;exam&gt;/&lt;variant&gt;/…) and are read by nothing: what was under test and
     /// what it met are named and hashed another way now, so they are no configuration's tries.
     /// </summary>
@@ -78,7 +79,7 @@ static class Bank
             try { entry = JsonNode.Parse(File.ReadAllText(file)); }
             catch (System.Text.Json.JsonException) { continue; }
             if (entry?["exam"]?.GetValue<string>() != examId) continue;
-            foreach (var assistant in entry["variants"] as JsonArray ?? [])
+            foreach (var assistant in entry["configurations"] as JsonArray ?? [])
                 if (assistant?["id"]?.GetValue<string>() is { } id && !keys.Contains(id)) keys.Add(id);
         }
         return keys;
@@ -95,20 +96,20 @@ static class Bank
     static List<BankAttempt> Read(string root, Exam exam) =>
         Entries(root, exam.Id).SelectMany(entry => entry.Attempts.Select(a =>
         {
-            var dir = Layout.Attempt(root, exam.Id, a.Task, entry.Stages!, a.Id!);
+            var dir = Layout.Attempt(root, exam.Id, a.Stage, entry.Stages!, a.Id!);
             var manifestFile = Path.Combine(dir, Layout.ManifestFile);
             var manifest = File.Exists(manifestFile) ? Runner.ReadManifest(manifestFile) : null;
-            return new BankAttempt(entry, a.Configuration, a.Task, a.Attempt, Runner.ReadStatus(dir),
-                manifest?.Key.Hash ?? entry.Configurations.First(v => v.Id == a.Configuration).Hash,
-                manifest?.Task.Hash ?? entry.Tasks.First(t => t.Id == a.Task).Hash);
+            return new BankAttempt(entry, a.Configuration, a.Stage, a.Attempt, Runner.ReadStatus(dir),
+                manifest?.Configuration.Hash ?? entry.Configurations.First(v => v.Id == a.Configuration).Hash,
+                manifest?.Stage.Hash ?? entry.StageHashes.First(t => t.Id == a.Stage).Hash);
         })).ToList();
 
     /// <summary>Null when the stage is current; otherwise which hash moved since its try was made.</summary>
     public static string? Stale(Exam exam, BankAttempt a) =>
         exam.Assistants.FirstOrDefault(v => v.Id == a.Configuration) is not { } assistant ? $"configuration {a.Configuration} is not declared now"
         : assistant.Hash != a.ConfigurationHash ? $"configuration {a.Configuration} changed ({Short(a.ConfigurationHash)} then, {Short(assistant.Hash)} now)"
-        : !exam.TaskHashes.TryGetValue(a.Task, out var task) ? $"stage {a.Task} is no longer in the exam"
-        : task != a.TaskHash ? $"the stages changed ({Short(a.TaskHash)} then, {Short(task)} now)"
+        : !exam.StageHashes.TryGetValue(a.Stage, out var task) ? $"stage {a.Stage} is no longer in the exam"
+        : task != a.StageHash ? $"the stages changed ({Short(a.StageHash)} then, {Short(task)} now)"
         : null;
 
     /// <summary>What a verb reads, narrowed to the configurations given, by key, split into current and stale.</summary>
@@ -121,23 +122,23 @@ static class Bank
     }
 
     /// <summary>For each configuration and stage: the tries the exam wants less its current, whole tries in the bank.</summary>
-    public static Dictionary<(string Configuration, string Task), int> Gaps(Exam exam, List<BankAttempt> bank) =>
+    public static Dictionary<(string Configuration, string Stage), int> Gaps(Exam exam, List<BankAttempt> bank) =>
         (from assistant in exam.Assistants from task in exam.StagesOf(assistant.Id!) select (assistant.Id!, task.Id!)).ToDictionary(k => k, k =>
-            Math.Max(0, exam.Attempts - bank.Count(a => a.Configuration == k.Item1 && a.Task == k.Item2 && a.Counts && Stale(exam, a) is null)));
+            Math.Max(0, exam.Attempts - bank.Count(a => a.Configuration == k.Item1 && a.Stage == k.Item2 && a.Counts && Stale(exam, a) is null)));
 
     /// <summary>
     /// What a new run has to make: every gap, within the configurations given. Each new try is numbered after every try
     /// of its configuration already in the bank, stale and lost ones included, so a configuration's nth try names one
     /// try for good. In the order they are made: each configuration's tries in order, each try's stages in theirs.
     /// </summary>
-    public static List<(Assistant Assistant, TaskDef Task, int Attempt)> Missing(Exam exam, List<BankAttempt> bank, IReadOnlyCollection<string>? keys = null)
+    public static List<(Assistant Assistant, StageDef Stage, int Attempt)> Missing(Exam exam, List<BankAttempt> bank, IReadOnlyCollection<string>? keys = null)
     {
         var gaps = Gaps(exam, bank);
-        var missing = new List<(Assistant, TaskDef, int)>();
+        var missing = new List<(Assistant, StageDef, int)>();
         foreach (var assistant in exam.Assistants.Where(v => keys is null || keys.Contains(v.Id!)))
             foreach (var task in exam.StagesOf(assistant.Id!))
             {
-                var next = bank.Where(a => a.Configuration == assistant.Id && a.Task == task.Id).Select(a => a.Attempt).DefaultIfEmpty(0).Max() + 1;
+                var next = bank.Where(a => a.Configuration == assistant.Id && a.Stage == task.Id).Select(a => a.Attempt).DefaultIfEmpty(0).Max() + 1;
                 for (var i = 0; i < gaps[(assistant.Id!, task.Id!)]; i++) missing.Add((assistant, task, next + i));
             }
         return missing.GroupBy(m => m.Item1).SelectMany(g => g.OrderBy(m => m.Item3)).ToList();

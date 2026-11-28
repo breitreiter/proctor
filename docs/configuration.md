@@ -428,7 +428,7 @@ in the value.
 ### The program template
 
 `program.nb` is the nb program a value that runs nb is given, with
-`{{prompt}}`, `{{task}}` (the stage's id), `{{work}}` (the
+`{{prompt}}`, `{{stage}}` (the stage's id), `{{work}}` (the
 checkout), `{{provider}}`, `{{model}}`, `{{harness}}`,
 `{{configuration}}`, `{{attempt}}`, `{{axis.<name>}}` and
 `{{param.NAME}}`. A vendor's agent takes the stage's prompt as its
@@ -607,9 +607,9 @@ Hooks and script checks get the stage in the environment:
 `PROCTOR_EXAM_DIR`, `PROCTOR_FIXTURE` (the fixture's directory, so a
 script can read its `fixture.json`), `PROCTOR_EXAM` (its id),
 `PROCTOR_CONFIGURATION` (the configuration's key, `axis=value,…`),
-`PROCTOR_AXIS_<NAME>` and `PROCTOR_PARAM_<NAME>`, `PROCTOR_TASK` (the
+`PROCTOR_AXIS_<NAME>` and `PROCTOR_PARAM_<NAME>`, `PROCTOR_STAGE` (the
 stage's id), `PROCTOR_ATTEMPT` (the try's number), `PROCTOR_ATTEMPT_DIR`,
-`PROCTOR_WORK`, `PROCTOR_TASK_JSON`, `PROCTOR_EXPECT`,
+`PROCTOR_WORK`, `PROCTOR_STAGE_JSON`, `PROCTOR_EXPECT`,
 `PROCTOR_TRANSCRIPT`, `PROCTOR_DIFF`, `PROCTOR_RUNNER`, `PROCTOR_NB`,
 `PROCTOR_NB_CONFIG`, `PROCTOR_CONTAINER` and `PROCTOR_WORK_MOUNT`. A
 configuration hook, which runs once and not per try, gets `PROCTOR_EXAM`,

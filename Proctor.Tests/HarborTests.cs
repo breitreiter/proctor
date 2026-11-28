@@ -67,7 +67,7 @@ public class HarborTests
         Assert.Equal("2.1.301", assistant.AgentVersion);
         Assert.Equal("0.24.0", exam.Def.Harbor!.Version);
         Assert.Equal(900_000, exam.Def.Limits!.WallMs);
-        Assert.Equal(["builds", "diff-in-scope", "tests-pass"], exam.ChecksFor(exam.Tasks[0]).Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["builds", "diff-in-scope", "tests-pass"], exam.ChecksFor(exam.Stages[0]).Keys.Order(StringComparer.Ordinal));
     }
 
     [Theory]
@@ -163,7 +163,7 @@ public class HarborTests
         Assert.Equal(hash, HarborCompile.TreeHash(entryDir));
         var (task, step) = (TaskDir(entryDir), StepDir(entryDir));
 
-        Assert.Equal(exam.Tasks[0].Prompt!.TrimEnd() + "\n", File.ReadAllText(Path.Combine(step, "instruction.md")));
+        Assert.Equal(exam.Stages[0].Prompt!.TrimEnd() + "\n", File.ReadAllText(Path.Combine(step, "instruction.md")));
 
         var toml = File.ReadAllText(Path.Combine(task, "task.toml"));
         Assert.Contains("name = \"proctor/harbor-unit\"", toml);
@@ -201,7 +201,7 @@ public class HarborTests
         Assert.True(File.GetUnixFileMode(Path.Combine(step, "tests", "test.sh")).HasFlag(UnixFileMode.UserExecute));
         var env = File.ReadAllText(Path.Combine(step, "tests", "env.sh"));
         Assert.Contains("export PROCTOR_WORK='/app'\n", env);
-        Assert.Contains("export PROCTOR_TASK='fix-null-deref'\n", env);
+        Assert.Contains("export PROCTOR_STAGE='fix-null-deref'\n", env);
         Assert.Contains("\"files_touched\":{\"paths\":[\"Ledger/**\"]", env);
 
         // Nothing compiled holds the key.
@@ -270,7 +270,7 @@ public class HarborTests
 
     static Manifest NewManifest() => new()
     {
-        Id = "r", Log = "e", Exam = "x", Key = new("cc-haiku", "sha256:v"), Task = new("fix-null-deref", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
+        Id = "r", Log = "e", Exam = "x", Configuration = new("cc-haiku", "sha256:v"), Stage = new("fix-null-deref", "sha256:t"), Attempt = 1, Host = "h", Versions = [], ProgramHash = "p",
         Agent = new AgentTrial("claude-code", null, "claude-haiku-5-5", [], [], "0.24.0", null),
     };
 
@@ -481,15 +481,15 @@ public class HarborTests
         if (editExam is not null) repo.EditJson("harbor-unit/exam.json", editExam);
         var exam = repo.LoadExam("harbor-unit");
         var task = Path.Combine(repo.Root, "task");
-        if (compiled) HarborCompile.Task(task, exam, exam.Assistants[0], exam.Tasks[0], new AgentRoute(BaseUrl, "k"));
+        if (compiled) HarborCompile.Task(task, exam, exam.Assistants[0], exam.Stages[0], new AgentRoute(BaseUrl, "k"));
         var attempt = Directory.CreateDirectory(Path.Combine(repo.Root, "attempt")).FullName;
         var trial = WriteTrial(Path.Combine(repo.Root, "trial"));
         File.WriteAllText(Path.Combine(trial, "verifier", "tests-pass.out"), "6 of 6 tests pass\n");
         Assert.Null(Ingest.Trial(trial, attempt, ClaudeCode, NewManifest(), ClaudeCode.AgentVersion!));
         edit(attempt);
         if (afterwards is not null) { afterwards(repo); exam = repo.LoadExam("harbor-unit"); }
-        var context = new AttemptContext(exam.Dir, attempt, Path.Combine(repo.Root, "work"), "e", K, exam.Tasks[0], 1)
-            { Expect = exam.ExpectFor(exam.Tasks[0]), Fixture = exam.FixtureOf(exam.Tasks[0]), ScriptsInVerifier = true, Vendor = true, VerifierTask = task };
+        var context = new AttemptContext(exam.Dir, attempt, Path.Combine(repo.Root, "work"), "e", K, exam.Stages[0], 1)
+            { Expect = exam.ExpectFor(exam.Stages[0]), Fixture = exam.FixtureOf(exam.Stages[0]), ScriptsInVerifier = true, Vendor = true, VerifierTask = task };
         return Grade.Attempt(context, exam, Transcript.Read(attempt));
     }
 
@@ -566,10 +566,10 @@ public class HarborTests
         }
         var exam = repo.LoadExam("harbor-unit");
         Assert.Equal(before.Fixtures["ledger"].Hash, exam.Fixtures["ledger"].Hash);
-        Assert.Equal(before.TaskHashes, exam.TaskHashes);
+        Assert.Equal(before.StageHashes, exam.StageHashes);
 
         var task = Path.Combine(repo.Root, "task");
-        HarborCompile.Task(task, exam, exam.Assistants[0], exam.Tasks[0], new AgentRoute(BaseUrl, "k"));
+        HarborCompile.Task(task, exam, exam.Assistants[0], exam.Stages[0], new AgentRoute(BaseUrl, "k"));
         Assert.True(File.Exists(Path.Combine(task, "tests", "exam", "program.nb")));
         Assert.DoesNotContain(Directory.EnumerateDirectories(task, "*", SearchOption.AllDirectories), d => Tree.Litter.Contains(Path.GetFileName(d)));
     }

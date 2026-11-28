@@ -19,10 +19,10 @@ public class OracleExamTests
     {
         using var repo = GateWithOracle();
         var exam = repo.LoadExam("gate");
-        var plain = exam.Tasks.Single(t => t.Id == "plain");
+        var plain = exam.Stages.Single(t => t.Id == "plain");
 
         Assert.Equal(Path.Combine(exam.Dir, "oracle", "plain.md"), exam.OracleOf(plain));
-        Assert.Null(exam.OracleOf(exam.Tasks.Single(t => t.Id == "writes")));
+        Assert.Null(exam.OracleOf(exam.Stages.Single(t => t.Id == "writes")));
         Assert.Equal(8, exam.OracleTurns);
     }
 

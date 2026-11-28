@@ -6,7 +6,7 @@ namespace Proctor;
 /// with why), the narrowing asked for, and, per configuration, the conditions its tries were made under when they were
 /// not all the same.
 /// </summary>
-record BuiltFrom(string At, List<string> Log, [property: System.Text.Json.Serialization.JsonPropertyName(OnDisk.Variants)] Dictionary<string, string> Configurations, Dictionary<string, string> Tasks, int Current, int Stale,
+record BuiltFrom(string At, List<string> Log, Dictionary<string, string> Configurations, Dictionary<string, string> Tasks, int Current, int Stale,
     List<StaleAttempt>? StaleAttempts = null, string? Narrowed = null, Dictionary<string, List<string>>? Mixed = null);
 
 static class Stamp
@@ -31,7 +31,7 @@ static class Stamp
         return new BuiltFrom(at.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"),
             current.Select(a => a.Entry.Id).Distinct().Order(StringComparer.Ordinal).ToList(),
             exam.Assistants.Where(v => current.Any(a => a.Configuration == v.Id)).ToDictionary(v => v.Id!, v => v.Hash),
-            exam.Tasks.Where(t => current.Any(a => a.Task == t.Id)).ToDictionary(t => t.Id!, t => exam.TaskHashes[t.Id!]),
+            exam.Stages.Where(t => current.Any(a => a.Stage == t.Id)).ToDictionary(t => t.Id!, t => exam.StageHashes[t.Id!]),
             current.Count, selection.Stale.Count, selection.Stale.Count > 0 ? selection.Stale : null, narrowed, mixed.Count > 0 ? mixed : null);
 
         // Harbor's version and engine are a condition only where the tries went through Harbor; a bare configuration's run may or may not have had Harbor beside it.

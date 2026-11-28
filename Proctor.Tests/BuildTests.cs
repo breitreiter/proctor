@@ -199,7 +199,7 @@ public class BuildTests
         // With the checkout gone, the fixture, the values' files, the setup patch and the diff are the workspace again.
         Directory.Delete(Path.Combine(repo.Root, ".proctor", "work"), recursive: true);
         var rebuilt = Path.Combine(repo.Root, "rebuilt");
-        Assert.Null(Checkout.Restore(exam.FixtureOf(exam.Tasks[0])!, rebuilt, stage, exam.Axes!.Overlays(exam.Axes.Of(keys[0])!, exam.Dir), Path.Combine(tryDir, "setup.patch")));
+        Assert.Null(Checkout.Restore(exam.FixtureOf(exam.Stages[0])!, rebuilt, stage, exam.Axes!.Overlays(exam.Axes.Of(keys[0])!, exam.Dir), Path.Combine(tryDir, "setup.patch")));
         Assert.StartsWith("tone: terse", File.ReadAllText(Path.Combine(rebuilt, "prompt.txt")));
         Assert.Equal("mine\n", File.ReadAllText(Path.Combine(rebuilt, "made.txt")));
     }

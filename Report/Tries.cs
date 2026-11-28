@@ -47,7 +47,7 @@ record ConfigurationTries(string Id, int Tries, int Lost, int Invalid, int Passe
     List<StageTally> Stages, List<TryRow> Rows, Spread? ToolCalls = null, Spread? Tokens = null, Spread? Duration = null, List<CheckRate>? Checks = null);
 
 /// <summary>A try in which a stage did not run: left out of every number.</summary>
-record LostTry([property: System.Text.Json.Serialization.JsonPropertyName(OnDisk.Variant)] string Configuration, int N, string At, string Why);
+record LostTry(string Configuration, int N, string At, string Why);
 
 /// <summary>A stage as the report names it. Checks is every check it carries with its role (correctness, integrity, quality, observation).</summary>
 record StageInfo(string Id, int Place, string About, List<string> CorrectnessChecks, Dictionary<string, string>? Checks = null);
@@ -68,7 +68,7 @@ record FrictionLabel(string Label, double PerTry);
 record ConfigurationFriction(string Id, int Tries, double PerTry, List<FrictionKind> Kinds, List<FrictionLabel>? Labels = null);
 
 /// <summary>reports/&lt;exam&gt;/explore/friction.json: what recurs across a configuration's tries (check-evidence.md, C5.4).</summary>
-record FrictionRollup(string Schema, string Exam, [property: System.Text.Json.Serialization.JsonPropertyName(OnDisk.Variants)] List<ConfigurationFriction> Configurations, BuiltFrom? BuiltFrom);
+record FrictionRollup(string Schema, string Exam, List<ConfigurationFriction> Configurations, BuiltFrom? BuiltFrom);
 
 /// <summary>
 /// The tries of an exam, read out of its bank. A try is the unit: every stage that applies in its configuration once,
@@ -100,7 +100,7 @@ static class Tries
             foreach (var group in current.Where(a => a.Configuration == key).GroupBy(a => a.Attempt).OrderBy(g => g.Key))
             {
                 var n = group.Key;
-                var perStage = stages.Select(s => (Stage: s, Attempt: group.FirstOrDefault(a => a.Task == s.Id), Row: rows.FirstOrDefault(r => r.Configuration == key && r.Attempt == n && r.Task == s.Id))).ToList();
+                var perStage = stages.Select(s => (Stage: s, Attempt: group.FirstOrDefault(a => a.Stage == s.Id), Row: rows.FirstOrDefault(r => r.Configuration == key && r.Attempt == n && r.Stage == s.Id))).ToList();
                 int held = 0, undecided = 0;
                 int? flagged = 0;
                 string? invalid = null;
@@ -133,7 +133,7 @@ static class Tries
                 {
                     var graded = counted.Select(t => t.Stages.First(x => x.Id == s.Id)).Where(x => x.Of is > 0).ToList();
                     var shares = graded.Select(x => (double)x.Held!.Value / x.Of!.Value).ToList();
-                    var mine = rows.Where(r => r.Configuration == key && r.Task == s.Id && r.Checks is not null && counted.Any(t => t.N == r.Attempt)).ToList();
+                    var mine = rows.Where(r => r.Configuration == key && r.Stage == s.Id && r.Checks is not null && counted.Any(t => t.N == r.Attempt)).ToList();
                     var notHeld = Standard.PassIn(exam, s, key).Select(c => (Check: c, Failed: mine.Where(r => r.Checks!.GetValueOrDefault(c) == Verdict.Fail).OrderBy(r => r.Attempt).ToList()))
                         .Where(x => x.Failed.Count > 0).Select(x => new NotHeld(x.Check, x.Failed.Count, x.Failed[0].Reasons?.GetValueOrDefault(x.Check))).ToList();
                     return new StageTally(s.Id!, counted.Count(t => t.Stages.First(x => x.Id == s.Id).Result == "right"), counted.Count, Standard.PassIn(exam, s, key).Count, graded.Count,
@@ -151,12 +151,12 @@ static class Tries
             {
                 var at = g.FirstOrDefault(a => a.Status == AttemptStatus.Failed) ?? g.First(a => a.Unfinished);
                 var manifest = Path.Combine(at.Dir(root), Layout.ManifestFile);
-                return new LostTry(g.Key.Configuration, g.Key.Attempt, at.Task, (File.Exists(manifest) ? Runner.ReadManifest(manifest).StatusReason : null) ?? at.Status);
+                return new LostTry(g.Key.Configuration, g.Key.Attempt, at.Stage, (File.Exists(manifest) ? Runner.ReadManifest(manifest).StatusReason : null) ?? at.Status);
             }).ToList();
 
         var rollup = keys.Select(v => Rollup(v, kinds[v.Id])).ToList();
         return (new TriesRead(
-                exam.Tasks.Select((s, i) => new StageInfo(s.Id!, i + 1, Exam.Describe(s), exam.CorrectnessFor(s), exam.ChecksFor(s).Keys.ToDictionary(k => k, exam.RoleOf))).ToList(), keys, lostTries),
+                exam.Stages.Select((s, i) => new StageInfo(s.Id!, i + 1, Exam.Describe(s), exam.CorrectnessFor(s), exam.ChecksFor(s).Keys.ToDictionary(k => k, exam.RoleOf))).ToList(), keys, lostTries),
             new FrictionRollup(FrictionSchema, exam.Id, rollup, built));
     }
 

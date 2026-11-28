@@ -162,7 +162,7 @@ static class Answers
         // Both sides under the checks as they are now. A try with no grade, or one graded only under earlier checks, is not yet graded;
         // the rest of the exam may stay that way, and this comparison may not.
         var keys = comparison.Cells.SelectMany(c => new[] { c.Key, c.LiveKey }).ToHashSet();
-        var ungraded = current.Count(a => keys.Contains(a.Configuration) && a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.TaskOf(a.Task), a.Dir(root)));
+        var ungraded = current.Count(a => keys.Contains(a.Configuration) && a.Status == AttemptStatus.Completed && !Standard.Current(exam, exam.StageOf(a.Stage), a.Dir(root)));
         if (ungraded > 0) throw new ProctorException($"{ungraded} stage{(ungraded == 1 ? "" : "s")} of the tries in this comparison {(ungraded == 1 ? "is" : "are")} not yet graded under the checks as they are now, and an ungraded try would read as one that held nothing: run `proctor grade {exam.Id}` first");
 
         var ids = then.GroupBy(x => (x.Attempt.Configuration, x.Attempt.Attempt)).ToDictionary(g => g.Key, g => g.First().Id);
@@ -178,7 +178,7 @@ static class Answers
         {
             if (c.State != "compared") return null;
             List<int> Counted(string key) => byKey[key].Rows.Where(r => r.Invalid is null).Select(r => r.N).ToList();
-            int Held(string key, List<int> ns, string stage, string check) => rows.Count(r => r.Configuration == key && ns.Contains(r.Attempt) && r.Task == stage && r.Checks?.GetValueOrDefault(check) == Verdict.Pass);
+            int Held(string key, List<int> ns, string stage, string check) => rows.Count(r => r.Configuration == key && ns.Contains(r.Attempt) && r.Stage == stage && r.Checks?.GetValueOrDefault(check) == Verdict.Pass);
             var (mineNs, theirNs) = (Counted(c.Key), Counted(c.LiveKey));
             return exam.StagesOf(c.Key).SelectMany(s => Standard.PassIn(exam, s, c.Key).Select(check =>
                 new CheckHeld(s.Id!, check, exam.ChecksFor(s).GetValueOrDefault(check) is { } declared ? Checks.Describe(declared.Spec) : null, Held(c.Key, mineNs, s.Id!, check), mineNs.Count, Held(c.LiveKey, theirNs, s.Id!, check), theirNs.Count))).ToList();
@@ -190,7 +190,7 @@ static class Answers
             var (mine, theirs) = (byKey[c.Key], byKey[c.LiveKey]);
             List<double> Stages(ConfigurationTries v, string check) => v.Rows.Where(r => r.Invalid is null).Select(r => (double)rows.Count(x => x.Configuration == v.Id && x.Attempt == r.N && x.Checks?.GetValueOrDefault(check) == Verdict.Pass)).ToList();
             return (mine.Checks ?? []).Select(k => (Mine: k, Theirs: theirs.Checks?.FirstOrDefault(o => o.Check == k.Check))).Where(k => k.Theirs is not null).Select(k =>
-                new CheckCompared(k.Mine.Check, k.Mine.Role, exam.Tasks.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Mine.Check)).FirstOrDefault(d => d is not null) is { } declared ? Checks.Describe(declared.Spec) : null,
+                new CheckCompared(k.Mine.Check, k.Mine.Role, exam.Stages.Select(s => exam.ChecksFor(s).GetValueOrDefault(k.Mine.Check)).FirstOrDefault(d => d is not null) is { } declared ? Checks.Describe(declared.Spec) : null,
                     k.Mine.Held, k.Mine.Asked, k.Theirs!.Held, k.Theirs.Asked, Tries.Compare(Stages(mine, k.Mine.Check), Stages(theirs, k.Mine.Check), higherIsBetter: true))).ToList();
         }
         List<StageCompared>? ByStage(ComparedCell c)

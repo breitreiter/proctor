@@ -52,7 +52,7 @@ is `{{param.NAME}}`. In hooks and script checks:
 |---|---|
 | `PROCTOR_VARIANT` | `PROCTOR_CONFIGURATION` (the key, `axis=value,…`), and `PROCTOR_AXIS_<NAME>` per axis |
 | `PROCTOR_BUNDLE`, `PROCTOR_BUNDLE_MOUNT` | gone; `PROCTOR_PARAM_<NAME>` for a parameter |
-| `PROCTOR_TASK`, `PROCTOR_TASK_JSON` | the same names; they hold the stage's id and the stage |
+| `PROCTOR_TASK`, `PROCTOR_TASK_JSON` | `PROCTOR_STAGE`, `PROCTOR_STAGE_JSON`: the stage's id and the stage |
 | `PROCTOR_ATTEMPT` | the same name; the try's number |
 
 From a suite of 0.3 or earlier, also: `suites/` is `exams/`,

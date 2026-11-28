@@ -18,14 +18,14 @@ public static class Pages
     {
         var held = earlier ? e.Earlier : e.Attempts;
         var page = Open(e.Id, earlier ? [("exams", "/"), (e.Id, $"/{e.Id}"), ("earlier attempts", null)] : [("exams", "/"), (e.Id, null)], style: "one");
-        var tries = held.Select(a => (a.Configuration, a.Staged ? "" : a.Task, a.N)).Distinct().Count();
+        var tries = held.Select(a => (a.Configuration, a.Staged ? "" : a.Stage, a.N)).Distinct().Count();
         page.Append($"<header style=\"display:flex;flex-direction:column;gap:10px\"><span class=\"kind\">{(earlier ? "earlier attempts" : "bank")}</span>")
             .Append($"<h1 class=\"title\">{E(e.Id)}</h1>").Append(e.Description is { } d ? $"<p class=\"desc\">{E(d)}</p>" : "")
             .Append("<dl class=\"facts\">").Append(ExamPage.Fact("Filed under", e.Filed(held).Count.ToString())).Append(ExamPage.Fact("Tries", tries.ToString())).Append("</dl></header>");
         if (held.Count == 0) return Close(page.Append("<div class=\"said soft\">Nothing here.</div>"));
 
         ExamPage.Section(page, earlier ? "Earlier attempts" : "In the bank", earlier
-            ? "Made while this exam was tasks and variants. They are still in the bank, and proctor reads none of them: what was under test is named another way now, so they are no configuration's tries and are in no number. Each is listed as the bank holds it."
+            ? "Made by an earlier proctor, whose files this one does not read. They are still in the bank, are no configuration's tries and are in no number. Each is listed as the bank holds it."
             : "Proctor cannot read this exam as it stands, so nothing is counted. Each try is listed as the bank holds it, under the name it is filed by.");
         string Unfinished(Attempt a) => a.Status is var status && status == "completed" ? "" : $" <wa-badge class=\"tag tag-none\" appearance=\"outlined\">{E(status)}</wa-badge>";
         var first = true;
@@ -38,10 +38,10 @@ public static class Pages
             var staged = held.Where(a => a.Configuration == key && a.Staged).ToList();
             foreach (var n in staged.Select(a => a.N).Distinct())
                 page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><a href=\"{U(staged.First(a => a.N == n).ById ? $"/{e.Id}/try/{n}" : $"/{e.Id}/{key}/{n}")}\">try {E(n)}</a>")
-                    .Append(string.Concat(staged.Where(a => a.N == n).Select(a => $"<span class=\"small\"><a class=\"mono\" href=\"{U(a.Path)}\">{E(a.Task)}</a>{Unfinished(a)}</span>"))).Append("</span>");
-            foreach (var task in held.Where(a => a.Configuration == key && !a.Staged).Select(a => a.Task).Distinct())
+                    .Append(string.Concat(staged.Where(a => a.N == n).Select(a => $"<span class=\"small\"><a class=\"mono\" href=\"{U(a.Path)}\">{E(a.Stage)}</a>{Unfinished(a)}</span>"))).Append("</span>");
+            foreach (var task in held.Where(a => a.Configuration == key && !a.Staged).Select(a => a.Stage).Distinct())
                 page.Append($"<span style=\"display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline\"><span class=\"mono\">{E(task)}</span>")
-                    .Append(string.Concat(held.Where(a => a.Configuration == key && a.Task == task).Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">try {E(a.N)}</a>{Unfinished(a)}</span>"))).Append("</span>");
+                    .Append(string.Concat(held.Where(a => a.Configuration == key && a.Stage == task).Select(a => $"<span class=\"small\"><a href=\"{U(a.Path)}\">try {E(a.N)}</a>{Unfinished(a)}</span>"))).Append("</span>");
             page.Append("</span></div>");
         }
         return Close(page.Append("</div></section>"));

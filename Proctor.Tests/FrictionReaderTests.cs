@@ -40,7 +40,7 @@ public class FrictionReaderTests : IDisposable
 
     (JsonObject File, FrictionReader.Reading Reading) Read(ScriptedChat chat, bool again = false)
     {
-        var (file, steps) = Friction.Detect(Run, Surface.None, new JsonObject { ["task"] = "t" });
+        var (file, steps) = Friction.Detect(Run, Surface.None, new JsonObject { ["stage"] = "t" });
         return (file, FrictionReader.Read(attempt, Run, file, steps, "a parser", Client(chat, again), "haiku"));
     }
 

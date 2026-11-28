@@ -3,8 +3,8 @@
 # with its test controls on and a request log, then runs acceptance/<task>.py with pytest against the changed shop.
 # Port 8081 is what the shop's settings default to; if something already holds it, a spare port goes in TERN_API_URL.
 set -uo pipefail
-tests="$PROCTOR_EXAM_DIR/acceptance/$PROCTOR_TASK.py"
-[ -f "$tests" ] || { echo "no acceptance for task $PROCTOR_TASK"; exit 3; }
+tests="$PROCTOR_EXAM_DIR/acceptance/$PROCTOR_STAGE.py"
+[ -f "$tests" ] || { echo "no acceptance for stage $PROCTOR_STAGE"; exit 3; }
 port=8081
 python - <<<"import socket; s=socket.socket(); s.bind(('127.0.0.1', $port))" 2>/dev/null || port=18081
 log=$(mktemp); out=$(mktemp)
