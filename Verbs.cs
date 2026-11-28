@@ -27,7 +27,7 @@ static class Verbs
             Console.WriteLine(exam.Def.Description is { } about ? $"{exam.Id}: {about}" : exam.Id);
             var levels = exam.Tasks.SelectMany(c => exam.ChecksFor(c).Select(k => (k.Key, k.Value.Level))).Distinct().GroupBy(k => k.Level).ToList();
             var fixtures = exam.Tasks.Select(c => c.Fixture).OfType<string>().Distinct().Count();
-            var byLevel = levels.Count < 2 ? "" : " (" + string.Join(", ", levels.Select(g => $"{g.Count()} of {g.Key switch { "exam" => "the exam's", "fixture" => fixtures == 1 ? "the fixture's" : "the fixtures'", _ => "the tasks' own" }}")) + ")";
+            var byLevel = levels.Count < 2 ? "" : " (" + string.Join(", ", levels.Select(g => $"{g.Count()} of {g.Key switch { "exam" => "the exam's", "fixture" => fixtures == 1 ? "the fixture's" : "the fixtures'", _ => "the stages' own" }}")) + ")";
             var size = exam.Axes.Conditions.Count > 0 ? Count(exam.Tasks.Count, "stage") : $"one job of {Count(exam.Tasks.Count, "stage")}";
             Console.WriteLine($"  {size}, {Count(levels.Sum(g => g.Count()), "check")}{byLevel}, {Count(exam.Attempts, "attempt")} wanted{(exam.Judged ? "; judged" : "")}");
             Console.WriteLine($"  stages: {string.Join(", ", exam.Tasks.Select(c => c.Id))}");

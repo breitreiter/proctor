@@ -2,6 +2,31 @@
   "id": "widgets-rename",
   "description": "Can the agent rename a namespace everywhere it is declared and used, the project file included?",
   "attempts": 3,
+  "fixture": "widgets",
+  "axes": {
+    "assistant": {
+      "about": "the agent and the model that do the work",
+      "values": {
+        "floor": {
+          "note": "nb on the local qwen3-coder model, run bare: the floor",
+          "provider": "local-qcoder",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "floor": {
+      "assistant": "floor"
+    }
+  },
+  "stages": [
+    {
+      "id": "rename-namespace",
+      "about": "Rename the Legacy.Widgets namespace to Acme.Widgets across source, project file and tests",
+      "prompt": "Rename the namespace `Legacy.Widgets` to `Acme.Widgets` everywhere: the source files under src/Widgets, the `RootNamespace` in Widgets.csproj, and the `using` directives in tests/Widgets.Tests. No type names change.\n\n`dotnet test tests/Widgets.Tests` must pass afterwards."
+    }
+  ],
   "grading": {
     "checks": {
       "exit_ok": {

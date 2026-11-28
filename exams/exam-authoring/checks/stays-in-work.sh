@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Validity: did the agent stay inside its checkout? Fails on the first tool call that names a path
+# Integrity: did the agent stay inside its checkout? Fails on the first tool call that names a path
 # outside the checkout (system paths aside), by an absolute path or by climbing with `..` from where
-# the command stood. Reaching the repository root would find the exam, the tasks and the fixture's
-# checker, so such an attempt does not count; it is not a capability failure. The variant's bundle
-# is there to be read. The checkout is where the model was told it is: $PROCTOR_WORK_MOUNT, which a
+# the command stood. Reaching the repository root would find the exam, its stages and the fixture's
+# checker, so such a try does not count; it is not a capability failure. The checkout is where the model was told it is: $PROCTOR_WORK_MOUNT, which a
 # runner may put somewhere other than $PROCTOR_WORK on the host.
 #
 # It reads a shell command roughly, not as a shell would: words, quotes, `cd`. Three things are not
@@ -11,7 +10,7 @@
 # character in it (a sed, grep or awk script), and a quoted word that starts and ends with `/`
 # (a pattern such as '/repo/'). `cd` to a variable or a subshell's `cd` is not followed.
 set -uo pipefail
-export WORK=${PROCTOR_WORK_MOUNT:-$PROCTOR_WORK} BUNDLE=${PROCTOR_BUNDLE_MOUNT:-/nonexistent/bundle}
+export WORK=${PROCTOR_WORK_MOUNT:-$PROCTOR_WORK} BUNDLE=/nonexistent/bundle
 exec python3 - "$PROCTOR_TRANSCRIPT" <<'PY'
 import json, os, posixpath, re, sys
 

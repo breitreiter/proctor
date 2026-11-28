@@ -1,7 +1,0 @@
-{
-  "id": "authoring-interrupted",
-  "description": "A proctor repository with one exam, stock-count, set up to run on nb's scripted Mock; attempt setup leaves a batch of it interrupted",
-  "source": { "path": "repo" },
-  "stack": "dotnet",
-  "labels": { "target": "stock-count" }
-}

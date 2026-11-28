@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Attempt teardown: remove the attempt's container. Runs whenever setup ran, even when setup failed, so
+# Try teardown: remove the try's container. Runs whenever setup ran, even when setup failed, so
 # it is idempotent. Anything to pull out of the container (a fake's log, a file nb left outside
 # the checkout) goes into $PROCTOR_ATTEMPT_DIR/hooks/ before the rm.
 set -uo pipefail

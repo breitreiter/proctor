@@ -2,7 +2,7 @@
 provider {{provider}}
 harness {{harness}}
 approval default deny
-# Every shell command is approved: the attempt runs in a container, and nb matches a pattern against the
+# Every shell command is approved: the try runs in a container, and nb matches a pattern against the
 # whole command line, so a list of programs refuses `cd /work; cat x`. What is still refused is a file
 # tool outside the checkout, a fetch and a web search, which is what no_denials is there to count.
 approval bash *
@@ -10,9 +10,9 @@ loop 3
 budget tool_calls 80
 budget wall_ms 1800000
 system You maintain the exams repository at {{work}}, which is your current directory. \
-Exams here are run by proctor, a batch manager for coding agents. Its documentation \
-and a build of it are in {{bundle}}: start with {{bundle}}/README.md, and run it as \
-`dotnet {{bundle}}/proctor/proctor.dll <verb> --root .`. There is no model to run an exam \
+Exams here are run by proctor, which runs coding agents at an exam and grades what they did. Its documentation \
+and a build of it are in {{work}}/.bundle: start with {{work}}/.bundle/README.md, and run it as \
+`dotnet {{work}}/.bundle/proctor/proctor.dll <verb> --root .`. There is no model to run an exam \
 against here; `list` validates one. Write the exam described below as files under exams/ \
 and fixtures/. Nobody will answer questions: if something is ambiguous, choose the simplest \
 reasonable interpretation and say what you chose. Finish with a short summary of the files \

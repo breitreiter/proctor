@@ -2,6 +2,34 @@
   "id": "stock-count",
   "description": "Can the agent read a stock sheet and report exactly how many items are due for reorder, without changing it?",
   "attempts": 3,
+  "fixture": "stock",
+  "axes": {
+    "assistant": {
+      "about": "the agent and the model that do the work",
+      "values": {
+        "floor": {
+          "note": "nb on the local qwen3-coder model, run bare: the floor",
+          "provider": "local-qcoder",
+          "model": "qwen3-coder-next"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "floor": {
+      "assistant": "floor"
+    }
+  },
+  "stages": [
+    {
+      "id": "reorder-count",
+      "about": "Count the SKUs due for reorder in stock.csv",
+      "prompt": "How many SKUs in stock.csv are due for reorder? End your answer with a line of the form `ANSWER: <n>`.",
+      "expect": {
+        "answer_regex": "(?m)^ANSWER: 8\\s*\\z"
+      }
+    }
+  ],
   "grading": {
     "checks": {
       "exit_ok": {
@@ -16,7 +44,7 @@
           "paths": [],
           "mode": "at_most"
         },
-        "description": "no file changed: the task only reads"
+        "description": "no file changed: the stage only reads"
       }
     },
     "correctness": [

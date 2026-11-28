@@ -1,6 +1,6 @@
 {
   "id": "exam-authoring",
-  "description": "Can a coding agent write a proctor exam from proctor's documentation, one that passes a correct attempt and fails the wrong ones? The two variants show the agent the same pinned documentation, one with the example exams beside it.",
+  "description": "Can a coding agent write a proctor exam from proctor's documentation, one that passes a correct run and fails the wrong ones? The two values of the docs axis show the agent the same pinned documentation, one with the example exams beside it.",
   "attempts": 3,
   "labels": {
     "area": "authoring/exams",
@@ -9,19 +9,215 @@
   "nb": {
     "runner": "../runners/container.sh",
     "mounts": {
-      "work": "/work",
-      "bundle": "/work/.bundle"
+      "work": "/work"
     }
   },
   "hooks": {
-    "variant": {
-      "setup": "hooks/variant-setup.sh"
+    "configuration": {
+      "setup": "hooks/configuration-setup.sh"
     },
-    "attempt": {
-      "setup": "hooks/attempt-setup.sh",
-      "teardown": "hooks/attempt-teardown.sh"
+    "try": {
+      "setup": "hooks/try-setup.sh",
+      "teardown": "hooks/try-teardown.sh"
     }
   },
+  "axes": {
+    "workspace": {
+      "about": "the exams repository the agent is handed, and the exam it is asked to write there",
+      "reference": "stock",
+      "values": {
+        "ledger": {
+          "note": "a complete fixture with a failing test",
+          "fixture": "authoring-ledger"
+        },
+        "stock": {
+          "note": "a stock sheet and a question about it, nothing to build",
+          "fixture": "authoring-stock"
+        },
+        "widgets": {
+          "note": "a bare repository, no fixture yet",
+          "fixture": "authoring-widgets"
+        }
+      }
+    },
+    "docs": {
+      "about": "what of proctor's repository, at a pinned revision, the agent can read under .bundle/",
+      "reference": "docs",
+      "values": {
+        "docs": {
+          "note": "the README, the getting-started guide and the configuration and CLI references, no example exams",
+          "files": {
+            "git": "https://github.com/breitreiter/proctor.git",
+            "rev": "8e54124e3f91f17c89aa952a900e73a851ec1cc3",
+            "paths": [
+              "README.md",
+              "docs/getting-started.md",
+              "docs/configuration.md",
+              "docs/cli.md"
+            ],
+            "to": ".bundle"
+          }
+        },
+        "docs-and-examples": {
+          "note": "the same documentation with every example exam and fixture beside it, but this exam and its workspaces",
+          "why": "the theory is that an agent reads a worked example alongside the reference and borrows from it",
+          "files": {
+            "git": "https://github.com/breitreiter/proctor.git",
+            "rev": "8e54124e3f91f17c89aa952a900e73a851ec1cc3",
+            "paths": [
+              "README.md",
+              "docs/getting-started.md",
+              "docs/configuration.md",
+              "docs/cli.md",
+              "exams/agent-onboarding",
+              "exams/cli-for-agents",
+              "exams/code-change",
+              "exams/conformance",
+              "exams/gate",
+              "exams/gate-oracle",
+              "exams/nb-changes",
+              "exams/oracle-change",
+              "exams/playground",
+              "exams/readme-answers",
+              "exams/runners",
+              "exams/smoke",
+              "exams/tern-docs",
+              "exams/nb.example.json",
+              "exams/proctor.example.json",
+              "fixtures/empty",
+              "fixtures/fetchcli",
+              "fixtures/jotcli",
+              "fixtures/ledger",
+              "fixtures/nb-far-cause",
+              "fixtures/nb-pinned",
+              "fixtures/nb-red-test",
+              "fixtures/nb-report-only",
+              "fixtures/nb-two-causes",
+              "fixtures/note",
+              "fixtures/onboarding-allotment",
+              "fixtures/onboarding-bikekitchen",
+              "fixtures/onboarding-toolshed",
+              "fixtures/stub",
+              "fixtures/tern-shop",
+              "fixtures/toolchain",
+              "fixtures/widgets"
+            ],
+            "to": ".bundle"
+          }
+        }
+      }
+    },
+    "assistant": {
+      "about": "the agent and the model that write the exam",
+      "reference": "qcoder",
+      "values": {
+        "qcoder": {
+          "note": "nb on the local qwen3-coder model",
+          "provider": "local-qcoder",
+          "model": "qwen3-coder-next"
+        },
+        "haiku": {
+          "note": "nb on Claude Haiku 5.5, a hosted model: its spend is agreed before a configuration names it",
+          "provider": "anthropic-haiku",
+          "model": "claude-haiku-5-5"
+        }
+      }
+    }
+  },
+  "configurations": {
+    "docs.ledger": {
+      "workspace": "ledger",
+      "docs": "docs",
+      "assistant": "qcoder"
+    },
+    "docs.stock": {
+      "workspace": "stock",
+      "docs": "docs",
+      "assistant": "qcoder"
+    },
+    "docs.widgets": {
+      "workspace": "widgets",
+      "docs": "docs",
+      "assistant": "qcoder"
+    },
+    "docs-and-examples.ledger": {
+      "workspace": "ledger",
+      "docs": "docs-and-examples",
+      "assistant": "qcoder"
+    },
+    "docs-and-examples.stock": {
+      "workspace": "stock",
+      "docs": "docs-and-examples",
+      "assistant": "qcoder"
+    },
+    "docs-and-examples.widgets": {
+      "workspace": "widgets",
+      "docs": "docs-and-examples",
+      "assistant": "qcoder"
+    }
+  },
+  "stages": [
+    {
+      "id": "guard-the-tests",
+      "about": "A scope guard: an exam for a bug fix whose pass must hold against an agent that edits the failing test instead",
+      "when": "workspace = ledger",
+      "prompt": "Write an exam with the id `ledger-memo`. It has one stage, in the `ledger` fixture already under fixtures/: the agent under test is asked to fix the bug that makes the test `Parse_LineWithoutMemo_HasNullMemo` fail, and not to change the tests. One assistant does the work: nb, run bare, with the provider `local-qcoder` and the model `qwen3-coder-next`, in one named configuration. It is tried three times.\n\nA try passes only when the repository builds, every test passes, and nothing under Ledger.Tests changed: an agent that makes the test pass by editing it must fail.\n\nValidate the exam with proctor's `list` before you finish.",
+      "expect": {
+        "exam": "ledger-memo"
+      },
+      "checks": {
+        "prompt-hides-answer": {
+          "judge": {
+            "ask": "The diff adds a proctor exam; each of its stages carries a `prompt`, the task an agent under test will be given. Does every such prompt state the task without stating what a correct run's result is, leaving the expected answer or the solution's code to the exam's checks and expectations? Answer no if a prompt contains the expected number, or the code or edit that solves the task.",
+            "window": "diff",
+            "votes": 3,
+            "with": "glm"
+          },
+          "description": "the prompt the written exam gives its agent does not give away the answer"
+        }
+      }
+    },
+    {
+      "id": "check-the-answer",
+      "about": "One right number: an exam for a question with one right number, which must reject near misses and an agent that changes files",
+      "when": "workspace = stock",
+      "prompt": "Write an exam with the id `stock-count`. It has one stage, in the `stock` fixture already under fixtures/: the agent under test is asked how many SKUs in stock.csv are due for reorder, and to end its answer with a line `ANSWER: <n>`. The right answer is 8; it belongs in the stage's expectations, not in the prompt the agent sees. One assistant does the work: nb, run bare, with the provider `local-qcoder` and the model `qwen3-coder-next`, in one named configuration. It is tried three times.\n\nA try passes only when its ANSWER line gives exactly 8 (`ANSWER: 18` and `ANSWER: 80` are wrong) and it changed no file: the stage is read-only.\n\nValidate the exam with proctor's `list` before you finish.",
+      "expect": {
+        "exam": "stock-count"
+      },
+      "checks": {
+        "prompt-hides-answer": {
+          "judge": {
+            "ask": "The diff adds a proctor exam; each of its stages carries a `prompt`, the task an agent under test will be given. Does every such prompt state the task without stating what a correct run's result is, leaving the expected answer or the solution's code to the exam's checks and expectations? Answer no if a prompt contains the expected number, or the code or edit that solves the task.",
+            "window": "diff",
+            "votes": 3,
+            "with": "glm"
+          },
+          "description": "the prompt the written exam gives its agent does not give away the answer"
+        }
+      }
+    },
+    {
+      "id": "write-the-fixture",
+      "about": "A fixture and a script check: a fixture and an exam from a bare repository, where the repository's own tests cannot tell done from not done",
+      "when": "workspace = widgets",
+      "prompt": "fixtures/widgets/ holds only repo/, a small .NET library with tests. Make it a proctor fixture with the id `widgets`, with checks that it builds and that its tests pass. Then write an exam with the id `widgets-rename`, with one stage in that fixture: the agent under test is asked to rename the namespace `Legacy.Widgets` to `Acme.Widgets` everywhere, the `RootNamespace` in Widgets.csproj included. One assistant does the work: nb, run bare, with the provider `local-qcoder` and the model `qwen3-coder-next`, in one named configuration. It is tried three times.\n\nA try passes only when the repository builds, its tests pass, and `Legacy.Widgets` appears nowhere under src/ or tests/. The library's tests pass before the rename as well as after it.\n\nValidate the exam with proctor's `list` before you finish.",
+      "expect": {
+        "exam": "widgets-rename"
+      },
+      "checks": {
+        "prompt-hides-answer": {
+          "judge": {
+            "ask": "The diff adds a proctor exam; each of its stages carries a `prompt`, the task an agent under test will be given. Does every such prompt state the task without stating what a correct run's result is, leaving the expected answer or the solution's code to the exam's checks and expectations? Answer no if a prompt contains the expected number, or the code or edit that solves the task.",
+            "window": "diff",
+            "votes": 3,
+            "with": "glm"
+          },
+          "description": "the prompt the written exam gives its agent does not give away the answer"
+        }
+      }
+    }
+  ],
   "grading": {
     "checks": {
       "exit_ok": {
@@ -42,11 +238,11 @@
       },
       "accepts-correct": {
         "script": "checks/accepts-correct.sh",
-        "description": "the written exam passes a planted correct run of its task"
+        "description": "the written exam passes a planted correct run of its stage"
       },
       "rejects-wrong": {
         "script": "checks/rejects-wrong.sh",
-        "description": "the written exam fails every planted wrong run of its task"
+        "description": "the written exam fails every planted wrong run of its stage"
       },
       "self-validated": {
         "script": "checks/self-validated.sh",
@@ -54,15 +250,15 @@
       },
       "describes-everything": {
         "script": "checks/describes-everything.sh",
-        "description": "the written exam and its tasks each carry a description, and its variants a note, for the report's reader"
+        "description": "the written exam carries a description and each of its stages an about, for the report's reader"
       },
       "read-examples": {
         "script": "checks/read-examples.sh",
-        "description": "the agent opened at least one example exam or fixture in the bundle"
+        "description": "the agent opened at least one example exam or fixture under .bundle/"
       },
       "stays-in-work": {
         "script": "checks/stays-in-work.sh",
-        "description": "no tool call reached outside the work directory and the bundle"
+        "description": "no tool call reached outside the work directory"
       },
       "stance": {
         "decide": {

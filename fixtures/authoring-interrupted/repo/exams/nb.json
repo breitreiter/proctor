@@ -1,1 +1,0 @@
-{ "Harness": "nb", "ActiveProvider": "Mock", "Trust": false, "ChatProviders": [ { "Name": "Mock", "Response": "ANSWER: 8" }, { "Name": "local-qcoder", "Provider": "Mock", "Response": "ANSWER: 8" } ] }
